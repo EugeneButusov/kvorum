@@ -20,13 +20,13 @@ Without per-source rules, extraction is inconsistent and the dashboard ends up d
 
 Per-source title extraction, applied at proposal-ingestion time and stored in `proposal.title`:
 
-| `source_type` | Extraction rule |
-|---|---|
+| `source_type`       | Extraction rule                                                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `compound_governor` | First non-empty line of `description`, stripped of leading `#` characters and whitespace; truncated to 200 chars with `…` if longer; NULL if `description` is empty. |
-| `aave_governor_v3` | Same as `compound_governor`. |
-| `aragon_voting` | `metadata.title` if present; else first non-empty line of `metadata.description` with the same `#`-stripping; else NULL. |
-| `snapshot` | The Snapshot API's `title` field, taken as-is, truncated to 200 chars with `…` if longer. |
-| `dual_governance` | The originating Aragon proposal's title, looked up via the DG state's link to the affected Aragon proposal. NULL if no Aragon proposal is linked. |
+| `aave_governor_v3`  | Same as `compound_governor`.                                                                                                                                         |
+| `aragon_voting`     | `metadata.title` if present; else first non-empty line of `metadata.description` with the same `#`-stripping; else NULL.                                             |
+| `snapshot`          | The Snapshot API's `title` field, taken as-is, truncated to 200 chars with `…` if longer.                                                                            |
+| `dual_governance`   | The originating Aragon proposal's title, looked up via the DG state's link to the affected Aragon proposal. NULL if no Aragon proposal is linked.                    |
 
 The extractor is a small unit-tested function in `libs/domain/title-extractor.ts`. Each rule has at least three test fixtures: a typical proposal, an edge case (empty description, missing metadata), and a known-historical example.
 

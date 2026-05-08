@@ -14,7 +14,7 @@ The spec evolves through three phases:
 2. **v1.0 frozen (current phase as of 2026-05-04).** All sections of v1 scope have been drafted and signed off. The spec is tagged as `v1.0` in the repository and the contents are treated as immutable for that version. The frozen v1.0 spec is the implementation reference.
 3. **Post-freeze evolution via ADRs.** All subsequent changes — including v1.1 features that were anticipated in v1's forward-compatibility commitments — are delivered as numbered Architecture Decision Records (`docs/adr/0001-*.md`, etc.). Each ADR records context, decision, consequences, and the section(s) of the spec it amends. The spec document gains a "decisions log" section listing all ADRs in chronological order. Reading the v1.0 spec plus the ADRs in order yields the current canonical design.
 
-This pattern is deliberately lightweight. There is no formal review board; ADRs are written by whoever is making the decision and reviewed by whoever is collaborating. The discipline is purely about *recording* decisions so future readers (including future-self) can understand why the system is the way it is.
+This pattern is deliberately lightweight. There is no formal review board; ADRs are written by whoever is making the decision and reviewed by whoever is collaborating. The discipline is purely about _recording_ decisions so future readers (including future-self) can understand why the system is the way it is.
 
 The v1.0 spec is now the contract. From this point forward, any change to what Kvorum is or how it works requires an ADR.
 
@@ -39,9 +39,9 @@ The v1.0 spec is now the contract. From this point forward, any change to what K
 
 ### 1.1 What this is
 
-Kvorum is an analytics platform for DAO governance. It indexes governance activity across major DeFi protocols (initially Compound, Aave, and Lido), unifies it into a single queryable model, and exposes the result through a free public dashboard and a free developer API. Its purpose is to make DAO governance *legible* — to operators, delegates, and researchers — at a depth that current tools do not provide.
+Kvorum is an analytics platform for DAO governance. It indexes governance activity across major DeFi protocols (initially Compound, Aave, and Lido), unifies it into a single queryable model, and exposes the result through a free public dashboard and a free developer API. Its purpose is to make DAO governance _legible_ — to operators, delegates, and researchers — at a depth that current tools do not provide.
 
-The name comes from the Slavic spelling of *quorum* — the moment governance actually becomes binding. The product takes its analytical lens from that moment: who showed up, with how much voting power, and what did they decide.
+The name comes from the Slavic spelling of _quorum_ — the moment governance actually becomes binding. The product takes its analytical lens from that moment: who showed up, with how much voting power, and what did they decide.
 
 ### 1.2 The problem
 
@@ -49,7 +49,7 @@ DAO governance generates a large amount of high-stakes, public, structured data:
 
 - **Fragmented across protocols.** Each Governor implementation has its own conventions; Snapshot adds an off-chain layer; Aragon-based DAOs use a different model again.
 - **Split across on-chain and off-chain sources.** Governor contracts, Snapshot, Discourse forums, delegate platforms — none of them speak to each other.
-- **Presented in tools that prioritize browsing over analysis.** Aggregators show what is happening; they do not answer *why* or *what does it mean*.
+- **Presented in tools that prioritize browsing over analysis.** Aggregators show what is happening; they do not answer _why_ or _what does it mean_.
 
 The result is that the teams responsible for stewarding these DAOs — foundation members, governance leads, protocol operators — have no good way to answer questions about their own governance:
 
@@ -107,7 +107,7 @@ To prevent scope creep, the following are explicitly **out of scope** for v1:
 - **DAOs other than Compound, Aave, and Lido.** Three is enough to validate the unified model. Additional DAOs are a post-v1 concern.
 - **Voting on behalf of users.** No transaction signing, no delegate-by-proxy, no automated voting. This is read-only analytics.
 - **Treasury accounting and tax reporting.** Adjacent and tempting; out of scope.
-- **Governance forum hosting or discussion features.** We *consume* forum data; we don't host it.
+- **Governance forum hosting or discussion features.** We _consume_ forum data; we don't host it.
 - **Mobile apps.** Web responsive is sufficient.
 - **Real-time alerts and webhooks.** A natural extension and a likely first paid feature, but not v1.
 - **Emergency governance actions.** Aave's Guardian / Emergency Executor and equivalent mechanisms in other DAOs (admin pauses, multisig overrides, timelock bypass paths) are not modeled in v1. Operators benefit from this visibility and it is committed for v1.1, where it is modeled as a separate `governance_intervention` entity rather than retrofitted into `proposal`. (See KNOWN-003.)
@@ -129,7 +129,7 @@ The project does **not** need to achieve a target user count, revenue, or extern
 
 ---
 
-*Section 1 ends here.*
+_Section 1 ends here._
 
 ---
 
@@ -376,6 +376,7 @@ Each has a common header (`id`, `dao_source_id`, `block_number` or `event_timest
 The model is implemented across three storage systems, each chosen for fit.
 
 **Postgres (source of truth, all transactional state):**
+
 - All core entities (`dao`, `dao_source`, `actor`, `proposal`, `proposal_action`, `proposal_choice`, `vote`, `vote_choice`, `delegation`, `voting_power_snapshot`, `forum_thread`, `proposal_forum_link`)
 - All extension tables
 - All raw event archive tables
@@ -384,6 +385,7 @@ The model is implemented across three storage systems, each chosen for fit.
 The data volumes for the v1 DAOs comfortably fit in Postgres. Estimates: low thousands of proposals, low hundreds of thousands of votes, low hundreds of thousands of delegation events. Postgres handles this without strain.
 
 **ClickHouse (analytical mirror, time-series queries):**
+
 - `voting_power_history_flat(actor_id, dao_id, block_number, power, timestamp)` — flattened, denormalized, optimized for delegate trajectory queries
 - `vote_events_flat` — denormalized join of vote, voter, proposal, dao, used for fast aggregations across millions of rows
 - `delegation_flow_flat` — directed graph edges with timestamps, for delegation flow visualizations and concentration metrics over time
@@ -391,6 +393,7 @@ The data volumes for the v1 DAOs comfortably fit in Postgres. Estimates: low tho
 For v1 with three DAOs, ClickHouse is technically optional — the analytical queries run acceptably on Postgres. ClickHouse is set up nonetheless, with mirror writes from Postgres, so that scaling to additional DAOs post-v1 does not require rewriting analytical queries.
 
 **Redis:**
+
 - Job queues (BullMQ for AI synthesis tasks, ABI decoding, and other background work)
 - Rate limiting state for the API
 - (v1.1+) WebSocket and SSE subscription routing across API instances
@@ -427,7 +430,7 @@ Open questions that this section deliberately leaves to the decisions log:
 
 ---
 
-*Section 2 ends here.*
+_Section 2 ends here._
 
 ---
 
@@ -482,7 +485,7 @@ The ingestion pipeline is logically a pipeline of stages, each with a defined co
                                └──────────────────────┘
 ```
 
-This separation is deliberate. The event archive is the system of record. All canonical state in the core entities is *derived* from the archive — specifically, from events whose `confirmation_status` is `confirmed`. Bugs in derivation logic are recoverable by replaying the archive, and the archive itself is logically append-only (rows are written once; only the `confirmation_status` field transitions through a defined lifecycle).
+This separation is deliberate. The event archive is the system of record. All canonical state in the core entities is _derived_ from the archive — specifically, from events whose `confirmation_status` is `confirmed`. Bugs in derivation logic are recoverable by replaying the archive, and the archive itself is logically append-only (rows are written once; only the `confirmation_status` field transitions through a defined lifecycle).
 
 Reorgs are first-class events. When the reorg detector observes that a previously-recorded block is no longer part of the canonical chain, it writes a `reorg_event` record and transitions affected event rows from `pending` to `orphaned`. The canonical post-reorg events arrive as new archive rows. The full reorg history is preserved.
 
@@ -493,7 +496,7 @@ Every external event passes through a defined lifecycle, recorded explicitly on 
 1. **Observed.** The source adapter has received a raw event. It is normalized and written to the event archive immediately, with `confirmation_status = 'pending'` and the observed `block_number` and `block_hash` populated. The event is not yet visible through the public API or dashboard (see Section 3.4 for the v1 visibility decision); it is recorded for confirmation processing and audit.
 2. **Confirmed.** The event has aged past the source's reorg horizon and the canonical chain still contains the same `block_hash` at this `block_number`. The row's `confirmation_status` transitions to `confirmed`. The derivation layer is notified and projects the event into core entities.
 3. **Orphaned.** A reorg has removed this event's block from the canonical chain. The row's `confirmation_status` transitions to `orphaned`. A `reorg_event` row is written linking this event to the reorg that invalidated it. No derived state changes are required because no derived state was created (events only project to core entities at confirmation).
-4. **Re-observed (post-reorg, if applicable).** If the canonical post-reorg chain contains a semantically equivalent event, it arrives via live ingestion or polling and lands as a *new* archive row (different `block_hash`) with its own lifecycle starting at `pending`. The old `orphaned` row remains in the archive forever as part of the audit trail.
+4. **Re-observed (post-reorg, if applicable).** If the canonical post-reorg chain contains a semantically equivalent event, it arrives via live ingestion or polling and lands as a _new_ archive row (different `block_hash`) with its own lifecycle starting at `pending`. The old `orphaned` row remains in the archive forever as part of the audit trail.
 
 The status field has three terminal values for any given row: `confirmed`, `orphaned`, or `pending` (the in-flight state). The data fields of a row — its payload, block number, block hash, transaction hash — are immutable from the moment of insertion. Only `confirmation_status` and `confirmed_at` / `orphaned_at` timestamps are written after the initial insert.
 
@@ -528,6 +531,7 @@ This dual-path design is deliberately redundant. WebSockets are convenient but u
 Reorg handling is the load-bearing correctness feature of EVM ingestion. Kvorum's approach is **append-only with explicit invalidation events**: the archive is never rewritten on reorg, and reorgs are themselves first-class records.
 
 **The model.** When a reorg is detected, two things happen:
+
 1. A `reorg_event` row is written, recording the reorg as an observable historical event.
 2. The affected event archive rows have their `confirmation_status` transitioned from `pending` to `orphaned`. The data fields of those rows (payload, block hash, transaction hash) are not changed. The orphaned rows remain in the archive permanently, linked to the reorg event that invalidated them.
 
@@ -573,6 +577,7 @@ This is an idempotent, set-based operation. The derivation layer subscribes to c
 **Reorg analytics as a side benefit.** The `reorg_event` table is queryable: "what reorgs have occurred on Ethereum mainnet in the last 30 days, and what governance events did they affect?" This is the kind of operational visibility most chain analytics products silently lack. It is also content — a reorg log on the dashboard demonstrates Kvorum's correctness story and is engaging in its own right.
 
 **Reorg detection test.** As part of milestone acceptance, the ingester is exercised against an Anvil-forked mainnet with a synthetic reorg injected at a known block. The test verifies that:
+
 1. Pending events from the orphaned branch are transitioned to `orphaned` status.
 2. A `reorg_event` row is written linking them to the reorg.
 3. Canonical post-reorg events are inserted as new archive rows.
@@ -659,7 +664,7 @@ When a `proposal_action` row is inserted with raw `calldata`, an ABI-decode job 
 
 3. **Proxy resolution.** Many DAO-controlled contracts are upgradeable proxies. When the target address has not yielded an ABI from the library, the decoder reads the EIP-1967 implementation slot via `eth_getStorageAt(target, 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)`. If a non-zero address is returned, the decoder recurses with the implementation address as the target. EIP-1822 (Universal Upgradeable Proxy Standard) and OpenZeppelin Transparent Proxy are similarly supported via their respective storage slots.
 
-4. **Verified-ABI enrichment (optional).** For target contracts not resolved by the bundled library or proxy resolution, the decoder may consult block explorer APIs (Etherscan, Polygonscan, Arbiscan, etc.). This is an *optional* enrichment path: it is run as a slow-path background job, not on the critical path, and the system functions correctly without it. Free-tier API keys are used where available; failures degrade silently. Successfully retrieved ABIs are added to the `abi_cache` table for future use.
+4. **Verified-ABI enrichment (optional).** For target contracts not resolved by the bundled library or proxy resolution, the decoder may consult block explorer APIs (Etherscan, Polygonscan, Arbiscan, etc.). This is an _optional_ enrichment path: it is run as a slow-path background job, not on the critical path, and the system functions correctly without it. Free-tier API keys are used where available; failures degrade silently. Successfully retrieved ABIs are added to the `abi_cache` table for future use.
 
 5. **Heuristic decoders for known patterns.** For common function signatures that are universal — `transfer(address,uint256)`, `approve(address,uint256)`, `grantRole(bytes32,address)`, `setImplementation(address)`, etc. — the decoder uses built-in handlers that produce structured output without requiring a full ABI. This handles cases where the contract is unverified but performs standard operations.
 
@@ -695,7 +700,7 @@ Two implementation paths:
 3. Write `voting_power_snapshot` rows in a single transaction.
 4. Sample 20 random addresses; verify against the on-chain read path. On mismatch, log an error, fall back to on-chain reads for the entire proposal, and emit a critical alert. (Mismatches indicate a bug in derivation; they are bugs to fix, not noise to tolerate.)
 
-For Aave, voting power involves the strategy (AAVE + stkAAVE + aAAVE), and the snapshot block is on the *voting chain*, not mainnet. The same job structure applies; the strategy-specific aggregation is handled by an Aave-specific computation module.
+For Aave, voting power involves the strategy (AAVE + stkAAVE + aAAVE), and the snapshot block is on the _voting chain_, not mainnet. The same job structure applies; the strategy-specific aggregation is handled by an Aave-specific computation module.
 
 **Snapshot voting power — v1 decision.** (See KNOWN-002.) For Snapshot proposals, voting power is determined by the proposal's `strategies` array (which can be arbitrary — token balance, ERC721 ownership, custom contracts, with-delegation aggregations, multichain sums). Snapshot v1 ships **trusting Snapshot's reported voting power**: the `vote.voting_power_reported` field is taken directly from Snapshot's API, which performs the strategy evaluation itself, and `voting_power_computed` and `voting_power_verified` remain unset. This is a real trust boundary — Kvorum has no independent verification that Snapshot's reported power is correct.
 
@@ -719,7 +724,7 @@ For v1, trust here is bounded but acknowledged: Snapshot is the authoritative so
 
 Backfill is the process of reconstructing historical state from before Kvorum's first deployment. It runs once per `dao_source`, then never again unless a manual rebuild is triggered.
 
-**The unification claim.** Backfill and live ingestion run the *same code path* — an `EVMEventIngester` configured with `(from_block, to_block)` rather than `(latest, latest)`. The backfill simply iterates the block range in chunks, calling the same normalization and archival logic. This is enforced architecturally, not by convention: there is no separate "backfill mode" in the ingester.
+**The unification claim.** Backfill and live ingestion run the _same code path_ — an `EVMEventIngester` configured with `(from_block, to_block)` rather than `(latest, latest)`. The backfill simply iterates the block range in chunks, calling the same normalization and archival logic. This is enforced architecturally, not by convention: there is no separate "backfill mode" in the ingester.
 
 **Chunking.** EVM `eth_getLogs` calls are chunked by block range. Default chunk size is 10,000 blocks, with adaptive shrinking if the RPC rejects the request (typically due to result size limits). Chunks are processed sequentially per source to bound concurrent RPC load.
 
@@ -734,6 +739,7 @@ Backfill is the process of reconstructing historical state from before Kvorum's 
 **Forum backfill.** The Discourse API supports historical traversal of any topic by `topic_id`. Backfill enumerates topics in the configured categories and fetches each in full.
 
 **Initial backfill duration.** Estimates for v1's three DAOs:
+
 - Compound: ~400 proposals, ~10,000 votes, ~50,000 delegation events. Backfill in ~30 minutes.
 - Aave: similar order of magnitude across Governance v2 and v3. ~1 hour.
 - Lido: smaller proposal count (Aragon votes), but many delegation events. ~30 minutes.
@@ -774,7 +780,7 @@ The non-glamorous things that determine whether the system actually runs.
 - All RPC providers used in v1 have free tiers sufficient for the v1 load. Quotas are tracked in metrics; alerts fire at 80% utilization to allow proactive provider changes before quota exhaustion.
 - Snapshot's public API is free with rate limits. Polling cadence is conservative.
 - Discourse APIs are public and unmetered.
-- Etherscan-family APIs are an *optional* enrichment path for ABI decoding (Section 3.8). Free tiers with registered API keys are used where available, but the system functions without them. The bundled ABI library and on-chain proxy resolution handle the hot path locally.
+- Etherscan-family APIs are an _optional_ enrichment path for ABI decoding (Section 3.8). Free tiers with registered API keys are used where available, but the system functions without them. The bundled ABI library and on-chain proxy resolution handle the hot path locally.
 - LLM costs (Section 5) are the only meaningful variable cost. They are bounded separately by the AI worker budget cap.
 
 The ingestion layer's monthly cost in steady-state, after backfill, is dominated by the cost of the VPS or service hosting it — typically under €15/month all-in for v1 scale.
@@ -805,7 +811,7 @@ Open questions not yet resolved:
 
 ---
 
-*Section 3 ends here.*
+_Section 3 ends here._
 
 ---
 
@@ -869,10 +875,10 @@ This identifier is stable, descriptive, and unambiguous: a reader of the URL kno
 
 **Tiers.** v1 ships with two tiers; the architecture supports more without breaking changes.
 
-| Tier | Requests/minute | Requests/day |
-|---|---|---|
-| Anonymous | (not allowed) | (not allowed) |
-| Authenticated (free) | 60 | 10,000 |
+| Tier                 | Requests/minute | Requests/day  |
+| -------------------- | --------------- | ------------- |
+| Anonymous            | (not allowed)   | (not allowed) |
+| Authenticated (free) | 60              | 10,000        |
 
 The free tier is generous enough for development, exploratory use, and personal dashboards (including dashboard polling at 10-second intervals on multiple active views). It is not generous enough for a high-volume integration; that is intentional and creates the natural upgrade path to a future paid tier.
 
@@ -1079,17 +1085,17 @@ Errors follow RFC 7807 (Problem Details for HTTP APIs).
 
 **Status code conventions.**
 
-| Status | Meaning | Example |
-|---|---|---|
-| 400 | Bad request — invalid query parameters, malformed cursor, validation failure | Unknown filter parameter |
-| 401 | Unauthorized — missing or invalid API key | No `Authorization` header |
-| 403 | Forbidden — key valid but not authorized for the operation | (Reserved for future tier restrictions) |
-| 404 | Not found — resource does not exist | Unknown proposal ID |
-| 409 | Conflict — request conflicts with current state | (Reserved for future write endpoints) |
-| 422 | Unprocessable entity — semantically invalid request | Cursor with conflicting query parameters |
-| 429 | Too many requests — rate limit exceeded | Includes `Retry-After` |
-| 500 | Internal server error — unexpected failure | Generic; details suppressed |
-| 503 | Service unavailable — degraded mode (e.g., ingestion lagging severely) | Includes `Retry-After` |
+| Status | Meaning                                                                      | Example                                  |
+| ------ | ---------------------------------------------------------------------------- | ---------------------------------------- |
+| 400    | Bad request — invalid query parameters, malformed cursor, validation failure | Unknown filter parameter                 |
+| 401    | Unauthorized — missing or invalid API key                                    | No `Authorization` header                |
+| 403    | Forbidden — key valid but not authorized for the operation                   | (Reserved for future tier restrictions)  |
+| 404    | Not found — resource does not exist                                          | Unknown proposal ID                      |
+| 409    | Conflict — request conflicts with current state                              | (Reserved for future write endpoints)    |
+| 422    | Unprocessable entity — semantically invalid request                          | Cursor with conflicting query parameters |
+| 429    | Too many requests — rate limit exceeded                                      | Includes `Retry-After`                   |
+| 500    | Internal server error — unexpected failure                                   | Generic; details suppressed              |
+| 503    | Service unavailable — degraded mode (e.g., ingestion lagging severely)       | Includes `Retry-After`                   |
 
 **Error type URIs.** The `type` field is a stable URI under `https://kvorum.example/errors/`. Each error type has documentation at that URI explaining the error and likely remediation. Type URIs are versioned; once published, they are not changed.
 
@@ -1101,8 +1107,8 @@ Errors follow RFC 7807 (Problem Details for HTTP APIs).
   "title": "Validation failed",
   "status": 400,
   "violations": [
-    {"field": "limit", "message": "must be between 1 and 200"},
-    {"field": "sort", "message": "unknown sort field 'foo'"}
+    { "field": "limit", "message": "must be between 1 and 200" },
+    { "field": "sort", "message": "unknown sort field 'foo'" }
   ]
 }
 ```
@@ -1157,7 +1163,7 @@ Open questions:
 
 ---
 
-*Section 4 ends here.*
+_Section 4 ends here._
 
 ---
 
@@ -1183,6 +1189,7 @@ A natural-language query interface and additional features are deferred to v1.1+
 Every AI output Kvorum produces is treated as supplementary to the underlying source content, not a replacement for it. Three commitments:
 
 **Provenance.** Every AI output includes structured metadata identifying:
+
 - the model that produced it (e.g., `claude-haiku-4-5-20251001`)
 - the prompt template version (`v1.2`)
 - the input content hash (`sha256:abc...`)
@@ -1269,13 +1276,13 @@ Lookup is by `(feature_name, prompt_version, input_hash)`. Outputs are immutable
 
 The default v1 caps:
 
-| Feature | Monthly cap (USD) | Rationale |
-|---|---|---|
-| Proposal summarizer | $5 | Low volume, batch-priced Haiku, content-hash cached |
-| Mismatch detector | $20 | Sonnet for quality, sync for active proposals, more expensive |
-| Forum synthesizer | $15 | Discourse threads can be long (10k+ tokens); refresh cadence active |
-| Embeddings | $1 | text-embedding-3-small is cheap; one-time per content hash |
-| **Total** | **$41/month** | At full cap; typical spend will be ~30% of cap |
+| Feature             | Monthly cap (USD) | Rationale                                                           |
+| ------------------- | ----------------- | ------------------------------------------------------------------- |
+| Proposal summarizer | $5                | Low volume, batch-priced Haiku, content-hash cached                 |
+| Mismatch detector   | $20               | Sonnet for quality, sync for active proposals, more expensive       |
+| Forum synthesizer   | $15               | Discourse threads can be long (10k+ tokens); refresh cadence active |
+| Embeddings          | $1                | text-embedding-3-small is cheap; one-time per content hash          |
+| **Total**           | **$41/month**     | At full cap; typical spend will be ~30% of cap                      |
 
 Caps are configured in environment variables and can be raised by the operator when needed. They are intentionally tight — the operator should know if the system is hitting them.
 
@@ -1335,16 +1342,25 @@ Regeneration (forcing a new run) is not exposed in v1's public API. It is availa
 const ProposalSummarySchema = z.object({
   tldr: z.string().max(400),
   proposal_type: z.enum([
-    'parameter_change', 'treasury_allocation', 'contract_upgrade',
-    'protocol_addition', 'protocol_deprecation', 'governance_change',
-    'signaling', 'other'
+    'parameter_change',
+    'treasury_allocation',
+    'contract_upgrade',
+    'protocol_addition',
+    'protocol_deprecation',
+    'governance_change',
+    'signaling',
+    'other',
   ]),
   proposal_type_confidence: z.enum(['high', 'medium', 'low']),
   affected_contracts: z.array(z.string()),
-  key_changes: z.array(z.object({
-    description: z.string(),
-    significance: z.enum(['high', 'medium', 'low']),
-  })).max(5),
+  key_changes: z
+    .array(
+      z.object({
+        description: z.string(),
+        significance: z.enum(['high', 'medium', 'low']),
+      }),
+    )
+    .max(5),
   beneficiaries: z.array(z.string()).optional(),
   funding_amount_usd: z.string().nullable(),
   notable_concerns: z.array(z.string()).optional(),
@@ -1373,36 +1389,55 @@ This is the flagship feature. It is the strongest argument for the AI investment
 
 ```typescript
 const MismatchAnalysisSchema = z.object({
-  overall_assessment: z.enum(['consistent', 'minor_discrepancy', 'material_discrepancy', 'severe_discrepancy']),
+  overall_assessment: z.enum([
+    'consistent',
+    'minor_discrepancy',
+    'material_discrepancy',
+    'severe_discrepancy',
+  ]),
   confidence: z.enum(['high', 'medium', 'low']),
-  description_actions: z.array(z.object({
-    claim: z.string(),
-    location: z.string(),  // brief reference to where in the description
-  })),
-  calldata_actions: z.array(z.object({
-    action_index: z.number(),
-    summary: z.string(),
-    significance: z.enum(['high', 'medium', 'low']),
-  })),
-  discrepancies: z.array(z.object({
-    type: z.enum(['value_mismatch', 'omitted_in_description', 'extra_in_description', 'misleading_phrasing', 'target_mismatch']),
-    description: z.string(),
-    severity: z.enum(['low', 'medium', 'high']),
-    description_excerpt: z.string().nullable(),
-    related_action_indices: z.array(z.number()),
-  })),
+  description_actions: z.array(
+    z.object({
+      claim: z.string(),
+      location: z.string(), // brief reference to where in the description
+    }),
+  ),
+  calldata_actions: z.array(
+    z.object({
+      action_index: z.number(),
+      summary: z.string(),
+      significance: z.enum(['high', 'medium', 'low']),
+    }),
+  ),
+  discrepancies: z.array(
+    z.object({
+      type: z.enum([
+        'value_mismatch',
+        'omitted_in_description',
+        'extra_in_description',
+        'misleading_phrasing',
+        'target_mismatch',
+      ]),
+      description: z.string(),
+      severity: z.enum(['low', 'medium', 'high']),
+      description_excerpt: z.string().nullable(),
+      related_action_indices: z.array(z.number()),
+    }),
+  ),
   reasoning: z.string().max(2000),
 });
 ```
 
-The output is intentionally rich. Operators (the primary user segment) need to *understand* the analysis, not just see a flag. The `reasoning` field is the model's explanation — it is shown to users in the dashboard, with the model name and prompt version visible.
+The output is intentionally rich. Operators (the primary user segment) need to _understand_ the analysis, not just see a flag. The `reasoning` field is the model's explanation — it is shown to users in the dashboard, with the model name and prompt version visible.
 
 **Distinguishing real mismatches from cosmetic differences.** The prompt is engineered to ignore:
+
 - Routine emissions (e.g., a fee transfer that the description doesn't mention because it's standard for this contract type)
 - Reformatting (the description says "5%", the calldata uses 5e16; these match)
 - Legitimate omissions (the description focuses on the strategic change; the calldata includes routine state-machine updates)
 
 And to flag:
+
 - Numeric discrepancies (description says "5%", calldata sets 50%)
 - Target discrepancies (description says "the cUSDC market", calldata targets cWBTC)
 - Material omissions (description doesn't mention a transfer to a new address)
@@ -1439,22 +1474,38 @@ This requires real prompt engineering work. The prompt is iterated against a cor
 
 ```typescript
 const ForumSynthesisSchema = z.object({
-  arguments_for: z.array(z.object({
-    summary: z.string(),
-    supporting_participants: z.array(z.string()).max(5),
-  })).max(7),
-  arguments_against: z.array(z.object({
-    summary: z.string(),
-    supporting_participants: z.array(z.string()).max(5),
-  })).max(7),
-  unresolved_concerns: z.array(z.object({
-    summary: z.string(),
-    raised_by: z.array(z.string()).max(3),
-  })).max(5),
-  notable_participants: z.array(z.object({
-    handle: z.string(),
-    role_summary: z.string(),
-  })).max(10),
+  arguments_for: z
+    .array(
+      z.object({
+        summary: z.string(),
+        supporting_participants: z.array(z.string()).max(5),
+      }),
+    )
+    .max(7),
+  arguments_against: z
+    .array(
+      z.object({
+        summary: z.string(),
+        supporting_participants: z.array(z.string()).max(5),
+      }),
+    )
+    .max(7),
+  unresolved_concerns: z
+    .array(
+      z.object({
+        summary: z.string(),
+        raised_by: z.array(z.string()).max(3),
+      }),
+    )
+    .max(5),
+  notable_participants: z
+    .array(
+      z.object({
+        handle: z.string(),
+        role_summary: z.string(),
+      }),
+    )
+    .max(10),
   sentiment: z.enum(['favorable', 'mixed', 'unfavorable', 'contentious']),
   thread_health: z.enum(['constructive', 'mixed', 'unproductive']),
 });
@@ -1494,6 +1545,7 @@ proposal_embedding(
 Indexed via `pgvector` with `ivfflat` for cosine similarity queries.
 
 **Similarity search.** When a user requests "similar to proposal X," Kvorum:
+
 1. Looks up X's embedding.
 2. Runs a cosine similarity query against the rest of the corpus, optionally filtered by DAO, time range, or proposal type.
 3. Returns the top N results ranked by similarity score, alongside basic proposal metadata.
@@ -1525,13 +1577,13 @@ Known concerns originating in this section, recorded in the registry:
 
 Open questions:
 
-- Whether the mismatch detector should run on Snapshot proposals despite the absence of on-chain calldata. There is still value in checking whether the description matches what the proposal *purports* to do (a self-consistency check). Probably worthwhile but adds prompt engineering work; deferred to v1.1+ unless an early signal supports prioritization.
+- Whether the mismatch detector should run on Snapshot proposals despite the absence of on-chain calldata. There is still value in checking whether the description matches what the proposal _purports_ to do (a self-consistency check). Probably worthwhile but adds prompt engineering work; deferred to v1.1+ unless an early signal supports prioritization.
 - Whether to expose AI provenance metadata (model, prompt version) in the dashboard UI directly or only on demand. Disclosing it openly is more honest; hiding it is cleaner UX. Leaning toward disclosure with a small, unobtrusive treatment.
 - Whether the embedding composition (what text gets embedded) should evolve over the lifetime of the project. If yes, embedding versioning needs more careful handling (re-embedding the historical corpus on every composition change is real cost). Leaning toward a stable composition for v1, change-controlled via ADR if revised.
 
 ---
 
-*Section 5 ends here.*
+_Section 5 ends here._
 
 ---
 
@@ -1539,7 +1591,7 @@ Open questions:
 
 This section specifies Kvorum's user-facing dashboard: the pages, the components, the cross-cutting design principles, and the behavior commitments. The dashboard is one of two product surfaces (the other being the API); it is the surface that most users will encounter first and the one that carries Kvorum's identity.
 
-This section is the *specification* for the dashboard, not the design itself. The visual design is captured in a parallel Figma file referenced in the spec lifecycle. The spec defines what each page is for, what data it shows, what interactions it supports, and what behaviors it commits to. Pixel-level layout, color values, typography choices, and animation specifics belong to the Figma file and may evolve without spec changes.
+This section is the _specification_ for the dashboard, not the design itself. The visual design is captured in a parallel Figma file referenced in the spec lifecycle. The spec defines what each page is for, what data it shows, what interactions it supports, and what behaviors it commits to. Pixel-level layout, color values, typography choices, and animation specifics belong to the Figma file and may evolve without spec changes.
 
 ### 6.1 Design principles
 
@@ -1595,6 +1647,7 @@ The primary navigation, present on every page, exposes: Home, Proposals, DAOs (d
 Components used across multiple pages, specified at the conceptual level. Pixel-level rendering lives in the Figma file.
 
 **Mismatch indicator.** A visual treatment applied to any proposal where the calldata-vs-prose mismatch detector has flagged a `material_discrepancy` or `severe_discrepancy`. The indicator includes:
+
 - A clear visual marker (color and icon)
 - A short label: "Discrepancy detected"
 - A tooltip on hover summarizing the type of discrepancy
@@ -1605,6 +1658,7 @@ Components used across multiple pages, specified at the conceptual level. Pixel-
 **Confirmation indicator.** A subtle visual treatment that distinguishes confirmed from pending data. In v1, all data shown on the dashboard is confirmed (KNOWN-001), so the indicator is not visible by default. The treatment is reserved for v1.1 when pending visibility ships.
 
 **AI output panel.** A standardized container for AI-generated content. Every AI panel includes:
+
 - A clear label indicating AI generation ("Summary by Kvorum" with a small AI icon)
 - The output content
 - A "View source" affordance linking to the original content
@@ -1613,11 +1667,13 @@ Components used across multiple pages, specified at the conceptual level. Pixel-
 This component is reused across the proposal detail page (summary, mismatch analysis), the forum thread page (synthesis), and elsewhere. Its consistent treatment is what implements the trust posture (Section 5.2) at the UI layer.
 
 **Voting power figure.** Whenever a numeric voting power is displayed (in tallies, scorecards, delegation views), the display includes:
+
 - The number, formatted with appropriate units (M, B for millions/billions)
 - The reference block (e.g., "as of block 19854210")
 - For hover/click: the underlying actor's full voting power composition (delegated-in, self-delegated, total)
 
 **Delegate identity.** Wherever a delegate or voter is referenced, the display shows:
+
 - The display name (ENS preferred, delegate-platform name fallback, address shortened as last resort)
 - The address (always available, copyable)
 - A link to the delegate scorecard within the current DAO context
@@ -1646,6 +1702,7 @@ This component is reused across the proposal detail page (summary, mismatch anal
 5. **Recent activity feed.** Chronological list of the last 30 governance events across all DAOs: proposals created, votes passing thresholds, executions, notable delegations. A "news ticker" of governance.
 
 **Interactions:**
+
 - Clicking any proposal card → proposal detail page
 - Clicking any DAO badge or DAO card → DAO landing page
 - Clicking a mismatch flag → proposal detail page, scrolled to the mismatch analysis section
@@ -1664,6 +1721,7 @@ This component is reused across the proposal detail page (summary, mismatch anal
 **Layout:** A list view with persistent filter sidebar.
 
 **Filters:**
+
 - DAO (multi-select)
 - State (multi-select; defaults to "active" + "succeeded" + "executed")
 - Source type (multi-select)
@@ -1731,6 +1789,7 @@ This component is reused across the proposal detail page (summary, mismatch anal
 **Purpose.** The DAO-scoped equivalent of the cross-DAO proposals list (6.5). Same component, narrower scope, additional DAO-specific filters where relevant.
 
 **Differences from cross-DAO list:**
+
 - DAO filter is fixed (the URL specifies the DAO)
 - For DAOs with multiple sources, an additional source filter ("show me only Snapshot proposals," "show me only Aragon votes")
 - Default sort emphasizes the DAO's recent activity
@@ -1907,6 +1966,7 @@ In all cases, the page returns HTTP 404 (not a soft-redirect to the homepage). T
 Path: any URL when the server encounters an unhandled exception.
 
 A user-friendly error page that:
+
 - Says clearly that something went wrong on Kvorum's side
 - Includes a unique error reference (UUID) the user can include if reporting the problem
 - Does not expose stack traces, internal paths, or any debugging information
@@ -1918,7 +1978,7 @@ The error reference is logged server-side with full context for debugging.
 
 Path: any URL when Kvorum is operating in a degraded state. Triggered when ingestion is severely lagging, or when the database is read-only for maintenance.
 
-Distinct from 500 because users *should* see this — silently serving stale data without telling them is a violation of the trust posture (Section 6.1). The 503 page:
+Distinct from 500 because users _should_ see this — silently serving stale data without telling them is a violation of the trust posture (Section 6.1). The 503 page:
 
 - Explains specifically what is degraded ("Vote ingestion is currently lagging by N minutes" or "Kvorum is in read-only mode for scheduled maintenance")
 - Returns HTTP 503 with a `Retry-After` header
@@ -1942,6 +2002,7 @@ The dashboard's real-time behavior is constrained by v1's polling-based approach
 **Pages without polling:** Everything else. Pages refresh on user navigation.
 
 **Polling implementation principles:**
+
 - All polled requests use `If-None-Match` with the prior response's ETag, returning `304 Not Modified` when nothing has changed. Polling cost is minimal in steady state.
 - Polled responses update in place without animations or transitions (animations imply real-time push and would feel uncanny on a 10-second cadence).
 - The "last updated N seconds ago" indicator is visible on polled sections, communicating freshness honestly.
@@ -1970,6 +2031,7 @@ This subsection elaborates on the trust posture commitments in Section 5.2 as th
 **Provenance disclosure.** Every AI panel has a small provenance affordance (icon plus "Generated by Kvorum" label) that, on click, reveals the model name, prompt template version, generation time, and a link to the input content. This is intentionally low-friction for the curious and out of the way for the casual reader.
 
 **Confidence treatment.** When AI outputs include confidence levels (the mismatch detector explicitly does), the dashboard surfaces them honestly:
+
 - High-confidence outputs are presented at full visual weight
 - Medium-confidence outputs include a small "medium confidence" tag
 - Low-confidence outputs are not surfaced on summary views (homepage, list views) at all; they are visible on the detail page with a clear "low confidence" indicator and a recommendation to review the source content directly
@@ -1981,6 +2043,7 @@ This subsection elaborates on the trust posture commitments in Section 5.2 as th
 ### 6.19 Accessibility and responsiveness
 
 **Accessibility commitments for v1:**
+
 - Semantic HTML throughout. Lists are `<ul>`, navigation is `<nav>`, buttons are `<button>`.
 - All interactive elements are keyboard-accessible. Focus states are visible.
 - Color is never the sole carrier of information. Mismatch indicators include both color and an icon. Vote tally bars include numeric labels.
@@ -2070,7 +2133,7 @@ Operational visibility is provided by standard tooling consuming the metrics and
 - **Loki** (or equivalent) ingests Kvorum's structured logs, queryable from Grafana alongside metrics.
 - **Alertmanager** (Prometheus's companion) handles alerting rules and routing.
 
-The specific stack is a deployment choice — the spec commits to *the shape* (a Prometheus-compatible monitoring stack), not to specific vendors. Operators using Kvorum can substitute Datadog, Honeycomb, or similar without spec changes; Kvorum's metrics emission is the contract.
+The specific stack is a deployment choice — the spec commits to _the shape_ (a Prometheus-compatible monitoring stack), not to specific vendors. Operators using Kvorum can substitute Datadog, Honeycomb, or similar without spec changes; Kvorum's metrics emission is the contract.
 
 **Dashboards committed to ship in v1:**
 
@@ -2124,7 +2187,7 @@ Open questions:
 
 ---
 
-*Section 6 ends here.*
+_Section 6 ends here._
 
 ---
 
@@ -2162,7 +2225,7 @@ Kvorum v1 deploys six service classes plus three supporting infrastructure compo
 
 All services and infrastructure run in a single Docker Compose project. Networking is bridge-mode internal, with only the dashboard, API, and Grafana exposed via reverse proxy (Caddy) on the public interface. TLS is terminated at the reverse proxy.
 
-The choice of single-host deployment is deliberate. v1's scale (Section 7.7) does not justify multi-host complexity; multi-host adds operational surface (orchestration, networking, secret distribution, host health monitoring) that is not earned by the load. The deployment is structured to *lift and shift* to multi-host orchestration (Kubernetes, Nomad) when the load demands it, without rewriting service code: services are stateless except where state is delegated to Postgres/Redis/ClickHouse, configuration is via environment variables, and inter-service communication is over the network.
+The choice of single-host deployment is deliberate. v1's scale (Section 7.7) does not justify multi-host complexity; multi-host adds operational surface (orchestration, networking, secret distribution, host health monitoring) that is not earned by the load. The deployment is structured to _lift and shift_ to multi-host orchestration (Kubernetes, Nomad) when the load demands it, without rewriting service code: services are stateless except where state is delegated to Postgres/Redis/ClickHouse, configuration is via environment variables, and inter-service communication is over the network.
 
 **Deployment artifact.** A versioned `docker-compose.production.yml` in the repository, with environment-specific overrides via `.env` files (gitignored). Image tags are pinned to specific git SHAs; no `latest` tags in production.
 
@@ -2209,6 +2272,7 @@ Targets are validated by automated load tests run as part of CI for the steady-s
 **Uptime target.** v1 commits to **99% monthly availability** for the API and dashboard, measured as 5-minute polling success from an external monitoring point. 99% is approximately 7 hours of downtime per month. This is honest for a single-operator project; promising more would commit Kvorum to coverage that one person cannot sustain.
 
 The target excludes:
+
 - Scheduled maintenance windows announced > 24 hours in advance via the status page
 - Incidents caused by upstream dependencies the operator cannot mitigate (RPC provider outages affecting all redundant providers, Snapshot API outages, forum API outages)
 - Force majeure events affecting the host provider
@@ -2267,7 +2331,7 @@ The seven alerting rules committed in Section 6.20.2 are the v1 baseline. Routin
 - **Postgres:** Daily logical backups via `pg_dump --format=custom`, taken at 02:00 UTC, written to S3-compatible storage off-host (Hetzner Object Storage or Backblaze B2). Continuous WAL archiving via `wal-g` for point-in-time recovery to within 1 hour. Backups retained for 30 days (daily) and 12 months (monthly snapshots of the first daily backup of each month).
 - **ClickHouse:** Daily snapshots of analytical tables, written to the same off-host storage. Retention: 14 days. Loss of ClickHouse beyond the snapshot is recoverable by replaying from Postgres (the source of truth); the snapshots only reduce recovery time.
 - **Redis:** Not backed up. Job queues, rate limit state, and sessions are ephemeral by design. A Redis loss requires re-running active jobs (recoverable from the source events in Postgres) and forces logged-in users to re-authenticate.
-- **Configuration:** All deployment configuration is in the git repository. The host's `.env` files are *not* in the repository, but their contents are documented in a runbook stored in a secure location (not the repository).
+- **Configuration:** All deployment configuration is in the git repository. The host's `.env` files are _not_ in the repository, but their contents are documented in a runbook stored in a secure location (not the repository).
 
 **Recovery objectives:**
 
@@ -2353,17 +2417,17 @@ The migration from v1 to v1.x is straightforward: connection strings change, Com
 
 Breakdown:
 
-| Component | Monthly cost (typical) | Monthly ceiling |
-|---|---|---|
-| Hetzner CX32 host | €10 | €10 |
-| Hetzner Object Storage (backups) | €4 | €5 |
-| LLM costs (Section 5) | €11 (~$12) | €40 (~$41) |
-| RPC providers (free tiers) | €0 | €0 |
-| Domain registration | €1 | €1 |
-| Email (transactional, SES or similar) | €0–2 | €5 |
-| Monitoring (self-hosted) | €0 | €0 |
-| TLS certificates (Let's Encrypt) | €0 | €0 |
-| **Total** | **€26** | **€61** |
+| Component                             | Monthly cost (typical) | Monthly ceiling |
+| ------------------------------------- | ---------------------- | --------------- |
+| Hetzner CX32 host                     | €10                    | €10             |
+| Hetzner Object Storage (backups)      | €4                     | €5              |
+| LLM costs (Section 5)                 | €11 (~$12)             | €40 (~$41)      |
+| RPC providers (free tiers)            | €0                     | €0              |
+| Domain registration                   | €1                     | €1              |
+| Email (transactional, SES or similar) | €0–2                   | €5              |
+| Monitoring (self-hosted)              | €0                     | €0              |
+| TLS certificates (Let's Encrypt)      | €0                     | €0              |
+| **Total**                             | **€26**                | **€61**         |
 
 **Cost monitoring:**
 
@@ -2397,7 +2461,7 @@ If the typical monthly cost approaches the ceiling, the operator has three actio
 
 - **Privacy policy** published at `/privacy`, listing every category of data Kvorum holds, its purpose, retention period, and the user's rights.
 - **No third-party trackers.** No Google Analytics, no Facebook Pixel, no advertising trackers. Self-hosted privacy-respecting analytics (Plausible or equivalent) for usage statistics, configured to not log IP addresses or set cookies.
-- **Data deletion on request.** A user can delete their developer account via the developer dashboard (Section 6.14) or via emailed request. Deletion is processed within 7 days. Public on-chain governance data is *not* deletable — Kvorum cannot remove what the chain itself records.
+- **Data deletion on request.** A user can delete their developer account via the developer dashboard (Section 6.14) or via emailed request. Deletion is processed within 7 days. Public on-chain governance data is _not_ deletable — Kvorum cannot remove what the chain itself records.
 - **Data export on request.** Users can request a JSON export of their account data via emailed request. Processed within 14 days.
 - **GDPR posture.** Kvorum's data processing is in scope for GDPR (the operator is EU-resident). The legal basis for processing is contract (developer accounts) and legitimate interest (governance data analytics). Users have the rights to access, rectification, erasure, and objection. The operator is the data controller; there is no separate DPO for v1 (not required at this scale).
 
@@ -2480,7 +2544,7 @@ Open questions:
 
 ---
 
-*Section 7 ends here.*
+_Section 7 ends here._
 
 ---
 
@@ -2489,7 +2553,7 @@ Open questions:
 This section serves three purposes:
 
 1. **A consolidated index of open questions** still pending across the spec. Individual sections list their own open questions inline; this section gathers them in one place so a reader can see at a glance what is still undecided.
-2. **A decision log** recording the material design decisions reflected in v1.0 of the spec, including the alternatives considered and the reasoning. Distinct from the registry of known limitations (Section 9): the registry records *what we have not done and why*; the decision log records *what we have done and why*.
+2. **A decision log** recording the material design decisions reflected in v1.0 of the spec, including the alternatives considered and the reasoning. Distinct from the registry of known limitations (Section 9): the registry records _what we have not done and why_; the decision log records _what we have done and why_.
 3. **The ADR (Architecture Decision Record) process** for amending the spec after v1.0 freeze.
 
 This section is meta — it is about the spec, not about Kvorum itself. It exists because the value of a specification compounds when its decisions are traceable, not just observable.
@@ -2500,34 +2564,34 @@ Open questions flagged in individual sections, consolidated for navigation. Each
 
 **From Section 2 (Domain model):**
 
-- Whether to denormalize a `proposal.tally_summary` column for read performance, or always derive from `vote_choice`. *Will be resolved when API performance characteristics are known.*
-- How to model proposals that are amended or superseded by another proposal. *Currently no DAO in v1 has this concept formally on-chain; revisit if Lido's dual governance forces our hand.*
-- Whether `actor` should have a separate `is_contract` flag with associated metadata. *Multisigs and DAOs voting in other DAOs are first-class participants; deserve consideration in implementation.*
+- Whether to denormalize a `proposal.tally_summary` column for read performance, or always derive from `vote_choice`. _Will be resolved when API performance characteristics are known._
+- How to model proposals that are amended or superseded by another proposal. _Currently no DAO in v1 has this concept formally on-chain; revisit if Lido's dual governance forces our hand._
+- Whether `actor` should have a separate `is_contract` flag with associated metadata. _Multisigs and DAOs voting in other DAOs are first-class participants; deserve consideration in implementation._
 
 **From Section 4 (API specification):**
 
-- Whether to expose the `actor_address` mapping table directly via a dedicated endpoint, or only embed it in actor responses. *Leaning toward embedding for v1; standalone endpoint can be added later if needed.*
-- Whether analytical endpoints should accept arbitrary time windows or only pre-defined ones. *Leaning toward arbitrary with a server-side maximum range cap, with pre-defined bucket sizes only.*
-- Whether to support batch endpoints for fetching many resources in one request. *Deferred as a likely v1.1 enhancement if dashboard performance demands it.*
+- Whether to expose the `actor_address` mapping table directly via a dedicated endpoint, or only embed it in actor responses. _Leaning toward embedding for v1; standalone endpoint can be added later if needed._
+- Whether analytical endpoints should accept arbitrary time windows or only pre-defined ones. _Leaning toward arbitrary with a server-side maximum range cap, with pre-defined bucket sizes only._
+- Whether to support batch endpoints for fetching many resources in one request. _Deferred as a likely v1.1 enhancement if dashboard performance demands it._
 
 **From Section 5 (AI features specification):**
 
-- Whether the mismatch detector should run on Snapshot proposals despite the absence of on-chain calldata. *Probably worthwhile but adds prompt engineering work; deferred to v1.1+ unless an early signal supports prioritization.*
-- Whether to expose AI provenance metadata in the dashboard UI directly or only on demand. *Leaning toward disclosure with a small, unobtrusive treatment.*
-- Whether the embedding composition (what text gets embedded) should evolve over the lifetime of the project. *Leaning toward a stable composition for v1, change-controlled via ADR if revised.*
+- Whether the mismatch detector should run on Snapshot proposals despite the absence of on-chain calldata. _Probably worthwhile but adds prompt engineering work; deferred to v1.1+ unless an early signal supports prioritization._
+- Whether to expose AI provenance metadata in the dashboard UI directly or only on demand. _Leaning toward disclosure with a small, unobtrusive treatment._
+- Whether the embedding composition (what text gets embedded) should evolve over the lifetime of the project. _Leaning toward a stable composition for v1, change-controlled via ADR if revised._
 
 **From Section 6 (Dashboard specification):**
 
-- Whether the homepage's mismatch flag section should be prominent when no flags exist. *Leaning toward visible — empty-state honesty is part of the trust posture.*
-- Whether to show "trending" or "engagement-weighted" sort options anywhere. *Leaning toward not having them in v1; revisit only if user research strongly supports the demand.*
-- Whether the homepage's auto-generated DAO health snapshot should default to a metric that is positive or one that is most informative. *Leaning toward most-informative, with no editorial bias toward DAOs.*
-- Whether email-based signup should support email change post-registration. *Leaning toward not in v1.*
+- Whether the homepage's mismatch flag section should be prominent when no flags exist. _Leaning toward visible — empty-state honesty is part of the trust posture._
+- Whether to show "trending" or "engagement-weighted" sort options anywhere. _Leaning toward not having them in v1; revisit only if user research strongly supports the demand._
+- Whether the homepage's auto-generated DAO health snapshot should default to a metric that is positive or one that is most informative. _Leaning toward most-informative, with no editorial bias toward DAOs._
+- Whether email-based signup should support email change post-registration. _Leaning toward not in v1._
 
 **From Section 7 (Non-functional requirements):**
 
-- Whether the email transactional service should be self-hosted or third-party. *Leaning toward third-party (SES) for v1 reliability.*
-- Whether Sentry (or equivalent) should be used for error reporting in addition to Loki logs. *The implementation may opt in.*
-- Whether to set up separate OpenTelemetry tracing collection in v1 or wait until needed. *Leaning toward defer.*
+- Whether the email transactional service should be self-hosted or third-party. _Leaning toward third-party (SES) for v1 reliability._
+- Whether Sentry (or equivalent) should be used for error reporting in addition to Loki logs. _The implementation may opt in._
+- Whether to set up separate OpenTelemetry tracing collection in v1 or wait until needed. _Leaning toward defer._
 
 These questions are not blockers for v1 — they are calibration choices that can be made during implementation or deferred. When closed, the resolution is recorded as a decision record (Section 8.3) or as an ADR (post-freeze, Section 8.4).
 
@@ -2541,15 +2605,15 @@ Two distinctions matter:
 
 In this spec:
 
-- **DRs** are written *during drafting* and document decisions *reflected in v1.0 of the spec*. They are historical context: they explain why the spec says what it says.
-- **ADRs** are written *after v1.0 freeze* and *amend* the spec. They document decisions to change something the spec previously said.
+- **DRs** are written _during drafting_ and document decisions _reflected in v1.0 of the spec_. They are historical context: they explain why the spec says what it says.
+- **ADRs** are written _after v1.0 freeze_ and _amend_ the spec. They document decisions to change something the spec previously said.
 
 The two use the same format. The distinction is timing and role: DRs document, ADRs amend.
 
 **Decision records vs. known concerns (Section 9).**
 
-- **DRs and ADRs** record *positive* decisions: "we chose X." They are about the path taken.
-- **Known concerns (KNOWN-NNN)** record *deferred* or *accepted* limitations: "we have not done Y, here's why, here's when." They are about the paths not yet taken.
+- **DRs and ADRs** record _positive_ decisions: "we chose X." They are about the path taken.
+- **Known concerns (KNOWN-NNN)** record _deferred_ or _accepted_ limitations: "we have not done Y, here's why, here's when." They are about the paths not yet taken.
 
 A single design conversation can produce both — for example, the decision to defer pending event visibility produced both DR-001 (the choice and reasoning) and KNOWN-001 (the registry entry tracking the gap until v1.1 resolves it).
 
@@ -2576,7 +2640,7 @@ Records are numbered sequentially (`DR-001`, `DR-002`, ... `ADR-001`, `ADR-002`,
 
 ### 8.3 v1.0 decision records
 
-The decision records below capture the material decisions made during v1.0 drafting. They are not exhaustive — every spec contains hundreds of small choices that don't merit a record. The threshold for inclusion is: *if a future reader asks "why this and not that?", the answer should not be obvious from the spec alone, and the choice has consequences that constrain future work*.
+The decision records below capture the material decisions made during v1.0 drafting. They are not exhaustive — every spec contains hundreds of small choices that don't merit a record. The threshold for inclusion is: _if a future reader asks "why this and not that?", the answer should not be obvious from the spec alone, and the choice has consequences that constrain future work_.
 
 #### DR-001 — Free public dashboard, free token-gated API
 
@@ -2590,9 +2654,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Dashboard is free and fully browseable without authentication. API is free but requires registration to obtain a token; anonymous API requests are rejected.
 
 **Alternatives considered.**
-- *Free everything, no auth on API* — maximizes adoption but eliminates abuse prevention, per-user rate limiting, and usage analytics.
-- *Free dashboard, paid API* — cleaner monetization but requires payment infrastructure, billing, tier management. Inappropriate for v1's portfolio-stage scope.
-- *Paid everything* — unsuitable for the open-data positioning.
+
+- _Free everything, no auth on API_ — maximizes adoption but eliminates abuse prevention, per-user rate limiting, and usage analytics.
+- _Free dashboard, paid API_ — cleaner monetization but requires payment infrastructure, billing, tier management. Inappropriate for v1's portfolio-stage scope.
+- _Paid everything_ — unsuitable for the open-data positioning.
 
 **Consequences.** API has signup friction (one-time, low). Architecture supports future paid tiers via a `tier` column on the API key without breaking changes. Webhooks and higher rate limits become natural paid-tier features.
 
@@ -2608,8 +2673,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** REST over HTTPS, JSON-encoded, path-versioned at `/v1/`.
 
 **Alternatives considered.**
-- *GraphQL primary* — operational complexity (N+1 protection, complexity limits, query whitelisting for caching) and adoption friction (clients need a GraphQL library) outweigh the flexibility benefit at v1's scale.
-- *Both REST and GraphQL* — doubles the surface to maintain.
+
+- _GraphQL primary_ — operational complexity (N+1 protection, complexity limits, query whitelisting for caching) and adoption friction (clients need a GraphQL library) outweigh the flexibility benefit at v1's scale.
+- _Both REST and GraphQL_ — doubles the surface to maintain.
 
 **Consequences.** Lower friction for casual developers (cURL-friendly examples). Larger surface area for analytical queries (must add endpoints for new analytical views). GraphQL may be added in v1.1+ if developer demand materializes.
 
@@ -2624,8 +2690,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Opaque cursor tokens encoding position plus the parameters of the original request. No offset-based pagination.
 
 **Alternatives considered.**
-- *Offset/limit pagination* — broken under concurrent inserts; new items arriving between pages cause skipped or duplicated rows. Convenience for "page 7" navigation does not justify the correctness gap.
-- *Keyset-only pagination without opaque tokens* — exposes implementation details (the keyset values) in URLs, complicating future schema evolution.
+
+- _Offset/limit pagination_ — broken under concurrent inserts; new items arriving between pages cause skipped or duplicated rows. Convenience for "page 7" navigation does not justify the correctness gap.
+- _Keyset-only pagination without opaque tokens_ — exposes implementation details (the keyset values) in URLs, complicating future schema evolution.
 
 **Consequences.** Clients cannot jump to arbitrary pages. List responses include `next_cursor` and `has_more`. Cursor format is opaque and can evolve internally without breaking clients.
 
@@ -2640,8 +2707,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Every endpoint rooted at `/v1/`. Future versions live at `/v2/`, etc.
 
 **Alternatives considered.**
-- *Header-based versioning* (`Accept: application/vnd.kvorum.v2+json`) — cleaner conceptually but harder to debug, harder to share via URL, breaks naive HTTP caching.
-- *Date-based versioning* (`Kvorum-API-Version: 2026-05-01`) — fine-grained but operationally heavy; unsuitable for the stable contracts a free API expects.
+
+- _Header-based versioning_ (`Accept: application/vnd.kvorum.v2+json`) — cleaner conceptually but harder to debug, harder to share via URL, breaks naive HTTP caching.
+- _Date-based versioning_ (`Kvorum-API-Version: 2026-05-01`) — fine-grained but operationally heavy; unsuitable for the stable contracts a free API expects.
 
 **Consequences.** Major version changes are URL changes; minor and patch evolutions of v1 stay at `/v1/`. Multiple versions can coexist during deprecation windows.
 
@@ -2657,8 +2725,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** v1 surfaces only confirmed events. Pending events are recorded in the archive but not exposed publicly. v1.1 adds opt-in pending visibility.
 
 **Alternatives considered.**
-- *Always show pending* — exposes users to events that may be reorged away, requiring careful UX treatment that adds scope to the dashboard.
-- *Opt-in pending in v1* — adds API surface and dashboard treatment that is not required for v1's core value proposition.
+
+- _Always show pending_ — exposes users to events that may be reorged away, requiring careful UX treatment that adds scope to the dashboard.
+- _Opt-in pending in v1_ — adds API surface and dashboard treatment that is not required for v1's core value proposition.
 
 **Consequences.** New events appear with a latency floor of the reorg horizon (~3 minutes for Ethereum mainnet). This makes streaming protocols (DR-009) less valuable in v1, justifying their deferral. Forward-compatibility is preserved through the `confirmed: boolean` field on entity responses.
 
@@ -2673,8 +2742,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Event payloads are written to the archive immediately and never mutated. Confirmation status (`pending` / `confirmed` / `orphaned`) transitions on the row. Reorgs are first-class records in a `reorg_event` table linking to the events they orphaned.
 
 **Alternatives considered.**
-- *Pending buffer in Redis, promote to Postgres on confirmation* — original design. Two storage systems, mutation on reorg, no observable reorg history.
-- *No archive at all, only derived state* — loses auditability, makes derivation bugs unrecoverable.
+
+- _Pending buffer in Redis, promote to Postgres on confirmation_ — original design. Two storage systems, mutation on reorg, no observable reorg history.
+- _No archive at all, only derived state_ — loses auditability, makes derivation bugs unrecoverable.
 
 **Consequences.** Truly append-only data structure. Reorg history is queryable. One storage system holds all event data. Slightly larger archive (orphaned rows kept forever), trivial at v1's scale. Idempotency keys must include `block_hash` to allow same-logical-event-different-block scenarios.
 
@@ -2686,11 +2756,12 @@ The decision records below capture the material decisions made during v1.0 draft
 
 **Context.** ABI decoding for proposal calldata requires the function signature and the contract's ABI. The naive approach treats Etherscan as a runtime dependency.
 
-**Decision.** Bundled selector index (4byte.directory snapshot) plus bundled ABI library covers >95% of governance calldata. EIP-1967 implementation slot reading covers proxy resolution. Block explorer APIs are an *optional* enrichment path for the long tail.
+**Decision.** Bundled selector index (4byte.directory snapshot) plus bundled ABI library covers >95% of governance calldata. EIP-1967 implementation slot reading covers proxy resolution. Block explorer APIs are an _optional_ enrichment path for the long tail.
 
 **Alternatives considered.**
-- *Etherscan as primary* — runtime dependency on third-party rate-limited service; ironic for a read-only blockchain analytics platform.
-- *On-chain only, no enrichment* — leaves the long tail unresolved indefinitely.
+
+- _Etherscan as primary_ — runtime dependency on third-party rate-limited service; ironic for a read-only blockchain analytics platform.
+- _On-chain only, no enrichment_ — leaves the long tail unresolved indefinitely.
 
 **Consequences.** Hot path is local. Failure modes from external services do not block governance work. Bundled assets need periodic refresh (weekly cron job). The bundled ABI library must be maintained as new contracts are tracked.
 
@@ -2706,8 +2777,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** v1 trusts Snapshot's reported voting power. v1.1 introduces an independent strategy resolver. Schema in v1 anticipates verification via the `voting_power_reported` / `voting_power_computed` / `voting_power_verified` triplet.
 
 **Alternatives considered.**
-- *Recompute Snapshot voting power in v1* — meaningful engineering effort (~1 week per the strategies used by the v1 DAOs) plus ongoing maintenance. Stacks a second substantial technical claim against v1's core unification claim.
-- *Never recompute* — leaves a real correctness gap, especially for Lido where Snapshot is the primary governance venue.
+
+- _Recompute Snapshot voting power in v1_ — meaningful engineering effort (~1 week per the strategies used by the v1 DAOs) plus ongoing maintenance. Stacks a second substantial technical claim against v1's core unification claim.
+- _Never recompute_ — leaves a real correctness gap, especially for Lido where Snapshot is the primary governance venue.
 
 **Consequences.** v1 ships with a trust boundary explicitly disclosed in the dashboard's AI provenance treatment. v1.1 verification is a strong differentiator and natural launch beat. Schema cost in v1 is four columns on `vote`, three of them NULL until v1.1.
 
@@ -2723,8 +2795,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** v1 ships REST endpoints only. Real-time consumption is via short-interval polling. WebSocket and SSE are deferred to v1.1 where they pair naturally with pending event visibility.
 
 **Alternatives considered.**
-- *Ship WebSocket in v1 alongside confirmed-only events* — implementation cost (5–8 days plus operational complexity) without proportional value, given the reorg horizon already introduces minutes of latency.
-- *Ship SSE only in v1, WebSocket later* — splits the streaming work without simplifying it.
+
+- _Ship WebSocket in v1 alongside confirmed-only events_ — implementation cost (5–8 days plus operational complexity) without proportional value, given the reorg horizon already introduces minutes of latency.
+- _Ship SSE only in v1, WebSocket later_ — splits the streaming work without simplifying it.
 
 **Consequences.** v1 deployment is simpler (no Redis pub/sub for cross-instance fan-out). Polling at 10-second intervals is the v1 real-time mechanism. Forward-compatibility is preserved through the `confirmed` field on REST responses.
 
@@ -2739,9 +2812,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Compound (canonical Governor Bravo), Aave (Governance v3 with cross-chain execution), and Lido (Aragon + Snapshot + Dual Governance hybrid). Three structurally distinct governance models.
 
 **Alternatives considered.**
-- *Compound + Uniswap + Arbitrum* — three Governor Bravo variants. Less variety; weaker unification claim.
-- *Compound + Uniswap + Optimism* — heavy L2 governance focus. Concentrated in one governance pattern.
-- *Add a fourth DAO* — increases scope without additional architectural validation.
+
+- _Compound + Uniswap + Arbitrum_ — three Governor Bravo variants. Less variety; weaker unification claim.
+- _Compound + Uniswap + Optimism_ — heavy L2 governance focus. Concentrated in one governance pattern.
+- _Add a fourth DAO_ — increases scope without additional architectural validation.
 
 **Consequences.** v1's unification claim is genuinely tested. Lido's hybrid model is the hardest case and validates the `dao_source` abstraction. Adding a fourth DAO post-v1 typically means adding zero-to-two extension tables, not changing core entities.
 
@@ -2757,8 +2831,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** The dashboard does not collapse Lido's tracks. The DAO landing page surfaces the three tracks explicitly. The proposal detail page makes the source explicit in the header. There is no unified "Lido voting power" figure presented anywhere.
 
 **Alternatives considered.**
-- *Primary view with tabs* — simpler for casual browsers but misleading; voting power across tracks is not interchangeable.
-- *Pick one "primary" source and show only it* — wrong for Lido; all three are real.
+
+- _Primary view with tabs_ — simpler for casual browsers but misleading; voting power across tracks is not interchangeable.
+- _Pick one "primary" source and show only it_ — wrong for Lido; all three are real.
 
 **Consequences.** Lido's pages are noticeably more complex than Compound's or Aave's. The complexity is justified by the trust posture (legibility over false simplicity). Operators of other dual-governance DAOs (when added post-v1) get the same treatment.
 
@@ -2773,9 +2848,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Four AI features in v1, each with a defined purpose, output schema, cost ceiling, and trust posture: proposal summarizer, calldata-vs-prose mismatch detector, forum thread synthesizer, proposal embeddings. Every AI output carries provenance metadata; source content is always available alongside the output; AI-generated content is consistently labeled.
 
 **Alternatives considered.**
-- *No AI features in v1* — defensible but loses a meaningful differentiator. The mismatch detector specifically is a capability no other governance tool offers.
-- *More AI features (e.g., NL query, recommendations)* — increases scope without improving v1's core technical claim. Deferred to v1.1+.
-- *AI without provenance disclosure* — quicker to implement but undermines the trust posture and operator-first positioning.
+
+- _No AI features in v1_ — defensible but loses a meaningful differentiator. The mismatch detector specifically is a capability no other governance tool offers.
+- _More AI features (e.g., NL query, recommendations)_ — increases scope without improving v1's core technical claim. Deferred to v1.1+.
+- _AI without provenance disclosure_ — quicker to implement but undermines the trust posture and operator-first positioning.
 
 **Consequences.** AI infrastructure is real engineering work (LLM client, prompt templates, structured output validation, cost tracking, budget caps). The mismatch detector is the flagship feature and gets prominent dashboard treatment. Total monthly LLM cost ceiling is $41 (~€40), with typical spend ~30% of cap.
 
@@ -2790,9 +2866,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** The calldata-vs-prose mismatch detector. Sonnet for quality, sync mode for active proposals, prominent dashboard surfacing on homepage / list views / proposal detail. Conservative threshold (only `material` and `severe` discrepancies surface on summary views).
 
 **Alternatives considered.**
-- *Proposal summarizer as flagship* — useful but unremarkable; every aggregator could add summarization.
-- *Forum synthesis as flagship* — valuable but content quality varies wildly; less defensible launch claim.
-- *Embedding similarity as flagship* — interesting but invisible (no obvious UI surface).
+
+- _Proposal summarizer as flagship_ — useful but unremarkable; every aggregator could add summarization.
+- _Forum synthesis as flagship_ — valuable but content quality varies wildly; less defensible launch claim.
+- _Embedding similarity as flagship_ — interesting but invisible (no obvious UI surface).
 
 **Consequences.** Mismatch detector gets the largest budget cap ($20/month) and Sonnet (more expensive than Haiku). Conservative threshold mitigates damage from false positives. Detector output requires ABI decoding to be complete, creating a dependency chain.
 
@@ -2807,9 +2884,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** All Kvorum services plus supporting infrastructure (Postgres, Redis, ClickHouse) plus monitoring stack (Grafana, Prometheus, Loki) run on a single Hetzner CX32 (~€10/month) via Docker Compose.
 
 **Alternatives considered.**
-- *Multi-host with active-passive failover* — eliminates single point of failure, doubles cost, doubles operational surface.
-- *Container orchestrator (Kubernetes, Nomad)* — appropriate for scale Kvorum does not have. Premature optimization.
-- *Managed services (Neon for Postgres, Upstash for Redis, Fly.io for app)* — defensible and a likely v1.x evolution. Not needed for v1; adds vendor dependencies and cost.
+
+- _Multi-host with active-passive failover_ — eliminates single point of failure, doubles cost, doubles operational surface.
+- _Container orchestrator (Kubernetes, Nomad)_ — appropriate for scale Kvorum does not have. Premature optimization.
+- _Managed services (Neon for Postgres, Upstash for Redis, Fly.io for app)_ — defensible and a likely v1.x evolution. Not needed for v1; adds vendor dependencies and cost.
 
 **Consequences.** Single point of failure: host outage = full outage. Eats into 99% uptime budget if it happens. The deployment is structured to lift-and-shift to multi-host without rewriting service code (stateless services, env-var configuration, network-only inter-service communication). Migration path documented in Section 7.7.
 
@@ -2825,9 +2903,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Two tools: a CLI (`kvorum-admin`) for user management and operational commands, authenticated by SSH/host access; Grafana + Prometheus for monitoring and observability. No custom web admin UI.
 
 **Alternatives considered.**
-- *Custom web admin UI* — substantial engineering effort (auth, RBAC, design, security review). Displaces work from the actual product.
-- *CLI only, no monitoring stack* — leaves observability as a manual exercise. Industrial-strength monitoring is free off-the-shelf; not adopting it is the wrong choice.
-- *Build everything custom* — speculatively useful, expensively delivered.
+
+- _Custom web admin UI_ — substantial engineering effort (auth, RBAC, design, security review). Displaces work from the actual product.
+- _CLI only, no monitoring stack_ — leaves observability as a manual exercise. Industrial-strength monitoring is free off-the-shelf; not adopting it is the wrong choice.
+- _Build everything custom_ — speculatively useful, expensively delivered.
 
 **Consequences.** Admin surface is bounded and pragmatic. Off-the-shelf tooling provides sophisticated observability for free. v1 deployment includes Grafana, Prometheus, Loki, Alertmanager (eleven moving pieces total on one host, comfortable on CX32). Future web admin UI is genuinely deferred — built only if specific operational pain emerges.
 
@@ -2842,9 +2921,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** 99% monthly availability for the API and dashboard. Approximately 7 hours of downtime per month, allowing for normal incident response cadence.
 
 **Alternatives considered.**
-- *99.9% (~43 minutes/month)* — requires fast on-call response to any incident; not sustainable for a single operator without paging infrastructure.
-- *99.95% or higher* — requires infrastructure redundancy (multi-host, automated failover) that v1 does not justify.
-- *No uptime target* — defensible for a free product but undermines operator-first positioning.
+
+- _99.9% (~43 minutes/month)_ — requires fast on-call response to any incident; not sustainable for a single operator without paging infrastructure.
+- _99.95% or higher_ — requires infrastructure redundancy (multi-host, automated failover) that v1 does not justify.
+- _No uptime target_ — defensible for a free product but undermines operator-first positioning.
 
 **Consequences.** Operator can take vacations. Slow recovery from rare incidents is within budget. Higher targets remain available if multi-host deployment becomes warranted (Section 7.7's scaling path).
 
@@ -2859,9 +2939,10 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Total monthly operational cost ceiling: €60. Realistic typical spend: ~€25/month. Composed of host (€10), backup storage (€5), LLM costs ($41 ceiling, ~$12 typical), domain (€1), email (€5), and free-tier services for everything else.
 
 **Alternatives considered.**
-- *No cost ceiling* — risks unbounded growth, especially in LLM costs.
-- *Tighter ceiling (€30)* — possible but requires more aggressive LLM caps and may force forgoing useful features.
-- *Looser ceiling (€100+)* — defensible if Kvorum becomes funded, but not for a v1 portfolio project.
+
+- _No cost ceiling_ — risks unbounded growth, especially in LLM costs.
+- _Tighter ceiling (€30)_ — possible but requires more aggressive LLM caps and may force forgoing useful features.
+- _Looser ceiling (€100+)_ — defensible if Kvorum becomes funded, but not for a v1 portfolio project.
 
 **Consequences.** LLM caps in Section 5.3 are tight ($41 total). Cost monitoring is automated; ceiling breaches are a process failure. Headroom exists if needed (~€34 between typical spend and ceiling).
 
@@ -2877,8 +2958,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Deploy from `main` to production after CI passes. No separate staging environment. CI runs against production-like fixtures (real schema, RPC mocks, Snapshot fixtures). Rapid rollback (~minutes) is the recovery mechanism.
 
 **Alternatives considered.**
-- *Full staging environment mirroring production* — doubles host cost, adds data divergence overhead, single operator must maintain two environments.
-- *Preview environments per-PR* — appealing but high operational complexity for limited benefit.
+
+- _Full staging environment mirroring production_ — doubles host cost, adds data divergence overhead, single operator must maintain two environments.
+- _Preview environments per-PR_ — appealing but high operational complexity for limited benefit.
 
 **Consequences.** Production is the test environment. CI rigor compensates: production deployments must be predictable from CI alone. Rollback procedures are rehearsed and fast. Adding staging later is a pure scaling decision when development practices warrant.
 
@@ -2893,8 +2975,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** All known concerns, deferred decisions, and trust boundaries are recorded in Section 9 with stable `KNOWN-NNN` identifiers. Inline references in earlier sections point to the registry; the registry is canonical.
 
 **Alternatives considered.**
-- *Inline-only* — convenient for section readers but easy to lose track of the global picture.
-- *Separate document* — splits the spec; references would need to bridge across files.
+
+- _Inline-only_ — convenient for section readers but easy to lose track of the global picture.
+- _Separate document_ — splits the spec; references would need to bridge across files.
 
 **Consequences.** Code comments, ADRs, and external references can use stable `KNOWN-NNN` IDs. The total scope of deferred work is visible at a glance. v1.1 commitments are explicit, allowing realistic planning.
 
@@ -2909,8 +2992,9 @@ The decision records below capture the material decisions made during v1.0 draft
 **Decision.** Three phases: drafting (current), v1.0 frozen (after sign-off, immutable), and post-freeze evolution via numbered ADRs. ADRs reference and amend specific spec sections; the spec itself is not edited post-freeze.
 
 **Alternatives considered.**
-- *Living document forever* — loses the ability to point to a stable v1.0 reference.
-- *Heavy review process* — appropriate for organizations with multiple stakeholders; overkill for a single-operator project.
+
+- _Living document forever_ — loses the ability to point to a stable v1.0 reference.
+- _Heavy review process_ — appropriate for organizations with multiple stakeholders; overkill for a single-operator project.
 
 **Consequences.** v1.0 is a stable artifact. Future readers can read v1.0 plus the chronological ADRs to understand the current canonical design. ADR discipline is light-process (no formal review board) but real (every meaningful change is recorded).
 
@@ -2918,16 +3002,16 @@ The decision records below capture the material decisions made during v1.0 draft
 
 Once the spec is tagged as `v1.0`, it becomes immutable. Subsequent changes are delivered as ADRs.
 
-**ADR location.** ADRs live in `docs/adr/` in the repository, one Markdown file per ADR, named `NNNN-short-title.md`. Numbering continues from the v1.0 DRs (the first post-freeze ADR is ADR-021 if 20 DRs shipped in v1.0, or starts at ADR-001 in a fresh sequence — *to be decided at freeze time*).
+**ADR location.** ADRs live in `docs/adr/` in the repository, one Markdown file per ADR, named `NNNN-short-title.md`. Numbering continues from the v1.0 DRs (the first post-freeze ADR is ADR-021 if 20 DRs shipped in v1.0, or starts at ADR-001 in a fresh sequence — _to be decided at freeze time_).
 
 **ADR template.** Same format as DRs (Section 8.2): Status, Date, Spec sections affected, Related, Context, Decision, Alternatives considered, Consequences.
 
 **Status values for ADRs:**
 
-- *Proposed* — under consideration; not yet implemented.
-- *Accepted* — agreed upon and reflected in the system.
-- *Superseded by ADR-NNN* — replaced by a later decision; the original ADR is preserved for historical context.
-- *Deprecated* — no longer relevant; not implemented.
+- _Proposed_ — under consideration; not yet implemented.
+- _Accepted_ — agreed upon and reflected in the system.
+- _Superseded by ADR-NNN_ — replaced by a later decision; the original ADR is preserved for historical context.
+- _Deprecated_ — no longer relevant; not implemented.
 
 **Process for new ADRs:**
 
@@ -2950,18 +3034,18 @@ This section is meta — it does not describe Kvorum but the spec describing Kvo
 - **Per-section "Open questions" subsections** — Section 8.1 consolidates these.
 - **Every spec section** — DRs in 8.4 reference specific spec sections to make the link from "decision" to "what the spec says" explicit.
 
-When a future ADR amends the spec, it references both the spec section it modifies *and* any prior ADRs/DRs it relates to. The graph of decisions is navigable in either direction.
+When a future ADR amends the spec, it references both the spec section it modifies _and_ any prior ADRs/DRs it relates to. The graph of decisions is navigable in either direction.
 
 ### 8.6 What this section does not address
 
 This section is itself meta and so has fewer "deferred" items than other sections. The remaining open items:
 
-- Whether to maintain a *changelog* document separate from the ADRs that summarizes user-visible changes per release. The release notes from Section 7.10 (auto-generated from PR titles) serve this purpose for casual users; ADRs serve it for developers wanting depth. A separate human-curated changelog may add value but is not committed for v1.
+- Whether to maintain a _changelog_ document separate from the ADRs that summarizes user-visible changes per release. The release notes from Section 7.10 (auto-generated from PR titles) serve this purpose for casual users; ADRs serve it for developers wanting depth. A separate human-curated changelog may add value but is not committed for v1.
 - Whether to publish ADRs as part of the public website (`/decisions`) or keep them in the repository only. Internal-only is the v1 default; publishing them externally would be a transparency commitment with its own ongoing tax.
 
 ---
 
-*Section 8 ends here.*
+_Section 8 ends here._
 
 ---
 
@@ -3220,17 +3304,17 @@ The registry is updated when:
 - A known concern is resolved. The entry is updated to record the resolution version and ADR reference; the ID is preserved.
 - A known concern is reclassified (e.g., from "minor" to "material" because real-world impact turned out to be greater than expected). The entry is updated with a note recording the reclassification.
 
-The registry is NOT a substitute for ADRs. Once the spec is frozen, *changes* to known concerns (resolutions, reclassifications) are captured in ADRs that reference the affected `KNOWN-NNN` IDs. The registry itself is updated to reflect the ADR's outcome but the ADR is the canonical record of the decision.
+The registry is NOT a substitute for ADRs. Once the spec is frozen, _changes_ to known concerns (resolutions, reclassifications) are captured in ADRs that reference the affected `KNOWN-NNN` IDs. The registry itself is updated to reflect the ADR's outcome but the ADR is the canonical record of the decision.
 
 ---
 
-*Section 9 ends here.*
+_Section 9 ends here._
 
 ---
 
 ## 10. Implementation milestones
 
-Sections 1 through 9 specify *what* Kvorum is. This section specifies *the order in which it gets built*. The milestone structure exists to:
+Sections 1 through 9 specify _what_ Kvorum is. This section specifies _the order in which it gets built_. The milestone structure exists to:
 
 - **Front-load risk.** The hardest, riskiest pieces of the system (reorg handling correctness, multi-source unification under heterogeneous governance, AI cost discipline) are exercised in early milestones. Late-stage architectural surprises are a project killer at single-developer scale.
 - **Produce demonstrable output at each step.** Every milestone ends with something working — even if narrow. There is no "and then in week 12 it all comes together" milestone. Vertical slices over horizontal layers.
@@ -3242,17 +3326,17 @@ Sections 1 through 9 specify *what* Kvorum is. This section specifies *the order
 
 ### 10.1 Milestone overview
 
-| # | Milestone | Duration | Cumulative | Acceptance |
-|---|---|---|---|---|
-| M0 | Foundation | 1 week | Week 1 | Empty project boots, CI green |
-| M1 | Compound proposals end-to-end | 2 weeks | Week 3 | Compound proposals visible via API; reorg test passing |
-| M2 | Compound votes & voting power | 2 weeks | Week 5 | Full Compound governance browsable |
-| M3 | Aave integration | 2 weeks | Week 7 | Aave proposals + votes; cross-chain stitching working |
-| M4 | Lido integration | 2 weeks | Week 9 | All three v1 DAOs in unified schema |
-| M5 | AI features | 2 weeks | Week 11 | Four AI features live; cost discipline working |
-| M5.5 | Dashboard design | 3 weeks (overlaps M5) | Week 13 | Component-level designs complete |
-| M6 | Frontend implementation | 2 weeks | Week 13 | Dashboard pages live |
-| M7 | Operational hardening & launch | 1 week | Week 14 | Production deployment, monitoring, launch |
+| #    | Milestone                      | Duration              | Cumulative | Acceptance                                             |
+| ---- | ------------------------------ | --------------------- | ---------- | ------------------------------------------------------ |
+| M0   | Foundation                     | 1 week                | Week 1     | Empty project boots, CI green                          |
+| M1   | Compound proposals end-to-end  | 2 weeks               | Week 3     | Compound proposals visible via API; reorg test passing |
+| M2   | Compound votes & voting power  | 2 weeks               | Week 5     | Full Compound governance browsable                     |
+| M3   | Aave integration               | 2 weeks               | Week 7     | Aave proposals + votes; cross-chain stitching working  |
+| M4   | Lido integration               | 2 weeks               | Week 9     | All three v1 DAOs in unified schema                    |
+| M5   | AI features                    | 2 weeks               | Week 11    | Four AI features live; cost discipline working         |
+| M5.5 | Dashboard design               | 3 weeks (overlaps M5) | Week 13    | Component-level designs complete                       |
+| M6   | Frontend implementation        | 2 weeks               | Week 13    | Dashboard pages live                                   |
+| M7   | Operational hardening & launch | 1 week                | Week 14    | Production deployment, monitoring, launch              |
 
 The overlap between M5 and M5.5 is intentional: design work is creative and concurrent-friendly; backend work in M5 doesn't block design progress. Similarly M5.5 and M6 overlap by one week: design completion of high-priority pages enables frontend implementation to begin while remaining pages are still being designed.
 
@@ -3287,7 +3371,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 
 **Duration: 2 weeks.**
 
-**Purpose.** Establish the full ingestion path — from RPC call to API response — for one DAO's proposals. Validate reorg handling correctness *now*, not later.
+**Purpose.** Establish the full ingestion path — from RPC call to API response — for one DAO's proposals. Validate reorg handling correctness _now_, not later.
 
 **Scope:**
 
@@ -3473,7 +3557,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 **Risks:**
 
 - Design work expanding beyond Level 2 fidelity (perfectionism). Mitigation: hard time-box, accept "good enough" over polished
-- Discovering that Section 6's specification is under-specified for design (e.g., what *exactly* goes in the proposal detail header). Mitigation: write ADRs as you discover gaps
+- Discovering that Section 6's specification is under-specified for design (e.g., what _exactly_ goes in the proposal detail header). Mitigation: write ADRs as you discover gaps
 
 **The "would I ship this?" test.** N/A — designs aren't a shipping artifact, they enable shipping.
 
@@ -3587,4 +3671,4 @@ Open questions:
 
 ---
 
-*Section 10 ends here. This is the final section of the v1.0 spec.*
+_Section 10 ends here. This is the final section of the v1.0 spec._

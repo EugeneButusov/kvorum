@@ -43,7 +43,7 @@ The §2.5 extension list is updated: `dual_governance_state` (per-proposal) is r
 
 - **Keep the per-proposal extension capturing state at queue time only.** Loses the history needed for the analytical view ("how often did DG enter rage-quit"). Repeats data across every proposal.
 - **Add both a per-proposal snapshot AND a DAO-wide history.** Redundant; introduces drift between the two sources of truth.
-- **Model state transitions as rows in the existing event archive.** Plausible — DG state transitions are events. But the archive is per-source-type and DG events are already in `event_archive_dual_governance`. The history table here is the *derived* view; it remains in core entities for query convenience.
+- **Model state transitions as rows in the existing event archive.** Plausible — DG state transitions are events. But the archive is per-source-type and DG events are already in `event_archive_dual_governance`. The history table here is the _derived_ view; it remains in core entities for query convenience.
 
 ## Consequences
 

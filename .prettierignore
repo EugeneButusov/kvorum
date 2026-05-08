@@ -1,0 +1,19 @@
+# Build outputs
+dist/
+.next/
+out/
+build/
+
+# Generated
+libs/db/src/generated/
+node_modules/
+.pnpm-store/
+
+# Nx cache
+.nx/cache/
+.nx/workspace-data/
+
+# Misc
+coverage/
+*.lock
+pnpm-lock.yaml

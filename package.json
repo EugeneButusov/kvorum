@@ -1,0 +1,36 @@
+{
+  "name": "kvorum",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "nx run-many -t lint",
+    "typecheck": "nx run-many -t typecheck",
+    "test": "nx run-many -t test",
+    "postinstall": "prisma generate --schema=libs/db/prisma/schema.prisma",
+    "db:generate": "prisma generate --schema=libs/db/prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema=libs/db/prisma/schema.prisma",
+    "db:migrate:dev": "prisma migrate dev --schema=libs/db/prisma/schema.prisma",
+    "db:reset": "prisma migrate reset --schema=libs/db/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=libs/db/prisma/schema.prisma",
+    "db:format": "prisma format --schema=libs/db/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@nx/eslint": "^22.0.0",
+    "@nx/eslint-plugin": "^22.0.0",
+    "@nx/js": "^22.0.0",
+    "@nx/nest": "^22.0.0",
+    "@nx/next": "^22.0.0",
+    "eslint": "^9.0.0",
+    "lefthook": "^1.11.0",
+    "nx": "^22.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.7.0"
+  }
+}

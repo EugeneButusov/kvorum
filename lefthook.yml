@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: '*.{ts,tsx,js,jsx,json,md,yaml,yml,css}'
+      run: pnpm exec prettier --write {staged_files} && git add {staged_files}
+    prisma-format:
+      glob: '*.prisma'
+      run: pnpm db:format && git add {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    typecheck:
+      run: pnpm typecheck
+    test:
+      run: pnpm test

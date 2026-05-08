@@ -9,7 +9,7 @@
 
 SPEC §4.4 sets the authenticated free tier at 60 requests/minute, 10,000 requests/day. SPEC §6.16 specifies dashboard polling at 10-second intervals on active proposal tally and 30-second intervals on the homepage's active proposals + activity feed. SPEC §4.9 commits to ETag-based conditional requests so polling on unchanged resources returns 304 with negligible bandwidth.
 
-The 304 helps bandwidth but does *not* avoid the rate-limit budget — the request still counts against the per-minute quota. A user with two browser tabs open on active-proposal detail pages plus the homepage burns 6 + 6 + 2 = 14 requests/minute, which is fine; ten tabs cross the 60-RPM ceiling and the user starts seeing 429 responses on their own dashboard.
+The 304 helps bandwidth but does _not_ avoid the rate-limit budget — the request still counts against the per-minute quota. A user with two browser tabs open on active-proposal detail pages plus the homepage burns 6 + 6 + 2 = 14 requests/minute, which is fine; ten tabs cross the 60-RPM ceiling and the user starts seeing 429 responses on their own dashboard.
 
 DR-009 already deferred WebSocket / SSE to v1.1, so push delivery is not the v1 fallback. Two reasonable v1 mitigations exist:
 
@@ -29,10 +29,10 @@ This tier addition is non-breaking — §4.4 already commits to "the architectur
 **Adaptive polling client.** The dashboard's polling client tracks `RateLimit-Remaining` (already returned per §4.4) and adjusts intervals:
 
 | Remaining quota | Tally polling | Activity feed polling |
-|---|---|---|
-| ≥ 25% | 10 s | 30 s |
-| 10–25% | 20 s | 60 s |
-| < 10% | paused | paused |
+| --------------- | ------------- | --------------------- |
+| ≥ 25%           | 10 s          | 30 s                  |
+| 10–25%          | 20 s          | 60 s                  |
+| < 10%           | paused        | paused                |
 
 When polling is paused, the freshness indicator (§6.3) reads "Live updates paused — refresh to retry" rather than silently going stale. On the next reset window (per `RateLimit-Reset`), polling resumes automatically.
 
