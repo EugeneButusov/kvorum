@@ -16,7 +16,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-026](0026-defer-clickhouse.md) | Defer ClickHouse to v1.x; v1 uses Postgres only | Proposed | 2.7, 7.1 |
 | [ADR-027](0027-backfill-confirmation-cutoff.md) | Backfill confirmation cutoff rule | Proposed | 3.10 |
 | [ADR-028](0028-secrets-vault.md) | Off-host secrets vault for production credentials | Proposed | 7.5, 7.6 |
-| [ADR-029](0029-license.md) | Code license MIT; data license CC-BY-4.0 | Proposed | 1.6 |
+| [ADR-029](0029-license.md) | Code license: AGPL-3.0 (existing LICENSE file) | Accepted | 1.6 |
 | [ADR-030](0030-title-extraction.md) | Per-source title extraction rules | Proposed | 2.4.4 |
 | [ADR-031](0031-vetoed-state-scope.md) | `vetoed` state scoped to Lido Dual Governance in v1 | Proposed | 2.4.4 |
 | [ADR-032](0032-dlq-accept-semantics.md) | DLQ `accept` is permanent acknowledgement, not retry | Proposed | 6.20.1 |
