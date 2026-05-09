@@ -1,5 +1,7 @@
 # Kvorum
 
+[![CI](https://github.com/EugeneButusov/kvorum/actions/workflows/ci.yml/badge.svg)](https://github.com/EugeneButusov/kvorum/actions/workflows/ci.yml)
+
 **On-chain governance, made legible.** Kvorum indexes DAO proposals and votes from Snapshot and EVM chains, enriches them with AI summaries, and surfaces them through a clean dashboard — giving token holders and researchers a single place to understand what is happening in governance without wading through raw calldata.
 
 Licensed under AGPL-3.0. See [ADR-029](docs/adr/0029-license.md) for why AGPL and what it means for self-hosting.
