@@ -1,0 +1,67 @@
+{
+	# Loud sentinel — an accidental prod deploy fails at Let's Encrypt registration
+	# rather than silently registering with a junk address.
+	email REPLACE_BEFORE_DEPLOY@kvorum.example
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+dashboard.kvorum.example {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+	}
+
+	reverse_proxy dashboard:3000 {
+		# health_uri /healthz
+		# health_interval 10s
+		# health_timeout 5s
+		# Enable in M1 when /healthz lands
+	}
+}
+
+api.kvorum.example {
+	@cors_preflight method OPTIONS
+	handle @cors_preflight {
+		header Access-Control-Allow-Origin "https://dashboard.kvorum.example"
+		header Access-Control-Allow-Methods "GET, OPTIONS"
+		header Access-Control-Max-Age "600"
+		respond "" 204
+	}
+
+	handle {
+		header {
+			Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+			X-Content-Type-Options nosniff
+			X-Frame-Options DENY
+			Referrer-Policy strict-origin-when-cross-origin
+			Permissions-Policy "geolocation=(), microphone=(), camera=()"
+			Access-Control-Allow-Origin "https://dashboard.kvorum.example"
+			Access-Control-Allow-Methods "GET, OPTIONS"
+			Access-Control-Max-Age "600"
+			Access-Control-Expose-Headers "X-RateLimit-Limit, X-RateLimit-Remaining, ETag"
+		}
+
+		reverse_proxy api:3001 {
+			# health_uri /healthz
+			# health_interval 10s
+			# health_timeout 5s
+			# Enable in M1 when /healthz lands
+		}
+	}
+}
+
+# status.kvorum.example is NOT routed here.
+# Per SPEC §7.11, the status page runs on a separate host with its own DNS entry
+# (a distinct A/CNAME from dashboard/api). Routing it through this Caddy instance
+# would create a circular dependency if Caddy itself is down.
+# Provision the separate status host in M7; DNS precondition: status.kvorum A/CNAME
+# must resolve independently before enabling.

@@ -12,7 +12,8 @@ Licensed under AGPL-3.0. See [ADR-029](docs/adr/0029-license.md) for why AGPL an
 
 - Node 24 LTS (`nvm install 24 && nvm use 24`)
 - pnpm 11 (`corepack enable && corepack prepare pnpm@11.0.8 --activate`)
-- Docker (for the local Postgres instance)
+- Docker (for the local infra stack)
+- just (`brew install just` on macOS, or see [just.systems](https://just.systems/man/en/packages.html))
 
 ### Install
 
@@ -24,35 +25,19 @@ pnpm install        # also runs prisma generate via postinstall
 
 ### Environment
 
-Copy the example file and fill in values:
-
 ```bash
 cp .env.example .env
+# No edits required — defaults work for M0 (anvil runs standalone, no fork URL needed).
 ```
 
-Minimum required for local dev:
-
-```env
-DATABASE_URL=postgresql://postgres:dev@localhost:5432/kvorum?schema=public&connection_limit=5&pool_timeout=10
-API_PORT=3001
-```
-
-> **Note — `ANVIL_FORK_URL`**: the RPC fork URL used by Anvil for local chain simulation lands in Epic B1. Document it in `.env.example` now so contributors know it's coming; leave it blank until B1 is merged.
-
-### Start the database
+### Start the stack
 
 ```bash
-docker run -d --name kvorum-dev-postgres \
-  -p 5432:5432 \
-  -e POSTGRES_PASSWORD=dev \
-  postgres:18-alpine
-
-pnpm -w db:migrate:dev --name init
+just up       # starts postgres, redis, anvil; waits for all to be healthy
+just migrate  # applies pending Prisma migrations
 ```
 
 ### Run the full stack
-
-> **Note**: the `make` commands documented in the full SPEC arrive in Epic B1 (Docker Compose + Makefile). Use `nx` directly until then.
 
 ```bash
 # Start all four apps in parallel
@@ -68,6 +53,7 @@ npx nx serve ai-worker
 ### Verify
 
 ```bash
+just ps                             # all three infra services healthy
 curl http://localhost:3001/health   # {"status":"ok","timestamp":"..."}
 curl http://localhost:3000          # HTML containing "governance"
 ```
@@ -101,11 +87,31 @@ libs/
 docs/
   SPEC.md       Frozen v1.0 product specification
   adr/          Architecture Decision Records
-  runbooks/     Operational runbooks (secrets, rotation, etc.)
+  runbooks/     Operational runbooks
 
 infra/
+  caddy/        Caddy reverse-proxy config (production + dev overlay)
   scripts/      Provisioning scripts
 ```
+
+---
+
+## just recipes
+
+| Recipe                | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `just`                | List all recipes                                 |
+| `just doctor`         | Check prerequisites and infra port health        |
+| `just up`             | Start postgres, redis, anvil (waits for healthy) |
+| `just down`           | Stop infra services                              |
+| `just migrate`        | Apply pending Prisma migrations                  |
+| `just migrate-dev`    | Create and apply a new dev migration             |
+| `just reset yes`      | Wipe volumes and re-migrate                      |
+| `just dev`            | `up` + `migrate` + serve all apps                |
+| `just logs [service]` | Tail logs (omit service name for all)            |
+| `just ps`             | Show service status                              |
+| `just test [project]` | Run all tests (pass project name to scope)       |
+| `just clean`          | Remove `node_modules`, `.nx`, `dist`, `.next`    |
 
 ---
 
@@ -116,19 +122,22 @@ infra/
 3. Follow the ORM-first database convention (see `CLAUDE.md`).
 4. PRs should close the relevant GitHub issue.
 
+Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
+
 ---
 
 ## Troubleshooting
 
-| Symptom                                              | Likely cause                      | Fix                                                      |
-| ---------------------------------------------------- | --------------------------------- | -------------------------------------------------------- |
-| `pnpm install` fails with "Unsupported engine"       | Node version < 24                 | `nvm use 24`                                             |
-| `pnpm <script>` fails with "No packages found"       | Missing `-w` flag                 | `pnpm -w <script>`                                       |
-| `@kvorum/db` import unresolved                       | Prisma client not generated       | `pnpm -w db:generate`                                    |
-| Port 5432 already in use                             | Another Postgres container        | `docker ps` and stop the conflict                        |
-| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug            | Move with `cp -r`, fix `../..` depths, clear `.nx/cache` |
-| `"type": "module"` breaks webpack                    | Do not add to root `package.json` | Remove it                                                |
-| Lefthook blocks commit with format error             | Unstaged Prettier fix             | `pnpm -w format` and re-stage                            |
+| Symptom                                              | Likely cause                        | Fix                                                      |
+| ---------------------------------------------------- | ----------------------------------- | -------------------------------------------------------- |
+| `pnpm install` fails with "Unsupported engine"       | Node version < 24                   | `nvm use 24`                                             |
+| `pnpm <script>` fails with "No packages found"       | Missing `-w` flag                   | `pnpm -w <script>`                                       |
+| `@kvorum/db` import unresolved                       | Prisma client not generated         | `pnpm -w db:generate`                                    |
+| `just up` fails or times out                         | Port conflict or Docker not running | `just doctor` to diagnose                                |
+| Port 5432/6379/8545 already in use                   | Another container or local service  | `docker ps` and stop the conflict                        |
+| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug              | Move with `cp -r`, fix `../..` depths, clear `.nx/cache` |
+| `"type": "module"` breaks webpack                    | Do not add to root `package.json`   | Remove it                                                |
+| Lefthook blocks commit with format error             | Unstaged Prettier fix               | `pnpm -w format` and re-stage                            |
 
 ---
 

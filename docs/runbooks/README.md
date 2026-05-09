@@ -2,9 +2,10 @@
 
 Operational runbooks for Kvorum. Each runbook is self-contained and assumes a fresh SSH session on the production host.
 
-| Runbook                                    | When to use                        |
-| ------------------------------------------ | ---------------------------------- |
-| [secrets-rotation.md](secrets-rotation.md) | Rotating any production credential |
+| Runbook                                    | When to use                                  |
+| ------------------------------------------ | -------------------------------------------- |
+| [secrets-rotation.md](secrets-rotation.md) | Rotating any production credential           |
+| [caddy-deployment.md](caddy-deployment.md) | First deploy, config reload, cert monitoring |
 
 ## General conventions
 

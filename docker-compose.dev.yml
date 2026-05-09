@@ -1,0 +1,27 @@
+name: kvorum
+
+# Opt-in dev overlay: adds local-TLS Caddy for testing the reverse proxy locally.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Run `docker compose exec caddy caddy trust` once to install the local CA
+# into your system trust store (macOS Keychain / Linux /usr/local/share/ca-certs).
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infra/caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    # extra_hosts is harmless on macOS Docker Desktop (host.docker.internal resolves
+    # natively) and load-bearing on Linux Docker Engine where it doesn't by default.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
