@@ -7,8 +7,6 @@ pre-commit:
     prisma-format:
       glob: '*.prisma'
       run: pnpm -w db:format && git add {staged_files}
-
-pre-push:
-  commands:
     typecheck:
-      run: npx nx affected -t typecheck --base=origin/main
+      glob: '*.{ts,tsx}'
+      run: npx nx affected -t typecheck --base=HEAD
