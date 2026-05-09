@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "lint": "nx run-many -t lint",
     "typecheck": "nx run-many -t typecheck",
+    "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "postinstall": "prisma generate --schema=libs/db/prisma/schema.prisma",
     "db:generate": "prisma generate --schema=libs/db/prisma/schema.prisma",
