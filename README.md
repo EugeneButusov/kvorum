@@ -42,14 +42,11 @@ just migrate  # applies pending Prisma migrations
 ### Run the full stack
 
 ```bash
-# Start all four apps in parallel
-npx nx run-many -t serve --parallel=4
-
-# Or individually
-npx nx serve api          # http://localhost:3001/health
-npx nx serve dashboard    # http://localhost:3000
-npx nx serve indexer
-npx nx serve ai-worker
+# Start all apps (each in its own terminal, or use just dev)
+pnpm --filter api build:dev && node dist/apps/api/main.js     # http://localhost:3001/health
+pnpm --filter dashboard dev                                   # http://localhost:3000
+pnpm --filter indexer build:dev && node dist/apps/indexer/main.js
+pnpm --filter ai-worker build:dev && node dist/apps/ai-worker/main.js
 ```
 
 ### Verify
@@ -113,7 +110,7 @@ infra/
 | `just logs [service]` | Tail logs (omit service name for all)            |
 | `just ps`             | Show service status                              |
 | `just test [project]` | Run all tests (pass project name to scope)       |
-| `just clean`          | Remove `node_modules`, `.nx`, `dist`, `.next`    |
+| `just clean`          | Remove `node_modules`, `dist`, `.next`           |
 
 ---
 
@@ -131,16 +128,15 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 
 ## Troubleshooting
 
-| Symptom                                              | Likely cause                          | Fix                                                       |
-| ---------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
-| `pnpm install` fails with "Unsupported engine"       | Node version < 24                     | `nvm use 24`                                              |
-| Root script behaves unexpectedly in CI or scripts    | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
-| `@kvorum/db` import unresolved                       | Prisma client not generated           | `pnpm -w db:generate`                                     |
-| `just up` fails or times out                         | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
-| Port 5432/6379/8545 already in use                   | Another container or local service    | `docker ps` and stop the conflict                         |
-| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug                | Move with `cp -r`, fix `../..` depths, clear `.nx/cache`  |
-| `"type": "module"` breaks webpack                    | Do not add to root `package.json`     | Remove it                                                 |
-| Lefthook blocks commit with format error             | Unstaged Prettier fix                 | `pnpm -w format` and re-stage                             |
+| Symptom                                           | Likely cause                          | Fix                                                       |
+| ------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
+| `pnpm install` fails with "Unsupported engine"    | Node version < 24                     | `nvm use 24`                                              |
+| Root script behaves unexpectedly in CI or scripts | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
+| `@kvorum/db` import unresolved                    | Prisma client not generated           | `pnpm -w db:generate`                                     |
+| `just up` fails or times out                      | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
+| Port 5432/6379/8545 already in use                | Another container or local service    | `docker ps` and stop the conflict                         |
+| `"type": "module"` breaks webpack                 | Do not add to root `package.json`     | Remove it                                                 |
+| Lefthook blocks commit with format error          | Unstaged Prettier fix                 | `pnpm -w format` and re-stage                             |
 
 ---
 

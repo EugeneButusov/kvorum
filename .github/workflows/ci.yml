@@ -40,28 +40,19 @@ jobs:
         with:
           version: 11.0.8
 
-      - name: Cache pnpm store and Nx cache
+      - name: Cache pnpm store
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.pnpm-store
-            .nx/cache
-          key: ${{ runner.os }}-pnpm-nx-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-nx-${{ hashFiles('pnpm-lock.yaml') }}-
-            ${{ runner.os }}-pnpm-nx-
+            ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
         run: pnpm -w db:generate
-
-      - name: Set Nx SHAs
-        uses: nrwl/nx-set-shas@v5
-        with:
-          main-branch-name: main
-          error-on-no-successful-workflow: 'false'
 
       - name: Format check
         run: pnpm -w format:check

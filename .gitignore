@@ -11,9 +11,11 @@ build/
 # Generated
 libs/db/src/generated/
 
-# Nx
-.nx/cache/
-.nx/workspace-data/
+# TypeScript
+*.tsbuildinfo
+
+# Nx (legacy — kept so stale local caches don't surface as untracked)
+.nx/
 
 # Environment
 .env

@@ -1,0 +1,11 @@
+{
+  "name": "indexer",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "webpack-cli build --node-env=production",
+    "build:dev": "webpack-cli build --node-env=development",
+    "test": "jest --passWithNoTests",
+    "lint": "eslint src"
+  }
+}

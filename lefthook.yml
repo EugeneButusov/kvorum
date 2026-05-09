@@ -9,4 +9,4 @@ pre-commit:
       run: pnpm -w db:format && git add {staged_files}
     typecheck:
       glob: '*.{ts,tsx}'
-      run: npx nx affected -t typecheck --base=HEAD
+      run: pnpm -w typecheck
