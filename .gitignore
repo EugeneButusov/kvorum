@@ -43,3 +43,7 @@ coverage/
 prisma/migrations/dev.db
 
 vitest.config.*.timestamp*
+
+# Next.js
+.next
+out
