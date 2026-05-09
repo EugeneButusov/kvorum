@@ -16,6 +16,10 @@ permissions:
   pull-requests: read
 
 jobs:
+  # Single sequential job: each step pays ~20–30 s for checkout+install+generate.
+  # Splitting into parallel jobs would repeat that overhead N times and make total
+  # wall-clock time longer at current repo size. Revisit when any individual step
+  # consistently exceeds ~3 min — that's the crossover where parallelism wins.
   ci:
     name: Lint · Typecheck · Test · Build · Audit · Scan
     runs-on: ubuntu-latest
