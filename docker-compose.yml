@@ -1,0 +1,70 @@
+name: kvorum
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # CMD-SHELL required — CMD array form does not shell-expand $VAR; $$ escapes
+      # Compose interpolation so the in-container shell sees $POSTGRES_USER.
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 2g
+    cpus: 2.0
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+
+  anvil:
+    # ghcr.io/foundry-rs/foundry:stable is a mutable tag; pin to a digest in M7
+    # when hardening. cast is always on PATH in this image (debian-slim variant).
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint: ['anvil']
+    command: ['--host', '0.0.0.0']
+    ports:
+      - '${ANVIL_PORT:-8545}:8545'
+    healthcheck:
+      # cast block-number probes the JSON-RPC; no shell expansion needed (CMD form).
+      test: ['CMD', 'cast', 'block-number', '--rpc-url', 'http://localhost:8545']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    mem_limit: 1g
+    cpus: 1.0
+    restart: unless-stopped
+
+  # Application services (api, dashboard, indexer, ai-worker) land in M1.
+  # When added they MUST include:
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #
+  # Container hardening (read_only, cap_drop, security_opt, logging caps,
+  # backup automation, metrics scraping) is deferred to M7.
+
+volumes:
+  postgres_data:
+  redis_data:
