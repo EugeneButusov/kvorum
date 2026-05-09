@@ -20,15 +20,15 @@ A dashboard for/against bar built on `primary_choice` would silently misrepresen
 
 `vote.primary_choice` is populated only for vote types where one choice index unambiguously represents the vote:
 
-| Source voting type | `primary_choice` populated |
-|---|---|
-| Compound / Aave / Aragon (binary + abstain) | Yes |
-| Snapshot `single-choice` | Yes |
-| Snapshot `basic` (For / Against / Abstain) | Yes |
-| Snapshot `approval` | Yes — but interpreted as "any approved choice"; the dashboard uses `vote_choice` directly when displaying approval results |
-| Snapshot `weighted` | NULL |
-| Snapshot `ranked-choice` | NULL |
-| Snapshot `quadratic` | NULL |
+| Source voting type                          | `primary_choice` populated                                                                                                 |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Compound / Aave / Aragon (binary + abstain) | Yes                                                                                                                        |
+| Snapshot `single-choice`                    | Yes                                                                                                                        |
+| Snapshot `basic` (For / Against / Abstain)  | Yes                                                                                                                        |
+| Snapshot `approval`                         | Yes — but interpreted as "any approved choice"; the dashboard uses `vote_choice` directly when displaying approval results |
+| Snapshot `weighted`                         | NULL                                                                                                                       |
+| Snapshot `ranked-choice`                    | NULL                                                                                                                       |
+| Snapshot `quadratic`                        | NULL                                                                                                                       |
 
 Aggregation queries that use `primary_choice` either filter to populated rows or join to `vote_choice` for the NULL cases. The repository layer exposes a `tallyByChoice(proposalId)` helper that handles both paths transparently.
 

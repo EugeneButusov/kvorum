@@ -9,7 +9,7 @@
 
 SPEC §2.4.3 supports actor merging: "When two actors are identified as the same entity, a merge operation rewrites foreign keys and consolidates them into one." SPEC §4.2 identifies actors by their primary address in URLs (`/v1/actors/{address}`). SPEC §2.8 invariant 4 declares actors "mergeable, never deletable."
 
-What happens to URLs after a merge is unspecified. Concretely: actor A (primary `0xaaa...`) and actor B (primary `0xbbb...`) merge into surviving actor A. The URL `/v1/actors/0xbbb...` previously resolved to actor B. Post-merge it must do *something*. Plausible behaviors:
+What happens to URLs after a merge is unspecified. Concretely: actor A (primary `0xaaa...`) and actor B (primary `0xbbb...`) merge into surviving actor A. The URL `/v1/actors/0xbbb...` previously resolved to actor B. Post-merge it must do _something_. Plausible behaviors:
 
 1. **404 Not Found.** Wrong: the address is real, the actor was real, the data still exists.
 2. **200 OK with actor A's data.** Silently changes the meaning of the URL — confusing for cached clients and links in external articles.

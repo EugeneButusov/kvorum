@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: '*.{ts,tsx,js,jsx,json,md,yaml,yml,css}'
+      run: pnpm exec prettier --write {staged_files} && git add {staged_files}
+    prisma-format:
+      glob: '*.prisma'
+      run: pnpm -w db:format && git add {staged_files}
+    typecheck:
+      glob: '*.{ts,tsx}'
+      run: npx nx affected -t typecheck --base=HEAD

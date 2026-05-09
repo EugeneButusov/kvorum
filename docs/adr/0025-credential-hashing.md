@@ -9,7 +9,7 @@
 SPEC §4.3 says API keys are stored as "salted hashes" without specifying the algorithm. SPEC §7.6 specifies "bcrypt with cost factor 12 (or argon2id where the platform supports it)" for password storage. The two cases are conflated in the spec's language but have very different requirements:
 
 - **Passwords** are low-entropy, user-chosen, and verified rarely (login). Slow KDFs (bcrypt, argon2id) are correct because they raise the cost of an offline brute-force attack against a stolen hash table.
-- **API keys** are high-entropy (32 url-safe characters from Kvorum's CSPRNG) and verified on *every* request. A bcrypt-cost-12 verification is ~250 ms — a single CPU sustains <4 verifications per second. The free tier alone (60 RPM × hundreds of keys) breaks the API.
+- **API keys** are high-entropy (32 url-safe characters from Kvorum's CSPRNG) and verified on _every_ request. A bcrypt-cost-12 verification is ~250 ms — a single CPU sustains <4 verifications per second. The free tier alone (60 RPM × hundreds of keys) breaks the API.
 
 Plain `SHA-256(key)` would be fast but vulnerable to rainbow-table lookups if the DB is exfiltrated. The fix is a server-side pepper (a single secret known to the application but not stored with the hash).
 

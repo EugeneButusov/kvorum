@@ -7,7 +7,7 @@
 
 ## Context
 
-SPEC §7.5 says "the host's `.env` files are *not* in the repository, but their contents are documented in a runbook stored in a secure location (not the repository)." The "secure location" is unspecified.
+SPEC §7.5 says "the host's `.env` files are _not_ in the repository, but their contents are documented in a runbook stored in a secure location (not the repository)." The "secure location" is unspecified.
 
 If that location is the host itself, total host loss = total secret loss. The recovery objective in §7.5 (RTO ≤ 4 hours from a fresh host) is unachievable without an off-host source for credentials: deployment scripts cannot regenerate database passwords, RPC API keys, the HMAC pepper from ADR-025, or the AI provider keys. Without an off-host secrets store, "provision a new host, restore Postgres" stops at the database password.
 
@@ -27,7 +27,7 @@ The vault holds:
 - Transactional email credentials (SES or equivalent, §7.12)
 - Backup storage credentials (Hetzner Object Storage / Backblaze)
 - TLS-related secrets if any are not handled by Caddy's auto-renewal
-- The vault master password's *paper* backup is held separately (a sealed envelope in a fireproof location); this is the only out-of-band credential and exists solely to recover the vault if the operator's authentication device is lost.
+- The vault master password's _paper_ backup is held separately (a sealed envelope in a fireproof location); this is the only out-of-band credential and exists solely to recover the vault if the operator's authentication device is lost.
 
 A short shell script (`infra/scripts/provision-env.sh`) reads the vault via the 1Password CLI (`op`) and generates `.env` on the target host. The script is idempotent and refuses to overwrite a populated `.env` without `--force`.
 
@@ -42,7 +42,7 @@ For the HMAC pepper specifically (ADR-025), rotation involves a grace window dur
 
 ## Alternatives considered
 
-- **Encrypted backup of `.env` on object storage.** Requires a separate decryption key, recursing the problem one level. Where is *that* key stored?
+- **Encrypted backup of `.env` on object storage.** Requires a separate decryption key, recursing the problem one level. Where is _that_ key stored?
 - **Cloud secret manager (AWS Secrets Manager, GCP Secret Manager).** Adds a vendor dependency and a runtime egress cost. Defensible if Kvorum is already on AWS or GCP; not justified for a Hetzner deployment at v1 scale.
 - **Plain-text runbook on a USB stick.** Works but is operationally fragile (loss, theft, no versioning, no access audit). The vault solves these for €5–10/month.
 - **HashiCorp Vault, self-hosted.** Heavy for v1; reintroduces the bootstrap problem (where do Vault's own secrets live?).

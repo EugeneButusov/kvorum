@@ -24,7 +24,7 @@ else:
     -- normal live-ingestion lifecycle takes over
 ```
 
-`chain_head_at_backfill_start` is captured once at the beginning of the backfill run and reused across chunks. It is *not* refreshed per chunk: refreshing would cause the same physical block to be classified differently across runs, creating subtle non-idempotency.
+`chain_head_at_backfill_start` is captured once at the beginning of the backfill run and reused across chunks. It is _not_ refreshed per chunk: refreshing would cause the same physical block to be classified differently across runs, creating subtle non-idempotency.
 
 When the backfill resumes after a crash (per §3.10's checkpoint mechanism), the original `chain_head_at_backfill_start` is rehydrated from `dao_source.backfill_started_at_block` (NEW field). Restarting a fresh backfill (operator-triggered) captures a new head and resets the cutoff.
 

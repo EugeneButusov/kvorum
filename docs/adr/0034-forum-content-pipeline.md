@@ -17,22 +17,22 @@ A second concern is determinism. The content-hash cache (§5.3) is keyed on `sha
 
 The pipeline is HTML → Markdown via the `turndown` library, with a fixed configuration:
 
-| HTML element | Markdown output |
-|---|---|
-| `<h1>`–`<h6>` | `#`-prefixed lines (1–6 hashes) |
-| `<p>` | Preserved as paragraphs separated by blank lines |
-| `<ul>`, `<ol>`, `<li>` | `-` for unordered, `1.` for ordered |
-| `<code>` (inline) | Backticks |
-| `<pre><code>` (block) | Triple-backtick fenced; language hint preserved if `class="language-X"` is present |
-| `<a href>` | `[text](url)` — URLs are valuable input for proposal linking |
-| `<img>` | `[image: <alt or src>]` — placeholder, not the binary |
-| `<blockquote>` | `>`-prefixed lines |
-| `<table>` | GFM Markdown table |
-| `<strong>`, `<b>` | `**text**` |
-| `<em>`, `<i>` | `*text*` |
-| `<hr>` | `---` |
-| HTML comments | Stripped |
-| Unknown tags | Tag stripped, text content preserved |
+| HTML element           | Markdown output                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| `<h1>`–`<h6>`          | `#`-prefixed lines (1–6 hashes)                                                    |
+| `<p>`                  | Preserved as paragraphs separated by blank lines                                   |
+| `<ul>`, `<ol>`, `<li>` | `-` for unordered, `1.` for ordered                                                |
+| `<code>` (inline)      | Backticks                                                                          |
+| `<pre><code>` (block)  | Triple-backtick fenced; language hint preserved if `class="language-X"` is present |
+| `<a href>`             | `[text](url)` — URLs are valuable input for proposal linking                       |
+| `<img>`                | `[image: <alt or src>]` — placeholder, not the binary                              |
+| `<blockquote>`         | `>`-prefixed lines                                                                 |
+| `<table>`              | GFM Markdown table                                                                 |
+| `<strong>`, `<b>`      | `**text**`                                                                         |
+| `<em>`, `<i>`          | `*text*`                                                                           |
+| `<hr>`                 | `---`                                                                              |
+| HTML comments          | Stripped                                                                           |
+| Unknown tags           | Tag stripped, text content preserved                                               |
 
 Posts in a thread are concatenated with `\n\n---\n\n` separators. Each post is preceded by a metadata line: `**@{username}** at {iso8601_timestamp}`.
 

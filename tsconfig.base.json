@@ -1,0 +1,26 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "useDefineForClassFields": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@kvorum/domain": ["./libs/domain/src/index.ts"],
+      "@kvorum/db": ["./libs/db/src/index.ts"],
+      "@kvorum/chain": ["./libs/chain/src/index.ts"],
+      "@kvorum/ai": ["./libs/ai/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

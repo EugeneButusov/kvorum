@@ -9,7 +9,7 @@
 
 SPEC §2.4.4 describes `proposal.voting_power_block` as "nullable for purely off-chain votes that don't reference a specific block." This phrasing implies Snapshot proposals leave the field NULL.
 
-That's incorrect. Every Snapshot proposal references an on-chain `snapshot` block — the block at which the strategy resolver evaluates voting power. KNOWN-006 explicitly turns on this fact (the trust boundary it documents only exists *because* Snapshot reads on-chain state at that block). Leaving the field NULL discards information Kvorum already has and degrades cross-source queries like "which proposals snapshot voting power at block N."
+That's incorrect. Every Snapshot proposal references an on-chain `snapshot` block — the block at which the strategy resolver evaluates voting power. KNOWN-006 explicitly turns on this fact (the trust boundary it documents only exists _because_ Snapshot reads on-chain state at that block). Leaving the field NULL discards information Kvorum already has and degrades cross-source queries like "which proposals snapshot voting power at block N."
 
 ## Decision
 
