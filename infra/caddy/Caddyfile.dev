@@ -1,0 +1,12 @@
+{
+	auto_https off
+	local_certs
+}
+
+dashboard.localhost:443 {
+	reverse_proxy host.docker.internal:3000
+}
+
+api.localhost:443 {
+	reverse_proxy host.docker.internal:3001
+}
