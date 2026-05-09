@@ -13,6 +13,7 @@ Licensed under AGPL-3.0. See [ADR-029](docs/adr/0029-license.md) for why AGPL an
 - Node 24 LTS (`nvm install 24 && nvm use 24`)
 - pnpm 11 (`corepack enable && corepack prepare pnpm@11.0.8 --activate`)
 - Docker (for the local infra stack)
+- just (`brew install just` on macOS, or see [just.systems](https://just.systems/man/en/packages.html))
 
 ### Install
 
@@ -32,8 +33,8 @@ cp .env.example .env
 ### Start the stack
 
 ```bash
-make up       # starts postgres, redis, anvil; waits for all to be healthy
-make migrate  # applies pending Prisma migrations
+just up       # starts postgres, redis, anvil; waits for all to be healthy
+just migrate  # applies pending Prisma migrations
 ```
 
 ### Run the full stack
@@ -52,7 +53,7 @@ npx nx serve ai-worker
 ### Verify
 
 ```bash
-make ps                             # all three infra services healthy
+just ps                             # all three infra services healthy
 curl http://localhost:3001/health   # {"status":"ok","timestamp":"..."}
 curl http://localhost:3000          # HTML containing "governance"
 ```
@@ -95,22 +96,22 @@ infra/
 
 ---
 
-## make targets
+## just recipes
 
-| Target             | Description                                          |
-| ------------------ | ---------------------------------------------------- |
-| `make help`        | List all targets                                     |
-| `make doctor`      | Check prerequisites and infra port health            |
-| `make up`          | Start postgres, redis, anvil (waits for healthy)     |
-| `make down`        | Stop infra services                                  |
-| `make migrate`     | Apply pending Prisma migrations                      |
-| `make migrate-dev` | Create and apply a new dev migration                 |
-| `make reset`       | Wipe volumes and re-migrate (requires `CONFIRM=yes`) |
-| `make dev`         | `up` + `migrate` + serve all apps                    |
-| `make logs`        | Tail logs (`SERVICE=postgres` for one service)       |
-| `make ps`          | Show service status                                  |
-| `make test`        | Run all tests (`PROJECT=api` to scope)               |
-| `make clean`       | Remove `node_modules`, `.nx`, `dist`, `.next`        |
+| Recipe                | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `just`                | List all recipes                                 |
+| `just doctor`         | Check prerequisites and infra port health        |
+| `just up`             | Start postgres, redis, anvil (waits for healthy) |
+| `just down`           | Stop infra services                              |
+| `just migrate`        | Apply pending Prisma migrations                  |
+| `just migrate-dev`    | Create and apply a new dev migration             |
+| `just reset yes`      | Wipe volumes and re-migrate                      |
+| `just dev`            | `up` + `migrate` + serve all apps                |
+| `just logs [service]` | Tail logs (omit service name for all)            |
+| `just ps`             | Show service status                              |
+| `just test [project]` | Run all tests (pass project name to scope)       |
+| `just clean`          | Remove `node_modules`, `.nx`, `dist`, `.next`    |
 
 ---
 
@@ -132,7 +133,7 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 | `pnpm install` fails with "Unsupported engine"       | Node version < 24                   | `nvm use 24`                                             |
 | `pnpm <script>` fails with "No packages found"       | Missing `-w` flag                   | `pnpm -w <script>`                                       |
 | `@kvorum/db` import unresolved                       | Prisma client not generated         | `pnpm -w db:generate`                                    |
-| `make up` fails or times out                         | Port conflict or Docker not running | `make doctor` to diagnose                                |
+| `just up` fails or times out                         | Port conflict or Docker not running | `just doctor` to diagnose                                |
 | Port 5432/6379/8545 already in use                   | Another container or local service  | `docker ps` and stop the conflict                        |
 | Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug              | Move with `cp -r`, fix `../..` depths, clear `.nx/cache` |
 | `"type": "module"` breaks webpack                    | Do not add to root `package.json`   | Remove it                                                |
