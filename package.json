@@ -76,20 +76,6 @@
     "vitest": "~4.1.0",
     "webpack-cli": "^5.1.4"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@prisma/client",
-      "@prisma/engines",
-      "@swc/core",
-      "lefthook",
-      "less",
-      "nx",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.19",
