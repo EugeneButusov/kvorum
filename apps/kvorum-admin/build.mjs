@@ -2,7 +2,7 @@
 // Build script for kvorum-admin.
 // Handles: version injection, ESM-compatible banner with CJS require polyfill.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +18,9 @@ const banner = [
   'const require = __cjsRequire(import.meta.url);',
 ].join('\n');
 
+const outDir = join(root, 'dist/apps/kvorum-admin');
+mkdirSync(outDir, { recursive: true });
+
 execFileSync(
   join(root, 'node_modules/.bin/esbuild'),
   [
@@ -32,3 +35,7 @@ execFileSync(
   ],
   { stdio: 'inherit', cwd: root },
 );
+
+// Write a package.json so Node.js recognises the ESM bundle without a
+// MODULE_TYPELESS_PACKAGE_JSON warning (the .js file uses import syntax).
+writeFileSync(join(outDir, 'package.json'), '{"type":"module"}\n');
