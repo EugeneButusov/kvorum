@@ -123,6 +123,7 @@ infra/
 2. All four checks must pass before pushing (`pnpm -w format:check && pnpm -w lint && pnpm -w typecheck && pnpm -w test`). Lefthook enforces formatting at commit and typecheck+test at push.
 3. Follow the ORM-first database convention (see `CLAUDE.md`).
 4. PRs should close the relevant GitHub issue.
+5. Operator branch protection setup: see [`docs/runbooks/branch-protection.md`](docs/runbooks/branch-protection.md).
 
 Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 
