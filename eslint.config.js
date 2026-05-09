@@ -1,9 +1,7 @@
-import nx from '@nx/eslint-plugin';
+import tseslint from 'typescript-eslint';
+import nextPlugin from '@next/eslint-plugin-next';
 
-export default [
-  ...nx.configs['flat/base'],
-  ...nx.configs['flat/typescript'],
-  ...nx.configs['flat/javascript'],
+export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
@@ -13,42 +11,28 @@ export default [
       '**/vitest.config.*.timestamp*',
     ],
   },
+  ...tseslint.configs.recommended,
   {
-    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    files: ['apps/dashboard/**/*.{ts,tsx,js,jsx}'],
+    plugins: { '@next/next': nextPlugin },
     rules: {
-      '@nx/enforce-module-boundaries': [
-        'error',
-        {
-          enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cj]s$'],
-          depConstraints: [
-            {
-              sourceTag: 'scope:domain',
-              onlyDependOnLibsWithTags: [],
-            },
-            {
-              sourceTag: 'scope:db',
-              onlyDependOnLibsWithTags: ['scope:domain'],
-            },
-            {
-              sourceTag: 'scope:chain',
-              onlyDependOnLibsWithTags: ['scope:domain'],
-            },
-            {
-              sourceTag: 'scope:ai',
-              onlyDependOnLibsWithTags: ['scope:domain'],
-            },
-          ],
-        },
-      ],
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
     },
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
-    rules: {},
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
   },
   {
-    files: ['**/*.js', '**/*.jsx'],
-    rules: {},
+    files: ['**/*.js', '**/*.jsx', '**/*.mjs', '**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
   },
-];
+);

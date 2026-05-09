@@ -111,15 +111,15 @@ logs service='':
 ps:
     {{ compose }} ps
 
-# Start infra, migrate, and serve all apps
+# Start infra, migrate, and serve all apps (each app in its own terminal)
 dev: up migrate
-    npx nx run-many -t serve --parallel=4
+    {{ pnpm }} dev
 
-# Run tests — pass project name to scope: just test api
+# Run tests — pass package name to scope: just test api
 test project='':
     #!/usr/bin/env bash
     if [ -n "{{ project }}" ]; then
-        npx nx test {{ project }}
+        pnpm --filter "{{ project }}" test
     else
         {{ pnpm }} test
     fi
@@ -130,4 +130,4 @@ seed:
 
 # Remove build artifacts and caches
 clean:
-    rm -rf node_modules .pnpm-store .nx dist .next
+    rm -rf node_modules .pnpm-store dist .next
