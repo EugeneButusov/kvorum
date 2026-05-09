@@ -10,7 +10,9 @@ services:
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # postgres 18+ requires the mount at /var/lib/postgresql (not /data);
+      # it places data in a versioned subdirectory (e.g. 18/main).
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       # CMD-SHELL required — CMD array form does not shell-expand $VAR; $$ escapes
       # Compose interpolation so the in-container shell sees $POSTGRES_USER.
@@ -38,8 +40,9 @@ services:
     restart: unless-stopped
 
   anvil:
-    # ghcr.io/foundry-rs/foundry:stable is a mutable tag; pin to a digest in M7
-    # when hardening. cast is always on PATH in this image (debian-slim variant).
+    # stable is mutable; current digest (2026-05-09, verified arm64+amd64):
+    # sha256:043752653d5be351c71709091b3db97c4421c907eb40ea294195e7f532aadf46
+    # Pin to immutable digest in M7 when hardening. cast is on PATH in this image.
     image: ghcr.io/foundry-rs/foundry:stable
     entrypoint: ['anvil']
     command: ['--host', '0.0.0.0']
