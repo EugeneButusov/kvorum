@@ -10,7 +10,6 @@ allowBuilds:
   esbuild: true
   lefthook: true
   less: true
-  nx: true
   prisma: true
   sharp: true
   unrs-resolver: true

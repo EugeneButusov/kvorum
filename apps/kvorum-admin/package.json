@@ -3,6 +3,12 @@
   "version": "0.0.0",
   "type": "module",
   "main": "main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "test:bundle": "vitest run --config vitest.bundle.config.ts",
+    "lint": "eslint src"
+  },
   "dependencies": {
     "commander": "^14.0.3"
   }

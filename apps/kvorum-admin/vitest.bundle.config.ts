@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
-export default defineConfig(() => ({
+export default defineConfig({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/kvorum-admin-bundle',
-  plugins: [nxViteTsPaths()],
+  plugins: [tsconfigPaths()],
   test: {
     name: 'kvorum-admin-bundle',
     watch: false,
@@ -17,4 +17,4 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
     },
   },
-}));
+});

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build script for kvorum-admin — invoked by the nx build target.
+// Build script for kvorum-admin.
 // Handles: version injection, ESM-compatible banner with CJS require polyfill.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
