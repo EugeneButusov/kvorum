@@ -1,0 +1,9 @@
+{
+  "name": "kvorum-admin",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "main.js",
+  "dependencies": {
+    "commander": "^14.0.3"
+  }
+}

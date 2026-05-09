@@ -1,0 +1,31 @@
+{
+  "name": "kvorum-admin",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/kvorum-admin/src",
+  "projectType": "application",
+  "tags": ["scope:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/kvorum-admin"],
+      "options": {
+        "command": "node apps/kvorum-admin/build.mjs",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.app.json",
+        "cwd": "apps/kvorum-admin"
+      }
+    },
+    "test-bundle": {
+      "executor": "@nx/vitest:test",
+      "dependsOn": ["build"],
+      "options": {
+        "configFile": "apps/kvorum-admin/vitest.bundle.config.ts"
+      }
+    }
+  }
+}

@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "nx run-many -t lint",
-    "typecheck": "nx run-many -t typecheck",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p apps/dashboard/tsconfig.json && tsc --noEmit -p apps/indexer/tsconfig.app.json && tsc --noEmit -p apps/ai-worker/tsconfig.app.json && tsc --noEmit -p apps/kvorum-admin/tsconfig.app.json && tsc --noEmit -p libs/domain/tsconfig.lib.json && tsc --noEmit -p libs/db/tsconfig.lib.json && tsc --noEmit -p libs/chain/tsconfig.lib.json && tsc --noEmit -p libs/ai/tsconfig.lib.json",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "postinstall": "prisma generate --schema=libs/db/prisma/schema.prisma",
@@ -51,6 +51,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitest/coverage-v8": "~4.1.0",
     "autoprefixer": "10.4.13",
+    "esbuild": "^0.28.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.1.6",
     "eslint-plugin-import": "2.31.0",
@@ -89,5 +90,10 @@
     "react-dom": "^19.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

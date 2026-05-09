@@ -47,3 +47,7 @@ vitest.config.*.timestamp*
 # Next.js
 .next
 out
+docs/planning/
+
+# TypeScript incremental build info
+*.tsbuildinfo

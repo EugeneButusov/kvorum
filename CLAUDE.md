@@ -4,22 +4,23 @@ Guidance for Claude Code working in this repo.
 
 ## Stack snapshot (M0)
 
-| Layer                      | Choice                       | Notes                                                          |
-| -------------------------- | ---------------------------- | -------------------------------------------------------------- |
-| Runtime                    | Node 24 LTS                  | `.nvmrc` pins the minor                                        |
-| Package manager            | pnpm 11                      | workspace monorepo; use `-w` for root scripts                  |
-| Build orchestration        | Nx 22                        | integrated mode, no Nx Cloud                                   |
-| API                        | NestJS 11                    | `apps/api` — HTTP + REST                                       |
-| Workers                    | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                     |
-| Dashboard                  | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                |
-| Database                   | PostgreSQL 18                | Prisma 6 ORM                                                   |
-| Prisma generator           | `prisma-client`              | NOT the deprecated `prisma-client-js`                          |
-| Testing (libs + dashboard) | Vitest 4                     |                                                                |
-| Testing (NestJS apps)      | Jest 30                      | Nx 22 `@nx/nest` only supports jest                            |
-| Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                              |
-| Linting                    | ESLint 9 flat config         | `@nx/enforce-module-boundaries` active                         |
-| Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                            |
-| Git hooks                  | Lefthook                     | pre-commit: format + prisma format; pre-push: typecheck + test |
+| Layer                      | Choice                       | Notes                                                              |
+| -------------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| Runtime                    | Node 24 LTS                  | `.nvmrc` pins the minor                                            |
+| Package manager            | pnpm 11                      | workspace monorepo; use `-w` for root scripts                      |
+| Build orchestration        | Nx 22                        | integrated mode, no Nx Cloud                                       |
+| API                        | NestJS 11                    | `apps/api` — HTTP + REST                                           |
+| Workers                    | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                         |
+| Dashboard                  | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                    |
+| Database                   | PostgreSQL 18                | Prisma 6 ORM                                                       |
+| Prisma generator           | `prisma-client`              | NOT the deprecated `prisma-client-js`                              |
+| Testing (libs + dashboard) | Vitest 4                     |                                                                    |
+| Testing (NestJS apps)      | Jest 30                      | Nx 22 `@nx/nest` only supports jest                                |
+| Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                  |
+| Linting                    | ESLint 9 flat config         | `@nx/enforce-module-boundaries` active                             |
+| Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                |
+| Git hooks                  | Lefthook                     | pre-commit: format + prisma format + typecheck (no pre-push block) |
+| Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle         |
 
 ClickHouse is deferred (ADR-026). Do not add ClickHouse dependencies.
 
@@ -50,7 +51,7 @@ pnpm -w typecheck
 pnpm -w test
 ```
 
-Lefthook enforces formatting + prisma format on staged files at `git commit`. Typecheck + test run at `git push`. Do not use `--no-verify`.
+Lefthook enforces formatting, prisma format, and typecheck on staged files at `git commit`. There is no pre-push block — `lint` and `test` run manually + in CI only. Do not use `--no-verify`.
 
 ## NestJS workers (indexer, ai-worker)
 
@@ -90,10 +91,11 @@ Defined in `tsconfig.base.json`. Paths use `./` prefix (required by TS 5.9 witho
 
 ```
 apps/
-  api/          NestJS HTTP API (port 3001)
-  dashboard/    Next.js 16 App Router (port 3000)
-  indexer/      NestJS standalone — block event consumer
-  ai-worker/    NestJS standalone — AI summarisation worker
+  api/           NestJS HTTP API (port 3001)
+  dashboard/     Next.js 16 App Router (port 3000)
+  indexer/       NestJS standalone — block event consumer
+  ai-worker/     NestJS standalone — AI summarisation worker
+  kvorum-admin/  Operator CLI — stub command tree (M0)
 libs/
   domain/       Shared domain types and constants
   db/           Prisma client, PrismaService, DbModule

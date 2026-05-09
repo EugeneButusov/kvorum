@@ -38,6 +38,10 @@ export default [
               sourceTag: 'scope:ai',
               onlyDependOnLibsWithTags: ['scope:domain'],
             },
+            {
+              sourceTag: 'scope:app',
+              onlyDependOnLibsWithTags: ['scope:domain', 'scope:db', 'scope:chain', 'scope:ai'],
+            },
           ],
         },
       ],
