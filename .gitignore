@@ -41,3 +41,5 @@ coverage/
 
 # Prisma
 prisma/migrations/dev.db
+
+vitest.config.*.timestamp*

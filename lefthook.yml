@@ -6,12 +6,12 @@ pre-commit:
       run: pnpm exec prettier --write {staged_files} && git add {staged_files}
     prisma-format:
       glob: '*.prisma'
-      run: pnpm db:format && git add {staged_files}
+      run: pnpm -w db:format && git add {staged_files}
 
 pre-push:
   parallel: false
   commands:
     typecheck:
-      run: pnpm typecheck
+      run: pnpm -w typecheck
     test:
-      run: pnpm test
+      run: pnpm -w test

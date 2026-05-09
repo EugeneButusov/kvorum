@@ -1,0 +1,33 @@
+{
+  "name": "db",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/db/src",
+  "projectType": "library",
+  "tags": ["scope:db"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.lib.json",
+        "cwd": "libs/db"
+      }
+    },
+    "generate": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/libs/db/src/generated"],
+      "options": {
+        "command": "prisma generate --schema=libs/db/prisma/schema.prisma"
+      }
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/db",
+        "main": "libs/db/src/index.ts",
+        "tsConfig": "libs/db/tsconfig.lib.json",
+        "assets": ["libs/db/*.md"]
+      }
+    }
+  }
+}
