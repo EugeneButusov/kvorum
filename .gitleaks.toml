@@ -1,0 +1,19 @@
+title = "Kvorum gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Planning docs and SPEC — intentional placeholder patterns"
+regexTarget = "line"
+regexes = [
+  '''REPLACE_BEFORE_DEPLOY''',
+  '''kvorum\.example''',
+]
+
+[[allowlists]]
+description = "Known-issue registry examples and test fixtures"
+regexTarget = "line"
+regexes = [
+  '''KNOWN-\d{3}''',
+]

@@ -1,5 +1,7 @@
 # Kvorum
 
+[![CI](https://github.com/EugeneButusov/kvorum/actions/workflows/ci.yml/badge.svg)](https://github.com/EugeneButusov/kvorum/actions/workflows/ci.yml)
+
 **On-chain governance, made legible.** Kvorum indexes DAO proposals and votes from Snapshot and EVM chains, enriches them with AI summaries, and surfaces them through a clean dashboard — giving token holders and researchers a single place to understand what is happening in governance without wading through raw calldata.
 
 Licensed under AGPL-3.0. See [ADR-029](docs/adr/0029-license.md) for why AGPL and what it means for self-hosting.
@@ -121,6 +123,7 @@ infra/
 2. All four checks must pass before pushing (`pnpm -w format:check && pnpm -w lint && pnpm -w typecheck && pnpm -w test`). Lefthook enforces formatting at commit and typecheck+test at push.
 3. Follow the ORM-first database convention (see `CLAUDE.md`).
 4. PRs should close the relevant GitHub issue.
+5. Operator branch protection setup: see [`docs/runbooks/branch-protection.md`](docs/runbooks/branch-protection.md).
 
 Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 
@@ -128,16 +131,16 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 
 ## Troubleshooting
 
-| Symptom                                              | Likely cause                        | Fix                                                      |
-| ---------------------------------------------------- | ----------------------------------- | -------------------------------------------------------- |
-| `pnpm install` fails with "Unsupported engine"       | Node version < 24                   | `nvm use 24`                                             |
-| `pnpm <script>` fails with "No packages found"       | Missing `-w` flag                   | `pnpm -w <script>`                                       |
-| `@kvorum/db` import unresolved                       | Prisma client not generated         | `pnpm -w db:generate`                                    |
-| `just up` fails or times out                         | Port conflict or Docker not running | `just doctor` to diagnose                                |
-| Port 5432/6379/8545 already in use                   | Another container or local service  | `docker ps` and stop the conflict                        |
-| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug              | Move with `cp -r`, fix `../..` depths, clear `.nx/cache` |
-| `"type": "module"` breaks webpack                    | Do not add to root `package.json`   | Remove it                                                |
-| Lefthook blocks commit with format error             | Unstaged Prettier fix               | `pnpm -w format` and re-stage                            |
+| Symptom                                              | Likely cause                          | Fix                                                       |
+| ---------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
+| `pnpm install` fails with "Unsupported engine"       | Node version < 24                     | `nvm use 24`                                              |
+| Root script behaves unexpectedly in CI or scripts    | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
+| `@kvorum/db` import unresolved                       | Prisma client not generated           | `pnpm -w db:generate`                                     |
+| `just up` fails or times out                         | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
+| Port 5432/6379/8545 already in use                   | Another container or local service    | `docker ps` and stop the conflict                         |
+| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug                | Move with `cp -r`, fix `../..` depths, clear `.nx/cache`  |
+| `"type": "module"` breaks webpack                    | Do not add to root `package.json`     | Remove it                                                 |
+| Lefthook blocks commit with format error             | Unstaged Prettier fix                 | `pnpm -w format` and re-stage                             |
 
 ---
 
