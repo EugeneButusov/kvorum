@@ -128,16 +128,16 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 
 ## Troubleshooting
 
-| Symptom                                              | Likely cause                        | Fix                                                      |
-| ---------------------------------------------------- | ----------------------------------- | -------------------------------------------------------- |
-| `pnpm install` fails with "Unsupported engine"       | Node version < 24                   | `nvm use 24`                                             |
-| `pnpm <script>` fails with "No packages found"       | Missing `-w` flag                   | `pnpm -w <script>`                                       |
-| `@kvorum/db` import unresolved                       | Prisma client not generated         | `pnpm -w db:generate`                                    |
-| `just up` fails or times out                         | Port conflict or Docker not running | `just doctor` to diagnose                                |
-| Port 5432/6379/8545 already in use                   | Another container or local service  | `docker ps` and stop the conflict                        |
-| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug              | Move with `cp -r`, fix `../..` depths, clear `.nx/cache` |
-| `"type": "module"` breaks webpack                    | Do not add to root `package.json`   | Remove it                                                |
-| Lefthook blocks commit with format error             | Unstaged Prettier fix               | `pnpm -w format` and re-stage                            |
+| Symptom                                              | Likely cause                          | Fix                                                       |
+| ---------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
+| `pnpm install` fails with "Unsupported engine"       | Node version < 24                     | `nvm use 24`                                              |
+| Root script behaves unexpectedly in CI or scripts    | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
+| `@kvorum/db` import unresolved                       | Prisma client not generated           | `pnpm -w db:generate`                                     |
+| `just up` fails or times out                         | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
+| Port 5432/6379/8545 already in use                   | Another container or local service    | `docker ps` and stop the conflict                         |
+| Nx generator creates files under `libs/domain/apps/` | Nx path resolution bug                | Move with `cp -r`, fix `../..` depths, clear `.nx/cache`  |
+| `"type": "module"` breaks webpack                    | Do not add to root `package.json`     | Remove it                                                 |
+| Lefthook blocks commit with format error             | Unstaged Prettier fix                 | `pnpm -w format` and re-stage                             |
 
 ---
 

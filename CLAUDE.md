@@ -110,7 +110,7 @@ infra/
 ## Known gotchas
 
 - **Nx generator path bug**: `@nx/nest:application` and `@nx/next:application` generators sometimes resolve `--directory` relative to the first lib project instead of the workspace root. If generated files appear under `libs/domain/apps/`, move them with `cp -r` and fix `../../` → correct relative depth. Clear Nx cache after: `rm -rf .nx/cache .nx/workspace-data`.
-- **pnpm 11 `-w` flag**: Root `package.json` scripts must be invoked as `pnpm -w <script>` from workspace root, or `pnpm run -w <script>`. Plain `pnpm <script>` fails with "No packages found" if the script isn't in a workspace package.
+- **pnpm 11 `-w` flag**: Use `pnpm -w <script>` when invoking root scripts for explicitness — it makes the target unambiguous regardless of `working-directory:` overrides and stays consistent with CI and Lefthook. Without `-w`, pnpm resolves from cwd, which can produce surprising results in scripts and CI contexts.
 - **`"type": "module"` in root `package.json`**: Do not add it. It makes all `.js` files ESM, breaking `require()` in webpack configs and Jest preset files that are CJS. The ESLint "reparsing" warning is acceptable.
 - **Prisma 7 breaking change**: Prisma 7 removed the `url` property from datasource in `schema.prisma` (moved to `prisma.config.ts`). This project pins Prisma 6.19.3. Do not upgrade without reading the Prisma 7 migration guide.
 
