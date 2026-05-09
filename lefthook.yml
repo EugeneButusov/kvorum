@@ -9,9 +9,9 @@ pre-commit:
       run: pnpm -w db:format && git add {staged_files}
 
 pre-push:
-  parallel: false
+  parallel: true
   commands:
     typecheck:
-      run: pnpm -w typecheck
+      run: npx nx affected -t typecheck --base=origin/main
     test:
-      run: pnpm -w test
+      run: npx nx affected -t test --base=origin/main
