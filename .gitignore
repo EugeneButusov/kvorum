@@ -46,6 +46,5 @@ prisma/migrations/dev.db
 
 vitest.config.*.timestamp*
 
-# Next.js
-.next
-out
+# Planning docs (transient, not for review)
+docs/planning/

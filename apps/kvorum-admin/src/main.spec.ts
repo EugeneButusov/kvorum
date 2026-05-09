@@ -1,0 +1,54 @@
+import { execFileSync } from 'node:child_process';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const BUNDLE = resolve(__dirname, '../../../dist/apps/kvorum-admin/main.js');
+
+describe('kvorum-admin bundle smoke test', () => {
+  it('prints version matching package.json', () => {
+    const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as {
+      version: string;
+    };
+    const out = execFileSync('node', [BUNDLE, '--version'], { encoding: 'utf8' });
+    expect(out.trim()).toBe(pkg.version);
+  });
+
+  it('exits 69 and writes JSON to stdout with KVORUM_ADMIN_FORMAT=json', () => {
+    let exitCode = 0;
+    let stdout = '';
+    let stderr = '';
+    try {
+      execFileSync('node', [BUNDLE, 'status'], {
+        encoding: 'utf8',
+        env: { ...process.env, KVORUM_ADMIN_FORMAT: 'json' },
+      });
+    } catch (err: unknown) {
+      const e = err as { status: number; stdout: string; stderr: string };
+      exitCode = e.status;
+      stdout = e.stdout;
+      stderr = e.stderr;
+    }
+    expect(exitCode).toBe(69);
+    expect(JSON.parse(stdout)).toMatchObject({ error: 'not_implemented', command: 'status' });
+    expect(stderr).toBe('');
+  });
+
+  it('exits 69 and writes human text to stderr by default', () => {
+    let exitCode = 0;
+    let stdout = '';
+    let stderr = '';
+    try {
+      execFileSync('node', [BUNDLE, 'status'], { encoding: 'utf8' });
+    } catch (err: unknown) {
+      const e = err as { status: number; stdout: string; stderr: string };
+      exitCode = e.status;
+      stdout = e.stdout;
+      stderr = e.stderr;
+    }
+    expect(exitCode).toBe(69);
+    expect(stdout).toBe('');
+    expect(stderr).toContain('not yet implemented in M0');
+  });
+});

@@ -69,6 +69,9 @@ jobs:
       - name: Build
         run: pnpm -w build
 
+      - name: Test kvorum-admin bundle
+        run: pnpm -w test:bundle
+
       - name: Validate Prisma schema vs migrations
         run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel libs/db/prisma/schema.prisma --exit-code
 
