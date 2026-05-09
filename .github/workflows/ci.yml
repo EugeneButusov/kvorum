@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ci:
+    name: Lint · Typecheck · Test · Build · Audit · Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Cache pnpm store and Nx cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            .nx/cache
+          key: ${{ runner.os }}-pnpm-nx-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-nx-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-pnpm-nx-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm -w db:generate
+
+      - name: Set Nx SHAs
+        uses: nrwl/nx-set-shas@v5
+        with:
+          main-branch-name: main
+          error-on-no-successful-workflow: 'false'
+
+      - name: Format check
+        run: pnpm -w format:check
+
+      - name: Lint
+        run: pnpm -w lint
+
+      - name: Typecheck
+        run: pnpm -w typecheck
+
+      - name: Test
+        run: pnpm -w test
+
+      - name: Build
+        run: pnpm -w build
+
+      - name: Validate Prisma schema vs migrations
+        run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel libs/db/prisma/schema.prisma --exit-code
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high --prod
+
+      - name: Secret scan (gitleaks)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Validate Caddyfile
+        uses: docker://caddy:2-alpine
+        with:
+          args: caddy validate --config infra/caddy/Caddyfile
