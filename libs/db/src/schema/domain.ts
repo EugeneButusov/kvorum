@@ -118,7 +118,7 @@ export type NewProposalAction = Insertable<ProposalActionTable>;
 export interface ProposalChoiceTable {
   proposal_id: string;
   choice_index: number;
-  label: string;
+  value: string;
 }
 
 export type ProposalChoice = Selectable<ProposalChoiceTable>;

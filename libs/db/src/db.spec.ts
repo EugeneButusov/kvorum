@@ -146,9 +146,9 @@ describeWithDb('ingestion domain smoke test', () => {
         await tx
           .insertInto('proposal_choice')
           .values([
-            { proposal_id: proposal!.id, choice_index: 0, label: 'Against' },
-            { proposal_id: proposal!.id, choice_index: 1, label: 'For' },
-            { proposal_id: proposal!.id, choice_index: 2, label: 'Abstain' },
+            { proposal_id: proposal!.id, choice_index: 0, value: 'against' },
+            { proposal_id: proposal!.id, choice_index: 1, value: 'for' },
+            { proposal_id: proposal!.id, choice_index: 2, value: 'abstain' },
           ])
           .execute();
 

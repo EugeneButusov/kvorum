@@ -168,7 +168,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.notNull().references('proposal.id').onDelete('cascade'),
     )
     .addColumn('choice_index', 'integer', (col) => col.notNull())
-    .addColumn('label', 'text', (col) => col.notNull())
+    .addColumn('value', 'text', (col) => col.notNull())
     .addPrimaryKeyConstraint('proposal_choice_pkey', ['proposal_id', 'choice_index'])
     .execute();
 
