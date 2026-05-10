@@ -1,0 +1,42 @@
+import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
+
+// Kysely<unknown> prevents the typed query builder — raw sql is intentional here.
+
+export async function up(db: Kysely<unknown>): Promise<void> {
+  await sql`
+    INSERT INTO dao (slug, name, primary_token_address, primary_chain_id,
+                     description, website_url, forum_url, updated_at)
+    VALUES (
+      'compound',
+      'Compound',
+      '0xc00e94cb662c3520282e6f5717214004a7f26888',
+      1,
+      'Compound is an algorithmic, autonomous interest rate protocol built for developers, to unlock a universe of open financial applications.',
+      'https://compound.finance',
+      'https://gov.compound.finance',
+      now()
+    )
+    ON CONFLICT (slug) DO NOTHING
+  `.execute(db);
+
+  await sql`
+    INSERT INTO dao_source (dao_id, source_type, source_config)
+    SELECT id,
+           'compound_governor',
+           '{"governor_address": "0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb
+    FROM dao
+    WHERE slug = 'compound'
+    ON CONFLICT (dao_id, source_type) DO NOTHING
+  `.execute(db);
+}
+
+export async function down(db: Kysely<unknown>): Promise<void> {
+  await sql`
+    DELETE FROM dao_source
+    WHERE source_type = 'compound_governor'
+      AND dao_id = (SELECT id FROM dao WHERE slug = 'compound')
+  `.execute(db);
+
+  await sql`DELETE FROM dao WHERE slug = 'compound'`.execute(db);
+}

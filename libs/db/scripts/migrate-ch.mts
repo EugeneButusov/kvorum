@@ -50,12 +50,17 @@ async function run() {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kvorum-ch-migrations-'));
   try {
     for (const file of files) {
-      await fs.copyFile(file, path.join(tmpDir, path.basename(file)));
+      // clickhouse-migrations requires filenames to start with a number.
+      // Source files use <source>_NNN_<name>.sql; strip the source prefix
+      // so compound_001_archive.sql → 001_compound_archive.sql.
+      const base = path.basename(file);
+      const reordered = base.replace(/^([a-z_]+)_(\d+)_(.+)$/, '$2_$1_$3');
+      await fs.copyFile(file, path.join(tmpDir, reordered));
     }
     console.log(`[ch-migrate] Applying ${files.length} migration(s) from ${tmpDir}`);
 
-    const host = process.env['CLICKHOUSE_HOST'] ?? 'localhost';
-    const port = process.env['CLICKHOUSE_PORT'] ?? '8123';
+    // --host accepts a full URL (e.g. http://localhost:8123)
+    const host = process.env['CLICKHOUSE_URL'] ?? 'http://localhost:8123';
     const database = process.env['CLICKHOUSE_DATABASE'] ?? 'default';
     const username = process.env['CLICKHOUSE_USER'] ?? 'default';
     const password = process.env['CLICKHOUSE_PASSWORD'] ?? '';
@@ -67,15 +72,13 @@ async function run() {
         'migrate',
         '--host',
         host,
-        '--port',
-        port,
         '--db',
         database,
         '--user',
         username,
         '--password',
         password,
-        '--migrations-dir',
+        '--migrations-home',
         tmpDir,
       ],
       { stdio: 'inherit' },

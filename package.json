@@ -11,15 +11,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p apps/dashboard/tsconfig.json && tsc --noEmit -p apps/indexer/tsconfig.app.json && tsc --noEmit -p apps/ai-worker/tsconfig.app.json && tsc --noEmit -p apps/kvorum-admin/tsconfig.app.json && tsc --noEmit -p libs/domain/tsconfig.lib.json && tsc --noEmit -p libs/db/tsconfig.lib.json && tsc --noEmit -p libs/chain/tsconfig.lib.json && tsc --noEmit -p libs/ai/tsconfig.lib.json",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p apps/dashboard/tsconfig.json && tsc --noEmit -p apps/indexer/tsconfig.app.json && tsc --noEmit -p apps/ai-worker/tsconfig.app.json && tsc --noEmit -p apps/kvorum-admin/tsconfig.app.json && tsc --noEmit -p libs/domain/tsconfig.lib.json && tsc --noEmit -p libs/db/tsconfig.lib.json && tsc --noEmit -p libs/chain/tsconfig.lib.json && tsc --noEmit -p libs/ai/tsconfig.lib.json && tsc --noEmit -p libs/sources/compound/tsconfig.lib.json",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:bundle": "pnpm --filter kvorum-admin test:bundle",
     "db:migrate": "tsx libs/db/scripts/migrate.mts up",
     "db:migrate:down": "tsx libs/db/scripts/migrate.mts down",
     "db:migrate:ch": "tsx libs/db/scripts/migrate-ch.mts",
-    "db:reset": "tsx libs/db/scripts/migrate.mts reset",
-    "db:seed": "tsx libs/db/scripts/seed.mts"
+    "db:reset": "tsx libs/db/scripts/migrate.mts reset"
   },
   "devDependencies": {
     "@nestjs/schematics": "^11.0.0",
