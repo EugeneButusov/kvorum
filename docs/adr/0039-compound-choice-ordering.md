@@ -1,6 +1,6 @@
 # ADR-039 — Compound proposal choice ordinal mapping aligns with on-chain `castVote` enum, not SPEC §2.4.6
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-05-10)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 2.4.6
 - **Related**: `docs/plan-m1-e1.md` (E1 Compound seed), G1 derivation worker

@@ -1,9 +1,9 @@
 # ADR-040 — Replace Prisma with Kysely; ClickHouse migrations via `clickhouse-migrations` npm
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-05-10)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 7.6, 10.2
-- **Related**: ADR-038 (archive layer in CH from M1), `docs/proposal-orm-choice.md` v2, `docs/proposal-source-package-boundary.md`, `docs/plan-m1-e1.md` v3
+- **Related**: ADR-038 (archive layer in CH from M1), `docs/proposal-orm-choice.md` v2, `docs/proposal-source-package-boundary.md`, `docs/plan-m1-e1.md` v4
 
 ## Context
 

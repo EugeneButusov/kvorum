@@ -1,0 +1,94 @@
+# ADR-041 — Cross-DB integrity contract for the ClickHouse archive ↔ Postgres tracker
+
+- **Status**: Accepted (2026-05-10)
+- **Date**: 2026-05-10
+- **Spec sections affected**: 2.6, 3.2, 3.3, 3.12
+- **Related**: ADR-038 (introduced the split), ADR-027 (backfill cutoff), `docs/plan-m1-e1.md` v4
+
+## Context
+
+ADR-038 splits the event archive into a ClickHouse data plane (immutable raw events) and a Postgres `archive_confirmation` control plane (mutable status). The ADR enumerates failure modes briefly (lines 64–68) but does not specify the **write protocol** F1 must follow, the **idempotency-check pattern**, the **retry semantics**, or what the deferred-to-M2 reconciliation job actually does. Three review concerns surfaced these as gaps:
+
+1. F1 author has no committed contract for "have I already written event X?" — leaving the choice to runtime invention risks inconsistency between the two writers (real-time path + backfill).
+2. The ADR-038 framing "DLQ catches the PG retry" is misleading because the DLQ table lives in Postgres — if PG is unreachable, the DLQ row cannot be written either.
+3. ClickHouse `ReplacingMergeTree` deduplication is **eventual** (asynchronous merge): a re-insert after a transient failure produces a transient duplicate visible to readers until the next merge runs. Without a defined read-side semantic, G1 may see two payload rows for the same idempotency key during the merge window.
+
+This ADR fixes the contract.
+
+## Decision
+
+### Write protocol (F1, I1)
+
+Every archive write — whether real-time (F1 from polling) or backfill (I1) — follows this sequence:
+
+1. **PG-first existence check.** Read `archive_confirmation` by the 5-tuple `(source_type, chain_id, tx_hash, log_index, block_hash)`. If a row exists with `confirmation_status IN ('pending', 'confirmed')`, the event is already persisted — return success without writing.
+2. **CH insert.** `INSERT INTO event_archive_<source> VALUES (...)`. ClickHouse's `ReplacingMergeTree(received_at)` absorbs duplicates from concurrent or retried writes idempotently (eventually); the insert is safe to repeat.
+3. **PG insert.** `INSERT INTO archive_confirmation (...) VALUES (...) ON CONFLICT DO NOTHING` on the 5-tuple unique index. The `confirmation_status` written depends on the writer: F1 writes `'pending'`; I1 writes `'confirmed'` directly per ADR-027.
+4. **Bounded in-process retry.** Wrap step 3 in 3 attempts × exponential backoff (200ms, 600ms, 1.8s). On exhaustion, route to DLQ via step 5.
+5. **DLQ on persistent PG failure.** If step 3 exhausts retries, write `ingestion_dlq` with `stage='archive_confirmation_write'`, `event_archive_key` carrying the 5-tuple as typed columns (see plan-m1-e1.md v4 DLQ schema). If PG is itself unreachable for the DLQ insert, increment Prometheus counter `kvorum_dual_write_pg_unreachable_total` and abort the worker poll cycle — the next poll re-runs step 1 and finds the CH row already present.
+
+The PG-first check is the load-bearing primitive: it makes step 1 the source-of-truth for "did this event get persisted," removes the dependency on CH eventual-merge timing, and lets the worker be stateless.
+
+### Read protocol (G1, dlq retry)
+
+Readers that need the raw payload follow this sequence:
+
+1. **PG selects** canonical-confirmed `archive_confirmation` rows for the source (using the new `derived_at` watermark — see plan-m1-e1.md v4).
+2. **CH lookup** by the 5-tuple, with `SELECT ... FINAL` modifier to force at-read deduplication. This handles the merge-window window where two physical rows exist for one logical idempotency key.
+
+`SELECT ... FINAL` carries a query-cost penalty (per-granule dedup) but is correct under all merge states. For batched lookups (G1's typical pattern: 100 confirmed PG rows → 1 CH lookup), the cost is amortized across the batch.
+
+### Read batching (G1)
+
+G1 batches its CH lookups: select up to 500 confirmed PG rows ordered by `(dao_source_id, block_number)`, then issue a single CH query of the form
+
+```sql
+SELECT chain_id, tx_hash, log_index, block_hash, payload
+FROM event_archive_compound_governor FINAL
+WHERE (chain_id, tx_hash, log_index, block_hash) IN (
+  (1, '0xabc...', 0, '0xdef...'),
+  ...
+);
+```
+
+The 500-row batch size is the tuned default; revisit if `kvorum_derivation_batch_lookup_seconds` exceeds p99 1s.
+
+### Reconciliation job (M2)
+
+A periodic reconciliation job (M2 deliverable) catches the small inconsistency window where step 2 (CH insert) succeeds but step 3 (PG insert) fails before any DLQ write:
+
+- **CH-orphan sweep.** Hourly, query CH for rows with `received_at < now() - INTERVAL 1 HOUR` (older than the F1 retry budget) and check whether `archive_confirmation` has the matching tuple. If not, insert a `pending` row in PG; the normal F2 promotion sweep then handles confirmation.
+- **PG-orphan sweep.** Symmetrically, query PG for `archive_confirmation` rows whose CH counterparts are missing (per `SELECT 1 FROM event_archive_<source> FINAL WHERE ...`). If found, route to DLQ with `stage='reconciliation_pg_orphan'` for operator inspection — this case should not happen under the write protocol above and indicates a bug.
+
+Reconciliation does **not** run in M1. The risk window is the few minutes between an F1 worker crash and the next worker startup, with PG unreachable as the failure mode. M1 accepts this window; M2 closes it.
+
+### Reorg semantics
+
+F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows in Postgres only. ClickHouse archive rows are never updated — the canonical-vs-orphaned distinction lives entirely in `archive_confirmation.confirmation_status` and the partial unique index on canonical rows. Two CH rows with different `block_hash` for the same `(chain_id, tx_hash, log_index)` is the expected representation of a reorg trace; G1's read protocol filters via the PG canonical-row selection, so orphaned-block payloads never reach derivation.
+
+## Alternatives considered
+
+- **CH-first existence check.** Rejected. ClickHouse merge timing makes "is this row in CH yet" ambiguous during the merge window; the PG row is unambiguous because Postgres unique indexes commit synchronously.
+- **Two-phase commit / XA across PG + CH.** Rejected. ClickHouse does not support distributed transactions. Even if it did, 2PC adds latency, lock contention, and operational complexity disproportionate to the small risk window we accept.
+- **Write to PG first, then CH.** Considered. Symmetric to the chosen protocol. Rejected because (a) the CH row is the source of truth for the payload, so its presence should precede any tracking row, and (b) the PG-first existence check is more useful as a probe than a write.
+- **Write to a write-ahead log (Kafka) and let consumers fan out.** Rejected at v1 scale. SPEC §7.1 commits to a single-host deployment without Kafka. Re-architects the M1 ingestion path for a problem that the PG-first check resolves directly.
+- **Skip the existence check; rely entirely on idempotent inserts.** Considered. Works correctness-wise (both inserts are idempotent), but makes every retry pay the CH insert cost (network + ZSTD compression), and amplifies the merge-window duplicate visibility window. The PG SELECT is fast (single B-tree lookup) and dominantly cheaper than the CH insert.
+
+## Consequences
+
+- **F1 contract is fully specified.** The PG-first check, CH-then-PG write order, retry budget, and DLQ fallback are all part of F1's PR review surface.
+- **G1 contract is fully specified.** Read protocol with `FINAL` modifier and 500-row batch size are committed defaults.
+- **M2 inherits the reconciliation job** as a tracked deliverable (CH-orphan sweep, hourly cadence). Add to plan-m2 when authored.
+- **DLQ schema gains `stage` values** `'archive_confirmation_write'` and `'reconciliation_pg_orphan'` (defined as text values, not enum, per existing DLQ design).
+- **`ReplacingMergeTree(received_at)` semantic** is now documented: `received_at` is the **most-recent observation timestamp**, not first-observation. F1 may legitimately re-observe the same canonical event via polling fallback (per SPEC §3.3), and the kept value advances with each observation. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
+- **Smoke tests** in plan-m1-e1.md v4 use `SELECT ... FINAL` rather than `OPTIMIZE TABLE FINAL`. The latter is reserved for manual operator intervention only and is documented as such in the runbook.
+- **Prometheus metrics** introduced (M1 scope, surfaced through F1's existing instrumentation):
+  - `kvorum_dual_write_pg_unreachable_total{source}` — counter, increments on step 5 failure.
+  - `kvorum_archive_skipped_existence_total{source}` — counter, increments on step 1 hit (event already persisted).
+- **CLAUDE.md amendment.** Add a one-paragraph "Cross-DB writes" subsection under "Database access convention" pointing at this ADR.
+
+## Implementation notes
+
+- The PG-first existence check uses the `archive_confirmation` 5-tuple unique index — index-only scan, no heap access in the common case.
+- ClickHouse's `OPTIMIZE TABLE event_archive_<source> FINAL` is **never** issued by application code or scheduled jobs. It rewrites entire parts and is reserved for manual operator intervention (e.g., post-bulk-backfill compaction). Documented in the M1 runbook.
+- F1's write path emits structured logs at each step transition (`archive_check_skip`, `ch_inserted`, `pg_inserted`, `dlq_routed`) keyed by the 5-tuple, supporting per-event forensics without enabling debug-level logging.
