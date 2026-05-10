@@ -1,13 +1,16 @@
 import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
 
-// ── Enum string-literal unions ────────────────────────────────────────────────
+// ── source_type reference table ───────────────────────────────────────────────
 
-export type SourceType =
-  | 'compound_governor'
-  | 'aave_governor_v3'
-  | 'aragon_voting'
-  | 'snapshot'
-  | 'dual_governance';
+// Valid values live in the source_type DB table; each source package injects
+// its own value via its own migrations-postgres migration.
+export type SourceType = string;
+
+export interface SourceTypeTable {
+  value: string;
+}
+
+// ── Enum string-literal unions ────────────────────────────────────────────────
 
 export type ProposalState =
   | 'pending'

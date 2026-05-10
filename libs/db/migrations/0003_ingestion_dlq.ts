@@ -20,7 +20,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('last_attempt_at', 'timestamptz', (col) => col.notNull())
     // Typed archive-tuple columns: all five are NULL together when the DLQ row
     // has no archive origin (e.g. decode stage failure before any archive write).
-    .addColumn('archive_source_type', sql`source_type`)
+    .addColumn('archive_source_type', 'text', (col) =>
+      col.references('source_type.value').onDelete('restrict'),
+    )
     .addColumn('archive_chain_id', 'integer')
     .addColumn('archive_tx_hash', 'text')
     .addColumn('archive_log_index', 'integer')
@@ -54,7 +56,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('retries', 'integer', (col) => col.notNull())
     .addColumn('first_seen_at', 'timestamptz', (col) => col.notNull())
     .addColumn('last_attempt_at', 'timestamptz', (col) => col.notNull())
-    .addColumn('archive_source_type', sql`source_type`)
+    .addColumn('archive_source_type', 'text', (col) =>
+      col.references('source_type.value').onDelete('restrict'),
+    )
     .addColumn('archive_chain_id', 'integer')
     .addColumn('archive_tx_hash', 'text')
     .addColumn('archive_log_index', 'integer')

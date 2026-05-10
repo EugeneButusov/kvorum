@@ -48,6 +48,7 @@ export type {
   ReorgEvent,
   ReorgEventTable,
   SourceType,
+  SourceTypeTable,
   AbiCache,
   AbiCacheTable,
   ArchiveConfirmation,

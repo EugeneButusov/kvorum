@@ -7,6 +7,7 @@ import type {
   ProposalChoiceTable,
   ProposalTable,
   ReorgEventTable,
+  SourceTypeTable,
 } from './domain';
 import type {
   AbiCacheTable,
@@ -59,6 +60,7 @@ export type {
   ReorgEvent,
   ReorgEventTable,
   SourceType,
+  SourceTypeTable,
 } from './domain';
 
 export type {
@@ -87,6 +89,8 @@ export interface PgDatabase {
   users: UsersTable;
   api_key: ApiKeyTable;
   admin_audit: AdminAuditTable;
+  // reference tables
+  source_type: SourceTypeTable;
   // core domain
   dao: DaoTable;
   dao_source: DaoSourceTable;

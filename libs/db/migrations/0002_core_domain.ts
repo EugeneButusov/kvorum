@@ -2,13 +2,17 @@ import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
 
 export async function up(db: Kysely<unknown>): Promise<void> {
-  // ── Enum types ──────────────────────────────────────────────────────────────
-  await sql`
-    CREATE TYPE source_type AS ENUM (
-      'compound_governor', 'aave_governor_v3', 'aragon_voting', 'snapshot', 'dual_governance'
-    )
-  `.execute(db);
+  // ── source_type reference table ──────────────────────────────────────────────
+  // Values are injected by each source package's own migrations-postgres migration
+  // (e.g. libs/sources/compound/migrations-postgres/compound_001_source_type.ts).
+  // Using a reference table instead of an enum keeps DDL fully transactional and
+  // lets sources self-register without touching core migrations.
+  await db.schema
+    .createTable('source_type')
+    .addColumn('value', 'text', (col) => col.primaryKey())
+    .execute();
 
+  // ── Enum types ──────────────────────────────────────────────────────────────
   await sql`
     CREATE TYPE proposal_state AS ENUM (
       'pending', 'active', 'succeeded', 'defeated', 'queued', 'executed', 'canceled', 'expired', 'vetoed'
@@ -39,7 +43,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createTable('dao_source')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
     .addColumn('dao_id', 'uuid', (col) => col.notNull().references('dao.id').onDelete('restrict'))
-    .addColumn('source_type', sql`source_type`, (col) => col.notNull())
+    .addColumn('source_type', 'text', (col) =>
+      col.notNull().references('source_type.value').onDelete('restrict'),
+    )
     .addColumn('source_config', 'jsonb', (col) => col.notNull())
     .addColumn('active_from_block', 'bigint')
     .addColumn('active_to_block', 'bigint')
@@ -90,7 +96,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createTable('proposal')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
     .addColumn('dao_id', 'uuid', (col) => col.notNull().references('dao.id').onDelete('restrict'))
-    .addColumn('source_type', sql`source_type`, (col) => col.notNull())
+    .addColumn('source_type', 'text', (col) =>
+      col.notNull().references('source_type.value').onDelete('restrict'),
+    )
     .addColumn('source_id', 'text', (col) => col.notNull())
     .addColumn('proposer_actor_id', 'uuid', (col) =>
       col.notNull().references('actor.id').onDelete('restrict'),
@@ -168,7 +176,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('archive_confirmation')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
-    .addColumn('source_type', sql`source_type`, (col) => col.notNull())
+    .addColumn('source_type', 'text', (col) =>
+      col.notNull().references('source_type.value').onDelete('restrict'),
+    )
     .addColumn('dao_source_id', 'uuid', (col) =>
       col.notNull().references('dao_source.id').onDelete('restrict'),
     )
@@ -231,8 +241,8 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable('actor').execute();
   await db.schema.dropTable('dao_source').execute();
   await db.schema.dropTable('dao').execute();
+  await db.schema.dropTable('source_type').execute();
 
   await sql`DROP TYPE confirmation_status`.execute(db);
   await sql`DROP TYPE proposal_state`.execute(db);
-  await sql`DROP TYPE source_type`.execute(db);
 }

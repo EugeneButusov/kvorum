@@ -1,13 +1,66 @@
-import { FileMigrationProvider, Migrator } from 'kysely/migration';
+import type { Migration, MigrationProvider } from 'kysely';
+import { Migrator } from 'kysely/migration';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pgDb } from '../src/client';
 
-const migrationsDir = path.join(import.meta.dirname, '../migrations');
+const repoRoot = path.join(import.meta.dirname, '../../..');
+const coreMigrationsDir = path.join(import.meta.dirname, '../migrations');
+const sourcesDir = path.join(repoRoot, 'libs/sources');
+
+// Merges libs/db/migrations/ with libs/sources/*/migrations-postgres/ and sorts
+// by filename. Convention: core files are 0NNN_*, source files are <source>_NNN_*,
+// so alphabetical order naturally puts core before source (e.g. 0002 < compound_001).
+class MultiDirMigrationProvider implements MigrationProvider {
+  async getMigrations(): Promise<Record<string, Migration>> {
+    const entries: { name: string; filePath: string }[] = [];
+
+    for (const file of await fs.readdir(coreMigrationsDir)) {
+      if (file.endsWith('.ts') || file.endsWith('.js')) {
+        entries.push({
+          name: path.basename(file, path.extname(file)),
+          filePath: path.join(coreMigrationsDir, file),
+        });
+      }
+    }
+
+    let sourceDirs: string[];
+    try {
+      sourceDirs = await fs.readdir(sourcesDir);
+    } catch {
+      sourceDirs = [];
+    }
+    for (const source of sourceDirs) {
+      const migrDir = path.join(sourcesDir, source, 'migrations-postgres');
+      let files: string[];
+      try {
+        files = await fs.readdir(migrDir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (file.endsWith('.ts') || file.endsWith('.js')) {
+          entries.push({
+            name: path.basename(file, path.extname(file)),
+            filePath: path.join(migrDir, file),
+          });
+        }
+      }
+    }
+
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+
+    const migrations: Record<string, Migration> = {};
+    for (const entry of entries) {
+      migrations[entry.name] = await import(entry.filePath);
+    }
+    return migrations;
+  }
+}
 
 const migrator = new Migrator({
   db: pgDb,
-  provider: new FileMigrationProvider({ fs, path, migrationFolder: migrationsDir }),
+  provider: new MultiDirMigrationProvider(),
 });
 
 async function up() {
