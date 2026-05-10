@@ -1,9 +1,9 @@
 # ADR-038 — Split ClickHouse archive layer from analytical mirror; archive ships in M1
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-05-10; amended same date — see "Amendments" below)
 - **Date**: 2026-05-10
-- **Spec sections affected**: 2.6, 2.7, 3.2, 3.3, 3.4, 7.1, 10.4
-- **Related**: supersedes ADR-026; `docs/plan-m1-e1.md`, `docs/proposal-orm-choice.md`, KNOWN-026
+- **Spec sections affected**: 2.6, 2.7, 3.2, 3.3, 3.4, 7.1, 7.5, 10.4
+- **Related**: supersedes ADR-026; refined by ADR-041 (cross-DB integrity contract); `docs/plan-m1-e1.md`, `docs/proposal-orm-choice.md`, KNOWN-026
 
 ## Context
 
@@ -115,7 +115,7 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 - **F3 (DLQ) stays in Postgres.** DLQ is small, mutable, queried by admin CLI — OLTP-shaped.
 - **M1 effort grows by ~4–6h** for ClickHouse scaffolding (Docker Compose entry, client wiring, schema migration tool wiring, dev-loop verification, smoke test). Plan-m1-e1.md re-estimates total at ~17–18h post-revision.
 - **CI complexity grows.** GitHub Actions jobs need a ClickHouse service container alongside Postgres (already planned per SPEC §10.1 "ephemeral Postgres + Redis + ClickHouse instances"). The service containers are well-supported in GitHub Actions.
-- **Operational surface grows.** Backups now cover ClickHouse (SPEC §7.7.4 already mandates daily ClickHouse snapshots — pre-pulled by this ADR rather than waiting for v1.x). Monitoring (SPEC §7.7.3) gains ClickHouse query throughput and disk usage metrics from M1.
+- **Operational surface grows.** Backups must now cover ClickHouse. SPEC §7.5 mandates daily Postgres backups via `pg_dump --format=custom` + `wal-g`; it does not enumerate ClickHouse because the v1.0 baseline assumed CH was deferred. This ADR commits to a parallel daily ClickHouse backup using native `BACKUP TABLE event_archive_<source> TO Disk('backups', 'YYYYMMDD.zip')` (CH 22.x+). Retention matches SPEC §7.5's Postgres retention (30 days). Monitoring (SPEC §7.7.3) gains ClickHouse query throughput and disk usage metrics from M1.
 - **KNOWN-026 is rewritten** to reflect the split: archive layer is no longer deferred; analytical mirror layer remains deferred per the original triggers.
 
 ## Implementation notes
@@ -126,3 +126,29 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 - **Local dev:** `docker-compose.yml` adds a `clickhouse-server:24` container with default settings sufficient for dev volume. Schema migrations apply via the chosen migration tool (see ORM choice ADR forthcoming).
 - **CI:** GitHub Actions adds a `clickhouse/clickhouse-server:24-alpine` service container alongside Postgres. Integration tests reset both DBs per test run.
 - **Cost envelope:** CX32 (€10) → CX42 (€20). Total v1 deployment cost ≤ €60/month is still met with margin.
+
+## Amendments
+
+### 2026-05-10 — Polymorphic `archive_confirmation` table (sub-decision)
+
+The original ADR text (line 27) describes "a separate Postgres `archive_confirmation` table" without specifying whether the table is **per-source** (e.g., `archive_confirmation_compound_governor`, `archive_confirmation_aave_governor`) or **polymorphic** (one table for all sources, discriminated by `source_type`). plan-m1-e1.md v3 picked polymorphic implicitly; v4 makes the choice explicit and ratifies it here:
+
+> The Postgres `archive_confirmation` table is **polymorphic across all source types**. A single table carries `source_type` as the leading column of its idempotency key, and a single set of indexes serves F1/F2/G1/F3 across all current and future sources.
+
+Rationale:
+
+- **Schema growth is bounded.** Adding a new source (Aave, Snapshot, Lido) ships a new ClickHouse archive table and a new entry in the `source_type` enum — no new Postgres table.
+- **Query patterns are identical across sources.** Every read against `archive_confirmation` is keyed by `(dao_source_id, …)` or `(source_type, chain_id, tx_hash, log_index, block_hash)`. Splitting per-source would force every cross-source admin query (e.g., `dlq list --since`) to UNION-ALL a growing set of tables.
+- **Mutation paths are identical.** F2's promotion sweep, F1's PG-first existence check, F3's DLQ join — all are source-agnostic.
+
+Trade-off: a single hot table for all sources rather than N per-source tables. At v1 scale (3 DAOs, ~10 events/day post-backfill steady-state), the table is small (~10k rows/year). Revisit if a future high-volume source pushes the table past ~10M rows; partitioning by `source_type` is a one-step migration if needed.
+
+The ClickHouse archive layer remains **per-source** (one table per `source_type` — `event_archive_compound_governor`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
+
+### 2026-05-10 — Cross-DB integrity contract refined by ADR-041
+
+The original ADR text (lines 64–68) sketches the failure modes but does not specify the F1 write protocol, the read-side dedup strategy, or the M2 reconciliation job. **ADR-041 supplies the full contract.** This ADR is unchanged in intent; ADR-041 makes it implementable.
+
+### 2026-05-10 — `received_at` semantic clarification
+
+`ReplacingMergeTree(received_at)` keeps the row with the largest `received_at` per `ORDER BY` tuple. Under SPEC §3.3 polling fallback, F1 may legitimately re-observe the same canonical event multiple times, and each observation advances `received_at`. The kept value is therefore **most-recent observation timestamp**, not first-observation. This is documented in ADR-041's read-side semantics and in the M1 runbook. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
