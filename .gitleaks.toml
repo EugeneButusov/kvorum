@@ -17,3 +17,9 @@ regexTarget = "line"
 regexes = [
   '''KNOWN-\d{3}''',
 ]
+
+[[allowlists]]
+description = "Ethereum contract/token addresses — false positive on generic-api-key entropy rule"
+commits = [
+  "bd6e69bf9c818aa1aebff9dd85e65115f317e344",
+]
