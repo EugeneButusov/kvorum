@@ -32,7 +32,7 @@ actor_address_redirect(
   to_actor_id   uuid not null fk -> actor.id,
   merged_at     timestamptz not null,
   merge_reason  text not null,        -- audit; matches admin_audit entry
-  created_by    text not null         -- operator identity from kvorum-admin actor merge
+  created_by    text not null         -- operator identity from admin-cli actor merge
 )
 ```
 
@@ -59,6 +59,6 @@ The `actor merge` admin command (§6.20.1) populates `actor_address_redirect` as
 - External links and screenshots continue to work after merges. SEO updates naturally.
 - The `actor_address_redirect` table is small (one row per merged-away primary address); permanent.
 - The dashboard's URL bar reflects the canonical address after redirect, not the original — visually consistent with the data shown.
-- `kvorum-admin actor merge --dry-run` (§6.20.1) shows the redirect rows that would be created, allowing an operator to verify before committing.
+- `admin-cli actor merge --dry-run` (§6.20.1) shows the redirect rows that would be created, allowing an operator to verify before committing.
 - §2.8 invariant 4 ("Actor identities are mergeable, never deletable") gains an explicit corollary: the address-as-URL contract survives merges via redirect.
 - The same routing precedence handles the non-merge case where a query targets a non-primary address (§2.4.3's multi-address actors) — that already-existing case becomes a 301 to the primary, removing an ambiguity the spec did not address.

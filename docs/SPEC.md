@@ -2059,59 +2059,59 @@ The minimum supported viewport for full functionality is 1280×720 desktop; belo
 
 Kvorum's admin surface is intentionally minimal in v1. There is no custom web-based backoffice. Operational tasks are split between two tools, each chosen for fit:
 
-- **User management and operational commands → a CLI (`kvorum-admin`).** Configuration changes, backfill triggers, actor merges, DLQ resolution, AI feature controls, key administration, account banning. Authenticated by SSH/host access.
+- **User management and operational commands → a CLI (`admin-cli`).** Configuration changes, backfill triggers, actor merges, DLQ resolution, AI feature controls, key administration, account banning. Authenticated by SSH/host access.
 - **Monitoring and observability → Grafana + Prometheus.** Standard, industrial-strength tooling consuming the metrics Kvorum already emits (Section 3.12). Dashboards for ingestion lag, AI cost, reorg activity, API request volume, error rates, queue depth.
 
 The reasoning: building a custom backoffice is a substantial engineering effort that displaces work on the actual product. Off-the-shelf monitoring is mature and free; SSH-authenticated CLI is the lowest-overhead path for the rare operational tasks. v1 has one operator (the developer); the additional ceremony of a web admin UI is not justified.
 
-#### 6.20.1 CLI surface (`kvorum-admin`)
+#### 6.20.1 CLI surface (`admin-cli`)
 
 A single binary, run on the host or in a container with access to Kvorum's database and Redis. Authenticated by SSH access — there is no separate auth layer because access to the CLI implies access to the underlying infrastructure.
 
 The command surface is organized by domain:
 
 ```
-kvorum-admin dao add <slug> --name <name> --token <address> --chain <id>
-kvorum-admin dao source add <dao_slug> --type <type> --config <json>
-kvorum-admin dao source update <dao_source_id> --config <json>
+admin-cli dao add <slug> --name <name> --token <address> --chain <id>
+admin-cli dao source add <dao_slug> --type <type> --config <json>
+admin-cli dao source update <dao_source_id> --config <json>
 
-kvorum-admin backfill start <dao_source_id> [--from-block N] [--to-block N]
-kvorum-admin backfill status <dao_source_id>
-kvorum-admin backfill cancel <dao_source_id>
+admin-cli backfill start <dao_source_id> [--from-block N] [--to-block N]
+admin-cli backfill status <dao_source_id>
+admin-cli backfill cancel <dao_source_id>
 
-kvorum-admin derive replay <dao_source_id> [--from-block N]
-kvorum-admin derive verify <proposal_external_id>
+admin-cli derive replay <dao_source_id> [--from-block N]
+admin-cli derive verify <proposal_external_id>
 
-kvorum-admin actor merge <primary_actor_id> <secondary_actor_id>
-kvorum-admin actor address add <actor_id> <address> --source <source>
+admin-cli actor merge <primary_actor_id> <secondary_actor_id>
+admin-cli actor address add <actor_id> <address> --source <source>
 
-kvorum-admin dlq list [--feature <name>] [--limit N]
-kvorum-admin dlq retry <dlq_id>
-kvorum-admin dlq accept <dlq_id> --reason <reason>
+admin-cli dlq list [--feature <name>] [--limit N]
+admin-cli dlq retry <dlq_id>
+admin-cli dlq accept <dlq_id> --reason <reason>
 
-kvorum-admin ai disable <feature>
-kvorum-admin ai enable <feature>
-kvorum-admin ai cap set <feature> <usd>
-kvorum-admin ai regenerate <feature> <entity_reference>
+admin-cli ai disable <feature>
+admin-cli ai enable <feature>
+admin-cli ai cap set <feature> <usd>
+admin-cli ai regenerate <feature> <entity_reference>
 
-kvorum-admin user list [--filter <expr>]
-kvorum-admin user ban <user_id> --reason <reason>
-kvorum-admin user delete <user_id>
+admin-cli user list [--filter <expr>]
+admin-cli user ban <user_id> --reason <reason>
+admin-cli user delete <user_id>
 
-kvorum-admin keys list [--user <id>]
-kvorum-admin keys revoke <key_id>
-kvorum-admin keys ban-ip <ip>
+admin-cli keys list [--user <id>]
+admin-cli keys revoke <key_id>
+admin-cli keys ban-ip <ip>
 
-kvorum-admin reorg list [--chain <id>] [--since <iso>]
+admin-cli reorg list [--chain <id>] [--since <iso>]
 
-kvorum-admin status
-kvorum-admin maintenance enable --until <iso> --message <text>
-kvorum-admin maintenance disable
+admin-cli status
+admin-cli maintenance enable --until <iso> --message <text>
+admin-cli maintenance disable
 ```
 
 **Output discipline.** Every command supports `--format json` for scripting and defaults to a human-readable table format for interactive use. Errors return non-zero exit codes with structured stderr output.
 
-**Audit log.** Every command run is recorded to an `admin_audit` table with: command, arguments, executing user (from SSH/sudo context), timestamp, outcome, error details if any. The audit log is immutable; entries cannot be deleted. The CLI itself includes a `kvorum-admin audit list` command for review.
+**Audit log.** Every command run is recorded to an `admin_audit` table with: command, arguments, executing user (from SSH/sudo context), timestamp, outcome, error details if any. The audit log is immutable; entries cannot be deleted. The CLI itself includes a `admin-cli audit list` command for review.
 
 **Safety affordances.**
 
@@ -2120,7 +2120,7 @@ kvorum-admin maintenance disable
 - A `--dry-run` flag is supported on all mutating commands; it shows what would happen without making changes
 - The CLI refuses to run if the database is in a known-inconsistent state (e.g., during an active backfill)
 
-**Documentation.** The CLI's commands are documented in `docs/admin/` within the repository. Each command has a manual page accessible via `kvorum-admin help <command>` describing arguments, environment requirements, and example invocations.
+**Documentation.** The CLI's commands are documented in `docs/admin/` within the repository. Each command has a manual page accessible via `admin-cli help <command>` describing arguments, environment requirements, and example invocations.
 
 #### 6.20.2 Monitoring stack (Grafana + Prometheus)
 
@@ -2900,7 +2900,7 @@ The decision records below capture the material decisions made during v1.0 draft
 
 **Context.** Operational tasks (configuration, backfill triggers, DLQ resolution, user management, monitoring) require some admin surface.
 
-**Decision.** Two tools: a CLI (`kvorum-admin`) for user management and operational commands, authenticated by SSH/host access; Grafana + Prometheus for monitoring and observability. No custom web admin UI.
+**Decision.** Two tools: a CLI (`admin-cli`) for user management and operational commands, authenticated by SSH/host access; Grafana + Prometheus for monitoring and observability. No custom web admin UI.
 
 **Alternatives considered.**
 
@@ -3271,7 +3271,7 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Severity**: minor
 - **Category**: operational
 - **Spec sections**: 6.20
-- **Description**: v1's admin surface is split between a CLI (`kvorum-admin`) for operational tasks and standard third-party monitoring (Grafana + Prometheus) for observability. There is no custom web admin UI. This is sufficient for one-operator operation, but graphical workflows (DLQ inspection with multi-row selection, approval gates for destructive operations involving a second operator, content-rich audit log review) would be more ergonomic in a web UI than in the CLI.
+- **Description**: v1's admin surface is split between a CLI (`admin-cli`) for operational tasks and standard third-party monitoring (Grafana + Prometheus) for observability. There is no custom web admin UI. This is sufficient for one-operator operation, but graphical workflows (DLQ inspection with multi-row selection, approval gates for destructive operations involving a second operator, content-rich audit log review) would be more ergonomic in a web UI than in the CLI.
 - **Rationale for v1**: A custom web admin UI requires its own auth layer, RBAC scaffolding, dedicated design work, and a security review. The CLI plus Grafana approach displaces no engineering effort from the actual product, leverages mature off-the-shelf tooling for monitoring, and is more defensible against unauthorized access (no exposed admin web surface). The two-tool approach is sufficient for v1's operational profile.
 - **Resolution**: Deferred indefinitely; not committed to a target version. A web admin UI may be considered if specific operational pain emerges that neither the CLI nor Grafana addresses well — for example, when a second operator joins the project and approval workflows become valuable, or when DLQ inspection patterns benefit substantially from graphical presentation. Until that pain materializes, the two-tool approach holds.
 - **Target version**: Not committed; contingent on operational demand
@@ -3363,7 +3363,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 - `make up && make migrate` succeeds on a fresh checkout
 - All four services start (even if they do nothing useful)
 - CI passes on `main`
-- `kvorum-admin --help` shows the planned command surface (commands stubbed out, not implemented)
+- `admin-cli --help` shows the planned command surface (commands stubbed out, not implemented)
 
 **Risks:** trivial. Pure setup work.
 

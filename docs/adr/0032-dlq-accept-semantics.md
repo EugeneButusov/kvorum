@@ -9,7 +9,7 @@
 SPEC §6.20.1 lists the operator command:
 
 ```
-kvorum-admin dlq accept <dlq_id> --reason <reason>
+admin-cli dlq accept <dlq_id> --reason <reason>
 ```
 
 The semantics of `accept` are not defined. Plausible interpretations include:

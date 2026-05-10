@@ -15,7 +15,7 @@ Covers rotation of every secret class held in the vault (ADR-028). Run each sect
 
 ```bash
 $ infra/scripts/provision-env.sh --force
-$ kvorum-admin restart <service>          # available from M2
+$ admin-cli restart <service>          # available from M2
 ```
 
 ---

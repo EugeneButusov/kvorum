@@ -5,7 +5,7 @@ export default defineConfig(() => ({
   root: __dirname,
   plugins: [tsconfigPaths()],
   test: {
-    name: 'kvorum-admin',
+    name: 'admin-cli',
     watch: false,
     globals: true,
     environment: 'node',
@@ -13,7 +13,7 @@ export default defineConfig(() => ({
     exclude: ['src/main.spec.ts'],
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../coverage/apps/kvorum-admin',
+      reportsDirectory: '../../coverage/apps/admin-cli',
       provider: 'v8' as const,
     },
   },

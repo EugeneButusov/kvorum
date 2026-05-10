@@ -12,4 +12,4 @@ Operational runbooks for Kvorum. Each runbook is self-contained and assumes a fr
 
 - Commands prefixed with `#` run as root; `$` runs as the kvorum service user.
 - All secrets are stored in the vault (ADR-028). The host `.env` is a derived artifact — never edit it by hand; regenerate with `infra/scripts/provision-env.sh`.
-- After any `.env` change, restart the affected service via `kvorum-admin restart <service>` (available from M2 onward).
+- After any `.env` change, restart the affected service via `admin-cli restart <service>` (available from M2 onward).

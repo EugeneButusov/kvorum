@@ -95,7 +95,7 @@ jobs:
       - name: Build
         run: pnpm -w build
 
-      - name: Test kvorum-admin bundle
+      - name: Test admin-cli bundle
         run: pnpm -w test:bundle
 
       - name: Dependency audit

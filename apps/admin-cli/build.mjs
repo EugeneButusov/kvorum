@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build script for kvorum-admin — invoked via `pnpm --filter kvorum-admin build`.
+// Build script for admin-cli — invoked via `pnpm --filter admin-cli build`.
 // Handles: version injection, ESM-compatible banner with CJS require polyfill.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -18,18 +18,18 @@ const banner = [
   'const require = __cjsRequire(import.meta.url);',
 ].join('\n');
 
-const outDir = join(root, 'dist/apps/kvorum-admin');
+const outDir = join(root, 'dist/apps/admin-cli');
 mkdirSync(outDir, { recursive: true });
 
 execFileSync(
   join(root, 'node_modules/.bin/esbuild'),
   [
-    'apps/kvorum-admin/src/main.ts',
+    'apps/admin-cli/src/main.ts',
     '--bundle',
     '--platform=node',
     '--target=node24',
     '--format=esm',
-    '--outfile=dist/apps/kvorum-admin/main.js',
+    '--outfile=dist/apps/admin-cli/main.js',
     `--banner:js=${banner}`,
     `--define:PKG_VERSION="${pkg.version}"`,
   ],
