@@ -123,6 +123,86 @@ export function getRpcRequestDuration(): Histogram {
   return rpcRequestDuration;
 }
 
+// ---- E3 ingestion metrics ----
+
+let headBlockAgeSeconds: Gauge | null = null;
+export function getHeadBlockAgeSeconds(): Gauge {
+  if (!headBlockAgeSeconds) {
+    headBlockAgeSeconds = new Gauge({
+      name: 'kvorum_ingestion_head_block_age_seconds',
+      help: 'Wall-clock minus chain-reported timestamp of last observed head. NTP skew can produce false-positive stale-source alarms; alert threshold should be generous (>60s).',
+      labelNames: ['chain'],
+      registers: [registry],
+    });
+  }
+  return headBlockAgeSeconds;
+}
+
+let headPollLagSeconds: Gauge | null = null;
+export function getHeadPollLagSeconds(): Gauge {
+  if (!headPollLagSeconds) {
+    headPollLagSeconds = new Gauge({
+      name: 'kvorum_ingestion_head_poll_lag_seconds',
+      help: 'Wall-clock minus last successful head-poll completion. Stalled-poller alarm.',
+      labelNames: ['chain'],
+      registers: [registry],
+    });
+  }
+  return headPollLagSeconds;
+}
+
+let logPollLagSeconds: Gauge | null = null;
+export function getLogPollLagSeconds(): Gauge {
+  if (!logPollLagSeconds) {
+    logPollLagSeconds = new Gauge({
+      name: 'kvorum_ingestion_log_poll_lag_seconds',
+      help: 'Wall-clock minus last successful log-poll completion per dao_source. Backs SPEC §6.20.2 ingestion-lag alert.',
+      labelNames: ['chain', 'dao_source'],
+      registers: [registry],
+    });
+  }
+  return logPollLagSeconds;
+}
+
+let logsFetchedTotal: Counter | null = null;
+export function getLogsFetchedTotal(): Counter {
+  if (!logsFetchedTotal) {
+    logsFetchedTotal = new Counter({
+      name: 'kvorum_ingestion_logs_fetched_total',
+      help: 'Total logs returned by eth_getLogs (re-fetches counted; not de-duped events).',
+      labelNames: ['chain', 'dao_source'],
+      registers: [registry],
+    });
+  }
+  return logsFetchedTotal;
+}
+
+let logPollWindowBlocks: Gauge | null = null;
+export function getLogPollWindowBlocks(): Gauge {
+  if (!logPollWindowBlocks) {
+    logPollWindowBlocks = new Gauge({
+      name: 'kvorum_ingestion_log_poll_window_blocks',
+      help: 'Current window size in blocks. Diagnostic; constant in v1 (2 × reorgHorizon).',
+      labelNames: ['chain', 'dao_source'],
+      registers: [registry],
+    });
+  }
+  return logPollWindowBlocks;
+}
+
+let logsWithRemovedFlagTotal: Counter | null = null;
+export function getLogsWithRemovedFlagTotal(): Counter {
+  if (!logsWithRemovedFlagTotal) {
+    logsWithRemovedFlagTotal = new Counter({
+      name: 'kvorum_ingestion_logs_with_removed_flag_total',
+      help: 'Count of logs ethers v6 marks removed:true. Diagnostic for in-fetch reorg windows.',
+      labelNames: ['chain', 'dao_source'],
+      registers: [registry],
+    });
+  }
+  return logsWithRemovedFlagTotal;
+}
+
 /** Reset all lazy metric instances. Required between test cases to avoid registration conflicts. */
 export function resetMetrics(): void {
   registry.clear(); // fully unregisters metrics so getOrCreate* can re-register safely
@@ -134,6 +214,12 @@ export function resetMetrics(): void {
   providerVerified = null;
   healthCheckFailuresTotal = null;
   rpcRequestDuration = null;
+  headBlockAgeSeconds = null;
+  headPollLagSeconds = null;
+  logPollLagSeconds = null;
+  logsFetchedTotal = null;
+  logPollWindowBlocks = null;
+  logsWithRemovedFlagTotal = null;
 }
 
 export function getChainMetricsRegistry(): Registry {
