@@ -22,7 +22,7 @@ Licensed under AGPL-3.0. See [ADR-029](docs/adr/0029-license.md) for why AGPL an
 ```bash
 git clone https://github.com/EugeneButusov/kvorum.git
 cd kvorum
-pnpm install        # also runs prisma generate via postinstall
+pnpm install
 ```
 
 ### Environment
@@ -35,8 +35,8 @@ cp .env.example .env
 ### Start the stack
 
 ```bash
-just up       # starts postgres, redis, anvil; waits for all to be healthy
-just migrate  # applies pending Prisma migrations
+just up       # starts postgres, redis, anvil, clickhouse; waits for all to be healthy
+just migrate  # applies pending Kysely migrations (Postgres + ClickHouse)
 ```
 
 ### Run the full stack
@@ -80,7 +80,7 @@ apps/
 
 libs/
   domain/       Shared types and constants
-  db/           Prisma client wrapper (PrismaService, DbModule)
+  db/           Kysely clients (pgDb, chDb), schema types, migrations
   chain/        Chain-interaction helpers
   ai/           AI provider abstractions
 
@@ -104,8 +104,8 @@ infra/
 | `just doctor`         | Check prerequisites and infra port health        |
 | `just up`             | Start postgres, redis, anvil (waits for healthy) |
 | `just down`           | Stop infra services                              |
-| `just migrate`        | Apply pending Prisma migrations                  |
-| `just migrate-dev`    | Create and apply a new dev migration             |
+| `just migrate`        | Apply pending Kysely migrations (PG + CH)        |
+| `just migrate-dev`    | Roll back one migration (dev)                    |
 | `just reset yes`      | Wipe volumes and re-migrate                      |
 | `just dev`            | `up` + `migrate` + serve all apps                |
 | `just logs [service]` | Tail logs (omit service name for all)            |
@@ -119,7 +119,7 @@ infra/
 
 1. Branch from `main` using the milestone prefix: `feat/m1-…`, `fix/…`, `chore/…`.
 2. All four checks must pass before pushing (`pnpm -w format:check && pnpm -w lint && pnpm -w typecheck && pnpm -w test`). Lefthook enforces formatting at commit and typecheck+test at push.
-3. Follow the ORM-first database convention (see `CLAUDE.md`).
+3. Follow the query-builder-first database convention (see `CLAUDE.md`).
 4. PRs should close the relevant GitHub issue.
 5. Operator branch protection setup: see [`docs/runbooks/branch-protection.md`](docs/runbooks/branch-protection.md).
 
@@ -133,7 +133,7 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 | ------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
 | `pnpm install` fails with "Unsupported engine"    | Node version < 24                     | `nvm use 24`                                              |
 | Root script behaves unexpectedly in CI or scripts | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
-| `@kvorum/db` import unresolved                    | Prisma client not generated           | `pnpm -w db:generate`                                     |
+| `@kvorum/db` import unresolved                    | Missing `kysely` package              | `pnpm install`                                            |
 | `just up` fails or times out                      | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
 | Port 5432/6379/8545 already in use                | Another container or local service    | `docker ps` and stop the conflict                         |
 | `"type": "module"` breaks webpack                 | Do not add to root `package.json`     | Remove it                                                 |
