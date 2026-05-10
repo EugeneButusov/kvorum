@@ -16,10 +16,10 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "paths": {
-      "@kvorum/domain": ["./libs/domain/src/index.ts"],
-      "@kvorum/db": ["./libs/db/src/index.ts"],
-      "@kvorum/chain": ["./libs/chain/src/index.ts"],
-      "@kvorum/ai": ["./libs/ai/src/index.ts"]
+      "@libs/domain": ["./libs/domain/src/index.ts"],
+      "@libs/db": ["./libs/db/src/index.ts"],
+      "@libs/chain": ["./libs/chain/src/index.ts"],
+      "@libs/ai": ["./libs/ai/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
