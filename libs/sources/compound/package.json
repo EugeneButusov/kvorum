@@ -1,0 +1,18 @@
+{
+  "name": "@libs/sources-compound",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "@libs/db": "workspace:*",
+    "kysely": "^0.29.0",
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "vitest run",
+    "lint": "eslint src"
+  }
+}
