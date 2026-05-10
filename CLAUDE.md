@@ -27,13 +27,14 @@ ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_e
 
 ## Module boundaries
 
-| Layer         | Members                                          | Can depend on |
-| ------------- | ------------------------------------------------ | ------------- |
-| `libs/domain` | domain types                                     | nothing       |
-| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain` |
-| `libs/chain`  | chain helpers                                    | `libs/domain` |
-| `libs/ai`     | AI helpers                                       | `libs/domain` |
-| `apps/*`      | applications                                     | any lib       |
+| Layer         | Members                                          | Can depend on               |
+| ------------- | ------------------------------------------------ | --------------------------- |
+| `libs/utils`  | framework-agnostic utilities (`sleep`, …)        | nothing                     |
+| `libs/domain` | domain types                                     | nothing                     |
+| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain`               |
+| `libs/chain`  | chain helpers                                    | `libs/domain`, `libs/utils` |
+| `libs/ai`     | AI helpers                                       | `libs/domain`, `libs/utils` |
+| `apps/*`      | applications                                     | any lib                     |
 
 These boundaries are not enforced by a linter rule (nx removed). Respect them manually — cross-lib deps beyond what's listed above require a clear architectural reason.
 
@@ -106,7 +107,8 @@ Defined in `tsconfig.base.json`. Paths use `./` prefix (required by TS 5.9 witho
 "@libs/domain": ["./libs/domain/src/index.ts"],
 "@libs/db":     ["./libs/db/src/index.ts"],
 "@libs/chain":  ["./libs/chain/src/index.ts"],
-"@libs/ai":     ["./libs/ai/src/index.ts"]
+"@libs/ai":     ["./libs/ai/src/index.ts"],
+"@libs/utils":  ["./libs/utils/src/index.ts"]
 ```
 
 ## Where things live
@@ -123,6 +125,7 @@ libs/
   db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
+  utils/        Framework-agnostic utilities (sleep, …)
 docs/
   SPEC.md       Frozen v1.0 product spec
   adr/          Architecture Decision Records (ADR-021 onward)

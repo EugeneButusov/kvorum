@@ -12,6 +12,7 @@ module.exports = {
     '^@kvorum/db$': '<rootDir>/../../libs/db/src/index.ts',
     '^@kvorum/chain$': '<rootDir>/../../libs/chain/src/index.ts',
     '^@kvorum/ai$': '<rootDir>/../../libs/ai/src/index.ts',
+    '^@libs/utils$': '<rootDir>/../../libs/utils/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/indexer',
 };

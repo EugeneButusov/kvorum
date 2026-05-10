@@ -1,4 +1,5 @@
 import type { JsonRpcProvider } from 'ethers';
+import { sleep } from '@libs/utils';
 import type { ChainConfig } from '../config/config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 import type { Logger } from '../logger.js';
@@ -170,8 +171,4 @@ export class HealthChecker {
       }
     }
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
