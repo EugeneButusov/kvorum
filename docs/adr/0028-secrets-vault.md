@@ -35,7 +35,7 @@ Secret rotation:
 
 1. Update the value in the vault.
 2. Run `provision-env.sh` to refresh `.env`.
-3. Restart the affected service via `kvorum-admin` (the CLI gains a `restart <service>` command).
+3. Restart the affected service via `admin-cli` (the CLI gains a `restart <service>` command).
 4. Audit-log the rotation.
 
 For the HMAC pepper specifically (ADR-025), rotation involves a grace window during which both old and new peppers are valid. The vault holds both during the window; the application reads both via environment variables (`HMAC_PEPPER_CURRENT`, `HMAC_PEPPER_PREVIOUS`).

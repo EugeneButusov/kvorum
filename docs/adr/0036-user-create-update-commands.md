@@ -1,4 +1,4 @@
-# ADR-036 — Extend kvorum-admin user surface with create and update subcommands
+# ADR-036 — Extend admin-cli user surface with create and update subcommands
 
 - **Status**: Accepted
 - **Date**: 2026-05-10 (proposed); 2026-05-10 (accepted, ratified by `user` table in E1 PR 1; the ADR's stale "User table already in M0" line is corrected by the M1 schema actually shipping it)
@@ -7,7 +7,7 @@
 
 ## Context
 
-SPEC §6.20.1 defines three `kvorum-admin user` subcommands: `list`, `ban`, and `delete`. This reflects the assumption that user accounts are always self-created through the API authentication flow (sign-up, OAuth, etc.) and that operators never need to provision accounts out-of-band.
+SPEC §6.20.1 defines three `admin-cli user` subcommands: `list`, `ban`, and `delete`. This reflects the assumption that user accounts are always self-created through the API authentication flow (sign-up, OAuth, etc.) and that operators never need to provision accounts out-of-band.
 
 In practice two gaps surface early:
 
@@ -19,12 +19,12 @@ Both cases are low-frequency (operator-only, SSH-gated), but they are real enoug
 
 ## Decision
 
-Extend `kvorum-admin user` with two additional subcommands:
+Extend `admin-cli user` with two additional subcommands:
 
 ### `user create`
 
 ```
-kvorum-admin user create --email <email> --name <name> [--role <role>]
+admin-cli user create --email <email> --name <name> [--role <role>]
 ```
 
 - `--email` (required): the account email address; must be unique.
@@ -39,7 +39,7 @@ Internally delegates to the same service layer that handles self-signup, so ADR-
 ### `user update`
 
 ```
-kvorum-admin user update <user_id> [--email <email>] [--name <name>] [--role <role>]
+admin-cli user update <user_id> [--email <email>] [--name <name>] [--role <role>]
 ```
 
 - `<user_id>` (required positional): the target account.

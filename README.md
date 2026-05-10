@@ -76,7 +76,7 @@ apps/
   dashboard/     Next.js 16 App Router — governance dashboard (port 3000)
   indexer/       NestJS standalone worker — block event consumer
   ai-worker/     NestJS standalone worker — AI summarisation
-  kvorum-admin/  Admin CLI — operator command surface (M0 stubs)
+  admin-cli/  Admin CLI — operator command surface (M0 stubs)
 
 libs/
   domain/       Shared types and constants

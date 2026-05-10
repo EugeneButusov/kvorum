@@ -20,7 +20,7 @@ Guidance for Claude Code working in this repo.
 | Linting                    | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages                          |
 | Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
 | Git hooks                  | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
-| Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle                                |
+| Admin CLI                  | commander 14 (Node ESM)      | `apps/admin-cli` — operator tooling, single-file bundle                                   |
 | Chain client               | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
 ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) remains deferred per ADR-026 activation triggers (preserved by ADR-038).
@@ -119,7 +119,7 @@ apps/
   dashboard/     Next.js 16 App Router (port 3000)
   indexer/       NestJS standalone — block event consumer
   ai-worker/     NestJS standalone — AI summarisation worker
-  kvorum-admin/  Operator CLI — stub command tree (M0)
+  admin-cli/  Operator CLI — stub command tree (M0)
 libs/
   domain/       Shared domain types and constants
   db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts

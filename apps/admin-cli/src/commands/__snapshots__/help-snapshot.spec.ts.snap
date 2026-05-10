@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`kvorum-admin help snapshots > actor --help 1`] = `
-"Usage: kvorum-admin actor [options] [command]
+exports[`admin-cli help snapshots > actor --help 1`] = `
+"Usage: admin-cli actor [options] [command]
 
 Actor management
 
@@ -15,8 +15,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > ai --help 1`] = `
-"Usage: kvorum-admin ai [options] [command]
+exports[`admin-cli help snapshots > ai --help 1`] = `
+"Usage: admin-cli ai [options] [command]
 
 AI feature management
 
@@ -32,8 +32,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > audit --help 1`] = `
-"Usage: kvorum-admin audit [options] [command]
+exports[`admin-cli help snapshots > audit --help 1`] = `
+"Usage: admin-cli audit [options] [command]
 
 Audit log access
 
@@ -46,8 +46,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > audit list --help 1`] = `
-"Usage: kvorum-admin audit list [options]
+exports[`admin-cli help snapshots > audit list --help 1`] = `
+"Usage: admin-cli audit list [options]
 
 List audit log entries
 
@@ -57,8 +57,8 @@ Options:
 "
 `;
 
-exports[`kvorum-admin help snapshots > backfill --help 1`] = `
-"Usage: kvorum-admin backfill [options] [command]
+exports[`admin-cli help snapshots > backfill --help 1`] = `
+"Usage: admin-cli backfill [options] [command]
 
 Backfill management
 
@@ -73,8 +73,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > dao --help 1`] = `
-"Usage: kvorum-admin dao [options] [command]
+exports[`admin-cli help snapshots > dao --help 1`] = `
+"Usage: admin-cli dao [options] [command]
 
 DAO management
 
@@ -88,8 +88,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > dao source --help 1`] = `
-"Usage: kvorum-admin dao source [options] [command]
+exports[`admin-cli help snapshots > dao source --help 1`] = `
+"Usage: admin-cli dao source [options] [command]
 
 DAO source management
 
@@ -104,8 +104,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > derive --help 1`] = `
-"Usage: kvorum-admin derive [options] [command]
+exports[`admin-cli help snapshots > derive --help 1`] = `
+"Usage: admin-cli derive [options] [command]
 
 Derived data management
 
@@ -119,8 +119,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > dlq --help 1`] = `
-"Usage: kvorum-admin dlq [options] [command]
+exports[`admin-cli help snapshots > dlq --help 1`] = `
+"Usage: admin-cli dlq [options] [command]
 
 Dead-letter queue management
 
@@ -135,8 +135,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > keys --help 1`] = `
-"Usage: kvorum-admin keys [options] [command]
+exports[`admin-cli help snapshots > keys --help 1`] = `
+"Usage: admin-cli keys [options] [command]
 
 API key management
 
@@ -151,8 +151,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > maintenance --help 1`] = `
-"Usage: kvorum-admin maintenance [options] [command]
+exports[`admin-cli help snapshots > maintenance --help 1`] = `
+"Usage: admin-cli maintenance [options] [command]
 
 Maintenance mode management
 
@@ -166,8 +166,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > reorg --help 1`] = `
-"Usage: kvorum-admin reorg [options] [command]
+exports[`admin-cli help snapshots > reorg --help 1`] = `
+"Usage: admin-cli reorg [options] [command]
 
 Chain reorg management
 
@@ -180,8 +180,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > status --help 1`] = `
-"Usage: kvorum-admin status [options]
+exports[`admin-cli help snapshots > status --help 1`] = `
+"Usage: admin-cli status [options]
 
 Show system status
 
@@ -191,8 +191,8 @@ Options:
 "
 `;
 
-exports[`kvorum-admin help snapshots > top-level --help 1`] = `
-"Usage: kvorum-admin [options] [command]
+exports[`admin-cli help snapshots > top-level --help 1`] = `
+"Usage: admin-cli [options] [command]
 
 Kvorum operator administration CLI
 
@@ -218,8 +218,8 @@ Commands:
 "
 `;
 
-exports[`kvorum-admin help snapshots > user --help 1`] = `
-"Usage: kvorum-admin user [options] [command]
+exports[`admin-cli help snapshots > user --help 1`] = `
+"Usage: admin-cli user [options] [command]
 
 User management
 

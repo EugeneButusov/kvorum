@@ -1,5 +1,5 @@
 export function emitNotImplemented(command: string, opts: { format?: string }): never {
-  const format = opts.format ?? process.env['KVORUM_ADMIN_FORMAT'] ?? 'human';
+  const format = opts.format ?? process.env['ADMIN_FORMAT'] ?? 'human';
   if (format === 'json') {
     process.stdout.write(
       JSON.stringify({

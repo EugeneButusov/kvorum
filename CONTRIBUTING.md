@@ -82,7 +82,7 @@ The description must be ≤ 72 characters, imperative mood ("add endpoint", not 
 ```
 feat(admin): add user create and user update subcommands (ADR-036)
 fix(indexer): handle empty log array during reorg detection
-docs(adr): ADR-036 extend kvorum-admin user with create and update subcommands
+docs(adr): ADR-036 extend admin-cli user with create and update subcommands
 chore(deps): upgrade kysely to 0.29.0
 ci: add pull-requests read permission for gitleaks-action
 ```
@@ -119,7 +119,7 @@ Branches that target a specific milestone or epic may include the prefix in the 
 The project uses two test frameworks, depending on what's being tested:
 
 - **Vitest 4** for libs (`libs/*`) and the Next.js dashboard (`apps/dashboard`).
-- **Jest 30** for NestJS apps (`apps/api`, `apps/indexer`, `apps/ai-worker`, `apps/kvorum-admin`).
+- **Jest 30** for NestJS apps (`apps/api`, `apps/indexer`, `apps/ai-worker`, `apps/admin-cli`).
 
 Run everything from the repo root:
 

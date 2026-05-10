@@ -4,7 +4,7 @@ import { registerAllCommands } from './index.js';
 function buildProgram(): Command {
   const program = new Command();
   program
-    .name('kvorum-admin')
+    .name('admin-cli')
     .description('Kvorum operator administration CLI')
     .version('0.0.0')
     .option('-f, --format <format>', 'output format: human or json', 'human')
@@ -27,7 +27,7 @@ function subHelp(program: Command, domain: string, sub: string): string {
   return subCmd.helpInformation();
 }
 
-describe('kvorum-admin help snapshots', () => {
+describe('admin-cli help snapshots', () => {
   let program: Command;
 
   beforeEach(() => {

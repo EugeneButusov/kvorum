@@ -7,7 +7,7 @@ declare const PKG_VERSION: string;
 const program = new Command();
 
 program
-  .name('kvorum-admin')
+  .name('admin-cli')
   .description('Kvorum operator administration CLI')
   .version(PKG_VERSION)
   .option('-f, --format <format>', 'output format: human or json', 'human')

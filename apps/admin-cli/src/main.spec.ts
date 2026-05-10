@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BUNDLE = resolve(__dirname, '../../../dist/apps/kvorum-admin/main.js');
+const BUNDLE = resolve(__dirname, '../../../dist/apps/admin-cli/main.js');
 
-describe('kvorum-admin bundle smoke test', () => {
+describe('admin-cli bundle smoke test', () => {
   it('prints version matching package.json', () => {
     const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as {
       version: string;
@@ -15,14 +15,14 @@ describe('kvorum-admin bundle smoke test', () => {
     expect(out.trim()).toBe(pkg.version);
   });
 
-  it('exits 69 and writes JSON to stdout with KVORUM_ADMIN_FORMAT=json', () => {
+  it('exits 69 and writes JSON to stdout with ADMIN_FORMAT=json', () => {
     let exitCode = 0;
     let stdout = '';
     let stderr = '';
     try {
       execFileSync('node', [BUNDLE, 'status'], {
         encoding: 'utf8',
-        env: { ...process.env, KVORUM_ADMIN_FORMAT: 'json' },
+        env: { ...process.env, ADMIN_FORMAT: 'json' },
       });
     } catch (err: unknown) {
       const e = err as { status: number; stdout: string; stderr: string };
