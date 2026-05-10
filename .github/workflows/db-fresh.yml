@@ -1,0 +1,91 @@
+name: DB fresh-migration check
+
+# Verifies that all Postgres and ClickHouse migrations apply cleanly on a
+# fresh DB, including the Compound dao/dao_source seed (compound_002_dao_seed).
+# Runs separately from ci.yml so schema reviewers get focused feedback and
+# migration reviewers don't wade through lint/typecheck output.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: db-fresh-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  db-fresh:
+    name: Fresh DB migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: kvorum
+          POSTGRES_PASSWORD: kvorum
+          POSTGRES_DB: kvorum_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kvorum -d kvorum_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      clickhouse:
+        image: clickhouse/clickhouse-server:24
+        env:
+          CLICKHOUSE_DB: default
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: ''
+        ports:
+          - 8123:8123
+        options: >-
+          --health-cmd "wget -nv --tries=1 --spider http://localhost:8123/ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply Postgres migrations
+        run: pnpm -w db:migrate
+        env:
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum_test
+
+      - name: Apply ClickHouse migrations
+        run: pnpm -w db:migrate:ch
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: ''
+          CLICKHOUSE_DATABASE: default
