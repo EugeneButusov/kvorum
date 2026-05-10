@@ -15,7 +15,7 @@ Guidance for Claude Code working in this repo.
 | Database (primary)         | PostgreSQL 18                | Kysely query builder + built-in Migrator                                                  |
 | Database (archive)         | ClickHouse 24                | `@founderpath/kysely-clickhouse` dialect for queries; `clickhouse-migrations` npm for DDL |
 | Testing (libs + dashboard) | Vitest 4                     |                                                                                           |
-| Testing (NestJS apps)      | Jest 30                      | ts-jest transform; moduleNameMapper for `@kvorum/*` aliases                               |
+| Testing (NestJS apps)      | Jest 30                      | ts-jest transform; moduleNameMapper for `@libs/*` aliases                                 |
 | Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                                         |
 | Linting                    | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages                          |
 | Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
@@ -72,7 +72,7 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).
 
-`pgDb.destroy()` must be called in the shutdown handler — it drains the `pg.Pool` connection pool. Import `pgDb` from `@kvorum/db` and call it in the `OnApplicationShutdown` hook.
+`pgDb.destroy()` must be called in the shutdown handler — it drains the `pg.Pool` connection pool. Import `pgDb` from `@libs/db` and call it in the `OnApplicationShutdown` hook.
 
 ## Kysely migrations
 
@@ -97,10 +97,10 @@ No code generation step. `pnpm install` no longer triggers anything DB-related.
 Defined in `tsconfig.base.json`. Paths use `./` prefix (required by TS 5.9 without `baseUrl`):
 
 ```json
-"@kvorum/domain": ["./libs/domain/src/index.ts"],
-"@kvorum/db":     ["./libs/db/src/index.ts"],
-"@kvorum/chain":  ["./libs/chain/src/index.ts"],
-"@kvorum/ai":     ["./libs/ai/src/index.ts"]
+"@libs/domain": ["./libs/domain/src/index.ts"],
+"@libs/db":     ["./libs/db/src/index.ts"],
+"@libs/chain":  ["./libs/chain/src/index.ts"],
+"@libs/ai":     ["./libs/ai/src/index.ts"]
 ```
 
 ## Where things live
@@ -129,7 +129,7 @@ infra/
 
 - **pnpm 11 `-w` flag**: Use `pnpm -w <script>` when invoking root scripts for explicitness — it makes the target unambiguous regardless of `working-directory:` overrides and stays consistent with CI and Lefthook. Without `-w`, pnpm resolves from cwd, which can produce surprising results in scripts and CI contexts.
 - **`"type": "module"` in root `package.json`**: Do not add it. It makes all `.js` files ESM, breaking `require()` in webpack configs (CJS). The ESLint "reparsing" warning is acceptable.
-- **Webpack alias resolution**: `apps/api`, `apps/indexer`, `apps/ai-worker` bundle via webpack + ts-loader. Path aliases (`@kvorum/*`) are resolved via `resolve.alias` in each `webpack.config.js` — update these aliases if you add or rename a lib.
+- **Webpack alias resolution**: `apps/api`, `apps/indexer`, `apps/ai-worker` bundle via webpack + ts-loader. Path aliases (`@libs/*`) are resolved via `resolve.alias` in each `webpack.config.js` — update these aliases if you add or rename a lib.
 - **lib builds**: `pnpm -r run build` builds libs via `tsc -p tsconfig.lib.json`. The output (`dist/out-tsc/`) is not used by apps (apps bundle from source via webpack). Lib builds exist only to verify compilation.
 - **Kysely migration runner exits non-zero on partial failure**: `migrate.ts` checks `result.error` and calls `process.exit(1)`. The default Kysely `Migrator` API does not bubble errors automatically — always check `error` after `migrateToLatest()` / `migrateDown()` in any custom runner code.
 

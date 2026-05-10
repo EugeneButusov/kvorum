@@ -131,7 +131,7 @@ pnpm -w test
 Or scope to a single workspace:
 
 ```bash
-pnpm --filter @kvorum/db test
+pnpm --filter @libs/db test
 pnpm --filter api test
 ```
 

@@ -17,10 +17,10 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.js'],
     alias: {
-      '@kvorum/domain': path.join(root, 'libs/domain/src/index.ts'),
-      '@kvorum/db': path.join(root, 'libs/db/src/index.ts'),
-      '@kvorum/chain': path.join(root, 'libs/chain/src/index.ts'),
-      '@kvorum/ai': path.join(root, 'libs/ai/src/index.ts'),
+      '@libs/domain': path.join(root, 'libs/domain/src/index.ts'),
+      '@libs/db': path.join(root, 'libs/db/src/index.ts'),
+      '@libs/chain': path.join(root, 'libs/chain/src/index.ts'),
+      '@libs/ai': path.join(root, 'libs/ai/src/index.ts'),
     },
   },
   module: {
@@ -39,7 +39,7 @@ module.exports = {
         request &&
         !request.startsWith('.') &&
         !path.isAbsolute(request) &&
-        !request.startsWith('@kvorum/')
+        !request.startsWith('@libs/')
       ) {
         return callback(null, `commonjs ${request}`);
       }
