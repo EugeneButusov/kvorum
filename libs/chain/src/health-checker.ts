@@ -21,6 +21,7 @@ export interface HealthCheckerOptions {
 
 export class HealthChecker {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
+  private stopped = false;
   private readonly logger: Logger;
   private readonly intervalMs: number;
   private readonly lagThreshold: number;
@@ -39,13 +40,16 @@ export class HealthChecker {
   }
 
   async start(): Promise<void> {
+    if (this.stopped) return;
     await this.runInitialChainIdProbes();
-    // Initial block-number poll (non-gating)
+    if (this.stopped) return;
     await this.pollBlockNumbers();
+    if (this.stopped) return;
     this.scheduleRecurringPolls();
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.intervalHandle !== null) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;

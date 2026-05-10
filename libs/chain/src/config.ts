@@ -16,7 +16,12 @@ const ChainConfigSchema = z.object({
   reorgHorizon: z.number().int().positive(),
   lagThresholdBlocks: z.number().int().positive().optional(),
   overallTimeoutMs: z.number().int().positive().optional(),
-  providers: z.array(ProviderConfigSchema).min(1),
+  providers: z
+    .array(ProviderConfigSchema)
+    .min(1)
+    .refine((xs) => new Set(xs.map((x) => x.name)).size === xs.length, {
+      message: 'provider names must be unique within a chain',
+    }),
 });
 
 const EnvSchema = z.object({

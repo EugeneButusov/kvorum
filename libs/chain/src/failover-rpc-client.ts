@@ -138,13 +138,8 @@ export class FailoverRpcClient implements RpcClient {
         if (remaining <= 0) break;
 
         // Half-open: claim the in-flight probe slot (atomic in Node.js single-thread).
-        // Object property avoids TypeScript's let-narrowing issues with async continuations.
-        const probe = { settle: null as (() => void) | null };
         if (state.circuit.getState() === 'half-open') {
-          const probePromise = new Promise<void>((resolve) => {
-            probe.settle = () => resolve();
-          });
-          state.circuit.inFlightProbe = probePromise;
+          state.circuit.inFlightProbe = HALF_OPEN_PROBE_SENTINEL;
         }
 
         const startMs = Date.now();
@@ -154,14 +149,16 @@ export class FailoverRpcClient implements RpcClient {
           deadlineTimer = setTimeout(() => reject(new DeadlineError()), remaining);
         });
 
+        // Capture the in-flight ethers promise so a late rejection (after the deadline
+        // wins the race) gets a no-op handler — otherwise it surfaces as unhandledRejection
+        // and crashes the process under Node's default policy.
+        const inFlight = provider.send(method, params) as Promise<T>;
+        inFlight.catch(() => {});
+
         try {
-          const result = await Promise.race([
-            provider.send(method, params) as Promise<T>,
-            deadlinePromise,
-          ]);
+          const result = await Promise.race([inFlight, deadlinePromise]);
 
           clearTimeout(deadlineTimer!);
-          probe.settle?.();
 
           const durationS = (Date.now() - startMs) / 1000;
           state.circuit.recordSuccess();
@@ -183,7 +180,6 @@ export class FailoverRpcClient implements RpcClient {
           return result;
         } catch (err) {
           clearTimeout(deadlineTimer!);
-          probe.settle?.();
 
           // stopped check BEFORE categorizeError/recordFailure to avoid spurious breaker ticks
           if (this.stopped) throw new ClientStoppedError(this.config.chainId);
@@ -240,6 +236,10 @@ class DeadlineError extends Error {
     super('overall deadline exceeded');
   }
 }
+
+/** Non-null marker stored on `circuit.inFlightProbe` to gate concurrent half-open callers.
+ *  The promise is never awaited — single-flight gating works through the null check. */
+const HALF_OPEN_PROBE_SENTINEL: Promise<void> = Promise.resolve();
 
 function circuitStateValue(state: 'closed' | 'open' | 'half-open'): number {
   if (state === 'closed') return 0;
