@@ -5,9 +5,8 @@
     "declaration": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/generated/**/*.d.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": [
-    "src/generated/**",
     "vite.config.ts",
     "vite.config.mts",
     "vitest.config.ts",

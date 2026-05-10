@@ -15,14 +15,11 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:bundle": "pnpm --filter kvorum-admin test:bundle",
-    "postinstall": "prisma generate --schema=libs/db/prisma/schema.prisma",
-    "db:generate": "prisma generate --schema=libs/db/prisma/schema.prisma",
-    "db:migrate": "prisma migrate deploy --schema=libs/db/prisma/schema.prisma",
-    "db:migrate:dev": "prisma migrate dev --schema=libs/db/prisma/schema.prisma",
-    "db:migrate:status": "prisma migrate status --schema=libs/db/prisma/schema.prisma",
-    "db:reset": "prisma migrate reset --schema=libs/db/prisma/schema.prisma",
-    "db:studio": "prisma studio --schema=libs/db/prisma/schema.prisma",
-    "db:format": "prisma format --schema=libs/db/prisma/schema.prisma"
+    "db:migrate": "tsx libs/db/scripts/migrate.ts up",
+    "db:migrate:down": "tsx libs/db/scripts/migrate.ts down",
+    "db:migrate:ch": "tsx libs/db/scripts/migrate-ch.ts",
+    "db:reset": "tsx libs/db/scripts/migrate.ts reset",
+    "db:seed": "tsx libs/db/scripts/seed.ts"
   },
   "devDependencies": {
     "@nestjs/schematics": "^11.0.0",
@@ -52,8 +49,8 @@
     "jest-util": "^30.0.2",
     "lefthook": "^1.11.0",
     "postcss": "8.4.38",
+    "@types/pg": "^8.11.0",
     "prettier": "~3.6.2",
-    "prisma": "^6.19.3",
     "tailwindcss": "3.4.3",
     "ts-jest": "^29.4.0",
     "ts-loader": "^9.5.2",
@@ -67,16 +64,20 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@clickhouse/client": "^1.18.4",
+    "@founderpath/kysely-clickhouse": "^1.7.0",
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.19",
     "@nestjs/platform-express": "^11.0.0",
-    "@prisma/client": "6.19.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "next": "~16.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "reflect-metadata": "^0.2.2",
+    "clickhouse-migrations": "^1.3.0",
+    "kysely": "^0.29.0",
+    "pg": "^8.20.0",
     "rxjs": "^7.8.0"
   },
   "pnpm": {

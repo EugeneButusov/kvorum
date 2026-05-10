@@ -59,11 +59,35 @@ services:
     cpus: 1.0
     restart: unless-stopped
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-default}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      # Cap memory so CI runners (~7 GB available) don't OOM.
+      MAX_SERVER_MEMORY_USAGE: '2147483648'
+    ports:
+      - '${CLICKHOUSE_PORT:-8123}:8123'
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 2g
+    cpus: 2.0
+    restart: unless-stopped
+
   # Application services (api, dashboard, indexer, ai-worker) land in M1.
   # When added they MUST include:
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
+  #     clickhouse:
+  #       condition: service_healthy  (for services that write to ClickHouse)
   #
   # Container hardening (read_only, cap_drop, security_opt, logging caps,
   # backup automation, metrics scraping) is deferred to M7.
@@ -71,3 +95,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  clickhouse_data:

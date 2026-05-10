@@ -4,9 +4,8 @@ pre-commit:
     prettier:
       glob: '*.{ts,tsx,js,jsx,json,md,yaml,yml,css}'
       run: pnpm exec prettier --write {staged_files} && git add {staged_files}
-    prisma-format:
-      glob: '*.prisma'
-      run: pnpm -w db:format && git add {staged_files}
+    # No sqlfluff: Kysely TS migrations contain sql`...` template tags that
+    # sqlfluff cannot parse; ClickHouse *.sql migrations are reviewed by hand.
     typecheck:
       glob: '*.{ts,tsx}'
       run: pnpm -w typecheck

@@ -2,43 +2,56 @@
 
 Guidance for Claude Code working in this repo.
 
-## Stack snapshot (M0)
+## Stack snapshot (M1)
 
-| Layer                      | Choice                       | Notes                                                              |
-| -------------------------- | ---------------------------- | ------------------------------------------------------------------ |
-| Runtime                    | Node 24 LTS                  | `.nvmrc` pins the minor                                            |
-| Package manager            | pnpm 11                      | workspace monorepo; use `-w` for root scripts                      |
-| Build orchestration        | pnpm scripts                 | `pnpm -r run build/test`, `pnpm -w lint/typecheck`                 |
-| API                        | NestJS 11                    | `apps/api` — HTTP + REST                                           |
-| Workers                    | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                         |
-| Dashboard                  | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                    |
-| Database                   | PostgreSQL 18                | Prisma 6 ORM                                                       |
-| Prisma generator           | `prisma-client`              | NOT the deprecated `prisma-client-js`                              |
-| Testing (libs + dashboard) | Vitest 4                     |                                                                    |
-| Testing (NestJS apps)      | Jest 30                      | ts-jest transform; moduleNameMapper for `@kvorum/*` aliases        |
-| Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                  |
-| Linting                    | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages   |
-| Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                |
-| Git hooks                  | Lefthook                     | pre-commit: format + prisma format + typecheck (no pre-push block) |
-| Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle         |
+| Layer                      | Choice                       | Notes                                                                                     |
+| -------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| Runtime                    | Node 24 LTS                  | `.nvmrc` pins the minor                                                                   |
+| Package manager            | pnpm 11                      | workspace monorepo; use `-w` for root scripts                                             |
+| Build orchestration        | pnpm scripts                 | `pnpm -r run build/test`, `pnpm -w lint/typecheck`                                        |
+| API                        | NestJS 11                    | `apps/api` — HTTP + REST                                                                  |
+| Workers                    | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                                                |
+| Dashboard                  | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                                           |
+| Database (primary)         | PostgreSQL 18                | Kysely query builder + built-in Migrator                                                  |
+| Database (archive)         | ClickHouse 24                | `@founderpath/kysely-clickhouse` dialect for queries; `clickhouse-migrations` npm for DDL |
+| Testing (libs + dashboard) | Vitest 4                     |                                                                                           |
+| Testing (NestJS apps)      | Jest 30                      | ts-jest transform; moduleNameMapper for `@kvorum/*` aliases                               |
+| Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                                         |
+| Linting                    | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages                          |
+| Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
+| Git hooks                  | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
+| Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle                                |
 
-ClickHouse is deferred (ADR-026). Do not add ClickHouse dependencies.
+ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) remains deferred per ADR-026 activation triggers (preserved by ADR-038).
 
 ## Module boundaries
 
-| Layer         | Members       | Can depend on |
-| ------------- | ------------- | ------------- |
-| `libs/domain` | domain types  | nothing       |
-| `libs/db`     | Prisma client | `libs/domain` |
-| `libs/chain`  | chain helpers | `libs/domain` |
-| `libs/ai`     | AI helpers    | `libs/domain` |
-| `apps/*`      | applications  | any lib       |
+| Layer         | Members                                          | Can depend on |
+| ------------- | ------------------------------------------------ | ------------- |
+| `libs/domain` | domain types                                     | nothing       |
+| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain` |
+| `libs/chain`  | chain helpers                                    | `libs/domain` |
+| `libs/ai`     | AI helpers                                       | `libs/domain` |
+| `apps/*`      | applications                                     | any lib       |
 
 These boundaries are not enforced by a linter rule (nx removed). Respect them manually — cross-lib deps beyond what's listed above require a clear architectural reason.
 
 ## Database access convention
 
-Use Prisma ORM methods (`prisma.model.findMany(...)`) by default. Use `$queryRaw` / `$executeRaw` only when the ORM genuinely cannot express the operation (e.g., `pg_notify`, recursive CTEs, `ON CONFLICT DO UPDATE` returning multiple rows). Document the reason when reaching for raw SQL.
+Use Kysely query builder methods (`pgDb.selectFrom(…).where(…).execute()`) by default for all Postgres queries. Use the `sql` tagged-template helper only when the query builder genuinely cannot express the operation (e.g., `pg_notify`, recursive CTEs, partial unique index definitions). Every `sql` template tag parameterises values — never interpolate user-controlled data directly. Document the reason when reaching for raw SQL.
+
+For ClickHouse queries use `chDb` (the `@founderpath/kysely-clickhouse` Kysely instance). Use `SELECT … FINAL` when reading from `ReplacingMergeTree` tables to get deduped results; **never** issue `OPTIMIZE TABLE FINAL` from application code or scheduled jobs — that is reserved for manual operator intervention only.
+
+### Cross-DB writes (ADR-041)
+
+F1/I1 follow the PG-first-then-CH-then-PG protocol for every dual-DB write:
+
+1. PG existence check: `SELECT id FROM archive_confirmation WHERE (source_type, chain_id, tx_hash, log_index, block_hash) = (…)`.
+2. CH insert (idempotent via `ReplacingMergeTree`).
+3. PG insert with `ON CONFLICT DO NOTHING` + bounded retry (3 attempts × exponential backoff 200/600/1800 ms).
+4. DLQ row on persistent PG failure.
+
+See ADR-041 for the full contract, metric names, and M2 reconciliation job.
 
 ## Pre-commit checks
 
@@ -51,30 +64,33 @@ pnpm -w typecheck
 pnpm -w test
 ```
 
-Lefthook enforces formatting, prisma format, and typecheck on staged files at `git commit`. There is no pre-push block — `lint` and `test` run manually + in CI only. Do not use `--no-verify`.
+Lefthook enforces formatting and typecheck on staged files at `git commit`. There is no pre-push block — `lint` and `test` run manually + in CI only. Do not use `--no-verify`.
+
+No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template literals that sqlfluff cannot parse, and ClickHouse `.sql` migration files (under `libs/sources/*/migrations-clickhouse/`) are reviewed by hand.
 
 ## NestJS workers (indexer, ai-worker)
 
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).
 
-`PrismaService` implements `OnModuleDestroy` — it disconnects the connection pool on shutdown. This is load-bearing for clean exit.
+`pgDb.destroy()` must be called in the shutdown handler — it drains the `pg.Pool` connection pool. Import `pgDb` from `@kvorum/db` and call it in the `OnApplicationShutdown` hook.
 
-## Prisma
+## Kysely migrations
 
-Schema lives at `libs/db/prisma/schema.prisma`. Generated client goes to `libs/db/src/generated` (gitignored). Regenerate with:
-
-```bash
-pnpm -w db:generate
-```
-
-The `postinstall` script in `package.json` also runs it on `pnpm install`. Before running builds/tests, ensure the client is generated.
-
-For migrations:
+Postgres migration files live at `libs/db/migrations/` as TypeScript files (`0001_<name>.ts`, `0002_<name>.ts`, …) exporting `up(db)` and `down(db)` functions using the `sql` tagged-template tag. Run them with:
 
 ```bash
-pnpm -w db:migrate:dev   # dev: creates migration file
-pnpm -w db:migrate       # prod: applies pending
+pnpm -w db:migrate        # apply all pending migrations
+pnpm -w db:migrate:down   # roll back the last migration
+pnpm -w db:reset          # roll back all migrations (dev only)
 ```
+
+ClickHouse migration files live at `libs/sources/<source>/migrations-clickhouse/` as plain SQL files (`<source>_NNN_<name>.sql`, e.g. `compound_001_archive.sql`). Run with:
+
+```bash
+pnpm -w db:migrate:ch
+```
+
+No code generation step. `pnpm install` no longer triggers anything DB-related.
 
 ## TypeScript path aliases
 
@@ -98,7 +114,7 @@ apps/
   kvorum-admin/  Operator CLI — stub command tree (M0)
 libs/
   domain/       Shared domain types and constants
-  db/           Prisma client, PrismaService, DbModule
+  db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
 docs/
@@ -115,7 +131,7 @@ infra/
 - **`"type": "module"` in root `package.json`**: Do not add it. It makes all `.js` files ESM, breaking `require()` in webpack configs (CJS). The ESLint "reparsing" warning is acceptable.
 - **Webpack alias resolution**: `apps/api`, `apps/indexer`, `apps/ai-worker` bundle via webpack + ts-loader. Path aliases (`@kvorum/*`) are resolved via `resolve.alias` in each `webpack.config.js` — update these aliases if you add or rename a lib.
 - **lib builds**: `pnpm -r run build` builds libs via `tsc -p tsconfig.lib.json`. The output (`dist/out-tsc/`) is not used by apps (apps bundle from source via webpack). Lib builds exist only to verify compilation.
-- **Prisma 7 breaking change**: Prisma 7 removed the `url` property from datasource in `schema.prisma` (moved to `prisma.config.ts`). This project pins Prisma 6.19.3. Do not upgrade without reading the Prisma 7 migration guide.
+- **Kysely migration runner exits non-zero on partial failure**: `migrate.ts` checks `result.error` and calls `process.exit(1)`. The default Kysely `Migrator` API does not bubble errors automatically — always check `error` after `migrateToLatest()` / `migrateDown()` in any custom runner code.
 
 ## KNOWN-NNN issue registry
 
