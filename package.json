@@ -18,8 +18,7 @@
     "db:migrate": "tsx libs/db/scripts/migrate.mts up",
     "db:migrate:down": "tsx libs/db/scripts/migrate.mts down",
     "db:migrate:ch": "tsx libs/db/scripts/migrate-ch.mts",
-    "db:reset": "tsx libs/db/scripts/migrate.mts reset",
-    "db:seed": "tsx libs/db/scripts/seed.mts"
+    "db:reset": "tsx libs/db/scripts/migrate.mts reset"
   },
   "devDependencies": {
     "@nestjs/schematics": "^11.0.0",
