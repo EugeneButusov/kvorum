@@ -1,4 +1,4 @@
-import { CircuitBreaker } from './circuit-breaker.js';
+import { CircuitBreaker } from '../breaker/circuit-breaker.js';
 
 export interface ProviderState {
   name: string;

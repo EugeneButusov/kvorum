@@ -1,15 +1,15 @@
 import type { JsonRpcProvider } from 'ethers';
-import type { ChainConfig } from './config.js';
-import { ChainConfigError } from './chain-config.error.js';
-import type { Logger } from './logger.js';
-import { silentLogger } from './logger.js';
-import type { ProviderState } from './provider-state.js';
+import type { ChainConfig } from '../config/config.js';
+import { ChainConfigError } from '../errors/chain-config.error.js';
+import type { Logger } from '../logger.js';
+import { silentLogger } from '../logger.js';
+import type { ProviderState } from '../client/provider-state.js';
 import {
   getHealthCheckFailuresTotal,
   getProviderLagBlocks,
   getProviderUnusable,
   getProviderVerified,
-} from './metrics.js';
+} from '../metrics/metrics.js';
 
 const CHAIN_ID_RETRY_DELAYS_MS = [200, 600, 1800];
 const HEALTH_CHECK_INTERVAL_MS = 30_000;

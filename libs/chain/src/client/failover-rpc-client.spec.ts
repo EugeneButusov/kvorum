@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { FailoverRpcClient, createFailoverRpcClient } from './failover-rpc-client.js';
-import { ClientStoppedError } from './client-stopped.error.js';
-import { resetMetrics } from './metrics.js';
-import type { ChainConfig } from './config.js';
+import { ClientStoppedError } from '../errors/client-stopped.error.js';
+import { resetMetrics } from '../metrics/metrics.js';
+import type { ChainConfig } from '../config/config.js';
 
 // Pure-unit tests: no HTTP, no health-checker.start().
 // Behaviour that requires a real (or fake) JSON-RPC server lives in

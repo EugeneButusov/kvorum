@@ -4,9 +4,9 @@
  * CI provides it via the `anvil` service container (ANVIL_RPC_URL=http://anvil:8545).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { FailoverRpcClient } from '../src/failover-rpc-client.js';
-import type { ChainConfig } from '../src/config.js';
-import { resetMetrics } from '../src/metrics.js';
+import { FailoverRpcClient } from '../src/client/failover-rpc-client.js';
+import type { ChainConfig } from '../src/config/config.js';
+import { resetMetrics } from '../src/metrics/metrics.js';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 

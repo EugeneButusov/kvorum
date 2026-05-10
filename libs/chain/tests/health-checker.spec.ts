@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { JsonRpcProvider, Network, FetchRequest } from 'ethers';
-import { HealthChecker } from '../src/health-checker.js';
-import { ChainConfigError } from '../src/chain-config.error.js';
-import { createProviderState } from '../src/provider-state.js';
-import { resetMetrics, getChainMetricsRegistry } from '../src/metrics.js';
+import { HealthChecker } from '../src/health/health-checker.js';
+import { ChainConfigError } from '../src/errors/chain-config.error.js';
+import { createProviderState } from '../src/client/provider-state.js';
+import { resetMetrics, getChainMetricsRegistry } from '../src/metrics/metrics.js';
 import { FakeProvider } from './fake-provider.js';
-import type { ChainConfig } from '../src/config.js';
+import type { ChainConfig } from '../src/config/config.js';
 
 afterEach(() => resetMetrics());
 

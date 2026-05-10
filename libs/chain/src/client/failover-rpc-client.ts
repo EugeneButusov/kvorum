@@ -1,21 +1,22 @@
 import type { JsonRpcProvider } from 'ethers';
-import type { ChainConfig } from './config.js';
-import type { Logger } from './logger.js';
+import type { ChainConfig } from '../config/config.js';
+import type { Logger } from '../logger.js';
 import type { ProviderState } from './provider-state.js';
-import { AllProvidersFailedError } from './all-providers-failed.error.js';
-import { ClientStoppedError } from './client-stopped.error.js';
-import { categorizeError, scrubError, type ErrorReason } from './errors.js';
-import { HealthChecker, type HealthCheckerOptions } from './health-checker.js';
+import { AllProvidersFailedError } from '../errors/all-providers-failed.error.js';
+import { ClientStoppedError } from '../errors/client-stopped.error.js';
+import { DeadlineError } from '../errors/deadline.error.js';
+import { categorizeError, scrubError, type ErrorReason } from '../errors/errors.js';
+import { HealthChecker, type HealthCheckerOptions } from '../health/health-checker.js';
 import {
   getCircuitState,
   getRpcFailuresTotal,
   getRpcRequestDuration,
   getRpcRequestsTotal,
   sanitizeMethod,
-} from './metrics.js';
+} from '../metrics/metrics.js';
 import { createJsonRpcProvider } from './provider-factory.js';
 import { createProviderState } from './provider-state.js';
-import { silentLogger } from './logger.js';
+import { silentLogger } from '../logger.js';
 
 export interface RpcSendOptions {
   deadlineMs?: number;
@@ -226,12 +227,6 @@ export class FailoverRpcClient implements RpcClient {
     }
 
     throw new AllProvidersFailedError(this.config.chainId, attempts);
-  }
-}
-
-class DeadlineError extends Error {
-  constructor() {
-    super('overall deadline exceeded');
   }
 }
 

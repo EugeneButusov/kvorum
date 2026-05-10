@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseChainConfigFromEnv } from './config.js';
-import { ChainConfigError } from './chain-config.error.js';
+import { ChainConfigError } from '../errors/chain-config.error.js';
 
 const validConfig = {
   chains: [

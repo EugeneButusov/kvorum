@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ChainConfigError } from './chain-config.error.js';
+import { ChainConfigError } from '../errors/chain-config.error.js';
 
 const ProviderConfigSchema = z.object({
   name: z.string().min(1),

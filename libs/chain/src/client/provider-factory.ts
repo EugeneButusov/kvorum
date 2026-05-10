@@ -1,6 +1,6 @@
 import { FetchRequest, JsonRpcProvider, Network } from 'ethers';
-import type { ProviderConfig } from './config.js';
-import { NotImplementedError } from './not-implemented.error.js';
+import type { ProviderConfig } from '../config/config.js';
+import { NotImplementedError } from '../errors/not-implemented.error.js';
 
 /**
  * Constructs a per-provider ethers JsonRpcProvider.
