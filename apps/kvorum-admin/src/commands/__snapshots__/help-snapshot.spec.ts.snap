@@ -230,6 +230,8 @@ Commands:
   list [options]              List users
   ban [options] <user_id>     Ban a user (destructive)
   delete [options] <user_id>  Delete a user account (destructive)
+  create [options]            Create a new user account
+  update [options] <user_id>  Update a user account
   help [command]              display help for command
 "
 `;
