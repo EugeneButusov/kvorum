@@ -16,7 +16,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  # Single sequential job: each step pays ~20–30 s for checkout+install+generate.
+  # Single sequential job: each step pays ~20–30 s for checkout+install.
   # Splitting into parallel jobs would repeat that overhead N times and make total
   # wall-clock time longer at current repo size. Revisit when any individual step
   # consistently exceeds ~3 min — that's the crossover where parallelism wins.
@@ -51,9 +51,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: pnpm -w db:generate
-
       - name: Format check
         run: pnpm -w format:check
 
@@ -71,9 +68,6 @@ jobs:
 
       - name: Test kvorum-admin bundle
         run: pnpm -w test:bundle
-
-      - name: Validate Prisma schema vs migrations
-        run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel libs/db/prisma/schema.prisma --exit-code
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high --prod
