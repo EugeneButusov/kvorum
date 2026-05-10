@@ -1,0 +1,235 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`kvorum-admin help snapshots > actor --help 1`] = `
+"Usage: kvorum-admin actor [options] [command]
+
+Actor management
+
+Options:
+  -h, --help                                               display help for command
+
+Commands:
+  merge [options] <primary_actor_id> <secondary_actor_id>  Merge two actor identities (destructive)
+  address                                                  Actor address management
+  help [command]                                           display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > ai --help 1`] = `
+"Usage: kvorum-admin ai [options] [command]
+
+AI feature management
+
+Options:
+  -h, --help                                         display help for command
+
+Commands:
+  disable [options] <feature>                        Disable an AI feature
+  enable [options] <feature>                         Enable an AI feature
+  cap                                                AI spending cap management
+  regenerate [options] <feature> <entity_reference>  Regenerate AI output for an entity
+  help [command]                                     display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > audit --help 1`] = `
+"Usage: kvorum-admin audit [options] [command]
+
+Audit log access
+
+Options:
+  -h, --help      display help for command
+
+Commands:
+  list [options]  List audit log entries
+  help [command]  display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > audit list --help 1`] = `
+"Usage: kvorum-admin audit list [options]
+
+List audit log entries
+
+Options:
+  --format <format>  output format: human or json
+  -h, --help         display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > backfill --help 1`] = `
+"Usage: kvorum-admin backfill [options] [command]
+
+Backfill management
+
+Options:
+  -h, --help                        display help for command
+
+Commands:
+  start [options] <dao_source_id>   Start a backfill for a DAO source
+  status [options] <dao_source_id>  Show backfill status for a DAO source
+  cancel [options] <dao_source_id>  Cancel an in-progress backfill
+  help [command]                    display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > dao --help 1`] = `
+"Usage: kvorum-admin dao [options] [command]
+
+DAO management
+
+Options:
+  -h, --help            display help for command
+
+Commands:
+  add [options] <slug>  Register a new DAO
+  source                DAO source management
+  help [command]        display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > dao source --help 1`] = `
+"Usage: kvorum-admin dao source [options] [command]
+
+DAO source management
+
+Options:
+  -h, --help                        display help for command
+
+Commands:
+  add [options] <dao_slug>          Add a data source to a DAO
+  update [options] <dao_source_id>  Update a DAO source configuration
+  delete [options] <dao_source_id>  Delete a DAO source (destructive)
+  help [command]                    display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > derive --help 1`] = `
+"Usage: kvorum-admin derive [options] [command]
+
+Derived data management
+
+Options:
+  -h, --help                               display help for command
+
+Commands:
+  replay [options] <dao_source_id>         Replay derivation for a DAO source (destructive)
+  verify [options] <proposal_external_id>  Verify derived data for a proposal
+  help [command]                           display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > dlq --help 1`] = `
+"Usage: kvorum-admin dlq [options] [command]
+
+Dead-letter queue management
+
+Options:
+  -h, --help                 display help for command
+
+Commands:
+  list [options]             List DLQ entries
+  retry [options] <dlq_id>   Retry a DLQ entry
+  accept [options] <dlq_id>  Accept (discard) a DLQ entry with a recorded reason
+  help [command]             display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > keys --help 1`] = `
+"Usage: kvorum-admin keys [options] [command]
+
+API key management
+
+Options:
+  -h, --help                 display help for command
+
+Commands:
+  list [options]             List API keys
+  revoke [options] <key_id>  Revoke an API key
+  ban-ip [options] <ip>      Ban an IP address (destructive)
+  help [command]             display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > maintenance --help 1`] = `
+"Usage: kvorum-admin maintenance [options] [command]
+
+Maintenance mode management
+
+Options:
+  -h, --help         display help for command
+
+Commands:
+  enable [options]   Enable maintenance mode
+  disable [options]  Disable maintenance mode
+  help [command]     display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > reorg --help 1`] = `
+"Usage: kvorum-admin reorg [options] [command]
+
+Chain reorg management
+
+Options:
+  -h, --help      display help for command
+
+Commands:
+  list [options]  List detected chain reorgs
+  help [command]  display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > status --help 1`] = `
+"Usage: kvorum-admin status [options]
+
+Show system status
+
+Options:
+  --format <format>  output format: human or json
+  -h, --help         display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > top-level --help 1`] = `
+"Usage: kvorum-admin [options] [command]
+
+Kvorum operator administration CLI
+
+Options:
+  -V, --version          output the version number
+  -f, --format <format>  output format: human or json (default: "human")
+  -h, --help             display help for command
+
+Commands:
+  actor                  Actor management
+  ai                     AI feature management
+  audit                  Audit log access
+  backfill               Backfill management
+  dao                    DAO management
+  derive                 Derived data management
+  dlq                    Dead-letter queue management
+  keys                   API key management
+  maintenance            Maintenance mode management
+  reorg                  Chain reorg management
+  status [options]       Show system status
+  user                   User management
+  help [command]         display help for command
+"
+`;
+
+exports[`kvorum-admin help snapshots > user --help 1`] = `
+"Usage: kvorum-admin user [options] [command]
+
+User management
+
+Options:
+  -h, --help                  display help for command
+
+Commands:
+  list [options]              List users
+  ban [options] <user_id>     Ban a user (destructive)
+  delete [options] <user_id>  Delete a user account (destructive)
+  help [command]              display help for command
+"
+`;
