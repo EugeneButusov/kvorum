@@ -1,16 +1,12 @@
 {
-  "name": "@libs/chain",
+  "name": "@libs/utils",
   "version": "0.0.1",
   "private": true,
   "type": "commonjs",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "@libs/utils": "workspace:*",
-    "ethers": "^6.13.0",
-    "prom-client": "^15.0.0",
-    "tslib": "^2.3.0",
-    "zod": "^4.0.0"
+    "tslib": "^2.3.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",

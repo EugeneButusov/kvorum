@@ -21,6 +21,7 @@ module.exports = {
       '@libs/db': path.join(root, 'libs/db/src/index.ts'),
       '@libs/chain': path.join(root, 'libs/chain/src/index.ts'),
       '@libs/ai': path.join(root, 'libs/ai/src/index.ts'),
+      '@libs/utils': path.join(root, 'libs/utils/src/index.ts'),
     },
   },
   module: {

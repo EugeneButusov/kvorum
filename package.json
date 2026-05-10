@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p apps/dashboard/tsconfig.json && tsc --noEmit -p apps/indexer/tsconfig.app.json && tsc --noEmit -p apps/ai-worker/tsconfig.app.json && tsc --noEmit -p apps/kvorum-admin/tsconfig.app.json && tsc --noEmit -p libs/domain/tsconfig.lib.json && tsc --noEmit -p libs/db/tsconfig.lib.json && tsc --noEmit -p libs/chain/tsconfig.lib.json && tsc --noEmit -p libs/ai/tsconfig.lib.json && tsc --noEmit -p libs/sources/compound/tsconfig.lib.json",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.app.json && tsc --noEmit -p apps/dashboard/tsconfig.json && tsc --noEmit -p apps/indexer/tsconfig.app.json && tsc --noEmit -p apps/ai-worker/tsconfig.app.json && tsc --noEmit -p apps/kvorum-admin/tsconfig.app.json && tsc --noEmit -p libs/domain/tsconfig.lib.json && tsc --noEmit -p libs/db/tsconfig.lib.json && tsc --noEmit -p libs/chain/tsconfig.lib.json && tsc --noEmit -p libs/ai/tsconfig.lib.json && tsc --noEmit -p libs/utils/tsconfig.lib.json && tsc --noEmit -p libs/sources/compound/tsconfig.lib.json",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "test:bundle": "pnpm --filter kvorum-admin test:bundle",
@@ -65,6 +65,9 @@
   },
   "dependencies": {
     "@clickhouse/client": "^1.18.4",
+    "ethers": "^6.13.0",
+    "prom-client": "^15.0.0",
+    "zod": "^4.0.0",
     "@founderpath/kysely-clickhouse": "^1.7.0",
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.19",

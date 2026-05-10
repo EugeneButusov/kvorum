@@ -71,19 +71,55 @@ Outline:
 
 ---
 
-## RPC provider API keys (Alchemy, Ankr, etc.)
+## RPC provider URLs (Alchemy, Ankr, public RPCs)
 
-**Consumers**: `indexer`.
+**Consumers**: `indexer` (via `FailoverRpcClient` in `@libs/chain`).
 
-**TBD** — full procedure to be written when M1 (indexer integration) is merged.
+**Configuration shape** (`CHAIN_CONFIG` env var — single-line JSON):
 
-Outline:
+```json
+{
+  "chains": [
+    {
+      "chainId": 1,
+      "name": "ethereum",
+      "reorgHorizon": 12,
+      "providers": [
+        {
+          "name": "alchemy-mainnet",
+          "url": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY",
+          "kind": "http",
+          "priority": 1
+        },
+        {
+          "name": "ankr-mainnet",
+          "url": "https://rpc.ankr.com/eth/YOUR_KEY",
+          "kind": "http",
+          "priority": 2
+        }
+      ]
+    }
+  ]
+}
+```
 
-1. Create a new app/key in the provider's dashboard.
-2. Update the vault entry.
-3. Run `provision-env.sh --force`.
-4. Restart `indexer`.
-5. Delete the old key in the provider's dashboard.
+The `name` field is used as a Prometheus `provider` label — keep it stable across rotations to preserve metric continuity. The `url` carries the secret key; never commit it.
+
+**1Password item naming**: `RPC_<CHAIN_NAME>_<PROVIDER_NAME>` (e.g., `RPC_ETHEREUM_ALCHEMY`). Store the full URL (including the API key path segment) as the item password field.
+
+**Zero-downtime rotation procedure**:
+
+1. Generate a new key in the provider's dashboard (keep the old key active).
+2. Update `CHAIN_CONFIG` in the 1Password vault to use the new URL for the target provider entry.
+3. Verify the new URL works: `curl -s -X POST <new_url> -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`
+4. Set `CHAIN_CONFIG` on the indexer host (via systemd `Environment=` or container env) using the updated vault value.
+5. Restart `indexer`. On startup, `FailoverRpcClient` re-runs chainId verification against all providers.
+6. Verify in logs that the rotated provider is logged as "chainId verified" (not "unusable"). Check `kvorum_ingestion_provider_verified` gauge in Prometheus.
+7. Revoke the old key in the provider's dashboard.
+
+**Crashloop-amplifies-load warning**: If the indexer crashloops, each restart re-runs chainId probes (3 retries × exponential backoff per provider × N providers). A crashlooping indexer hitting a degraded provider will hammer it. If crashloops are observed alongside a degraded provider, set that provider's `url` to a known-good fallback (or remove it from `CHAIN_CONFIG`) before investigating the root cause.
+
+**SPEC §3.12 quota-alert gap**: `kvorum_ingestion_rpc_quota_utilization` (80%-utilization alert) is not emitted in M1. The `dailyQuota` field on each `ProviderConfig` entry is typed and ready; the gauge wires up in M7. Until then, compute utilization manually from `kvorum_ingestion_rpc_requests_total` divided by the provider's daily quota.
 
 ---
 

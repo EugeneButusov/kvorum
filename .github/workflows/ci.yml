@@ -48,6 +48,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Start Anvil
+        run: |
+          anvil --silent &
+          echo "ANVIL_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for Anvil
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8545 \
+              -X POST -H "Content-Type: application/json" \
+              --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+              > /dev/null; then
+              echo "anvil ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "anvil never came up after 30s" >&2
+          exit 1
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -62,6 +85,12 @@ jobs:
 
       - name: Test
         run: pnpm -w test
+        env:
+          ANVIL_RPC_URL: http://localhost:8545
+
+      - name: Stop Anvil
+        if: always() && env.ANVIL_PID != ''
+        run: kill "$ANVIL_PID" || true
 
       - name: Build
         run: pnpm -w build

@@ -21,18 +21,20 @@ Guidance for Claude Code working in this repo.
 | Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
 | Git hooks                  | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
 | Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle                                |
+| Chain client               | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
 ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) remains deferred per ADR-026 activation triggers (preserved by ADR-038).
 
 ## Module boundaries
 
-| Layer         | Members                                          | Can depend on |
-| ------------- | ------------------------------------------------ | ------------- |
-| `libs/domain` | domain types                                     | nothing       |
-| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain` |
-| `libs/chain`  | chain helpers                                    | `libs/domain` |
-| `libs/ai`     | AI helpers                                       | `libs/domain` |
-| `apps/*`      | applications                                     | any lib       |
+| Layer         | Members                                          | Can depend on               |
+| ------------- | ------------------------------------------------ | --------------------------- |
+| `libs/utils`  | framework-agnostic utilities (`sleep`, …)        | nothing                     |
+| `libs/domain` | domain types                                     | nothing                     |
+| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain`               |
+| `libs/chain`  | chain helpers                                    | `libs/domain`, `libs/utils` |
+| `libs/ai`     | AI helpers                                       | `libs/domain`, `libs/utils` |
+| `apps/*`      | applications                                     | any lib                     |
 
 These boundaries are not enforced by a linter rule (nx removed). Respect them manually — cross-lib deps beyond what's listed above require a clear architectural reason.
 
@@ -105,7 +107,8 @@ Defined in `tsconfig.base.json`. Paths use `./` prefix (required by TS 5.9 witho
 "@libs/domain": ["./libs/domain/src/index.ts"],
 "@libs/db":     ["./libs/db/src/index.ts"],
 "@libs/chain":  ["./libs/chain/src/index.ts"],
-"@libs/ai":     ["./libs/ai/src/index.ts"]
+"@libs/ai":     ["./libs/ai/src/index.ts"],
+"@libs/utils":  ["./libs/utils/src/index.ts"]
 ```
 
 ## Where things live
@@ -122,6 +125,7 @@ libs/
   db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
+  utils/        Framework-agnostic utilities (sleep, …)
 docs/
   SPEC.md       Frozen v1.0 product spec
   adr/          Architecture Decision Records (ADR-021 onward)
