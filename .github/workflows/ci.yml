@@ -25,18 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      anvil:
-        image: ghcr.io/foundry-rs/foundry:latest
-        options: >-
-          --entrypoint anvil
-          --health-cmd "cast block-number --rpc-url http://localhost:8545"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-        ports:
-          - 8545:8545
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,6 +47,22 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Start Anvil
+        run: anvil --silent &
+
+      - name: Wait for Anvil
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8545 \
+              -X POST -H "Content-Type: application/json" \
+              --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+              && break
+            sleep 1
+          done
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
