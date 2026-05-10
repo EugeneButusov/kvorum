@@ -1,14 +1,4 @@
-const HEX_RE = /^0x[0-9a-f]*$/;
-
-function normalizeHex(value: string, field: string): string {
-  const lower = value.toLowerCase();
-  if (!HEX_RE.test(lower) || lower.length < 3 || (lower.length - 2) % 2 !== 0) {
-    throw new Error(
-      `buildIdempotencyKey: invalid hex for ${field}: "${value}" — expected 0x-prefixed even-length hex`,
-    );
-  }
-  return lower;
-}
+import { normalizeEvenLengthHex } from './hex.utils.js';
 
 /** Canonicalizes case and returns `${sourceType}:${chainId}:${txHash}:${logIndex}:${blockHash}`.
  *
@@ -31,7 +21,7 @@ export function buildIdempotencyKey(parts: {
   if (!Number.isInteger(logIndex) || logIndex < 0) {
     throw new Error('buildIdempotencyKey: logIndex must be a non-negative integer');
   }
-  const tx = normalizeHex(txHash, 'txHash');
-  const bh = normalizeHex(blockHash, 'blockHash');
+  const tx = normalizeEvenLengthHex(txHash, 'txHash');
+  const bh = normalizeEvenLengthHex(blockHash, 'blockHash');
   return `${sourceType}:${chainId}:${tx}:${logIndex}:${bh}`;
 }

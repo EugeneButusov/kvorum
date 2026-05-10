@@ -12,7 +12,7 @@ import type { ChainConfig } from '../src/config/config.js';
 import { resetMetrics, getHeadBlockAgeSeconds } from '../src/metrics/metrics.js';
 import { EventPoller } from '../src/poller/event-poller.js';
 import { HeadTracker } from '../src/poller/head-tracker.js';
-import { buildIdempotencyKey } from '../src/poller/idempotency.utils.js';
+import { buildIdempotencyKey } from '../src/poller/utils/idempotency.utils.js';
 import type { LogEvent, Head } from '../src/poller/types.js';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];

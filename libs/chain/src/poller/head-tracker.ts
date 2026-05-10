@@ -1,31 +1,10 @@
 import { silentLogger } from '../logger.js';
 import { getHeadBlockAgeSeconds, getHeadPollLagSeconds } from '../metrics/metrics.js';
 import type { Head, HeadListener, HeadTrackerOptions } from './types.js';
+import { decodeHead } from './utils/decode.utils.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 12_000;
 const DEFAULT_STOP_TIMEOUT_MS = 5_000;
-
-function requireHex(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]*$/i.test(value)) {
-    throw new Error(`missing or non-hex ${field}`);
-  }
-  return value;
-}
-
-function decodeHead(raw: unknown, chainId: number, observedAt: Date): Head {
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('block response is not an object');
-  }
-  const block = raw as Record<string, unknown>;
-  return {
-    chainId,
-    blockNumber: BigInt(requireHex(block['number'], 'number')),
-    blockHash: requireHex(block['hash'], 'hash').toLowerCase(),
-    parentHash: requireHex(block['parentHash'], 'parentHash').toLowerCase(),
-    timestamp: BigInt(requireHex(block['timestamp'], 'timestamp')),
-    observedAt,
-  };
-}
 
 /** Polls eth_getBlockByNumber('latest', false) and fans out to registered listeners.
  *

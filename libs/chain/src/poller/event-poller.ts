@@ -6,69 +6,11 @@ import {
   getLogsWithRemovedFlagTotal,
 } from '../metrics/metrics.js';
 import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './types.js';
+import { decodeLogEvent } from './utils/decode.utils.js';
+import { lowercaseFilter } from './utils/filter.utils.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 12_000;
 const DEFAULT_STOP_TIMEOUT_MS = 5_000;
-
-function requireHexString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]*$/i.test(value)) {
-    throw new Error(`missing or non-hex ${field}`);
-  }
-  return value;
-}
-
-function requireNonNegativeInt(value: unknown, field: string): number {
-  const n = typeof value === 'string' ? Number(value) : (value as number);
-  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-    throw new Error(`missing or invalid ${field}`);
-  }
-  return n;
-}
-
-function decodeLogEvent(
-  log: Record<string, unknown>,
-  sourceType: string,
-  chainId: number,
-): LogEvent {
-  const blockNumberHex = requireHexString(log['blockNumber'], 'blockNumber');
-  const blockHash = requireHexString(log['blockHash'], 'blockHash').toLowerCase();
-  const txHash = requireHexString(log['transactionHash'], 'transactionHash').toLowerCase();
-  const txIndex = requireNonNegativeInt(log['transactionIndex'], 'transactionIndex');
-  const logIndex = requireNonNegativeInt(log['logIndex'], 'logIndex');
-  const address = requireHexString(log['address'], 'address').toLowerCase();
-  const data = requireHexString(log['data'], 'data');
-  const rawTopics = log['topics'];
-  if (rawTopics != null && !Array.isArray(rawTopics)) {
-    throw new Error('topics must be an array');
-  }
-  const topics = ((rawTopics as string[] | undefined) ?? []).map((t, i) =>
-    requireHexString(t, `topics[${i}]`).toLowerCase(),
-  );
-  return {
-    sourceType,
-    chainId,
-    blockNumber: BigInt(blockNumberHex),
-    blockHash,
-    txHash,
-    txIndex,
-    logIndex,
-    address,
-    topics,
-    data,
-  };
-}
-
-function lowercaseFilter(filter: LogFilter): LogFilter {
-  const address = Array.isArray(filter.address)
-    ? filter.address.map((a) => a.toLowerCase())
-    : filter.address.toLowerCase();
-  const topics = filter.topics?.map((t) => {
-    if (t === null) return null;
-    if (Array.isArray(t)) return t.map((s) => s.toLowerCase());
-    return t.toLowerCase();
-  });
-  return { address, topics };
-}
 
 /** Polls eth_getLogs over a sliding window of 2 × reorgHorizon blocks.
  *
