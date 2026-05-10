@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIdempotencyKey } from './idempotency.js';
+import { buildIdempotencyKey } from './idempotency.utils.js';
 
 const BASE = {
   sourceType: 'compound_governor',

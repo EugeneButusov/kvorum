@@ -34,4 +34,4 @@ export type {
 } from './poller/types.js';
 export { EventPoller } from './poller/event-poller.js';
 export { HeadTracker } from './poller/head-tracker.js';
-export { buildIdempotencyKey } from './poller/idempotency.js';
+export { buildIdempotencyKey } from './poller/idempotency.utils.js';
