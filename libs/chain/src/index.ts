@@ -22,3 +22,16 @@ export { ClientStoppedError } from './errors/client-stopped.error.js';
 export { NotImplementedError } from './errors/not-implemented.error.js';
 
 export { getChainMetricsRegistry, resetMetrics } from './metrics/metrics.js';
+
+export type {
+  LogEvent,
+  LogFilter,
+  Head,
+  HeadListener,
+  EventsListener,
+  EventPollerOptions,
+  HeadTrackerOptions,
+} from './poller/types.js';
+export { EventPoller } from './poller/event-poller.js';
+export { HeadTracker } from './poller/head-tracker.js';
+export { buildIdempotencyKey } from './poller/idempotency.js';
