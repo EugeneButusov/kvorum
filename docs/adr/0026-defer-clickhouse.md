@@ -1,9 +1,11 @@
 # ADR-026 — Defer ClickHouse to v1.x; v1 uses Postgres only
 
-- **Status**: Proposed
+- **Status**: Superseded by [ADR-038](0038-clickhouse-archive-layer-in-m1.md)
 - **Date**: 2026-05-08
 - **Spec sections affected**: 2.7, 7.1
-- **Related**: DR-014, KNOWN-026 (new — see §below)
+- **Related**: DR-014, KNOWN-026, ADR-038 (supersedes)
+
+> **Superseded note (2026-05-10):** ADR-038 splits the original blanket deferral into two layers — the **raw event archive layer** ships in M1 on ClickHouse; the **analytical mirror layer** (`vote_events_flat`, `delegation_flow_flat`) remains deferred per this ADR's activation triggers. The activation-trigger language below is preserved verbatim by ADR-038 and continues to apply to the analytical mirror layer only.
 
 ## Context
 

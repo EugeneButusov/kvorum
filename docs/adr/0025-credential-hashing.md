@@ -1,7 +1,7 @@
 # ADR-025 — API key hashing uses HMAC-SHA256; passwords use argon2id
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted (api-key half ratified by E1 schema; password half scope-deferred to M6 — column not in M1 per `docs/plan-m1-e1.md` v3)
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted)
 - **Spec sections affected**: 4.3, 7.6
 
 ## Context

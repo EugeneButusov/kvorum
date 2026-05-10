@@ -1,7 +1,7 @@
 # ADR-032 — DLQ `accept` is permanent acknowledgement, not retry
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by `ingestion_dlq_resolved` table with `resolution_kind` enum + `original_dlq_id` UNIQUE in `docs/plan-m1-e1.md` v3)
 - **Spec sections affected**: 6.20.1, 3.12
 
 ## Context

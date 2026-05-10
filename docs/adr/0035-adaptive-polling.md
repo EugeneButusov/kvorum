@@ -1,7 +1,7 @@
 # ADR-035 — Dashboard polling adapts to remaining rate-limit quota
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted (schema half — `dashboard` value in `api_key_tier` enum — ratified by E1 in `docs/plan-m1-e1.md` v3; client-side adaptive polling implementation lands in M6 dashboard work)
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted)
 - **Spec sections affected**: 4.4, 6.16
 - **Related**: DR-001, DR-009
 
