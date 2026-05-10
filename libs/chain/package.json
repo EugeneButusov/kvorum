@@ -6,7 +6,10 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "^2.3.0"
+    "ethers": "^6.13.0",
+    "prom-client": "^15.0.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.0.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",

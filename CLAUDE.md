@@ -21,6 +21,7 @@ Guidance for Claude Code working in this repo.
 | Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
 | Git hooks                  | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
 | Admin CLI                  | commander 14 (Node ESM)      | `apps/kvorum-admin` — operator tooling, single-file bundle                                |
+| Chain client               | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
 ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) remains deferred per ADR-026 activation triggers (preserved by ADR-038).
 

@@ -25,6 +25,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      anvil:
+        image: ghcr.io/foundry-rs/foundry:latest
+        options: >-
+          --entrypoint anvil
+          --health-cmd "cast block-number --rpc-url http://localhost:8545"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 8545:8545
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,6 +74,8 @@ jobs:
 
       - name: Test
         run: pnpm -w test
+        env:
+          ANVIL_RPC_URL: http://localhost:8545
 
       - name: Build
         run: pnpm -w build
