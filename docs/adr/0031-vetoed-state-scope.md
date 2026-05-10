@@ -1,7 +1,7 @@
 # ADR-031 — `vetoed` state scoped to Lido Dual Governance in v1
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by `proposal_state` enum including `vetoed` in `docs/plan-m1-e1.md` v3; G1 derivation enforces the Lido-Aragon-only rule)
 - **Spec sections affected**: 2.4.4
 - **Related**: KNOWN-003
 

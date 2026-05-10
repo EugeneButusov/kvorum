@@ -1,7 +1,7 @@
 # ADR-027 — Backfill confirmation cutoff rule
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by `dao_source.backfill_started_at_block` column + `archive_confirmation` write semantics in `docs/plan-m1-e1.md` v3)
 - **Spec sections affected**: 3.10
 - **Related**: DR-006
 

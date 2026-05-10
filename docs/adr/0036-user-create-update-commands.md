@@ -1,7 +1,7 @@
 # ADR-036 — Extend kvorum-admin user surface with create and update subcommands
 
-- **Status**: Proposed
-- **Date**: 2026-05-10
+- **Status**: Accepted
+- **Date**: 2026-05-10 (proposed); 2026-05-10 (accepted, ratified by `user` table in E1 PR 1; the ADR's stale "User table already in M0" line is corrected by the M1 schema actually shipping it)
 - **Spec sections affected**: 6.20.1
 - **Related**: #10, #11, #15
 

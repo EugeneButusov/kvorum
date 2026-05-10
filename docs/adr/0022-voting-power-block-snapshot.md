@@ -1,7 +1,7 @@
 # ADR-022 — `voting_power_block` populated for Snapshot proposals
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted
+- **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by E1 schema in `docs/plan-m1-e1.md` v3)
 - **Spec sections affected**: 2.4.4, 3.6
 - **Related**: KNOWN-006, DR-008
 
