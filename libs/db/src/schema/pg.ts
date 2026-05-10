@@ -9,12 +9,11 @@ import type {
   ReorgEventTable,
   SourceTypeTable,
 } from './domain';
+import type { AbiCacheTable, SelectorIndexTable } from './abi';
 import type {
-  AbiCacheTable,
   ArchiveConfirmationTable,
   IngestionDlqResolvedTable,
   IngestionDlqTable,
-  SelectorIndexTable,
 } from './ingestion';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
@@ -66,6 +65,12 @@ export type {
 export type {
   AbiCache,
   AbiCacheTable,
+  NewAbiCache,
+  NewSelectorIndex,
+  SelectorIndex,
+  SelectorIndexTable,
+} from './abi';
+export type {
   ArchiveConfirmation,
   ArchiveConfirmationTable,
   ArchiveConfirmationUpdate,
@@ -75,13 +80,9 @@ export type {
   IngestionDlqResolved,
   IngestionDlqResolvedTable,
   IngestionDlqTable,
-  NewAbiCache,
   NewArchiveConfirmation,
   NewIngestionDlq,
   NewIngestionDlqResolved,
-  NewSelectorIndex,
-  SelectorIndex,
-  SelectorIndexTable,
 } from './ingestion';
 
 export interface PgDatabase {

@@ -75,25 +75,3 @@ export interface IngestionDlqResolvedTable {
 
 export type IngestionDlqResolved = Selectable<IngestionDlqResolvedTable>;
 export type NewIngestionDlqResolved = Insertable<IngestionDlqResolvedTable>;
-
-export interface AbiCacheTable {
-  chain_id: number;
-  address: string;
-  abi: unknown;
-  source: string;
-  fetched_at: Date;
-  implementation_chain: unknown | null;
-}
-
-export type AbiCache = Selectable<AbiCacheTable>;
-export type NewAbiCache = Insertable<AbiCacheTable>;
-
-export interface SelectorIndexTable {
-  selector: string;
-  signature: string;
-  source: string;
-  imported_at: Date;
-}
-
-export type SelectorIndex = Selectable<SelectorIndexTable>;
-export type NewSelectorIndex = Insertable<SelectorIndexTable>;
