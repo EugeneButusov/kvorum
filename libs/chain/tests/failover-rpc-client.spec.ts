@@ -140,6 +140,26 @@ describe('FailoverRpcClient.send()', () => {
     await client.stop();
   });
 
+  it('(g2) overall deadline fires → recordAbandoned is called (probe slot released)', async () => {
+    // If a half-open probe is claimed and the overall deadline fires, the probe
+    // slot must be released — otherwise the breaker stays stuck in half-open
+    // with a permanently-set inFlightProbe. The wiring is the
+    // recordAbandoned() call in the DeadlineError branch.
+    fakes[0]!.stall();
+
+    const { client } = await makeClient([fakes[0]!], { overallTimeoutMs: 200 });
+    const p1State = client.getProviderStates().get('p1')!;
+    const abandonedSpy = vi.spyOn(p1State.circuit, 'recordAbandoned');
+    const failureSpy = vi.spyOn(p1State.circuit, 'recordFailure');
+
+    await expect(client.send('eth_blockNumber', [])).rejects.toThrow(AllProvidersFailedError);
+
+    expect(abandonedSpy).toHaveBeenCalled();
+    // Deadline must NOT tick the breaker as a failure — it's an abandon, not a verdict
+    expect(failureSpy).not.toHaveBeenCalled();
+    await client.stop();
+  });
+
   it('(h) send() during stop() → ClientStoppedError with NO breaker tick', async () => {
     // Primary stalls so we can race stop() against send()
     fakes[0]!.stall();

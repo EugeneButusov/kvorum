@@ -14,10 +14,10 @@ function makeClock(startMs = 0) {
 const opts = { failureThreshold: 5, windowMs: 60_000, cooldownMs: 30_000 };
 
 describe('CircuitBreaker', () => {
-  it('starts closed and allows requests', () => {
+  it('starts closed and grants requests', () => {
     const cb = new CircuitBreaker(opts);
     expect(cb.getState()).toBe('closed');
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
   });
 
   it('stays closed with fewer failures than threshold', () => {
@@ -25,7 +25,7 @@ describe('CircuitBreaker', () => {
     const cb = new CircuitBreaker({ ...opts, now: clock.now });
     for (let i = 0; i < 4; i++) cb.recordFailure();
     expect(cb.getState()).toBe('closed');
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
   });
 
   it('opens after threshold failures within window', () => {
@@ -33,7 +33,7 @@ describe('CircuitBreaker', () => {
     const cb = new CircuitBreaker({ ...opts, now: clock.now });
     for (let i = 0; i < 5; i++) cb.recordFailure();
     expect(cb.getState()).toBe('open');
-    expect(cb.canRequest()).toBe(false);
+    expect(cb.tryAcquire()).toBe(false);
   });
 
   it('stays open before cooldown elapses', () => {
@@ -42,7 +42,7 @@ describe('CircuitBreaker', () => {
     for (let i = 0; i < 5; i++) cb.recordFailure();
     clock.advance(29_999);
     expect(cb.getState()).toBe('open');
-    expect(cb.canRequest()).toBe(false);
+    expect(cb.tryAcquire()).toBe(false);
   });
 
   it('transitions to half-open after cooldown', () => {
@@ -50,7 +50,7 @@ describe('CircuitBreaker', () => {
     const cb = new CircuitBreaker({ ...opts, now: clock.now });
     for (let i = 0; i < 5; i++) cb.recordFailure();
     clock.advance(30_000);
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
     expect(cb.getState()).toBe('half-open');
   });
 
@@ -59,10 +59,10 @@ describe('CircuitBreaker', () => {
     const cb = new CircuitBreaker({ ...opts, now: clock.now });
     for (let i = 0; i < 5; i++) cb.recordFailure();
     clock.advance(30_000);
-    cb.canRequest(); // transition to half-open
+    cb.tryAcquire(); // transition to half-open and claim probe
     cb.recordSuccess();
     expect(cb.getState()).toBe('closed');
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
   });
 
   it('reopens on failure from half-open with fresh cooldown', () => {
@@ -70,15 +70,15 @@ describe('CircuitBreaker', () => {
     const cb = new CircuitBreaker({ ...opts, now: clock.now });
     for (let i = 0; i < 5; i++) cb.recordFailure();
     clock.advance(30_000);
-    cb.canRequest(); // transition to half-open
+    cb.tryAcquire(); // transition to half-open and claim probe
     cb.recordFailure();
     expect(cb.getState()).toBe('open');
     // cooldown resets — still open at 29s after reopening
     clock.advance(29_000);
-    expect(cb.canRequest()).toBe(false);
+    expect(cb.tryAcquire()).toBe(false);
     // opens again at 30s
     clock.advance(1_000);
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
     expect(cb.getState()).toBe('half-open');
   });
 
@@ -88,19 +88,41 @@ describe('CircuitBreaker', () => {
     for (let i = 0; i < 5; i++) cb.recordFailure();
     clock.advance(30_000);
 
-    // First call transitions to half-open and grants the permit
-    expect(cb.canRequest()).toBe(true);
-    // Simulate probe in flight
-    cb.inFlightProbe = Promise.resolve();
+    // First call transitions to half-open, grants the permit, and claims the probe slot
+    expect(cb.tryAcquire()).toBe(true);
 
-    // Concurrent callers all get false while probe is in flight
-    expect(cb.canRequest()).toBe(false);
-    expect(cb.canRequest()).toBe(false);
+    // Concurrent callers all get false while the probe is in flight
+    expect(cb.tryAcquire()).toBe(false);
+    expect(cb.tryAcquire()).toBe(false);
 
-    // After probe settles (success), inFlightProbe is cleared by recordSuccess
+    // After the probe settles (success), the slot is released by recordSuccess
     cb.recordSuccess();
-    expect(cb.canRequest()).toBe(true);
+    expect(cb.tryAcquire()).toBe(true);
     expect(cb.getState()).toBe('closed');
+  });
+
+  it('recordAbandoned releases the half-open probe slot without ticking the breaker', () => {
+    const clock = makeClock();
+    const cb = new CircuitBreaker({ ...opts, now: clock.now });
+    for (let i = 0; i < 5; i++) cb.recordFailure();
+    clock.advance(30_000);
+
+    // Claim the probe
+    expect(cb.tryAcquire()).toBe(true);
+    expect(cb.tryAcquire()).toBe(false);
+
+    // Abandon — slot released, state still half-open (no failure recorded)
+    cb.recordAbandoned();
+    expect(cb.getState()).toBe('half-open');
+    // Next caller can claim the probe again
+    expect(cb.tryAcquire()).toBe(true);
+  });
+
+  it('recordAbandoned is a no-op when not half-open', () => {
+    const cb = new CircuitBreaker(opts);
+    cb.recordAbandoned();
+    expect(cb.getState()).toBe('closed');
+    expect(cb.tryAcquire()).toBe(true);
   });
 
   it('failures outside the window do not count toward threshold', () => {

@@ -131,16 +131,11 @@ export class FailoverRpcClient implements RpcClient {
       for (const entry of candidates) {
         const { state, provider, config: providerCfg } = entry;
 
-        if (!state.circuit.canRequest()) continue;
-
         const elapsed = Date.now() - deadlineStart;
         const remaining = deadlineMs - elapsed;
         if (remaining <= 0) break;
 
-        // Half-open: claim the in-flight probe slot (atomic in Node.js single-thread).
-        if (state.circuit.getState() === 'half-open') {
-          state.circuit.inFlightProbe = HALF_OPEN_PROBE_SENTINEL;
-        }
+        if (!state.circuit.tryAcquire()) continue;
 
         const startMs = Date.now();
 
@@ -185,6 +180,9 @@ export class FailoverRpcClient implements RpcClient {
           if (this.stopped) throw new ClientStoppedError(this.config.chainId);
 
           if (err instanceof DeadlineError) {
+            // Release any half-open probe slot we claimed — request never completed,
+            // so success/failure semantics don't apply.
+            state.circuit.recordAbandoned();
             attempts.push({
               provider: providerCfg.name,
               reason: 'timeout',
@@ -236,10 +234,6 @@ class DeadlineError extends Error {
     super('overall deadline exceeded');
   }
 }
-
-/** Non-null marker stored on `circuit.inFlightProbe` to gate concurrent half-open callers.
- *  The promise is never awaited — single-flight gating works through the null check. */
-const HALF_OPEN_PROBE_SENTINEL: Promise<void> = Promise.resolve();
 
 function circuitStateValue(state: 'closed' | 'open' | 'half-open'): number {
   if (state === 'closed') return 0;

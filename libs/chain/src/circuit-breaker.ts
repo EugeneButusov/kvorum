@@ -11,12 +11,16 @@ interface FailureRecord {
   at: number;
 }
 
+/** Non-null marker stored on `inFlightProbe` to gate concurrent half-open callers.
+ *  The promise is never awaited — single-flight gating works through the null check. */
+const PROBE_SENTINEL: Promise<void> = Promise.resolve();
+
 export class CircuitBreaker {
   private state: CircuitBreakerState = 'closed';
   private failures: FailureRecord[] = [];
   private openedAt: number | null = null;
   /** Single-flight half-open probe — only one concurrent caller gets the probe permit. */
-  inFlightProbe: Promise<void> | null = null;
+  private inFlightProbe: Promise<void> | null = null;
 
   private readonly failureThreshold: number;
   private readonly windowMs: number;
@@ -35,11 +39,12 @@ export class CircuitBreaker {
   }
 
   /**
-   * Returns true when the caller may attempt a request.
-   * Half-open: only one concurrent caller gets true — all others get false until the probe settles.
+   * Atomically check whether the caller may proceed and (if half-open) claim the probe slot.
+   * Returns true on grant, false otherwise. Half-open: only one concurrent caller gets true —
+   * all others get false until the probe settles via recordSuccess/recordFailure.
    * Node.js single-thread event loop makes the check-and-set atomic.
    */
-  canRequest(): boolean {
+  tryAcquire(): boolean {
     if (this.state === 'closed') return true;
 
     if (this.state === 'open') {
@@ -51,12 +56,10 @@ export class CircuitBreaker {
       }
     }
 
-    // half-open: grant permit only if no probe is in flight
-    if (this.state === 'half-open') {
-      return this.inFlightProbe === null;
-    }
-
-    return false;
+    // half-open: grant permit only if no probe is in flight, then claim it
+    if (this.inFlightProbe !== null) return false;
+    this.inFlightProbe = PROBE_SENTINEL;
+    return true;
   }
 
   recordSuccess(): void {
@@ -83,6 +86,18 @@ export class CircuitBreaker {
     if (this.state === 'closed' && this.failures.length >= this.failureThreshold) {
       this.state = 'open';
       this.openedAt = now;
+    }
+  }
+
+  /**
+   * Release a half-open probe slot without recording success or failure.
+   * Use when a request was acquired but never actually exercised the provider —
+   * e.g., the overall deadline expired before the response arrived.
+   * No-op when the breaker is not in half-open state.
+   */
+  recordAbandoned(): void {
+    if (this.state === 'half-open') {
+      this.inFlightProbe = null;
     }
   }
 }
