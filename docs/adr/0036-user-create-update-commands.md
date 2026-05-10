@@ -54,6 +54,6 @@ On success, emits the updated user record. JSON format emits the full updated us
 
 - SPEC §6.20.1 command table gains two rows; all other sections are unaffected.
 - The `help-snapshot` test suite for the `user` domain must be updated to include the new subcommands.
-- Implementation requires a `UserService` method (or equivalent) reachable from the CLI context without spinning up the full HTTP stack — consistent with the standalone-context pattern used by `apps/indexer` and `apps/ai-worker`.
+- No new wiring is needed for service access — the existing `user list`, `user ban`, and `user delete` commands already establish that `UserService` is reachable from the CLI context.
 - No schema migration needed: the underlying `User` table is already defined in M0.
 - The one-time API key emitted by `user create` must be displayed exactly once (not stored); the CLI must make this explicit in its output.
