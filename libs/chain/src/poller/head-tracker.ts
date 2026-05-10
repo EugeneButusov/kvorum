@@ -5,6 +5,28 @@ import type { Head, HeadListener, HeadTrackerOptions } from './types.js';
 const DEFAULT_POLL_INTERVAL_MS = 12_000;
 const DEFAULT_STOP_TIMEOUT_MS = 5_000;
 
+function requireHex(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]*$/i.test(value)) {
+    throw new Error(`missing or non-hex ${field}`);
+  }
+  return value;
+}
+
+function decodeHead(raw: unknown, chainId: number, observedAt: Date): Head {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('block response is not an object');
+  }
+  const block = raw as Record<string, unknown>;
+  return {
+    chainId,
+    blockNumber: BigInt(requireHex(block['number'], 'number')),
+    blockHash: requireHex(block['hash'], 'hash').toLowerCase(),
+    parentHash: requireHex(block['parentHash'], 'parentHash').toLowerCase(),
+    timestamp: BigInt(requireHex(block['timestamp'], 'timestamp')),
+    observedAt,
+  };
+}
+
 /** Polls eth_getBlockByNumber('latest', false) and fans out to registered listeners.
  *
  *  Emits every tick even when block is unchanged — the freshness signal is informative
@@ -49,10 +71,14 @@ export class HeadTracker {
     return this.lastHead;
   }
 
-  /** Resolves with the first head observed after the call.
-   *  Rejects if stop() is called before the first head arrives. */
+  /** Resolves with the cached head if one is already known, otherwise with the next head
+   *  observed after the call. Rejects immediately if the tracker is stopped, or if stop()
+   *  is called before the first head arrives. */
   awaitFirstHead(): Promise<Head> {
     if (this.lastHead !== null) return Promise.resolve(this.lastHead);
+    if (this.stopped) {
+      return Promise.reject(new Error('HeadTracker stopped before first head'));
+    }
     return new Promise<Head>((resolve, reject) => {
       this.firstHeadResolvers.push({ resolve, reject });
     });
@@ -125,40 +151,34 @@ export class HeadTracker {
   private async runTick(): Promise<void> {
     const { rpcClient, chainId } = this.opts;
     const chain = this.chainName;
-    const deadline = this.stopped ? this.stopTimeoutMs : undefined;
 
     let raw: Record<string, unknown>;
     try {
       raw = await rpcClient.send<Record<string, unknown>>(
         'eth_getBlockByNumber',
         ['latest', false],
-        { deadlineMs: deadline },
+        { deadlineMs: this.stopped ? this.stopTimeoutMs : undefined },
       );
     } catch (err) {
       this.logger.warn(`[chain:${chain}] HeadTracker eth_getBlockByNumber failed: ${String(err)}`);
       return;
     }
 
-    if (!raw || raw['hash'] == null || raw['number'] == null) {
-      this.logger.error(`[chain:${chain}] HeadTracker received malformed block response`);
+    let head: Head;
+    const now = new Date();
+    try {
+      head = decodeHead(raw, chainId, now);
+    } catch (err) {
+      this.logger.error(
+        `[chain:${chain}] HeadTracker received malformed block response: ${String(err)}`,
+      );
       return;
     }
-
-    const now = new Date();
-    const timestamp = BigInt(raw['timestamp'] as string);
-    const head: Head = {
-      chainId,
-      blockNumber: BigInt(raw['number'] as string),
-      blockHash: (raw['hash'] as string).toLowerCase(),
-      parentHash: (raw['parentHash'] as string).toLowerCase(),
-      timestamp,
-      observedAt: now,
-    };
 
     this.lastHead = head;
     this.lastSuccessAt = now;
 
-    const ageSec = now.getTime() / 1000 - Number(timestamp);
+    const ageSec = now.getTime() / 1000 - Number(head.timestamp);
     getHeadBlockAgeSeconds().set({ chain }, ageSec);
     getHeadPollLagSeconds().set({ chain }, 0);
 

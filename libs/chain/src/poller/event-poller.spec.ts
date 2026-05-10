@@ -133,6 +133,41 @@ describe('EventPoller', () => {
       expect(received).toHaveLength(0);
     });
 
+    it('drops logs with unparseable blockNumber instead of crashing the tick', async () => {
+      // blockNumber=null would crash BigInt() in the old code path; ensure we drop + keep going.
+      const malformed = { ...makeLog(), blockNumber: null };
+      const goodLog = makeLog({ logIndex: '0x1' });
+      fake.enqueueSuccess('0x10').enqueueSuccess([malformed, goodLog]);
+      fake.returnSuccess([]);
+
+      const received: LogEvent[] = [];
+      const poller = new EventPoller(baseOpts(client));
+      poller.onEvents((evs) => {
+        received.push(...evs);
+      });
+      await expect(poller.start()).resolves.toBeUndefined();
+      await poller.stop();
+
+      expect(received).toHaveLength(1);
+      expect(received[0]!.logIndex).toBe(1);
+    });
+
+    it('drops logs with non-array topics instead of crashing the tick', async () => {
+      const malformed = { ...makeLog(), topics: 'not-an-array' };
+      fake.enqueueSuccess('0x10').enqueueSuccess([malformed]);
+      fake.returnSuccess([]);
+
+      const received: LogEvent[] = [];
+      const poller = new EventPoller(baseOpts(client));
+      poller.onEvents((evs) => {
+        received.push(...evs);
+      });
+      await expect(poller.start()).resolves.toBeUndefined();
+      await poller.stop();
+
+      expect(received).toHaveLength(0);
+    });
+
     it('counts removed:true logs via metric and still delivers to listener', async () => {
       const removedLog = makeLog({ removed: true });
       fake.enqueueSuccess('0x10').enqueueSuccess([removedLog]);

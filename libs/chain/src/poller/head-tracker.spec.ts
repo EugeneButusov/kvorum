@@ -112,6 +112,14 @@ describe('HeadTracker', () => {
       expect(head.blockNumber).toBe(5n);
     });
 
+    it('rejects synchronously when called after stop() (no cached head)', async () => {
+      const tracker = new HeadTracker(baseOpts(client));
+      await tracker.stop();
+      await expect(tracker.awaitFirstHead()).rejects.toThrow(
+        'HeadTracker stopped before first head',
+      );
+    });
+
     it('rejects if stop() called before first head arrives', async () => {
       // Use a directly controlled mock RPC so we can unblock the call after stop()
       let unblockRpc!: () => void;
@@ -199,6 +207,24 @@ describe('HeadTracker', () => {
       await tracker.start();
       await tracker.stop();
       expect(tracker.getLastHead()!.blockHash).toBe('0x' + 'cd'.repeat(32));
+    });
+
+    it('drops malformed block (missing timestamp) instead of crashing the tick', async () => {
+      const malformed = { ...makeBlock(1), timestamp: null };
+      fake.returnSuccess(malformed);
+      const tracker = new HeadTracker(baseOpts(client));
+      await expect(tracker.start()).resolves.toBeUndefined();
+      await tracker.stop();
+      expect(tracker.getLastHead()).toBeNull();
+    });
+
+    it('drops malformed block (missing parentHash) instead of crashing the tick', async () => {
+      const malformed = { ...makeBlock(1), parentHash: null };
+      fake.returnSuccess(malformed);
+      const tracker = new HeadTracker(baseOpts(client));
+      await expect(tracker.start()).resolves.toBeUndefined();
+      await tracker.stop();
+      expect(tracker.getLastHead()).toBeNull();
     });
   });
 });

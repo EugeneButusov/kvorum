@@ -10,6 +10,54 @@ import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './
 const DEFAULT_POLL_INTERVAL_MS = 12_000;
 const DEFAULT_STOP_TIMEOUT_MS = 5_000;
 
+function requireHexString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]*$/i.test(value)) {
+    throw new Error(`missing or non-hex ${field}`);
+  }
+  return value;
+}
+
+function requireNonNegativeInt(value: unknown, field: string): number {
+  const n = typeof value === 'string' ? Number(value) : (value as number);
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+    throw new Error(`missing or invalid ${field}`);
+  }
+  return n;
+}
+
+function decodeLogEvent(
+  log: Record<string, unknown>,
+  sourceType: string,
+  chainId: number,
+): LogEvent {
+  const blockNumberHex = requireHexString(log['blockNumber'], 'blockNumber');
+  const blockHash = requireHexString(log['blockHash'], 'blockHash').toLowerCase();
+  const txHash = requireHexString(log['transactionHash'], 'transactionHash').toLowerCase();
+  const txIndex = requireNonNegativeInt(log['transactionIndex'], 'transactionIndex');
+  const logIndex = requireNonNegativeInt(log['logIndex'], 'logIndex');
+  const address = requireHexString(log['address'], 'address').toLowerCase();
+  const data = requireHexString(log['data'], 'data');
+  const rawTopics = log['topics'];
+  if (rawTopics != null && !Array.isArray(rawTopics)) {
+    throw new Error('topics must be an array');
+  }
+  const topics = ((rawTopics as string[] | undefined) ?? []).map((t, i) =>
+    requireHexString(t, `topics[${i}]`).toLowerCase(),
+  );
+  return {
+    sourceType,
+    chainId,
+    blockNumber: BigInt(blockNumberHex),
+    blockHash,
+    txHash,
+    txIndex,
+    logIndex,
+    address,
+    topics,
+    data,
+  };
+}
+
 function lowercaseFilter(filter: LogFilter): LogFilter {
   const address = Array.isArray(filter.address)
     ? filter.address.map((a) => a.toLowerCase())
@@ -144,12 +192,11 @@ export class EventPoller {
     const { rpcClient, chainId, reorgHorizon, sourceType } = this.opts;
     const chain = this.chainName;
     const src = this.daoSourceLabel;
-    const deadline = this.stopped ? this.stopTimeoutMs : undefined;
 
     let headBn: bigint;
     try {
       const headHex = await rpcClient.send<string>('eth_blockNumber', [], {
-        deadlineMs: deadline,
+        deadlineMs: this.stopped ? this.stopTimeoutMs : undefined,
       });
       headBn = BigInt(headHex);
     } catch (err) {
@@ -172,7 +219,7 @@ export class EventPoller {
       rawLogs = await rpcClient.send<unknown[]>(
         'eth_getLogs',
         [{ fromBlock: fromHex, toBlock: toHex, address: filter.address, topics: filter.topics }],
-        { deadlineMs: deadline },
+        { deadlineMs: this.stopped ? this.stopTimeoutMs : undefined },
       );
     } catch (err) {
       this.logger.warn(
@@ -187,30 +234,16 @@ export class EventPoller {
     const events: LogEvent[] = [];
     for (const raw of rawLogs) {
       const log = raw as Record<string, unknown>;
-
-      if (log['blockHash'] == null || log['transactionHash'] == null || log['logIndex'] == null) {
+      try {
+        if (log['removed'] === true) {
+          getLogsWithRemovedFlagTotal().inc({ chain, dao_source: src });
+        }
+        events.push(decodeLogEvent(log, sourceType, chainId));
+      } catch (err) {
         this.logger.error(
-          `[chain:${chain}][source:${src}] EventPoller dropping malformed log — missing required fields`,
+          `[chain:${chain}][source:${src}] EventPoller dropping malformed log: ${String(err)}`,
         );
-        continue;
       }
-
-      if ((log as { removed?: boolean })['removed'] === true) {
-        getLogsWithRemovedFlagTotal().inc({ chain, dao_source: src });
-      }
-
-      events.push({
-        sourceType,
-        chainId,
-        blockNumber: BigInt(log['blockNumber'] as string),
-        blockHash: (log['blockHash'] as string).toLowerCase(),
-        txHash: (log['transactionHash'] as string).toLowerCase(),
-        txIndex: Number(log['transactionIndex']),
-        logIndex: Number(log['logIndex']),
-        address: (log['address'] as string).toLowerCase(),
-        topics: ((log['topics'] as string[]) ?? []).map((t) => t.toLowerCase()),
-        data: log['data'] as string,
-      });
     }
 
     getLogsFetchedTotal().inc({ chain, dao_source: src }, events.length);
