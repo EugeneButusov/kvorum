@@ -1,4 +1,4 @@
-import { FileMigrationProvider, Migrator } from 'kysely';
+import { FileMigrationProvider, Migrator } from 'kysely/migration';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pgDb } from '../src/client';
@@ -68,6 +68,6 @@ if (cmd === 'up') {
 } else if (cmd === 'reset') {
   await reset();
 } else {
-  console.error(`Usage: migrate.ts <up|down|reset>`);
+  console.error(`Usage: migrate.mts <up|down|reset>`);
   process.exit(1);
 }
