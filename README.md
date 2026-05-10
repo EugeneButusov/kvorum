@@ -133,7 +133,7 @@ Supported platforms: macOS, Linux, WSL. Native Windows is not supported.
 | ------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
 | `pnpm install` fails with "Unsupported engine"    | Node version < 24                     | `nvm use 24`                                              |
 | Root script behaves unexpectedly in CI or scripts | `pnpm` resolves from cwd without `-w` | Use `pnpm -w <script>` for explicitness at workspace root |
-| `@kvorum/db` import unresolved                    | Missing `kysely` package              | `pnpm install`                                            |
+| `@libs/db` import unresolved                      | Missing `kysely` package              | `pnpm install`                                            |
 | `just up` fails or times out                      | Port conflict or Docker not running   | `just doctor` to diagnose                                 |
 | Port 5432/6379/8545 already in use                | Another container or local service    | `docker ps` and stop the conflict                         |
 | `"type": "module"` breaks webpack                 | Do not add to root `package.json`     | Remove it                                                 |
