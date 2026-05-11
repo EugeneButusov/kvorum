@@ -11,12 +11,17 @@ export interface EventArchiveCompoundGovernorTable {
   tx_hash: string;
   log_index: number;
   event_type: string;
+  // Server-stamped via DEFAULT now(); writers MUST NOT supply this column.
   received_at: Date;
   payload: string;
 }
 
 export type EventArchiveCompoundGovernor = EventArchiveCompoundGovernorTable;
-export type NewEventArchiveCompoundGovernor = EventArchiveCompoundGovernorTable;
+// received_at is server-stamped (DEFAULT now()); excluded from insert type.
+export type NewEventArchiveCompoundGovernor = Omit<
+  EventArchiveCompoundGovernorTable,
+  'received_at'
+>;
 
 // ── ClickHouseDatabase ────────────────────────────────────────────────────────
 

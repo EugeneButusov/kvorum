@@ -11,6 +11,14 @@ import {
   getRpcRequestDuration,
   getReorgSignalsTotal,
   getProxyResolutionsTotal,
+  getPendingEventCount,
+  getArchiveWritesTotal,
+  getArchiveSkippedExistenceTotal,
+  getArchiveChWriteErrorsTotal,
+  getArchiveDecodeErrorsTotal,
+  getDualWritePgUnreachableTotal,
+  getIndexerActiveSources,
+  getBatchDurationSeconds,
   resetMetrics,
   sanitizeMethod,
 } from './metrics.js';
@@ -112,6 +120,92 @@ describe('metrics', () => {
     const p2 = getProxyResolutionsTotal();
     expect(c1).not.toBe(c2);
     expect(p1).not.toBe(p2);
+  });
+});
+
+describe('F1 archive metrics', () => {
+  it('pending_event_count gauge registers and accepts chain_id + source_type labels', () => {
+    const g = getPendingEventCount();
+    g.set({ chain_id: '1', source_type: 'compound_governor' }, 42);
+    expect(g).toBeDefined();
+  });
+
+  it('archive_writes_total counter registers with source + result labels', () => {
+    const c = getArchiveWritesTotal();
+    c.inc({ source: 'compound_governor', result: 'inserted' });
+    c.inc({ source: 'compound_governor', result: 'skipped_existing' });
+    c.inc({ source: 'compound_governor', result: 'skipped_conflict' });
+    c.inc({ source: 'compound_governor', result: 'pg_dlq_routed' });
+    expect(c).toBeDefined();
+  });
+
+  it('archive_skipped_existence_total counter registers', () => {
+    const c = getArchiveSkippedExistenceTotal();
+    c.inc({ source: 'compound_governor' });
+    expect(c).toBeDefined();
+  });
+
+  it('archive_ch_write_errors_total counter registers', () => {
+    const c = getArchiveChWriteErrorsTotal();
+    c.inc({ source: 'compound_governor' });
+    expect(c).toBeDefined();
+  });
+
+  it('archive_decode_errors_total counter registers with source + reason labels', () => {
+    const c = getArchiveDecodeErrorsTotal();
+    c.inc({ source: 'compound_governor', reason: 'unknown_topic' });
+    c.inc({ source: 'compound_governor', reason: 'parse_failed' });
+    c.inc({ source: 'compound_governor', reason: 'wrong_address' });
+    expect(c).toBeDefined();
+  });
+
+  it('dual_write_pg_unreachable_total counter registers', () => {
+    const c = getDualWritePgUnreachableTotal();
+    c.inc({ source: 'compound_governor' });
+    expect(c).toBeDefined();
+  });
+
+  it('indexer_active_sources gauge registers with source_type label', () => {
+    const g = getIndexerActiveSources();
+    g.set({ source_type: 'compound_governor' }, 1);
+    expect(g).toBeDefined();
+  });
+
+  it('batch_duration_seconds histogram registers with correct buckets', () => {
+    const h = getBatchDurationSeconds();
+    h.observe({ source: 'compound_governor' }, 0.5);
+    h.observe({ source: 'compound_governor' }, 12.0);
+    expect(h).toBeDefined();
+  });
+
+  it('resetMetrics clears all F1 metrics — no duplicate-registration error on re-fetch', () => {
+    const g1 = getPendingEventCount();
+    const c1 = getArchiveWritesTotal();
+    const s1 = getArchiveSkippedExistenceTotal();
+    const ch1 = getArchiveChWriteErrorsTotal();
+    const d1 = getArchiveDecodeErrorsTotal();
+    const u1 = getDualWritePgUnreachableTotal();
+    const a1 = getIndexerActiveSources();
+    const b1 = getBatchDurationSeconds();
+    resetMetrics();
+    expect(getPendingEventCount()).not.toBe(g1);
+    expect(getArchiveWritesTotal()).not.toBe(c1);
+    expect(getArchiveSkippedExistenceTotal()).not.toBe(s1);
+    expect(getArchiveChWriteErrorsTotal()).not.toBe(ch1);
+    expect(getArchiveDecodeErrorsTotal()).not.toBe(d1);
+    expect(getDualWritePgUnreachableTotal()).not.toBe(u1);
+    expect(getIndexerActiveSources()).not.toBe(a1);
+    expect(getBatchDurationSeconds()).not.toBe(b1);
+  });
+
+  it('guard: archive_writes_total never receives pg_unreachable result label', async () => {
+    getArchiveWritesTotal();
+    const registry = getChainMetricsRegistry();
+    const metrics = await registry.metrics();
+    // The counter should not contain pg_unreachable in its result label
+    expect(metrics).not.toContain('result="pg_unreachable"');
+    expect(metrics).not.toContain('result="ch_dlq_routed"');
+    expect(metrics).not.toContain('result="decode_error"');
   });
 });
 

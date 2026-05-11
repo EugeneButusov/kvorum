@@ -92,3 +92,47 @@ F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows 
 - The PG-first existence check uses the `archive_confirmation` 5-tuple unique index — index-only scan, no heap access in the common case.
 - ClickHouse's `OPTIMIZE TABLE event_archive_<source> FINAL` is **never** issued by application code or scheduled jobs. It rewrites entire parts and is reserved for manual operator intervention (e.g., post-bulk-backfill compaction). Documented in the M1 runbook.
 - F1's write path emits structured logs at each step transition (`archive_check_skip`, `ch_inserted`, `pg_inserted`, `dlq_routed`) keyed by the 5-tuple, supporting per-event forensics without enabling debug-level logging.
+
+---
+
+## Rider — 2026-05-11 (F1 refinements)
+
+Review of `docs/plan-m1-f1.md` surfaced three refinements at the Decision boundaries. None alter the PG-first, CH-then-PG, retry, DLQ, or reconciliation contract; this rider records the deltas so F1's PR review surface stays aligned with the ADR.
+
+1. **Transient-vs-permanent PG error classification.** Step 4's 3-attempt retry budget applies only to **transient** PG errors. The transient allowlist is:
+   - Connection-level: `08000`, `08001`, `08003`, `08006`, `08007`
+   - Admin/shutdown: `57P01`, `57P02`, `57P03`
+   - Serialization: `40001`, `40P01`
+
+   **Non-transient** errors (FK/CHECK `23xxx`, syntax `42xxx`, and any unmapped code) route to DLQ on the **first** failure without retry. Retrying a deterministic logic error wastes I/O and obscures the real failure mode in metrics. F1 implements this via a small `isTransientPgError(err)` helper colocated with the writer.
+
+2. **`archive_ch_write` DLQ stage.** Consequences §"DLQ schema gains stage values" extends with a third value, `archive_ch_write`, for failures during step 2 (CH insert). The writer wraps step 2 in `try`/`catch`; on failure it routes the event to DLQ with the 5-tuple as typed columns and the raw log (`{ topics, data }`) in the payload, then continues the batch. This avoids the "single CH glitch drops N-1 events in the batch" hazard called out in F1 review.
+
+3. **CH `received_at` is server-stamped.** The Consequences note on `ReplacingMergeTree(received_at)` semantic (most-recent observation wins) continues to hold. The **provenance** changes: the writer no longer supplies `received_at`; the column is `DateTime DEFAULT now()` and CH stamps it on receipt. This sidesteps client-clock-skew failure modes that could silently drop the freshest observation under future multi-replica deployments. PG-side `received_at` continues to be JS-side `new Date()`; the sub-second–to–seconds gap between CH and PG timestamps for the same logical event is accepted.
+
+4. **DLQ row payload shape.** Consequences clarification: F1's DLQ rows store the **raw** log (`{ raw: { topics, data }, reason? }`) plus the typed 5-tuple, not the decoded payload. Decode is deterministic and re-runs on retry. This minimises DLQ row size (raw is ~200 B vs decoded payloads up to ~50 KB for Compound's `ProposalCreated`) and keeps the chain as the single source of truth for the event content. An `admin-cli dlq inspect <id>` helper that lazily re-decodes for operator forensics is a follow-up (Epic I).
+
+---
+
+## Rider amendment — 2026-05-12 (retraction of §2)
+
+Review of `docs/plan-m1-f1.md` surfaced a stale-tombstone hazard in the §2 `archive_ch_write` DLQ path: when CH recovers on the next 12-s tick, the writer succeeds (step 1 sees no PG row → step 2 CH insert succeeds → step 3 PG insert succeeds), but the DLQ row from the prior tick remains in `ingestion_dlq` with the same 5-tuple — a tombstone for an event that has since landed canonically. `admin-cli dlq retry` (Epic I) would re-attempt and hit `skipped_existing`; metrics like a hypothetical `kvorum_ingestion_dlq_depth` would double-count.
+
+**§2 is retracted.** CH-insert errors no longer route to DLQ. Instead:
+
+- The writer does NOT wrap step 2 in a try/catch. CH exceptions propagate out of `ArchiveWriter.write()`.
+- The listener (F1c's `makeIngesterListener`) wraps each per-event `archiveWriter.write()` call in its own try/catch. On a CH-insert exception it increments a dedicated counter `kvorum_archive_ch_write_errors_total{source}`, logs the failure with the 5-tuple, and **continues the batch** to the next event.
+- The next 12-s EventPoller tick re-fetches the window and re-runs step 1 → finds no PG row → retries CH insert (ReplacingMergeTree absorbs the duplicate if both eventually land).
+
+This preserves the original §2 motivation ("a single CH glitch must not drop the rest of the batch") via per-event isolation at the listener rather than at the writer. It also removes the `archive_ch_write` value from the DLQ `stage` enum — the supported stages in M1 are `archive_confirmation_write` (step 3 exhaustion or permanent error), `archive_decode` (DecodeError on a filtered log), and `reconciliation_pg_orphan` (M2 reconciliation, deferred).
+
+§1 (transient PG error classification), §3 (server-stamped `received_at`), and §4 (raw-only DLQ payload) of the 2026-05-11 rider are unaffected and stand as written.
+
+### Updated Consequences delta
+
+The 2026-05-11 rider's "DLQ schema gains stage value `archive_ch_write`" line is **withdrawn**. The DLQ `stage` text values in M1 remain those listed in the original Decision section + `archive_decode` (F1c listener). No schema change is needed because the column was always `text` (per existing DLQ design).
+
+### New Consequences
+
+- `kvorum_archive_ch_write_errors_total{source}` — counter, increments when the listener catches an exception from `archiveWriter.write()`. Single source of truth for CH-side write failures.
+- `kvorum_archive_decode_errors_total{source,reason}` — counter, increments on `DecodeError`. Decode failures are tracked on this counter rather than on `kvorum_ingestion_archive_writes_total{result}` so the result enum stays clean.

@@ -21,7 +21,18 @@ export { ChainConfigError } from './errors/chain-config.error.js';
 export { ClientStoppedError } from './errors/client-stopped.error.js';
 export { NotImplementedError } from './errors/not-implemented.error.js';
 
-export { getChainMetricsRegistry, resetMetrics } from './metrics/metrics.js';
+export {
+  getChainMetricsRegistry,
+  resetMetrics,
+  getPendingEventCount,
+  getArchiveWritesTotal,
+  getArchiveSkippedExistenceTotal,
+  getArchiveChWriteErrorsTotal,
+  getArchiveDecodeErrorsTotal,
+  getDualWritePgUnreachableTotal,
+  getIndexerActiveSources,
+  getBatchDurationSeconds,
+} from './metrics/metrics.js';
 
 export type {
   ResolutionResult,
