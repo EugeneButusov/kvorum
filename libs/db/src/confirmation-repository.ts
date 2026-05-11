@@ -34,6 +34,16 @@ export class ConfirmationRepository {
       .executeTakeFirst();
   }
 
+  async countPendingBySourceType(sourceType: string) {
+    return this.pgDb
+      .selectFrom('archive_confirmation')
+      .select(({ fn }) => ['chain_id', 'source_type', fn.count<number>('id').as('count')])
+      .where('confirmation_status', '=', 'pending')
+      .where('source_type', '=', sourceType)
+      .groupBy(['chain_id', 'source_type'])
+      .execute();
+  }
+
   async insert(row: NewArchiveConfirmation): Promise<{ id: string } | undefined> {
     for (let attempt = 0; attempt <= this.retryBackoffMs.length; attempt++) {
       try {

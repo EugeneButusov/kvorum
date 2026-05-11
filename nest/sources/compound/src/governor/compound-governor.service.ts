@@ -7,7 +7,7 @@ import {
   type ChainConfig,
 } from '@libs/chain';
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
-import { pgDb, DlqRepository } from '@libs/db';
+import { ConfirmationRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
 import { toChainLogger } from '../utils/nest-logger-adapter';
 
@@ -23,23 +23,18 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
   private readonly clients: FailoverRpcClient[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly archiveWriter: ArchiveWriter) {}
+  constructor(
+    private readonly archiveWriter: ArchiveWriter,
+    private readonly daoSourceRepo: DaoSourceRepository,
+    private readonly confirmationRepo: ConfirmationRepository,
+    private readonly dlqRepo: DlqRepository,
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map(chains.map((c) => [c.chainId, c]));
 
-    const sources = await pgDb
-      .selectFrom('dao_source')
-      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
-      .select([
-        'dao_source.id',
-        'dao_source.dao_id',
-        'dao_source.source_config',
-        'dao.primary_chain_id',
-      ])
-      .where('dao_source.source_type', '=', 'compound_governor')
-      .execute();
+    const sources = await this.daoSourceRepo.findBySourceType('compound_governor');
 
     if (sources.length === 0) {
       this.logger.warn('No compound_governor dao_source rows; indexer will idle');
@@ -108,7 +103,7 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
             sourceLabel: 'compound_governor',
           },
           logger: toChainLogger(this.logger),
-          dlqRepo: new DlqRepository(pgDb),
+          dlqRepo: this.dlqRepo,
         });
 
         poller.onEvents(listener);
@@ -148,14 +143,7 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
   private startPendingDepthGauge(): void {
     const updateGauge = async () => {
       try {
-        const rows = await pgDb
-          .selectFrom('archive_confirmation')
-          .select(({ fn }) => ['chain_id', 'source_type', fn.count<number>('id').as('count')])
-          .where('confirmation_status', '=', 'pending')
-          .where('source_type', '=', 'compound_governor')
-          .groupBy(['chain_id', 'source_type'])
-          .execute();
-
+        const rows = await this.confirmationRepo.countPendingBySourceType('compound_governor');
         for (const row of rows) {
           getPendingEventCount().set(
             { chain_id: String(row.chain_id), source_type: row.source_type },

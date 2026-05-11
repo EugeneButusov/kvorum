@@ -7,7 +7,7 @@ import {
   getPendingEventCount,
   getIndexerActiveSources,
 } from '@libs/chain';
-import { pgDb } from '@libs/db';
+import { ConfirmationRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter } from '@sources/compound';
 import { CompoundGovernorService } from './compound-governor.service';
 
@@ -21,12 +21,7 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 // vi.mock is hoisted; factories must not reference top-level variables defined after the mock call.
 
 vi.mock('@libs/db', () => ({
-  pgDb: {
-    selectFrom: vi.fn(),
-    insertInto: vi.fn(),
-    destroy: vi.fn().mockResolvedValue(undefined),
-  },
-  chDb: {},
+  DaoSourceRepository: vi.fn(),
   ConfirmationRepository: vi.fn(),
   DlqRepository: vi.fn(),
 }));
@@ -79,17 +74,6 @@ function makeSource(
   };
 }
 
-function buildSelectChain(rows: unknown[]) {
-  return {
-    innerJoin: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    groupBy: vi.fn().mockReturnThis(),
-    execute: vi.fn().mockResolvedValue(rows),
-    executeTakeFirst: vi.fn().mockResolvedValue(undefined),
-  };
-}
-
 function setupMockPoller() {
   const pollerInstance = {
     onEvents: vi.fn(),
@@ -114,17 +98,29 @@ function setupMockClient(startImpl: () => Promise<void> = () => Promise.resolve(
 }
 
 const mockArchiveWriter = { write: vi.fn() } as unknown as ArchiveWriter;
+const mockDaoSourceRepo = { findBySourceType: vi.fn() };
+const mockConfirmationRepo = {
+  find: vi.fn(),
+  insert: vi.fn(),
+  countPendingBySourceType: vi.fn().mockResolvedValue([]),
+};
+const mockDlqRepo = { insert: vi.fn() };
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
-    providers: [CompoundGovernorService, { provide: ArchiveWriter, useValue: mockArchiveWriter }],
+    providers: [
+      CompoundGovernorService,
+      { provide: ArchiveWriter, useValue: mockArchiveWriter },
+      { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+      { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+      { provide: DlqRepository, useValue: mockDlqRepo },
+    ],
   }).compile();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(pgDb.selectFrom).mockReset();
-  vi.mocked(pgDb.insertInto).mockReset();
+  mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
   // Re-mock metric functions after clearAllMocks
   vi.mocked(getPendingEventCount).mockReturnValue({ set: vi.fn() });
   vi.mocked(getIndexerActiveSources).mockReturnValue({ set: vi.fn() });
@@ -133,7 +129,7 @@ beforeEach(() => {
 describe('CompoundGovernorService', () => {
   it('#1 — bootstrap with 0 dao_source rows: no pollers/clients, gauge = 0', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([]));
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([]);
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
@@ -145,7 +141,7 @@ describe('CompoundGovernorService', () => {
 
   it('#2 — bootstrap with 1 dao_source row: 1 client, 1 poller, correct filter shape', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([makeSource('src-1', 1)]);
 
     const client = setupMockClient();
     const poller = setupMockPoller();
@@ -166,12 +162,10 @@ describe('CompoundGovernorService', () => {
 
   it('#3 — 2 dao_source rows on same chain: 1 shared client, 2 pollers', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(
-      buildSelectChain([
-        makeSource('src-1', 1),
-        makeSource('src-2', 1, '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
-      ]),
-    );
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([
+      makeSource('src-1', 1),
+      makeSource('src-2', 1, '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
+    ]);
 
     const client = setupMockClient();
     vi.mocked(EventPoller).mockImplementation(function () {
@@ -195,9 +189,10 @@ describe('CompoundGovernorService', () => {
       CHAIN_CFG,
       { ...CHAIN_CFG, chainId: 137, name: 'polygon' },
     ]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(
-      buildSelectChain([makeSource('src-1', 1), makeSource('src-2', 137)]),
-    );
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([
+      makeSource('src-1', 1),
+      makeSource('src-2', 137),
+    ]);
 
     const clientA = {
       start: vi.fn().mockResolvedValue(undefined),
@@ -233,9 +228,9 @@ describe('CompoundGovernorService', () => {
 
   it('#5 — malformed source_config: throws BEFORE any client.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(
-      buildSelectChain([makeSource('src-1', 1, 'not-a-valid-address')]),
-    );
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([
+      makeSource('src-1', 1, 'not-a-valid-address'),
+    ]);
 
     const client = setupMockClient();
 
@@ -247,7 +242,7 @@ describe('CompoundGovernorService', () => {
 
   it('#6 — chain not in CHAIN_CONFIG: throws before any client.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 1
-    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 999)]));
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([makeSource('src-1', 999)]);
 
     const client = setupMockClient();
 
@@ -259,7 +254,7 @@ describe('CompoundGovernorService', () => {
 
   it('#7 — drain: pollers stopped first, client stopped; allSettled absorbs individual failures', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([makeSource('src-1', 1)]);
 
     const client = setupMockClient();
     const pollerStop = vi.fn().mockRejectedValue(new Error('stop failed'));
@@ -281,9 +276,10 @@ describe('CompoundGovernorService', () => {
       CHAIN_CFG,
       { ...CHAIN_CFG, chainId: 137, name: 'polygon' },
     ]);
-    vi.mocked(pgDb.selectFrom).mockReturnValue(
-      buildSelectChain([makeSource('src-1', 1), makeSource('src-2', 137)]),
-    );
+    mockDaoSourceRepo.findBySourceType.mockResolvedValue([
+      makeSource('src-1', 1),
+      makeSource('src-2', 137),
+    ]);
 
     const clientA = {
       start: vi.fn().mockResolvedValue(undefined),
