@@ -26,16 +26,19 @@ ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_e
 
 ## Module boundaries
 
-| Layer         | Members                                          | Can depend on               |
-| ------------- | ------------------------------------------------ | --------------------------- |
-| `libs/utils`  | framework-agnostic utilities (`sleep`, …)        | nothing                     |
-| `libs/domain` | domain types                                     | nothing                     |
-| `libs/db`     | Kysely clients (`pgDb`, `chDb`), DB schema types | `libs/domain`               |
-| `libs/chain`  | chain helpers                                    | `libs/domain`, `libs/utils` |
-| `libs/ai`     | AI helpers                                       | `libs/domain`, `libs/utils` |
-| `apps/*`      | applications                                     | any lib                     |
+| Layer                   | Members                                                                                             | Can depend on                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `libs/utils`            | framework-agnostic utilities (`sleep`, …)                                                           | nothing                                              |
+| `libs/domain`           | domain types                                                                                        | nothing                                              |
+| `libs/db`               | Kysely clients (`pgDb`, `chDb`), DB schema types                                                    | `libs/domain`                                        |
+| `libs/chain`            | chain helpers                                                                                       | `libs/domain`, `libs/utils`                          |
+| `libs/ai`               | AI helpers                                                                                          | `libs/domain`, `libs/utils`                          |
+| `libs/sources/<source>` | per-source primitives (ABI/decoder, archive writer, ingester listener factory) — framework-agnostic | `libs/domain`, `libs/db`, `libs/chain`, `libs/utils` |
+| `apps/*`                | applications                                                                                        | any lib                                              |
 
 These boundaries are not enforced by a linter rule (nx removed). Respect them manually — cross-lib deps beyond what's listed above require a clear architectural reason.
+
+`libs/sources/*` packages stay framework-agnostic: do NOT add `@nestjs/common` or other framework deps. NestJS DI is applied at the apps/indexer composition root, which registers the lib's plain classes via `useFactory` providers. This keeps the source primitives reusable from the backfill driver (Epic I) and any future non-Nest consumer.
 
 ## Database access convention
 
@@ -73,7 +76,7 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).
 
-`pgDb.destroy()` must be called in the shutdown handler — it drains the `pg.Pool` connection pool. Import `pgDb` from `@libs/db` and call it in the `OnApplicationShutdown` hook.
+Each provider that owns async resources (pollers, RPC clients) should implement `OnApplicationShutdown` and drain them there. `pgDb.destroy()` is not required — the OS closes sockets cleanly on process exit and Postgres handles abrupt disconnects fine.
 
 ## Kysely migrations
 
@@ -125,6 +128,11 @@ libs/
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
   utils/        Framework-agnostic utilities (sleep, …)
+  sources/<source>/
+    src/<contract-kind>/  Per-source primitives — ABI/decoder, ArchiveWriter, ingester-listener factory.
+                          Framework-agnostic; consumed by apps/indexer Nest module via useFactory.
+    migrations-postgres/  Source-specific PG migrations (run by Kysely migrator)
+    migrations-clickhouse/ Source-specific CH migrations (plain SQL, run by clickhouse-migrations)
 docs/
   SPEC.md       Frozen v1.0 product spec
   adr/          Architecture Decision Records (ADR-021 onward)

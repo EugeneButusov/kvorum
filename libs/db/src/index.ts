@@ -1,11 +1,11 @@
 export { pgDb, chDb } from './client';
+export type { ConfirmationKey } from './confirmation-repository';
+export { ConfirmationRepository } from './confirmation-repository';
+export { isTransientDbError } from './utils';
+export { DlqRepository } from './dlq-repository';
+export { DaoSourceRepository } from './dao-source-repository';
 export type { PgDatabase } from './schema/pg';
-export type {
-  EventArchiveCompoundGovernor,
-  EventArchiveCompoundGovernorTable,
-  NewEventArchiveCompoundGovernor,
-  ClickHouseDatabase,
-} from './schema/clickhouse';
+export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {
   AdminAudit,
   AdminAuditTable,

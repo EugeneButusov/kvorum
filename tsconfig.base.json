@@ -21,7 +21,8 @@
       "@libs/chain": ["./libs/chain/src/index.ts"],
       "@libs/ai": ["./libs/ai/src/index.ts"],
       "@libs/utils": ["./libs/utils/src/index.ts"],
-      "@libs/sources-compound": ["./libs/sources/compound/src/index.ts"]
+      "@sources/compound": ["./libs/sources/compound/src/index.ts"],
+      "@nest/compound": ["./nest/sources/compound/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

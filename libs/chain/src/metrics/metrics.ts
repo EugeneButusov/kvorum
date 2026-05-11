@@ -232,6 +232,114 @@ export function getProxyResolutionsTotal(): Counter {
   return proxyResolutionsTotal;
 }
 
+// ---- F1 archive / ingestion metrics ----
+
+let pendingEventCount: Gauge | null = null;
+export function getPendingEventCount(): Gauge {
+  if (!pendingEventCount) {
+    pendingEventCount = new Gauge({
+      name: 'kvorum_ingestion_pending_event_count',
+      help: 'Count of archive_confirmation rows in pending state per chain × source_type. Updated by periodic recalculation, not per-write.',
+      labelNames: ['chain_id', 'source_type'],
+      registers: [registry],
+    });
+  }
+  return pendingEventCount;
+}
+
+let archiveWritesTotal: Counter | null = null;
+export function getArchiveWritesTotal(): Counter {
+  if (!archiveWritesTotal) {
+    archiveWritesTotal = new Counter({
+      name: 'kvorum_ingestion_archive_writes_total',
+      help: 'Archive write outcomes by source. result=inserted|skipped_existing|skipped_conflict|dlq_routed. Archive errors → kvorum_archive_ch_write_errors_total; decode errors → kvorum_archive_decode_errors_total; unreachable → kvorum_dual_write_pg_unreachable_total.',
+      labelNames: ['source', 'result'],
+      registers: [registry],
+    });
+  }
+  return archiveWritesTotal;
+}
+
+let archiveSkippedExistenceTotal: Counter | null = null;
+export function getArchiveSkippedExistenceTotal(): Counter {
+  if (!archiveSkippedExistenceTotal) {
+    archiveSkippedExistenceTotal = new Counter({
+      name: 'kvorum_archive_skipped_existence_total',
+      help: 'PG-first existence check hits (ADR-041 step 1). Increments when an event was already persisted.',
+      labelNames: ['source'],
+      registers: [registry],
+    });
+  }
+  return archiveSkippedExistenceTotal;
+}
+
+let archiveChWriteErrorsTotal: Counter | null = null;
+export function getArchiveChWriteErrorsTotal(): Counter {
+  if (!archiveChWriteErrorsTotal) {
+    archiveChWriteErrorsTotal = new Counter({
+      name: 'kvorum_archive_ch_write_errors_total',
+      help: 'CH-insert failures per source. Listener catches per-event; batch continues. Next 12-s tick retries via step 1.',
+      labelNames: ['source'],
+      registers: [registry],
+    });
+  }
+  return archiveChWriteErrorsTotal;
+}
+
+let archiveDecodeErrorsTotal: Counter | null = null;
+export function getArchiveDecodeErrorsTotal(): Counter {
+  if (!archiveDecodeErrorsTotal) {
+    archiveDecodeErrorsTotal = new Counter({
+      name: 'kvorum_archive_decode_errors_total',
+      help: 'DecodeError occurrences per source. reason=unknown_topic|parse_failed|wrong_address.',
+      labelNames: ['source', 'reason'],
+      registers: [registry],
+    });
+  }
+  return archiveDecodeErrorsTotal;
+}
+
+let dualWritePgUnreachableTotal: Counter | null = null;
+export function getDualWritePgUnreachableTotal(): Counter {
+  if (!dualWritePgUnreachableTotal) {
+    dualWritePgUnreachableTotal = new Counter({
+      name: 'kvorum_dual_write_pg_unreachable_total',
+      help: 'PG unreachable for the DLQ insert itself (ADR-041 step 5). Single source of truth for this failure mode.',
+      labelNames: ['source'],
+      registers: [registry],
+    });
+  }
+  return dualWritePgUnreachableTotal;
+}
+
+let indexerActiveSources: Gauge | null = null;
+export function getIndexerActiveSources(): Gauge {
+  if (!indexerActiveSources) {
+    indexerActiveSources = new Gauge({
+      name: 'kvorum_indexer_active_sources',
+      help: 'Count of dao_source rows the indexer booted with per source_type. Zero is a deployable-but-actionable signal (misconfigured table).',
+      labelNames: ['source_type'],
+      registers: [registry],
+    });
+  }
+  return indexerActiveSources;
+}
+
+let batchDurationSeconds: Histogram | null = null;
+export function getBatchDurationSeconds(): Histogram {
+  if (!batchDurationSeconds) {
+    batchDurationSeconds = new Histogram({
+      name: 'kvorum_ingestion_batch_duration_seconds',
+      help: 'Wall-clock duration of one EventPoller batch through the ingester listener (decode + writer per event). One observation per batch.',
+      labelNames: ['source'],
+      // Buckets straddle the 12-s tick budget — operators alert on p95 ≥ 12 s.
+      buckets: [0.1, 0.5, 1, 2, 4, 8, 12, 16, 30],
+      registers: [registry],
+    });
+  }
+  return batchDurationSeconds;
+}
+
 /** Reset all lazy metric instances. Required between test cases to avoid registration conflicts. */
 export function resetMetrics(): void {
   registry.clear(); // fully unregisters metrics so getOrCreate* can re-register safely
@@ -251,6 +359,14 @@ export function resetMetrics(): void {
   logsWithRemovedFlagTotal = null;
   reorgSignalsTotal = null;
   proxyResolutionsTotal = null;
+  pendingEventCount = null;
+  archiveWritesTotal = null;
+  archiveSkippedExistenceTotal = null;
+  archiveChWriteErrorsTotal = null;
+  archiveDecodeErrorsTotal = null;
+  dualWritePgUnreachableTotal = null;
+  indexerActiveSources = null;
+  batchDurationSeconds = null;
 }
 
 export function getChainMetricsRegistry(): Registry {

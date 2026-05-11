@@ -1,12 +1,14 @@
 {
-  "name": "@libs/sources-compound",
+  "name": "@sources/compound",
   "version": "0.0.1",
   "private": true,
-  "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
+    "@libs/utils": "workspace:*",
+    "ethers": "^6.13.0",
     "kysely": "^0.29.0",
     "tslib": "^2.3.0"
   },

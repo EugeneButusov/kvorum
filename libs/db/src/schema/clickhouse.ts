@@ -1,25 +1,6 @@
-// ── event_archive_compound_governor ──────────────────────────────────────────
-// Raw event archive for the Compound Governor source (ReplacingMergeTree).
-// The SQL migration lives in libs/sources/compound/migrations-clickhouse/.
-
-export interface EventArchiveCompoundGovernorTable {
-  dao_source_id: string;
-  chain_id: number;
-  // UInt64 — may exceed JS number precision; typed as string
-  block_number: string;
-  block_hash: string;
-  tx_hash: string;
-  log_index: number;
-  event_type: string;
-  received_at: Date;
-  payload: string;
-}
-
-export type EventArchiveCompoundGovernor = EventArchiveCompoundGovernorTable;
-export type NewEventArchiveCompoundGovernor = EventArchiveCompoundGovernorTable;
-
 // ── ClickHouseDatabase ────────────────────────────────────────────────────────
+// Per-source tables are registered via declaration merging in their respective
+// libs/sources/* packages. Import a source lib to activate its augmentation.
 
-export interface ClickHouseDatabase {
-  event_archive_compound_governor: EventArchiveCompoundGovernorTable;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ClickHouseDatabase {}
