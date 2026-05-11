@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConfirmationRepository } from './confirmation-repository';
+import { ConfirmationRepository, isTransientPgError } from './confirmation-repository';
 import type { ConfirmationKey } from './confirmation-repository';
 import type { NewArchiveConfirmation } from './schema/pg';
 
@@ -73,6 +73,28 @@ function makeInsertChain(opts: { returnValue?: unknown; throws?: unknown } = {})
   };
 }
 
+// Multi-call variant: each element describes one executeTakeFirst invocation.
+function makeRetryInsertChain(behaviors: Array<{ id?: string; throws?: unknown }>) {
+  let callIndex = 0;
+  const executeTakeFirst = vi.fn().mockImplementation(() => {
+    const b = behaviors[callIndex++] ?? behaviors[behaviors.length - 1];
+    if (b.throws !== undefined) return Promise.reject(b.throws);
+    return Promise.resolve(b.id !== undefined ? { id: b.id } : undefined);
+  });
+  const returning = vi.fn().mockReturnValue({ executeTakeFirst });
+  const onConflict = vi
+    .fn()
+    .mockImplementation(
+      (fn: (oc: { constraint: (name: string) => { doNothing: () => unknown } }) => void) => {
+        fn({ constraint: () => ({ doNothing: () => ({ returning }) }) });
+        return { returning };
+      },
+    );
+  const values = vi.fn().mockReturnValue({ onConflict });
+  const insertInto = vi.fn().mockReturnValue({ values });
+  return { insertInto, executeTakeFirst };
+}
+
 describe('ConfirmationRepository', () => {
   describe('find', () => {
     it('#1 — found: returns row from PG', async () => {
@@ -125,11 +147,71 @@ describe('ConfirmationRepository', () => {
       expect(await repo.insert(PG_ROW)).toBeUndefined();
     });
 
-    it('#6 — propagates PG errors', async () => {
-      const pgErr = new Error('connection refused');
-      const chain = makeInsertChain({ throws: pgErr });
-      const repo = new ConfirmationRepository({ insertInto: chain.insertInto } as never);
-      await expect(repo.insert(PG_ROW)).rejects.toThrow('connection refused');
+    it('#6 — non-transient error propagates immediately without retry', async () => {
+      const nonTransient = Object.assign(new Error('FK violation'), { code: '23503' });
+      const { insertInto, executeTakeFirst } = makeRetryInsertChain([{ throws: nonTransient }]);
+      const repo = new ConfirmationRepository({ insertInto } as never, [0, 0]);
+      await expect(repo.insert(PG_ROW)).rejects.toThrow('FK violation');
+      expect(executeTakeFirst).toHaveBeenCalledTimes(1);
+    });
+
+    it('#7 — transient error retried: succeeds on 3rd attempt', async () => {
+      const transient = Object.assign(new Error('conn reset'), { code: 'ECONNRESET' });
+      const { insertInto, executeTakeFirst } = makeRetryInsertChain([
+        { throws: transient },
+        { throws: transient },
+        { id: 'uuid-retry' },
+      ]);
+      const repo = new ConfirmationRepository({ insertInto } as never, [0, 0]);
+      const result = await repo.insert(PG_ROW);
+      expect(result).toEqual({ id: 'uuid-retry' });
+      expect(executeTakeFirst).toHaveBeenCalledTimes(3);
+    });
+
+    it('#8 — transient errors exhaust all retries → throws', async () => {
+      const transient = Object.assign(new Error('conn reset'), { code: 'ECONNRESET' });
+      const { insertInto, executeTakeFirst } = makeRetryInsertChain([
+        { throws: transient },
+        { throws: transient },
+        { throws: transient },
+      ]);
+      const repo = new ConfirmationRepository({ insertInto } as never, [0, 0]);
+      await expect(repo.insert(PG_ROW)).rejects.toThrow('conn reset');
+      expect(executeTakeFirst).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('isTransientPgError', () => {
+    it.each([
+      '08000',
+      '08001',
+      '08003',
+      '08006',
+      '08007',
+      '57P01',
+      '57P02',
+      '57P03',
+      '40001',
+      '40P01',
+      '53300',
+      '08004',
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ENOTFOUND',
+    ])('code %s → true', (code) => {
+      expect(isTransientPgError({ code })).toBe(true);
+    });
+
+    it.each(['23503', '42703', 'UNKNOWN', ''])('code %s → false', (code) => {
+      expect(isTransientPgError({ code })).toBe(false);
+    });
+
+    it('plain string → false', () => {
+      expect(isTransientPgError('ECONNRESET')).toBe(false);
+    });
+
+    it('null → false', () => {
+      expect(isTransientPgError(null)).toBe(false);
     });
   });
 });

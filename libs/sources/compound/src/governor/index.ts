@@ -30,7 +30,7 @@ export type {
   ArchiveWriteContext,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
-export { ArchiveWriter, isTransientPgError } from './archive-writer';
+export { ArchiveWriter } from './archive-writer';
 
 export type { IngesterListenerDeps } from './ingester-listener';
 export { makeIngesterListener } from './ingester-listener';

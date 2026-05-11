@@ -9,8 +9,6 @@ export interface ArchiveWriterDeps {
   logger: Logger;
   /** Wall-clock factory for PG `received_at` and DLQ timestamps. Injectable for tests. */
   now?: () => Date;
-  /** Backoff sequence in ms. Default [200, 600, 1800]. Injectable for tests. */
-  retryBackoffMs?: readonly number[];
 }
 
 export interface ArchiveWriteContext {

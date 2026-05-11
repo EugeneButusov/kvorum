@@ -10,7 +10,6 @@ import type {
   NewArchiveConfirmation,
   NewIngestionDlq,
 } from '@libs/db';
-import { sleep } from '@libs/utils';
 import type {
   ArchiveWriteContext,
   ArchiveWriterDeps,
@@ -18,36 +17,6 @@ import type {
 } from './archive-writer.types';
 import type { ChEventRepository } from './ch-event-repository';
 import type { CompoundGovernorEvent } from './types';
-
-const DEFAULT_RETRY_BACKOFF_MS = [200, 600, 1800] as const;
-
-/** SQLSTATE codes that indicate a transient PG error worth retrying. */
-const TRANSIENT_SQLSTATES = new Set([
-  '08000',
-  '08001',
-  '08003',
-  '08006',
-  '08007', // connection-level
-  '57P01',
-  '57P02',
-  '57P03', // admin/shutdown
-  '40001',
-  '40P01', // serialization
-  '53300', // too_many_connections
-  '08004', // server_rejected_establishment
-]);
-
-/** Node-level error codes (from node-pg DatabaseError.code) treated as transient. */
-const TRANSIENT_NODE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']);
-
-export function isTransientPgError(err: unknown): boolean {
-  if (err == null || typeof err !== 'object') return false;
-  const e = err as Record<string, unknown>;
-  const code = typeof e['code'] === 'string' ? e['code'] : '';
-  if (TRANSIENT_SQLSTATES.has(code)) return true;
-  if (TRANSIENT_NODE_CODES.has(code)) return true;
-  return false;
-}
 
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
@@ -63,7 +32,6 @@ export class ArchiveWriter {
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
-  private readonly retryBackoffMs: readonly number[];
 
   constructor(deps: ArchiveWriterDeps) {
     this.chRepo = deps.chRepo;
@@ -71,7 +39,6 @@ export class ArchiveWriter {
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
-    this.retryBackoffMs = deps.retryBackoffMs ?? DEFAULT_RETRY_BACKOFF_MS;
   }
 
   async write(
@@ -112,7 +79,7 @@ export class ArchiveWriter {
       payload: JSON.stringify(decoded.payload),
     });
 
-    // Step 3 — PG insert with retry
+    // Step 3 — PG insert with retry (retries managed by ConfirmationRepository)
     const row: NewArchiveConfirmation = {
       source_type: ctx.sourceType,
       dao_source_id: ctx.daoSourceId,
@@ -130,45 +97,29 @@ export class ArchiveWriter {
       derived_at: null,
     };
 
-    for (let attempt = 0; attempt <= this.retryBackoffMs.length; attempt++) {
-      try {
-        const result = await this.confirmationRepo.insert(row);
+    try {
+      const result = await this.confirmationRepo.insert(row);
 
-        if (result?.id) {
-          getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });
-          this.logger.debug('pg_inserted', {
-            ...logRef,
-            blockNumber: logRef.blockNumber.toString(),
-            archive_id: result.id,
-          });
-          return { result: 'inserted' };
-        } else {
-          // ON CONFLICT fired — concurrent writer beat us; idempotent
-          getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'skipped_conflict' });
-          this.logger.debug('pg_conflict_skip', {
-            ...logRef,
-            blockNumber: logRef.blockNumber.toString(),
-          });
-          return { result: 'skipped_conflict' };
-        }
-      } catch (err) {
-        const transient = isTransientPgError(err);
-        if (transient && attempt < this.retryBackoffMs.length) {
-          this.logger.warn('pg_insert_retry', { attempt, error: String(err) });
-          await sleep(this.retryBackoffMs[attempt]!);
-          continue;
-        }
-        return await this.routePgFailureToDlq(err, ctx, logRef, pgReceivedAt);
+      if (result?.id) {
+        getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });
+        this.logger.debug('pg_inserted', {
+          ...logRef,
+          blockNumber: logRef.blockNumber.toString(),
+          archive_id: result.id,
+        });
+        return { result: 'inserted' };
       }
-    }
 
-    // Unreachable; the loop always returns or throws
-    return await this.routePgFailureToDlq(
-      new Error('retry loop exhausted without return'),
-      ctx,
-      logRef,
-      pgReceivedAt,
-    );
+      // ON CONFLICT fired — concurrent writer beat us; idempotent
+      getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'skipped_conflict' });
+      this.logger.debug('pg_conflict_skip', {
+        ...logRef,
+        blockNumber: logRef.blockNumber.toString(),
+      });
+      return { result: 'skipped_conflict' };
+    } catch (err) {
+      return await this.routePgFailureToDlq(err, ctx, logRef, pgReceivedAt);
+    }
   }
 
   private async routePgFailureToDlq(
@@ -185,7 +136,7 @@ export class ArchiveWriter {
         block_number: logRef.blockNumber.toString(),
       },
       error: serializeError(err),
-      retries: this.retryBackoffMs.length,
+      retries: 0,
       first_seen_at: pgReceivedAt,
       last_attempt_at: this.now(),
       archive_source_type: ctx.sourceType,
@@ -205,7 +156,6 @@ export class ArchiveWriter {
       });
       return { result: 'pg_dlq_routed' };
     } catch (dlqErr) {
-      // Step 5 — DLQ itself is unreachable
       getDualWritePgUnreachableTotal().inc({ source: ctx.sourceLabel });
       this.logger.error('dlq_insert_failed', {
         originalError: String(err),

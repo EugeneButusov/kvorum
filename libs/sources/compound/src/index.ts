@@ -15,7 +15,6 @@ export {
   DecodeError,
   ChEventRepository,
   ArchiveWriter,
-  isTransientPgError,
   makeIngesterListener,
 } from './governor/index';
 

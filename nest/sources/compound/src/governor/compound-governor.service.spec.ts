@@ -27,6 +27,8 @@ vi.mock('@libs/db', () => ({
     destroy: vi.fn().mockResolvedValue(undefined),
   },
   chDb: {},
+  ConfirmationRepository: vi.fn(),
+  DlqRepository: vi.fn(),
 }));
 
 vi.mock('@libs/chain', () => ({
