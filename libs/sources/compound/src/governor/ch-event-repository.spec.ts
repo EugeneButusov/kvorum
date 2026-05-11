@@ -13,28 +13,18 @@ const CH_DATA: ChEventData = {
   payload: '{"proposalId":"42"}',
 };
 
-function makeInsertProxy(opts: { throws?: unknown } = {}) {
+function makeInsertChain(opts: { throws?: unknown } = {}) {
   let capturedValues: unknown;
   const execute = opts.throws
     ? vi.fn().mockRejectedValue(opts.throws)
     : vi.fn().mockResolvedValue(undefined);
-  const proxy: unknown = new Proxy(
-    {},
-    {
-      get(_target, prop: string) {
-        if (prop === 'values') {
-          return (v: unknown) => {
-            capturedValues = v;
-            return proxy;
-          };
-        }
-        if (prop === 'execute') return execute;
-        return () => proxy;
-      },
-    },
-  );
+  const values = vi.fn().mockImplementation((v: unknown) => {
+    capturedValues = v;
+    return { execute };
+  });
+  const insertInto = vi.fn().mockReturnValue({ values });
   return {
-    proxy,
+    insertInto,
     get capturedValues() {
       return capturedValues;
     },
@@ -43,14 +33,12 @@ function makeInsertProxy(opts: { throws?: unknown } = {}) {
 
 describe('ChEventRepository', () => {
   it('#1 — maps ChEventData fields to snake_case columns', async () => {
-    const insert = makeInsertProxy();
-    const chDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-    const repo = new ChEventRepository({ chDb } as never);
+    const chain = makeInsertChain();
+    const repo = new ChEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(CH_DATA);
 
-    expect(chDb.insertInto).toHaveBeenCalledWith('event_archive_compound_governor');
-    const vals = insert.capturedValues as Record<string, unknown>;
+    expect(chain.insertInto).toHaveBeenCalledWith('event_archive_compound_governor');
+    const vals = chain.capturedValues as Record<string, unknown>;
     expect(vals['dao_source_id']).toBe(CH_DATA.daoSourceId);
     expect(vals['chain_id']).toBe(CH_DATA.chainId);
     expect(vals['block_number']).toBe(CH_DATA.blockNumber);
@@ -62,21 +50,18 @@ describe('ChEventRepository', () => {
   });
 
   it('#2 — does not include received_at in CH values', async () => {
-    const insert = makeInsertProxy();
-    const chDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-    const repo = new ChEventRepository({ chDb } as never);
+    const chain = makeInsertChain();
+    const repo = new ChEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(CH_DATA);
 
-    expect((insert.capturedValues as Record<string, unknown>)['received_at']).toBeUndefined();
+    expect((chain.capturedValues as Record<string, unknown>)['received_at']).toBeUndefined();
   });
 
   it('#3 — propagates CH errors', async () => {
     const chErr = new Error('ClickHouse down');
-    const insert = makeInsertProxy({ throws: chErr });
-    const chDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
+    const chain = makeInsertChain({ throws: chErr });
+    const repo = new ChEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
 
-    const repo = new ChEventRepository({ chDb } as never);
     await expect(repo.insert(CH_DATA)).rejects.toThrow('ClickHouse down');
   });
 });
