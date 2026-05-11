@@ -3,7 +3,7 @@
 - **Status**: Accepted (2026-05-10)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 2.6, 3.2, 3.3, 3.12
-- **Related**: ADR-038 (introduced the split), ADR-027 (backfill cutoff), `docs/plan-m1-e1.md` v4
+- **Related**: ADR-038 (introduced the split), ADR-027 (backfill cutoff)
 
 ## Context
 
@@ -25,7 +25,7 @@ Every archive write — whether real-time (F1 from polling) or backfill (I1) —
 2. **CH insert.** `INSERT INTO event_archive_<source> VALUES (...)`. ClickHouse's `ReplacingMergeTree(received_at)` absorbs duplicates from concurrent or retried writes idempotently (eventually); the insert is safe to repeat.
 3. **PG insert.** `INSERT INTO archive_confirmation (...) VALUES (...) ON CONFLICT DO NOTHING` on the 5-tuple unique index. The `confirmation_status` written depends on the writer: F1 writes `'pending'`; I1 writes `'confirmed'` directly per ADR-027.
 4. **Bounded in-process retry.** Wrap step 3 in 3 attempts × exponential backoff (200ms, 600ms, 1.8s). On exhaustion, route to DLQ via step 5.
-5. **DLQ on persistent PG failure.** If step 3 exhausts retries, write `ingestion_dlq` with `stage='archive_confirmation_write'`, `event_archive_key` carrying the 5-tuple as typed columns (see plan-m1-e1.md v4 DLQ schema). If PG is itself unreachable for the DLQ insert, increment Prometheus counter `kvorum_dual_write_pg_unreachable_total` and abort the worker poll cycle — the next poll re-runs step 1 and finds the CH row already present.
+5. **DLQ on persistent PG failure.** If step 3 exhausts retries, write `ingestion_dlq` with `stage='archive_confirmation_write'`, `event_archive_key` carrying the 5-tuple as typed columns. If PG is itself unreachable for the DLQ insert, increment Prometheus counter `kvorum_dual_write_pg_unreachable_total` and abort the worker poll cycle — the next poll re-runs step 1 and finds the CH row already present.
 
 The PG-first check is the load-bearing primitive: it makes step 1 the source-of-truth for "did this event get persisted," removes the dependency on CH eventual-merge timing, and lets the worker be stateless.
 
@@ -33,7 +33,7 @@ The PG-first check is the load-bearing primitive: it makes step 1 the source-of-
 
 Readers that need the raw payload follow this sequence:
 
-1. **PG selects** canonical-confirmed `archive_confirmation` rows for the source (using the new `derived_at` watermark — see plan-m1-e1.md v4).
+1. **PG selects** canonical-confirmed `archive_confirmation` rows for the source (using the `derived_at` watermark).
 2. **CH lookup** by the 5-tuple, with `SELECT ... FINAL` modifier to force at-read deduplication. This handles the merge-window window where two physical rows exist for one logical idempotency key.
 
 `SELECT ... FINAL` carries a query-cost penalty (per-granule dedup) but is correct under all merge states. For batched lookups (G1's typical pattern: 100 confirmed PG rows → 1 CH lookup), the cost is amortized across the batch.
@@ -78,10 +78,10 @@ F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows 
 
 - **F1 contract is fully specified.** The PG-first check, CH-then-PG write order, retry budget, and DLQ fallback are all part of F1's PR review surface.
 - **G1 contract is fully specified.** Read protocol with `FINAL` modifier and 500-row batch size are committed defaults.
-- **M2 inherits the reconciliation job** as a tracked deliverable (CH-orphan sweep, hourly cadence). Add to plan-m2 when authored.
+- **M2 inherits the reconciliation job** as a tracked deliverable (CH-orphan sweep, hourly cadence).
 - **DLQ schema gains `stage` values** `'archive_confirmation_write'` and `'reconciliation_pg_orphan'` (defined as text values, not enum, per existing DLQ design).
 - **`ReplacingMergeTree(received_at)` semantic** is now documented: `received_at` is the **most-recent observation timestamp**, not first-observation. F1 may legitimately re-observe the same canonical event via polling fallback (per SPEC §3.3), and the kept value advances with each observation. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
-- **Smoke tests** in plan-m1-e1.md v4 use `SELECT ... FINAL` rather than `OPTIMIZE TABLE FINAL`. The latter is reserved for manual operator intervention only and is documented as such in the runbook.
+- **Smoke tests** use `SELECT ... FINAL` rather than `OPTIMIZE TABLE FINAL`. The latter is reserved for manual operator intervention only and is documented as such in the runbook.
 - **Prometheus metrics** introduced (M1 scope, surfaced through F1's existing instrumentation):
   - `kvorum_dual_write_pg_unreachable_total{source}` — counter, increments on step 5 failure.
   - `kvorum_archive_skipped_existence_total{source}` — counter, increments on step 1 hit (event already persisted).
@@ -97,7 +97,7 @@ F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows 
 
 ## Rider — 2026-05-11 (F1 refinements)
 
-Review of `docs/plan-m1-f1.md` surfaced three refinements at the Decision boundaries. None alter the PG-first, CH-then-PG, retry, DLQ, or reconciliation contract; this rider records the deltas so F1's PR review surface stays aligned with the ADR.
+Three refinements at the Decision boundaries surfaced during F1 implementation review. None alter the PG-first, CH-then-PG, retry, DLQ, or reconciliation contract; this rider records the deltas so F1's PR review surface stays aligned with the ADR.
 
 1. **Transient-vs-permanent PG error classification.** Step 4's 3-attempt retry budget applies only to **transient** PG errors. The transient allowlist is:
    - Connection-level: `08000`, `08001`, `08003`, `08006`, `08007`
@@ -116,7 +116,7 @@ Review of `docs/plan-m1-f1.md` surfaced three refinements at the Decision bounda
 
 ## Rider amendment — 2026-05-12 (retraction of §2)
 
-Review of `docs/plan-m1-f1.md` surfaced a stale-tombstone hazard in the §2 `archive_ch_write` DLQ path: when CH recovers on the next 12-s tick, the writer succeeds (step 1 sees no PG row → step 2 CH insert succeeds → step 3 PG insert succeeds), but the DLQ row from the prior tick remains in `ingestion_dlq` with the same 5-tuple — a tombstone for an event that has since landed canonically. `admin-cli dlq retry` (Epic I) would re-attempt and hit `skipped_existing`; metrics like a hypothetical `kvorum_ingestion_dlq_depth` would double-count.
+F1 implementation review surfaced a stale-tombstone hazard in the §2 `archive_ch_write` DLQ path: when CH recovers on the next 12-s tick, the writer succeeds (step 1 sees no PG row → step 2 CH insert succeeds → step 3 PG insert succeeds), but the DLQ row from the prior tick remains in `ingestion_dlq` with the same 5-tuple — a tombstone for an event that has since landed canonically. `admin-cli dlq retry` (Epic I) would re-attempt and hit `skipped_existing`; metrics like a hypothetical `kvorum_ingestion_dlq_depth` would double-count.
 
 **§2 is retracted.** CH-insert errors no longer route to DLQ. Instead:
 
