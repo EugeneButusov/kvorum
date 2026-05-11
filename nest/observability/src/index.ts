@@ -1,1 +1,1 @@
-export { OpsServer } from './ops-server.js';
+export { OpsServer } from './ops-server';
