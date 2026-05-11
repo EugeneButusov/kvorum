@@ -1,9 +1,9 @@
 import type { Logger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
-import type { ChEventRepository } from './ch-event-repository';
+import type { EventRepository } from './event-repository';
 
 export interface ArchiveWriterDeps {
-  chRepo: ChEventRepository;
+  eventRepo: EventRepository;
   confirmationRepo: ConfirmationRepository;
   dlqRepo: DlqRepository;
   logger: Logger;

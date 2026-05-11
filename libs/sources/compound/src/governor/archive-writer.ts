@@ -15,7 +15,7 @@ import type {
   ArchiveWriterDeps,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
-import type { ChEventRepository } from './ch-event-repository';
+import type { EventRepository } from './event-repository';
 import type { CompoundGovernorEvent } from './types';
 
 function serializeError(err: unknown): Record<string, unknown> {
@@ -27,14 +27,14 @@ function serializeError(err: unknown): Record<string, unknown> {
 }
 
 export class ArchiveWriter {
-  private readonly chRepo: ChEventRepository;
+  private readonly eventRepo: EventRepository;
   private readonly confirmationRepo: ConfirmationRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
   constructor(deps: ArchiveWriterDeps) {
-    this.chRepo = deps.chRepo;
+    this.eventRepo = deps.eventRepo;
     this.confirmationRepo = deps.confirmationRepo;
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
@@ -46,7 +46,7 @@ export class ArchiveWriter {
     decoded: CompoundGovernorEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    // Step 1 — PG existence check (5-tuple, status-agnostic)
+    // Step 1 — existence check (5-tuple, status-agnostic)
     const existing = await this.confirmationRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
@@ -67,8 +67,8 @@ export class ArchiveWriter {
 
     const pgReceivedAt = this.now();
 
-    // Step 2 — CH insert (idempotent via ReplacingMergeTree; errors propagate to listener)
-    await this.chRepo.insert({
+    // Step 2 — event archive insert (idempotent; errors propagate to listener)
+    await this.eventRepo.insert({
       daoSourceId: ctx.daoSourceId,
       chainId: ctx.chainId,
       blockNumber: logRef.blockNumber.toString(),
@@ -79,7 +79,7 @@ export class ArchiveWriter {
       payload: JSON.stringify(decoded.payload),
     });
 
-    // Step 3 — PG insert with retry (retries managed by ConfirmationRepository)
+    // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
     const row: NewArchiveConfirmation = {
       source_type: ctx.sourceType,
       dao_source_id: ctx.daoSourceId,

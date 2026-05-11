@@ -4,7 +4,7 @@ import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import type { ChEventRepository } from './ch-event-repository';
+import type { EventRepository } from './event-repository';
 import type { CompoundGovernorEvent } from './types';
 
 // ---- Shared test fixtures ----
@@ -46,13 +46,13 @@ const LOG_REF: LogEvent = {
 
 // ---- Mock factories ----
 
-function makeChRepo(
+function makeEventRepo(
   overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {},
-): ChEventRepository {
+): EventRepository {
   return {
     insert: vi.fn().mockResolvedValue(undefined),
     ...overrides,
-  } as unknown as ChEventRepository;
+  } as unknown as EventRepository;
 }
 
 function makeConfirmationRepo(
@@ -77,13 +77,13 @@ function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = 
 
 function buildWriter(
   overrides: {
-    chRepo?: ChEventRepository;
+    eventRepo?: EventRepository;
     confirmationRepo?: ConfirmationRepository;
     dlqRepo?: DlqRepository;
   } = {},
 ): ArchiveWriter {
   return new ArchiveWriter({
-    chRepo: overrides.chRepo ?? makeChRepo(),
+    eventRepo: overrides.eventRepo ?? makeEventRepo(),
     confirmationRepo: overrides.confirmationRepo ?? makeConfirmationRepo(),
     dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
     logger: silentLogger,
@@ -94,29 +94,29 @@ function buildWriter(
 // ---- Tests ----
 
 describe('ArchiveWriter', () => {
-  it('#1 — happy path: existence empty → CH insert → PG insert → outcome inserted', async () => {
-    const chRepo = makeChRepo();
+  it('#1 — happy path: existence check empty → archive insert → confirmation insert → outcome inserted', async () => {
+    const eventRepo = makeEventRepo();
     const confirmationRepo = makeConfirmationRepo();
-    const outcome = await buildWriter({ chRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ eventRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
 
     expect(outcome.result).toBe('inserted');
-    expect(chRepo.insert).toHaveBeenCalledTimes(1);
+    expect(eventRepo.insert).toHaveBeenCalledTimes(1);
     expect(confirmationRepo.insert).toHaveBeenCalledTimes(1);
   });
 
-  it('#2 — existence-skip: existing row found → CH + PG NOT called, outcome skipped_existing', async () => {
-    const chRepo = makeChRepo();
+  it('#2 — existence-skip: existing row found → archive + confirmation NOT called, outcome skipped_existing', async () => {
+    const eventRepo = makeEventRepo();
     const confirmationRepo = makeConfirmationRepo({
       find: vi.fn().mockResolvedValue({ id: 'existing' }),
     });
-    const outcome = await buildWriter({ chRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ eventRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
 
     expect(outcome.result).toBe('skipped_existing');
-    expect(chRepo.insert).not.toHaveBeenCalled();
+    expect(eventRepo.insert).not.toHaveBeenCalled();
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
   });
 
-  it('#3 — PG conflict: existence empty → CH insert → PG returns undefined → skipped_conflict', async () => {
+  it('#3 — conflict: existence empty → archive insert → confirmation returns undefined → skipped_conflict', async () => {
     const confirmationRepo = makeConfirmationRepo({
       insert: vi.fn().mockResolvedValue(undefined),
     });
@@ -146,16 +146,16 @@ describe('ArchiveWriter', () => {
     expect(outcome.result).toBe('pg_unreachable');
   });
 
-  it('#6 — CH insert failure propagates as exception; PG/DLQ NOT attempted', async () => {
-    const chRepo = makeChRepo({
-      insert: vi.fn().mockRejectedValue(new Error('ClickHouse connection refused')),
+  it('#6 — eventRepo.insert failure propagates as exception; confirmation/DLQ NOT attempted', async () => {
+    const eventRepo = makeEventRepo({
+      insert: vi.fn().mockRejectedValue(new Error('connection refused')),
     });
     const confirmationRepo = makeConfirmationRepo();
     const dlqRepo = makeDlqRepo();
 
     await expect(
-      buildWriter({ chRepo, confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF),
-    ).rejects.toThrow('ClickHouse connection refused');
+      buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF),
+    ).rejects.toThrow('connection refused');
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
     expect(dlqRepo.insert).not.toHaveBeenCalled();
   });
@@ -169,16 +169,16 @@ describe('ArchiveWriter', () => {
     expect(() => JSON.stringify(decoded.payload)).not.toThrow();
   });
 
-  it('#8 — CH insert call does NOT include received_at field', async () => {
+  it('#8 — eventRepo.insert call does NOT include received_at field', async () => {
     let capturedData: unknown;
-    const chRepo = makeChRepo({
+    const eventRepo = makeEventRepo({
       insert: vi.fn().mockImplementation((data: unknown) => {
         capturedData = data;
         return Promise.resolve();
       }),
     });
 
-    await buildWriter({ chRepo }).write(CTX, DECODED, LOG_REF);
+    await buildWriter({ eventRepo }).write(CTX, DECODED, LOG_REF);
     expect(capturedData).toBeDefined();
     expect((capturedData as Record<string, unknown>)['received_at']).toBeUndefined();
   });

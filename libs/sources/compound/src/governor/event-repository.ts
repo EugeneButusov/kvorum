@@ -1,15 +1,15 @@
 import type { Kysely } from 'kysely';
 import type { ClickHouseDatabase } from '@libs/db';
-import type { ChEventData, ChEventRepositoryDeps } from './ch-event-repository.types';
+import type { EventData, EventRepositoryDeps } from './event-repository.types';
 
-export class ChEventRepository {
+export class EventRepository {
   private readonly chDb: Kysely<ClickHouseDatabase>;
 
-  constructor(deps: ChEventRepositoryDeps) {
+  constructor(deps: EventRepositoryDeps) {
     this.chDb = deps.chDb;
   }
 
-  async insert(data: ChEventData): Promise<void> {
+  async insert(data: EventData): Promise<void> {
     await this.chDb
       .insertInto('event_archive_compound_governor')
       .values({

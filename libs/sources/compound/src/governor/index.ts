@@ -22,8 +22,8 @@ export { DecodeError } from './types';
 
 export { decodeCompoundLog } from './decoder';
 
-export type { ChEventData, ChEventRepositoryDeps } from './ch-event-repository.types';
-export { ChEventRepository } from './ch-event-repository';
+export type { EventData, EventRepositoryDeps } from './event-repository.types';
+export { EventRepository } from './event-repository';
 
 export type {
   ArchiveWriterDeps,

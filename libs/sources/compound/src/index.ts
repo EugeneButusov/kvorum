@@ -13,7 +13,7 @@ export {
   COMPOUND_EVENT_TOPICS,
   decodeCompoundLog,
   DecodeError,
-  ChEventRepository,
+  EventRepository,
   ArchiveWriter,
   makeIngesterListener,
 } from './governor/index';
@@ -29,6 +29,6 @@ export type {
   ArchiveWriteContext,
   ArchiveWriteOutcome,
   IngesterListenerDeps,
-  ChEventData,
-  ChEventRepositoryDeps,
+  EventData,
+  EventRepositoryDeps,
 } from './governor/index';

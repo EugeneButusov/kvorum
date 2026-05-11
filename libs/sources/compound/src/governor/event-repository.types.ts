@@ -2,7 +2,7 @@ import type { Kysely } from 'kysely';
 import type { ClickHouseDatabase } from '@libs/db';
 import type { CompoundGovernorEvent } from './types';
 
-export interface ChEventData {
+export interface EventData {
   daoSourceId: string;
   chainId: number;
   blockNumber: string;
@@ -13,6 +13,6 @@ export interface ChEventData {
   payload: string;
 }
 
-export interface ChEventRepositoryDeps {
+export interface EventRepositoryDeps {
   chDb: Kysely<ClickHouseDatabase>;
 }
