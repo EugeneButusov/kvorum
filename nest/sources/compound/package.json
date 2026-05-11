@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "test": "jest --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {

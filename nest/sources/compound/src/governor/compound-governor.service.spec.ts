@@ -5,36 +5,36 @@ import { DrainableRegistry } from '../lifecycle/drainable-registry';
 import { ArchiveWriter } from '@sources/compound';
 
 // Silence NestJS logs during tests
-jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
-jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
+vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
 // ---- Module-level mocks ----
-// jest.mock is hoisted; factories must not reference top-level variables defined after the mock call.
+// vi.mock is hoisted; factories must not reference top-level variables defined after the mock call.
 
-jest.mock('@libs/db', () => ({
+vi.mock('@libs/db', () => ({
   pgDb: {
-    selectFrom: jest.fn(),
-    insertInto: jest.fn(),
-    destroy: jest.fn().mockResolvedValue(undefined),
+    selectFrom: vi.fn(),
+    insertInto: vi.fn(),
+    destroy: vi.fn().mockResolvedValue(undefined),
   },
   chDb: {},
 }));
 
-jest.mock('@libs/chain', () => ({
-  parseChainConfigFromEnv: jest.fn(),
-  EventPoller: jest.fn(),
-  FailoverRpcClient: jest.fn(),
-  getPendingEventCount: jest.fn().mockReturnValue({ set: jest.fn() }),
-  getIndexerActiveSources: jest.fn().mockReturnValue({ set: jest.fn() }),
-  resetMetrics: jest.fn(),
-  toChainLogger: jest.fn().mockReturnValue({}),
+vi.mock('@libs/chain', () => ({
+  parseChainConfigFromEnv: vi.fn(),
+  EventPoller: vi.fn(),
+  FailoverRpcClient: vi.fn(),
+  getPendingEventCount: vi.fn().mockReturnValue({ set: vi.fn() }),
+  getIndexerActiveSources: vi.fn().mockReturnValue({ set: vi.fn() }),
+  resetMetrics: vi.fn(),
+  toChainLogger: vi.fn().mockReturnValue({}),
 }));
 
-jest.mock('@sources/compound', () => ({
-  ArchiveWriter: jest.fn(),
-  makeIngesterListener: jest.fn().mockReturnValue(jest.fn()),
+vi.mock('@sources/compound', () => ({
+  ArchiveWriter: vi.fn(),
+  makeIngesterListener: vi.fn().mockReturnValue(vi.fn()),
   COMPOUND_EVENT_TOPICS: {
     ProposalCreated: '0xaaa',
     ProposalQueued: '0xbbb',
@@ -44,12 +44,17 @@ jest.mock('@sources/compound', () => ({
 }));
 
 // The service imports toChainLogger from a relative path — mock that module too
-jest.mock('../utils/nest-logger-adapter', () => ({
-  toChainLogger: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }),
+vi.mock('../utils/nest-logger-adapter', () => ({
+  toChainLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
-// Import after mocks are set up
-import { parseChainConfigFromEnv, EventPoller, FailoverRpcClient } from '@libs/chain';
+import {
+  parseChainConfigFromEnv,
+  EventPoller,
+  FailoverRpcClient,
+  getPendingEventCount,
+  getIndexerActiveSources,
+} from '@libs/chain';
 import { pgDb } from '@libs/db';
 
 const CHAIN_CFG = {
@@ -76,35 +81,39 @@ function makeSource(
 
 function buildSelectChain(rows: unknown[]) {
   return {
-    innerJoin: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    groupBy: jest.fn().mockReturnThis(),
-    execute: jest.fn().mockResolvedValue(rows),
-    executeTakeFirst: jest.fn().mockResolvedValue(undefined),
+    innerJoin: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    groupBy: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue(rows),
+    executeTakeFirst: vi.fn().mockResolvedValue(undefined),
   };
 }
 
 function setupMockPoller() {
   const pollerInstance = {
-    onEvents: jest.fn(),
-    start: jest.fn().mockResolvedValue(undefined),
-    stop: jest.fn().mockResolvedValue(undefined),
+    onEvents: vi.fn(),
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
   };
-  (EventPoller as jest.Mock).mockImplementation(() => pollerInstance);
+  vi.mocked(EventPoller).mockImplementation(function () {
+    return pollerInstance;
+  } as never);
   return pollerInstance;
 }
 
 function setupMockClient(startImpl: () => Promise<void> = () => Promise.resolve()) {
   const clientInstance = {
-    start: jest.fn().mockImplementation(startImpl),
-    stop: jest.fn().mockResolvedValue(undefined),
+    start: vi.fn().mockImplementation(startImpl),
+    stop: vi.fn().mockResolvedValue(undefined),
   };
-  (FailoverRpcClient as jest.Mock).mockImplementation(() => clientInstance);
+  vi.mocked(FailoverRpcClient).mockImplementation(function () {
+    return clientInstance;
+  } as never);
   return clientInstance;
 }
 
-const mockArchiveWriter = { write: jest.fn() } as unknown as ArchiveWriter;
+const mockArchiveWriter = { write: vi.fn() } as unknown as ArchiveWriter;
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
@@ -117,19 +126,18 @@ async function buildModule(): Promise<TestingModule> {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  (pgDb.selectFrom as jest.Mock).mockReset();
-  (pgDb.insertInto as jest.Mock).mockReset();
+  vi.clearAllMocks();
+  vi.mocked(pgDb.selectFrom).mockReset();
+  vi.mocked(pgDb.insertInto).mockReset();
   // Re-mock metric functions after clearAllMocks
-  const chain = jest.requireMock('@libs/chain') as Record<string, jest.Mock>;
-  chain['getPendingEventCount']!.mockReturnValue({ set: jest.fn() });
-  chain['getIndexerActiveSources']!.mockReturnValue({ set: jest.fn() });
+  vi.mocked(getPendingEventCount).mockReturnValue({ set: vi.fn() });
+  vi.mocked(getIndexerActiveSources).mockReturnValue({ set: vi.fn() });
 });
 
 describe('CompoundGovernorService', () => {
   it('#1 — bootstrap with 0 dao_source rows: no pollers/clients, gauge = 0', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(buildSelectChain([]));
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([]));
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
@@ -140,8 +148,8 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#2 — bootstrap with 1 dao_source row: 1 client, 1 poller, correct filter shape', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
 
     const client = setupMockClient();
     const poller = setupMockPoller();
@@ -154,15 +162,15 @@ describe('CompoundGovernorService', () => {
     expect(poller.start).toHaveBeenCalledTimes(1);
     expect(poller.onEvents).toHaveBeenCalledWith(expect.any(Function));
 
-    const pollerArgs = (EventPoller as jest.Mock).mock.calls[0][0];
+    const pollerArgs = vi.mocked(EventPoller).mock.calls[0]![0];
     expect(pollerArgs.filter.address).toBe('0xc0da02939e1441f497fd74f78ce7decb17b66529');
     expect(pollerArgs.filter.topics).toHaveLength(1);
     expect(pollerArgs.filter.topics[0]).toHaveLength(4);
   });
 
   it('#3 — 2 dao_source rows on same chain: 1 shared client, 2 pollers', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    vi.mocked(pgDb.selectFrom).mockReturnValue(
       buildSelectChain([
         makeSource('src-1', 1),
         makeSource('src-2', 1, '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
@@ -170,11 +178,13 @@ describe('CompoundGovernorService', () => {
     );
 
     const client = setupMockClient();
-    (EventPoller as jest.Mock).mockImplementation(() => ({
-      onEvents: jest.fn(),
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: jest.fn().mockResolvedValue(undefined),
-    }));
+    vi.mocked(EventPoller).mockImplementation(function () {
+      return {
+        onEvents: vi.fn(),
+        start: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+    } as never);
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
@@ -185,30 +195,36 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#4 — 2 dao_source rows on different chains: 2 clients, 2 pollers', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([
       CHAIN_CFG,
       { ...CHAIN_CFG, chainId: 137, name: 'polygon' },
     ]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(
+    vi.mocked(pgDb.selectFrom).mockReturnValue(
       buildSelectChain([makeSource('src-1', 1), makeSource('src-2', 137)]),
     );
 
     const clientA = {
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: jest.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
     };
     const clientB = {
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: jest.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
     };
-    (FailoverRpcClient as jest.Mock)
-      .mockImplementationOnce(() => clientA)
-      .mockImplementationOnce(() => clientB);
-    (EventPoller as jest.Mock).mockImplementation(() => ({
-      onEvents: jest.fn(),
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: jest.fn().mockResolvedValue(undefined),
-    }));
+    vi.mocked(FailoverRpcClient)
+      .mockImplementationOnce(function () {
+        return clientA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return clientB;
+      } as never);
+    vi.mocked(EventPoller).mockImplementation(function () {
+      return {
+        onEvents: vi.fn(),
+        start: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+    } as never);
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
@@ -220,8 +236,8 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#5 — malformed source_config: throws BEFORE any client.start()', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    vi.mocked(pgDb.selectFrom).mockReturnValue(
       buildSelectChain([makeSource('src-1', 1, 'not-a-valid-address')]),
     );
 
@@ -234,8 +250,8 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#6 — chain not in CHAIN_CONFIG: throws before any client.start()', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]); // only chain 1
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(buildSelectChain([makeSource('src-1', 999)]));
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 1
+    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 999)]));
 
     const client = setupMockClient();
 
@@ -249,23 +265,21 @@ describe('CompoundGovernorService', () => {
     const module = await buildModule();
     const registry = module.get(DrainableRegistry);
     const service = module.get(CompoundGovernorService);
-    const drainSpy = jest.spyOn(service, 'drain').mockResolvedValue(undefined);
+    const drainSpy = vi.spyOn(service, 'drain').mockResolvedValue(undefined);
 
     await registry.drainAll();
     expect(drainSpy).toHaveBeenCalledTimes(1);
   });
 
   it('#8 — drain: pollers stopped first, client stopped; allSettled absorbs individual failures', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([CHAIN_CFG]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
 
     const client = setupMockClient();
-    const pollerStop = jest.fn().mockRejectedValue(new Error('stop failed'));
-    (EventPoller as jest.Mock).mockImplementation(() => ({
-      onEvents: jest.fn(),
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: pollerStop,
-    }));
+    const pollerStop = vi.fn().mockRejectedValue(new Error('stop failed'));
+    vi.mocked(EventPoller).mockImplementation(function () {
+      return { onEvents: vi.fn(), start: vi.fn().mockResolvedValue(undefined), stop: pollerStop };
+    } as never);
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
@@ -281,12 +295,12 @@ describe('CompoundGovernorService', () => {
 
     const callOrder: string[] = [];
     const drainables = {
-      drainAll: jest.fn().mockImplementation(async () => {
+      drainAll: vi.fn().mockImplementation(async () => {
         callOrder.push('drain');
       }),
     };
 
-    const destroySpy = jest.spyOn(pgDb, 'destroy').mockImplementation(async () => {
+    const destroySpy = vi.spyOn(pgDb, 'destroy').mockImplementation(async () => {
       callOrder.push('destroy');
     });
 
@@ -302,25 +316,29 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#10 — partial-bootstrap failure: client A stopped when client B.start() rejects', async () => {
-    (parseChainConfigFromEnv as jest.Mock).mockReturnValue([
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([
       CHAIN_CFG,
       { ...CHAIN_CFG, chainId: 137, name: 'polygon' },
     ]);
-    (pgDb.selectFrom as jest.Mock).mockReturnValue(
+    vi.mocked(pgDb.selectFrom).mockReturnValue(
       buildSelectChain([makeSource('src-1', 1), makeSource('src-2', 137)]),
     );
 
     const clientA = {
-      start: jest.fn().mockResolvedValue(undefined),
-      stop: jest.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
     };
     const clientB = {
-      start: jest.fn().mockRejectedValue(new Error('B failed')),
-      stop: jest.fn().mockResolvedValue(undefined),
+      start: vi.fn().mockRejectedValue(new Error('B failed')),
+      stop: vi.fn().mockResolvedValue(undefined),
     };
-    (FailoverRpcClient as jest.Mock)
-      .mockImplementationOnce(() => clientA)
-      .mockImplementationOnce(() => clientB);
+    vi.mocked(FailoverRpcClient)
+      .mockImplementationOnce(function () {
+        return clientA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return clientB;
+      } as never);
 
     const module = await buildModule();
     const service = module.get(CompoundGovernorService);
