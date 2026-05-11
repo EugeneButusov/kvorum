@@ -1,4 +1,4 @@
-export { defineCounter, defineGauge, defineHistogram } from './define.js';
-export { renderMetrics } from './render.js';
-export { shutdownForTest } from './reset.js';
-export { metricPrefix } from './prefix.js';
+export { defineCounter, defineGauge, defineHistogram } from './define';
+export { renderMetrics } from './render';
+export { shutdownForTest } from './reset';
+export { metricPrefix } from './prefix';

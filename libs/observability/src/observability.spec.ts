@@ -5,7 +5,7 @@ import type {
   defineHistogram as DefineHistogramType,
   renderMetrics as RenderMetricsType,
   shutdownForTest as ShutdownForTestType,
-} from './index.js';
+} from './index';
 
 let defineCounter: typeof DefineCounterType;
 let defineGauge: typeof DefineGaugeType;
@@ -18,7 +18,7 @@ beforeEach(async () => {
   process.env['OTEL_SERVICE_NAMESPACE'] = 'test';
   process.env['OTEL_SERVICE_NAME'] = 'obs-test';
   ({ defineCounter, defineGauge, defineHistogram, renderMetrics, shutdownForTest } = await import(
-    './index.js'
+    './index'
   ));
 });
 
@@ -73,7 +73,7 @@ describe('module load guard', () => {
   it('throws when OTEL_SERVICE_NAMESPACE is unset', async () => {
     vi.resetModules();
     delete process.env['OTEL_SERVICE_NAMESPACE'];
-    await expect(import('./index.js')).rejects.toThrow('OTEL_SERVICE_NAMESPACE');
+    await expect(import('./index')).rejects.toThrow('OTEL_SERVICE_NAMESPACE');
     process.env['OTEL_SERVICE_NAMESPACE'] = 'test';
   });
 });
@@ -92,7 +92,7 @@ describe('shutdownForTest', () => {
       defineCounter: dc2,
       renderMetrics: rm2,
       shutdownForTest: sft2,
-    } = await import('./index.js');
+    } = await import('./index');
     const c2 = dc2({ name: 'reset_test', description: 'test' });
     c2.add(1, {});
     const text2 = await rm2();
