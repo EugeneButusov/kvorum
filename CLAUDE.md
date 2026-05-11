@@ -76,7 +76,7 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).
 
-`pgDb.destroy()` must be called in the shutdown handler — it drains the `pg.Pool` connection pool. Import `pgDb` from `@libs/db` and call it in the `OnApplicationShutdown` hook.
+Each provider that owns async resources (pollers, RPC clients) should implement `OnApplicationShutdown` and drain them there. `pgDb.destroy()` is not required — the OS closes sockets cleanly on process exit and Postgres handles abrupt disconnects fine.
 
 ## Kysely migrations
 

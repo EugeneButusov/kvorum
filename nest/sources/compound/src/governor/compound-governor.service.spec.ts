@@ -10,7 +10,6 @@ import {
 import { pgDb } from '@libs/db';
 import { ArchiveWriter } from '@sources/compound';
 import { CompoundGovernorService } from './compound-governor.service';
-import { DrainableRegistry } from '../lifecycle/drainable-registry';
 
 // Silence NestJS logs during tests
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -116,11 +115,7 @@ const mockArchiveWriter = { write: vi.fn() } as unknown as ArchiveWriter;
 
 async function buildModule(): Promise<TestingModule> {
   return Test.createTestingModule({
-    providers: [
-      CompoundGovernorService,
-      DrainableRegistry,
-      { provide: ArchiveWriter, useValue: mockArchiveWriter },
-    ],
+    providers: [CompoundGovernorService, { provide: ArchiveWriter, useValue: mockArchiveWriter }],
   }).compile();
 }
 
@@ -260,17 +255,7 @@ describe('CompoundGovernorService', () => {
     expect(client.start).not.toHaveBeenCalled();
   });
 
-  it('#7 — DrainableRegistry: service registers self, drainAll invokes drain() once', async () => {
-    const module = await buildModule();
-    const registry = module.get(DrainableRegistry);
-    const service = module.get(CompoundGovernorService);
-    const drainSpy = vi.spyOn(service, 'drain').mockResolvedValue(undefined);
-
-    await registry.drainAll();
-    expect(drainSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('#8 — drain: pollers stopped first, client stopped; allSettled absorbs individual failures', async () => {
+  it('#7 — drain: pollers stopped first, client stopped; allSettled absorbs individual failures', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     vi.mocked(pgDb.selectFrom).mockReturnValue(buildSelectChain([makeSource('src-1', 1)]));
 
@@ -289,32 +274,7 @@ describe('CompoundGovernorService', () => {
     expect(client.stop).toHaveBeenCalled();
   });
 
-  it('#9 — DatabaseLifecycleService: drainAll resolves before pgDb.destroy is called', async () => {
-    const { DatabaseLifecycleService } = await import('../lifecycle/database-lifecycle.service');
-
-    const callOrder: string[] = [];
-    const drainables = {
-      drainAll: vi.fn().mockImplementation(async () => {
-        callOrder.push('drain');
-      }),
-    };
-
-    const destroySpy = vi.spyOn(pgDb, 'destroy').mockImplementation(async () => {
-      callOrder.push('destroy');
-    });
-
-    const module = await Test.createTestingModule({
-      providers: [{ provide: DrainableRegistry, useValue: drainables }, DatabaseLifecycleService],
-    }).compile();
-
-    const svc = module.get(DatabaseLifecycleService);
-    await svc.onApplicationShutdown();
-
-    expect(callOrder).toEqual(['drain', 'destroy']);
-    destroySpy.mockRestore();
-  });
-
-  it('#10 — partial-bootstrap failure: client A stopped when client B.start() rejects', async () => {
+  it('#8 — partial-bootstrap failure: client A stopped when client B.start() rejects', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([
       CHAIN_CFG,
       { ...CHAIN_CFG, chainId: 137, name: 'polygon' },

@@ -9,8 +9,6 @@ import {
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
 import { pgDb } from '@libs/db';
 import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
-import type { Drainable } from '../lifecycle/drainable-registry';
-import { DrainableRegistry } from '../lifecycle/drainable-registry';
 import { toChainLogger } from '../utils/nest-logger-adapter';
 
 const DaoSourceConfigSchema = z.object({
@@ -19,20 +17,13 @@ const DaoSourceConfigSchema = z.object({
 type DaoSourceConfig = z.infer<typeof DaoSourceConfigSchema>;
 
 @Injectable()
-export class CompoundGovernorService
-  implements OnApplicationBootstrap, OnApplicationShutdown, Drainable
-{
+export class CompoundGovernorService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger('CompoundGovernor');
   private readonly pollers: EventPoller[] = [];
   private readonly clients: FailoverRpcClient[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    private readonly archiveWriter: ArchiveWriter,
-    drainables: DrainableRegistry,
-  ) {
-    drainables.register(this);
-  }
+  constructor(private readonly archiveWriter: ArchiveWriter) {}
 
   async onApplicationBootstrap(): Promise<void> {
     const chains = parseChainConfigFromEnv(process.env);
@@ -151,7 +142,7 @@ export class CompoundGovernorService
   }
 
   async onApplicationShutdown(): Promise<void> {
-    // intentionally empty — drain ordering is owned by DatabaseLifecycleService
+    await this.drain();
   }
 
   private startPendingDepthGauge(): void {

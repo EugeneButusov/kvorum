@@ -33,13 +33,9 @@ export interface ArchiveWriteContext {
   sourceLabel: string;
 }
 
-export type ArchiveWriteOutcome =
-  | { result: 'inserted' }
-  | { result: 'skipped_existing' }
-  | { result: 'skipped_conflict' }
-  | { result: 'pg_dlq_routed' }
-  | { result: 'pg_unreachable' };
-// CH-insert failures are NOT in this union — they propagate as exceptions to the listener.
+export type ArchiveWriteOutcome = {
+  result: 'inserted' | 'skipped_existing' | 'skipped_conflict' | 'pg_dlq_routed' | 'pg_unreachable';
+};
 
 const DEFAULT_RETRY_BACKOFF_MS = [200, 600, 1800] as const;
 
