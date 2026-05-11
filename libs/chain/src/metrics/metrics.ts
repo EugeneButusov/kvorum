@@ -5,6 +5,7 @@ const registry = new Registry();
 /** Methods allowed as the `method` label. Anything else is recorded as "other". */
 const ALLOWED_METHODS = new Set([
   'eth_blockNumber',
+  'eth_call',
   'eth_chainId',
   'eth_getBlockByNumber',
   'eth_getLogs',
@@ -203,6 +204,34 @@ export function getLogsWithRemovedFlagTotal(): Counter {
   return logsWithRemovedFlagTotal;
 }
 
+// ---- E4 metrics ----
+
+let reorgSignalsTotal: Counter | null = null;
+export function getReorgSignalsTotal(): Counter {
+  if (!reorgSignalsTotal) {
+    reorgSignalsTotal = new Counter({
+      name: 'kvorum_ingestion_reorg_signals_total',
+      help: 'Reorg signals emitted by the in-process detector. Each signal corresponds to one parent-hash mismatch, head drop, or chain-shrink event. F2 records the persistent reorg_event row.',
+      labelNames: ['chain'],
+      registers: [registry],
+    });
+  }
+  return reorgSignalsTotal;
+}
+
+let proxyResolutionsTotal: Counter | null = null;
+export function getProxyResolutionsTotal(): Counter {
+  if (!proxyResolutionsTotal) {
+    proxyResolutionsTotal = new Counter({
+      name: 'kvorum_ingestion_proxy_resolutions_total',
+      help: 'Proxy resolution outcomes. result=resolved|not_a_proxy|capped|cycle|all_slots_failed.',
+      labelNames: ['chain', 'result'],
+      registers: [registry],
+    });
+  }
+  return proxyResolutionsTotal;
+}
+
 /** Reset all lazy metric instances. Required between test cases to avoid registration conflicts. */
 export function resetMetrics(): void {
   registry.clear(); // fully unregisters metrics so getOrCreate* can re-register safely
@@ -220,6 +249,8 @@ export function resetMetrics(): void {
   logsFetchedTotal = null;
   logPollWindowBlocks = null;
   logsWithRemovedFlagTotal = null;
+  reorgSignalsTotal = null;
+  proxyResolutionsTotal = null;
 }
 
 export function getChainMetricsRegistry(): Registry {

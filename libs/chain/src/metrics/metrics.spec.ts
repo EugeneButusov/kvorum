@@ -9,6 +9,8 @@ import {
   getProviderVerified,
   getHealthCheckFailuresTotal,
   getRpcRequestDuration,
+  getReorgSignalsTotal,
+  getProxyResolutionsTotal,
   resetMetrics,
   sanitizeMethod,
 } from './metrics.js';
@@ -88,6 +90,28 @@ describe('metrics', () => {
     });
     const metrics = await getChainMetricsRegistry().metrics();
     expect(metrics).toContain('kvorum_ingestion_rpc_requests_total');
+  });
+
+  it('creates reorg_signals_total counter (E4)', () => {
+    const c = getReorgSignalsTotal();
+    c.inc({ chain: 'ethereum' });
+    expect(c).toBeDefined();
+  });
+
+  it('creates proxy_resolutions_total counter (E4)', () => {
+    const c = getProxyResolutionsTotal();
+    c.inc({ chain: 'ethereum', result: 'resolved' });
+    expect(c).toBeDefined();
+  });
+
+  it('resetMetrics clears E4 metrics — no duplicate-registration error on re-fetch', () => {
+    const c1 = getReorgSignalsTotal();
+    const p1 = getProxyResolutionsTotal();
+    resetMetrics();
+    const c2 = getReorgSignalsTotal();
+    const p2 = getProxyResolutionsTotal();
+    expect(c1).not.toBe(c2);
+    expect(p1).not.toBe(p2);
   });
 });
 

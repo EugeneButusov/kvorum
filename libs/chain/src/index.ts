@@ -24,6 +24,26 @@ export { NotImplementedError } from './errors/not-implemented.error.js';
 export { getChainMetricsRegistry, resetMetrics } from './metrics/metrics.js';
 
 export type {
+  ResolutionResult,
+  ResolutionStep,
+  ResolutionReason,
+  ProxyKind,
+  ResolverOptions,
+} from './proxy/types.js';
+export { ProxyResolver } from './proxy/proxy-resolver.js';
+export { STANDARD_PROXY_SLOTS } from './proxy/slots.js';
+
+export type {
+  ReorgSignal,
+  ReorgListener,
+  ReorgDetectorOptions,
+  BufferResetSignal,
+  BufferResetListener,
+  BufferResetReason,
+} from './reorg/types.js';
+export { ReorgDetector } from './reorg/reorg-detector.js';
+
+export type {
   LogEvent,
   LogFilter,
   Head,
