@@ -3,7 +3,7 @@ import { STANDARD_PROXY_SLOTS } from './slots.js';
 import type { RpcClient } from '../client/rpc-client.js';
 import type { Logger } from '../logger.js';
 import type { ResolutionResult, ResolutionStep, ResolverOptions } from './types.js';
-import { getProxyResolutionsTotal } from '../metrics/metrics.js';
+import { chainMetrics } from '../metrics/metrics.js';
 
 const ZERO_ADDRESS = '0x' + '0'.repeat(40);
 const DEFAULT_MAX_DEPTH = 3;
@@ -33,7 +33,7 @@ export class ProxyResolver {
   async resolve(address: string): Promise<ResolutionResult> {
     const visited = new Set<string>();
     const result = await this.resolveAt(address.toLowerCase(), 0, [], visited);
-    getProxyResolutionsTotal().inc({ chain: this.chainName, result: result.reason });
+    chainMetrics.proxyResolutions.add(1, { chain: this.chainName, result: result.reason });
     return result;
   }
 

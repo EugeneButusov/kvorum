@@ -5,12 +5,7 @@ import type { ChainConfig } from '../config/config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 import type { Logger } from '../logger.js';
 import { silentLogger } from '../logger.js';
-import {
-  getHealthCheckFailuresTotal,
-  getProviderLagBlocks,
-  getProviderUnusable,
-  getProviderVerified,
-} from '../metrics/metrics.js';
+import { chainMetrics } from '../metrics/metrics.js';
 
 const CHAIN_ID_RETRY_DELAYS_MS = [200, 600, 1800];
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
@@ -83,8 +78,8 @@ export class HealthChecker {
             const reported = Number(BigInt(raw));
             if (reported !== this.config.chainId) {
               state.unusable = true;
-              getProviderUnusable().set({ provider: name, chain }, 1);
-              getProviderVerified().set({ provider: name, chain }, 0);
+              chainMetrics.providerUnusable.record(1, { provider: name, chain });
+              chainMetrics.providerVerified.record(0, { provider: name, chain });
               this.logger.error(
                 `[chain:${chain}] provider ${name} chainId mismatch: expected ${this.config.chainId}, got ${reported}`,
               );
@@ -99,8 +94,8 @@ export class HealthChecker {
 
         if (!verified) {
           state.unusable = true;
-          getProviderUnusable().set({ provider: name, chain }, 1);
-          getProviderVerified().set({ provider: name, chain }, 0);
+          chainMetrics.providerUnusable.record(1, { provider: name, chain });
+          chainMetrics.providerVerified.record(0, { provider: name, chain });
           this.logger.error(
             `[chain:${chain}] provider ${name} chainId probe failed after ${CHAIN_ID_RETRY_DELAYS_MS.length + 1} attempts — marking unusable`,
           );
@@ -108,8 +103,8 @@ export class HealthChecker {
         }
 
         state.verified = true;
-        getProviderVerified().set({ provider: name, chain }, 1);
-        getProviderUnusable().set({ provider: name, chain }, 0);
+        chainMetrics.providerVerified.record(1, { provider: name, chain });
+        chainMetrics.providerUnusable.record(0, { provider: name, chain });
         this.logger.info(`[chain:${chain}] provider ${name} chainId verified`);
       }),
     );
@@ -141,7 +136,7 @@ export class HealthChecker {
         } catch {
           state.consecutiveHealthFailures++;
           state.lastHealthCheckAt = new Date();
-          getHealthCheckFailuresTotal().inc({ provider: name, chain });
+          chainMetrics.healthCheckFailures.add(1, { provider: name, chain });
           return;
         }
       }),
@@ -159,7 +154,7 @@ export class HealthChecker {
     for (const [name, state] of eligible) {
       if (state.lastBlockNumber === null) continue;
       const lag = leader - state.lastBlockNumber;
-      getProviderLagBlocks().set({ provider: name, chain }, Number(lag));
+      chainMetrics.providerLagBlocks.record(Number(lag), { provider: name, chain });
       const wasDeprioritized = state.deprioritized;
       state.deprioritized = lag > BigInt(this.lagThreshold);
       if (state.deprioritized && !wasDeprioritized) {

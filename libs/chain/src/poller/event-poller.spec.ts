@@ -1,11 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { EventPoller } from './event-poller.js';
 import type { EventPollerOptions, LogEvent } from './types.js';
 import { FailoverRpcClient } from '../client/failover-rpc-client.js';
-import { resetMetrics, getLogsWithRemovedFlagTotal } from '../metrics/metrics.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
 
-afterEach(() => resetMetrics());
+async function readCounter(name: string, labels: Record<string, string>): Promise<number> {
+  const text = await renderMetrics();
+  for (const line of text.split('\n')) {
+    if (!line.startsWith(name)) continue;
+    if (Object.entries(labels).every(([k, v]) => line.includes(`${k}="${v}"`))) {
+      const m = line.match(/\}\s+([\d.]+)\s*$/);
+      if (m) return parseFloat(m[1]!);
+    }
+  }
+  return 0;
+}
 
 const CHAIN_ID = 31337;
 const TX_HASH = '0x' + 'ab'.repeat(32);
@@ -169,6 +179,9 @@ describe('EventPoller', () => {
     });
 
     it('counts removed:true logs via metric and still delivers to listener', async () => {
+      const before = await readCounter('test_ingestion_logs_with_removed_flag_total', {
+        dao_source: 'dao-1',
+      });
       const removedLog = makeLog({ removed: true });
       fake.enqueueSuccess('0x10').enqueueSuccess([removedLog]);
       fake.returnSuccess([]);
@@ -182,10 +195,10 @@ describe('EventPoller', () => {
       await poller.stop();
 
       expect(received).toHaveLength(1);
-      const counter = await getLogsWithRemovedFlagTotal()
-        .get()
-        .then((d) => d.values.find((v) => v.labels['dao_source'] === 'dao-1')?.value ?? 0);
-      expect(counter).toBe(1);
+      const after = await readCounter('test_ingestion_logs_with_removed_flag_total', {
+        dao_source: 'dao-1',
+      });
+      expect(after - before).toBe(1);
     });
   });
 

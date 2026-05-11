@@ -1,12 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  parseChainConfigFromEnv,
-  EventPoller,
-  FailoverRpcClient,
-  getPendingEventCount,
-  getIndexerActiveSources,
-} from '@libs/chain';
+import { parseChainConfigFromEnv, EventPoller, FailoverRpcClient } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter } from '@sources/compound';
 import { CompoundGovernorService } from './compound-governor.service';
@@ -30,9 +24,10 @@ vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
   EventPoller: vi.fn(),
   FailoverRpcClient: vi.fn(),
-  getPendingEventCount: vi.fn().mockReturnValue({ set: vi.fn() }),
-  getIndexerActiveSources: vi.fn().mockReturnValue({ set: vi.fn() }),
-  resetMetrics: vi.fn(),
+  chainMetrics: {
+    pendingEventCount: { record: vi.fn() },
+    indexerActiveSources: { record: vi.fn() },
+  },
   toChainLogger: vi.fn().mockReturnValue({}),
 }));
 
@@ -121,9 +116,6 @@ async function buildModule(): Promise<TestingModule> {
 beforeEach(() => {
   vi.clearAllMocks();
   mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
-  // Re-mock metric functions after clearAllMocks
-  vi.mocked(getPendingEventCount).mockReturnValue({ set: vi.fn() });
-  vi.mocked(getIndexerActiveSources).mockReturnValue({ set: vi.fn() });
 });
 
 describe('CompoundGovernorService', () => {

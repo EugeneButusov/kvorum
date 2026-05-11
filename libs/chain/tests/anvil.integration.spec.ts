@@ -7,9 +7,9 @@
  * Fallback for Test 3: send a self-transaction if anvil_mine is unavailable.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { FailoverRpcClient } from '../src/client/failover-rpc-client.js';
 import type { ChainConfig } from '../src/config/config.js';
-import { resetMetrics, getHeadBlockAgeSeconds } from '../src/metrics/metrics.js';
 import { EventPoller } from '../src/poller/event-poller.js';
 import { HeadTracker } from '../src/poller/head-tracker.js';
 import type { LogEvent, Head } from '../src/poller/types.js';
@@ -50,7 +50,6 @@ describeIf('Anvil integration', () => {
 
   afterAll(async () => {
     await client?.stop();
-    resetMetrics();
   });
 
   it('eth_chainId returns 31337', async () => {
@@ -338,10 +337,8 @@ describeIf('Anvil integration', () => {
     await tracker.start();
     await tracker.stop();
 
-    const metricData = await getHeadBlockAgeSeconds().get();
-    const value = metricData.values.find((v) => v.labels['chain'] === 'anvil')?.value;
-    // Anvil timestamps may be in the past — just verify the metric was set
-    expect(value).toBeDefined();
-    expect(typeof value).toBe('number');
+    const text = await renderMetrics();
+    // Anvil timestamps may be in the past — just verify the metric was set with a numeric value
+    expect(text).toMatch(/test_ingestion_head_block_age_seconds\{.*chain="anvil".*\}\s+[\d.]+/);
   }, 10_000);
 });

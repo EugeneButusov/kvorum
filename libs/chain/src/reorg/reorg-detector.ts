@@ -8,7 +8,7 @@ import type {
   BufferResetListener,
   ReorgDetectorOptions,
 } from './types.js';
-import { getReorgSignalsTotal } from '../metrics/metrics.js';
+import { chainMetrics } from '../metrics/metrics.js';
 import type { HeadTracker } from '../poller/head-tracker.js';
 import type { Head } from '../poller/types.js';
 
@@ -337,7 +337,7 @@ export class ReorgDetector {
       chainShrunk,
     };
 
-    getReorgSignalsTotal().inc({ chain: this.chainName });
+    chainMetrics.reorgSignals.add(1, { chain: this.chainName });
     await this.emitReorg(signal);
 
     // Update buffer with canonical data for [divergenceBlockNumber, hi]. Route inserts

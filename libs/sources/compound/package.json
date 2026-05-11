@@ -6,6 +6,7 @@
   "types": "./src/index.d.ts",
   "dependencies": {
     "@libs/chain": "workspace:*",
+    "@libs/observability": "workspace:*",
     "@libs/db": "workspace:*",
     "@libs/utils": "workspace:*",
     "ethers": "^6.13.0",

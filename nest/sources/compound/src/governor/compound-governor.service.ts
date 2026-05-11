@@ -6,7 +6,7 @@ import {
   FailoverRpcClient,
   type ChainConfig,
 } from '@libs/chain';
-import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
+import { chainMetrics } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
 import { toChainLogger } from '../utils/nest-logger-adapter';
@@ -38,7 +38,7 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
 
     if (sources.length === 0) {
       this.logger.warn('No compound_governor dao_source rows; indexer will idle');
-      getIndexerActiveSources().set({ source_type: 'compound_governor' }, 0);
+      chainMetrics.indexerActiveSources.record(0, { source_type: 'compound_governor' });
       return;
     }
 
@@ -119,7 +119,7 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
       throw err;
     }
 
-    getIndexerActiveSources().set({ source_type: 'compound_governor' }, sources.length);
+    chainMetrics.indexerActiveSources.record(sources.length, { source_type: 'compound_governor' });
     this.logger.log(
       `compound_governor: ${sources.length} source(s) live across ${clientsByChainId.size} chain(s)`,
     );
@@ -145,10 +145,10 @@ export class CompoundGovernorService implements OnApplicationBootstrap, OnApplic
       try {
         const rows = await this.confirmationRepo.countPendingBySourceType('compound_governor');
         for (const row of rows) {
-          getPendingEventCount().set(
-            { chain_id: String(row.chain_id), source_type: row.source_type },
-            Number(row.count),
-          );
+          chainMetrics.pendingEventCount.record(Number(row.count), {
+            chain_id: String(row.chain_id),
+            source_type: row.source_type,
+          });
         }
       } catch (err) {
         this.logger.warn('pending_depth_gauge_error', { error: String(err) });

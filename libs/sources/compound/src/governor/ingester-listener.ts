@@ -1,9 +1,5 @@
 import type { LogEvent, EventsListener, Logger } from '@libs/chain';
-import {
-  getArchiveDecodeErrorsTotal,
-  getArchiveChWriteErrorsTotal,
-  getBatchDurationSeconds,
-} from '@libs/chain';
+import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
@@ -20,7 +16,7 @@ export interface IngesterListenerDeps {
 /** Returns an EventsListener that decodes and archives Compound Governor log events. */
 export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener {
   return async (events: LogEvent[]) => {
-    const endTimer = getBatchDurationSeconds().startTimer({ source: deps.context.sourceLabel });
+    const batchStartMs = Date.now();
     try {
       for (const log of events) {
         let decoded: ReturnType<typeof decodeCompoundLog>;
@@ -28,7 +24,7 @@ export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener
           decoded = decodeCompoundLog(log);
         } catch (err) {
           await routeDecodeErrorToDlq(deps, log, err);
-          getArchiveDecodeErrorsTotal().inc({
+          chainMetrics.archiveDecodeErrors.add(1, {
             source: deps.context.sourceLabel,
             reason: err instanceof DecodeError ? err.reason : 'unknown',
           });
@@ -40,7 +36,7 @@ export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener
         } catch (err) {
           // CH-insert failures propagate as exceptions (ADR-041 rider 2026-05-12 retracted §2).
           // Per-event catch ensures one CH glitch doesn't drop the rest of the batch.
-          getArchiveChWriteErrorsTotal().inc({ source: deps.context.sourceLabel });
+          chainMetrics.archiveChWriteErrors.add(1, { source: deps.context.sourceLabel });
           deps.logger.error('ch_write_error', {
             txHash: log.txHash,
             logIndex: log.logIndex,
@@ -50,7 +46,9 @@ export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener
         }
       }
     } finally {
-      endTimer();
+      chainMetrics.batchDuration.record((Date.now() - batchStartMs) / 1000, {
+        source: deps.context.sourceLabel,
+      });
     }
   };
 }

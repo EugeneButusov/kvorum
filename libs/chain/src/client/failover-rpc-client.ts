@@ -11,13 +11,7 @@ import { DeadlineError } from '../errors/deadline.error.js';
 import { categorizeError, scrubError, type ErrorReason } from '../errors/errors.js';
 import { HealthChecker, type HealthCheckerOptions } from '../health/health-checker.js';
 import { silentLogger } from '../logger.js';
-import {
-  getCircuitState,
-  getRpcFailuresTotal,
-  getRpcRequestDuration,
-  getRpcRequestsTotal,
-  sanitizeMethod,
-} from '../metrics/metrics.js';
+import { chainMetrics, sanitizeMethod } from '../metrics/metrics.js';
 
 interface ProviderEntry {
   config: ChainConfig['providers'][number];
@@ -139,20 +133,21 @@ export class FailoverRpcClient implements RpcClient {
 
           const durationS = (Date.now() - startMs) / 1000;
           state.circuit.recordSuccess();
-          getRpcRequestsTotal().inc({
+          chainMetrics.rpcRequests.add(1, {
             provider: providerCfg.name,
             chain,
             method: sanitized,
             status: 'success',
           });
-          getRpcRequestDuration().observe(
-            { provider: providerCfg.name, chain, method: sanitized },
-            durationS,
-          );
-          getCircuitState().set(
-            { provider: providerCfg.name, chain },
-            circuitStateValue(state.circuit.getState()),
-          );
+          chainMetrics.rpcRequestDuration.record(durationS, {
+            provider: providerCfg.name,
+            chain,
+            method: sanitized,
+          });
+          chainMetrics.circuitState.record(circuitStateValue(state.circuit.getState()), {
+            provider: providerCfg.name,
+            chain,
+          });
 
           return result;
         } catch (err) {
@@ -182,21 +177,22 @@ export class FailoverRpcClient implements RpcClient {
 
           const durationS = (Date.now() - startMs) / 1000;
           state.circuit.recordFailure();
-          getRpcRequestsTotal().inc({
+          chainMetrics.rpcRequests.add(1, {
             provider: providerCfg.name,
             chain,
             method: sanitized,
             status: 'failure',
           });
-          getRpcFailuresTotal().inc({ provider: providerCfg.name, chain, reason: cat });
-          getRpcRequestDuration().observe(
-            { provider: providerCfg.name, chain, method: sanitized },
-            durationS,
-          );
-          getCircuitState().set(
-            { provider: providerCfg.name, chain },
-            circuitStateValue(state.circuit.getState()),
-          );
+          chainMetrics.rpcFailures.add(1, { provider: providerCfg.name, chain, reason: cat });
+          chainMetrics.rpcRequestDuration.record(durationS, {
+            provider: providerCfg.name,
+            chain,
+            method: sanitized,
+          });
+          chainMetrics.circuitState.record(circuitStateValue(state.circuit.getState()), {
+            provider: providerCfg.name,
+            chain,
+          });
 
           attempts.push({ provider: providerCfg.name, reason: cat, cause: scrubError(err) });
 
