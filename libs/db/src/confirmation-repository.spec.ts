@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { NewArchiveConfirmation } from './schema/pg';
 import { ConfirmationRepository } from './confirmation-repository';
 import type { ConfirmationKey } from './confirmation-repository';
+import type { NewArchiveConfirmation } from './schema/pg';
 
 const KEY: ConfirmationKey = {
   sourceType: 'compound_governor',

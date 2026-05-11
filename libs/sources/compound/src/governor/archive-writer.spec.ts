@@ -3,8 +3,8 @@ import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter, isTransientPgError } from './archive-writer';
-import type { ChEventRepository } from './ch-event-repository';
 import type { ArchiveWriteContext } from './archive-writer.types';
+import type { ChEventRepository } from './ch-event-repository';
 import type { CompoundGovernorEvent } from './types';
 
 // ---- Shared test fixtures ----

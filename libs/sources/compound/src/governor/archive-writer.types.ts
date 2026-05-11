@@ -1,5 +1,5 @@
-import type { ConfirmationRepository, DlqRepository } from '@libs/db';
 import type { Logger } from '@libs/chain';
+import type { ConfirmationRepository, DlqRepository } from '@libs/db';
 import type { ChEventRepository } from './ch-event-repository';
 
 export interface ArchiveWriterDeps {

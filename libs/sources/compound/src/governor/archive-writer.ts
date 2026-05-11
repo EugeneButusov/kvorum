@@ -11,12 +11,12 @@ import type {
   NewIngestionDlq,
 } from '@libs/db';
 import { sleep } from '@libs/utils';
-import type { ChEventRepository } from './ch-event-repository';
 import type {
   ArchiveWriteContext,
   ArchiveWriterDeps,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
+import type { ChEventRepository } from './ch-event-repository';
 import type { CompoundGovernorEvent } from './types';
 
 const DEFAULT_RETRY_BACKOFF_MS = [200, 600, 1800] as const;

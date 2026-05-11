@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { NewIngestionDlq } from './schema/pg';
 import { DlqRepository } from './dlq-repository';
+import type { NewIngestionDlq } from './schema/pg';
 
 const DLQ_ROW: NewIngestionDlq = {
   stage: 'archive_confirmation_write',
