@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { DrainableRegistry } from './drainable-registry';
 import { DatabaseLifecycleService } from './database-lifecycle.service';
+import { DrainableRegistry } from './drainable-registry';
 
 @Module({
   providers: [DrainableRegistry, DatabaseLifecycleService],

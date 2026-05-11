@@ -1,8 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import {
+  parseChainConfigFromEnv,
+  EventPoller,
+  FailoverRpcClient,
+  getPendingEventCount,
+  getIndexerActiveSources,
+} from '@libs/chain';
+import { pgDb } from '@libs/db';
+import { ArchiveWriter } from '@sources/compound';
 import { CompoundGovernorService } from './compound-governor.service';
 import { DrainableRegistry } from '../lifecycle/drainable-registry';
-import { ArchiveWriter } from '@sources/compound';
 
 // Silence NestJS logs during tests
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -47,15 +55,6 @@ vi.mock('@sources/compound', () => ({
 vi.mock('../utils/nest-logger-adapter', () => ({
   toChainLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
-
-import {
-  parseChainConfigFromEnv,
-  EventPoller,
-  FailoverRpcClient,
-  getPendingEventCount,
-  getIndexerActiveSources,
-} from '@libs/chain';
-import { pgDb } from '@libs/db';
 
 const CHAIN_CFG = {
   chainId: 1,

@@ -1,18 +1,18 @@
 import type { Kysely } from 'kysely';
+import {
+  getArchiveWritesTotal,
+  getArchiveSkippedExistenceTotal,
+  getDualWritePgUnreachableTotal,
+} from '@libs/chain';
+import type { Logger } from '@libs/chain';
+import type { LogEvent } from '@libs/chain';
 import type {
   ClickHouseDatabase,
   PgDatabase,
   NewArchiveConfirmation,
   NewIngestionDlq,
 } from '@libs/db';
-import type { Logger } from '@libs/chain';
-import {
-  getArchiveWritesTotal,
-  getArchiveSkippedExistenceTotal,
-  getDualWritePgUnreachableTotal,
-} from '@libs/chain';
 import { sleep } from '@libs/utils';
-import type { LogEvent } from '@libs/chain';
 import type { CompoundGovernorEvent } from './types';
 
 export interface ArchiveWriterDeps {

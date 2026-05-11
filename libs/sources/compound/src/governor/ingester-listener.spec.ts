@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeIngesterListener } from './ingester-listener';
-import type { IngesterListenerDeps } from './ingester-listener';
-import { ArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext } from './archive-writer';
-import { COMPOUND_EVENT_TOPICS } from './events';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import { resetMetrics } from '@libs/chain';
+import { ArchiveWriter } from './archive-writer';
+import type { ArchiveWriteContext } from './archive-writer';
+import { COMPOUND_EVENT_TOPICS } from './events';
+import type { IngesterListenerDeps } from './ingester-listener';
+import { makeIngesterListener } from './ingester-listener';
 
 beforeEach(() => resetMetrics());
 

@@ -1,8 +1,8 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
 import { ArchiveWriter } from '@sources/compound';
-import { toChainLogger } from '../utils/nest-logger-adapter';
 import { CompoundGovernorService } from './compound-governor.service';
+import { toChainLogger } from '../utils/nest-logger-adapter';
 
 @Module({
   providers: [

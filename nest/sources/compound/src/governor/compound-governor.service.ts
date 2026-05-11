@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { z } from 'zod';
-import { pgDb } from '@libs/db';
 import {
   parseChainConfigFromEnv,
   EventPoller,
@@ -8,6 +7,7 @@ import {
   type ChainConfig,
 } from '@libs/chain';
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
+import { pgDb } from '@libs/db';
 import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
 import type { Drainable } from '../lifecycle/drainable-registry';
 import { DrainableRegistry } from '../lifecycle/drainable-registry';

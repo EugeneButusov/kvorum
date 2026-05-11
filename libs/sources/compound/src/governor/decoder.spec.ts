@@ -1,14 +1,14 @@
+import { keccak256, toUtf8Bytes } from 'ethers';
 import { describe, it, expect } from 'vitest';
+import type { LogEvent } from '@libs/chain';
 import { decodeCompoundLog } from './decoder';
 import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events';
 import { DecodeError } from './types';
-import type { LogEvent } from '@libs/chain';
 
 // Reference topic0 hashes from the canonical Compound GovernorBravoDelegate ABI.
 // Computed via `keccak256(eventSignature)`. The ProposalCreated hash is widely known;
 // the others are verified here as a regression guard against ethers upgrades.
 // NOTE: compute authoritative values using ethers Interface at runtime to avoid hardcoding errors.
-import { keccak256, toUtf8Bytes } from 'ethers';
 
 const KNOWN_TOPIC0S = {
   // keccak256 of the full canonical event signature (no param names)

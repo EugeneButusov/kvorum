@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { LogEvent } from '@libs/chain';
+import { silentLogger } from '@libs/chain';
 import { ArchiveWriter, isTransientPgError } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer';
 import type { CompoundGovernorEvent } from './types';
-import type { LogEvent } from '@libs/chain';
-import { silentLogger } from '@libs/chain';
 
 // ---- Shared test fixtures ----
 

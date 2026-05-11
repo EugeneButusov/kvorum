@@ -1,3 +1,4 @@
+import type { Kysely } from 'kysely';
 import type { LogEvent, EventsListener, Logger } from '@libs/chain';
 import {
   getArchiveDecodeErrorsTotal,
@@ -5,7 +6,6 @@ import {
   getBatchDurationSeconds,
 } from '@libs/chain';
 import type { NewIngestionDlq } from '@libs/db';
-import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
 import type { ArchiveWriteContext } from './archive-writer';
 import { ArchiveWriter } from './archive-writer';
