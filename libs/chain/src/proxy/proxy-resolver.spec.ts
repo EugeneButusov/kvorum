@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetMetrics, getProxyResolutionsTotal } from '../metrics/metrics.js';
-import type { RpcClient } from '../client/rpc-client.js';
 import { ProxyResolver } from './proxy-resolver.js';
 import { STANDARD_PROXY_SLOTS } from './slots.js';
+import type { RpcClient } from '../client/rpc-client.js';
+import { resetMetrics, getProxyResolutionsTotal } from '../metrics/metrics.js';
 
 const ZERO_32 = '0x' + '00'.repeat(32);
 const PROXY_ADDR = '0x' + 'aa'.repeat(20);

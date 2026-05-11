@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = resolve(__dirname, '../../../dist/apps/admin-cli/main.js');

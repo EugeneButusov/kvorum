@@ -1,6 +1,6 @@
-import { getHeadBlockAgeSeconds, getHeadPollLagSeconds } from '../metrics/metrics.js';
 import { AbstractPoller } from './abstract-poller.js';
 import type { Head, HeadListener, HeadTrackerOptions } from './types.js';
+import { getHeadBlockAgeSeconds, getHeadPollLagSeconds } from '../metrics/metrics.js';
 import { decodeHead } from './utils/decode.utils.js';
 
 /** Polls eth_getBlockByNumber('latest', false) and fans out to registered listeners.

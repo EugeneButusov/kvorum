@@ -1,7 +1,7 @@
-import type { Migration, MigrationProvider } from 'kysely';
-import { Migrator } from 'kysely/migration';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Migration, MigrationProvider } from 'kysely';
+import { Migrator } from 'kysely/migration';
 import { pgDb } from '../src/client';
 
 const repoRoot = path.join(import.meta.dirname, '../../..');

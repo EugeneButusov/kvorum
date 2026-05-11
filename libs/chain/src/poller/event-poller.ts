@@ -1,11 +1,11 @@
+import { AbstractPoller } from './abstract-poller.js';
+import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './types.js';
 import {
   getLogPollLagSeconds,
   getLogPollWindowBlocks,
   getLogsFetchedTotal,
   getLogsWithRemovedFlagTotal,
 } from '../metrics/metrics.js';
-import { AbstractPoller } from './abstract-poller.js';
-import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './types.js';
 import { decodeLogEvent } from './utils/decode.utils.js';
 import { lowercaseFilter } from './utils/filter.utils.js';
 

@@ -1,9 +1,6 @@
-import { silentLogger } from '../logger.js';
-import { getReorgSignalsTotal } from '../metrics/metrics.js';
-import type { Logger } from '../logger.js';
 import type { RpcClient } from '../client/rpc-client.js';
-import type { Head } from '../poller/types.js';
-import type { HeadTracker } from '../poller/head-tracker.js';
+import { silentLogger } from '../logger.js';
+import type { Logger } from '../logger.js';
 import type {
   ReorgSignal,
   BufferResetSignal,
@@ -11,6 +8,9 @@ import type {
   BufferResetListener,
   ReorgDetectorOptions,
 } from './types.js';
+import { getReorgSignalsTotal } from '../metrics/metrics.js';
+import type { HeadTracker } from '../poller/head-tracker.js';
+import type { Head } from '../poller/types.js';
 
 interface BlockHeader {
   hash: string;

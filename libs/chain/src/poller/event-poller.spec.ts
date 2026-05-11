@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FakeProvider } from '../test-utils/fake-provider.js';
-import { FailoverRpcClient } from '../client/failover-rpc-client.js';
-import { resetMetrics, getLogsWithRemovedFlagTotal } from '../metrics/metrics.js';
 import { EventPoller } from './event-poller.js';
 import type { EventPollerOptions, LogEvent } from './types.js';
+import { FailoverRpcClient } from '../client/failover-rpc-client.js';
+import { resetMetrics, getLogsWithRemovedFlagTotal } from '../metrics/metrics.js';
+import { FakeProvider } from '../test-utils/fake-provider.js';
 
 afterEach(() => resetMetrics());
 

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FailoverRpcClient, createFailoverRpcClient } from './failover-rpc-client.js';
+import type { ChainConfig } from '../config/config.js';
 import { AllProvidersFailedError } from '../errors/all-providers-failed.error.js';
 import { ClientStoppedError } from '../errors/client-stopped.error.js';
 import { resetMetrics, getChainMetricsRegistry } from '../metrics/metrics.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
-import type { ChainConfig } from '../config/config.js';
 
 afterEach(() => resetMetrics());
 
