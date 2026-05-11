@@ -83,8 +83,7 @@ Each provider that owns async resources (pollers, RPC clients) should implement 
 
 Every process that produces metrics exposes a `GET /metrics` endpoint in Prometheus text format:
 
-- `apps/api` — served on the main port (default 3001) via `MetricsController`.
-- `apps/indexer`, `apps/ai-worker` — served by the `OpsServer` Nest provider on `OPS_PORT` (default 9091). For local dev with multiple workers, set `OPS_PORT=9092` etc. per process.
+- All three apps (`apps/api`, `apps/indexer`, `apps/ai-worker`) — served by `OpsServer` from `@nest/observability` on `OPS_PORT` (default 9091). For local dev with multiple workers, set `OPS_PORT=9092` etc. per process.
 
 Each app's `main.ts` sets `OTEL_SERVICE_NAME ??= '<app>'` before the Nest context boots. `OTEL_SERVICE_NAMESPACE` must be provided via environment — `@libs/observability` throws on import if it is unset.
 
@@ -144,6 +143,9 @@ libs/
                           Framework-agnostic; consumed by apps/indexer Nest module via useFactory.
     migrations-postgres/  Source-specific PG migrations (run by Kysely migrator)
     migrations-clickhouse/ Source-specific CH migrations (plain SQL, run by clickhouse-migrations)
+nest/
+  observability/ OpsServer provider — GET /metrics on OPS_PORT for all apps
+  sources/<source>/  NestJS composition root for a source (DI wiring, useFactory providers)
 docs/
   SPEC.md       Frozen v1.0 product spec
   adr/          Architecture Decision Records (ADR-021 onward)
