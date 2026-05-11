@@ -7,8 +7,6 @@ import type {
 } from '@libs/db';
 import type { ArchiveKey, ArchiveRepositoryDeps, ChEventData } from './archive-repository.types';
 
-export type { ArchiveKey, ArchiveRepositoryDeps, ChEventData } from './archive-repository.types';
-
 export class ArchiveRepository {
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;

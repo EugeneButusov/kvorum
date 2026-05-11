@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
 import { ArchiveRepository } from './archive-repository';
-import type { ArchiveKey, ChEventData } from './archive-repository';
+import type { ArchiveKey, ChEventData } from './archive-repository.types';
 
 // ---- Mock factories ----
 
