@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConfirmationRepository, isTransientPgError } from './confirmation-repository';
+import { ConfirmationRepository, isTransientError } from './confirmation-repository';
 import type { ConfirmationKey } from './confirmation-repository';
 import type { NewArchiveConfirmation } from './schema/pg';
 
@@ -181,7 +181,7 @@ describe('ConfirmationRepository', () => {
     });
   });
 
-  describe('isTransientPgError', () => {
+  describe('isTransientError', () => {
     it.each([
       '08000',
       '08001',
@@ -199,19 +199,19 @@ describe('ConfirmationRepository', () => {
       'ETIMEDOUT',
       'ENOTFOUND',
     ])('code %s → true', (code) => {
-      expect(isTransientPgError({ code })).toBe(true);
+      expect(isTransientError({ code })).toBe(true);
     });
 
     it.each(['23503', '42703', 'UNKNOWN', ''])('code %s → false', (code) => {
-      expect(isTransientPgError({ code })).toBe(false);
+      expect(isTransientError({ code })).toBe(false);
     });
 
     it('plain string → false', () => {
-      expect(isTransientPgError('ECONNRESET')).toBe(false);
+      expect(isTransientError('ECONNRESET')).toBe(false);
     });
 
     it('null → false', () => {
-      expect(isTransientPgError(null)).toBe(false);
+      expect(isTransientError(null)).toBe(false);
     });
   });
 });

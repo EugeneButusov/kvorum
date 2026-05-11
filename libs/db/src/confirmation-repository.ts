@@ -28,7 +28,7 @@ const TRANSIENT_SQLSTATES = new Set([
 
 const TRANSIENT_NODE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']);
 
-export function isTransientPgError(err: unknown): boolean {
+export function isTransientError(err: unknown): boolean {
   if (err == null || typeof err !== 'object') return false;
   const e = err as Record<string, unknown>;
   const code = typeof e['code'] === 'string' ? e['code'] : '';
@@ -67,7 +67,7 @@ export class ConfirmationRepository {
           .returning('id')
           .executeTakeFirst();
       } catch (err) {
-        if (isTransientPgError(err) && attempt < this.retryBackoffMs.length) {
+        if (isTransientError(err) && attempt < this.retryBackoffMs.length) {
           await new Promise((resolve) => setTimeout(resolve, this.retryBackoffMs[attempt]));
           continue;
         }
