@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConfirmationRepository, isTransientError } from './confirmation-repository';
+import { ConfirmationRepository } from './confirmation-repository';
 import type { ConfirmationKey } from './confirmation-repository';
 import type { NewArchiveConfirmation } from './schema/pg';
 
@@ -178,40 +178,6 @@ describe('ConfirmationRepository', () => {
       const repo = new ConfirmationRepository({ insertInto } as never, [0, 0]);
       await expect(repo.insert(PG_ROW)).rejects.toThrow('conn reset');
       expect(executeTakeFirst).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  describe('isTransientError', () => {
-    it.each([
-      '08000',
-      '08001',
-      '08003',
-      '08006',
-      '08007',
-      '57P01',
-      '57P02',
-      '57P03',
-      '40001',
-      '40P01',
-      '53300',
-      '08004',
-      'ECONNRESET',
-      'ETIMEDOUT',
-      'ENOTFOUND',
-    ])('code %s → true', (code) => {
-      expect(isTransientError({ code })).toBe(true);
-    });
-
-    it.each(['23503', '42703', 'UNKNOWN', ''])('code %s → false', (code) => {
-      expect(isTransientError({ code })).toBe(false);
-    });
-
-    it('plain string → false', () => {
-      expect(isTransientError('ECONNRESET')).toBe(false);
-    });
-
-    it('null → false', () => {
-      expect(isTransientError(null)).toBe(false);
     });
   });
 });

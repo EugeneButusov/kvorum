@@ -1,4 +1,5 @@
 import type { Kysely } from 'kysely';
+import { isTransientDbError } from './utils';
 import type { NewArchiveConfirmation, PgDatabase } from './schema/pg';
 
 export interface ConfirmationKey {
@@ -10,30 +11,6 @@ export interface ConfirmationKey {
 }
 
 const DEFAULT_RETRY_BACKOFF_MS = [200, 600, 1800] as const;
-
-const TRANSIENT_SQLSTATES = new Set([
-  '08000',
-  '08001',
-  '08003',
-  '08006',
-  '08007', // connection-level
-  '57P01',
-  '57P02',
-  '57P03', // admin/shutdown
-  '40001',
-  '40P01', // serialization
-  '53300', // too_many_connections
-  '08004', // server_rejected_establishment
-]);
-
-const TRANSIENT_NODE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']);
-
-export function isTransientError(err: unknown): boolean {
-  if (err == null || typeof err !== 'object') return false;
-  const e = err as Record<string, unknown>;
-  const code = typeof e['code'] === 'string' ? e['code'] : '';
-  return TRANSIENT_SQLSTATES.has(code) || TRANSIENT_NODE_CODES.has(code);
-}
 
 export class ConfirmationRepository {
   private readonly retryBackoffMs: readonly number[];
@@ -67,7 +44,7 @@ export class ConfirmationRepository {
           .returning('id')
           .executeTakeFirst();
       } catch (err) {
-        if (isTransientError(err) && attempt < this.retryBackoffMs.length) {
+        if (isTransientDbError(err) && attempt < this.retryBackoffMs.length) {
           await new Promise((resolve) => setTimeout(resolve, this.retryBackoffMs[attempt]));
           continue;
         }
