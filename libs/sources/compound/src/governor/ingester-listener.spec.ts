@@ -3,7 +3,7 @@ import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import { resetMetrics } from '@libs/chain';
 import { ArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext } from './archive-writer';
+import type { ArchiveWriteContext } from './archive-writer.types';
 import type { DlqRepository } from '@libs/db';
 import { COMPOUND_EVENT_TOPICS } from './events';
 import type { IngesterListenerDeps } from './ingester-listener';

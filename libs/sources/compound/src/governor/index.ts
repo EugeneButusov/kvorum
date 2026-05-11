@@ -25,7 +25,11 @@ export { decodeCompoundLog } from './decoder';
 export type { ChEventData, ChEventRepositoryDeps } from './ch-event-repository.types';
 export { ChEventRepository } from './ch-event-repository';
 
-export type { ArchiveWriterDeps, ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer';
+export type {
+  ArchiveWriterDeps,
+  ArchiveWriteContext,
+  ArchiveWriteOutcome,
+} from './archive-writer.types';
 export { ArchiveWriter, isTransientPgError } from './archive-writer';
 
 export type { IngesterListenerDeps } from './ingester-listener';

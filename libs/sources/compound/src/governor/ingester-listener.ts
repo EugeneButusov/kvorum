@@ -5,8 +5,8 @@ import {
   getBatchDurationSeconds,
 } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
-import type { ArchiveWriteContext } from './archive-writer';
 import { ArchiveWriter } from './archive-writer';
+import type { ArchiveWriteContext } from './archive-writer.types';
 import { decodeCompoundLog } from './decoder';
 import { DecodeError } from './types';
 
