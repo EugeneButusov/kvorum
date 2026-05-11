@@ -5,31 +5,9 @@ import type {
   NewIngestionDlq,
   PgDatabase,
 } from '@libs/db';
-import type { CompoundGovernorEvent } from './types';
+import type { ArchiveKey, ArchiveRepositoryDeps, ChEventData } from './archive-repository.types';
 
-export interface ArchiveKey {
-  sourceType: 'compound_governor';
-  chainId: number;
-  txHash: string;
-  logIndex: number;
-  blockHash: string;
-}
-
-export interface ChEventData {
-  daoSourceId: string;
-  chainId: number;
-  blockNumber: string;
-  blockHash: string;
-  txHash: string;
-  logIndex: number;
-  eventType: CompoundGovernorEvent['type'];
-  payload: string;
-}
-
-export interface ArchiveRepositoryDeps {
-  pgDb: Kysely<PgDatabase>;
-  chDb: Kysely<ClickHouseDatabase>;
-}
+export type { ArchiveKey, ArchiveRepositoryDeps, ChEventData } from './archive-repository.types';
 
 export class ArchiveRepository {
   private readonly pgDb: Kysely<PgDatabase>;
