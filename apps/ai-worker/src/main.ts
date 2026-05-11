@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+process.env['OTEL_SERVICE_NAME'] ??= 'ai-worker';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';

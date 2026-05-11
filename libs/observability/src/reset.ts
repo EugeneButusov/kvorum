@@ -1,4 +1,4 @@
-import { provider } from './provider.js';
+import { provider } from './provider';
 
 /**
  * Shuts down the singleton MeterProvider. Callers MUST follow with `vi.resetModules()`

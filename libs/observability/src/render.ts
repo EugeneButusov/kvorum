@@ -1,5 +1,5 @@
 import { PrometheusSerializer } from '@opentelemetry/exporter-prometheus';
-import { exporter } from './provider.js';
+import { exporter } from './provider';
 
 export async function renderMetrics(): Promise<string> {
   const { resourceMetrics } = await exporter.collect();

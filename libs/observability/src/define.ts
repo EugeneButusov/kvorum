@@ -1,6 +1,6 @@
 import type { Counter, Gauge, Histogram } from '@opentelemetry/api';
-import { metricPrefix } from './prefix.js';
-import { meter } from './provider.js';
+import { metricPrefix } from './prefix';
+import { meter } from './provider';
 
 interface CounterOpts {
   name: string;
