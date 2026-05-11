@@ -1,26 +1,19 @@
-import type { Kysely } from 'kysely';
 import {
-  getArchiveWritesTotal,
-  getArchiveSkippedExistenceTotal,
   getDualWritePgUnreachableTotal,
+  getArchiveSkippedExistenceTotal,
+  getArchiveWritesTotal,
 } from '@libs/chain';
-import type { Logger } from '@libs/chain';
 import type { LogEvent } from '@libs/chain';
-import type {
-  ClickHouseDatabase,
-  PgDatabase,
-  NewArchiveConfirmation,
-  NewIngestionDlq,
-} from '@libs/db';
+import type { Logger } from '@libs/chain';
+import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
 import { sleep } from '@libs/utils';
+import type { ArchiveRepository } from './archive-repository';
 import type { CompoundGovernorEvent } from './types';
 
 export interface ArchiveWriterDeps {
-  pgDb: Kysely<PgDatabase>;
-  chDb: Kysely<ClickHouseDatabase>;
+  repo: ArchiveRepository;
   logger: Logger;
-  /** Wall-clock factory for PG `received_at`, DLQ timestamps. CH `received_at` is server-stamped.
-   *  Injectable for tests. Default `() => new Date()`. */
+  /** Wall-clock factory for PG `received_at` and DLQ timestamps. Injectable for tests. */
   now?: () => Date;
   /** Backoff sequence in ms. Default [200, 600, 1800]. Injectable for tests. */
   retryBackoffMs?: readonly number[];
@@ -61,7 +54,6 @@ const TRANSIENT_NODE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']);
 export function isTransientPgError(err: unknown): boolean {
   if (err == null || typeof err !== 'object') return false;
   const e = err as Record<string, unknown>;
-  // node-pg DatabaseError exposes SQLSTATE on .code; node net errors also use .code
   const code = typeof e['code'] === 'string' ? e['code'] : '';
   if (TRANSIENT_SQLSTATES.has(code)) return true;
   if (TRANSIENT_NODE_CODES.has(code)) return true;
@@ -77,15 +69,13 @@ function serializeError(err: unknown): Record<string, unknown> {
 }
 
 export class ArchiveWriter {
-  private readonly pgDb: Kysely<PgDatabase>;
-  private readonly chDb: Kysely<ClickHouseDatabase>;
+  private readonly repo: ArchiveRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
   private readonly retryBackoffMs: readonly number[];
 
   constructor(deps: ArchiveWriterDeps) {
-    this.pgDb = deps.pgDb;
-    this.chDb = deps.chDb;
+    this.repo = deps.repo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
     this.retryBackoffMs = deps.retryBackoffMs ?? DEFAULT_RETRY_BACKOFF_MS;
@@ -97,15 +87,13 @@ export class ArchiveWriter {
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
     // Step 1 — PG existence check (5-tuple, status-agnostic)
-    const existing = await this.pgDb
-      .selectFrom('archive_confirmation')
-      .select(['id', 'confirmation_status'])
-      .where('source_type', '=', ctx.sourceType)
-      .where('chain_id', '=', ctx.chainId)
-      .where('tx_hash', '=', logRef.txHash)
-      .where('log_index', '=', logRef.logIndex)
-      .where('block_hash', '=', logRef.blockHash)
-      .executeTakeFirst();
+    const existing = await this.repo.findConfirmation({
+      sourceType: ctx.sourceType,
+      chainId: ctx.chainId,
+      txHash: logRef.txHash,
+      logIndex: logRef.logIndex,
+      blockHash: logRef.blockHash,
+    });
 
     if (existing) {
       getArchiveSkippedExistenceTotal().inc({ source: ctx.sourceLabel });
@@ -120,23 +108,16 @@ export class ArchiveWriter {
     const pgReceivedAt = this.now();
 
     // Step 2 — CH insert (idempotent via ReplacingMergeTree; errors propagate to listener)
-    // received_at deliberately omitted — column declares DEFAULT now() (D-F1f-3).
-    // Cast bypasses InsertObject<>'s required-field check; ClickHouse applies the DEFAULT.
-    await this.chDb
-      .insertInto('event_archive_compound_governor')
-      .values({
-        dao_source_id: ctx.daoSourceId,
-        chain_id: ctx.chainId,
-        block_number: logRef.blockNumber.toString(),
-        block_hash: logRef.blockHash,
-        tx_hash: logRef.txHash,
-        log_index: logRef.logIndex,
-        event_type: decoded.type,
-        payload: JSON.stringify(decoded.payload),
-      } as Parameters<
-        ReturnType<typeof this.chDb.insertInto<'event_archive_compound_governor'>>['values']
-      >[0])
-      .execute();
+    await this.repo.insertEvent({
+      daoSourceId: ctx.daoSourceId,
+      chainId: ctx.chainId,
+      blockNumber: logRef.blockNumber.toString(),
+      blockHash: logRef.blockHash,
+      txHash: logRef.txHash,
+      logIndex: logRef.logIndex,
+      eventType: decoded.type,
+      payload: JSON.stringify(decoded.payload),
+    });
 
     // Step 3 — PG insert with retry
     const row: NewArchiveConfirmation = {
@@ -158,12 +139,7 @@ export class ArchiveWriter {
 
     for (let attempt = 0; attempt <= this.retryBackoffMs.length; attempt++) {
       try {
-        const result = await this.pgDb
-          .insertInto('archive_confirmation')
-          .values(row)
-          .onConflict((oc) => oc.constraint('archive_confirmation_idempotency_key').doNothing())
-          .returning('id')
-          .executeTakeFirst();
+        const result = await this.repo.insertConfirmation(row);
 
         if (result?.id) {
           getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });
@@ -189,7 +165,6 @@ export class ArchiveWriter {
           await sleep(this.retryBackoffMs[attempt]!);
           continue;
         }
-        // Non-transient or retries exhausted → step 4
         return await this.routePgFailureToDlq(err, ctx, logRef, pgReceivedAt);
       }
     }
@@ -228,7 +203,7 @@ export class ArchiveWriter {
     };
 
     try {
-      await this.pgDb.insertInto('ingestion_dlq').values(dlqRow).execute();
+      await this.repo.insertDlq(dlqRow);
       getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'pg_dlq_routed' });
       this.logger.error('pg_dlq_routed', {
         ...logRef,

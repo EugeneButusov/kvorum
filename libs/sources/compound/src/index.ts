@@ -13,6 +13,7 @@ export {
   COMPOUND_EVENT_TOPICS,
   decodeCompoundLog,
   DecodeError,
+  ArchiveRepository,
   ArchiveWriter,
   isTransientPgError,
   makeIngesterListener,
