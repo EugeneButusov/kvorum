@@ -23,6 +23,7 @@ module.exports = {
       '@libs/ai': path.join(root, 'libs/ai/src/index.ts'),
       '@libs/utils': path.join(root, 'libs/utils/src/index.ts'),
       '@libs/sources-compound': path.join(root, 'libs/sources/compound/src/index.ts'),
+      '@nest/sources-compound': path.join(root, 'nest/sources/compound/src/index.ts'),
     },
   },
   module: {

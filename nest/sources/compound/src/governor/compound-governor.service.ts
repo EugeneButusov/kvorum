@@ -9,9 +9,9 @@ import {
 } from '@libs/chain';
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
 import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@libs/sources-compound';
-import type { Drainable } from '../../app/drainable-registry';
-import { DrainableRegistry } from '../../app/drainable-registry';
-import { toChainLogger } from '../../app/nest-logger-adapter';
+import type { Drainable } from '../lifecycle/drainable-registry';
+import { DrainableRegistry } from '../lifecycle/drainable-registry';
+import { toChainLogger } from '../utils/nest-logger-adapter';
 
 const DaoSourceConfigSchema = z.object({
   governor_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),

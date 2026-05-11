@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ShutdownLogger } from './shutdown-logger';
-import { DatabaseLifecycleModule } from './database-lifecycle.module';
+import { DatabaseLifecycleModule } from '@nest/sources-compound';
 import { IndexerModule } from '../indexer/indexer.module';
 
 @Module({

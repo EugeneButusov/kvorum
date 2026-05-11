@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { CompoundGovernorService } from './compound-governor.service';
-import { DrainableRegistry } from '../../app/drainable-registry';
+import { DrainableRegistry } from '../lifecycle/drainable-registry';
 import { ArchiveWriter } from '@libs/sources-compound';
 
 // Silence NestJS logs during tests
@@ -44,7 +44,7 @@ jest.mock('@libs/sources-compound', () => ({
 }));
 
 // The service imports toChainLogger from a relative path — mock that module too
-jest.mock('../../app/nest-logger-adapter', () => ({
+jest.mock('../utils/nest-logger-adapter', () => ({
   toChainLogger: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }),
 }));
 
@@ -277,7 +277,7 @@ describe('CompoundGovernorService', () => {
   });
 
   it('#9 — DatabaseLifecycleService: drainAll resolves before pgDb.destroy is called', async () => {
-    const { DatabaseLifecycleService } = await import('../../app/database-lifecycle.service');
+    const { DatabaseLifecycleService } = await import('../lifecycle/database-lifecycle.service');
 
     const callOrder: string[] = [];
     const drainables = {
