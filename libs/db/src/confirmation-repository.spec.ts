@@ -28,65 +28,42 @@ const PG_ROW: NewArchiveConfirmation = {
   derived_at: null,
 };
 
-function makeSelectProxy(returnValue: unknown) {
-  const whereCalls: Array<[string, string, unknown]> = [];
-  const proxy: unknown = new Proxy(
-    {},
-    {
-      get(_target, prop: string) {
-        if (prop === 'where') {
-          return (col: string, op: string, val: unknown) => {
-            whereCalls.push([col, op, val]);
-            return proxy;
-          };
-        }
-        if (prop === 'executeTakeFirst') return () => Promise.resolve(returnValue);
-        return () => proxy;
-      },
-    },
-  );
-  return { proxy, whereCalls };
+function makeSelectChain(returnValue: unknown) {
+  const executeTakeFirst = vi.fn().mockResolvedValue(returnValue);
+  const where = vi.fn();
+  const chain = { select: vi.fn(), where, executeTakeFirst };
+  chain.select.mockReturnValue(chain);
+  where.mockReturnValue(chain);
+  return { selectFrom: vi.fn().mockReturnValue(chain), where, executeTakeFirst };
 }
 
-function makeInsertProxy(opts: { returnValue?: unknown; throws?: unknown } = {}) {
+function makeInsertChain(opts: { returnValue?: unknown; throws?: unknown } = {}) {
   let capturedValues: unknown;
   let capturedConstraint: string | undefined;
-
-  const proxy: unknown = new Proxy(
-    {},
-    {
-      get(_target, prop: string) {
-        if (prop === 'values') {
-          return (v: unknown) => {
-            capturedValues = v;
-            return proxy;
-          };
-        }
-        if (prop === 'onConflict') {
-          return (
-            fn: (oc: { constraint: (name: string) => { doNothing: () => unknown } }) => void,
-          ) => {
-            fn({
-              constraint: (name: string) => {
-                capturedConstraint = name;
-                return { doNothing: () => proxy };
-              },
-            });
-            return proxy;
-          };
-        }
-        if (prop === 'executeTakeFirst') {
-          return opts.throws
-            ? () => Promise.reject(opts.throws)
-            : () => Promise.resolve(opts.returnValue);
-        }
-        return () => proxy;
+  const executeTakeFirst = opts.throws
+    ? vi.fn().mockRejectedValue(opts.throws)
+    : vi.fn().mockResolvedValue(opts.returnValue);
+  const returning = vi.fn().mockReturnValue({ executeTakeFirst });
+  const onConflict = vi
+    .fn()
+    .mockImplementation(
+      (fn: (oc: { constraint: (name: string) => { doNothing: () => unknown } }) => void) => {
+        fn({
+          constraint: (name) => {
+            capturedConstraint = name;
+            return { doNothing: () => ({ returning }) };
+          },
+        });
+        return { returning };
       },
-    },
-  );
-
+    );
+  const values = vi.fn().mockImplementation((v: unknown) => {
+    capturedValues = v;
+    return { onConflict };
+  });
+  const insertInto = vi.fn().mockReturnValue({ values });
   return {
-    proxy,
+    insertInto,
     get capturedValues() {
       return capturedValues;
     },
@@ -100,68 +77,58 @@ describe('ConfirmationRepository', () => {
   describe('find', () => {
     it('#1 — found: returns row from PG', async () => {
       const expected = { id: 'existing-uuid' };
-      const { proxy, whereCalls } = makeSelectProxy(expected);
-      const pgDb = { selectFrom: vi.fn().mockReturnValue(proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const { selectFrom, where, executeTakeFirst } = makeSelectChain(expected);
+      const repo = new ConfirmationRepository({ selectFrom } as never);
       const result = await repo.find(KEY);
 
       expect(result).toEqual(expected);
-      expect(pgDb.selectFrom).toHaveBeenCalledWith('archive_confirmation');
-      expect(whereCalls).toEqual([
+      expect(selectFrom).toHaveBeenCalledWith('archive_confirmation');
+      expect(where.mock.calls).toEqual([
         ['source_type', '=', 'compound_governor'],
         ['chain_id', '=', 1],
         ['tx_hash', '=', KEY.txHash],
         ['log_index', '=', 3],
         ['block_hash', '=', KEY.blockHash],
       ]);
+      expect(executeTakeFirst).toHaveBeenCalledOnce();
     });
 
     it('#2 — not found: returns undefined', async () => {
-      const { proxy } = makeSelectProxy(undefined);
-      const pgDb = { selectFrom: vi.fn().mockReturnValue(proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const { selectFrom } = makeSelectChain(undefined);
+      const repo = new ConfirmationRepository({ selectFrom } as never);
       expect(await repo.find(KEY)).toBeUndefined();
     });
   });
 
   describe('insert', () => {
     it('#3 — inserts into archive_confirmation and returns { id } on success', async () => {
-      const insert = makeInsertProxy({ returnValue: { id: 'new-uuid' } });
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const chain = makeInsertChain({ returnValue: { id: 'new-uuid' } });
+      const repo = new ConfirmationRepository({ insertInto: chain.insertInto } as never);
       const result = await repo.insert(PG_ROW);
 
-      expect(pgDb.insertInto).toHaveBeenCalledWith('archive_confirmation');
+      expect(chain.insertInto).toHaveBeenCalledWith('archive_confirmation');
+      expect(chain.capturedValues).toEqual(PG_ROW);
       expect(result).toEqual({ id: 'new-uuid' });
     });
 
     it('#4 — uses archive_confirmation_idempotency_key constraint for ON CONFLICT', async () => {
-      const insert = makeInsertProxy({ returnValue: { id: 'new-uuid' } });
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const chain = makeInsertChain({ returnValue: { id: 'new-uuid' } });
+      const repo = new ConfirmationRepository({ insertInto: chain.insertInto } as never);
       await repo.insert(PG_ROW);
 
-      expect(insert.capturedConstraint).toBe('archive_confirmation_idempotency_key');
+      expect(chain.capturedConstraint).toBe('archive_confirmation_idempotency_key');
     });
 
     it('#5 — returns undefined when ON CONFLICT fires', async () => {
-      const insert = makeInsertProxy({ returnValue: undefined });
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const chain = makeInsertChain({ returnValue: undefined });
+      const repo = new ConfirmationRepository({ insertInto: chain.insertInto } as never);
       expect(await repo.insert(PG_ROW)).toBeUndefined();
     });
 
     it('#6 — propagates PG errors', async () => {
       const pgErr = new Error('connection refused');
-      const insert = makeInsertProxy({ throws: pgErr });
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ConfirmationRepository(pgDb as never);
+      const chain = makeInsertChain({ throws: pgErr });
+      const repo = new ConfirmationRepository({ insertInto: chain.insertInto } as never);
       await expect(repo.insert(PG_ROW)).rejects.toThrow('connection refused');
     });
   });
