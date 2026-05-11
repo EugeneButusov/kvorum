@@ -19,7 +19,7 @@ export class OpsServer implements OnApplicationBootstrap, OnApplicationShutdown 
       }
     });
     this.server.listen(port, () => {
-      this.logger.log(`[indexer] ops server listening on :${port}`);
+      this.logger.log(`ops server listening on :${port}`);
     });
   }
 
