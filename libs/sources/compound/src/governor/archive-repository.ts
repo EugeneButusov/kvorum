@@ -1,10 +1,5 @@
 import type { Kysely } from 'kysely';
-import type {
-  ClickHouseDatabase,
-  NewArchiveConfirmation,
-  NewIngestionDlq,
-  PgDatabase,
-} from '@libs/db';
+import type { ClickHouseDatabase, NewArchiveConfirmation, PgDatabase } from '@libs/db';
 import type { ArchiveKey, ArchiveRepositoryDeps, ChEventData } from './archive-repository.types';
 
 export class ArchiveRepository {
@@ -53,9 +48,5 @@ export class ArchiveRepository {
       .onConflict((oc) => oc.constraint('archive_confirmation_idempotency_key').doNothing())
       .returning('id')
       .executeTakeFirst();
-  }
-
-  async insertDlq(row: NewIngestionDlq): Promise<void> {
-    await this.pgDb.insertInto('ingestion_dlq').values(row).execute();
   }
 }

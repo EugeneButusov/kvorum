@@ -8,10 +8,12 @@ import type { Logger } from '@libs/chain';
 import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
 import { sleep } from '@libs/utils';
 import type { ArchiveRepository } from './archive-repository';
+import type { DlqRepository } from './dlq-repository';
 import type { CompoundGovernorEvent } from './types';
 
 export interface ArchiveWriterDeps {
   repo: ArchiveRepository;
+  dlqRepo: DlqRepository;
   logger: Logger;
   /** Wall-clock factory for PG `received_at` and DLQ timestamps. Injectable for tests. */
   now?: () => Date;
@@ -70,12 +72,14 @@ function serializeError(err: unknown): Record<string, unknown> {
 
 export class ArchiveWriter {
   private readonly repo: ArchiveRepository;
+  private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
   private readonly retryBackoffMs: readonly number[];
 
   constructor(deps: ArchiveWriterDeps) {
     this.repo = deps.repo;
+    this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
     this.retryBackoffMs = deps.retryBackoffMs ?? DEFAULT_RETRY_BACKOFF_MS;
@@ -203,7 +207,7 @@ export class ArchiveWriter {
     };
 
     try {
-      await this.repo.insertDlq(dlqRow);
+      await this.dlqRepo.insert(dlqRow);
       getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'pg_dlq_routed' });
       this.logger.error('pg_dlq_routed', {
         ...logRef,

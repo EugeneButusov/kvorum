@@ -4,6 +4,7 @@ import { silentLogger } from '@libs/chain';
 import { resetMetrics } from '@libs/chain';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer';
+import type { DlqRepository } from './dlq-repository';
 import { COMPOUND_EVENT_TOPICS } from './events';
 import type { IngesterListenerDeps } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
@@ -33,12 +34,8 @@ function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   };
 }
 
-/** Minimal mock PgDb that accepts DLQ inserts without error. */
-function makePgDb(): unknown {
-  const chain = {
-    values: vi.fn().mockReturnValue({ execute: vi.fn().mockResolvedValue(undefined) }),
-  };
-  return { insertInto: vi.fn().mockReturnValue(chain) };
+function makeDlqRepo(): DlqRepository {
+  return { insert: vi.fn().mockResolvedValue(undefined) } as unknown as DlqRepository;
 }
 
 function makeDeps(writeImpl?: () => ReturnType<ArchiveWriter['write']>): IngesterListenerDeps {
@@ -50,7 +47,7 @@ function makeDeps(writeImpl?: () => ReturnType<ArchiveWriter['write']>): Ingeste
     archiveWriter,
     context: CTX,
     logger: silentLogger,
-    pgDb: makePgDb() as never,
+    dlqRepo: makeDlqRepo(),
   };
 }
 
@@ -121,10 +118,7 @@ describe('makeIngesterListener', () => {
     await listener([unknownLog, validLog]);
 
     // DLQ was attempted for unknown log
-    expect((deps.pgDb as { insertInto: ReturnType<typeof vi.fn> }).insertInto).toHaveBeenCalled();
-    const dlqCall = (deps.pgDb as { insertInto: ReturnType<typeof vi.fn> }).insertInto.mock
-      .calls[0];
-    expect(dlqCall?.[0]).toBe('ingestion_dlq');
+    expect((deps.dlqRepo as { insert: ReturnType<typeof vi.fn> }).insert).toHaveBeenCalledOnce();
 
     // write was still called for the valid event (batch continued)
     expect(deps.archiveWriter.write as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();

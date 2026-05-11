@@ -4,6 +4,7 @@ import { silentLogger } from '@libs/chain';
 import type { ArchiveRepository } from './archive-repository';
 import { ArchiveWriter, isTransientPgError } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer';
+import type { DlqRepository } from './dlq-repository';
 import type { CompoundGovernorEvent } from './types';
 
 // ---- Shared test fixtures ----
@@ -50,21 +51,31 @@ function makeRepo(
     findConfirmation: ReturnType<typeof vi.fn>;
     insertEvent: ReturnType<typeof vi.fn>;
     insertConfirmation: ReturnType<typeof vi.fn>;
-    insertDlq: ReturnType<typeof vi.fn>;
   }> = {},
 ): ArchiveRepository {
   return {
     findConfirmation: vi.fn().mockResolvedValue(undefined),
     insertEvent: vi.fn().mockResolvedValue(undefined),
     insertConfirmation: vi.fn().mockResolvedValue({ id: 'uuid-1' }),
-    insertDlq: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as unknown as ArchiveRepository;
 }
 
-function buildWriter(repo: ArchiveRepository, retryBackoffMs = [0, 0, 0] as const): ArchiveWriter {
+function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {}): DlqRepository {
+  return {
+    insert: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  } as unknown as DlqRepository;
+}
+
+function buildWriter(
+  repo: ArchiveRepository,
+  retryBackoffMs: readonly number[] = [0, 0, 0],
+  dlqRepo: DlqRepository = makeDlqRepo(),
+): ArchiveWriter {
   return new ArchiveWriter({
     repo,
+    dlqRepo,
     logger: silentLogger,
     now: () => new Date('2026-01-01T00:00:00Z'),
     retryBackoffMs,
@@ -122,44 +133,45 @@ describe('ArchiveWriter', () => {
     const repo = makeRepo({
       insertConfirmation: vi.fn().mockRejectedValue(transientErr),
     });
+    const dlqRepo = makeDlqRepo();
 
-    const outcome = await buildWriter(repo, [0, 0, 0]).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('pg_dlq_routed');
-    expect(repo.insertDlq).toHaveBeenCalledTimes(1);
+    expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#6 — non-transient PG error (FK violation 23503) fails fast → DLQ, pg_dlq_routed', async () => {
     const fkErr = Object.assign(new Error('FK violation'), { code: '23503' });
     const repo = makeRepo({ insertConfirmation: vi.fn().mockRejectedValue(fkErr) });
+    const dlqRepo = makeDlqRepo();
 
-    const outcome = await buildWriter(repo, [0, 0, 0]).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('pg_dlq_routed');
     // Non-transient → 1 attempt only, then immediately to DLQ
     expect(repo.insertConfirmation).toHaveBeenCalledTimes(1);
-    expect(repo.insertDlq).toHaveBeenCalledTimes(1);
+    expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#7 — DLQ insert itself fails → pg_unreachable, outcome pg_unreachable', async () => {
     const fkErr = Object.assign(new Error('FK violation'), { code: '23503' });
     const dlqErr = new Error('PG unreachable');
-    const repo = makeRepo({
-      insertConfirmation: vi.fn().mockRejectedValue(fkErr),
-      insertDlq: vi.fn().mockRejectedValue(dlqErr),
-    });
+    const repo = makeRepo({ insertConfirmation: vi.fn().mockRejectedValue(fkErr) });
+    const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(dlqErr) });
 
-    const outcome = await buildWriter(repo, [0, 0, 0]).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('pg_unreachable');
   });
 
   it('#8 — CH insert failure propagates as exception; PG/DLQ NOT attempted', async () => {
     const chErr = new Error('ClickHouse connection refused');
     const repo = makeRepo({ insertEvent: vi.fn().mockRejectedValue(chErr) });
+    const dlqRepo = makeDlqRepo();
 
-    await expect(buildWriter(repo).write(CTX, DECODED, LOG_REF)).rejects.toThrow(
-      'ClickHouse connection refused',
-    );
+    await expect(
+      buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF),
+    ).rejects.toThrow('ClickHouse connection refused');
     expect(repo.insertConfirmation).not.toHaveBeenCalled();
-    expect(repo.insertDlq).not.toHaveBeenCalled();
+    expect(dlqRepo.insert).not.toHaveBeenCalled();
   });
 
   it('#9 — uint256 boundary in payload survives JSON.stringify round-trip', async () => {
@@ -189,15 +201,15 @@ describe('ArchiveWriter', () => {
   it('#12 — DLQ payload is raw-only: { raw: { topics, data }, block_number }', async () => {
     const fkErr = Object.assign(new Error('FK'), { code: '23503' });
     let capturedDlqRow: unknown;
-    const repo = makeRepo({
-      insertConfirmation: vi.fn().mockRejectedValue(fkErr),
-      insertDlq: vi.fn().mockImplementation((row: unknown) => {
+    const repo = makeRepo({ insertConfirmation: vi.fn().mockRejectedValue(fkErr) });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
         capturedDlqRow = row;
         return Promise.resolve();
       }),
     });
 
-    await buildWriter(repo, [0, 0, 0]).write(CTX, DECODED, LOG_REF);
+    await buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF);
     const payload = (capturedDlqRow as Record<string, unknown>)['payload'] as Record<
       string,
       unknown
@@ -213,15 +225,15 @@ describe('ArchiveWriter', () => {
   it('#13 — DLQ error field is shaped { name, message, code, stack }', async () => {
     const cause = Object.assign(new Error('FK violation'), { code: '23503', stack: 'stack...' });
     let capturedDlqRow: unknown;
-    const repo = makeRepo({
-      insertConfirmation: vi.fn().mockRejectedValue(cause),
-      insertDlq: vi.fn().mockImplementation((row: unknown) => {
+    const repo = makeRepo({ insertConfirmation: vi.fn().mockRejectedValue(cause) });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
         capturedDlqRow = row;
         return Promise.resolve();
       }),
     });
 
-    await buildWriter(repo, [0, 0, 0]).write(CTX, DECODED, LOG_REF);
+    await buildWriter(repo, [0, 0, 0], dlqRepo).write(CTX, DECODED, LOG_REF);
     const error = (capturedDlqRow as Record<string, unknown>)['error'];
     expect(error).toMatchObject({ name: 'Error', message: 'FK violation', code: '23503' });
     expect((error as Record<string, unknown>)['stack']).toBeDefined();

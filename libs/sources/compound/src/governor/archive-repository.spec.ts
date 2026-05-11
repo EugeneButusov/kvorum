@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
+import type { NewArchiveConfirmation } from '@libs/db';
 import { ArchiveRepository } from './archive-repository';
 import type { ArchiveKey, ChEventData } from './archive-repository.types';
 
@@ -116,21 +116,6 @@ const PG_ROW: NewArchiveConfirmation = {
   derived_at: null,
 };
 
-const DLQ_ROW: NewIngestionDlq = {
-  stage: 'archive_confirmation_write',
-  source: 'compound_governor',
-  payload: { raw: { topics: [], data: '0x' }, block_number: '20000000' },
-  error: { name: 'Error', message: 'boom' },
-  retries: 3,
-  first_seen_at: new Date('2026-01-01T00:00:00Z'),
-  last_attempt_at: new Date('2026-01-01T00:00:01Z'),
-  archive_source_type: 'compound_governor',
-  archive_chain_id: 1,
-  archive_tx_hash: KEY.txHash,
-  archive_log_index: 3,
-  archive_block_hash: KEY.blockHash,
-};
-
 // ---- Tests ----
 
 describe('ArchiveRepository', () => {
@@ -240,28 +225,6 @@ describe('ArchiveRepository', () => {
 
       const repo = new ArchiveRepository({ pgDb, chDb: {} } as never);
       await expect(repo.insertConfirmation(PG_ROW)).rejects.toThrow('connection refused');
-    });
-  });
-
-  describe('insertDlq', () => {
-    it('#10 — inserts into ingestion_dlq', async () => {
-      const insert = makeInsertProxy();
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ArchiveRepository({ pgDb, chDb: {} } as never);
-      await repo.insertDlq(DLQ_ROW);
-
-      expect(pgDb.insertInto).toHaveBeenCalledWith('ingestion_dlq');
-      expect(insert.capturedValues).toEqual(DLQ_ROW);
-    });
-
-    it('#11 — propagates PG errors', async () => {
-      const pgErr = new Error('PG unreachable');
-      const insert = makeInsertProxy({ throws: pgErr });
-      const pgDb = { insertInto: vi.fn().mockReturnValue(insert.proxy) };
-
-      const repo = new ArchiveRepository({ pgDb, chDb: {} } as never);
-      await expect(repo.insertDlq(DLQ_ROW)).rejects.toThrow('PG unreachable');
     });
   });
 });

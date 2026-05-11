@@ -1,4 +1,3 @@
-import type { Kysely } from 'kysely';
 import type { LogEvent, EventsListener, Logger } from '@libs/chain';
 import {
   getArchiveDecodeErrorsTotal,
@@ -6,17 +5,17 @@ import {
   getBatchDurationSeconds,
 } from '@libs/chain';
 import type { NewIngestionDlq } from '@libs/db';
-import type { PgDatabase } from '@libs/db';
 import type { ArchiveWriteContext } from './archive-writer';
 import { ArchiveWriter } from './archive-writer';
 import { decodeCompoundLog } from './decoder';
+import type { DlqRepository } from './dlq-repository';
 import { DecodeError } from './types';
 
 export interface IngesterListenerDeps {
   archiveWriter: ArchiveWriter;
   context: ArchiveWriteContext;
   logger: Logger;
-  pgDb: Kysely<PgDatabase>;
+  dlqRepo: DlqRepository;
 }
 
 /** Returns an EventsListener that decodes and archives Compound Governor log events. */
@@ -86,7 +85,7 @@ async function routeDecodeErrorToDlq(
   };
 
   try {
-    await deps.pgDb.insertInto('ingestion_dlq').values(dlqRow).execute();
+    await deps.dlqRepo.insert(dlqRow);
     deps.logger.error('decode_error_dlq_routed', {
       txHash: log.txHash,
       logIndex: log.logIndex,

@@ -15,6 +15,7 @@ export {
   DecodeError,
   ArchiveRepository,
   ArchiveWriter,
+  DlqRepository,
   isTransientPgError,
   makeIngesterListener,
 } from './governor/index';
