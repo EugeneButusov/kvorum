@@ -1,3 +1,4 @@
+import type { AbiCacheTable, SelectorIndexTable } from './abi';
 import type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 import type {
   ActorTable,
@@ -9,7 +10,6 @@ import type {
   ReorgEventTable,
   SourceTypeTable,
 } from './domain';
-import type { AbiCacheTable, SelectorIndexTable } from './abi';
 import type {
   ArchiveConfirmationTable,
   IngestionDlqResolvedTable,

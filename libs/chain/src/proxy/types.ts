@@ -1,5 +1,5 @@
-import type { Logger } from '../logger.js';
 import type { RpcClient } from '../client/rpc-client.js';
+import type { Logger } from '../logger.js';
 
 export type ProxyKind = 'eip1967' | 'eip1967-beacon' | 'eip1822' | 'oz-zeppelinos';
 

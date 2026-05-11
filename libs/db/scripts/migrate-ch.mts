@@ -4,10 +4,10 @@
 // clickhouse-migrations takes a single --migrations-dir, so this script
 // globs all per-source dirs, sorts files by basename, copies them into a
 // single temp directory, and invokes the runner once.
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { spawnSync } from 'node:child_process';
 
 const repoRoot = path.join(import.meta.dirname, '../../..');
 const sourcesDir = path.join(repoRoot, 'libs/sources');

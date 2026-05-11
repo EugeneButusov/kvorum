@@ -1,5 +1,6 @@
-import tseslint from 'typescript-eslint';
 import nextPlugin from '@next/eslint-plugin-next';
+import importPlugin from 'eslint-plugin-import';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
@@ -18,6 +19,25 @@ export default tseslint.config(
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs['core-web-vitals'].rules,
+    },
+  },
+  {
+    plugins: { import: importPlugin },
+    rules: {
+      'import/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
+          pathGroups: [
+            { pattern: '@libs/**', group: 'internal', position: 'before' },
+            { pattern: '@sources/**', group: 'internal', position: 'before' },
+            { pattern: '@nest/**', group: 'internal', position: 'before' },
+          ],
+          pathGroupsExcludedImportTypes: ['builtin'],
+          'newlines-between': 'ignore',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
     },
   },
   {

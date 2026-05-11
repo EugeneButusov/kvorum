@@ -1,10 +1,10 @@
 import type { JsonRpcProvider } from 'ethers';
 import { sleep } from '@libs/utils';
+import type { ProviderState } from '../client/provider-state.js';
 import type { ChainConfig } from '../config/config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 import type { Logger } from '../logger.js';
 import { silentLogger } from '../logger.js';
-import type { ProviderState } from '../client/provider-state.js';
 import {
   getHealthCheckFailuresTotal,
   getProviderLagBlocks,

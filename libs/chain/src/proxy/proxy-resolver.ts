@@ -1,9 +1,9 @@
 import { silentLogger } from '../logger.js';
-import { getProxyResolutionsTotal } from '../metrics/metrics.js';
 import { STANDARD_PROXY_SLOTS } from './slots.js';
-import type { Logger } from '../logger.js';
 import type { RpcClient } from '../client/rpc-client.js';
+import type { Logger } from '../logger.js';
 import type { ResolutionResult, ResolutionStep, ResolverOptions } from './types.js';
+import { getProxyResolutionsTotal } from '../metrics/metrics.js';
 
 const ZERO_ADDRESS = '0x' + '0'.repeat(40);
 const DEFAULT_MAX_DEPTH = 3;

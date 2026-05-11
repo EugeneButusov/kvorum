@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { categorizeError, scrubError } from './errors.js';
 import { AllProvidersFailedError } from './all-providers-failed.error.js';
 import { ChainConfigError } from './chain-config.error.js';
 import { ClientStoppedError } from './client-stopped.error.js';
+import { categorizeError, scrubError } from './errors.js';
 import { NotImplementedError } from './not-implemented.error.js';
 
 function ethersError(code: string, extra: Record<string, unknown> = {}): unknown {

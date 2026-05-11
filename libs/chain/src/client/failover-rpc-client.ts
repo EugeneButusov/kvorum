@@ -1,13 +1,16 @@
 import type { JsonRpcProvider } from 'ethers';
 import type { ChainConfig } from '../config/config.js';
 import type { Logger } from '../logger.js';
+import { createJsonRpcProvider } from './provider-factory.js';
 import type { ProviderState } from './provider-state.js';
+import { createProviderState } from './provider-state.js';
 import type { RpcClient, RpcClientHealth, RpcSendOptions } from './rpc-client.js';
 import { AllProvidersFailedError } from '../errors/all-providers-failed.error.js';
 import { ClientStoppedError } from '../errors/client-stopped.error.js';
 import { DeadlineError } from '../errors/deadline.error.js';
 import { categorizeError, scrubError, type ErrorReason } from '../errors/errors.js';
 import { HealthChecker, type HealthCheckerOptions } from '../health/health-checker.js';
+import { silentLogger } from '../logger.js';
 import {
   getCircuitState,
   getRpcFailuresTotal,
@@ -15,9 +18,6 @@ import {
   getRpcRequestsTotal,
   sanitizeMethod,
 } from '../metrics/metrics.js';
-import { createJsonRpcProvider } from './provider-factory.js';
-import { createProviderState } from './provider-state.js';
-import { silentLogger } from '../logger.js';
 
 interface ProviderEntry {
   config: ChainConfig['providers'][number];

@@ -1,8 +1,8 @@
-import { Kysely, PostgresDialect } from 'kysely';
 import { ClickhouseDialect } from '@founderpath/kysely-clickhouse';
+import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
-import type { PgDatabase } from './schema/pg';
 import type { ClickHouseDatabase } from './schema/clickhouse';
+import type { PgDatabase } from './schema/pg';
 
 // numeric (OID 1700) and bigint (OID 20) are intentionally returned as string
 // by the pg driver. Do NOT register custom pg-types parsers for these OIDs —

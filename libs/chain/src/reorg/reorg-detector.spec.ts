@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resetMetrics, getReorgSignalsTotal } from '../metrics/metrics.js';
-import type { RpcClient } from '../client/rpc-client.js';
-import type { Head } from '../poller/types.js';
-import type { ReorgSignal, BufferResetSignal } from './types.js';
 import { ReorgDetector } from './reorg-detector.js';
+import type { ReorgSignal, BufferResetSignal } from './types.js';
+import type { RpcClient } from '../client/rpc-client.js';
+import { resetMetrics, getReorgSignalsTotal } from '../metrics/metrics.js';
+import type { Head } from '../poller/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
