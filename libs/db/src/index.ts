@@ -1,11 +1,6 @@
 export { pgDb, chDb } from './client';
 export type { PgDatabase } from './schema/pg';
-export type {
-  EventArchiveCompoundGovernor,
-  EventArchiveCompoundGovernorTable,
-  NewEventArchiveCompoundGovernor,
-  ClickHouseDatabase,
-} from './schema/clickhouse';
+export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {
   AdminAudit,
   AdminAuditTable,

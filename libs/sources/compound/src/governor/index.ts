@@ -1,3 +1,9 @@
+export type {
+  EventArchiveCompoundGovernor,
+  EventArchiveCompoundGovernorTable,
+  NewEventArchiveCompoundGovernor,
+} from './schema.js';
+
 export {
   COMPOUND_GOVERNOR_EVENTS,
   COMPOUND_GOVERNOR_INTERFACE,
