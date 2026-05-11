@@ -135,7 +135,7 @@ describe('F1 archive metrics', () => {
     c.inc({ source: 'compound_governor', result: 'inserted' });
     c.inc({ source: 'compound_governor', result: 'skipped_existing' });
     c.inc({ source: 'compound_governor', result: 'skipped_conflict' });
-    c.inc({ source: 'compound_governor', result: 'pg_dlq_routed' });
+    c.inc({ source: 'compound_governor', result: 'dlq_routed' });
     expect(c).toBeDefined();
   });
 
@@ -198,12 +198,11 @@ describe('F1 archive metrics', () => {
     expect(getBatchDurationSeconds()).not.toBe(b1);
   });
 
-  it('guard: archive_writes_total never receives pg_unreachable result label', async () => {
+  it('guard: archive_writes_total never receives unreachable result label', async () => {
     getArchiveWritesTotal();
     const registry = getChainMetricsRegistry();
     const metrics = await registry.metrics();
-    // The counter should not contain pg_unreachable in its result label
-    expect(metrics).not.toContain('result="pg_unreachable"');
+    expect(metrics).not.toContain('result="unreachable"');
     expect(metrics).not.toContain('result="ch_dlq_routed"');
     expect(metrics).not.toContain('result="decode_error"');
   });

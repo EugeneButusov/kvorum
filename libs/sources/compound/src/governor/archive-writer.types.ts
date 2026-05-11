@@ -19,5 +19,5 @@ export interface ArchiveWriteContext {
 }
 
 export type ArchiveWriteOutcome = {
-  result: 'inserted' | 'skipped_existing' | 'skipped_conflict' | 'pg_dlq_routed' | 'pg_unreachable';
+  result: 'inserted' | 'skipped_existing' | 'skipped_conflict' | 'dlq_routed' | 'unreachable';
 };

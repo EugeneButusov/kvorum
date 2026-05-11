@@ -252,7 +252,7 @@ export function getArchiveWritesTotal(): Counter {
   if (!archiveWritesTotal) {
     archiveWritesTotal = new Counter({
       name: 'kvorum_ingestion_archive_writes_total',
-      help: 'Archive write outcomes by source. result=inserted|skipped_existing|skipped_conflict|pg_dlq_routed. CH errors → kvorum_archive_ch_write_errors_total; decode errors → kvorum_archive_decode_errors_total; pg_unreachable → kvorum_dual_write_pg_unreachable_total.',
+      help: 'Archive write outcomes by source. result=inserted|skipped_existing|skipped_conflict|dlq_routed. Archive errors → kvorum_archive_ch_write_errors_total; decode errors → kvorum_archive_decode_errors_total; unreachable → kvorum_dual_write_pg_unreachable_total.',
       labelNames: ['source', 'result'],
       registers: [registry],
     });

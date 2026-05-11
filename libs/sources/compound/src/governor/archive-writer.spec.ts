@@ -132,7 +132,7 @@ describe('ArchiveWriter', () => {
     const dlqRepo = makeDlqRepo();
 
     const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('pg_dlq_routed');
+    expect(outcome.result).toBe('dlq_routed');
     expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
@@ -143,7 +143,7 @@ describe('ArchiveWriter', () => {
     const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('dlq down')) });
 
     const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('pg_unreachable');
+    expect(outcome.result).toBe('unreachable');
   });
 
   it('#6 — eventRepo.insert failure propagates as exception; confirmation/DLQ NOT attempted', async () => {

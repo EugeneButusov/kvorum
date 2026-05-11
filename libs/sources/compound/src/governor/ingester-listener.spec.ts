@@ -128,7 +128,7 @@ describe('makeIngesterListener', () => {
     let callCount = 0;
     const deps = makeDeps(() => {
       callCount++;
-      if (callCount === 1) return Promise.resolve({ result: 'pg_unreachable' as const });
+      if (callCount === 1) return Promise.resolve({ result: 'unreachable' as const });
       return Promise.resolve({ result: 'inserted' as const });
     });
     const listener = makeIngesterListener(deps);

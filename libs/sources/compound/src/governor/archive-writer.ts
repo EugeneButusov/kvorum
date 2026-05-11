@@ -65,7 +65,7 @@ export class ArchiveWriter {
       return { result: 'skipped_existing' };
     }
 
-    const pgReceivedAt = this.now();
+    const receivedAt = this.now();
 
     // Step 2 — event archive insert (idempotent; errors propagate to listener)
     await this.eventRepo.insert({
@@ -89,7 +89,7 @@ export class ArchiveWriter {
       tx_hash: logRef.txHash,
       log_index: logRef.logIndex,
       event_type: decoded.type,
-      received_at: pgReceivedAt,
+      received_at: receivedAt,
       confirmation_status: 'pending',
       confirmed_at: null,
       orphaned_at: null,
@@ -102,7 +102,7 @@ export class ArchiveWriter {
 
       if (result?.id) {
         getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });
-        this.logger.debug('pg_inserted', {
+        this.logger.debug('confirmation_inserted', {
           ...logRef,
           blockNumber: logRef.blockNumber.toString(),
           archive_id: result.id,
@@ -112,21 +112,21 @@ export class ArchiveWriter {
 
       // ON CONFLICT fired — concurrent writer beat us; idempotent
       getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'skipped_conflict' });
-      this.logger.debug('pg_conflict_skip', {
+      this.logger.debug('confirmation_conflict_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
       });
       return { result: 'skipped_conflict' };
     } catch (err) {
-      return await this.routePgFailureToDlq(err, ctx, logRef, pgReceivedAt);
+      return await this.routeToDlq(err, ctx, logRef, receivedAt);
     }
   }
 
-  private async routePgFailureToDlq(
+  private async routeToDlq(
     err: unknown,
     ctx: ArchiveWriteContext,
     logRef: LogEvent,
-    pgReceivedAt: Date,
+    receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
       stage: 'archive_confirmation_write',
@@ -137,7 +137,7 @@ export class ArchiveWriter {
       },
       error: serializeError(err),
       retries: 0,
-      first_seen_at: pgReceivedAt,
+      first_seen_at: receivedAt,
       last_attempt_at: this.now(),
       archive_source_type: ctx.sourceType,
       archive_chain_id: ctx.chainId,
@@ -148,20 +148,20 @@ export class ArchiveWriter {
 
     try {
       await this.dlqRepo.insert(dlqRow);
-      getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'pg_dlq_routed' });
-      this.logger.error('pg_dlq_routed', {
+      getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'dlq_routed' });
+      this.logger.error('dlq_routed', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
         error: String(err),
       });
-      return { result: 'pg_dlq_routed' };
+      return { result: 'dlq_routed' };
     } catch (dlqErr) {
       getDualWritePgUnreachableTotal().inc({ source: ctx.sourceLabel });
       this.logger.error('dlq_insert_failed', {
         originalError: String(err),
         dlqError: String(dlqErr),
       });
-      return { result: 'pg_unreachable' };
+      return { result: 'unreachable' };
     }
   }
 }
