@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS event_archive_compound_governor
     tx_hash         FixedString(66) CODEC(ZSTD(1)),
     log_index       UInt32 CODEC(ZSTD(1)),
     event_type      LowCardinality(String),
-    received_at     DateTime CODEC(DoubleDelta, ZSTD(1)) DEFAULT now(),
+    received_at     DateTime DEFAULT now() CODEC(DoubleDelta, ZSTD(1)),
     payload         String CODEC(ZSTD(3)),
     INDEX bf_tx_hash tx_hash TYPE bloom_filter(0.01) GRANULARITY 4
 )
