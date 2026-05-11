@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { CompoundGovernorService } from './compound-governor.service';
 import { DrainableRegistry } from '../lifecycle/drainable-registry';
-import { ArchiveWriter } from '@libs/sources-compound';
+import { ArchiveWriter } from '@sources/compound';
 
 // Silence NestJS logs during tests
 jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -32,7 +32,7 @@ jest.mock('@libs/chain', () => ({
   toChainLogger: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('@libs/sources-compound', () => ({
+jest.mock('@sources/compound', () => ({
   ArchiveWriter: jest.fn(),
   makeIngesterListener: jest.fn().mockReturnValue(jest.fn()),
   COMPOUND_EVENT_TOPICS: {

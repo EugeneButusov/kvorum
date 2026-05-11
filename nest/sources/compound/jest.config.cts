@@ -12,8 +12,8 @@ module.exports = {
     '^@libs/db$': '<rootDir>/../../../libs/db/src/index.ts',
     '^@libs/chain$': '<rootDir>/../../../libs/chain/src/index.ts',
     '^@libs/utils$': '<rootDir>/../../../libs/utils/src/index.ts',
-    '^@libs/sources-compound$': '<rootDir>/../../../libs/sources/compound/src/index.ts',
-    '^@nest/sources-compound$': '<rootDir>/src/index.ts',
+    '^@sources/compound$': '<rootDir>/../../../libs/sources/compound/src/index.ts',
+    '^@nest/compound$': '<rootDir>/src/index.ts',
   },
   coverageDirectory: '../../../coverage/nest/sources/compound',
 };

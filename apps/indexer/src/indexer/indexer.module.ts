@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CompoundGovernorModule } from '@nest/sources-compound';
+import { CompoundGovernorModule } from '@nest/compound';
 
 @Module({
   imports: [CompoundGovernorModule],

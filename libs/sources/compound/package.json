@@ -1,5 +1,5 @@
 {
-  "name": "@libs/sources-compound",
+  "name": "@sources/compound",
   "version": "0.0.1",
   "private": true,
   "type": "module",

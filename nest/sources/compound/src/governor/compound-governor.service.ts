@@ -8,7 +8,7 @@ import {
   type ChainConfig,
 } from '@libs/chain';
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
-import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@libs/sources-compound';
+import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
 import type { Drainable } from '../lifecycle/drainable-registry';
 import { DrainableRegistry } from '../lifecycle/drainable-registry';
 import { toChainLogger } from '../utils/nest-logger-adapter';
