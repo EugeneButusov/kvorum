@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { decodeCompoundLog } from './decoder.js';
-import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events.js';
-import { DecodeError } from './types.js';
+import { decodeCompoundLog } from './decoder';
+import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events';
+import { DecodeError } from './types';
 import type { LogEvent } from '@libs/chain';
 
 // Reference topic0 hashes from the canonical Compound GovernorBravoDelegate ABI.

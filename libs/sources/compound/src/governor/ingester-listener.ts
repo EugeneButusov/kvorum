@@ -7,10 +7,10 @@ import {
 import type { NewIngestionDlq } from '@libs/db';
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
-import type { ArchiveWriteContext } from './archive-writer.js';
-import { ArchiveWriter } from './archive-writer.js';
-import { decodeCompoundLog } from './decoder.js';
-import { DecodeError } from './types.js';
+import type { ArchiveWriteContext } from './archive-writer';
+import { ArchiveWriter } from './archive-writer';
+import { decodeCompoundLog } from './decoder';
+import { DecodeError } from './types';
 
 export interface IngesterListenerDeps {
   archiveWriter: ArchiveWriter;

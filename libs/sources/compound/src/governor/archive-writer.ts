@@ -13,7 +13,7 @@ import {
 } from '@libs/chain';
 import { sleep } from '@libs/utils';
 import type { LogEvent } from '@libs/chain';
-import type { CompoundGovernorEvent } from './types.js';
+import type { CompoundGovernorEvent } from './types';
 
 export interface ArchiveWriterDeps {
   pgDb: Kysely<PgDatabase>;

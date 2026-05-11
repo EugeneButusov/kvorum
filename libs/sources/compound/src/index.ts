@@ -1,11 +1,11 @@
-export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices.js';
+export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices';
 // Re-export the CH table type so @sources/compound is the canonical
 // import point for consumers of the compound archive schema.
 export type {
   EventArchiveCompoundGovernor,
   EventArchiveCompoundGovernorTable,
   NewEventArchiveCompoundGovernor,
-} from './governor/index.js';
+} from './governor/index';
 
 export {
   COMPOUND_GOVERNOR_EVENTS,
@@ -16,7 +16,7 @@ export {
   ArchiveWriter,
   isTransientPgError,
   makeIngesterListener,
-} from './governor/index.js';
+} from './governor/index';
 
 export type {
   CompoundEventType,
@@ -29,4 +29,4 @@ export type {
   ArchiveWriteContext,
   ArchiveWriteOutcome,
   IngesterListenerDeps,
-} from './governor/index.js';
+} from './governor/index';

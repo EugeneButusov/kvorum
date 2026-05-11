@@ -2,14 +2,14 @@ export type {
   EventArchiveCompoundGovernor,
   EventArchiveCompoundGovernorTable,
   NewEventArchiveCompoundGovernor,
-} from './schema.js';
+} from './schema';
 
 export {
   COMPOUND_GOVERNOR_EVENTS,
   COMPOUND_GOVERNOR_INTERFACE,
   COMPOUND_EVENT_TOPICS,
-} from './events.js';
-export type { CompoundEventType } from './events.js';
+} from './events';
+export type { CompoundEventType } from './events';
 
 export type {
   CompoundGovernorEvent,
@@ -17,17 +17,13 @@ export type {
   ProposalQueuedPayload,
   ProposalExecutedPayload,
   ProposalCanceledPayload,
-} from './types.js';
-export { DecodeError } from './types.js';
+} from './types';
+export { DecodeError } from './types';
 
-export { decodeCompoundLog } from './decoder.js';
+export { decodeCompoundLog } from './decoder';
 
-export type {
-  ArchiveWriterDeps,
-  ArchiveWriteContext,
-  ArchiveWriteOutcome,
-} from './archive-writer.js';
-export { ArchiveWriter, isTransientPgError } from './archive-writer.js';
+export type { ArchiveWriterDeps, ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer';
+export { ArchiveWriter, isTransientPgError } from './archive-writer';
 
-export type { IngesterListenerDeps } from './ingester-listener.js';
-export { makeIngesterListener } from './ingester-listener.js';
+export type { IngesterListenerDeps } from './ingester-listener';
+export { makeIngesterListener } from './ingester-listener';

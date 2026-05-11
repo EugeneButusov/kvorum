@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ArchiveWriter, isTransientPgError } from './archive-writer.js';
-import type { ArchiveWriteContext } from './archive-writer.js';
-import type { CompoundGovernorEvent } from './types.js';
+import { ArchiveWriter, isTransientPgError } from './archive-writer';
+import type { ArchiveWriteContext } from './archive-writer';
+import type { CompoundGovernorEvent } from './types';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 
