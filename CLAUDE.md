@@ -10,7 +10,7 @@ Guidance for Claude Code working in this repo.
 | Package manager     | pnpm 11                      | workspace monorepo; use `-w` for root scripts                                             |
 | Build orchestration | pnpm scripts                 | `pnpm -r run build/test`, `pnpm -w lint/typecheck`                                        |
 | API                 | NestJS 11                    | `apps/api` — HTTP + REST                                                                  |
-| Workers             | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                                                |
+| Workers             | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — ops HTTP on `OPS_PORT` (default 9091)                  |
 | Dashboard           | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                                           |
 | Database (primary)  | PostgreSQL 18                | Kysely query builder + built-in Migrator                                                  |
 | Database (archive)  | ClickHouse 24                | `@founderpath/kysely-clickhouse` dialect for queries; `clickhouse-migrations` npm for DDL |
@@ -78,6 +78,15 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).
 
 Each provider that owns async resources (pollers, RPC clients) should implement `OnApplicationShutdown` and drain them there. `pgDb.destroy()` is not required — the OS closes sockets cleanly on process exit and Postgres handles abrupt disconnects fine.
+
+## Ops endpoints
+
+Every process that produces metrics exposes a `GET /metrics` endpoint in Prometheus text format:
+
+- `apps/api` — served on the main port (default 3001) via `MetricsController`.
+- `apps/indexer`, `apps/ai-worker` — served by the `OpsServer` Nest provider on `OPS_PORT` (default 9091). For local dev with multiple workers, set `OPS_PORT=9092` etc. per process.
+
+Each app's `main.ts` sets `OTEL_SERVICE_NAME ??= '<app>'` before the Nest context boots. `OTEL_SERVICE_NAMESPACE` must be provided via environment — `@libs/observability` throws on import if it is unset.
 
 ## Kysely migrations
 

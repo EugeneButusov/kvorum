@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+process.env['OTEL_SERVICE_NAME'] ??= 'api';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
