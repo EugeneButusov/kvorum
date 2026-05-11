@@ -4,11 +4,10 @@ import {
   getArchiveChWriteErrorsTotal,
   getBatchDurationSeconds,
 } from '@libs/chain';
-import type { NewIngestionDlq } from '@libs/db';
+import type { DlqRepository, NewIngestionDlq } from '@libs/db';
 import type { ArchiveWriteContext } from './archive-writer';
 import { ArchiveWriter } from './archive-writer';
 import { decodeCompoundLog } from './decoder';
-import type { DlqRepository } from './dlq-repository';
 import { DecodeError } from './types';
 
 export interface IngesterListenerDeps {

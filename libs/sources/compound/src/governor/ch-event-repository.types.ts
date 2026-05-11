@@ -1,14 +1,6 @@
 import type { Kysely } from 'kysely';
-import type { ClickHouseDatabase, PgDatabase } from '@libs/db';
+import type { ClickHouseDatabase } from '@libs/db';
 import type { CompoundGovernorEvent } from './types';
-
-export interface ArchiveKey {
-  sourceType: 'compound_governor';
-  chainId: number;
-  txHash: string;
-  logIndex: number;
-  blockHash: string;
-}
 
 export interface ChEventData {
   daoSourceId: string;
@@ -21,7 +13,6 @@ export interface ChEventData {
   payload: string;
 }
 
-export interface ArchiveRepositoryDeps {
-  pgDb: Kysely<PgDatabase>;
+export interface ChEventRepositoryDeps {
   chDb: Kysely<ClickHouseDatabase>;
 }

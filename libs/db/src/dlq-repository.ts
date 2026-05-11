@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { NewIngestionDlq, PgDatabase } from '@libs/db';
+import type { NewIngestionDlq, PgDatabase } from './schema/pg';
 
 export class DlqRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}

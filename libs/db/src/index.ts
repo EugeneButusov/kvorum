@@ -1,4 +1,7 @@
 export { pgDb, chDb } from './client';
+export type { ConfirmationKey } from './confirmation-repository';
+export { ConfirmationRepository } from './confirmation-repository';
+export { DlqRepository } from './dlq-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {

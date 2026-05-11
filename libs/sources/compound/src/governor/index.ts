@@ -22,9 +22,8 @@ export { DecodeError } from './types';
 
 export { decodeCompoundLog } from './decoder';
 
-export type { ArchiveRepositoryDeps, ArchiveKey, ChEventData } from './archive-repository.types';
-export { ArchiveRepository } from './archive-repository';
-export { DlqRepository } from './dlq-repository';
+export type { ChEventData, ChEventRepositoryDeps } from './ch-event-repository.types';
+export { ChEventRepository } from './ch-event-repository';
 
 export type { ArchiveWriterDeps, ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer';
 export { ArchiveWriter, isTransientPgError } from './archive-writer';

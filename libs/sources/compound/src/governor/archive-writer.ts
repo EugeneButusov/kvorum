@@ -5,14 +5,19 @@ import {
 } from '@libs/chain';
 import type { LogEvent } from '@libs/chain';
 import type { Logger } from '@libs/chain';
-import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
+import type {
+  ConfirmationRepository,
+  DlqRepository,
+  NewArchiveConfirmation,
+  NewIngestionDlq,
+} from '@libs/db';
 import { sleep } from '@libs/utils';
-import type { ArchiveRepository } from './archive-repository';
-import type { DlqRepository } from './dlq-repository';
+import type { ChEventRepository } from './ch-event-repository';
 import type { CompoundGovernorEvent } from './types';
 
 export interface ArchiveWriterDeps {
-  repo: ArchiveRepository;
+  chRepo: ChEventRepository;
+  confirmationRepo: ConfirmationRepository;
   dlqRepo: DlqRepository;
   logger: Logger;
   /** Wall-clock factory for PG `received_at` and DLQ timestamps. Injectable for tests. */
@@ -71,14 +76,16 @@ function serializeError(err: unknown): Record<string, unknown> {
 }
 
 export class ArchiveWriter {
-  private readonly repo: ArchiveRepository;
+  private readonly chRepo: ChEventRepository;
+  private readonly confirmationRepo: ConfirmationRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
   private readonly retryBackoffMs: readonly number[];
 
   constructor(deps: ArchiveWriterDeps) {
-    this.repo = deps.repo;
+    this.chRepo = deps.chRepo;
+    this.confirmationRepo = deps.confirmationRepo;
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
@@ -91,7 +98,7 @@ export class ArchiveWriter {
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
     // Step 1 — PG existence check (5-tuple, status-agnostic)
-    const existing = await this.repo.findConfirmation({
+    const existing = await this.confirmationRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
@@ -112,7 +119,7 @@ export class ArchiveWriter {
     const pgReceivedAt = this.now();
 
     // Step 2 — CH insert (idempotent via ReplacingMergeTree; errors propagate to listener)
-    await this.repo.insertEvent({
+    await this.chRepo.insert({
       daoSourceId: ctx.daoSourceId,
       chainId: ctx.chainId,
       blockNumber: logRef.blockNumber.toString(),
@@ -143,7 +150,7 @@ export class ArchiveWriter {
 
     for (let attempt = 0; attempt <= this.retryBackoffMs.length; attempt++) {
       try {
-        const result = await this.repo.insertConfirmation(row);
+        const result = await this.confirmationRepo.insert(row);
 
         if (result?.id) {
           getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });

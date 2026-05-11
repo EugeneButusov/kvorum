@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { NewIngestionDlq } from '@libs/db';
+import type { NewIngestionDlq } from './schema/pg';
 import { DlqRepository } from './dlq-repository';
 
 const DLQ_ROW: NewIngestionDlq = {

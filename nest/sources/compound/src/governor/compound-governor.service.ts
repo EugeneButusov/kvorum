@@ -7,13 +7,8 @@ import {
   type ChainConfig,
 } from '@libs/chain';
 import { getIndexerActiveSources, getPendingEventCount } from '@libs/chain';
-import { pgDb } from '@libs/db';
-import {
-  ArchiveWriter,
-  DlqRepository,
-  makeIngesterListener,
-  COMPOUND_EVENT_TOPICS,
-} from '@sources/compound';
+import { pgDb, DlqRepository } from '@libs/db';
+import { ArchiveWriter, makeIngesterListener, COMPOUND_EVENT_TOPICS } from '@sources/compound';
 import { toChainLogger } from '../utils/nest-logger-adapter';
 
 const DaoSourceConfigSchema = z.object({

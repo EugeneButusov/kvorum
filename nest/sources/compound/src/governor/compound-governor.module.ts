@@ -1,6 +1,6 @@
 import { Module, Logger } from '@nestjs/common';
-import { pgDb, chDb } from '@libs/db';
-import { ArchiveRepository, ArchiveWriter, DlqRepository } from '@sources/compound';
+import { pgDb, chDb, ConfirmationRepository, DlqRepository } from '@libs/db';
+import { ChEventRepository, ArchiveWriter } from '@sources/compound';
 import { CompoundGovernorService } from './compound-governor.service';
 import { toChainLogger } from '../utils/nest-logger-adapter';
 
@@ -9,10 +9,12 @@ import { toChainLogger } from '../utils/nest-logger-adapter';
     {
       provide: ArchiveWriter,
       useFactory: () => {
-        const repo = new ArchiveRepository({ pgDb, chDb });
+        const chRepo = new ChEventRepository({ chDb });
+        const confirmationRepo = new ConfirmationRepository(pgDb);
         const dlqRepo = new DlqRepository(pgDb);
         return new ArchiveWriter({
-          repo,
+          chRepo,
+          confirmationRepo,
           dlqRepo,
           logger: toChainLogger(new Logger('ArchiveWriter')),
         });
