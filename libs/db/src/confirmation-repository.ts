@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
-import { isTransientDbError } from './utils';
 import type { NewArchiveConfirmation, PgDatabase } from './schema/pg';
+import { isTransientDbError } from './utils';
 
 export interface ConfirmationKey {
   sourceType: string;
