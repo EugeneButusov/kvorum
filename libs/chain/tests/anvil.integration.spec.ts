@@ -292,7 +292,7 @@ describeIf('Anvil integration', () => {
 
     // Trigger a 2-block reorg. Anvil re-mines the dropped blocks with auto-incremented
     // timestamps so the re-mined block hashes differ from the originals.
-    await client.send('anvil_reorg', [2]);
+    await client.send('anvil_reorg', [2, []]);
 
     // Wait for at least one more poll interval to detect the reorg
     await new Promise<void>((r) => setTimeout(r, 700));
