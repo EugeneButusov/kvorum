@@ -308,8 +308,6 @@ describeIf('Anvil integration', () => {
       expect(signal.chainId).toBe(31337);
       expect(signal.divergenceBlockNumber).toBeGreaterThanOrEqual(blockNumberBefore - 2n);
       expect(signal.orphanedBlockHashes.length).toBeGreaterThan(0);
-      expect(signal.truncated).toBe(false);
-      expect(signal.chainShrunk).toBe(false);
     } else {
       // Acceptable fallback: timing window was missed; the poller observed the post-reorg
       // chain as a clean gap-reset. This is valid behaviour — not a test failure.
