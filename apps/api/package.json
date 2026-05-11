@@ -5,7 +5,7 @@
   "scripts": {
     "build": "webpack-cli build --node-env=production",
     "build:dev": "webpack-cli build --node-env=development",
-    "test": "jest --passWithNoTests",
+    "test": "vitest run",
     "lint": "eslint src"
   }
 }

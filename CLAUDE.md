@@ -4,24 +4,23 @@ Guidance for Claude Code working in this repo.
 
 ## Stack snapshot (M1)
 
-| Layer                      | Choice                       | Notes                                                                                     |
-| -------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| Runtime                    | Node 24 LTS                  | `.nvmrc` pins the minor                                                                   |
-| Package manager            | pnpm 11                      | workspace monorepo; use `-w` for root scripts                                             |
-| Build orchestration        | pnpm scripts                 | `pnpm -r run build/test`, `pnpm -w lint/typecheck`                                        |
-| API                        | NestJS 11                    | `apps/api` — HTTP + REST                                                                  |
-| Workers                    | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                                                |
-| Dashboard                  | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                                           |
-| Database (primary)         | PostgreSQL 18                | Kysely query builder + built-in Migrator                                                  |
-| Database (archive)         | ClickHouse 24                | `@founderpath/kysely-clickhouse` dialect for queries; `clickhouse-migrations` npm for DDL |
-| Testing (libs + dashboard) | Vitest 4                     |                                                                                           |
-| Testing (NestJS apps)      | Jest 30                      | ts-jest transform; moduleNameMapper for `@libs/*` aliases                                 |
-| Language                   | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                                         |
-| Linting                    | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages                          |
-| Formatting                 | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
-| Git hooks                  | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
-| Admin CLI                  | commander 14 (Node ESM)      | `apps/admin-cli` — operator tooling, single-file bundle                                   |
-| Chain client               | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
+| Layer               | Choice                       | Notes                                                                                     |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| Runtime             | Node 24 LTS                  | `.nvmrc` pins the minor                                                                   |
+| Package manager     | pnpm 11                      | workspace monorepo; use `-w` for root scripts                                             |
+| Build orchestration | pnpm scripts                 | `pnpm -r run build/test`, `pnpm -w lint/typecheck`                                        |
+| API                 | NestJS 11                    | `apps/api` — HTTP + REST                                                                  |
+| Workers             | NestJS 11 standalone context | `apps/indexer`, `apps/ai-worker` — no HTTP                                                |
+| Dashboard           | Next.js 16 App Router        | `apps/dashboard`, Turbopack dev                                                           |
+| Database (primary)  | PostgreSQL 18                | Kysely query builder + built-in Migrator                                                  |
+| Database (archive)  | ClickHouse 24                | `@founderpath/kysely-clickhouse` dialect for queries; `clickhouse-migrations` npm for DDL |
+| Testing             | Vitest 4                     | all packages — `vitest run`; `globals: true`; aliases via `vite-tsconfig-paths`           |
+| Language            | TypeScript 5.7               | strict + noUncheckedIndexedAccess                                                         |
+| Linting             | ESLint 9 flat config         | `typescript-eslint` recommended; root config covers all packages                          |
+| Formatting          | Prettier 3                   | enforced in pre-commit via Lefthook                                                       |
+| Git hooks           | Lefthook                     | pre-commit: format + typecheck (no pre-push block)                                        |
+| Admin CLI           | commander 14 (Node ESM)      | `apps/admin-cli` — operator tooling, single-file bundle                                   |
+| Chain client        | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
 ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) remains deferred per ADR-026 activation triggers (preserved by ADR-038).
 
