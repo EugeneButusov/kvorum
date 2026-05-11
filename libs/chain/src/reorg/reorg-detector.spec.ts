@@ -197,7 +197,6 @@ describe('ReorgDetector', () => {
   it('#8 — window eviction — feed reorgHorizon + 2 clean heads → only reorgHorizon + 1 retained', async () => {
     const horizon = 4;
     const { detector } = makeDetector(noCallClient, horizon);
-    // Feed 7 clean heads (horizon + 2 = 6 after cold start)
     await detector.processHead(makeHead(0n, '0xh0', '0x000'));
     await detector.processHead(makeHead(1n, '0xh1', '0xh0'));
     await detector.processHead(makeHead(2n, '0xh2', '0xh1'));
@@ -205,12 +204,32 @@ describe('ReorgDetector', () => {
     await detector.processHead(makeHead(4n, '0xh4', '0xh3'));
     await detector.processHead(makeHead(5n, '0xh5', '0xh4'));
     await detector.processHead(makeHead(6n, '0xh6', '0xh5'));
-    // Buffer should have at most horizon + 1 = 5 entries
-    // Oldest entries evicted; block 0 and 1 should be gone
-    // We can verify by triggering a reorg at block 2 — it should be in buffer
-    // (indirect validation via reorg test — just verify no crash here)
-    // The internal buffer is private; test indirectly by verifying clean-advance works
     await detector.processHead(makeHead(7n, '0xh7', '0xh6'));
+    // Bound: buffer must never exceed reorgHorizon + 1 entries.
+    expect(detector.bufferSize).toBe(horizon + 1);
+  });
+
+  it('#8b — deep reorg rewrite respects buffer bound', async () => {
+    // Trigger a Case 4a gap reorg that rewrites a range extending past the previous
+    // newest entry. Before the fix, direct buffer.set() inside runReorgPath bypassed
+    // eviction and the buffer could exceed horizon+1.
+    const horizon = 3;
+    // Buffer: {100, 101}. Head 104 arrives → gap is within horizon (101 ≥ 104-3=101).
+    //   - re-validate 101 (mismatch) — 1 fetch
+    //   - re-fetch range [101, 103] in runReorgPath — 3 fetches
+    const reval101 = blockResp('0xbbb2', '0xaaa');
+    const can101 = blockResp('0xbbb2', '0xaaa');
+    const can102 = blockResp('0xccc2', '0xbbb2');
+    const can103 = blockResp('0xddd2', '0xccc2');
+    const { detector, reorgs } = makeDetector(
+      makeClient([ok(reval101), ok(can101), ok(can102), ok(can103)]),
+      horizon,
+    );
+    await detector.processHead(makeHead(100n, '0xaaa', '0x000'));
+    await detector.processHead(makeHead(101n, '0xbbb', '0xaaa'));
+    await detector.processHead(makeHead(104n, '0xeee', '0xddd2'));
+    expect(reorgs).toHaveLength(1);
+    expect(detector.bufferSize).toBeLessThanOrEqual(horizon + 1);
   });
 
   it('#9 — reorg-during-gap, canonical(lastBuffered) matches → divergence at gap start', async () => {
@@ -243,6 +262,9 @@ describe('ReorgDetector', () => {
     // skip 102, jump to 103
     await detector.processHead(makeHead(103n, '0xddd', '0xccc'));
     expect(reorgs).toHaveLength(1);
+    // Block 102 was never buffered (gap-skip), so its orphaned slot must be null —
+    // NOT a zero-hash sentinel. Block 101 was buffered and surfaces normally.
+    expect(reorgs[0]!.orphanedBlockHashes).toEqual(['0xbbb', null]);
   });
 
   it('#11 — gap exceeds horizon (Case 4b) → BufferResetSignal gap_exceeded_horizon, no reorg', async () => {

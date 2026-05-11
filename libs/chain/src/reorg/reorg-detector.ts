@@ -60,6 +60,12 @@ export class ReorgDetector {
     return tracker.onHead((h) => this.processHead(h));
   }
 
+  /** Number of entries currently in the sliding-window buffer. Useful for tests and
+   *  for surfacing as a Prometheus gauge in a future iteration. */
+  get bufferSize(): number {
+    return this.buffer.size;
+  }
+
   /** Testable primitive — can also be driven directly by backfill harnesses. */
   async processHead(h: Head): Promise<void> {
     const blockHash = h.blockHash.toLowerCase();
@@ -184,12 +190,12 @@ export class ReorgDetector {
 
   private bufferSet(blockNumber: bigint, blockHash: string): void {
     this.buffer.set(blockNumber, blockHash);
-    if (this.buffer.size > this.reorgHorizon + 1) {
-      let oldest: bigint | null = null;
-      for (const k of this.buffer.keys()) {
-        if (oldest === null || k < oldest) oldest = k;
-      }
-      if (oldest !== null) this.buffer.delete(oldest);
+    // Evict in a loop — a single rewritten reorg path can push the buffer well past
+    // the bound, so one eviction per insert is not enough.
+    while (this.buffer.size > this.reorgHorizon + 1) {
+      const oldest = this.getOldestBufferedBlock();
+      if (oldest === null) break;
+      this.buffer.delete(oldest);
     }
   }
 
@@ -267,11 +273,13 @@ export class ReorgDetector {
       divergenceBlockNumber = oldestBuffered;
     }
 
-    // Build orphaned and canonical arrays for [divergenceBlockNumber, hi]
-    const orphanedBlockHashes: string[] = [];
+    // Build orphaned and canonical arrays for [divergenceBlockNumber, hi].
+    // Missing buffer entries (truncated reorgs) surface as `null` so consumers can
+    // distinguish "no buffered hash for this slot" from a real zero-hash block.
+    const orphanedBlockHashes: (string | null)[] = [];
     const canonicalBlockHashes: (string | null)[] = [];
     for (let b = divergenceBlockNumber; b <= hi; b++) {
-      orphanedBlockHashes.push(this.buffer.get(b) ?? '0x' + '0'.repeat(64));
+      orphanedBlockHashes.push(this.buffer.get(b) ?? null);
       const canon = canonical.get(b);
       canonicalBlockHashes.push(canon ? canon.hash : null);
     }
@@ -292,11 +300,13 @@ export class ReorgDetector {
     getReorgSignalsTotal().inc({ chain: this.chainName });
     await this.emitReorg(signal);
 
-    // Update buffer with canonical data for [divergenceBlockNumber, hi]
+    // Update buffer with canonical data for [divergenceBlockNumber, hi]. Route inserts
+    // through bufferSet so the horizon+1 bound is enforced even when the rewritten
+    // range extends past the previous newest buffered block (Case 4a gap reorg).
     for (let b = divergenceBlockNumber; b <= hi; b++) {
       const canon = canonical.get(b);
       if (canon !== null && canon !== undefined) {
-        this.buffer.set(b, canon.hash);
+        this.bufferSet(b, canon.hash);
       } else {
         this.buffer.delete(b);
       }

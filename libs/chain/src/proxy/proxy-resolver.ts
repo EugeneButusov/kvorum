@@ -101,11 +101,15 @@ export class ProxyResolver {
       return await this.resolveAt(nextAddr, depth + 1, nextPath, visited);
     }
 
-    if (allFailed && depth === 0) {
+    if (allFailed) {
+      // Distinguishing 'not a proxy' from 'unreadable storage' requires at least one
+      // successful probe. With all probes failing we can't make that call, so propagate
+      // all_slots_failed regardless of depth — mid-chain failures must not be silently
+      // reported as a resolved implementation.
       this.logger.warn(
-        `[chain:${this.chainName}] ProxyResolver: all slot probes failed for ${addr} (RPC instability?)`,
+        `[chain:${this.chainName}] ProxyResolver: all slot probes failed for ${addr} at depth ${depth} (RPC instability?)`,
       );
-      return { implementation: null, path: [], capped: false, reason: 'all_slots_failed' };
+      return { implementation: null, path, capped: false, reason: 'all_slots_failed' };
     }
 
     if (depth === 0) {

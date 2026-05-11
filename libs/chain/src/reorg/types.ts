@@ -12,8 +12,11 @@ export interface ReorgSignal {
   /** Lowest block number where canonical diverges from buffered. When `truncated`, this is
    *  the oldest buffered block — divergence may extend further back. */
   divergenceBlockNumber: bigint;
-  /** Hashes previously buffered for [divergenceBlock, lastObservedHead], in order. */
-  orphanedBlockHashes: string[];
+  /** Hashes previously buffered for [divergenceBlock, lastObservedHead], in order.
+   *  Entries are `null` for blocks within the range with no buffered hash — this happens
+   *  when `truncated` is true and divergence extends below the oldest buffered block.
+   *  Consumers must treat `null` as "unknown orphan", not as zero. */
+  orphanedBlockHashes: (string | null)[];
   /** Re-fetched canonical hashes for the same range, in order. Same length as
    *  orphanedBlockHashes. For chain-shrink reorgs, trailing entries are `null`. */
   canonicalBlockHashes: (string | null)[];

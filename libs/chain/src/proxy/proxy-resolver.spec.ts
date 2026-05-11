@@ -248,6 +248,38 @@ describe('ProxyResolver', () => {
     expect(warnMessages.some((m) => m.includes('all slot probes failed'))).toBe(true);
   });
 
+  it('#11b — all RPC failures at non-root depth → all_slots_failed (no false-positive resolved)', async () => {
+    // proxy: eip1967 → mid (succeeds); mid: all 4 slot probes throw
+    const midPadded = pad20to32(MID_ADDR);
+    const warnMessages: string[] = [];
+    const client = makeClient([
+      ok(midPadded), // proxy eip1967 → mid (depth 0)
+      err('timeout'),
+      err('timeout'),
+      err('timeout'),
+      err('timeout'), // mid: all four slot probes fail (depth 1)
+    ]);
+    const resolver = new ProxyResolver({
+      rpcClient: client,
+      chainName: 'test',
+      logger: {
+        debug: () => {},
+        info: () => {},
+        warn: (msg) => {
+          warnMessages.push(msg);
+        },
+        error: () => {},
+      },
+    });
+    const result = await resolver.resolve(PROXY_ADDR);
+    expect(result.reason).toBe('all_slots_failed');
+    expect(result.implementation).toBeNull();
+    // The intermediate proxy step is preserved so callers see how far the walk got.
+    expect(result.path).toHaveLength(1);
+    expect(result.path[0]!.proxyAddress).toBe(PROXY_ADDR);
+    expect(warnMessages.some((m) => m.includes('all slot probes failed'))).toBe(true);
+  });
+
   it('#12 — address normalisation — mixed-case input is lowercased in path', async () => {
     const implPadded = pad20to32(IMPL_ADDR);
     const client = makeClient([ok(implPadded), ok(ZERO_32), ok(ZERO_32), ok(ZERO_32), ok(ZERO_32)]);

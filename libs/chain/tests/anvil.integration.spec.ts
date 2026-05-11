@@ -248,14 +248,14 @@ describeIf('Anvil integration', () => {
 
   // E4-anvil-2 — ReorgDetector: detect a synthetic reorg triggered via anvil_reorg
   it('E4-anvil-2: ReorgDetector emits signal after anvil_reorg drops and re-mines blocks', async () => {
-    // Mine blocks to build up a stable buffer
+    // Build a stable history so the detector has buffered entries to compare against.
     await client.send('anvil_mine', ['0x5']);
 
     const tracker = new HeadTracker({
       rpcClient: client,
       chainId: 31337,
       chainName: 'anvil',
-      pollIntervalMs: 300,
+      pollIntervalMs: 200,
       stopTimeoutMs: 5_000,
     });
 
@@ -268,51 +268,63 @@ describeIf('Anvil integration', () => {
 
     const reorgSignals: ReorgSignal[] = [];
     const resetSignals: BufferResetSignal[] = [];
+    const seenHeads: bigint[] = [];
     detector.onReorg((s) => {
       reorgSignals.push(s);
     });
     detector.onBufferReset((s) => {
       resetSignals.push(s);
     });
+    tracker.onHead((h) => {
+      seenHeads.push(h.blockNumber);
+    });
 
     detector.attach(tracker);
     await tracker.start();
 
-    // Wait for cold-start and at least one clean advance tick
-    await new Promise<void>((r) => setTimeout(r, 900));
-
+    // Poll-wait until the tracker has observed at least one head (cold_start fires).
+    const deadlineCold = Date.now() + 3_000;
+    while (resetSignals.length === 0 && Date.now() < deadlineCold) {
+      await new Promise<void>((r) => setTimeout(r, 50));
+    }
     expect(resetSignals.some((s) => s.reason === 'cold_start')).toBe(true);
 
-    // Capture current head before the reorg
+    // Build a few buffered blocks before the reorg so divergence is clearly above
+    // the oldest buffered block. Wait for the buffer to grow past 3 entries.
+    await client.send('anvil_mine', ['0x3']);
+    const deadlineBuf = Date.now() + 3_000;
+    while (detector.bufferSize < 4 && Date.now() < deadlineBuf) {
+      await new Promise<void>((r) => setTimeout(r, 50));
+    }
+    expect(detector.bufferSize).toBeGreaterThanOrEqual(4);
+
     const headBefore = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
       'latest',
       false,
     ]);
     const blockNumberBefore = BigInt(headBefore['number']);
+    const reorgsBefore = reorgSignals.length;
 
-    // Trigger a 2-block reorg. Anvil re-mines the dropped blocks with auto-incremented
-    // timestamps so the re-mined block hashes differ from the originals.
+    // Drop the last 2 blocks. Anvil re-mines with new timestamps → re-mined hashes
+    // differ from the originals, which the detector must observe as a reorg.
     await client.send('anvil_reorg', [2, []]);
+    // Force a head change so the poller picks up the new tip.
+    await client.send('anvil_mine', ['0x1']);
 
-    // Wait for at least one more poll interval to detect the reorg
-    await new Promise<void>((r) => setTimeout(r, 700));
+    // Poll-wait for a reorg signal — up to several poll intervals. No fallback path;
+    // a missing signal means the detector failed to observe the chain change.
+    const deadlineReorg = Date.now() + 5_000;
+    while (reorgSignals.length === reorgsBefore && Date.now() < deadlineReorg) {
+      await new Promise<void>((r) => setTimeout(r, 100));
+    }
 
     await tracker.stop();
 
-    // The detector should have emitted a reorg signal
-    // (It may not detect on every CI run if timing is off; we assert at least one signal
-    //  OR that the buffer-reset after the gap catches the chain change)
-    const detectedReorg = reorgSignals.length > 0;
-    if (detectedReorg) {
-      const signal = reorgSignals[0]!;
-      expect(signal.chainId).toBe(31337);
-      expect(signal.divergenceBlockNumber).toBeGreaterThanOrEqual(blockNumberBefore - 2n);
-      expect(signal.orphanedBlockHashes.length).toBeGreaterThan(0);
-    } else {
-      // Acceptable fallback: timing window was missed; the poller observed the post-reorg
-      // chain as a clean gap-reset. This is valid behaviour — not a test failure.
-      expect(resetSignals.length).toBeGreaterThan(0);
-    }
+    expect(reorgSignals.length).toBeGreaterThan(reorgsBefore);
+    const signal = reorgSignals[reorgSignals.length - 1]!;
+    expect(signal.chainId).toBe(31337);
+    expect(signal.divergenceBlockNumber).toBeGreaterThanOrEqual(blockNumberBefore - 2n);
+    expect(signal.orphanedBlockHashes.length).toBeGreaterThan(0);
   }, 20_000);
 
   // E3d Test 4 — head_block_age metric is set and stays small
