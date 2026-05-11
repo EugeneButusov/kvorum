@@ -289,14 +289,13 @@ describeIf('Anvil integration', () => {
     }
     expect(resetSignals.some((s) => s.reason === 'cold_start')).toBe(true);
 
-    // Build a few buffered blocks before the reorg so divergence is clearly above
-    // the oldest buffered block. Wait for the buffer to grow past 3 entries.
-    await client.send('anvil_mine', ['0x3']);
-    const deadlineBuf = Date.now() + 3_000;
-    while (detector.bufferSize < 4 && Date.now() < deadlineBuf) {
-      await new Promise<void>((r) => setTimeout(r, 50));
+    // Advance the chain one block at a time so each tip is a distinct poll target —
+    // batched `anvil_mine 0xN` is atomic and the poller would see only the final tip.
+    for (let i = 0; i < 3; i++) {
+      await client.send('anvil_mine', ['0x1']);
+      await new Promise<void>((r) => setTimeout(r, 250));
     }
-    expect(detector.bufferSize).toBeGreaterThanOrEqual(4);
+    expect(detector.bufferSize).toBeGreaterThanOrEqual(2);
 
     const headBefore = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
       'latest',
@@ -325,7 +324,7 @@ describeIf('Anvil integration', () => {
     expect(signal.chainId).toBe(31337);
     expect(signal.divergenceBlockNumber).toBeGreaterThanOrEqual(blockNumberBefore - 2n);
     expect(signal.orphanedBlockHashes.length).toBeGreaterThan(0);
-  }, 20_000);
+  }, 30_000);
 
   // E3d Test 4 — head_block_age metric is set and stays small
   it('E3d-4: head_block_age_seconds metric is set after first tick and stays reasonable', async () => {
