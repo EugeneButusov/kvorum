@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { ProxyResolver } from './proxy-resolver.js';
 import { STANDARD_PROXY_SLOTS } from './slots.js';
 import type { RpcClient } from '../client/rpc-client.js';
-import { resetMetrics, getProxyResolutionsTotal } from '../metrics/metrics.js';
 
 const ZERO_32 = '0x' + '00'.repeat(32);
 const PROXY_ADDR = '0x' + 'aa'.repeat(20);
@@ -55,8 +55,17 @@ function makeResolver(rpcClient: RpcClient, overrides?: { maxDepth?: number }): 
   return new ProxyResolver({ rpcClient, chainName: 'test', ...overrides });
 }
 
-beforeEach(() => resetMetrics());
-afterEach(() => resetMetrics());
+async function readCounter(name: string, labels: Record<string, string>): Promise<number> {
+  const text = await renderMetrics();
+  for (const line of text.split('\n')) {
+    if (!line.startsWith(name)) continue;
+    if (Object.entries(labels).every(([k, v]) => line.includes(`${k}="${v}"`))) {
+      const m = line.match(/\}\s+([\d.]+)\s*$/);
+      if (m) return parseFloat(m[1]!);
+    }
+  }
+  return 0;
+}
 
 describe('ProxyResolver', () => {
   it('#1 — non-proxy (all slots return 0x0) → not_a_proxy', async () => {
@@ -288,26 +297,34 @@ describe('ProxyResolver', () => {
     expect(result.path[0]!.proxyAddress).toBe(PROXY_ADDR);
   });
 
-  it('#13 — metric increment — proxyResolutionsTotal increments once with correct result label', async () => {
+  it('#13 — metric increment — proxyResolutions increments once with correct result label', async () => {
+    const before = await readCounter('test_ingestion_proxy_resolutions_total', {
+      chain: 'test',
+      result: 'not_a_proxy',
+    });
     const client = makeClient([ok(ZERO_32), ok(ZERO_32), ok(ZERO_32), ok(ZERO_32)]);
     await makeResolver(client).resolve(PROXY_ADDR);
-    const data = await getProxyResolutionsTotal().get();
-    const entry = data.values.find(
-      (v) => v.labels['chain'] === 'test' && v.labels['result'] === 'not_a_proxy',
-    );
-    expect(entry?.value).toBe(1);
+    const after = await readCounter('test_ingestion_proxy_resolutions_total', {
+      chain: 'test',
+      result: 'not_a_proxy',
+    });
+    expect(after - before).toBe(1);
   });
 
   it('#13b — metric label is cycle when a cycle is detected', async () => {
+    const before = await readCounter('test_ingestion_proxy_resolutions_total', {
+      chain: 'test',
+      result: 'cycle',
+    });
     const bPadded = pad20to32('0x' + 'bb'.repeat(20));
     const aPadded = pad20to32(PROXY_ADDR);
     const client = makeClient([ok(bPadded), ok(aPadded)]);
     await makeResolver(client).resolve(PROXY_ADDR);
-    const data = await getProxyResolutionsTotal().get();
-    const entry = data.values.find(
-      (v) => v.labels['chain'] === 'test' && v.labels['result'] === 'cycle',
-    );
-    expect(entry?.value).toBe(1);
+    const after = await readCounter('test_ingestion_proxy_resolutions_total', {
+      chain: 'test',
+      result: 'cycle',
+    });
+    expect(after - before).toBe(1);
   });
 
   // Verify slot constants are set correctly (sanity check)

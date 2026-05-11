@@ -1,11 +1,6 @@
 import { AbstractPoller } from './abstract-poller.js';
 import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './types.js';
-import {
-  getLogPollLagSeconds,
-  getLogPollWindowBlocks,
-  getLogsFetchedTotal,
-  getLogsWithRemovedFlagTotal,
-} from '../metrics/metrics.js';
+import { chainMetrics } from '../metrics/metrics.js';
 import { decodeLogEvent } from './utils/decode.utils.js';
 import { lowercaseFilter } from './utils/filter.utils.js';
 
@@ -81,7 +76,7 @@ export class EventPoller extends AbstractPoller {
     const fromHex = '0x' + fromBn.toString(16);
     const toHex = '0x' + headBn.toString(16);
 
-    getLogPollWindowBlocks().set({ chain, dao_source: src }, Number(windowSize));
+    chainMetrics.logPollWindowBlocks.record(Number(windowSize), { chain, dao_source: src });
 
     let rawLogs: unknown[];
     try {
@@ -99,14 +94,14 @@ export class EventPoller extends AbstractPoller {
     }
 
     this.lastSuccessAt = new Date();
-    getLogPollLagSeconds().set({ chain, dao_source: src }, 0);
+    chainMetrics.logPollLag.record(0, { chain, dao_source: src });
 
     const events: LogEvent[] = [];
     for (const raw of rawLogs) {
       const log = raw as Record<string, unknown>;
       try {
         if (log['removed'] === true) {
-          getLogsWithRemovedFlagTotal().inc({ chain, dao_source: src });
+          chainMetrics.logsWithRemovedFlag.add(1, { chain, dao_source: src });
         }
         events.push(decodeLogEvent(log, sourceType, chainId));
       } catch (err) {
@@ -116,7 +111,7 @@ export class EventPoller extends AbstractPoller {
       }
     }
 
-    getLogsFetchedTotal().inc({ chain, dao_source: src }, events.length);
+    chainMetrics.logsFetched.add(events.length, { chain, dao_source: src });
 
     if (events.length > 0) {
       await Promise.allSettled(

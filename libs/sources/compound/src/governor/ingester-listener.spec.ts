@@ -1,15 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import { resetMetrics } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import { COMPOUND_EVENT_TOPICS } from './events';
 import type { IngesterListenerDeps } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
-
-beforeEach(() => resetMetrics());
 
 const CTX: ArchiveWriteContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
@@ -237,9 +234,8 @@ describe('makeIngesterListener', () => {
   });
 
   it('#8 — batch duration histogram observes one sample per batch', async () => {
-    const { getBatchDurationSeconds } = await import('@libs/chain');
-    const hist = getBatchDurationSeconds();
-    const startTimerSpy = vi.spyOn(hist, 'startTimer');
+    const { chainMetrics } = await import('@libs/chain');
+    const recordSpy = vi.spyOn(chainMetrics.batchDuration, 'record');
 
     const deps = makeDeps();
     const listener = makeIngesterListener(deps);
@@ -252,7 +248,7 @@ describe('makeIngesterListener', () => {
     const log = makeLog({ topics: enc.topics as string[], data: enc.data });
 
     await listener([log]);
-    expect(startTimerSpy).toHaveBeenCalledOnce();
-    expect(startTimerSpy).toHaveBeenCalledWith({ source: 'compound_governor' });
+    expect(recordSpy).toHaveBeenCalledOnce();
+    expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), { source: 'compound_governor' });
   });
 });

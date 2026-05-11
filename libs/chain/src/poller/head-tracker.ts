@@ -1,6 +1,6 @@
 import { AbstractPoller } from './abstract-poller.js';
 import type { Head, HeadListener, HeadTrackerOptions } from './types.js';
-import { getHeadBlockAgeSeconds, getHeadPollLagSeconds } from '../metrics/metrics.js';
+import { chainMetrics } from '../metrics/metrics.js';
 import { decodeHead } from './utils/decode.utils.js';
 
 /** Polls eth_getBlockByNumber('latest', false) and fans out to registered listeners.
@@ -99,8 +99,8 @@ export class HeadTracker extends AbstractPoller {
     this.lastSuccessAt = now;
 
     const ageSec = now.getTime() / 1000 - Number(head.timestamp);
-    getHeadBlockAgeSeconds().set({ chain }, ageSec);
-    getHeadPollLagSeconds().set({ chain }, 0);
+    chainMetrics.headBlockAge.record(ageSec, { chain });
+    chainMetrics.headPollLag.record(0, { chain });
 
     const resolvers = this.firstHeadResolvers.splice(0);
     for (const { resolve } of resolvers) {

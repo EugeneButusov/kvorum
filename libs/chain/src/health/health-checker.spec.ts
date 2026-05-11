@@ -1,13 +1,11 @@
 import { JsonRpcProvider, Network, FetchRequest } from 'ethers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { HealthChecker } from './health-checker.js';
 import { createProviderState } from '../client/provider-state.js';
 import type { ChainConfig } from '../config/config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
-import { resetMetrics, getChainMetricsRegistry } from '../metrics/metrics.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
-
-afterEach(() => resetMetrics());
 
 function makeEthersProvider(url: string, timeoutMs = 1500): JsonRpcProvider {
   const fr = new FetchRequest(url);
@@ -167,9 +165,9 @@ describe('HealthChecker', () => {
     await hc.start();
     hc.stop();
 
-    const metrics = await getChainMetricsRegistry().metrics();
-    expect(metrics).toContain('kvorum_ingestion_provider_verified');
-    expect(metrics).toContain('kvorum_ingestion_provider_unusable');
+    const metrics = await renderMetrics();
+    expect(metrics).toContain('test_ingestion_provider_verified');
+    expect(metrics).toContain('test_ingestion_provider_unusable');
     providers.forEach((p) => p.destroy());
   });
 

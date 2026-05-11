@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { ReorgDetector } from './reorg-detector.js';
 import type { ReorgSignal, BufferResetSignal } from './types.js';
 import type { RpcClient } from '../client/rpc-client.js';
-import { resetMetrics, getReorgSignalsTotal } from '../metrics/metrics.js';
 import type { Head } from '../poller/types.js';
 
 // ---------------------------------------------------------------------------
@@ -105,8 +105,17 @@ function makeDetector(
   return { detector, reorgs, resets };
 }
 
-beforeEach(() => resetMetrics());
-afterEach(() => resetMetrics());
+async function readCounter(name: string, labels: Record<string, string>): Promise<number> {
+  const text = await renderMetrics();
+  for (const line of text.split('\n')) {
+    if (!line.startsWith(name)) continue;
+    if (Object.entries(labels).every(([k, v]) => line.includes(`${k}="${v}"`))) {
+      const m = line.match(/\}\s+([\d.]+)\s*$/);
+      if (m) return parseFloat(m[1]!);
+    }
+  }
+  return 0;
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -449,16 +458,16 @@ describe('ReorgDetector', () => {
     expect(reorgs).toHaveLength(0); // no reorg — parent matched after normalisation
   });
 
-  it('#22 — metric increment — reorgSignalsTotal increments once per emitted reorg signal', async () => {
+  it('#22 — metric increment — reorgSignals increments by 2 for two emitted signals', async () => {
+    const before = await readCounter('test_ingestion_reorg_signals_total', { chain: 'test' });
     const canonical = blockResp('0xbbb2', '0xaaa');
     const { detector } = makeDetector(makeClient([ok(canonical), ok(canonical)]));
     await detector.processHead(makeHead(100n, '0xaaa', '0x000'));
     // Trigger two reorgs
     await detector.processHead(makeHead(100n, '0xbbb', '0x000'));
     await detector.processHead(makeHead(100n, '0xccc', '0x000'));
-    const data = await getReorgSignalsTotal().get();
-    const entry = data.values.find((v) => v.labels['chain'] === 'test');
-    expect(entry?.value).toBe(2);
+    const after = await readCounter('test_ingestion_reorg_signals_total', { chain: 'test' });
+    expect(after - before).toBe(2);
   });
 
   // -------------------------------------------------------------------------

@@ -1,8 +1,4 @@
-import {
-  getDualWritePgUnreachableTotal,
-  getArchiveSkippedExistenceTotal,
-  getArchiveWritesTotal,
-} from '@libs/chain';
+import { chainMetrics } from '@libs/chain';
 import type { LogEvent, Logger } from '@libs/chain';
 import type {
   ConfirmationRepository,
@@ -56,7 +52,7 @@ export class ArchiveWriter {
     });
 
     if (existing) {
-      getArchiveSkippedExistenceTotal().inc({ source: ctx.sourceLabel });
+      chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
       this.logger.debug('archive_check_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -101,7 +97,7 @@ export class ArchiveWriter {
       const result = await this.confirmationRepo.insert(row);
 
       if (result?.id) {
-        getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'inserted' });
+        chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'inserted' });
         this.logger.debug('confirmation_inserted', {
           ...logRef,
           blockNumber: logRef.blockNumber.toString(),
@@ -111,7 +107,7 @@ export class ArchiveWriter {
       }
 
       // ON CONFLICT fired — concurrent writer beat us; idempotent
-      getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'skipped_conflict' });
+      chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'skipped_conflict' });
       this.logger.debug('confirmation_conflict_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -148,7 +144,7 @@ export class ArchiveWriter {
 
     try {
       await this.dlqRepo.insert(dlqRow);
-      getArchiveWritesTotal().inc({ source: ctx.sourceLabel, result: 'dlq_routed' });
+      chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'dlq_routed' });
       this.logger.error('dlq_routed', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -156,7 +152,7 @@ export class ArchiveWriter {
       });
       return { result: 'dlq_routed' };
     } catch (dlqErr) {
-      getDualWritePgUnreachableTotal().inc({ source: ctx.sourceLabel });
+      chainMetrics.dualWritePgUnreachable.add(1, { source: ctx.sourceLabel });
       this.logger.error('dlq_insert_failed', {
         originalError: String(err),
         dlqError: String(dlqErr),

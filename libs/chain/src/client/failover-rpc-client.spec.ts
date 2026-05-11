@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderMetrics } from '@libs/observability';
 import { FailoverRpcClient, createFailoverRpcClient } from './failover-rpc-client.js';
 import type { ChainConfig } from '../config/config.js';
 import { AllProvidersFailedError } from '../errors/all-providers-failed.error.js';
 import { ClientStoppedError } from '../errors/client-stopped.error.js';
-import { resetMetrics, getChainMetricsRegistry } from '../metrics/metrics.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
-
-afterEach(() => resetMetrics());
 
 const baseConfig: ChainConfig = {
   chainId: 1,
@@ -311,9 +309,9 @@ describe('FailoverRpcClient.send() (with FakeProvider)', () => {
     const { client } = await makeClient([fakes[0]!]);
     await client.send('eth_blockNumber', []);
 
-    const metrics = await getChainMetricsRegistry().metrics();
-    expect(metrics).toContain('kvorum_ingestion_rpc_requests_total');
-    expect(metrics).toContain('kvorum_ingestion_rpc_request_duration_seconds');
+    const metrics = await renderMetrics();
+    expect(metrics).toContain('test_ingestion_rpc_requests_total');
+    expect(metrics).toContain('test_ingestion_rpc_request_duration_seconds');
     await client.stop();
   });
 
@@ -323,8 +321,8 @@ describe('FailoverRpcClient.send() (with FakeProvider)', () => {
     const { client } = await makeClient(fakes);
     await client.send('eth_blockNumber', []);
 
-    const metrics = await getChainMetricsRegistry().metrics();
-    expect(metrics).toContain('kvorum_ingestion_rpc_failures_total');
+    const metrics = await renderMetrics();
+    expect(metrics).toContain('test_ingestion_rpc_failures_total');
     await client.stop();
   });
 

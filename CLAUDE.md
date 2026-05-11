@@ -30,8 +30,9 @@ ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_e
 | ----------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `libs/utils`            | framework-agnostic utilities (`sleep`, …)                                                           | nothing                                              |
 | `libs/domain`           | domain types                                                                                        | nothing                                              |
+| `libs/observability`    | OTel MeterProvider, `defineCounter/Gauge/Histogram`, `renderMetrics()`, `shutdownForTest()`         | nothing                                              |
 | `libs/db`               | Kysely clients (`pgDb`, `chDb`), DB schema types                                                    | `libs/domain`                                        |
-| `libs/chain`            | chain helpers                                                                                       | `libs/domain`, `libs/utils`                          |
+| `libs/chain`            | chain helpers; exports `chainMetrics`                                                               | `libs/domain`, `libs/utils`, `libs/observability`    |
 | `libs/ai`               | AI helpers                                                                                          | `libs/domain`, `libs/utils`                          |
 | `libs/sources/<source>` | per-source primitives (ABI/decoder, archive writer, ingester listener factory) — framework-agnostic | `libs/domain`, `libs/db`, `libs/chain`, `libs/utils` |
 | `apps/*`                | applications                                                                                        | any lib                                              |
@@ -127,6 +128,7 @@ libs/
   db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
+  observability/ OTel SDK wiring — MeterProvider, defineCounter/Gauge/Histogram, renderMetrics()
   utils/        Framework-agnostic utilities (sleep, …)
   sources/<source>/
     src/<contract-kind>/  Per-source primitives — ABI/decoder, ArchiveWriter, ingester-listener factory.

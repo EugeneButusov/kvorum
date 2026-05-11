@@ -3,19 +3,17 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libs/sources/compound',
+  cacheDir: '../../node_modules/.vite/libs/observability',
   plugins: [tsconfigPaths()],
   test: {
-    name: 'sources-compound',
+    name: 'observability',
     watch: false,
     globals: true,
     environment: 'node',
-    setupFiles: ['./vitest.setup.ts'],
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    passWithNoTests: true,
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/libs/sources/compound',
+      reportsDirectory: '../../coverage/libs/observability',
       provider: 'v8' as const,
     },
   },
