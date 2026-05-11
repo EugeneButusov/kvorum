@@ -61,6 +61,25 @@ const noCallClient: RpcClient = {
   stop: async () => {},
 };
 
+/** Wraps an RpcClient so the very first send() throws synthetically. Cold-start
+ *  back-fill stops on the first RPC error, so the mock queue is preserved for the
+ *  rest of the test. Use makeDetectorRaw when exercising back-fill explicitly. */
+function withColdStartShortCircuit(inner: RpcClient): RpcClient {
+  let firstCallSeen = false;
+  return {
+    async send<T = unknown>(method: string, params: unknown[]): Promise<T> {
+      if (!firstCallSeen) {
+        firstCallSeen = true;
+        throw new Error('test:cold-start-backfill-short-circuit');
+      }
+      return inner.send<T>(method, params);
+    },
+    getHealth: inner.getHealth.bind(inner),
+    start: inner.start.bind(inner),
+    stop: inner.stop.bind(inner),
+  };
+}
+
 function makeDetector(
   rpcClient: RpcClient,
   reorgHorizon = 4,
@@ -69,7 +88,12 @@ function makeDetector(
   reorgs: ReorgSignal[];
   resets: BufferResetSignal[];
 } {
-  const detector = new ReorgDetector({ rpcClient, chainId: 1, chainName: 'test', reorgHorizon });
+  const detector = new ReorgDetector({
+    rpcClient: withColdStartShortCircuit(rpcClient),
+    chainId: 1,
+    chainName: 'test',
+    reorgHorizon,
+  });
   const reorgs: ReorgSignal[] = [];
   const resets: BufferResetSignal[] = [];
   detector.onReorg((s) => {
@@ -435,5 +459,116 @@ describe('ReorgDetector', () => {
     const data = await getReorgSignalsTotal().get();
     const entry = data.values.find((v) => v.labels['chain'] === 'test');
     expect(entry?.value).toBe(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Cold-start back-fill (uses raw clients without the makeDetector short-circuit)
+  // -------------------------------------------------------------------------
+
+  function makeRawDetector(
+    rpcClient: RpcClient,
+    reorgHorizon = 4,
+  ): {
+    detector: ReorgDetector;
+    reorgs: ReorgSignal[];
+    resets: BufferResetSignal[];
+  } {
+    const detector = new ReorgDetector({
+      rpcClient,
+      chainId: 1,
+      chainName: 'test',
+      reorgHorizon,
+    });
+    const reorgs: ReorgSignal[] = [];
+    const resets: BufferResetSignal[] = [];
+    detector.onReorg((s) => {
+      reorgs.push(s);
+    });
+    detector.onBufferReset((s) => {
+      resets.push(s);
+    });
+    return { detector, reorgs, resets };
+  }
+
+  it('#23 — cold-start back-fill: full success fills buffer to horizon + 1', async () => {
+    // Cold-start head at 100, parentHash 0x099. Back-fill walks 99..96 (4 entries).
+    // Each block: hash matches the previous expected parent, parent points further back.
+    const horizon = 4;
+    const client = makeClient([
+      ok(blockResp('0x099', '0x098')), // block 99
+      ok(blockResp('0x098', '0x097')), // block 98
+      ok(blockResp('0x097', '0x096')), // block 97
+      ok(blockResp('0x096', '0x095')), // block 96
+    ]);
+    const { detector, resets } = makeRawDetector(client, horizon);
+    await detector.processHead(makeHead(100n, '0xaaa', '0x099'));
+    expect(detector.bufferSize).toBe(horizon + 1);
+    expect(resets).toHaveLength(1);
+    expect(resets[0]!.reason).toBe('cold_start');
+  });
+
+  it('#24 — cold-start back-fill: RPC error mid-fill stops gracefully', async () => {
+    const horizon = 4;
+    const client = makeClient([
+      ok(blockResp('0x099', '0x098')), // block 99 — ok
+      ok(blockResp('0x098', '0x097')), // block 98 — ok
+      err('rpc timeout'), // block 97 — fails → stop
+    ]);
+    const { detector } = makeRawDetector(client, horizon);
+    await detector.processHead(makeHead(100n, '0xaaa', '0x099'));
+    // Buffer holds the cold-start head + 2 successfully back-filled entries.
+    expect(detector.bufferSize).toBe(3);
+  });
+
+  it('#25 — cold-start back-fill: parent-hash mismatch mid-fill stops gracefully', async () => {
+    const horizon = 4;
+    const client = makeClient([
+      ok(blockResp('0x099', '0x098')), // block 99 — ok, parent 0x098
+      ok(blockResp('0xFFF', '0x096')), // block 98 — hash 0xFFF != expected 0x098 → stop
+    ]);
+    const { detector } = makeRawDetector(client, horizon);
+    await detector.processHead(makeHead(100n, '0xaaa', '0x099'));
+    expect(detector.bufferSize).toBe(2); // head + one back-fill before mismatch
+  });
+
+  it('#26 — cold-start back-fill: stops at genesis (blockNumber < reorgHorizon)', async () => {
+    // Cold-start head at block 2, horizon=10. Walk 1, 0, then bail at -1.
+    const horizon = 10;
+    const client = makeClient([
+      ok(blockResp('0x001', '0x000')), // block 1
+      ok(blockResp('0x000', '0x000')), // block 0 (genesis — parentHash conventionally zero)
+    ]);
+    const { detector } = makeRawDetector(client, horizon);
+    await detector.processHead(makeHead(2n, '0x002', '0x001'));
+    expect(detector.bufferSize).toBe(3); // blocks 2, 1, 0
+  });
+
+  it('#27 — cold-start back-fill: deep post-cold-start reorg correctly identifies divergence', async () => {
+    // With back-fill: buffer holds 95..100 after cold-start. A Case 4c reorg over
+    // [95, 100] caused by a fork at 97 must report divergenceBlockNumber=97, not 100.
+    const horizon = 5;
+    const client = makeClient([
+      // Back-fill (4 calls): blocks 99, 98, 97, 96, 95 — but horizon=5 → 5 calls
+      ok(blockResp('0x099', '0x098')),
+      ok(blockResp('0x098', '0x097')),
+      ok(blockResp('0x097', '0x096')),
+      ok(blockResp('0x096', '0x095')),
+      ok(blockResp('0x095', '0x094')),
+      // Reorg-path re-fetch: blocks 95..100 (oldest..prevBlockNumber for Case 4c)
+      ok(blockResp('0x095', '0x094')), // 95 — unchanged
+      ok(blockResp('0x096', '0x095')), // 96 — unchanged
+      ok(blockResp('0x097-new', '0x096')), // 97 — divergence
+      ok(blockResp('0x098-new', '0x097-new')), // 98
+      ok(blockResp('0x099-new', '0x098-new')), // 99
+      ok(blockResp('0xaaa-new', '0x099-new')), // 100
+    ]);
+    const { detector, reorgs } = makeRawDetector(client, horizon);
+    await detector.processHead(makeHead(100n, '0xaaa', '0x099'));
+    expect(detector.bufferSize).toBe(horizon + 1); // back-fill succeeded
+    // Now feed a new head at 101 whose parent disagrees with buffer[100].
+    await detector.processHead(makeHead(101n, '0xbbb', '0xaaa-new'));
+    expect(reorgs).toHaveLength(1);
+    expect(reorgs[0]!.divergenceBlockNumber).toBe(97n);
+    expect(reorgs[0]!.truncated).toBe(false);
   });
 });

@@ -75,6 +75,12 @@ export class ReorgDetector {
     // Case 0: first head observed
     if (this.lastHead === null) {
       this.bufferSet(head.blockNumber, head.blockHash);
+      // Back-fill up to reorgHorizon predecessors so reorgs that hit deep history
+      // immediately after cold-start can be pinpointed instead of collapsing onto N.
+      // Walks backward verifying parent linkage; stops gracefully on RPC error,
+      // missing block, mismatch, or genesis. A partial buffer is acceptable —
+      // worst case we degrade to the pre-back-fill behavior.
+      await this.backfillBuffer(head);
       this.lastHead = head;
       await this.emitBufferReset({
         chainId: this.chainId,
@@ -196,6 +202,40 @@ export class ReorgDetector {
       const oldest = this.getOldestBufferedBlock();
       if (oldest === null) break;
       this.buffer.delete(oldest);
+    }
+  }
+
+  private async backfillBuffer(coldStartHead: Head): Promise<void> {
+    let expectedParentHash = coldStartHead.parentHash;
+    for (let i = 1; i <= this.reorgHorizon; i++) {
+      const blockNumber = coldStartHead.blockNumber - BigInt(i);
+      if (blockNumber < 0n) return;
+      let block: BlockHeader | null;
+      try {
+        block = await this.fetchBlock(blockNumber);
+      } catch (err) {
+        this.logger.warn(
+          `[chain:${this.chainName}] ReorgDetector: cold-start back-fill RPC error at block ${blockNumber}: ${String(err)}; stopping at depth ${i - 1}`,
+        );
+        return;
+      }
+      if (block === null) {
+        this.logger.warn(
+          `[chain:${this.chainName}] ReorgDetector: cold-start back-fill missing block ${blockNumber}; stopping at depth ${i - 1}`,
+        );
+        return;
+      }
+      if (block.hash !== expectedParentHash) {
+        // Mid-fill reorg or RPC-level inconsistency. Bail out rather than persist a
+        // buffer entry that disagrees with the head we just trusted.
+        this.logger.warn(
+          `[chain:${this.chainName}] ReorgDetector: cold-start back-fill parent-hash mismatch at ${blockNumber} ` +
+            `(got ${block.hash}, expected ${expectedParentHash}); stopping at depth ${i - 1}`,
+        );
+        return;
+      }
+      this.bufferSet(blockNumber, block.hash);
+      expectedParentHash = block.parentHash;
     }
   }
 
