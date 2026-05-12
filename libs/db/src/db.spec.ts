@@ -235,16 +235,17 @@ describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
       })
       .execute();
 
-    // Query back via the Kysely builder — verifies the row is readable and that
-    // the dialect correctly formats parameters for ClickHouse.
-    const chRows = await chDb
-      .selectFrom('event_archive_compound_governor')
-      .select(['tx_hash'])
-      .where('chain_id', '=', tuple.chain_id)
-      .where('tx_hash', '=', tuple.tx_hash)
-      .where('log_index', '=', tuple.log_index)
-      .where('block_hash', '=', tuple.block_hash)
-      .execute();
+    // Query back with FINAL to force dedup — ReplacingMergeTree deduplicates during
+    // background merges, not on insert, so without FINAL the two idempotent inserts
+    // above may both still be visible. The builder can't express FINAL, so raw SQL.
+    const { rows: chRows } = await sql<{ tx_hash: string }>`
+      SELECT tx_hash
+      FROM event_archive_compound_governor FINAL
+      WHERE chain_id   = ${tuple.chain_id}
+        AND tx_hash    = ${tuple.tx_hash}
+        AND log_index  = ${tuple.log_index}
+        AND block_hash = ${tuple.block_hash}
+    `.execute(chDb);
     expect(chRows).toHaveLength(1);
 
     // Cleanup — lightweight delete mutation.
