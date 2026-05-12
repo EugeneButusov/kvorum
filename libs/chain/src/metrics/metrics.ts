@@ -15,7 +15,7 @@ export function sanitizeMethod(method: string): string {
 }
 
 export const chainMetrics = {
-  // ---- RPC client counters ----
+  // ---- counters ----
   rpcRequests: defineCounter({
     name: 'ingestion_rpc_requests',
     description: 'Total JSON-RPC requests dispatched by the failover client',
@@ -28,8 +28,6 @@ export const chainMetrics = {
     name: 'ingestion_health_check_failures',
     description: 'Total health check failures per provider',
   }),
-
-  // ---- E3 ingestion counters ----
   logsFetched: defineCounter({
     name: 'ingestion_logs_fetched',
     description: 'Total logs returned by eth_getLogs (re-fetches counted; not de-duped events)',
@@ -38,8 +36,6 @@ export const chainMetrics = {
     name: 'ingestion_logs_with_removed_flag',
     description: 'Count of logs ethers v6 marks removed:true',
   }),
-
-  // ---- E4 counters ----
   reorgSignals: defineCounter({
     name: 'ingestion_reorg_signals',
     description:
@@ -50,8 +46,6 @@ export const chainMetrics = {
     description:
       'Proxy resolution outcomes. result=resolved|not_a_proxy|capped|cycle|all_slots_failed',
   }),
-
-  // ---- F1 archive counters ----
   archiveWrites: defineCounter({
     name: 'ingestion_archive_writes',
     description:
@@ -75,7 +69,7 @@ export const chainMetrics = {
     description: 'PG unreachable for the DLQ insert itself (ADR-041 step 5)',
   }),
 
-  // ---- RPC client gauges ----
+  // ---- gauges ----
   circuitState: defineGauge({
     name: 'ingestion_circuit_state',
     description: 'Circuit breaker state per provider: 0=closed, 1=half-open, 2=open',
@@ -93,8 +87,6 @@ export const chainMetrics = {
     name: 'ingestion_provider_verified',
     description: '1 if the provider has passed chainId verification, 0 otherwise',
   }),
-
-  // ---- E3 gauges ----
   headBlockAge: defineGauge({
     name: 'ingestion_head_block_age_seconds',
     description:
@@ -113,8 +105,6 @@ export const chainMetrics = {
     name: 'ingestion_log_poll_window_blocks',
     description: 'Current window size in blocks. Diagnostic; constant in v1 (2 × reorgHorizon).',
   }),
-
-  // ---- F1 gauges ----
   pendingEventCount: defineGauge({
     name: 'ingestion_pending_event_count',
     description:
@@ -126,7 +116,6 @@ export const chainMetrics = {
       'Count of dao_source rows the indexer booted with per source_type. Zero is a deployable-but-actionable signal (misconfigured table).',
   }),
 
-  // ---- F2 counters ----
   reorgEvent: defineCounter({
     name: 'ingestion_reorg_event',
     description:
@@ -143,7 +132,7 @@ export const chainMetrics = {
       'Reorg signals flagged as truncated (divergence extends past oldest buffered block). Operator alert — divergence root is approximate.',
   }),
 
-  // ---- F2 histograms ----
+  // ---- histograms ----
   promotionSweepDuration: defineHistogram({
     name: 'ingestion_promotion_sweep_duration_seconds',
     description:
@@ -151,7 +140,6 @@ export const chainMetrics = {
     buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
   }),
 
-  // ---- Histograms ----
   rpcRequestDuration: defineHistogram({
     name: 'ingestion_rpc_request_duration_seconds',
     description: 'Latency of individual JSON-RPC requests',
