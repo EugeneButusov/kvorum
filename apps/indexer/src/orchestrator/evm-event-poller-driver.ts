@@ -13,12 +13,12 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
   async start(
     spec: Extract<IngestSpec, { kind: 'evm-event-poller' }>,
     ctx: SourceContext,
-    chainCfg: Parameters<ChainContextRegistry['lease']>[0],
+    chainCfg: Parameters<ChainContextRegistry['getOrCreate']>[0],
   ): Promise<FetchDriverHandle> {
-    const lease = await this.registry.lease(chainCfg);
+    const chainCtx = await this.registry.getOrCreate(chainCfg);
 
     const poller = new EventPoller({
-      rpcClient: lease.client,
+      rpcClient: chainCtx.client,
       chainId: ctx.chainId,
       chainName: chainCfg.name,
       reorgHorizon: chainCfg.reorgHorizon,
@@ -34,7 +34,6 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     return {
       stop: async () => {
         await poller.stop();
-        await lease.release();
       },
     };
   }

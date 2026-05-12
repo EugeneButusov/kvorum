@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventPoller } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
-import type { ChainContextRegistry, ChainLease } from './chain-context-registry';
+import type { ChainContextRegistry } from './chain-context-registry';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
 
 vi.mock('@libs/chain', () => ({
@@ -57,16 +57,11 @@ function makeRegistryContext(client = makeClient()) {
   };
 }
 
-function makeRegistryWithLease(ctx = makeRegistryContext()): {
-  registry: ChainContextRegistry;
-  lease: ChainLease;
-} {
-  const release = vi.fn().mockResolvedValue(undefined);
-  const lease = { ...ctx, release } as ChainLease;
+function makeRegistry(ctx = makeRegistryContext()): { registry: ChainContextRegistry } {
   const registry = {
-    lease: vi.fn().mockResolvedValue(lease),
+    getOrCreate: vi.fn().mockResolvedValue(ctx),
   } as unknown as ChainContextRegistry;
-  return { registry, lease };
+  return { registry };
 }
 
 function setupMockPoller() {
@@ -86,20 +81,20 @@ beforeEach(() => {
 });
 
 describe('EvmEventPollerDriver', () => {
-  it('#1 — start() leases context from registry, starts poller, wires listener', async () => {
-    const { registry } = makeRegistryWithLease();
+  it('#1 — start() gets context from registry, starts poller, wires listener', async () => {
+    const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
     const driver = new EvmEventPollerDriver(registry);
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
-    expect(registry.lease).toHaveBeenCalledWith(CHAIN_CFG);
+    expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG);
     expect(poller.start).toHaveBeenCalledTimes(1);
     expect(poller.onEvents).toHaveBeenCalledWith(LISTENER);
   });
 
-  it('#2 — two sources on same chain: registry.lease called twice (registry handles refcount)', async () => {
-    const { registry } = makeRegistryWithLease();
+  it('#2 — two sources on same chain: registry.getOrCreate called twice (registry handles caching)', async () => {
+    const { registry } = makeRegistry();
     vi.mocked(EventPoller).mockImplementation(function () {
       return {
         onEvents: vi.fn(),
@@ -113,17 +108,15 @@ describe('EvmEventPollerDriver', () => {
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG);
 
-    expect(registry.lease).toHaveBeenCalledTimes(2);
+    expect(registry.getOrCreate).toHaveBeenCalledTimes(2);
     expect(EventPoller).toHaveBeenCalledTimes(2);
   });
 
-  it('#3 — two sources on different chains: lease called per chain', async () => {
+  it('#3 — two sources on different chains: getOrCreate called per chain', async () => {
     const ctxA = makeRegistryContext();
     const ctxB = makeRegistryContext();
-    const leaseA = { ...ctxA, release: vi.fn().mockResolvedValue(undefined) } as ChainLease;
-    const leaseB = { ...ctxB, release: vi.fn().mockResolvedValue(undefined) } as ChainLease;
     const registry = {
-      lease: vi.fn().mockResolvedValueOnce(leaseA).mockResolvedValueOnce(leaseB),
+      getOrCreate: vi.fn().mockResolvedValueOnce(ctxA).mockResolvedValueOnce(ctxB),
     } as unknown as ChainContextRegistry;
 
     vi.mocked(EventPoller).mockImplementation(function () {
@@ -139,13 +132,13 @@ describe('EvmEventPollerDriver', () => {
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG_137);
 
-    expect(registry.lease).toHaveBeenCalledTimes(2);
-    expect(registry.lease).toHaveBeenCalledWith(CHAIN_CFG);
-    expect(registry.lease).toHaveBeenCalledWith(CHAIN_CFG_137);
+    expect(registry.getOrCreate).toHaveBeenCalledTimes(2);
+    expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG);
+    expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG_137);
   });
 
-  it('#4 — stop() stops poller and calls lease.release()', async () => {
-    const { registry, lease } = makeRegistryWithLease();
+  it('#4 — stop() stops poller only', async () => {
+    const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
     const driver = new EvmEventPollerDriver(registry);
@@ -153,12 +146,11 @@ describe('EvmEventPollerDriver', () => {
     await handle.stop();
 
     expect(poller.stop).toHaveBeenCalledTimes(1);
-    expect(lease.release).toHaveBeenCalledTimes(1);
   });
 
-  it('#5 — EventPoller constructed with rpcClient from lease', async () => {
+  it('#5 — EventPoller constructed with rpcClient from registry context', async () => {
     const client = makeClient();
-    const { registry } = makeRegistryWithLease(makeRegistryContext(client));
+    const { registry } = makeRegistry(makeRegistryContext(client));
     setupMockPoller();
 
     const driver = new EvmEventPollerDriver(registry);
@@ -168,9 +160,9 @@ describe('EvmEventPollerDriver', () => {
     expect(pollerOpts.rpcClient).toBe(client);
   });
 
-  it('#6 — registry.lease() rejects: error propagates', async () => {
+  it('#6 — registry.getOrCreate() rejects: error propagates', async () => {
     const registry = {
-      lease: vi.fn().mockRejectedValue(new Error('rpc fail')),
+      getOrCreate: vi.fn().mockRejectedValue(new Error('rpc fail')),
     } as unknown as ChainContextRegistry;
     setupMockPoller();
 

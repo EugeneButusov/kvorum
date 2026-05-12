@@ -7,6 +7,7 @@ import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
 import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
+import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -29,6 +30,10 @@ vi.mock('@libs/db', () => ({
 
 vi.mock('./chain-context-registry', () => ({
   ChainContextRegistry: vi.fn(),
+}));
+
+vi.mock('./reorg-watcher.service', () => ({
+  ReorgWatcherService: vi.fn(),
 }));
 
 const CHAIN_CFG = {
@@ -91,14 +96,20 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 const mockDaoSourceRepo = { findAll: vi.fn() };
 const mockConfirmationRepo = { countPendingBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
-  markReady: vi.fn(),
-  markFailed: vi.fn(),
+  allActive: vi.fn().mockReturnValue([]),
   drainAll: vi.fn().mockResolvedValue(undefined),
+};
+
+const mockReorgWatcher = {
+  watch: vi.fn(),
 };
 
 async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
+  } as never);
+  vi.mocked(ReorgWatcherService).mockImplementation(function () {
+    return mockReorgWatcher;
   } as never);
 
   return Test.createTestingModule({
@@ -109,6 +120,7 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
+      { provide: ReorgWatcherService, useValue: mockReorgWatcher },
     ],
   }).compile();
 }
@@ -116,6 +128,7 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
 beforeEach(() => {
   vi.clearAllMocks();
   mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
+  mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
 });
 

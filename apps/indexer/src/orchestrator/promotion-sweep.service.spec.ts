@@ -36,7 +36,6 @@ function makeChainCtx(
 
 function makeRegistry(chains: ReturnType<typeof makeChainCtx>[]) {
   return {
-    whenReady: vi.fn().mockResolvedValue(undefined),
     allActive: vi.fn().mockReturnValue(chains),
   };
 }

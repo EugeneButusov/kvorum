@@ -7,6 +7,7 @@ import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
+import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
     private readonly registry: ChainContextRegistry,
+    private readonly reorgWatcher: ReorgWatcherService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -38,7 +40,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
     if (sources.length === 0) {
       this.logger.warn('No dao_source rows found; indexer will idle');
-      this.registry.markReady();
       return;
     }
 
@@ -54,19 +55,15 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     for (const src of sources) {
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
-        const err = new Error(
+        throw new Error(
           `No plugin registered for source_type="${src.source_type}" (dao_source ${src.id})`,
         );
-        this.registry.markFailed(err);
-        throw err;
       }
       const chainCfg = chainsByChainId.get(src.primary_chain_id);
       if (!chainCfg) {
-        const err = new Error(
+        throw new Error(
           `dao_source ${src.id} is on chain ${src.primary_chain_id} but CHAIN_CONFIG has no entry for it`,
         );
-        this.registry.markFailed(err);
-        throw err;
       }
       const config = plugin.parseConfig(src.source_config);
       validated.push({ sourceType: src.source_type, config, plugin, chainCfg, src });
@@ -100,8 +97,11 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       this.handles.length = 0;
       this.activeSourceTypes.clear();
       await this.registry.drainAll();
-      this.registry.markFailed(err instanceof Error ? err : new Error(String(err)));
       throw err;
+    }
+
+    for (const chainCtx of this.registry.allActive()) {
+      this.reorgWatcher.watch(chainCtx);
     }
 
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
@@ -111,7 +111,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       `started ${sources.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
     );
 
-    this.registry.markReady();
     this.startPendingDepthGauge();
   }
 

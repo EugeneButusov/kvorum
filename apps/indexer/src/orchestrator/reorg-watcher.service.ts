@@ -1,29 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import type { OnApplicationShutdown } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
 import type { ReorgSignal } from '@libs/chain';
 import { ReorgEventRepository } from '@libs/db';
-import type { ChainContextRegistry } from './chain-context-registry';
+import type { ChainContext } from './chain-context-registry';
 
 @Injectable()
-export class ReorgWatcherService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class ReorgWatcherService implements OnApplicationShutdown {
   private readonly logger = new Logger('ReorgWatcher');
   private readonly unsubscribeFns: Array<() => void> = [];
 
-  constructor(
-    private readonly registry: ChainContextRegistry,
-    private readonly reorgRepo: ReorgEventRepository,
-  ) {}
+  constructor(private readonly reorgRepo: ReorgEventRepository) {}
 
-  async onApplicationBootstrap(): Promise<void> {
-    await this.registry.whenReady();
-
-    for (const chainCtx of this.registry.allActive()) {
-      const unsubscribe = chainCtx.reorgDetector.onReorg(async (signal) => {
-        await this.handleReorg(signal, chainCtx.chainCfg.name);
-      });
-      this.unsubscribeFns.push(unsubscribe);
-    }
+  watch(ctx: ChainContext): void {
+    const unsubscribe = ctx.reorgDetector.onReorg(async (signal) => {
+      await this.handleReorg(signal, ctx.chainCfg.name);
+    });
+    this.unsubscribeFns.push(unsubscribe);
   }
 
   async onApplicationShutdown(): Promise<void> {

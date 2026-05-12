@@ -17,8 +17,6 @@ export class PromotionSweepService implements OnApplicationBootstrap, OnApplicat
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    await this.registry.whenReady();
-
     void this.tick();
     this.interval = setInterval(() => void this.tick(), SWEEP_INTERVAL_MS);
   }

@@ -9,6 +9,7 @@ vi.mock('@libs/chain', () => ({
 }));
 
 import { chainMetrics } from '@libs/chain';
+import type { ChainContext } from './chain-context-registry';
 import { ReorgWatcherService } from './reorg-watcher.service';
 
 function makeReorgSignal(
@@ -36,15 +37,15 @@ function makeReorgSignal(
   };
 }
 
-function makeRegistry(
-  chains: Array<{
-    reorgDetector: { onReorg: ReturnType<typeof vi.fn> };
-    chainCfg: { name: string };
-  }>,
-) {
-  const whenReady = vi.fn().mockResolvedValue(undefined);
-  const allActive = vi.fn().mockReturnValue(chains);
-  return { whenReady, allActive };
+function makeChainContext(name = 'ethereum'): ChainContext & {
+  reorgDetector: { onReorg: ReturnType<typeof vi.fn> };
+} {
+  return {
+    client: {} as never,
+    headTracker: {} as never,
+    reorgDetector: { onReorg: vi.fn().mockReturnValue(() => {}) },
+    chainCfg: { chainId: '0x1', name, reorgHorizon: 12, providers: [] } as never,
+  };
 }
 
 function makeRepo(result = { reorgEventId: 'evt-uuid', orphanedRowCount: 2 }) {
@@ -58,36 +59,30 @@ beforeEach(() => {
 });
 
 describe('ReorgWatcherService', () => {
-  it('#1 — onApplicationBootstrap: awaits whenReady and registers onReorg on every chain', async () => {
-    const detector1 = { onReorg: vi.fn().mockReturnValue(() => {}) };
-    const detector2 = { onReorg: vi.fn().mockReturnValue(() => {}) };
-    const registry = makeRegistry([
-      { reorgDetector: detector1, chainCfg: { name: 'ethereum' } },
-      { reorgDetector: detector2, chainCfg: { name: 'polygon' } },
-    ]);
+  it('#1 — watch(): registers onReorg on the given chain context', () => {
+    const ctx1 = makeChainContext('ethereum');
+    const ctx2 = makeChainContext('polygon');
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx1);
+    svc.watch(ctx2);
 
-    expect(registry.whenReady).toHaveBeenCalledTimes(1);
-    expect(detector1.onReorg).toHaveBeenCalledTimes(1);
-    expect(detector2.onReorg).toHaveBeenCalledTimes(1);
+    expect(ctx1.reorgDetector.onReorg).toHaveBeenCalledTimes(1);
+    expect(ctx2.reorgDetector.onReorg).toHaveBeenCalledTimes(1);
   });
 
   it('#2 — reorg signal dispatched → repo called with correctly mapped fields', async () => {
     let capturedListener: ((sig: ReturnType<typeof makeReorgSignal>) => void) | null = null;
-    const detector = {
-      onReorg: vi.fn().mockImplementation((fn: typeof capturedListener) => {
-        capturedListener = fn;
-        return () => {};
-      }),
-    };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockImplementation((fn: typeof capturedListener) => {
+      capturedListener = fn;
+      return () => {};
+    });
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
 
     const signal = makeReorgSignal();
     await capturedListener!(signal);
@@ -104,17 +99,15 @@ describe('ReorgWatcherService', () => {
 
   it('#3 — null entries in orphanedBlockHashes are dropped before repo call', async () => {
     let capturedListener: ((sig: ReturnType<typeof makeReorgSignal>) => void) | null = null;
-    const detector = {
-      onReorg: vi.fn().mockImplementation((fn: typeof capturedListener) => {
-        capturedListener = fn;
-        return () => {};
-      }),
-    };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockImplementation((fn: typeof capturedListener) => {
+      capturedListener = fn;
+      return () => {};
+    });
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
 
     const signal = makeReorgSignal({ orphanedBlockHashes: [null, '0xaaa', null, '0xbbb'] });
     await capturedListener!(signal);
@@ -127,17 +120,15 @@ describe('ReorgWatcherService', () => {
 
   it('#4 — truncated signal: reorgTruncated counter increments; notes = "truncated"', async () => {
     let capturedListener: ((sig: ReturnType<typeof makeReorgSignal>) => void) | null = null;
-    const detector = {
-      onReorg: vi.fn().mockImplementation((fn: typeof capturedListener) => {
-        capturedListener = fn;
-        return () => {};
-      }),
-    };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockImplementation((fn: typeof capturedListener) => {
+      capturedListener = fn;
+      return () => {};
+    });
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
 
     const signal = makeReorgSignal({ truncated: true });
     await capturedListener!(signal);
@@ -149,17 +140,15 @@ describe('ReorgWatcherService', () => {
 
   it('#5 — chainShrunk signal: notes contains "chain_shrunk"', async () => {
     let capturedListener: ((sig: ReturnType<typeof makeReorgSignal>) => void) | null = null;
-    const detector = {
-      onReorg: vi.fn().mockImplementation((fn: typeof capturedListener) => {
-        capturedListener = fn;
-        return () => {};
-      }),
-    };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockImplementation((fn: typeof capturedListener) => {
+      capturedListener = fn;
+      return () => {};
+    });
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
 
     const signal = makeReorgSignal({ chainShrunk: true });
     await capturedListener!(signal);
@@ -170,17 +159,15 @@ describe('ReorgWatcherService', () => {
 
   it('#6 — repo throws → handler logs error, does NOT rethrow', async () => {
     let capturedListener: ((sig: ReturnType<typeof makeReorgSignal>) => void) | null = null;
-    const detector = {
-      onReorg: vi.fn().mockImplementation((fn: typeof capturedListener) => {
-        capturedListener = fn;
-        return () => {};
-      }),
-    };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockImplementation((fn: typeof capturedListener) => {
+      capturedListener = fn;
+      return () => {};
+    });
     const repo = { writeReorgEventAndOrphan: vi.fn().mockRejectedValue(new Error('db down')) };
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
 
     const signal = makeReorgSignal();
     await expect(capturedListener!(signal)).resolves.toBeUndefined();
@@ -189,16 +176,15 @@ describe('ReorgWatcherService', () => {
   it('#7 — onApplicationShutdown: invokes every unsubscribe fn', async () => {
     const unsub1 = vi.fn();
     const unsub2 = vi.fn();
-    const detector1 = { onReorg: vi.fn().mockReturnValue(unsub1) };
-    const detector2 = { onReorg: vi.fn().mockReturnValue(unsub2) };
-    const registry = makeRegistry([
-      { reorgDetector: detector1, chainCfg: { name: 'ethereum' } },
-      { reorgDetector: detector2, chainCfg: { name: 'polygon' } },
-    ]);
+    const ctx1 = makeChainContext('ethereum');
+    const ctx2 = makeChainContext('polygon');
+    ctx1.reorgDetector.onReorg.mockReturnValue(unsub1);
+    ctx2.reorgDetector.onReorg.mockReturnValue(unsub2);
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx1);
+    svc.watch(ctx2);
     await svc.onApplicationShutdown();
 
     expect(unsub1).toHaveBeenCalledTimes(1);
@@ -207,12 +193,12 @@ describe('ReorgWatcherService', () => {
 
   it('#8 — idempotent shutdown: unsubscribes only once even if called twice', async () => {
     const unsub = vi.fn();
-    const detector = { onReorg: vi.fn().mockReturnValue(unsub) };
-    const registry = makeRegistry([{ reorgDetector: detector, chainCfg: { name: 'ethereum' } }]);
+    const ctx = makeChainContext();
+    ctx.reorgDetector.onReorg.mockReturnValue(unsub);
     const repo = makeRepo();
-    const svc = new ReorgWatcherService(registry as never, repo as never);
+    const svc = new ReorgWatcherService(repo as never);
 
-    await svc.onApplicationBootstrap();
+    svc.watch(ctx);
     await svc.onApplicationShutdown();
     await svc.onApplicationShutdown();
 
