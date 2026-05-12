@@ -1,6 +1,19 @@
 import { z } from 'zod';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 
+/**
+ * Normalises a chain identifier to its canonical string form:
+ * - EVM hex strings (0x…) → lowercase, no leading zeros: '0x1', '0x89'
+ * - Non-hex strings (e.g. 'solana-mainnet') → trimmed as-is
+ */
+export function normalizeChainId(raw: string): string {
+  const trimmed = raw.trim();
+  if (/^0x/i.test(trimmed)) {
+    return '0x' + BigInt(trimmed).toString(16);
+  }
+  return trimmed;
+}
+
 const ProviderConfigSchema = z.object({
   name: z.string().min(1),
   url: z.string().url(),
@@ -11,7 +24,7 @@ const ProviderConfigSchema = z.object({
 });
 
 const ChainConfigSchema = z.object({
-  chainId: z.number().int().positive(),
+  chainId: z.string().min(1).transform(normalizeChainId),
   name: z.string().min(1),
   reorgHorizon: z.number().int().positive(),
   lagThresholdBlocks: z.number().int().positive().optional(),

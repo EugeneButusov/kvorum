@@ -12,7 +12,7 @@ export interface ArchiveConfirmationTable {
   id: Generated<string>;
   source_type: SourceType;
   dao_source_id: string;
-  chain_id: number;
+  chain_id: string;
   // pg driver returns bigint as string
   block_number: string;
   block_hash: string;
@@ -41,7 +41,7 @@ export interface IngestionDlqTable {
   first_seen_at: Date;
   last_attempt_at: Date;
   archive_source_type: SourceType | null;
-  archive_chain_id: number | null;
+  archive_chain_id: string | null;
   archive_tx_hash: string | null;
   archive_log_index: number | null;
   archive_block_hash: string | null;
@@ -63,7 +63,7 @@ export interface IngestionDlqResolvedTable {
   first_seen_at: Date;
   last_attempt_at: Date;
   archive_source_type: SourceType | null;
-  archive_chain_id: number | null;
+  archive_chain_id: string | null;
   archive_tx_hash: string | null;
   archive_log_index: number | null;
   archive_block_hash: string | null;

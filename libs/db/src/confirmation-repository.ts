@@ -4,7 +4,7 @@ import { isTransientDbError } from './utils';
 
 export interface ConfirmationKey {
   sourceType: string;
-  chainId: number;
+  chainId: string;
   txHash: string;
   logIndex: number;
   blockHash: string;

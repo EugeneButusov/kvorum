@@ -4,7 +4,7 @@ import type { Logger } from '../logger.js';
 export type BufferResetReason = 'cold_start' | 'gap_exceeded_horizon';
 
 export interface ReorgSignal {
-  chainId: number;
+  chainId: string;
   /** Signal-emission time (post re-fetch). */
   detectedAt: Date;
   /** The triggering head's observedAt — closer to actual chain observation than detectedAt. */
@@ -29,7 +29,7 @@ export interface ReorgSignal {
 }
 
 export interface BufferResetSignal {
-  chainId: number;
+  chainId: string;
   reason: BufferResetReason;
   atBlockNumber: bigint;
   occurredAt: Date;
@@ -40,7 +40,7 @@ export type BufferResetListener = (signal: BufferResetSignal) => void | Promise<
 
 export interface ReorgDetectorOptions {
   rpcClient: RpcClient;
-  chainId: number;
+  chainId: string;
   chainName: string;
   /** Window size; per SPEC §3.4 the window covers the reorg horizon. */
   reorgHorizon: number;

@@ -4,7 +4,7 @@ import type { Head, HeadTrackerOptions } from './types.js';
 import { FailoverRpcClient } from '../client/failover-rpc-client.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
 
-const CHAIN_ID = 31337;
+const CHAIN_ID = '0x7a69';
 
 function makeBlock(number = 16, hash = '0x' + 'cd'.repeat(32)): Record<string, unknown> {
   return {

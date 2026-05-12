@@ -17,7 +17,7 @@ async function readCounter(name: string, labels: Record<string, string>): Promis
   return 0;
 }
 
-const CHAIN_ID = 31337;
+const CHAIN_ID = '0x7a69';
 const TX_HASH = '0x' + 'ab'.repeat(32);
 const BLOCK_HASH = '0x' + 'cd'.repeat(32);
 const ADDRESS = '0x' + 'aa'.repeat(20);

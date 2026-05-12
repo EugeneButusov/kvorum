@@ -5,7 +5,7 @@ import type { NewArchiveConfirmation } from './schema/pg';
 
 const KEY: ConfirmationKey = {
   sourceType: 'compound_governor',
-  chainId: 1,
+  chainId: '0x1',
   txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
   logIndex: 3,
   blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
@@ -14,7 +14,7 @@ const KEY: ConfirmationKey = {
 const PG_ROW: NewArchiveConfirmation = {
   source_type: 'compound_governor',
   dao_source_id: '00000000-0000-0000-0000-000000000001',
-  chain_id: 1,
+  chain_id: '0x1',
   block_number: '20000000',
   block_hash: KEY.blockHash,
   tx_hash: KEY.txHash,
@@ -107,7 +107,7 @@ describe('ConfirmationRepository', () => {
       expect(selectFrom).toHaveBeenCalledWith('archive_confirmation');
       expect(where.mock.calls).toEqual([
         ['source_type', '=', 'compound_governor'],
-        ['chain_id', '=', 1],
+        ['chain_id', '=', '0x1'],
         ['tx_hash', '=', KEY.txHash],
         ['log_index', '=', 3],
         ['block_hash', '=', KEY.blockHash],

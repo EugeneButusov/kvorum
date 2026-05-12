@@ -4,7 +4,7 @@ import type { CompoundGovernorEvent } from './types';
 
 export interface EventData {
   daoSourceId: string;
-  chainId: number;
+  chainId: string;
   blockNumber: string;
   blockHash: string;
   txHash: string;

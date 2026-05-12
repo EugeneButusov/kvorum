@@ -23,7 +23,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('archive_source_type', 'text', (col) =>
       col.references('source_type.value').onDelete('restrict'),
     )
-    .addColumn('archive_chain_id', 'integer')
+    .addColumn('archive_chain_id', sql`varchar(32)`)
     .addColumn('archive_tx_hash', 'text')
     .addColumn('archive_log_index', 'integer')
     .addColumn('archive_block_hash', 'text')
@@ -59,7 +59,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('archive_source_type', 'text', (col) =>
       col.references('source_type.value').onDelete('restrict'),
     )
-    .addColumn('archive_chain_id', 'integer')
+    .addColumn('archive_chain_id', sql`varchar(32)`)
     .addColumn('archive_tx_hash', 'text')
     .addColumn('archive_log_index', 'integer')
     .addColumn('archive_block_hash', 'text')

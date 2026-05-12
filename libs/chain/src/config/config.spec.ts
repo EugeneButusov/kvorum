@@ -5,7 +5,7 @@ import { ChainConfigError } from '../errors/chain-config.error.js';
 const validConfig = {
   chains: [
     {
-      chainId: 1,
+      chainId: '0x1',
       name: 'ethereum',
       reorgHorizon: 12,
       providers: [{ name: 'alchemy', url: 'http://localhost:8545', kind: 'http', priority: 1 }],
@@ -20,7 +20,7 @@ function env(config: unknown): NodeJS.ProcessEnv {
 describe('parseChainConfigFromEnv', () => {
   it('parses a valid config', () => {
     const [chain] = parseChainConfigFromEnv(env(validConfig));
-    expect(chain.chainId).toBe(1);
+    expect(chain.chainId).toBe('0x1');
     expect(chain.providers).toHaveLength(1);
     expect(chain.providers[0]?.name).toBe('alchemy');
   });
@@ -36,7 +36,7 @@ describe('parseChainConfigFromEnv', () => {
   });
 
   it('throws when a required field is missing', () => {
-    const bad = { chains: [{ chainId: 1, name: 'x', providers: [] }] };
+    const bad = { chains: [{ chainId: '0x1', name: 'x', providers: [] }] };
     expect(() => parseChainConfigFromEnv(env(bad))).toThrow(ChainConfigError);
     expect(() => parseChainConfigFromEnv(env(bad))).toThrow('validation failed');
   });
@@ -47,7 +47,7 @@ describe('parseChainConfigFromEnv', () => {
   });
 
   it('throws when a field has the wrong type', () => {
-    const bad = { chains: [{ ...validConfig.chains[0], chainId: 'not-a-number' }] };
+    const bad = { chains: [{ ...validConfig.chains[0], chainId: 999 }] };
     expect(() => parseChainConfigFromEnv(env(bad))).toThrow(ChainConfigError);
   });
 
@@ -57,7 +57,7 @@ describe('parseChainConfigFromEnv', () => {
   });
 
   it('includes the offending JSON path in the error message', () => {
-    const bad = { chains: [{ ...validConfig.chains[0], chainId: 'bad' }] };
+    const bad = { chains: [{ ...validConfig.chains[0], chainId: 999 }] };
     try {
       parseChainConfigFromEnv(env(bad));
       expect.fail('should have thrown');

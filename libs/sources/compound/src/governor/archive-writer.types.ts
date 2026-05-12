@@ -14,7 +14,7 @@ export interface ArchiveWriterDeps {
 export interface ArchiveWriteContext {
   daoSourceId: string;
   sourceType: string;
-  chainId: number;
+  chainId: string;
   sourceLabel: string;
 }
 

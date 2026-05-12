@@ -27,7 +27,7 @@
 CREATE TABLE IF NOT EXISTS event_archive_compound_governor
 (
     dao_source_id   UUID CODEC(ZSTD(1)),
-    chain_id        UInt32 CODEC(ZSTD(1)),
+    chain_id        LowCardinality(String) CODEC(ZSTD(1)),
     block_number    UInt64 CODEC(Delta(8), ZSTD(1)),
     block_hash      FixedString(66) CODEC(ZSTD(1)),
     tx_hash         FixedString(66) CODEC(ZSTD(1)),

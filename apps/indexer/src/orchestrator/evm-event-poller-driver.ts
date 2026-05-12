@@ -11,7 +11,7 @@ interface ClientRef {
 export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
   readonly kind = 'evm-event-poller' as const;
 
-  private readonly clients = new Map<number, ClientRef>();
+  private readonly clients = new Map<string, ClientRef>();
   private readonly logger: Logger | undefined;
 
   constructor(logger?: Logger) {

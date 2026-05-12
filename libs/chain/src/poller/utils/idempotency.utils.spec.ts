@@ -3,7 +3,7 @@ import { buildIdempotencyKey } from './idempotency.utils.js';
 
 const BASE = {
   sourceType: 'compound_governor',
-  chainId: 1,
+  chainId: '0x1',
   txHash: '0xaabbccdd00000000000000000000000000000000000000000000000000000001',
   logIndex: 0,
   blockHash: '0xdeadbeef00000000000000000000000000000000000000000000000000000002',
@@ -15,7 +15,7 @@ describe('buildIdempotencyKey', () => {
     const parts = key.split(':');
     expect(parts).toHaveLength(5);
     expect(parts[0]).toBe('compound_governor');
-    expect(parts[1]).toBe('1');
+    expect(parts[1]).toBe('0x1');
   });
 
   it('is stable across calls with identical inputs', () => {
@@ -62,8 +62,8 @@ describe('buildIdempotencyKey', () => {
     expect(() => buildIdempotencyKey({ ...BASE, sourceType: '' })).toThrow(/sourceType/);
   });
 
-  it('throws on negative chainId', () => {
-    expect(() => buildIdempotencyKey({ ...BASE, chainId: -1 })).toThrow(/chainId/);
+  it('throws on empty chainId', () => {
+    expect(() => buildIdempotencyKey({ ...BASE, chainId: '' })).toThrow(/chainId/);
   });
 
   it('throws on negative logIndex', () => {

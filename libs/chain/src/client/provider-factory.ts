@@ -1,5 +1,5 @@
 import { FetchRequest, JsonRpcProvider, Network } from 'ethers';
-import type { ProviderConfig } from '../config/config.js';
+import { normalizeChainId, type ProviderConfig } from '../config/config.js';
 import { NotImplementedError } from '../errors/not-implemented.error.js';
 
 /**
@@ -10,7 +10,7 @@ import { NotImplementedError } from '../errors/not-implemented.error.js';
  * - cacheTimeout: -1 — disables ethers' result cache so failover retries always hit the wire.
  * - FetchRequest carries the per-attempt timeout (default 4s).
  */
-export function createJsonRpcProvider(provider: ProviderConfig, chainId: number): JsonRpcProvider {
+export function createJsonRpcProvider(provider: ProviderConfig, chainId: string): JsonRpcProvider {
   if (provider.kind === 'ws') {
     throw new NotImplementedError(
       `WebSocket transport is not implemented in M1 (ADR-037). Provider: ${provider.name}`,
@@ -20,7 +20,8 @@ export function createJsonRpcProvider(provider: ProviderConfig, chainId: number)
   const fr = new FetchRequest(provider.url);
   fr.timeout = provider.timeoutMs ?? 4_000;
 
-  const net = Network.from(chainId);
+  // ethers Network.from() does not accept hex strings — pass the numeric value.
+  const net = Network.from(Number(normalizeChainId(chainId)));
 
   return new JsonRpcProvider(fr, net, {
     staticNetwork: net,

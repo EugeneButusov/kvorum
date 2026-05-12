@@ -1,6 +1,7 @@
 import type { JsonRpcProvider } from 'ethers';
 import { sleep } from '@libs/utils';
 import type { ProviderState } from '../client/provider-state.js';
+import { normalizeChainId } from '../config/config.js';
 import type { ChainConfig } from '../config/config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 import type { Logger } from '../logger.js';
@@ -75,7 +76,7 @@ export class HealthChecker {
           }
           try {
             const raw = (await provider.send('eth_chainId', [])) as string;
-            const reported = Number(BigInt(raw));
+            const reported = normalizeChainId(raw);
             if (reported !== this.config.chainId) {
               state.unusable = true;
               chainMetrics.providerUnusable.record(1, { provider: name, chain });

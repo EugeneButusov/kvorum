@@ -122,10 +122,10 @@ describe('scrubError', () => {
 
 describe('error classes', () => {
   it('AllProvidersFailedError carries chainId and attempts', () => {
-    const err = new AllProvidersFailedError(1, [
+    const err = new AllProvidersFailedError('0x1', [
       { provider: 'p1', reason: 'timeout', cause: null },
     ]);
-    expect(err.chainId).toBe(1);
+    expect(err.chainId).toBe('0x1');
     expect(err.attempts).toHaveLength(1);
     expect(err.name).toBe('AllProvidersFailedError');
     expect(err).toBeInstanceOf(Error);
@@ -138,8 +138,8 @@ describe('error classes', () => {
   });
 
   it('ClientStoppedError carries chainId', () => {
-    const err = new ClientStoppedError(1);
-    expect(err.chainId).toBe(1);
+    const err = new ClientStoppedError('0x1');
+    expect(err.chainId).toBe('0x1');
     expect(err.name).toBe('ClientStoppedError');
   });
 
