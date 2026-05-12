@@ -2,7 +2,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pgDb } from '@libs/db';
-import { metricPrefix, shutdownForTest } from '@libs/observability';
+import { metricPrefix } from '@libs/observability';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
@@ -110,7 +110,6 @@ describeIf('F3 full-pipeline reorg', () => {
 
   afterAll(async () => {
     await app?.close();
-    await shutdownForTest();
   });
 
   beforeEach(async () => {

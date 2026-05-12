@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import swc from 'unplugin-swc';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
@@ -20,7 +21,17 @@ const alias = {
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/indexer',
-  plugins: [tsconfigPaths()],
+  plugins: [
+    tsconfigPaths(),
+    swc.vite({
+      jsc: {
+        transform: {
+          legacyDecorator: true,
+          decoratorMetadata: true,
+        },
+      },
+    }),
+  ],
   resolve: { alias },
   test: {
     reporters: ['default'],
