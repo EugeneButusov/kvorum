@@ -99,6 +99,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       await Promise.allSettled(this.handles.map((h) => h.stop()));
       this.handles.length = 0;
       this.activeSourceTypes.clear();
+      await this.registry.drainAll();
       this.registry.markFailed(err instanceof Error ? err : new Error(String(err)));
       throw err;
     }

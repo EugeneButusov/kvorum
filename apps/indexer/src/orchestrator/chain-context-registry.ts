@@ -10,13 +10,8 @@ export interface ChainContext {
 }
 
 export interface ChainLease extends ChainContext {
-  /** Idempotent: decrements the ref-count; stops chain resources when the last lease is released. */
+  /** Idempotent: tears down chain resources on first call; subsequent calls are no-ops. */
   release(): Promise<void>;
-}
-
-interface ChainEntry {
-  ctx: ChainContext;
-  refCount: number;
 }
 
 const HEAD_POLL_INTERVAL_MS = Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_000);
@@ -24,7 +19,7 @@ const HEAD_POLL_INTERVAL_MS = Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_0
 @Injectable()
 export class ChainContextRegistry {
   private readonly logger = new Logger('ChainContextRegistry');
-  private readonly map = new Map<string, ChainEntry>();
+  private readonly map = new Map<string, ChainContext>();
 
   private readyResolve: (() => void) | null = null;
   private readyReject: ((err: Error) => void) | null = null;
@@ -41,8 +36,7 @@ export class ChainContextRegistry {
   async lease(chainCfg: ChainConfig): Promise<ChainLease> {
     const existing = this.map.get(chainCfg.chainId);
     if (existing) {
-      existing.refCount++;
-      return this.makeLease(existing.ctx, chainCfg.chainId);
+      return this.makeLease(existing, chainCfg.chainId);
     }
 
     const client = new FailoverRpcClient(chainCfg);
@@ -67,24 +61,24 @@ export class ChainContextRegistry {
     await headTracker.start();
 
     const ctx: ChainContext = { client, headTracker, reorgDetector, chainCfg };
-    this.map.set(chainCfg.chainId, { ctx, refCount: 1 });
+    this.map.set(chainCfg.chainId, ctx);
     return this.makeLease(ctx, chainCfg.chainId);
   }
 
   async drainAll(): Promise<void> {
-    const entries = Array.from(this.map.values());
+    const contexts = Array.from(this.map.values());
     this.map.clear();
     await Promise.allSettled(
-      entries.flatMap((e) => [e.ctx.headTracker.stop(), e.ctx.client.stop()]),
+      contexts.flatMap((ctx) => [ctx.headTracker.stop(), ctx.client.stop()]),
     );
   }
 
   peek(chainId: string): ChainContext | undefined {
-    return this.map.get(chainId)?.ctx;
+    return this.map.get(chainId);
   }
 
   allActive(): ChainContext[] {
-    return Array.from(this.map.values()).map((e) => e.ctx);
+    return Array.from(this.map.values());
   }
 
   whenReady(): Promise<void> {
@@ -108,13 +102,9 @@ export class ChainContextRegistry {
     const release = async (): Promise<void> => {
       if (released) return;
       released = true;
-      const entry = this.map.get(chainId);
-      if (!entry) return;
-      entry.refCount--;
-      if (entry.refCount > 0) return;
-      this.map.delete(chainId);
-      await entry.ctx.headTracker.stop();
-      await entry.ctx.client.stop();
+      if (!this.map.delete(chainId)) return;
+      await ctx.headTracker.stop();
+      await ctx.client.stop();
     };
     return { ...ctx, release };
   }

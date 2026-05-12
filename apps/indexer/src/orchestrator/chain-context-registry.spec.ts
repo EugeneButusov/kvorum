@@ -80,7 +80,7 @@ describe('ChainContextRegistry', () => {
     expect(lease.chainCfg).toBe(CHAIN_CFG);
   });
 
-  it('#2 — second lease for same chainId: shares underlying context, no new client/tracker', async () => {
+  it('#2 — second lease for same chainId: returns cached context, no new client/tracker', async () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
@@ -135,21 +135,7 @@ describe('ChainContextRegistry', () => {
     expect(clientB.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#4 — release with refcount > 1: decrements refcount, tracker + client NOT stopped', async () => {
-    const { client, tracker } = setupMocks();
-
-    const registry = new ChainContextRegistry();
-    const lease1 = await registry.lease(CHAIN_CFG);
-    await registry.lease(CHAIN_CFG);
-
-    await lease1.release();
-
-    expect(tracker.stop).not.toHaveBeenCalled();
-    expect(client.stop).not.toHaveBeenCalled();
-    expect(registry.peek(CHAIN_CFG.chainId)).toBeDefined();
-  });
-
-  it('#5 — last lease released: stops tracker then client; entry removed', async () => {
+  it('#4 — release: stops tracker + client; entry removed', async () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
@@ -162,7 +148,22 @@ describe('ChainContextRegistry', () => {
     expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
   });
 
-  it('#6 — double-release is idempotent: stops tracker + client only once', async () => {
+  it('#5 — two leases same chain, both released: first tears down, second is a no-op', async () => {
+    const { client, tracker } = setupMocks();
+
+    const registry = new ChainContextRegistry();
+    const lease1 = await registry.lease(CHAIN_CFG);
+    const lease2 = await registry.lease(CHAIN_CFG);
+
+    await lease1.release();
+    await lease2.release();
+
+    expect(tracker.stop).toHaveBeenCalledTimes(1);
+    expect(client.stop).toHaveBeenCalledTimes(1);
+    expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
+  });
+
+  it('#6 — double-release on same lease is idempotent: stops only once', async () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
@@ -248,7 +249,6 @@ describe('ChainContextRegistry', () => {
     const promise = registry.whenReady();
     registry.markReady();
     await expect(promise).resolves.toBeUndefined();
-    // Subsequent calls resolve immediately
     await expect(registry.whenReady()).resolves.toBeUndefined();
   });
 
@@ -257,7 +257,6 @@ describe('ChainContextRegistry', () => {
     const err = new Error('boot failed');
     registry.markFailed(err);
     await expect(registry.whenReady()).rejects.toThrow('boot failed');
-    // markReady after markFailed has no effect
     registry.markReady();
     await expect(registry.whenReady()).rejects.toThrow('boot failed');
   });
