@@ -1,4 +1,4 @@
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { NewArchiveConfirmation, PgDatabase } from './schema/pg';
 import { isTransientDbError } from './utils';
 
@@ -42,6 +42,23 @@ export class ConfirmationRepository {
       .where('source_type', '=', sourceType)
       .groupBy(['chain_id', 'source_type'])
       .execute();
+  }
+
+  /** Set-based promotion. Idempotent: re-running with the same threshold returns 0.
+   *  Returns the count of rows transitioned to confirmed. */
+  async promotePending(chainId: string, thresholdBlockNumber: bigint): Promise<number> {
+    const result = await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({
+        confirmation_status: 'confirmed',
+        confirmed_at: sql`now()`,
+      })
+      .where('chain_id', '=', chainId)
+      .where('confirmation_status', '=', 'pending')
+      .where('block_number', '<=', thresholdBlockNumber.toString())
+      .executeTakeFirst();
+
+    return Number(result?.numUpdatedRows ?? 0n);
   }
 
   async insert(row: NewArchiveConfirmation): Promise<{ id: string } | undefined> {

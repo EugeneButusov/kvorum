@@ -179,6 +179,34 @@ describe('shutdownForTest + vi.resetModules isolation', () => {
   });
 });
 
+describe('F2 metrics', () => {
+  it('reorgEvent counter exists and accepts chain_id label', async () => {
+    chainMetrics.reorgEvent.add(1, { chain_id: '0x1' });
+    const text = await renderMetrics();
+    expect(text).toContain('test_ingestion_reorg_event_total');
+  });
+
+  it('orphanedEvents counter exists and accepts chain_id label', async () => {
+    chainMetrics.orphanedEvents.add(2, { chain_id: '0x89' });
+    const text = await renderMetrics();
+    expect(text).toContain('test_ingestion_orphaned_events_total');
+  });
+
+  it('reorgTruncated counter exists and accepts chain_id label', async () => {
+    chainMetrics.reorgTruncated.add(1, { chain_id: '0x1' });
+    const text = await renderMetrics();
+    expect(text).toContain('test_ingestion_reorg_truncated_total');
+  });
+
+  it('promotionSweepDuration histogram exists and accepts chain_id label', async () => {
+    chainMetrics.promotionSweepDuration.record(0.002, { chain_id: '0x1' });
+    const text = await renderMetrics();
+    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_bucket');
+    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_sum');
+    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_count');
+  });
+});
+
 describe('sanitizeMethod', () => {
   it('passes through allowlisted methods', () => {
     expect(sanitizeMethod('eth_blockNumber')).toBe('eth_blockNumber');

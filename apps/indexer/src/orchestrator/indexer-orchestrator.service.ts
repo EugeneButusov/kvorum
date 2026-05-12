@@ -5,7 +5,9 @@ import { chainMetrics } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
+import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
+import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
 
 @Injectable()
@@ -17,9 +19,11 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
   constructor(
     @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
-    @Inject(FETCH_DRIVERS) private readonly drivers: ReadonlyArray<FetchDriver>,
+    @Inject(FETCH_DRIVERS) private readonly driver: FetchDriver,
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
+    private readonly registry: ChainContextRegistry,
+    private readonly reorgWatcher: ReorgWatcherService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -30,7 +34,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map<string, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
-    const driversByKind = new Map(this.drivers.map((d) => [d.kind, d]));
+    const driversByKind = new Map([[this.driver.kind, this.driver]]);
 
     const sources = await this.daoSourceRepo.findAll();
 
@@ -92,7 +96,12 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       await Promise.allSettled(this.handles.map((h) => h.stop()));
       this.handles.length = 0;
       this.activeSourceTypes.clear();
+      await this.registry.drainAll();
       throw err;
+    }
+
+    for (const chainCtx of this.registry.allActive()) {
+      this.reorgWatcher.watch(chainCtx);
     }
 
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
@@ -113,6 +122,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     await Promise.allSettled(this.handles.map((h) => h.stop()));
     this.handles.length = 0;
     this.activeSourceTypes.clear();
+    await this.registry.drainAll();
   }
 
   async onApplicationShutdown(): Promise<void> {

@@ -180,4 +180,52 @@ describe('ConfirmationRepository', () => {
       expect(executeTakeFirst).toHaveBeenCalledTimes(3);
     });
   });
+
+  describe('promotePending', () => {
+    function makeUpdateChain(numUpdatedRows: bigint) {
+      const executeTakeFirst = vi.fn().mockResolvedValue({ numUpdatedRows });
+      const where3 = vi.fn().mockReturnValue({ executeTakeFirst });
+      const where2 = vi.fn().mockReturnValue({ where: where3 });
+      const where1 = vi.fn().mockReturnValue({ where: where2 });
+      const set = vi.fn().mockReturnValue({ where: where1 });
+      const updateTable = vi.fn().mockReturnValue({ set });
+      return { updateTable, set, where1, where2, where3, executeTakeFirst };
+    }
+
+    it('#9 — issues UPDATE with correct chain_id, confirmation_status, block_number WHERE clauses', async () => {
+      const { updateTable, where1, where2, where3 } = makeUpdateChain(5n);
+      const repo = new ConfirmationRepository({ updateTable } as never);
+      await repo.promotePending('0x1', 100n);
+
+      expect(updateTable).toHaveBeenCalledWith('archive_confirmation');
+      expect(where1).toHaveBeenCalledWith('chain_id', '=', '0x1');
+      expect(where2).toHaveBeenCalledWith('confirmation_status', '=', 'pending');
+      expect(where3).toHaveBeenCalledWith('block_number', '<=', '100');
+    });
+
+    it('#10 — returns numUpdatedRows coerced from bigint to number', async () => {
+      const { updateTable } = makeUpdateChain(7n);
+      const repo = new ConfirmationRepository({ updateTable } as never);
+      const result = await repo.promotePending(1, 100n);
+      expect(result).toBe(7);
+    });
+
+    it('#11 — idempotent: re-running returns 0 when no pending rows match', async () => {
+      const { updateTable } = makeUpdateChain(0n);
+      const repo = new ConfirmationRepository({ updateTable } as never);
+      const result = await repo.promotePending(1, 100n);
+      expect(result).toBe(0);
+    });
+
+    it('#12 — set() includes confirmation_status=confirmed and does not include orphaned fields', async () => {
+      const { updateTable, set } = makeUpdateChain(1n);
+      const repo = new ConfirmationRepository({ updateTable } as never);
+      await repo.promotePending('0x1', 100n);
+
+      const setArg = set.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(setArg['confirmation_status']).toBe('confirmed');
+      expect(setArg).not.toHaveProperty('orphaned_at');
+      expect(setArg).not.toHaveProperty('orphaned_by_reorg_event_id');
+    });
+  });
 });
