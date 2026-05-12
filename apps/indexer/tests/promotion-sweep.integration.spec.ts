@@ -46,6 +46,14 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
     anvilCtx = await createAnvilTestContext(CHAIN_CFG);
     const confirmationRepo = new ConfirmationRepository(pgDb);
     sweepService = new PromotionSweepService(anvilCtx.registry, confirmationRepo);
+    // Seed once — truncateAllIngestionTables preserves dao/dao_source across beforeEach.
+    daoId = await insertTestDao(pgDb, { slug: 'sweep-dao', name: 'Sweep DAO' });
+    daoSourceId = await insertTestDaoSource(pgDb, {
+      daoId,
+      sourceType: 'compound_governor',
+      chainId: '0x7a69',
+      contractAddress: '0x' + '00'.repeat(20),
+    });
   }, 30_000);
 
   afterAll(async () => {
@@ -55,13 +63,6 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
 
   beforeEach(async () => {
     await truncateAllIngestionTables(pgDb);
-    daoId = await insertTestDao(pgDb, { slug: 'sweep-dao', name: 'Sweep DAO' });
-    daoSourceId = await insertTestDaoSource(pgDb, {
-      daoId,
-      sourceType: 'compound_governor',
-      chainId: '0x7a69',
-      contractAddress: '0x' + '00'.repeat(20),
-    });
   });
 
   it('promotes pending rows once head advances past block_number + reorgHorizon', async () => {

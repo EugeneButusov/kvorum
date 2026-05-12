@@ -3,6 +3,7 @@ import type { SourcePlugin } from '@sources/core';
 import { CompoundSourceModule, COMPOUND_PLUGIN } from '@nest/compound';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
+import { DlqDepthService } from '../orchestrator/dlq-depth.service';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
@@ -23,6 +24,7 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
     IndexerOrchestratorService,
     ReorgWatcherService,
     PromotionSweepService,
+    DlqDepthService,
   ],
 })
 export class IndexerModule {}

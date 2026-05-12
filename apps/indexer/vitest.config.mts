@@ -38,6 +38,7 @@ export default defineConfig({
           environment: 'node',
           include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           exclude: ['**/*.integration.spec.*', '**/node_modules/**'],
+          setupFiles: ['./tests/_harness/vitest.setup.ts'],
         },
       },
       {

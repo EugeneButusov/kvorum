@@ -1,5 +1,6 @@
 import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
+import { pollUntil } from './pg-test-fixtures';
 import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
 import type { ChainContext } from '../../src/orchestrator/chain-context-registry';
 
@@ -10,6 +11,15 @@ export interface AnvilTestContext {
   registry: ChainContextRegistry;
   ctx: ChainContext;
   cleanup: () => Promise<void>;
+}
+
+/** Wait until the HeadTracker on a ChainContext has observed at least the given block number. */
+export async function awaitHead(ctx: ChainContext, target: number): Promise<void> {
+  await pollUntil(
+    () => Promise.resolve((ctx.headTracker.getLastHead()?.blockNumber ?? -1n) >= BigInt(target)),
+    5_000,
+    50,
+  );
 }
 
 export async function createAnvilTestContext(chainCfg: ChainConfig): Promise<AnvilTestContext> {

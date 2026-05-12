@@ -31,6 +31,7 @@ const ChainConfigSchema = z.object({
   overallTimeoutMs: z.number().int().positive().optional(),
   headPollIntervalMs: z.number().int().positive().optional(),
   sweepIntervalMs: z.number().int().positive().optional(),
+  eventPollIntervalMs: z.number().int().positive().optional(),
   providers: z
     .array(ProviderConfigSchema)
     .min(1)

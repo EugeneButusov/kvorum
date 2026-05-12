@@ -55,6 +55,14 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     const reorgRepo = new ReorgEventRepository(pgDb);
     reorgWatcher = new ReorgWatcherService(reorgRepo);
     reorgWatcher.watch(anvilCtx.ctx);
+    // Seed once — truncateAllIngestionTables preserves dao/dao_source across beforeEach.
+    daoId = await insertTestDao(pgDb, { slug: 'test-dao', name: 'Test DAO' });
+    daoSourceId = await insertTestDaoSource(pgDb, {
+      daoId,
+      sourceType: 'compound_governor',
+      chainId: '0x7a69',
+      contractAddress: '0x' + '00'.repeat(20),
+    });
   }, 30_000);
 
   afterAll(async () => {
@@ -64,13 +72,6 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
 
   beforeEach(async () => {
     await truncateAllIngestionTables(pgDb);
-    daoId = await insertTestDao(pgDb, { slug: 'test-dao', name: 'Test DAO' });
-    daoSourceId = await insertTestDaoSource(pgDb, {
-      daoId,
-      sourceType: 'compound_governor',
-      chainId: '0x7a69',
-      contractAddress: '0x' + '00'.repeat(20),
-    });
   });
 
   it('orphans pending rows whose block_hash was dropped by anvil_reorg', async () => {

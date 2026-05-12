@@ -2,6 +2,7 @@ export { pgDb, chDb } from './client';
 export type { ConfirmationKey } from './confirmation-repository';
 export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
+export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
