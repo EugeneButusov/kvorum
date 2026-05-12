@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-import swc from 'unplugin-swc';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
@@ -21,17 +20,16 @@ const alias = {
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/indexer',
-  plugins: [
-    tsconfigPaths(),
-    swc.vite({
-      jsc: {
-        transform: {
-          legacyDecorator: true,
-          decoratorMetadata: true,
-        },
-      },
-    }),
-  ],
+  // Vite 8 uses Oxc by default. Enable legacy decorator metadata so that
+  // NestJS DI can resolve constructor injections in integration tests that
+  // call NestFactory.createApplicationContext.
+  oxc: {
+    decorator: {
+      legacy: true,
+      emitDecoratorMetadata: true,
+    },
+  },
+  plugins: [tsconfigPaths()],
   resolve: { alias },
   test: {
     reporters: ['default'],
