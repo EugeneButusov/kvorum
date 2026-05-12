@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, pgDb } from '@libs/db';
+import { metricPrefix } from '@libs/observability';
 import { createAnvilTestContext } from './_harness/anvil-test-context';
 import type { AnvilTestContext } from './_harness/anvil-test-context';
 import { captureMetrics, getHistogramSampleCount } from './_harness/metrics-helpers';
@@ -127,7 +128,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
     }
 
     const sweepSamples = await getHistogramSampleCount(
-      'kvorum_ingestion_promotion_sweep_duration_seconds',
+      `${metricPrefix}_ingestion_promotion_sweep_duration_seconds`,
       { chain_id: '0x7a69' },
       metricsSnapshot,
     );

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChainConfig } from '@libs/chain';
 import { pgDb, ReorgEventRepository } from '@libs/db';
+import { metricPrefix } from '@libs/observability';
 import { createAnvilTestContext } from './_harness/anvil-test-context';
 import type { AnvilTestContext } from './_harness/anvil-test-context';
 import { captureMetrics, getCounterDelta } from './_harness/metrics-helpers';
@@ -135,12 +136,12 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     }, 5_000);
 
     const reorgEventDelta = await getCounterDelta(
-      'kvorum_ingestion_reorg_event_total',
+      `${metricPrefix}_ingestion_reorg_event_total`,
       { chain_id: '0x7a69' },
       metricsSnapshot,
     );
     const orphanedDelta = await getCounterDelta(
-      'kvorum_ingestion_orphaned_events_total',
+      `${metricPrefix}_ingestion_orphaned_events_total`,
       { chain_id: '0x7a69' },
       metricsSnapshot,
     );
@@ -235,7 +236,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     }, 5_000);
 
     const orphanedDelta = await getCounterDelta(
-      'kvorum_ingestion_orphaned_events_total',
+      `${metricPrefix}_ingestion_orphaned_events_total`,
       { chain_id: '0x7a69' },
       metricsSnapshot,
     );
