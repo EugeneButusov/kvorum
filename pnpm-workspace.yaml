@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'libs/*'
   - 'libs/sources/*'
+  - 'nest/observability'
   - 'nest/sources/*'
 allowBuilds:
   '@nestjs/core': true

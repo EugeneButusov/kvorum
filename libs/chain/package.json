@@ -13,6 +13,7 @@
     "zod": "^4.0.0"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
     "build": "tsc -p tsconfig.lib.json",
     "test": "vitest run",
     "lint": "eslint src"
