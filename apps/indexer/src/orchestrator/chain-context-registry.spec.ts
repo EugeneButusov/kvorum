@@ -13,13 +13,13 @@ vi.mock('@libs/chain', () => ({
 }));
 
 const CHAIN_CFG = {
-  chainId: 1,
+  chainId: '0x1',
   name: 'ethereum',
   reorgHorizon: 12,
   providers: [],
 };
 
-const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: 137, name: 'polygon' };
+const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: '0x89', name: 'polygon' };
 
 function makeClient() {
   return {
@@ -164,7 +164,7 @@ describe('ChainContextRegistry', () => {
   it('#6 — release of non-existent chainId: no-op, no throw', async () => {
     setupMocks();
     const registry = new ChainContextRegistry();
-    await expect(registry.release(999)).resolves.toBeUndefined();
+    await expect(registry.release('0x999')).resolves.toBeUndefined();
   });
 
   it('#7 — drainAll: stops every tracker + client; entries cleared; safe when one tracker rejects', async () => {

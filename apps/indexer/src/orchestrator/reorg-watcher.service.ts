@@ -52,17 +52,15 @@ export class ReorgWatcherService implements OnApplicationBootstrap, OnApplicatio
         notes,
       });
 
-      const chainIdHex = '0x' + signal.chainId.toString(16);
-      chainMetrics.reorgEvent.add(1, { chain_id: chainIdHex });
-      chainMetrics.orphanedEvents.add(result.orphanedRowCount, { chain_id: chainIdHex });
+      chainMetrics.reorgEvent.add(1, { chain_id: signal.chainId });
+      chainMetrics.orphanedEvents.add(result.orphanedRowCount, { chain_id: signal.chainId });
       if (signal.truncated) {
-        chainMetrics.reorgTruncated.add(1, { chain_id: chainIdHex });
+        chainMetrics.reorgTruncated.add(1, { chain_id: signal.chainId });
       }
 
       this.logger.warn('reorg_handled', {
         chain: chainName,
         chain_id: signal.chainId,
-        chain_id_hex: chainIdHex,
         reorg_event_id: result.reorgEventId,
         divergence_block_number: signal.divergenceBlockNumber.toString(),
         orphan_count: result.orphanedRowCount,

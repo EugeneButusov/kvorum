@@ -13,7 +13,7 @@ import { ReorgWatcherService } from './reorg-watcher.service';
 
 function makeReorgSignal(
   overrides: Partial<{
-    chainId: number;
+    chainId: string;
     detectedAt: Date;
     observedAt: Date;
     divergenceBlockNumber: bigint;
@@ -24,7 +24,7 @@ function makeReorgSignal(
   }> = {},
 ) {
   return {
-    chainId: 1,
+    chainId: '0x1',
     detectedAt: new Date('2026-01-01T00:00:00Z'),
     observedAt: new Date('2026-01-01T00:00:00Z'),
     divergenceBlockNumber: 100n,
@@ -93,7 +93,7 @@ describe('ReorgWatcherService', () => {
     await capturedListener!(signal);
 
     expect(repo.writeReorgEventAndOrphan).toHaveBeenCalledWith({
-      chainId: 1,
+      chainId: '0x1',
       detectedAt: signal.detectedAt,
       divergenceBlockNumber: 100n,
       orphanedBlockHashes: ['0xaaa', '0xbbb'],

@@ -46,7 +46,7 @@ export class ConfirmationRepository {
 
   /** Set-based promotion. Idempotent: re-running with the same threshold returns 0.
    *  Returns the count of rows transitioned to confirmed. */
-  async promotePending(chainId: number, thresholdBlockNumber: bigint): Promise<number> {
+  async promotePending(chainId: string, thresholdBlockNumber: bigint): Promise<number> {
     const result = await this.pgDb
       .updateTable('archive_confirmation')
       .set({

@@ -19,11 +19,7 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
       inject: [COMPOUND_PLUGIN],
     },
     EvmEventPollerDriver,
-    {
-      provide: FETCH_DRIVERS,
-      useFactory: (driver: EvmEventPollerDriver) => [driver],
-      inject: [EvmEventPollerDriver],
-    },
+    { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },
     IndexerOrchestratorService,
     ReorgWatcherService,
     PromotionSweepService,

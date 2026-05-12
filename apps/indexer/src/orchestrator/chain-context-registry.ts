@@ -19,7 +19,7 @@ const HEAD_POLL_INTERVAL_MS = Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_0
 @Injectable()
 export class ChainContextRegistry {
   private readonly logger = new Logger('ChainContextRegistry');
-  private readonly map = new Map<number, ChainEntry>();
+  private readonly map = new Map<string, ChainEntry>();
 
   private readyResolve: (() => void) | null = null;
   private readyReject: ((err: Error) => void) | null = null;
@@ -66,7 +66,7 @@ export class ChainContextRegistry {
     return ctx;
   }
 
-  async release(chainId: number): Promise<void> {
+  async release(chainId: string): Promise<void> {
     const entry = this.map.get(chainId);
     if (!entry) return;
 
@@ -86,7 +86,7 @@ export class ChainContextRegistry {
     );
   }
 
-  peek(chainId: number): ChainContext | undefined {
+  peek(chainId: string): ChainContext | undefined {
     return this.map.get(chainId)?.ctx;
   }
 

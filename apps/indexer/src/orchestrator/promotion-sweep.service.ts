@@ -57,7 +57,7 @@ export class PromotionSweepService implements OnApplicationBootstrap, OnApplicat
         continue;
       } finally {
         chainMetrics.promotionSweepDuration.record((Date.now() - sweepStartMs) / 1000, {
-          chain_id: '0x' + ctx.chainCfg.chainId.toString(16),
+          chain_id: ctx.chainCfg.chainId,
         });
       }
 

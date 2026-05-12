@@ -195,10 +195,10 @@ describe('ConfirmationRepository', () => {
     it('#9 — issues UPDATE with correct chain_id, confirmation_status, block_number WHERE clauses', async () => {
       const { updateTable, where1, where2, where3 } = makeUpdateChain(5n);
       const repo = new ConfirmationRepository({ updateTable } as never);
-      await repo.promotePending(1, 100n);
+      await repo.promotePending('0x1', 100n);
 
       expect(updateTable).toHaveBeenCalledWith('archive_confirmation');
-      expect(where1).toHaveBeenCalledWith('chain_id', '=', 1);
+      expect(where1).toHaveBeenCalledWith('chain_id', '=', '0x1');
       expect(where2).toHaveBeenCalledWith('confirmation_status', '=', 'pending');
       expect(where3).toHaveBeenCalledWith('block_number', '<=', '100');
     });
@@ -220,7 +220,7 @@ describe('ConfirmationRepository', () => {
     it('#12 — set() includes confirmation_status=confirmed and does not include orphaned fields', async () => {
       const { updateTable, set } = makeUpdateChain(1n);
       const repo = new ConfirmationRepository({ updateTable } as never);
-      await repo.promotePending(1, 100n);
+      await repo.promotePending('0x1', 100n);
 
       const setArg = set.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(setArg['confirmation_status']).toBe('confirmed');

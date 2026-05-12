@@ -7,7 +7,7 @@ export interface OrphanResult {
 }
 
 export interface ReorgWriteInput {
-  chainId: number;
+  chainId: string;
   detectedAt: Date;
   divergenceBlockNumber: bigint;
   /** Already-filtered: nulls dropped by the caller. */
@@ -62,7 +62,7 @@ export class ReorgEventRepository {
   }
 
   /** Read API used by Epic I's `admin-cli reorg list`. */
-  async listRecent(chainId: number, limit = 50): Promise<ReorgEvent[]> {
+  async listRecent(chainId: string, limit = 50): Promise<ReorgEvent[]> {
     return this.pgDb
       .selectFrom('reorg_event')
       .selectAll()

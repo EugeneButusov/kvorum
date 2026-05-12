@@ -3,7 +3,7 @@ import { ReorgEventRepository } from './reorg-event-repository';
 import type { ReorgWriteInput } from './reorg-event-repository';
 
 const BASE_INPUT: ReorgWriteInput = {
-  chainId: 1,
+  chainId: '0x1',
   detectedAt: new Date('2026-01-01T00:00:00Z'),
   divergenceBlockNumber: 20_000_000n,
   orphanedBlockHashes: ['0xaaa', '0xbbb'],
@@ -111,9 +111,9 @@ describe('ReorgEventRepository', () => {
   it('#6 — chain_id filter present on the UPDATE WHERE', async () => {
     const { pgDb, updateWhere1 } = makeTrxChain({});
     const repo = new ReorgEventRepository(pgDb as never);
-    await repo.writeReorgEventAndOrphan({ ...BASE_INPUT, chainId: 42 });
+    await repo.writeReorgEventAndOrphan({ ...BASE_INPUT, chainId: '0x2a' });
 
-    expect(updateWhere1).toHaveBeenCalledWith('chain_id', '=', 42);
+    expect(updateWhere1).toHaveBeenCalledWith('chain_id', '=', '0x2a');
   });
 
   it('#7 — divergenceBlockNumber is bigint at API, serialized as string in insert', async () => {

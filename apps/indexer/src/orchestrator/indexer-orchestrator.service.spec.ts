@@ -96,10 +96,7 @@ const mockRegistry = {
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
-async function buildModule(
-  plugins: SourcePlugin[],
-  drivers: FetchDriver[],
-): Promise<TestingModule> {
+async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
   } as never);
@@ -108,7 +105,7 @@ async function buildModule(
     providers: [
       IndexerOrchestratorService,
       { provide: SOURCE_PLUGINS, useValue: plugins },
-      { provide: FETCH_DRIVERS, useValue: drivers },
+      { provide: FETCH_DRIVERS, useValue: driver },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
@@ -128,7 +125,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
@@ -145,7 +142,7 @@ describe('IndexerOrchestratorService', () => {
     const driver = makeFakeDriver();
     const module = await buildModule(
       [makeFakePlugin('compound_governor'), makeFakePlugin('aave_governor')],
-      [driver],
+      driver,
     );
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
@@ -158,7 +155,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', '0x1')]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No plugin registered/);
@@ -172,7 +169,7 @@ describe('IndexerOrchestratorService', () => {
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor', false)], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor', false)], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/malformed source_config/);
@@ -186,7 +183,7 @@ describe('IndexerOrchestratorService', () => {
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/CHAIN_CONFIG has no entry/);
@@ -209,7 +206,7 @@ describe('IndexerOrchestratorService', () => {
         .mockRejectedValueOnce(new Error('driver start failed')),
     };
 
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow('driver start failed');
@@ -227,7 +224,7 @@ describe('IndexerOrchestratorService', () => {
       start: vi.fn().mockResolvedValue(rejectingHandle),
     };
 
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
@@ -244,7 +241,7 @@ describe('IndexerOrchestratorService', () => {
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
+    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
