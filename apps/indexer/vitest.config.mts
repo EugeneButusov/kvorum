@@ -23,37 +23,33 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   resolve: { alias },
   test: {
+    reporters: ['default'],
+    passWithNoTests: true,
+    coverage: {
+      reportsDirectory: '../../coverage/apps/indexer',
+      provider: 'v8' as const,
+    },
     projects: [
       {
         resolve: { alias },
         test: {
           name: 'indexer',
-          watch: false,
           globals: true,
           environment: 'node',
           include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           exclude: ['**/*.integration.spec.*', '**/node_modules/**'],
-          reporters: ['default'],
-          passWithNoTests: true,
-          coverage: {
-            reportsDirectory: '../../coverage/apps/indexer',
-            provider: 'v8' as const,
-          },
         },
       },
       {
         resolve: { alias },
         test: {
           name: 'indexer-integration',
-          watch: false,
           globals: true,
           environment: 'node',
           include: ['tests/**/*.integration.spec.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           pool: 'forks',
           fileParallelism: false,
           setupFiles: ['./tests/_harness/vitest.setup.ts'],
-          reporters: ['default'],
-          passWithNoTests: true,
         },
       },
     ],

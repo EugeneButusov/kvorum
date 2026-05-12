@@ -34,6 +34,15 @@ const CHAIN_CFG: ChainConfig = {
   ],
 };
 
+/** Wait until the head tracker has observed at least the given block number. */
+async function awaitHead(ctx: AnvilTestContext, target: bigint): Promise<void> {
+  await pollUntil(
+    () => Promise.resolve((ctx.headTracker.getLastHead()?.blockNumber ?? -1n) >= target),
+    5_000,
+    50,
+  );
+}
+
 describeIf('F2-anvil-1 reorg orphan flow', () => {
   let anvilCtx: AnvilTestContext;
   let reorgWatcher: ReorgWatcherService;
@@ -66,21 +75,32 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
   it('orphans pending rows whose block_hash was dropped by anvil_reorg', async () => {
     const client = anvilCtx.client;
 
-    await client.send('anvil_mine', ['0xe']);
+    // Sync the head tracker to the current chain tip before mining test blocks.
+    // We then mine exactly 2 blocks one at a time, waiting for the tracker to observe
+    // each one. This guarantees both hashes are in the reorg detector's sliding-window
+    // buffer so both confirmations are included in the orphaned_block_hashes signal.
+    const syncedHead = await anvilCtx.headTracker.awaitFirstHead();
+    const base = syncedHead.blockNumber;
 
-    const block13 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
-      '0xd',
+    await client.send('anvil_mine', ['0x1']);
+    await awaitHead(anvilCtx, base + 1n);
+
+    await client.send('anvil_mine', ['0x1']);
+    await awaitHead(anvilCtx, base + 2n);
+
+    const block1 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
+      '0x' + (base + 1n).toString(16),
       false,
     ]);
-    const block14 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
-      '0xe',
+    const block2 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
+      '0x' + (base + 2n).toString(16),
       false,
     ]);
 
-    const hash13 = block13.hash.toLowerCase();
-    const hash14 = block14.hash.toLowerCase();
-    const num13 = BigInt(block13.number);
-    const num14 = BigInt(block14.number);
+    const hash1 = block1.hash.toLowerCase();
+    const hash2 = block2.hash.toLowerCase();
+    const num1 = BigInt(block1.number);
+    const num2 = BigInt(block2.number);
 
     const fakeTx1 = '0x' + 'ab'.repeat(32);
     const fakeTx2 = '0x' + 'cd'.repeat(32);
@@ -88,8 +108,8 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     await insertPendingConfirmation(pgDb, {
       daoSourceId,
       chainId: '0x7a69',
-      blockHash: hash13,
-      blockNumber: num13,
+      blockHash: hash1,
+      blockNumber: num1,
       txHash: fakeTx1,
       logIndex: 0,
       sourceType: 'compound_governor',
@@ -97,14 +117,12 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     await insertPendingConfirmation(pgDb, {
       daoSourceId,
       chainId: '0x7a69',
-      blockHash: hash14,
-      blockNumber: num14,
+      blockHash: hash2,
+      blockNumber: num2,
       txHash: fakeTx2,
       logIndex: 0,
       sourceType: 'compound_governor',
     });
-
-    await anvilCtx.headTracker.awaitFirstHead();
 
     const metricsSnapshot = await captureMetrics();
 
@@ -145,8 +163,8 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     }
 
     const byHash = new Map(confirmations.map((r) => [r.block_hash, r]));
-    expect(byHash.get(hash13)!.block_hash).toBe(hash13);
-    expect(byHash.get(hash14)!.block_hash).toBe(hash14);
+    expect(byHash.get(hash1)!.block_hash).toBe(hash1);
+    expect(byHash.get(hash2)!.block_hash).toBe(hash2);
 
     expect(reorgEventDelta).toBeGreaterThanOrEqual(1);
     expect(orphanedDelta).toBe(2);
@@ -155,21 +173,28 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
   it('skips already-confirmed siblings under the orphaned block hash (partial-orphan case)', async () => {
     const client = anvilCtx.client;
 
-    await client.send('anvil_mine', ['0xe']);
+    const syncedHead = await anvilCtx.headTracker.awaitFirstHead();
+    const base = syncedHead.blockNumber;
 
-    const block13 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
-      '0xd',
+    await client.send('anvil_mine', ['0x1']);
+    await awaitHead(anvilCtx, base + 1n);
+
+    await client.send('anvil_mine', ['0x1']);
+    await awaitHead(anvilCtx, base + 2n);
+
+    const block1 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
+      '0x' + (base + 1n).toString(16),
       false,
     ]);
-    const block14 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
-      '0xe',
+    const block2 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
+      '0x' + (base + 2n).toString(16),
       false,
     ]);
 
-    const hash13 = block13.hash.toLowerCase();
-    const hash14 = block14.hash.toLowerCase();
-    const num13 = BigInt(block13.number);
-    const num14 = BigInt(block14.number);
+    const hash1 = block1.hash.toLowerCase();
+    const hash2 = block2.hash.toLowerCase();
+    const num1 = BigInt(block1.number);
+    const num2 = BigInt(block2.number);
 
     const fakeTx1 = '0x' + 'ef'.repeat(32);
     const fakeTx2 = '0x' + '12'.repeat(32);
@@ -177,8 +202,8 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     await insertPendingConfirmation(pgDb, {
       daoSourceId,
       chainId: '0x7a69',
-      blockHash: hash13,
-      blockNumber: num13,
+      blockHash: hash1,
+      blockNumber: num1,
       txHash: fakeTx1,
       logIndex: 0,
       sourceType: 'compound_governor',
@@ -186,8 +211,8 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     const pendingId = await insertPendingConfirmation(pgDb, {
       daoSourceId,
       chainId: '0x7a69',
-      blockHash: hash14,
-      blockNumber: num14,
+      blockHash: hash2,
+      blockNumber: num2,
       txHash: fakeTx2,
       logIndex: 0,
       sourceType: 'compound_governor',
@@ -198,8 +223,6 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       .set({ confirmation_status: 'confirmed', confirmed_at: new Date() })
       .where('id', '=', pendingId)
       .execute();
-
-    await anvilCtx.headTracker.awaitFirstHead();
 
     const metricsSnapshot = await captureMetrics();
 

@@ -86,9 +86,8 @@ export async function insertPendingConfirmation(
 }
 
 export async function truncateAllIngestionTables(db: Kysely<PgDatabase>): Promise<void> {
-  await sql`TRUNCATE archive_confirmation, reorg_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-    db,
-  );
+  // Truncating dao cascades to dao_source then archive_confirmation.
+  await sql`TRUNCATE dao, reorg_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(db);
 }
 
 export async function pollUntil(
