@@ -28,7 +28,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
   private async start(): Promise<void> {
     const chains = parseChainConfigFromEnv(process.env);
-    const chainsByChainId = new Map<number, ChainConfig>(chains.map((c) => [c.chainId, c]));
+    const chainsByChainId = new Map<string, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
     const driversByKind = new Map(this.drivers.map((d) => [d.kind, d]));
 
@@ -126,7 +126,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           const rows = await this.confirmationRepo.countPendingBySourceType(sourceType);
           for (const row of rows) {
             chainMetrics.pendingEventCount.record(Number(row.count), {
-              chain_id: String(row.chain_id),
+              chain_id: row.chain_id,
               source_type: row.source_type,
             });
           }

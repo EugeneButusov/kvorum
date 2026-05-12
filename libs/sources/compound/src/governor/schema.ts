@@ -1,7 +1,7 @@
 // UInt64 block_number exceeds JS number precision; typed as string.
 export interface EventArchiveCompoundGovernorTable {
   dao_source_id: string;
-  chain_id: number;
+  chain_id: string;
   block_number: string;
   block_hash: string;
   tx_hash: string;

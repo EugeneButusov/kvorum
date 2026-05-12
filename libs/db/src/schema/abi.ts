@@ -1,7 +1,7 @@
 import type { Insertable, Selectable } from 'kysely';
 
 export interface AbiCacheTable {
-  chain_id: number;
+  chain_id: string;
   address: string;
   abi: unknown;
   source: string;

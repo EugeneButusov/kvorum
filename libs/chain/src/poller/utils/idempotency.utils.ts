@@ -6,7 +6,7 @@ import { normalizeEvenLengthHex } from './hex.utils.js';
  *  Hex inputs are validated (0x prefix, even length, hex chars); throws on malformed input. */
 export function buildIdempotencyKey(parts: {
   sourceType: string;
-  chainId: number;
+  chainId: string;
   txHash: string;
   logIndex: number;
   blockHash: string;
@@ -15,8 +15,8 @@ export function buildIdempotencyKey(parts: {
   if (!sourceType || typeof sourceType !== 'string') {
     throw new Error('buildIdempotencyKey: sourceType must be a non-empty string');
   }
-  if (!Number.isInteger(chainId) || chainId < 0) {
-    throw new Error('buildIdempotencyKey: chainId must be a non-negative integer');
+  if (!chainId || typeof chainId !== 'string') {
+    throw new Error('buildIdempotencyKey: chainId must be a non-empty string');
   }
   if (!Number.isInteger(logIndex) || logIndex < 0) {
     throw new Error('buildIdempotencyKey: logIndex must be a non-negative integer');

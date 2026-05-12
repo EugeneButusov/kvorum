@@ -37,7 +37,7 @@ function makeClient(calls: QueuedCall[]): RpcClient {
       if (call.result instanceof Error) throw call.result;
       return call.result as T;
     },
-    getHealth: () => ({ chainId: 1, providers: [] }),
+    getHealth: () => ({ chainId: '0x1', providers: [] }),
     start: async () => {},
     stop: async () => {},
   };

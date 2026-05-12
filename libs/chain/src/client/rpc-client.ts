@@ -5,7 +5,7 @@ export interface RpcSendOptions {
 }
 
 export interface RpcClientHealth {
-  chainId: number;
+  chainId: string;
   providers: Array<
     Readonly<ProviderState> & {
       circuitState: 'closed' | 'open' | 'half-open';

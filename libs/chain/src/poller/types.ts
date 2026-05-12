@@ -12,7 +12,7 @@ export interface LogFilter {
 
 export interface LogEvent {
   sourceType: string;
-  chainId: number;
+  chainId: string;
   blockNumber: bigint;
   blockHash: string;
   txHash: string;
@@ -24,7 +24,7 @@ export interface LogEvent {
 }
 
 export interface Head {
-  chainId: number;
+  chainId: string;
   blockNumber: bigint;
   blockHash: string;
   parentHash: string;
@@ -36,7 +36,7 @@ export interface Head {
 
 export interface EventPollerOptions {
   rpcClient: RpcClient;
-  chainId: number;
+  chainId: string;
   chainName: string;
   reorgHorizon: number;
   filter: LogFilter;
@@ -55,7 +55,7 @@ export interface EventPollerOptions {
 
 export interface HeadTrackerOptions {
   rpcClient: RpcClient;
-  chainId: number;
+  chainId: string;
   chainName: string;
   pollIntervalMs?: number;
   stopTimeoutMs?: number;

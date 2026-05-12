@@ -30,7 +30,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('slug', 'text', (col) => col.notNull().unique())
     .addColumn('name', 'text', (col) => col.notNull())
     .addColumn('primary_token_address', 'text', (col) => col.notNull())
-    .addColumn('primary_chain_id', 'integer', (col) => col.notNull())
+    .addColumn('primary_chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('description', 'text', (col) => col.notNull())
     .addColumn('website_url', 'text', (col) => col.notNull())
     .addColumn('forum_url', 'text', (col) => col.notNull())
@@ -77,7 +77,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('reorg_event')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
-    .addColumn('chain_id', 'integer', (col) => col.notNull())
+    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('detected_at', 'timestamptz', (col) => col.notNull())
     .addColumn('divergence_block_number', 'bigint', (col) => col.notNull())
     .addColumn('orphaned_block_hashes', sql`text[]`, (col) => col.notNull())
@@ -148,7 +148,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
     .addColumn('action_index', 'integer', (col) => col.notNull())
     .addColumn('target_address', 'text', (col) => col.notNull())
-    .addColumn('target_chain_id', 'integer', (col) => col.notNull())
+    .addColumn('target_chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('value_wei', sql`numeric(78, 0)`, (col) => col.notNull())
     .addColumn('function_signature', 'text')
     .addColumn('calldata', 'text', (col) => col.notNull())
@@ -182,7 +182,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('dao_source_id', 'uuid', (col) =>
       col.notNull().references('dao_source.id').onDelete('restrict'),
     )
-    .addColumn('chain_id', 'integer', (col) => col.notNull())
+    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('block_number', 'bigint', (col) => col.notNull())
     .addColumn('block_hash', 'text', (col) => col.notNull())
     .addColumn('tx_hash', 'text', (col) => col.notNull())

@@ -29,7 +29,7 @@ export type IngestSpec = {
 export interface SourceContext {
   daoSourceId: string;
   sourceType: SourceType;
-  chainId: number;
+  chainId: string;
   /** Low-cardinality metric/log label — MUST equal `sourceType`. Never set to `daoSourceId`
    *  (UUIDs would blow up label cardinality on archive_* / batch_duration_seconds metrics). */
   sourceLabel: SourceType;

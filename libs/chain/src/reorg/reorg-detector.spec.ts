@@ -11,7 +11,7 @@ import type { Head } from '../poller/types.js';
 
 function makeHead(blockNumber: bigint, blockHash: string, parentHash: string): Head {
   return {
-    chainId: 1,
+    chainId: '0x1',
     blockNumber,
     blockHash: blockHash.toLowerCase(),
     parentHash: parentHash.toLowerCase(),
@@ -45,7 +45,7 @@ function makeClient(calls: QueuedCall[] = []): RpcClient {
       if (call.result instanceof Error) throw call.result;
       return call.result as T;
     },
-    getHealth: () => ({ chainId: 1, providers: [] }),
+    getHealth: () => ({ chainId: '0x1', providers: [] }),
     start: async () => {},
     stop: async () => {},
   };
@@ -56,7 +56,7 @@ const noCallClient: RpcClient = {
   send: () => {
     throw new Error('Unexpected RPC call');
   },
-  getHealth: () => ({ chainId: 1, providers: [] }),
+  getHealth: () => ({ chainId: '0x1', providers: [] }),
   start: async () => {},
   stop: async () => {},
 };
@@ -90,7 +90,7 @@ function makeDetector(
 } {
   const detector = new ReorgDetector({
     rpcClient: withColdStartShortCircuit(rpcClient),
-    chainId: 1,
+    chainId: '0x1',
     chainName: 'test',
     reorgHorizon,
   });
@@ -447,7 +447,7 @@ describe('ReorgDetector', () => {
     resets.length = 0;
     // Next head with UPPERCASE parentHash that matches when lowercased
     const h101: Head = {
-      chainId: 1,
+      chainId: '0x1',
       blockNumber: 101n,
       blockHash: '0xBBB',
       parentHash: '0xAAA', // uppercase — should match '0xaaa' when normalised
@@ -484,7 +484,7 @@ describe('ReorgDetector', () => {
   } {
     const detector = new ReorgDetector({
       rpcClient,
-      chainId: 1,
+      chainId: '0x1',
       chainName: 'test',
       reorgHorizon,
     });

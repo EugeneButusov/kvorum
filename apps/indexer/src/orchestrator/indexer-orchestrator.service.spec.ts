@@ -27,7 +27,7 @@ vi.mock('@libs/db', () => ({
 }));
 
 const CHAIN_CFG = {
-  chainId: 1,
+  chainId: '0x1',
   name: 'ethereum',
   reorgHorizon: 12,
   lagThresholdBlocks: 5,
@@ -35,7 +35,7 @@ const CHAIN_CFG = {
   providers: [],
 };
 
-function makeSource(id: string, sourceType: string, primaryChainId: number, sourceConfig = {}) {
+function makeSource(id: string, sourceType: string, primaryChainId: string, sourceConfig = {}) {
   return {
     id,
     dao_id: 'dao-1',
@@ -122,8 +122,8 @@ describe('IndexerOrchestratorService', () => {
   it('#2 — 2 sources with different source_types: driver.start() called twice', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', 1),
-      makeSource('src-2', 'aave_governor', 1),
+      makeSource('src-1', 'compound_governor', '0x1'),
+      makeSource('src-2', 'aave_governor', '0x1'),
     ]);
 
     const driver = makeFakeDriver();
@@ -139,7 +139,7 @@ describe('IndexerOrchestratorService', () => {
 
   it('#3 — unknown source_type: throws BEFORE any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', 1)]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', '0x1')]);
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
@@ -152,7 +152,7 @@ describe('IndexerOrchestratorService', () => {
   it('#4 — malformed source_config: throws BEFORE any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', 1, { bad: true }),
+      makeSource('src-1', 'compound_governor', '0x1', { bad: true }),
     ]);
 
     const driver = makeFakeDriver();
@@ -165,7 +165,9 @@ describe('IndexerOrchestratorService', () => {
 
   it('#5 — chain not in CHAIN_CONFIG: throws before any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 1
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', 999)]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor', '0x999'),
+    ]);
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor')], [driver]);
@@ -178,8 +180,8 @@ describe('IndexerOrchestratorService', () => {
   it('#6 — partial bootstrap failure: started handles drained via allSettled', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', 1),
-      makeSource('src-2', 'compound_governor', 1),
+      makeSource('src-1', 'compound_governor', '0x1'),
+      makeSource('src-2', 'compound_governor', '0x1'),
     ]);
 
     const driver: FetchDriver & { _handles: FetchDriverHandle[] } = {
@@ -199,7 +201,7 @@ describe('IndexerOrchestratorService', () => {
 
   it('#7 — drain: all handles stopped via allSettled even if one rejects', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', 1)]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', '0x1')]);
 
     const rejectingHandle: FetchDriverHandle = {
       stop: vi.fn().mockRejectedValue(new Error('stop failed')),
@@ -220,9 +222,9 @@ describe('IndexerOrchestratorService', () => {
   it('#8 — pending-depth gauge interval loops active source types', async () => {
     vi.useFakeTimers();
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', 1)]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', '0x1')]);
     mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([
-      { count: 3, chain_id: 1, source_type: 'compound_governor' },
+      { count: 3, chain_id: '0x1', source_type: 'compound_governor' },
     ]);
 
     const driver = makeFakeDriver();

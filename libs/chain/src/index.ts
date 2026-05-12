@@ -1,5 +1,5 @@
 export type { ChainConfig, ProviderConfig } from './config/config.js';
-export { parseChainConfigFromEnv } from './config/config.js';
+export { parseChainConfigFromEnv, normalizeChainId } from './config/config.js';
 
 export type { RpcClient, RpcClientHealth, RpcSendOptions } from './client/rpc-client.js';
 export type { FailoverRpcClientOptions } from './client/failover-rpc-client.js';

@@ -19,7 +19,7 @@ interface BlockHeader {
 
 export class ReorgDetector {
   private readonly rpcClient: RpcClient;
-  private readonly chainId: number;
+  private readonly chainId: string;
   private readonly chainName: string;
   private readonly reorgHorizon: number;
   private readonly logger: Logger;

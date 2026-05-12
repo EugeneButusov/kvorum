@@ -30,7 +30,7 @@ export interface DaoTable {
   slug: string;
   name: string;
   primary_token_address: string;
-  primary_chain_id: number;
+  primary_chain_id: string;
   description: string;
   website_url: string;
   forum_url: string;
@@ -102,7 +102,7 @@ export interface ProposalActionTable {
   proposal_id: string;
   action_index: number;
   target_address: string;
-  target_chain_id: number;
+  target_chain_id: string;
   // numeric(78,0) — full uint256 range; pg driver returns as string
   value_wei: string;
   function_signature: string | null;
@@ -126,7 +126,7 @@ export type NewProposalChoice = Insertable<ProposalChoiceTable>;
 
 export interface ReorgEventTable {
   id: Generated<string>;
-  chain_id: number;
+  chain_id: string;
   detected_at: Date;
   // pg driver returns bigint as string
   divergence_block_number: string;

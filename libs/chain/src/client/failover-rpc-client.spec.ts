@@ -7,7 +7,7 @@ import { ClientStoppedError } from '../errors/client-stopped.error.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
 
 const baseConfig: ChainConfig = {
-  chainId: 1,
+  chainId: '0x1',
   name: 'ethereum',
   reorgHorizon: 12,
   providers: [
@@ -41,7 +41,7 @@ describe('FailoverRpcClient (unit)', () => {
   it('getHealth() reports chainId and a row per configured provider', async () => {
     const client = new FailoverRpcClient(baseConfig);
     const health = client.getHealth();
-    expect(health.chainId).toBe(1);
+    expect(health.chainId).toBe('0x1');
     expect(health.providers).toHaveLength(2);
 
     const a = health.providers.find((p) => p.name === 'a')!;
@@ -99,13 +99,13 @@ describe('FailoverRpcClient (unit)', () => {
     // We can't observe defaultDeadlineMs directly, but constructing with omitted
     // overallTimeoutMs must not throw — the field is optional in ChainConfig.
     const client = new FailoverRpcClient(baseConfig);
-    expect(client.getHealth().chainId).toBe(1);
+    expect(client.getHealth().chainId).toBe('0x1');
     await client.stop();
   });
 
   it('respects custom overallTimeoutMs from config', async () => {
     const client = new FailoverRpcClient({ ...baseConfig, overallTimeoutMs: 500 });
-    expect(client.getHealth().chainId).toBe(1);
+    expect(client.getHealth().chainId).toBe('0x1');
     await client.stop();
   });
 });
@@ -116,7 +116,7 @@ async function makeClient(
   perProviderTimeoutMs = 2000,
 ): Promise<{ client: FailoverRpcClient; fakes: FakeProvider[] }> {
   const config: ChainConfig = {
-    chainId: 1,
+    chainId: '0x1',
     name: 'ethereum',
     reorgHorizon: 12,
     overallTimeoutMs: 3000,

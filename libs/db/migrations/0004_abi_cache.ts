@@ -5,7 +5,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // ── abi_cache ────────────────────────────────────────────────────────────────
   await db.schema
     .createTable('abi_cache')
-    .addColumn('chain_id', 'integer', (col) => col.notNull())
+    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('address', 'text', (col) => col.notNull().check(sql`address = lower(address)`))
     .addColumn('abi', 'jsonb', (col) => col.notNull())
     .addColumn('source', 'text', (col) => col.notNull())
