@@ -23,6 +23,10 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    await this.start();
+  }
+
+  private async start(): Promise<void> {
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map<number, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
