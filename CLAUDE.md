@@ -73,6 +73,14 @@ Lefthook enforces formatting and typecheck on staged files at `git commit`. Ther
 
 No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template literals that sqlfluff cannot parse, and ClickHouse `.sql` migration files (under `libs/sources/*/migrations-clickhouse/`) are reviewed by hand.
 
+### Running integration tests locally
+
+```bash
+docker compose up -d postgres anvil
+pnpm -w db:migrate
+ANVIL_RPC_URL=http://localhost:8545 pnpm --filter indexer test
+```
+
 ## NestJS workers (indexer, ai-worker)
 
 Workers use `NestFactory.createApplicationContext`, not `NestFactory.create`. They do not bind a port. `enableShutdownHooks()` must be called — it registers handlers for SIGTERM/SIGINT and triggers `OnApplicationShutdown` providers. Do not add manual `process.on('SIGTERM', ...)` handlers alongside it (fires teardown twice).

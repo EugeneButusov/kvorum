@@ -9,8 +9,6 @@ export interface ChainContext {
   chainCfg: ChainConfig;
 }
 
-const HEAD_POLL_INTERVAL_MS = Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_000);
-
 @Injectable()
 export class ChainContextRegistry {
   private readonly logger = new Logger('ChainContextRegistry');
@@ -23,11 +21,14 @@ export class ChainContextRegistry {
     const client = new FailoverRpcClient(chainCfg);
     await client.start();
 
+    const headPollIntervalMs =
+      chainCfg.headPollIntervalMs ?? Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_000);
+
     const headTracker = new HeadTracker({
       rpcClient: client,
       chainId: chainCfg.chainId,
       chainName: chainCfg.name,
-      pollIntervalMs: HEAD_POLL_INTERVAL_MS,
+      pollIntervalMs: headPollIntervalMs,
       stopTimeoutMs: 5_000,
     });
 

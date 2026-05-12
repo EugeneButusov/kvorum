@@ -4,8 +4,6 @@ import { chainMetrics } from '@libs/chain';
 import { ConfirmationRepository } from '@libs/db';
 import type { ChainContextRegistry } from './chain-context-registry';
 
-const SWEEP_INTERVAL_MS = 30_000;
-
 @Injectable()
 export class PromotionSweepService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger('PromotionSweep');
@@ -17,8 +15,10 @@ export class PromotionSweepService implements OnApplicationBootstrap, OnApplicat
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    const firstChainMs = this.registry.allActive()[0]?.chainCfg.sweepIntervalMs;
+    const sweepIntervalMs = firstChainMs ?? Number(process.env['SWEEP_INTERVAL_MS'] ?? 30_000);
     void this.tick();
-    this.interval = setInterval(() => void this.tick(), SWEEP_INTERVAL_MS);
+    this.interval = setInterval(() => void this.tick(), sweepIntervalMs);
   }
 
   async onApplicationShutdown(): Promise<void> {
