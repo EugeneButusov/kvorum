@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTransientDbError } from './utils';
+import { isCanonicalPartialUniqueViolation, isTransientDbError } from './utils';
 
 describe('isTransientDbError', () => {
   it.each([
@@ -32,5 +32,34 @@ describe('isTransientDbError', () => {
 
   it('null → false', () => {
     expect(isTransientDbError(null)).toBe(false);
+  });
+});
+
+describe('isCanonicalPartialUniqueViolation', () => {
+  it('23505 + idx_archive_confirmation_canonical → true', () => {
+    expect(
+      isCanonicalPartialUniqueViolation({
+        code: '23505',
+        constraint: 'idx_archive_confirmation_canonical',
+      }),
+    ).toBe(true);
+  });
+
+  it('23505 + different constraint → false', () => {
+    expect(
+      isCanonicalPartialUniqueViolation({
+        code: '23505',
+        constraint: 'archive_confirmation_idempotency_key',
+      }),
+    ).toBe(false);
+  });
+
+  it('23503 + any constraint → false', () => {
+    expect(
+      isCanonicalPartialUniqueViolation({
+        code: '23503',
+        constraint: 'idx_archive_confirmation_canonical',
+      }),
+    ).toBe(false);
   });
 });

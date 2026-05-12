@@ -179,6 +179,21 @@ describe('ConfirmationRepository', () => {
       await expect(repo.insert(PG_ROW)).rejects.toThrow('conn reset');
       expect(executeTakeFirst).toHaveBeenCalledTimes(3);
     });
+
+    it('#13 — 23505 on idx_archive_confirmation_canonical is retriable; succeeds on retry', async () => {
+      const canonicalViolation = Object.assign(new Error('unique violation'), {
+        code: '23505',
+        constraint: 'idx_archive_confirmation_canonical',
+      });
+      const { insertInto, executeTakeFirst } = makeRetryInsertChain([
+        { throws: canonicalViolation },
+        { id: 'uuid-retry-canonical' },
+      ]);
+      const repo = new ConfirmationRepository({ insertInto } as never, [0]);
+      const result = await repo.insert(PG_ROW);
+      expect(result).toEqual({ id: 'uuid-retry-canonical' });
+      expect(executeTakeFirst).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('promotePending', () => {

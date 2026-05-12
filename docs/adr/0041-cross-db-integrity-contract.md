@@ -136,3 +136,95 @@ The 2026-05-11 rider's "DLQ schema gains stage value `archive_ch_write`" line is
 
 - `kvorum_archive_ch_write_errors_total{source}` — counter, increments when the listener catches an exception from `archiveWriter.write()`. Single source of truth for CH-side write failures.
 - `kvorum_archive_decode_errors_total{source,reason}` — counter, increments on `DecodeError`. Decode failures are tracked on this counter rather than on `kvorum_ingestion_archive_writes_total{result}` so the result enum stays clean.
+
+---
+
+## Rider — 2026-05-12 (race-window narrow 23505)
+
+Refines the 2026-05-11 rider §1 ("23xxx → DLQ on first failure"). Carve out one
+narrow exception: 23505 raised by `idx_archive_confirmation_canonical` (the
+4-tuple partial unique) is retriable transient.
+
+Rationale: the EventPoller can observe a new-branch event before
+ReorgWatcherService has committed the orphan transaction for the old-branch
+sibling. During that race window, the new pending insert lands on a 4-tuple
+that already has a (pending) row for a different block_hash, triggering 23505
+on the partial unique. The condition resolves deterministically once the
+watcher transaction commits and the old sibling becomes `orphaned`
+(excluded from the partial unique).
+
+The transient-allowlist test is constraint-name match, not SQLSTATE alone:
+other 23505 cases (e.g. duplicate (source_type, chain_id, tx_hash, log_index,
+block_hash) at the 5-tuple key) are still handled by `ON CONFLICT DO NOTHING`
+on the idempotency-key constraint and never reach the retry path.
+
+Implementation: `isCanonicalPartialUniqueViolation` in libs/db/src/utils.ts;
+ConfirmationRepository.insert retries on either `isTransientDbError(err) ||
+isCanonicalPartialUniqueViolation(err)`. Retry budget (3 × 200/600/1800 ms) is
+unchanged. On exhaustion the row still DLQs.
+
+Known M1 limitation: the retry budget (2.6 s cumulative) may exhaust before the
+watcher transaction commits under severe PG pool saturation. On exhaustion the
+row routes to `ingestion_dlq` and is NOT recovered by the orphan-state
+reconciliation sweep (that sweep walks `archive_confirmation`, not DLQ rows).
+Operator `admin-cli dlq retry` is required in that case. M2 may add a longer
+backoff class for the canonical-partial-unique constraint if the DLQ-on-race-window
+rate is non-trivial in production.
+
+---
+
+## Rider — 2026-05-12 (orphan-state reconciliation sweep, narrow coverage)
+
+Extends the M2 reconciliation contract (Decision §Reconciliation job) with a
+third sweep covering a narrow orphan-state inconsistency window.
+
+Window covered:
+ReorgWatcherService runs writeReorgEventAndOrphan inside a PG transaction.
+Between the UPDATE statement (which orphans rows existing at that instant)
+and the transaction commit, EventPoller writes additional pending rows for
+the same block_hash (e.g., the poller batch straddles the reorg signal and
+inserts rows that the UPDATE's snapshot did not see). These rows remain
+`pending` despite their block_hash now appearing in a committed reorg_event
+row.
+
+Window NOT covered (residual risk D-F2b-3, carried to M2):
+writeReorgEventAndOrphan's transaction throws and rolls back entirely. No
+reorg_event row exists; the orphan UPDATE did not commit. The sweep cannot
+recover these rows because reorg_event.orphaned_block_hashes is empty for
+exactly this case. The reorg detector's sliding-window buffer has typically
+advanced, so the signal is not re-emitted. The 30-second promotion sweep
+will eventually confirm the rows.
+
+M2 must address this with a signal-persistence mechanism (e.g., a
+reorg_signal_pending queue written before the watcher transaction, with
+the watcher draining it on commit). Out of scope for this rider; tracked
+separately in M2 backlog as the "reorg signal WAL" sub-task.
+
+Sweep design — narrow orphan-state reconciliation (M2):
+
+- Hourly, for each chain, build the union U of all
+  reorg_event.orphaned_block_hashes for detected_at > now() - INTERVAL 7 DAY
+  (or since last reconciliation watermark).
+- Query archive_confirmation WHERE block_hash IN U AND
+  confirmation_status <> 'orphaned'.
+- For each such row, transition to orphaned with orphaned_at = now() and
+  orphaned_by_reorg_event_id set to the reorg event that lists the block hash.
+  (If multiple events list the same hash — unlikely but possible across chain
+  forks — pick the earliest by detected_at.)
+- Emit a kvorum_reconciliation_orphan_state_total counter increment per
+  recovered row, and a kvorum_reconciliation_orphan_state_seconds histogram
+  per sweep run.
+
+Why this fits ADR-041 — reconciliation already owns the "CH wrote, PG didn't"
+window via CH-orphan sweep + PG-orphan sweep. This sweep is the symmetric
+"PG should-have-orphaned-some-late-arrivers, didn't" window. All three use the
+same hourly cadence and emit the same observability contract shape.
+
+Metric name vetting: confirmed no collision with existing
+kvorum_dual_write_pg_unreachable_total / kvorum_archive_skipped_existence_total
+metric names.
+
+M1 risk acceptance: the residual full-rollback window (D-F2b-3) is logged
+loudly by ReorgWatcherService.handleReorg's catch block (reorg_write_failed
+structured log). Operators paging on this log line can manually orphan affected
+rows via admin-cli pending the M2 WAL fix.

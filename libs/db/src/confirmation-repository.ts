@@ -1,6 +1,6 @@
 import { sql, type Kysely } from 'kysely';
 import type { NewArchiveConfirmation, PgDatabase } from './schema/pg';
-import { isTransientDbError } from './utils';
+import { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 
 export interface ConfirmationKey {
   sourceType: string;
@@ -71,7 +71,8 @@ export class ConfirmationRepository {
           .returning('id')
           .executeTakeFirst();
       } catch (err) {
-        if (isTransientDbError(err) && attempt < this.retryBackoffMs.length) {
+        const retriable = isTransientDbError(err) || isCanonicalPartialUniqueViolation(err);
+        if (retriable && attempt < this.retryBackoffMs.length) {
           await new Promise((resolve) => setTimeout(resolve, this.retryBackoffMs[attempt]));
           continue;
         }
