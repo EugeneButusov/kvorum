@@ -29,6 +29,8 @@ const ChainConfigSchema = z.object({
   reorgHorizon: z.number().int().positive(),
   lagThresholdBlocks: z.number().int().positive().optional(),
   overallTimeoutMs: z.number().int().positive().optional(),
+  headPollIntervalMs: z.number().int().positive().optional(),
+  sweepIntervalMs: z.number().int().positive().optional(),
   providers: z
     .array(ProviderConfigSchema)
     .min(1)

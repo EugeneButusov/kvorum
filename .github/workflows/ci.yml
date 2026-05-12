@@ -25,6 +25,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: kvorum
+          POSTGRES_PASSWORD: kvorum
+          POSTGRES_DB: kvorum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kvorum"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,10 +100,17 @@ jobs:
       - name: Typecheck
         run: pnpm -w typecheck
 
+      - name: Run migrations
+        run: pnpm -w db:migrate
+        env:
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+
       - name: Test
         run: pnpm -w test
         env:
           ANVIL_RPC_URL: http://localhost:8545
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+          OTEL_SERVICE_NAMESPACE: kvorum
 
       - name: Stop Anvil
         if: always() && env.ANVIL_PID != ''
