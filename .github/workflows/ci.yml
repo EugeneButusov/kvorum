@@ -40,6 +40,16 @@ jobs:
           --health-timeout=3s
           --health-retries=10
 
+      clickhouse:
+        image: clickhouse/clickhouse-server:24
+        ports:
+          - 8123:8123
+        options: >-
+          --health-cmd="wget -q -O- http://localhost:8123/ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,11 +115,17 @@ jobs:
         env:
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
 
+      - name: Run ClickHouse migrations
+        run: pnpm -w db:migrate:ch
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+
       - name: Test
         run: pnpm -w test
         env:
           ANVIL_RPC_URL: http://localhost:8545
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+          CLICKHOUSE_URL: http://localhost:8123
           OTEL_SERVICE_NAMESPACE: kvorum
 
       - name: Stop Anvil
