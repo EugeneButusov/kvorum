@@ -62,11 +62,11 @@ beforeEach(() => {
 });
 
 describe('ChainContextRegistry', () => {
-  it('#1 — first acquire: constructs client, headTracker, reorgDetector; attaches detector; starts tracker', async () => {
+  it('#1 — first lease: constructs client, headTracker, reorgDetector; attaches detector; starts tracker', async () => {
     const { client, tracker, detector } = setupMocks();
 
     const registry = new ChainContextRegistry();
-    const ctx = await registry.acquire(CHAIN_CFG);
+    const lease = await registry.lease(CHAIN_CFG);
 
     expect(FailoverRpcClient).toHaveBeenCalledWith(CHAIN_CFG);
     expect(client.start).toHaveBeenCalledTimes(1);
@@ -74,26 +74,27 @@ describe('ChainContextRegistry', () => {
     expect(ReorgDetector).toHaveBeenCalledTimes(1);
     expect(detector.attach).toHaveBeenCalledWith(tracker);
     expect(tracker.start).toHaveBeenCalledTimes(1);
-    expect(ctx.client).toBe(client);
-    expect(ctx.headTracker).toBe(tracker);
-    expect(ctx.reorgDetector).toBe(detector);
-    expect(ctx.chainCfg).toBe(CHAIN_CFG);
+    expect(lease.client).toBe(client);
+    expect(lease.headTracker).toBe(tracker);
+    expect(lease.reorgDetector).toBe(detector);
+    expect(lease.chainCfg).toBe(CHAIN_CFG);
   });
 
-  it('#2 — second acquire for same chainId: returns cached context, no new client/tracker', async () => {
+  it('#2 — second lease for same chainId: shares underlying context, no new client/tracker', async () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
-    const ctx1 = await registry.acquire(CHAIN_CFG);
-    const ctx2 = await registry.acquire(CHAIN_CFG);
+    const lease1 = await registry.lease(CHAIN_CFG);
+    const lease2 = await registry.lease(CHAIN_CFG);
 
-    expect(ctx1).toBe(ctx2);
+    expect(lease1.client).toBe(lease2.client);
+    expect(lease1.headTracker).toBe(lease2.headTracker);
     expect(client.start).toHaveBeenCalledTimes(1);
     expect(HeadTracker).toHaveBeenCalledTimes(1);
     expect(tracker.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#3 — two different chainIds: two distinct contexts', async () => {
+  it('#3 — two different chainIds: two distinct leases with distinct contexts', async () => {
     const clientA = makeClient();
     const clientB = makeClient();
     const trackerA = makeTracker();
@@ -124,12 +125,12 @@ describe('ChainContextRegistry', () => {
       } as never);
 
     const registry = new ChainContextRegistry();
-    const ctxA = await registry.acquire(CHAIN_CFG);
-    const ctxB = await registry.acquire(CHAIN_CFG_137);
+    const leaseA = await registry.lease(CHAIN_CFG);
+    const leaseB = await registry.lease(CHAIN_CFG_137);
 
-    expect(ctxA).not.toBe(ctxB);
-    expect(ctxA.client).toBe(clientA);
-    expect(ctxB.client).toBe(clientB);
+    expect(leaseA.client).not.toBe(leaseB.client);
+    expect(leaseA.client).toBe(clientA);
+    expect(leaseB.client).toBe(clientB);
     expect(clientA.start).toHaveBeenCalledTimes(1);
     expect(clientB.start).toHaveBeenCalledTimes(1);
   });
@@ -138,33 +139,40 @@ describe('ChainContextRegistry', () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
-    await registry.acquire(CHAIN_CFG);
-    await registry.acquire(CHAIN_CFG);
+    const lease1 = await registry.lease(CHAIN_CFG);
+    await registry.lease(CHAIN_CFG);
 
-    await registry.release(CHAIN_CFG.chainId);
+    await lease1.release();
 
     expect(tracker.stop).not.toHaveBeenCalled();
     expect(client.stop).not.toHaveBeenCalled();
     expect(registry.peek(CHAIN_CFG.chainId)).toBeDefined();
   });
 
-  it('#5 — release with refcount = 1: stops tracker then client; entry removed', async () => {
+  it('#5 — last lease released: stops tracker then client; entry removed', async () => {
     const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
-    await registry.acquire(CHAIN_CFG);
+    const lease = await registry.lease(CHAIN_CFG);
 
-    await registry.release(CHAIN_CFG.chainId);
+    await lease.release();
 
     expect(tracker.stop).toHaveBeenCalledTimes(1);
     expect(client.stop).toHaveBeenCalledTimes(1);
     expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
   });
 
-  it('#6 — release of non-existent chainId: no-op, no throw', async () => {
-    setupMocks();
+  it('#6 — double-release is idempotent: stops tracker + client only once', async () => {
+    const { client, tracker } = setupMocks();
+
     const registry = new ChainContextRegistry();
-    await expect(registry.release('0x999')).resolves.toBeUndefined();
+    const lease = await registry.lease(CHAIN_CFG);
+
+    await lease.release();
+    await lease.release();
+
+    expect(tracker.stop).toHaveBeenCalledTimes(1);
+    expect(client.stop).toHaveBeenCalledTimes(1);
   });
 
   it('#7 — drainAll: stops every tracker + client; entries cleared; safe when one tracker rejects', async () => {
@@ -195,8 +203,8 @@ describe('ChainContextRegistry', () => {
     } as never);
 
     const registry = new ChainContextRegistry();
-    await registry.acquire(CHAIN_CFG);
-    await registry.acquire(CHAIN_CFG_137);
+    await registry.lease(CHAIN_CFG);
+    await registry.lease(CHAIN_CFG_137);
 
     await expect(registry.drainAll()).resolves.toBeUndefined();
 
@@ -207,7 +215,7 @@ describe('ChainContextRegistry', () => {
     expect(registry.allActive()).toHaveLength(0);
   });
 
-  it('#8 — acquire failure: client.start() rejects → no entry left; subsequent acquire retries from scratch', async () => {
+  it('#8 — lease failure: client.start() rejects → no entry left; subsequent lease retries from scratch', async () => {
     const failClient = { start: vi.fn().mockRejectedValue(new Error('rpc fail')), stop: vi.fn() };
     const goodClient = makeClient();
     const tracker = makeTracker();
@@ -228,11 +236,11 @@ describe('ChainContextRegistry', () => {
 
     const registry = new ChainContextRegistry();
 
-    await expect(registry.acquire(CHAIN_CFG)).rejects.toThrow('rpc fail');
+    await expect(registry.lease(CHAIN_CFG)).rejects.toThrow('rpc fail');
     expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
 
-    const ctx = await registry.acquire(CHAIN_CFG);
-    expect(ctx.client).toBe(goodClient);
+    const lease = await registry.lease(CHAIN_CFG);
+    expect(lease.client).toBe(goodClient);
   });
 
   it('#9 — whenReady() resolves after markReady()', async () => {

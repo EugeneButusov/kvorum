@@ -9,6 +9,11 @@ export interface ChainContext {
   chainCfg: ChainConfig;
 }
 
+export interface ChainLease extends ChainContext {
+  /** Idempotent: decrements the ref-count; stops chain resources when the last lease is released. */
+  release(): Promise<void>;
+}
+
 interface ChainEntry {
   ctx: ChainContext;
   refCount: number;
@@ -33,11 +38,11 @@ export class ChainContextRegistry {
     });
   }
 
-  async acquire(chainCfg: ChainConfig): Promise<ChainContext> {
+  async lease(chainCfg: ChainConfig): Promise<ChainLease> {
     const existing = this.map.get(chainCfg.chainId);
     if (existing) {
       existing.refCount++;
-      return existing.ctx;
+      return this.makeLease(existing.ctx, chainCfg.chainId);
     }
 
     const client = new FailoverRpcClient(chainCfg);
@@ -63,19 +68,7 @@ export class ChainContextRegistry {
 
     const ctx: ChainContext = { client, headTracker, reorgDetector, chainCfg };
     this.map.set(chainCfg.chainId, { ctx, refCount: 1 });
-    return ctx;
-  }
-
-  async release(chainId: string): Promise<void> {
-    const entry = this.map.get(chainId);
-    if (!entry) return;
-
-    entry.refCount--;
-    if (entry.refCount > 0) return;
-
-    this.map.delete(chainId);
-    await entry.ctx.headTracker.stop();
-    await entry.ctx.client.stop();
+    return this.makeLease(ctx, chainCfg.chainId);
   }
 
   async drainAll(): Promise<void> {
@@ -108,5 +101,21 @@ export class ChainContextRegistry {
     if (this.readySettled) return;
     this.readySettled = true;
     this.readyReject!(err);
+  }
+
+  private makeLease(ctx: ChainContext, chainId: string): ChainLease {
+    let released = false;
+    const release = async (): Promise<void> => {
+      if (released) return;
+      released = true;
+      const entry = this.map.get(chainId);
+      if (!entry) return;
+      entry.refCount--;
+      if (entry.refCount > 0) return;
+      this.map.delete(chainId);
+      await entry.ctx.headTracker.stop();
+      await entry.ctx.client.stop();
+    };
+    return { ...ctx, release };
   }
 }
