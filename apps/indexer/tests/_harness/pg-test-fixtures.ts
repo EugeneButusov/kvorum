@@ -39,7 +39,7 @@ export async function insertTestDaoSource(
     .values({
       dao_id: opts.daoId,
       source_type: opts.sourceType,
-      source_config: { address: opts.contractAddress },
+      source_config: { governor_address: opts.contractAddress },
       active_from_block: null,
       active_to_block: null,
       backfill_started_at_block: null,
