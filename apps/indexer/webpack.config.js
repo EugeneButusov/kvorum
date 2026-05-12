@@ -23,6 +23,7 @@ module.exports = {
       '@libs/ai': path.join(root, 'libs/ai/src/index.ts'),
       '@libs/utils': path.join(root, 'libs/utils/src/index.ts'),
       '@libs/observability': path.join(root, 'libs/observability/src/index.ts'),
+      '@sources/core': path.join(root, 'libs/sources/core/src/index.ts'),
       '@sources/compound': path.join(root, 'libs/sources/compound/src/index.ts'),
       '@nest/compound': path.join(root, 'nest/sources/compound/src/index.ts'),
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
@@ -45,6 +46,7 @@ module.exports = {
         !request.startsWith('.') &&
         !path.isAbsolute(request) &&
         !request.startsWith('@libs/') &&
+        !request.startsWith('@sources/') &&
         request !== '@nest/observability'
       ) {
         return callback(null, `commonjs ${request}`);

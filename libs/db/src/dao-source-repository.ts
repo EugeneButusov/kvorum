@@ -17,4 +17,19 @@ export class DaoSourceRepository {
       .where('dao_source.source_type', '=', sourceType)
       .execute();
   }
+
+  async findAll() {
+    return this.db
+      .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+      .select([
+        'dao_source.id',
+        'dao_source.dao_id',
+        'dao_source.source_type',
+        'dao_source.source_config',
+        'dao.primary_chain_id',
+      ])
+      .orderBy('dao_source.id', 'asc')
+      .execute();
+  }
 }

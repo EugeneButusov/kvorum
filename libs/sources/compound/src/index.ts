@@ -16,6 +16,7 @@ export {
   EventRepository,
   ArchiveWriter,
   makeIngesterListener,
+  createCompoundGovernorPlugin,
 } from './governor/index';
 
 export type {
@@ -31,4 +32,6 @@ export type {
   IngesterListenerDeps,
   EventData,
   EventRepositoryDeps,
+  CompoundGovernorConfig,
+  CompoundGovernorPluginDeps,
 } from './governor/index';

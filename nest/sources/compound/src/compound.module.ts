@@ -1,15 +1,13 @@
 import { Module, Logger } from '@nestjs/common';
-import { pgDb, chDb, ConfirmationRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
-import { EventRepository, ArchiveWriter } from '@sources/compound';
-import { CompoundGovernorService } from './compound-governor.service';
-import { toChainLogger } from '../utils/nest-logger-adapter';
+import { pgDb, chDb } from '@libs/db';
+import { ConfirmationRepository, DlqRepository } from '@libs/db';
+import { ArchiveWriter, EventRepository, createCompoundGovernorPlugin } from '@sources/compound';
+import { toChainLogger } from './utils/nest-logger-adapter';
+
+export const COMPOUND_PLUGIN = 'COMPOUND_PLUGIN';
 
 @Module({
   providers: [
-    {
-      provide: DaoSourceRepository,
-      useFactory: () => new DaoSourceRepository(pgDb),
-    },
     {
       provide: ConfirmationRepository,
       useFactory: () => new ConfirmationRepository(pgDb),
@@ -32,8 +30,17 @@ import { toChainLogger } from '../utils/nest-logger-adapter';
         });
       },
     },
-    CompoundGovernorService,
+    {
+      provide: COMPOUND_PLUGIN,
+      useFactory: (archiveWriter: ArchiveWriter, dlqRepo: DlqRepository) =>
+        createCompoundGovernorPlugin({
+          archiveWriter,
+          dlqRepo,
+          logger: toChainLogger(new Logger('CompoundGovernor')),
+        }),
+      inject: [ArchiveWriter, DlqRepository],
+    },
   ],
-  exports: [CompoundGovernorService],
+  exports: [COMPOUND_PLUGIN],
 })
-export class CompoundGovernorModule {}
+export class CompoundSourceModule {}

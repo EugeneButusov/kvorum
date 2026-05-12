@@ -1,17 +1,12 @@
 {
-  "name": "@sources/compound",
+  "name": "@sources/core",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "@sources/core": "workspace:*",
     "@libs/chain": "workspace:*",
-    "@libs/observability": "workspace:*",
     "@libs/db": "workspace:*",
-    "@libs/utils": "workspace:*",
-    "ethers": "^6.13.0",
-    "kysely": "^0.29.0",
     "tslib": "^2.3.0"
   },
   "scripts": {
