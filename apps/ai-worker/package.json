@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "build": "webpack-cli build --node-env=production",
     "build:dev": "webpack-cli build --node-env=development",
     "test": "vitest run",

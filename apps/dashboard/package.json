@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "next build",
     "dev": "next dev --turbopack",
     "lint": "next lint"
