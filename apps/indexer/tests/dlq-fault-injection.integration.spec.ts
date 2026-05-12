@@ -51,17 +51,21 @@ describeIf('F3 DLQ fault injection', () => {
   beforeAll(async () => {
     // DlqDepthService ticks at 500ms in tests — keeps gauge assertion window tight.
     process.env['DLQ_DEPTH_INTERVAL_MS'] = '500';
-    process.env['CHAIN_CONFIG'] = JSON.stringify([
-      {
-        chainId: '0x7a69',
-        name: 'anvil',
-        reorgHorizon: 12,
-        headPollIntervalMs: 200,
-        sweepIntervalMs: 500,
-        eventPollIntervalMs: 200,
-        providers: [{ name: 'anvil', url: ANVIL_URL, kind: 'http', priority: 1, timeoutMs: 4_000 }],
-      },
-    ]);
+    process.env['CHAIN_CONFIG'] = JSON.stringify({
+      chains: [
+        {
+          chainId: '0x7a69',
+          name: 'anvil',
+          reorgHorizon: 12,
+          headPollIntervalMs: 200,
+          sweepIntervalMs: 500,
+          eventPollIntervalMs: 200,
+          providers: [
+            { name: 'anvil', url: ANVIL_URL, kind: 'http', priority: 1, timeoutMs: 4_000 },
+          ],
+        },
+      ],
+    });
 
     // Deploy CompoundEmitter BEFORE booting Nest.
     const deployClient = (await import('@libs/chain').then(
