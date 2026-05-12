@@ -5,6 +5,7 @@ import { chainMetrics } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
+import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
 
@@ -20,6 +21,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     @Inject(FETCH_DRIVERS) private readonly drivers: ReadonlyArray<FetchDriver>,
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
+    private readonly registry: ChainContextRegistry,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -36,6 +38,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
     if (sources.length === 0) {
       this.logger.warn('No dao_source rows found; indexer will idle');
+      this.registry.markReady();
       return;
     }
 
@@ -51,15 +54,19 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     for (const src of sources) {
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
-        throw new Error(
+        const err = new Error(
           `No plugin registered for source_type="${src.source_type}" (dao_source ${src.id})`,
         );
+        this.registry.markFailed(err);
+        throw err;
       }
       const chainCfg = chainsByChainId.get(src.primary_chain_id);
       if (!chainCfg) {
-        throw new Error(
+        const err = new Error(
           `dao_source ${src.id} is on chain ${src.primary_chain_id} but CHAIN_CONFIG has no entry for it`,
         );
+        this.registry.markFailed(err);
+        throw err;
       }
       const config = plugin.parseConfig(src.source_config);
       validated.push({ sourceType: src.source_type, config, plugin, chainCfg, src });
@@ -92,6 +99,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       await Promise.allSettled(this.handles.map((h) => h.stop()));
       this.handles.length = 0;
       this.activeSourceTypes.clear();
+      this.registry.markFailed(err instanceof Error ? err : new Error(String(err)));
       throw err;
     }
 
@@ -102,6 +110,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       `started ${sources.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
     );
 
+    this.registry.markReady();
     this.startPendingDepthGauge();
   }
 
@@ -113,6 +122,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     await Promise.allSettled(this.handles.map((h) => h.stop()));
     this.handles.length = 0;
     this.activeSourceTypes.clear();
+    await this.registry.drainAll();
   }
 
   async onApplicationShutdown(): Promise<void> {

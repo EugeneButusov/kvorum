@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventPoller, FailoverRpcClient } from '@libs/chain';
+import { EventPoller } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
+import type { ChainContextRegistry } from './chain-context-registry';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
 
 vi.mock('@libs/chain', () => ({
   EventPoller: vi.fn(),
-  FailoverRpcClient: vi.fn(),
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
@@ -41,15 +41,27 @@ const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
   listener: LISTENER,
 };
 
-function setupMockClient() {
-  const instance = {
+function makeClient() {
+  return {
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
   };
-  vi.mocked(FailoverRpcClient).mockImplementation(function () {
-    return instance;
-  } as never);
-  return instance;
+}
+
+function makeRegistryContext(client = makeClient()) {
+  return {
+    client,
+    headTracker: {},
+    reorgDetector: {},
+    chainCfg: CHAIN_CFG,
+  };
+}
+
+function makeRegistry(ctx = makeRegistryContext()): ChainContextRegistry {
+  return {
+    acquire: vi.fn().mockResolvedValue(ctx),
+    release: vi.fn().mockResolvedValue(undefined),
+  } as unknown as ChainContextRegistry;
 }
 
 function setupMockPoller() {
@@ -69,20 +81,20 @@ beforeEach(() => {
 });
 
 describe('EvmEventPollerDriver', () => {
-  it('#1 — start() starts client then poller and wires listener', async () => {
-    const client = setupMockClient();
+  it('#1 — start() acquires context from registry, starts poller, wires listener', async () => {
+    const registry = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver();
+    const driver = new EvmEventPollerDriver(registry);
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
-    expect(client.start).toHaveBeenCalledTimes(1);
+    expect(registry.acquire).toHaveBeenCalledWith(CHAIN_CFG);
     expect(poller.start).toHaveBeenCalledTimes(1);
     expect(poller.onEvents).toHaveBeenCalledWith(LISTENER);
   });
 
-  it('#2 — two sources on same chain share one client', async () => {
-    const client = setupMockClient();
+  it('#2 — two sources on same chain: registry.acquire called twice (registry handles refcount)', async () => {
+    const registry = makeRegistry();
     vi.mocked(EventPoller).mockImplementation(function () {
       return {
         onEvents: vi.fn(),
@@ -91,31 +103,23 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver();
+    const driver = new EvmEventPollerDriver(registry);
     const ctx2 = { ...CTX, daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG);
 
-    expect(client.start).toHaveBeenCalledTimes(1);
+    expect(registry.acquire).toHaveBeenCalledTimes(2);
     expect(EventPoller).toHaveBeenCalledTimes(2);
   });
 
-  it('#3 — two sources on different chains get separate clients', async () => {
-    const clientA = {
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
-    const clientB = {
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
-    vi.mocked(FailoverRpcClient)
-      .mockImplementationOnce(function () {
-        return clientA;
-      } as never)
-      .mockImplementationOnce(function () {
-        return clientB;
-      } as never);
+  it('#3 — two sources on different chains: acquire called per chain', async () => {
+    const ctxA = makeRegistryContext();
+    const ctxB = makeRegistryContext();
+    const registry = {
+      acquire: vi.fn().mockResolvedValueOnce(ctxA).mockResolvedValueOnce(ctxB),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ChainContextRegistry;
+
     vi.mocked(EventPoller).mockImplementation(function () {
       return {
         onEvents: vi.fn(),
@@ -124,87 +128,50 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver();
+    const driver = new EvmEventPollerDriver(registry);
     const ctx2 = { ...CTX, chainId: 137, daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG_137);
 
-    expect(clientA.start).toHaveBeenCalledTimes(1);
-    expect(clientB.start).toHaveBeenCalledTimes(1);
+    expect(registry.acquire).toHaveBeenCalledTimes(2);
+    expect(registry.acquire).toHaveBeenCalledWith(CHAIN_CFG);
+    expect(registry.acquire).toHaveBeenCalledWith(CHAIN_CFG_137);
   });
 
-  it('#4 — stop() stops poller and decrements client refcount; client stopped when last poller stops', async () => {
-    const client = setupMockClient();
+  it('#4 — stop() stops poller and calls registry.release', async () => {
+    const registry = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver();
+    const driver = new EvmEventPollerDriver(registry);
     const handle = await driver.start(SPEC, CTX, CHAIN_CFG);
-
     await handle.stop();
 
     expect(poller.stop).toHaveBeenCalledTimes(1);
-    expect(client.stop).toHaveBeenCalledTimes(1);
+    expect(registry.release).toHaveBeenCalledWith(CHAIN_CFG.chainId);
   });
 
-  it('#5 — client NOT stopped until last poller handle stops', async () => {
-    const client = setupMockClient();
-    vi.mocked(EventPoller).mockImplementation(function () {
-      return {
-        onEvents: vi.fn(),
-        start: vi.fn().mockResolvedValue(undefined),
-        stop: vi.fn().mockResolvedValue(undefined),
-      };
-    } as never);
+  it('#5 — EventPoller constructed with rpcClient from registry context', async () => {
+    const client = makeClient();
+    const ctx = makeRegistryContext(client);
+    const registry = makeRegistry(ctx);
+    setupMockPoller();
 
-    const driver = new EvmEventPollerDriver();
-    const ctx2 = { ...CTX, daoSourceId: 'src-2' };
-    const h1 = await driver.start(SPEC, CTX, CHAIN_CFG);
-    const h2 = await driver.start(SPEC, ctx2, CHAIN_CFG);
+    const driver = new EvmEventPollerDriver(registry);
+    await driver.start(SPEC, CTX, CHAIN_CFG);
 
-    await h1.stop();
-    expect(client.stop).not.toHaveBeenCalled();
-
-    await h2.stop();
-    expect(client.stop).toHaveBeenCalledTimes(1);
+    const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as { rpcClient: typeof client };
+    expect(pollerOpts.rpcClient).toBe(client);
   });
 
-  it('#6 — partial start failure: chain-B client.start() rejects; chain-A handle survives unaffected', async () => {
-    const clientA = {
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
-    const clientB = {
-      start: vi.fn().mockRejectedValue(new Error('B failed')),
-      stop: vi.fn().mockResolvedValue(undefined),
-    };
-    vi.mocked(FailoverRpcClient)
-      .mockImplementationOnce(function () {
-        return clientA;
-      } as never)
-      .mockImplementationOnce(function () {
-        return clientB;
-      } as never);
-    vi.mocked(EventPoller).mockImplementation(function () {
-      return {
-        onEvents: vi.fn(),
-        start: vi.fn().mockResolvedValue(undefined),
-        stop: vi.fn().mockResolvedValue(undefined),
-      };
-    } as never);
+  it('#6 — registry.acquire() rejects: error propagates; release not called', async () => {
+    const registry = {
+      acquire: vi.fn().mockRejectedValue(new Error('rpc fail')),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ChainContextRegistry;
+    setupMockPoller();
 
-    const driver = new EvmEventPollerDriver();
-
-    // chain 1 starts OK → clientA
-    const handleA = await driver.start(SPEC, CTX, CHAIN_CFG);
-    expect(clientA.start).toHaveBeenCalledTimes(1);
-
-    // chain 137 fails → clientB.start() rejects
-    const ctx2 = { ...CTX, chainId: 137, daoSourceId: 'src-2' };
-    await expect(driver.start(SPEC, ctx2, CHAIN_CFG_137)).rejects.toThrow('B failed');
-
-    // chain-A handle still alive
-    expect(clientA.stop).not.toHaveBeenCalled();
-    await handleA.stop();
-    expect(clientA.stop).toHaveBeenCalledTimes(1);
+    const driver = new EvmEventPollerDriver(registry);
+    await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
+    expect(registry.release).not.toHaveBeenCalled();
   });
 });

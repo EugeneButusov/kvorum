@@ -126,6 +126,31 @@ export const chainMetrics = {
       'Count of dao_source rows the indexer booted with per source_type. Zero is a deployable-but-actionable signal (misconfigured table).',
   }),
 
+  // ---- F2 counters ----
+  reorgEvent: defineCounter({
+    name: 'ingestion_reorg_event',
+    description:
+      'Reorg events persisted to PG (one per ReorgDetector signal that successfully wrote a reorg_event row). chain label.',
+  }),
+  orphanedEvents: defineCounter({
+    name: 'ingestion_orphaned_events',
+    description:
+      'Count of archive_confirmation rows transitioned to orphaned by a reorg handler. Summed across all reorgs per chain.',
+  }),
+  reorgTruncated: defineCounter({
+    name: 'ingestion_reorg_truncated',
+    description:
+      'Reorg signals flagged as truncated (divergence extends past oldest buffered block). Operator alert — divergence root is approximate.',
+  }),
+
+  // ---- F2 histograms ----
+  promotionSweepDuration: defineHistogram({
+    name: 'ingestion_promotion_sweep_duration_seconds',
+    description:
+      'Wall-clock duration of one promotion sweep per chain. One observation per chain per 30-s tick.',
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
+  }),
+
   // ---- Histograms ----
   rpcRequestDuration: defineHistogram({
     name: 'ingestion_rpc_request_duration_seconds',

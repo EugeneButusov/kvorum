@@ -4,6 +4,8 @@ export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError } from './utils';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
+export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
+export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {

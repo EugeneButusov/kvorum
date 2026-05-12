@@ -1,0 +1,256 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
+import { ChainContextRegistry } from './chain-context-registry';
+
+vi.mock('@libs/chain', () => ({
+  FailoverRpcClient: vi.fn(),
+  HeadTracker: vi.fn(),
+  ReorgDetector: vi.fn(),
+  chainMetrics: {
+    pendingEventCount: { record: vi.fn() },
+    indexerActiveSources: { record: vi.fn() },
+  },
+}));
+
+const CHAIN_CFG = {
+  chainId: 1,
+  name: 'ethereum',
+  reorgHorizon: 12,
+  providers: [],
+};
+
+const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: 137, name: 'polygon' };
+
+function makeClient() {
+  return {
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeTracker() {
+  return {
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    onHead: vi.fn().mockReturnValue(() => {}),
+    getLastHead: vi.fn().mockReturnValue(null),
+  };
+}
+
+function makeDetector() {
+  return {
+    attach: vi.fn().mockReturnValue(() => {}),
+    onReorg: vi.fn().mockReturnValue(() => {}),
+  };
+}
+
+function setupMocks(client = makeClient(), tracker = makeTracker(), detector = makeDetector()) {
+  vi.mocked(FailoverRpcClient).mockImplementation(function () {
+    return client;
+  } as never);
+  vi.mocked(HeadTracker).mockImplementation(function () {
+    return tracker;
+  } as never);
+  vi.mocked(ReorgDetector).mockImplementation(function () {
+    return detector;
+  } as never);
+  return { client, tracker, detector };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('ChainContextRegistry', () => {
+  it('#1 — first acquire: constructs client, headTracker, reorgDetector; attaches detector; starts tracker', async () => {
+    const { client, tracker, detector } = setupMocks();
+
+    const registry = new ChainContextRegistry();
+    const ctx = await registry.acquire(CHAIN_CFG);
+
+    expect(FailoverRpcClient).toHaveBeenCalledWith(CHAIN_CFG);
+    expect(client.start).toHaveBeenCalledTimes(1);
+    expect(HeadTracker).toHaveBeenCalledTimes(1);
+    expect(ReorgDetector).toHaveBeenCalledTimes(1);
+    expect(detector.attach).toHaveBeenCalledWith(tracker);
+    expect(tracker.start).toHaveBeenCalledTimes(1);
+    expect(ctx.client).toBe(client);
+    expect(ctx.headTracker).toBe(tracker);
+    expect(ctx.reorgDetector).toBe(detector);
+    expect(ctx.chainCfg).toBe(CHAIN_CFG);
+  });
+
+  it('#2 — second acquire for same chainId: returns cached context, no new client/tracker', async () => {
+    const { client, tracker } = setupMocks();
+
+    const registry = new ChainContextRegistry();
+    const ctx1 = await registry.acquire(CHAIN_CFG);
+    const ctx2 = await registry.acquire(CHAIN_CFG);
+
+    expect(ctx1).toBe(ctx2);
+    expect(client.start).toHaveBeenCalledTimes(1);
+    expect(HeadTracker).toHaveBeenCalledTimes(1);
+    expect(tracker.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('#3 — two different chainIds: two distinct contexts', async () => {
+    const clientA = makeClient();
+    const clientB = makeClient();
+    const trackerA = makeTracker();
+    const trackerB = makeTracker();
+    const detectorA = makeDetector();
+    const detectorB = makeDetector();
+
+    vi.mocked(FailoverRpcClient)
+      .mockImplementationOnce(function () {
+        return clientA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return clientB;
+      } as never);
+    vi.mocked(HeadTracker)
+      .mockImplementationOnce(function () {
+        return trackerA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return trackerB;
+      } as never);
+    vi.mocked(ReorgDetector)
+      .mockImplementationOnce(function () {
+        return detectorA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return detectorB;
+      } as never);
+
+    const registry = new ChainContextRegistry();
+    const ctxA = await registry.acquire(CHAIN_CFG);
+    const ctxB = await registry.acquire(CHAIN_CFG_137);
+
+    expect(ctxA).not.toBe(ctxB);
+    expect(ctxA.client).toBe(clientA);
+    expect(ctxB.client).toBe(clientB);
+    expect(clientA.start).toHaveBeenCalledTimes(1);
+    expect(clientB.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('#4 — release with refcount > 1: decrements refcount, tracker + client NOT stopped', async () => {
+    const { client, tracker } = setupMocks();
+
+    const registry = new ChainContextRegistry();
+    await registry.acquire(CHAIN_CFG);
+    await registry.acquire(CHAIN_CFG);
+
+    await registry.release(CHAIN_CFG.chainId);
+
+    expect(tracker.stop).not.toHaveBeenCalled();
+    expect(client.stop).not.toHaveBeenCalled();
+    expect(registry.peek(CHAIN_CFG.chainId)).toBeDefined();
+  });
+
+  it('#5 — release with refcount = 1: stops tracker then client; entry removed', async () => {
+    const { client, tracker } = setupMocks();
+
+    const registry = new ChainContextRegistry();
+    await registry.acquire(CHAIN_CFG);
+
+    await registry.release(CHAIN_CFG.chainId);
+
+    expect(tracker.stop).toHaveBeenCalledTimes(1);
+    expect(client.stop).toHaveBeenCalledTimes(1);
+    expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
+  });
+
+  it('#6 — release of non-existent chainId: no-op, no throw', async () => {
+    setupMocks();
+    const registry = new ChainContextRegistry();
+    await expect(registry.release(999)).resolves.toBeUndefined();
+  });
+
+  it('#7 — drainAll: stops every tracker + client; entries cleared; safe when one tracker rejects', async () => {
+    const clientA = makeClient();
+    const trackerA = {
+      ...makeTracker(),
+      stop: vi.fn().mockRejectedValue(new Error('tracker fail')),
+    };
+    const clientB = makeClient();
+    const trackerB = makeTracker();
+
+    vi.mocked(FailoverRpcClient)
+      .mockImplementationOnce(function () {
+        return clientA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return clientB;
+      } as never);
+    vi.mocked(HeadTracker)
+      .mockImplementationOnce(function () {
+        return trackerA;
+      } as never)
+      .mockImplementationOnce(function () {
+        return trackerB;
+      } as never);
+    vi.mocked(ReorgDetector).mockImplementation(function () {
+      return makeDetector();
+    } as never);
+
+    const registry = new ChainContextRegistry();
+    await registry.acquire(CHAIN_CFG);
+    await registry.acquire(CHAIN_CFG_137);
+
+    await expect(registry.drainAll()).resolves.toBeUndefined();
+
+    expect(trackerA.stop).toHaveBeenCalledTimes(1);
+    expect(trackerB.stop).toHaveBeenCalledTimes(1);
+    expect(clientA.stop).toHaveBeenCalledTimes(1);
+    expect(clientB.stop).toHaveBeenCalledTimes(1);
+    expect(registry.allActive()).toHaveLength(0);
+  });
+
+  it('#8 — acquire failure: client.start() rejects → no entry left; subsequent acquire retries from scratch', async () => {
+    const failClient = { start: vi.fn().mockRejectedValue(new Error('rpc fail')), stop: vi.fn() };
+    const goodClient = makeClient();
+    const tracker = makeTracker();
+
+    vi.mocked(FailoverRpcClient)
+      .mockImplementationOnce(function () {
+        return failClient;
+      } as never)
+      .mockImplementationOnce(function () {
+        return goodClient;
+      } as never);
+    vi.mocked(HeadTracker).mockImplementation(function () {
+      return tracker;
+    } as never);
+    vi.mocked(ReorgDetector).mockImplementation(function () {
+      return makeDetector();
+    } as never);
+
+    const registry = new ChainContextRegistry();
+
+    await expect(registry.acquire(CHAIN_CFG)).rejects.toThrow('rpc fail');
+    expect(registry.peek(CHAIN_CFG.chainId)).toBeUndefined();
+
+    const ctx = await registry.acquire(CHAIN_CFG);
+    expect(ctx.client).toBe(goodClient);
+  });
+
+  it('#9 — whenReady() resolves after markReady()', async () => {
+    const registry = new ChainContextRegistry();
+    const promise = registry.whenReady();
+    registry.markReady();
+    await expect(promise).resolves.toBeUndefined();
+    // Subsequent calls resolve immediately
+    await expect(registry.whenReady()).resolves.toBeUndefined();
+  });
+
+  it('#10 — whenReady() rejects after markFailed(); markReady after markFailed is a no-op', async () => {
+    const registry = new ChainContextRegistry();
+    const err = new Error('boot failed');
+    registry.markFailed(err);
+    await expect(registry.whenReady()).rejects.toThrow('boot failed');
+    // markReady after markFailed has no effect
+    registry.markReady();
+    await expect(registry.whenReady()).rejects.toThrow('boot failed');
+  });
+});
