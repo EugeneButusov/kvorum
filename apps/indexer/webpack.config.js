@@ -16,6 +16,9 @@ module.exports = {
   },
   resolve: {
     extensions: ['.ts', '.js'],
+    extensionAlias: {
+      '.js': ['.ts', '.js'],
+    },
     alias: {
       '@libs/domain': path.join(root, 'libs/domain/src/index.ts'),
       '@libs/db': path.join(root, 'libs/db/src/index.ts'),
