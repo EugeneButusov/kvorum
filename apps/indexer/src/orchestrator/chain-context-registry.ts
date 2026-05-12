@@ -1,5 +1,6 @@
+import { Injectable, Logger } from '@nestjs/common';
 import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
-import type { ChainConfig, Logger } from '@libs/chain';
+import type { ChainConfig } from '@libs/chain';
 
 export interface ChainContext {
   client: FailoverRpcClient;
@@ -15,17 +16,17 @@ interface ChainEntry {
 
 const HEAD_POLL_INTERVAL_MS = Number(process.env['HEAD_POLL_INTERVAL_MS'] ?? 6_000);
 
+@Injectable()
 export class ChainContextRegistry {
+  private readonly logger = new Logger('ChainContextRegistry');
   private readonly map = new Map<number, ChainEntry>();
-  private readonly logger: Logger | undefined;
 
   private readyResolve: (() => void) | null = null;
   private readyReject: ((err: Error) => void) | null = null;
   private readonly readyPromise: Promise<void>;
   private readySettled = false;
 
-  constructor(logger?: Logger) {
-    this.logger = logger;
+  constructor() {
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.readyResolve = resolve;
       this.readyReject = reject;
@@ -40,11 +41,7 @@ export class ChainContextRegistry {
     }
 
     const client = new FailoverRpcClient(chainCfg);
-    try {
-      await client.start();
-    } catch (err) {
-      throw err;
-    }
+    await client.start();
 
     const headTracker = new HeadTracker({
       rpcClient: client,
@@ -52,7 +49,6 @@ export class ChainContextRegistry {
       chainName: chainCfg.name,
       pollIntervalMs: HEAD_POLL_INTERVAL_MS,
       stopTimeoutMs: 5_000,
-      logger: this.logger,
     });
 
     const reorgDetector = new ReorgDetector({
@@ -60,7 +56,6 @@ export class ChainContextRegistry {
       chainId: chainCfg.chainId,
       chainName: chainCfg.name,
       reorgHorizon: chainCfg.reorgHorizon,
-      logger: this.logger,
     });
 
     reorgDetector.attach(headTracker);

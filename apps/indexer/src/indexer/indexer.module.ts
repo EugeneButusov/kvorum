@@ -12,7 +12,7 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
 @Module({
   imports: [IndexerInfraModule, CompoundSourceModule],
   providers: [
-    { provide: ChainContextRegistry, useFactory: () => new ChainContextRegistry() },
+    ChainContextRegistry,
     {
       provide: SOURCE_PLUGINS,
       useFactory: (compound: SourcePlugin) => [compound],
