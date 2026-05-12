@@ -21,3 +21,9 @@ export function isTransientDbError(err: unknown): boolean {
   const code = typeof e['code'] === 'string' ? e['code'] : '';
   return TRANSIENT_SQLSTATES.has(code) || TRANSIENT_NODE_CODES.has(code);
 }
+
+export function isCanonicalPartialUniqueViolation(err: unknown): boolean {
+  if (err == null || typeof err !== 'object') return false;
+  const e = err as Record<string, unknown>;
+  return e['code'] === '23505' && e['constraint'] === 'idx_archive_confirmation_canonical';
+}
