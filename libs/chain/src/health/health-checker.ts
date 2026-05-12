@@ -75,8 +75,8 @@ export class HealthChecker {
             await sleep(CHAIN_ID_RETRY_DELAYS_MS[attempt - 1]!);
           }
           try {
-            const raw = (await provider.send('eth_chainId', [])) as string;
-            const reported = normalizeChainId(raw);
+            const raw = await provider.send('eth_chainId', []);
+            const reported = normalizeChainId(String(raw));
             if (reported !== this.config.chainId) {
               state.unusable = true;
               chainMetrics.providerUnusable.record(1, { provider: name, chain });
