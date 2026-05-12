@@ -182,7 +182,7 @@ describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
     // Fixed tuple for this smoke run — unique enough to not collide with real data.
     const tuple = {
       source_type: 'compound_governor' as const,
-      chain_id: 31337,
+      chain_id: '0x7a69',
       // FixedString(66) = "0x" + 64 hex chars
       tx_hash: '0x' + '1'.repeat(64),
       log_index: 0,
