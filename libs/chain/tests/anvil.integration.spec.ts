@@ -30,7 +30,7 @@ describeIf('Anvil integration', () => {
 
   beforeAll(async () => {
     const config: ChainConfig = {
-      chainId: 31337,
+      chainId: '0x7a69',
       name: 'anvil',
       reorgHorizon: 1,
       providers: [
@@ -65,7 +65,7 @@ describeIf('Anvil integration', () => {
 
   it('getHealth() shows provider as verified', () => {
     const health = client.getHealth();
-    expect(health.chainId).toBe(31337);
+    expect(health.chainId).toBe('0x7a69');
     const [provider] = health.providers;
     expect(provider!.verified).toBe(true);
     expect(provider!.unusable).toBe(false);
@@ -84,7 +84,7 @@ describeIf('Anvil integration', () => {
     const received: LogEvent[] = [];
     const poller = new EventPoller({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       reorgHorizon: 2,
       filter: { address: from }, // self-address filter (likely no logs, but tests the call path)
@@ -121,7 +121,7 @@ describeIf('Anvil integration', () => {
     const ticks: LogEvent[][] = [];
     const poller = new EventPoller({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       reorgHorizon: 2,
       filter: { address: '0x' + '00'.repeat(20), topics: [TRANSFER_TOPIC] },
@@ -161,7 +161,7 @@ describeIf('Anvil integration', () => {
   it('E3d-3: HeadTracker resolves awaitFirstHead() and emits heads', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
@@ -176,7 +176,7 @@ describeIf('Anvil integration', () => {
     await tracker.start();
     const firstHead = await firstHeadPromise;
 
-    expect(firstHead.chainId).toBe(31337);
+    expect(firstHead.chainId).toBe('0x7a69');
     expect(firstHead.blockNumber).toBeGreaterThanOrEqual(0n);
     expect(firstHead.blockHash).toMatch(/^0x[0-9a-f]+$/);
     expect(tracker.getLastHead()).not.toBeNull();
@@ -252,7 +252,7 @@ describeIf('Anvil integration', () => {
 
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       pollIntervalMs: 200,
       stopTimeoutMs: 5_000,
@@ -260,7 +260,7 @@ describeIf('Anvil integration', () => {
 
     const detector = new ReorgDetector({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       reorgHorizon: 12,
     });
@@ -320,7 +320,7 @@ describeIf('Anvil integration', () => {
 
     expect(reorgSignals.length).toBeGreaterThan(reorgsBefore);
     const signal = reorgSignals[reorgSignals.length - 1]!;
-    expect(signal.chainId).toBe(31337);
+    expect(signal.chainId).toBe('0x7a69');
     expect(signal.divergenceBlockNumber).toBeGreaterThanOrEqual(blockNumberBefore - 2n);
     expect(signal.orphanedBlockHashes.length).toBeGreaterThan(0);
   }, 30_000);
@@ -329,7 +329,7 @@ describeIf('Anvil integration', () => {
   it('E3d-4: head_block_age_seconds metric is set after first tick and stays reasonable', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: 31337,
+      chainId: '0x7a69',
       chainName: 'anvil',
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
