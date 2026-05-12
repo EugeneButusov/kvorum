@@ -62,5 +62,5 @@ export interface HeadTrackerOptions {
   logger?: Logger;
 }
 
-export type EventsListener = (evs: LogEvent[]) => void | Promise<void>;
+export type EventsListener<T = LogEvent> = (evs: T[]) => void | Promise<void>;
 export type HeadListener = (h: Head) => void | Promise<void>;

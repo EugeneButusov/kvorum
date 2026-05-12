@@ -34,3 +34,6 @@ export { ArchiveWriter } from './archive-writer';
 
 export type { IngesterListenerDeps } from './ingester-listener';
 export { makeIngesterListener } from './ingester-listener';
+
+export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin';
+export { createCompoundGovernorPlugin } from './plugin';

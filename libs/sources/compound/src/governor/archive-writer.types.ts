@@ -13,7 +13,7 @@ export interface ArchiveWriterDeps {
 
 export interface ArchiveWriteContext {
   daoSourceId: string;
-  sourceType: 'compound_governor';
+  sourceType: string;
   chainId: number;
   sourceLabel: string;
 }

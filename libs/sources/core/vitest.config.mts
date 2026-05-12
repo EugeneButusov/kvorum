@@ -3,10 +3,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/nest/sources/compound',
+  cacheDir: '../../../node_modules/.vite/libs/sources/core',
   plugins: [tsconfigPaths()],
   test: {
-    name: 'nest-compound',
+    name: 'sources-core',
     watch: false,
     globals: true,
     environment: 'node',
@@ -14,7 +14,7 @@ export default defineConfig({
     passWithNoTests: true,
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/nest/sources/compound',
+      reportsDirectory: '../../../coverage/libs/sources/core',
       provider: 'v8' as const,
     },
   },
