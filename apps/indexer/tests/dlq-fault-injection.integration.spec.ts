@@ -97,7 +97,7 @@ describeIf('F3 DLQ fault injection', () => {
       contractAddress,
     });
 
-    app = await NestFactory.createApplicationContext(IndexerModule, { logger: false });
+    app = await NestFactory.createApplicationContext(IndexerModule, { abortOnError: false });
     await app.init();
     client = app.get(ChainContextRegistry).peek('0x7a69')!.client as typeof client;
   }, 60_000);

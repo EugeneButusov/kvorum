@@ -103,7 +103,7 @@ describeIf('F3 full-pipeline reorg', () => {
     });
 
     // 3. Boot the full IndexerModule — orchestrator reads the seeded dao_source.
-    app = await NestFactory.createApplicationContext(IndexerModule, { logger: false });
+    app = await NestFactory.createApplicationContext(IndexerModule, { abortOnError: false });
     await app.init();
     client = app.get(ChainContextRegistry).peek('0x7a69')!.client as typeof client;
   }, 60_000);
