@@ -21,6 +21,7 @@ export type {
 export { DecodeError } from './types';
 
 export { decodeCompoundLog } from './decoder';
+export { extractCompoundTitle } from './title-extractor';
 
 export type { EventData, EventRepositoryDeps } from './event-repository.types';
 export { EventRepository } from './event-repository';

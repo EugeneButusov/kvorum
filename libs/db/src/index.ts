@@ -1,10 +1,22 @@
 export { pgDb, chDb } from './client';
+export { ActorRepository } from './actor-repository';
+export type {
+  ArchiveDerivationRow,
+  CompoundArchivePayloadRow,
+} from './archive-derivation-repository';
+export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export type { ConfirmationKey } from './confirmation-repository';
 export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
+export type {
+  AdvanceProposalStateInput,
+  InsertProposalResult,
+  ProposalActionInput,
+} from './proposal-repository';
+export { ProposalRepository } from './proposal-repository';
 export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
 export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';
