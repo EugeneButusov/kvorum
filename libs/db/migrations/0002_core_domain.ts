@@ -107,8 +107,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('description', 'text', (col) => col.notNull())
     .addColumn('description_hash', 'text', (col) => col.notNull())
     .addColumn('binding', 'boolean', (col) => col.notNull())
-    .addColumn('voting_starts_at', 'timestamptz', (col) => col.notNull())
-    .addColumn('voting_ends_at', 'timestamptz', (col) => col.notNull())
+    .addColumn('voting_starts_at', 'timestamptz')
+    .addColumn('voting_ends_at', 'timestamptz')
+    .addColumn('voting_starts_block', 'bigint')
+    .addColumn('voting_ends_block', 'bigint')
     .addColumn('voting_power_block', 'bigint', (col) => col.notNull())
     .addColumn('state', sql`proposal_state`, (col) => col.notNull())
     .addColumn('state_updated_at', 'timestamptz', (col) => col.notNull())
@@ -138,6 +140,18 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on('proposal')
     .columns(['proposer_actor_id'])
     .execute();
+
+  await db.schema
+    .createIndex('idx_proposal_voting_starts_block')
+    .on('proposal')
+    .column('voting_starts_block')
+    .execute();
+
+  await sql`
+    CREATE INDEX idx_proposal_pending_timestamp_fill
+    ON proposal (voting_starts_block)
+    WHERE voting_starts_at IS NULL OR voting_ends_at IS NULL
+  `.execute(db);
 
   // ── proposal_action ──────────────────────────────────────────────────────────
   await db.schema
@@ -196,6 +210,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.references('reorg_event.id').onDelete('set null'),
     )
     .addColumn('derived_at', 'timestamptz')
+    .addColumn('derivation_attempt_count', 'smallint', (col) => col.notNull().defaultTo(0))
     .addUniqueConstraint('archive_confirmation_idempotency_key', [
       'source_type',
       'chain_id',
