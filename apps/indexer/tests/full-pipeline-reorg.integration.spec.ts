@@ -14,6 +14,7 @@ import {
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
+  truncateAllTestTables,
 } from './_harness/pg-test-fixtures';
 import { IndexerModule } from '../src/indexer/indexer.module';
 import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
@@ -114,6 +115,7 @@ describeIf('F3 full-pipeline reorg', () => {
 
   afterAll(async () => {
     await app?.close();
+    await truncateAllTestTables(pgDb);
   });
 
   beforeEach(async () => {
@@ -162,15 +164,38 @@ describeIf('F3 full-pipeline reorg', () => {
 
     const metricsBefore = await captureMetrics();
 
-    // 5. Reorg: drop 3 blocks (event-block + 2 padding), re-emit on canonical branch
+    // 5. Reorg: drop 3 blocks (event-block + 2 padding), re-emit on canonical branch.
+    //
+    // Anvil puts reverted transactions back into the mempool after a reorg. Without
+    // intervention, `anvil_mine ['0x1']` would re-mine the original event tx → same
+    // block hash → ReorgDetector Case 3a (hashes match) → only orphans blocks N+1, N+2
+    // and misses the event at N.
+    //
+    // Fix:
+    //  1. Drop all mempool txs so the spacer block is genuinely empty.
+    //  2. Mine the empty spacer at eventBlockNumber (different tx_root → different hash).
+    //  3. Poll for the reorg_event to confirm Case 3b fired and orphaning is complete.
+    //  4. Re-emit — event lands at eventBlockNumber+1 (different parent → different hash).
     await client.send('anvil_reorg', [3, []]);
+    await client.send('anvil_dropAllTransactions', []); // clear reverted txs from mempool
+    await client.send('anvil_mine', ['0x1']); // spacer at eventBlockNumber — truly empty
+
+    await pollUntil(async () => {
+      const rows = await pgDb
+        .selectFrom('reorg_event')
+        .selectAll()
+        .where('chain_id', '=', '0x7a69')
+        .execute();
+      return rows.length >= 1;
+    }, 10_000);
+
+    // Re-emit on canonical branch — event lands at eventBlockNumber + 1.
     const postEmitReceipt = await sendAndWait(client, {
       from: accounts[0]!,
       to: contractAddress,
       data: emitValidData,
     });
     const postReorgTxHash = postEmitReceipt.transactionHash.toLowerCase();
-    await client.send('anvil_mine', ['0x2']);
 
     // 6. Wait for ReorgWatcher to orphan the old row AND EventPoller to insert the new pending row
     await pollUntil(async () => {

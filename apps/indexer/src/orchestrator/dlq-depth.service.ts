@@ -3,8 +3,6 @@ import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/comm
 import { chainMetrics } from '@libs/chain';
 import { DlqRepository } from '@libs/db';
 
-const DLQ_DEPTH_INTERVAL_MS = parseInt(process.env['DLQ_DEPTH_INTERVAL_MS'] ?? '10000', 10);
-
 type SeriesKey = `${string}::${string}`; // stage::source
 
 @Injectable()
@@ -20,8 +18,11 @@ export class DlqDepthService implements OnApplicationBootstrap, OnApplicationShu
   constructor(private readonly dlqRepo: DlqRepository) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    // Read at bootstrap rather than module scope so tests can override via process.env
+    // before NestFactory.createApplicationContext() boots the app.
+    const intervalMs = parseInt(process.env['DLQ_DEPTH_INTERVAL_MS'] ?? '10000', 10);
     void this.tick(); // immediate first sample
-    this.interval = setInterval(() => void this.tick(), DLQ_DEPTH_INTERVAL_MS);
+    this.interval = setInterval(() => void this.tick(), intervalMs);
   }
 
   async onApplicationShutdown(): Promise<void> {

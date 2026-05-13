@@ -11,6 +11,7 @@ import {
   insertPendingConfirmation,
   pollUntil,
   truncateAllIngestionTables,
+  truncateAllTestTables,
 } from './_harness/pg-test-fixtures';
 import { PromotionSweepService } from '../src/orchestrator/promotion-sweep.service';
 
@@ -59,6 +60,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
   afterAll(async () => {
     await sweepService.onApplicationShutdown();
     await anvilCtx.cleanup();
+    await truncateAllTestTables(pgDb);
   });
 
   beforeEach(async () => {

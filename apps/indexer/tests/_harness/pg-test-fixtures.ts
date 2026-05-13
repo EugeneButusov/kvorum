@@ -93,6 +93,15 @@ export async function truncateAllIngestionTables(db: Kysely<PgDatabase>): Promis
   );
 }
 
+export async function truncateAllTestTables(db: Kysely<PgDatabase>): Promise<void> {
+  // Full teardown including dao/dao_source — call from afterAll so successive local
+  // test runs don't collide on unique constraints. Not used in beforeEach (that
+  // deliberately preserves dao/dao_source across iterations within a file).
+  await sql`TRUNCATE dao, archive_confirmation, reorg_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    db,
+  );
+}
+
 export async function pollUntil(
   fn: () => Promise<boolean>,
   timeoutMs = 5000,

@@ -104,7 +104,24 @@ export class ReorgDetector {
       head.blockNumber === this.lastHead.blockNumber &&
       head.blockHash !== this.lastHead.blockHash
     ) {
-      await this.runReorgPath(head, head.blockNumber, head.blockNumber);
+      // If the new head's parent does NOT match our buffered hash at h.blockNumber-1,
+      // multiple blocks under the tip were rewritten (e.g. Anvil's `anvil_reorg [N, []]`
+      // which replaces the last N blocks in-place at the same height). Walk back through
+      // the buffer like Case 4c so the divergence walk in runReorgPath can find the
+      // earliest mismatch. When the parent matches, keep the original single-tip
+      // semantics — the tip-swap case. When the parent is unknown (buffer gap, e.g. an
+      // atomic multi-block mine like `anvil_mine [0x2]` left no entry at prev), we
+      // cannot rule out a deeper rewrite, so walk back conservatively.
+      const prevBlockNumber = head.blockNumber - 1n;
+      const bufferedAtPrev = this.buffer.get(prevBlockNumber);
+      const parentMaybeMismatched =
+        bufferedAtPrev === undefined || bufferedAtPrev !== head.parentHash;
+      if (parentMaybeMismatched) {
+        const oldest = this.getOldestBufferedBlock() ?? head.blockNumber;
+        await this.runReorgPath(head, oldest, head.blockNumber);
+      } else {
+        await this.runReorgPath(head, head.blockNumber, head.blockNumber);
+      }
       return;
     }
 
@@ -167,7 +184,24 @@ export class ReorgDetector {
 
     const bufferedHash = this.buffer.get(lastBuffered);
     if (canonicalLast !== null && canonicalLast.hash === bufferedHash) {
-      // Gap is benign — clean advance
+      // Gap is benign — back-fill the missing slots between lastBuffered and head
+      // by fetching canonical hashes for each. Without this, a later reorg whose
+      // divergence sits inside the gap would be misidentified (the divergence walk
+      // can only check blocks the buffer knows about). Best-effort: stop on RPC
+      // error or null, accepting a partial fill.
+      for (let b = lastBuffered + 1n; b < head.blockNumber; b++) {
+        let gap: BlockHeader | null;
+        try {
+          gap = await this.fetchBlock(b);
+        } catch (err) {
+          this.logger.warn(
+            `[chain:${this.chainName}] ReorgDetector: RPC error back-filling gap at block ${b}: ${String(err)}; stopping fill`,
+          );
+          break;
+        }
+        if (gap === null) break;
+        this.bufferSet(b, gap.hash);
+      }
       this.bufferSet(head.blockNumber, head.blockHash);
       this.lastHead = head;
     } else {
