@@ -51,6 +51,7 @@ describeIf('F3 full-pipeline reorg', () => {
   let accounts: string[];
 
   beforeAll(async () => {
+    await truncateAllTestTables(pgDb);
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {
