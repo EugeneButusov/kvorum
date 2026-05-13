@@ -189,7 +189,7 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
-  it('#5 — chain not in CHAIN_CONFIG: skips source with warning, no driver.start()', async () => {
+  it('#5 — chain not in CHAIN_CONFIG: throws BEFORE any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 0x1
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor', '0x999'),
@@ -199,7 +199,7 @@ describe('IndexerOrchestratorService', () => {
     const module = await buildModule([makeFakePlugin('compound_governor')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
-    await expect(svc.onApplicationBootstrap()).resolves.toBeUndefined();
+    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
     expect(driver.start).not.toHaveBeenCalled();
   });
 

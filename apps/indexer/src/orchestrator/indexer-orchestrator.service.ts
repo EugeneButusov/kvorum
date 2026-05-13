@@ -61,11 +61,9 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       }
       const chainCfg = chainsByChainId.get(src.primary_chain_id);
       if (!chainCfg) {
-        this.logger.warn('dao_source_chain_not_configured', {
-          dao_source_id: src.id,
-          chain_id: src.primary_chain_id,
-        });
-        continue;
+        throw new Error(
+          `No chain config for chain_id="${src.primary_chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
+        );
       }
       const config = plugin.parseConfig(src.source_config);
       validated.push({ sourceType: src.source_type, config, plugin, chainCfg, src });
