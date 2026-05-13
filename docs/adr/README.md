@@ -30,6 +30,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-040](0040-replace-prisma-with-kysely.md)     | Replace Prisma with Kysely; ClickHouse migrations via `clickhouse-migrations` npm | Accepted              | 7.6, 10.2                               |
 | [ADR-041](0041-cross-db-integrity-contract.md)    | Cross-DB integrity contract for ClickHouse archive ↔ Postgres tracker            | Accepted              | 2.6, 3.2, 3.3, 3.12                     |
 | [ADR-042](0042-adopt-opentelemetry.md)            | Adopt OpenTelemetry as the observability SDK; Prometheus as the M1 wire format    | Accepted              | 3.12, 6.20                              |
+| [ADR-043](0043-voting-window-blocks.md)           | Voting window stored as blocks for block-anchored sources                         | Proposed              | 2.4.4, 4.5, 4.7                         |
 
 ## Status legend
 

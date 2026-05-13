@@ -83,9 +83,11 @@ export interface ProposalTable {
   description: string;
   description_hash: string;
   binding: boolean;
-  voting_starts_at: Date;
-  voting_ends_at: Date;
+  voting_starts_at: Date | null;
+  voting_ends_at: Date | null;
   // pg driver returns bigint as string
+  voting_starts_block: string | null;
+  voting_ends_block: string | null;
   voting_power_block: string;
   state: ProposalState;
   state_updated_at: Date;
