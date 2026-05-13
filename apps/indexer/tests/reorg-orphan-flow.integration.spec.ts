@@ -2,9 +2,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChainConfig } from '@libs/chain';
 import { pgDb, ReorgEventRepository } from '@libs/db';
 import { metricPrefix } from '@libs/observability';
-import { createAnvilTestContext } from './_harness/anvil-test-context';
-import type { AnvilTestContext } from './_harness/anvil-test-context';
-import { captureMetrics, getCounterDelta } from './_harness/metrics-helpers';
+import { createAnvilTestContext } from './helpers/anvil-test-context';
+import type { AnvilTestContext } from './helpers/anvil-test-context';
+import { captureMetrics, getCounterDelta } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
@@ -12,7 +12,7 @@ import {
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from './_harness/pg-test-fixtures';
+} from './helpers/pg-test-fixtures';
 import { ReorgWatcherService } from '../src/orchestrator/reorg-watcher.service';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];

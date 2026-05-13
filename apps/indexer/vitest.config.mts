@@ -47,7 +47,7 @@ export default defineConfig({
           environment: 'node',
           include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           exclude: ['**/*.integration.spec.*', '**/node_modules/**'],
-          setupFiles: ['./tests/_harness/vitest.setup.ts'],
+          setupFiles: ['./tests/helpers/vitest.setup.ts'],
         },
       },
       {
@@ -59,7 +59,7 @@ export default defineConfig({
           include: ['tests/**/*.integration.spec.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           pool: 'forks',
           fileParallelism: false,
-          setupFiles: ['./tests/_harness/vitest.setup.ts'],
+          setupFiles: ['./tests/helpers/vitest.setup.ts'],
         },
       },
     ],

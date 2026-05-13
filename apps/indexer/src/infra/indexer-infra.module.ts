@@ -6,6 +6,7 @@ import {
   DlqRepository,
   ReorgEventRepository,
 } from '@libs/db';
+import { DlqDepthService } from '../orchestrator/dlq-depth.service';
 
 @Module({
   providers: [
@@ -13,6 +14,7 @@ import {
     { provide: ConfirmationRepository, useFactory: () => new ConfirmationRepository(pgDb) },
     { provide: DlqRepository, useFactory: () => new DlqRepository(pgDb) },
     { provide: ReorgEventRepository, useFactory: () => new ReorgEventRepository(pgDb) },
+    DlqDepthService,
   ],
   exports: [DaoSourceRepository, ConfirmationRepository, DlqRepository, ReorgEventRepository],
 })

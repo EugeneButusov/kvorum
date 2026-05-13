@@ -4,11 +4,11 @@ This directory contains the `CompoundEmitter` EVM contract used by F3a and F3b i
 
 ## Files
 
-| File                           | Description                                                        |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `CompoundEmitter.sol`          | Canonical Solidity source (reference only — not compiled in CI)    |
-| `compound-emitter.bytecode.ts` | Pre-compiled deploy/runtime bytecode + selectors (checked in)      |
-| `generate-bytecode.cjs`        | Developer-side generator — produces `compound-emitter.bytecode.ts` |
+| File                                  | Description                                                        |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `CompoundEmitter.sol`                 | Canonical Solidity source (reference only — not compiled in CI)    |
+| `compound-emitter.bytecode.ts`        | Pre-compiled deploy/runtime bytecode + selectors (checked in)      |
+| `../../scripts/generate-bytecode.cjs` | Developer-side generator — produces `compound-emitter.bytecode.ts` |
 
 ## Regenerating the bytecode
 
@@ -18,7 +18,7 @@ existing ethers.js dependency. No Solidity toolchain is required in CI.
 To regenerate (e.g. after changing ABI parameters):
 
 ```bash
-node apps/indexer/tests/_fixtures/generate-bytecode.cjs
+node apps/indexer/scripts/generate-bytecode.cjs
 ```
 
 The script uses `ethers.AbiCoder` to compute the ABI-encoded ProposalCreated data and constructs

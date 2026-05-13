@@ -7,14 +7,14 @@ import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_MALFORMED_SELECTOR,
 } from './_fixtures/compound-emitter.bytecode';
-import { captureMetrics, findMetricValue, getCounterDelta } from './_harness/metrics-helpers';
+import { captureMetrics, findMetricValue, getCounterDelta } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from './_harness/pg-test-fixtures';
+} from './helpers/pg-test-fixtures';
 import { IndexerModule } from '../src/indexer/indexer.module';
 import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
 
