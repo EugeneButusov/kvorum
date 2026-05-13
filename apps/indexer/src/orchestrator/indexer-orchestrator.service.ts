@@ -62,7 +62,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       const chainCfg = chainsByChainId.get(src.primary_chain_id);
       if (!chainCfg) {
         throw new Error(
-          `dao_source ${src.id} is on chain ${src.primary_chain_id} but CHAIN_CONFIG has no entry for it`,
+          `No chain config for chain_id="${src.primary_chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
         );
       }
       const config = plugin.parseConfig(src.source_config);
@@ -108,7 +108,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       chainMetrics.indexerActiveSources.record(count, { source_type: sourceType });
     }
     this.logger.log(
-      `started ${sources.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
+      `started ${validated.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
     );
 
     this.startPendingDepthGauge();

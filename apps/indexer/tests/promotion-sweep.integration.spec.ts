@@ -2,16 +2,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, pgDb } from '@libs/db';
 import { metricPrefix } from '@libs/observability';
-import { createAnvilTestContext } from './_harness/anvil-test-context';
-import type { AnvilTestContext } from './_harness/anvil-test-context';
-import { captureMetrics, getHistogramSampleCount } from './_harness/metrics-helpers';
+import { createAnvilTestContext } from './helpers/anvil-test-context';
+import type { AnvilTestContext } from './helpers/anvil-test-context';
+import { captureMetrics, getHistogramSampleCount } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   insertPendingConfirmation,
   pollUntil,
   truncateAllIngestionTables,
-} from './_harness/pg-test-fixtures';
+  truncateAllTestTables,
+} from './helpers/pg-test-fixtures';
 import { PromotionSweepService } from '../src/orchestrator/promotion-sweep.service';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
@@ -46,15 +47,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
     anvilCtx = await createAnvilTestContext(CHAIN_CFG);
     const confirmationRepo = new ConfirmationRepository(pgDb);
     sweepService = new PromotionSweepService(anvilCtx.registry, confirmationRepo);
-  }, 30_000);
-
-  afterAll(async () => {
-    await sweepService.onApplicationShutdown();
-    await anvilCtx.cleanup();
-  });
-
-  beforeEach(async () => {
-    await truncateAllIngestionTables(pgDb);
+    // Seed once — truncateAllIngestionTables preserves dao/dao_source across beforeEach.
     daoId = await insertTestDao(pgDb, { slug: 'sweep-dao', name: 'Sweep DAO' });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
@@ -62,6 +55,16 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
       chainId: '0x7a69',
       contractAddress: '0x' + '00'.repeat(20),
     });
+  }, 30_000);
+
+  afterAll(async () => {
+    await sweepService.onApplicationShutdown();
+    await anvilCtx.cleanup();
+    await truncateAllTestTables(pgDb);
+  });
+
+  beforeEach(async () => {
+    await truncateAllIngestionTables(pgDb);
   });
 
   it('promotes pending rows once head advances past block_number + reorgHorizon', async () => {

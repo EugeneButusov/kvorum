@@ -182,7 +182,7 @@ describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
     // Fixed tuple for this smoke run — unique enough to not collide with real data.
     const tuple = {
       source_type: 'compound_governor' as const,
-      chain_id: 31337,
+      chain_id: '0x7a69',
       // FixedString(66) = "0x" + 64 hex chars
       tx_hash: '0x' + '1'.repeat(64),
       log_index: 0,
@@ -235,10 +235,14 @@ describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
       })
       .execute();
 
-    // Query back via the Kysely builder — verifies the row is readable and that
-    // the dialect correctly formats parameters for ClickHouse.
+    // Query back with FINAL to force dedup — ReplacingMergeTree deduplicates during
+    // background merges, not on insert, so without FINAL the two idempotent inserts
+    // above may both still be visible. The ClickHouse dialect's executeQuery only
+    // returns rows for SelectQueryNode; sql`...`.execute() falls through to command()
+    // which always returns rows:[]. Use a builder selectFrom with a raw table expression
+    // so the query stays a SelectQueryNode while FINAL is inlined into the FROM clause.
     const chRows = await chDb
-      .selectFrom('event_archive_compound_governor')
+      .selectFrom(sql<'event_archive_compound_governor'>`event_archive_compound_governor FINAL`)
       .select(['tx_hash'])
       .where('chain_id', '=', tuple.chain_id)
       .where('tx_hash', '=', tuple.tx_hash)

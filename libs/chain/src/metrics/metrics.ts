@@ -132,6 +132,12 @@ export const chainMetrics = {
       'Reorg signals flagged as truncated (divergence extends past oldest buffered block). Operator alert — divergence root is approximate.',
   }),
 
+  dlqDepth: defineGauge({
+    name: 'ingestion_dlq_size',
+    description:
+      'Count of unresolved rows in ingestion_dlq per (stage, source). Updated by periodic recalculation (~10s), not per-write. Drains on dlq retry/accept (ADR-032).',
+  }),
+
   // ---- histograms ----
   promotionSweepDuration: defineHistogram({
     name: 'ingestion_promotion_sweep_duration_seconds',

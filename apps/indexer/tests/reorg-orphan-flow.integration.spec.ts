@@ -2,16 +2,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChainConfig } from '@libs/chain';
 import { pgDb, ReorgEventRepository } from '@libs/db';
 import { metricPrefix } from '@libs/observability';
-import { createAnvilTestContext } from './_harness/anvil-test-context';
-import type { AnvilTestContext } from './_harness/anvil-test-context';
-import { captureMetrics, getCounterDelta } from './_harness/metrics-helpers';
+import { createAnvilTestContext } from './helpers/anvil-test-context';
+import type { AnvilTestContext } from './helpers/anvil-test-context';
+import { captureMetrics, getCounterDelta } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   insertPendingConfirmation,
   pollUntil,
   truncateAllIngestionTables,
-} from './_harness/pg-test-fixtures';
+  truncateAllTestTables,
+} from './helpers/pg-test-fixtures';
 import { ReorgWatcherService } from '../src/orchestrator/reorg-watcher.service';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
@@ -55,15 +56,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     const reorgRepo = new ReorgEventRepository(pgDb);
     reorgWatcher = new ReorgWatcherService(reorgRepo);
     reorgWatcher.watch(anvilCtx.ctx);
-  }, 30_000);
-
-  afterAll(async () => {
-    await reorgWatcher.onApplicationShutdown();
-    await anvilCtx.cleanup();
-  });
-
-  beforeEach(async () => {
-    await truncateAllIngestionTables(pgDb);
+    // Seed once — truncateAllIngestionTables preserves dao/dao_source across beforeEach.
     daoId = await insertTestDao(pgDb, { slug: 'test-dao', name: 'Test DAO' });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
@@ -71,22 +64,40 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       chainId: '0x7a69',
       contractAddress: '0x' + '00'.repeat(20),
     });
+  }, 30_000);
+
+  afterAll(async () => {
+    await reorgWatcher.onApplicationShutdown();
+    await anvilCtx.cleanup();
+    await truncateAllTestTables(pgDb);
+  });
+
+  beforeEach(async () => {
+    await truncateAllIngestionTables(pgDb);
   });
 
   it('orphans pending rows whose block_hash was dropped by anvil_reorg', async () => {
     const client = anvilCtx.client;
 
     // Sync the head tracker to the current chain tip before mining test blocks.
-    // We then mine exactly 2 blocks one at a time, waiting for the tracker to observe
-    // each one. This guarantees both hashes are in the reorg detector's sliding-window
-    // buffer so both confirmations are included in the orphaned_block_hashes signal.
+    // We then mine exactly 2 blocks one at a time (each carrying a self-transfer
+    // so the block body is non-empty), waiting for the tracker to observe each.
+    // The self-transfer ensures the block content differs from what `anvil_reorg
+    // [2, []]` will re-mine (empty blocks), guaranteeing distinct hashes that the
+    // detector observes as a reorg. Without content, empty re-mined blocks may
+    // hash identical to the originals and the reorg goes undetected.
     const syncedHead = await anvilCtx.headTracker.awaitFirstHead();
     const base = syncedHead.blockNumber;
 
-    await client.send('anvil_mine', ['0x1']);
+    const accounts = await client.send<string[]>('eth_accounts', []);
+    await client.send('eth_sendTransaction', [
+      { from: accounts[0]!, to: accounts[0]!, value: '0x1' },
+    ]);
     await awaitHead(anvilCtx, base + 1n);
 
-    await client.send('anvil_mine', ['0x1']);
+    await client.send('eth_sendTransaction', [
+      { from: accounts[0]!, to: accounts[0]!, value: '0x1' },
+    ]);
     await awaitHead(anvilCtx, base + 2n);
 
     const block1 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [
@@ -127,6 +138,9 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
 
     const metricsSnapshot = await captureMetrics();
 
+    // anvil_reorg [2, []] drops the last 2 blocks and re-mines them empty. Because
+    // the originals carried self-transfers (different body), the new hashes differ
+    // → the detector observes a reorg via Case 4c parent-hash mismatch.
     await client.send('anvil_reorg', [2, []]);
     await client.send('anvil_mine', ['0x1']);
 
@@ -177,10 +191,17 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     const syncedHead = await anvilCtx.headTracker.awaitFirstHead();
     const base = syncedHead.blockNumber;
 
-    await client.send('anvil_mine', ['0x1']);
+    // See the previous test — mining with a self-transfer keeps the reorg detection
+    // deterministic by guaranteeing block hashes change when re-mined empty.
+    const accounts = await client.send<string[]>('eth_accounts', []);
+    await client.send('eth_sendTransaction', [
+      { from: accounts[0]!, to: accounts[0]!, value: '0x1' },
+    ]);
     await awaitHead(anvilCtx, base + 1n);
 
-    await client.send('anvil_mine', ['0x1']);
+    await client.send('eth_sendTransaction', [
+      { from: accounts[0]!, to: accounts[0]!, value: '0x1' },
+    ]);
     await awaitHead(anvilCtx, base + 2n);
 
     const block1 = await client.send<{ hash: string; number: string }>('eth_getBlockByNumber', [

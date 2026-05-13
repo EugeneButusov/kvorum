@@ -17,6 +17,9 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
   ): Promise<FetchDriverHandle> {
     const chainCtx = await this.registry.getOrCreate(chainCfg);
 
+    const pollIntervalMs =
+      chainCfg.eventPollIntervalMs ?? Number(process.env['EVENT_POLL_INTERVAL_MS'] ?? 12_000);
+
     const poller = new EventPoller({
       rpcClient: chainCtx.client,
       chainId: ctx.chainId,
@@ -25,7 +28,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       sourceType: ctx.sourceType,
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,
-      pollIntervalMs: 12_000,
+      pollIntervalMs,
     });
 
     poller.onEvents(spec.listener);

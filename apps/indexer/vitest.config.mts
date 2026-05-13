@@ -20,6 +20,15 @@ const alias = {
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/indexer',
+  // Vite 8 uses Oxc by default. Enable legacy decorator metadata so that
+  // NestJS DI can resolve constructor injections in integration tests that
+  // call NestFactory.createApplicationContext.
+  oxc: {
+    decorator: {
+      legacy: true,
+      emitDecoratorMetadata: true,
+    },
+  },
   plugins: [tsconfigPaths()],
   resolve: { alias },
   test: {
@@ -38,6 +47,7 @@ export default defineConfig({
           environment: 'node',
           include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           exclude: ['**/*.integration.spec.*', '**/node_modules/**'],
+          setupFiles: ['./tests/helpers/vitest.setup.ts'],
         },
       },
       {
@@ -49,7 +59,7 @@ export default defineConfig({
           include: ['tests/**/*.integration.spec.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           pool: 'forks',
           fileParallelism: false,
-          setupFiles: ['./tests/_harness/vitest.setup.ts'],
+          setupFiles: ['./tests/helpers/vitest.setup.ts'],
         },
       },
     ],

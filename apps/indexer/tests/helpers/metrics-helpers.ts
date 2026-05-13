@@ -22,7 +22,7 @@ function buildMetricKey(name: string, labels: Record<string, string>): string {
   return labelStr ? `${name}{${labelStr}}` : name;
 }
 
-function findMetricValue(
+export function findMetricValue(
   metrics: Map<string, number>,
   name: string,
   labels: Record<string, string>,

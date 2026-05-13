@@ -268,13 +268,21 @@ describe('ReorgDetector', () => {
   it('#9 — reorg-during-gap, canonical(lastBuffered) matches → divergence at gap start', async () => {
     // Buffer: {100: a, 101: b}; skip tick; head 103 arrives
     // Case 4a: buffer has no entry at 102. Re-validate lastBuffered (101).
-    // canonical[101] matches buffer[101] (0xbbb) → clean gap → record 103
-    const { detector, reorgs } = makeDetector(makeClient([ok(blockResp('0xbbb', '0xaaa'))]));
+    // canonical[101] matches buffer[101] (0xbbb) → clean gap. Then back-fill the gap
+    // by fetching canonical[102] so a later reorg can pinpoint divergence inside it.
+    const { detector, reorgs } = makeDetector(
+      makeClient([
+        ok(blockResp('0xbbb', '0xaaa')), // re-validation of lastBuffered(101)
+        ok(blockResp('0xccc', '0xbbb')), // back-fill canonical[102]
+      ]),
+    );
     await detector.processHead(makeHead(100n, '0xaaa', '0x000'));
     await detector.processHead(makeHead(101n, '0xbbb', '0xaaa'));
     // skip 102, jump to 103
     await detector.processHead(makeHead(103n, '0xddd', '0xccc'));
     expect(reorgs).toHaveLength(0);
+    // Buffer should now include 102 (back-filled) so the gap is gone
+    expect(detector.bufferSize).toBe(4); // 100, 101, 102, 103
   });
 
   it('#10 — reorg-during-gap, canonical(lastBuffered) mismatches → signal emitted', async () => {

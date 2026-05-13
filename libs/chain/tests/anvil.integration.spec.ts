@@ -290,8 +290,15 @@ describeIf('Anvil integration', () => {
 
     // Advance the chain one block at a time so each tip is a distinct poll target —
     // batched `anvil_mine 0xN` is atomic and the poller would see only the final tip.
+    // Mine a self-transfer in each block (rather than empty blocks) so the original
+    // blocks have content distinct from what `anvil_reorg [N, []]` will re-mine —
+    // otherwise on a quiet chain Anvil re-mines empty blocks with identical content
+    // and identical hashes, defeating the reorg observation.
+    const accounts = await client.send<string[]>('eth_accounts', []);
     for (let i = 0; i < 3; i++) {
-      await client.send('anvil_mine', ['0x1']);
+      await client.send('eth_sendTransaction', [
+        { from: accounts[0]!, to: accounts[0]!, value: '0x1' },
+      ]);
       await new Promise<void>((r) => setTimeout(r, 250));
     }
     expect(detector.bufferSize).toBeGreaterThanOrEqual(2);
@@ -303,8 +310,10 @@ describeIf('Anvil integration', () => {
     const blockNumberBefore = BigInt(headBefore['number']);
     const reorgsBefore = reorgSignals.length;
 
-    // Drop the last 2 blocks. Anvil re-mines with new timestamps → re-mined hashes
-    // differ from the originals, which the detector must observe as a reorg.
+    // Drop the last 2 blocks. Since the originals contained transactions and
+    // `anvil_reorg [n, []]` re-mines them empty, the re-mined block bodies differ
+    // from the originals → different block hashes → the detector must observe a
+    // reorg via the Case-4c parent-hash mismatch when the next tip is mined.
     await client.send('anvil_reorg', [2, []]);
     // Force a head change so the poller picks up the new tip.
     await client.send('anvil_mine', ['0x1']);

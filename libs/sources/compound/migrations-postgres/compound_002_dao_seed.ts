@@ -11,7 +11,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       'compound',
       'Compound',
       '0xc00e94cb662c3520282e6f5717214004a7f26888',
-      1,
+      '0x1',
       'Compound is an algorithmic, autonomous interest rate protocol built for developers, to unlock a universe of open financial applications.',
       'https://compound.finance',
       'https://gov.compound.finance',

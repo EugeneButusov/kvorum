@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
 import { ConfirmationRepository } from '@libs/db';
-import type { ChainContextRegistry } from './chain-context-registry';
+import { ChainContextRegistry } from './chain-context-registry';
 
 @Injectable()
 export class PromotionSweepService implements OnApplicationBootstrap, OnApplicationShutdown {
