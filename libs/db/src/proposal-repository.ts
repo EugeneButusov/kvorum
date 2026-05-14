@@ -28,6 +28,21 @@ export interface AdvanceProposalStateInput {
   stateUpdatedAt: Date;
 }
 
+export interface PendingTimestampFillRow {
+  id: string;
+  chain_id: string;
+  voting_starts_block: string | null;
+  voting_starts_at: Date | null;
+  voting_ends_block: string | null;
+  voting_ends_at: Date | null;
+}
+
+export interface TimestampFillInput {
+  id: string;
+  voting_starts_at: Date | null;
+  voting_ends_at: Date | null;
+}
+
 export class ProposalRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -102,5 +117,54 @@ export class ProposalRepository {
       .executeTakeFirst();
 
     return Number(result?.numUpdatedRows ?? 0n);
+  }
+
+  async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {
+    return this.db
+      .selectFrom('proposal')
+      .innerJoin('dao', 'dao.id', 'proposal.dao_id')
+      .select([
+        'proposal.id',
+        'dao.primary_chain_id as chain_id',
+        'proposal.voting_starts_block',
+        'proposal.voting_starts_at',
+        'proposal.voting_ends_block',
+        'proposal.voting_ends_at',
+      ])
+      .where((eb) =>
+        eb.or([
+          eb.and([
+            eb('proposal.voting_starts_at', 'is', null),
+            eb('proposal.voting_starts_block', 'is not', null),
+          ]),
+          eb.and([
+            eb('proposal.voting_ends_at', 'is', null),
+            eb('proposal.voting_ends_block', 'is not', null),
+          ]),
+        ]),
+      )
+      .orderBy('proposal.voting_starts_block', 'asc')
+      .limit(limit)
+      .execute();
+  }
+
+  async fillTimestamps(rows: readonly TimestampFillInput[]): Promise<void> {
+    for (const row of rows) {
+      await this.db
+        .updateTable('proposal')
+        .set((eb) => ({
+          voting_starts_at:
+            row.voting_starts_at === null
+              ? eb.ref('voting_starts_at')
+              : sql`coalesce(voting_starts_at, ${row.voting_starts_at})`,
+          voting_ends_at:
+            row.voting_ends_at === null
+              ? eb.ref('voting_ends_at')
+              : sql`coalesce(voting_ends_at, ${row.voting_ends_at})`,
+          updated_at: sql`now()`,
+        }))
+        .where('id', '=', row.id)
+        .execute();
+    }
   }
 }

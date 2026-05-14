@@ -76,8 +76,9 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 ### Running integration tests locally
 
 ```bash
-docker compose up -d postgres anvil
+docker compose up -d postgres anvil clickhouse
 pnpm -w db:migrate
+pnpm -w db:migrate:ch
 ANVIL_RPC_URL=http://localhost:8545 pnpm --filter indexer test
 ```
 
