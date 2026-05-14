@@ -5,10 +5,13 @@ import {
   ArchiveDerivationRepository,
   type ClickHouseDatabase,
   type ArchiveDerivationRow,
-  type CompoundArchivePayloadRow,
   ProposalRepository,
   type PgDatabase,
 } from '@libs/db';
+import {
+  CompoundArchivePayloadRepository,
+  type CompoundArchivePayloadRow,
+} from './compound-archive-payload-repository';
 import { projectCompoundProposalEvent } from './proposal-projector';
 import type {
   CompoundGovernorEvent,
@@ -40,6 +43,7 @@ export interface CompoundProjectionApplierDeps {
   pgDb: Kysely<PgDatabase>;
   chDb: Kysely<ClickHouseDatabase>;
   archive: ArchiveDerivationRepository;
+  payloads: CompoundArchivePayloadRepository;
   metrics: CompoundProjectionMetrics;
   logger?: Logger;
 }
@@ -56,6 +60,7 @@ export class CompoundProjectionApplier {
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;
   private readonly archive: ArchiveDerivationRepository;
+  private readonly payloads: CompoundArchivePayloadRepository;
   private readonly metrics: CompoundProjectionMetrics;
   private readonly logger: Logger;
 
@@ -63,6 +68,7 @@ export class CompoundProjectionApplier {
     this.pgDb = deps.pgDb;
     this.chDb = deps.chDb;
     this.archive = deps.archive;
+    this.payloads = deps.payloads;
     this.metrics = deps.metrics;
     this.logger = deps.logger ?? silentLogger;
   }
@@ -71,7 +77,7 @@ export class CompoundProjectionApplier {
     if (rows.length === 0) return;
 
     const lookupStartedAt = Date.now();
-    const payloads = await this.archive.fetchCompoundPayloads(rows);
+    const payloads = await this.payloads.fetchPayloads(rows);
     this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
 
     const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
@@ -186,7 +192,7 @@ export class CompoundProjectionApplier {
       fn({
         actors: new ActorRepository(tx),
         proposals: new ProposalRepository(tx),
-        archive: new ArchiveDerivationRepository(tx, this.chDb),
+        archive: new ArchiveDerivationRepository(tx),
       }),
     );
   }

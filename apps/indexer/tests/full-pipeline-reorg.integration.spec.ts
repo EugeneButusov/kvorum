@@ -1,7 +1,8 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { pgDb } from '@libs/db';
+import { chDb, pgDb } from '@libs/db';
 import { metricPrefix } from '@libs/observability';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
@@ -16,6 +17,7 @@ import {
   truncateAllIngestionTables,
   truncateAllTestTables,
 } from './helpers/pg-test-fixtures';
+import { DerivationWorkerService } from '../src/derivation/derivation-worker.service';
 import { IndexerModule } from '../src/indexer/indexer.module';
 import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
 
@@ -49,6 +51,7 @@ describeIf('F3 full-pipeline reorg', () => {
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;
   let accounts: string[];
+  let daoSourceId: string;
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
@@ -101,7 +104,7 @@ describeIf('F3 full-pipeline reorg', () => {
       slug: 'compound-f3-reorg',
       name: 'Compound F3 Reorg Test',
     });
-    await insertTestDaoSource(pgDb, {
+    daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
       sourceType: 'compound_governor',
       chainId: '0x7a69',
@@ -121,6 +124,11 @@ describeIf('F3 full-pipeline reorg', () => {
 
   beforeEach(async () => {
     await truncateAllIngestionTables(pgDb);
+    await truncateDerivedTables();
+    await sql`
+      ALTER TABLE event_archive_compound_governor
+      DELETE WHERE chain_id = '0x7a69'
+    `.execute(chDb);
   });
 
   it('orphans live-poller events, writes reorg_event, re-emits canonical events', async () => {
@@ -257,6 +265,180 @@ describeIf('F3 full-pipeline reorg', () => {
     expect(orphanedDelta).toBe(1);
   }, 60_000);
 
-  // Primary G1 hand-off is the amendment to issue #32 acceptance section (F3 PR pre-merge checklist).
-  it.todo('SPEC §3.4 #5 — re-running G1 derivation produces same final state (G1 acceptance)');
+  it('SPEC §3.4 #5 — re-running G1 derivation produces same final state (G1 acceptance)', async () => {
+    const derivationWorker = app.get(DerivationWorkerService);
+
+    const createdReceipt = await sendAndWait(client, {
+      from: accounts[0]!,
+      to: contractAddress,
+      data: '0x' + EMIT_VALID_SELECTOR,
+    });
+
+    await pollUntil(async () => {
+      const row = await pgDb
+        .selectFrom('archive_confirmation')
+        .select(['id'])
+        .where('chain_id', '=', '0x7a69')
+        .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
+        .executeTakeFirst();
+      return row !== undefined;
+    }, 20_000);
+
+    await pgDb
+      .updateTable('archive_confirmation')
+      .set({
+        confirmation_status: 'confirmed',
+        confirmed_at: new Date(),
+      })
+      .where('chain_id', '=', '0x7a69')
+      .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
+      .execute();
+
+    await pollUntil(async () => {
+      await derivationWorker.tick();
+      const snapshot = await readProposalSnapshot();
+      return (
+        snapshot.proposals.length === 1 &&
+        snapshot.actions.length === 1 &&
+        snapshot.choices.length === 3
+      );
+    }, 20_000);
+
+    const createdSnapshot = await readProposalSnapshot();
+    const proposal = createdSnapshot.proposals[0]!;
+    expect(proposal.source_type).toBe('compound_governor');
+    expect(proposal.source_id).toBe('1');
+    expect(proposal.voting_power_block).toBe('100');
+    expect(proposal.voting_starts_block).toBe('100');
+    expect(proposal.voting_ends_block).toBe('200');
+    expect(proposal.state).toBe('pending');
+    expect(createdSnapshot.actions).toEqual([
+      expect.objectContaining({
+        action_index: 0,
+        target_address: '0x0000000000000000000000000000000000000002',
+        target_chain_id: '0x7a69',
+        value_wei: '0',
+        function_signature: '',
+        calldata: '0x',
+      }),
+    ]);
+    expect(createdSnapshot.choices).toEqual([
+      expect.objectContaining({ choice_index: 0, value: 'Against' }),
+      expect.objectContaining({ choice_index: 1, value: 'For' }),
+      expect.objectContaining({ choice_index: 2, value: 'Abstain' }),
+    ]);
+
+    await pgDb
+      .updateTable('archive_confirmation')
+      .set({ derived_at: null })
+      .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
+      .execute();
+    await derivationWorker.tick();
+
+    const replaySnapshot = await readProposalSnapshot();
+    expect(replaySnapshot.proposals).toHaveLength(1);
+    expect(replaySnapshot.proposals[0]!.id).toBe(proposal.id);
+    expect(replaySnapshot.actions).toHaveLength(1);
+    expect(replaySnapshot.choices).toHaveLength(3);
+
+    await insertConfirmedCompoundArchiveEvent({
+      eventType: 'ProposalExecuted',
+      blockNumber: 9_000_001n,
+      txHash: numberedHash(1),
+      blockHash: numberedHash(101),
+      payload: { proposalId: '1' },
+    });
+    await derivationWorker.tick();
+
+    const executed = await readOnlyProposal();
+    expect(executed.state).toBe('executed');
+
+    await insertConfirmedCompoundArchiveEvent({
+      eventType: 'ProposalQueued',
+      blockNumber: 9_000_002n,
+      txHash: numberedHash(2),
+      blockHash: numberedHash(102),
+      payload: { proposalId: '1', eta: '123' },
+    });
+    await derivationWorker.tick();
+
+    const afterLateQueued = await readProposalSnapshot();
+    expect(afterLateQueued.proposals).toHaveLength(1);
+    expect(afterLateQueued.proposals[0]!.id).toBe(proposal.id);
+    expect(afterLateQueued.proposals[0]!.state).toBe('executed');
+    expect(afterLateQueued.actions).toHaveLength(1);
+    expect(afterLateQueued.choices).toHaveLength(3);
+  }, 60_000);
+
+  async function insertConfirmedCompoundArchiveEvent(opts: {
+    eventType: 'ProposalQueued' | 'ProposalExecuted' | 'ProposalCanceled';
+    blockNumber: bigint;
+    txHash: string;
+    blockHash: string;
+    payload: Record<string, string>;
+  }): Promise<void> {
+    await chDb
+      .insertInto('event_archive_compound_governor')
+      .values({
+        dao_source_id: daoSourceId,
+        chain_id: '0x7a69',
+        block_number: opts.blockNumber.toString(),
+        block_hash: opts.blockHash,
+        tx_hash: opts.txHash,
+        log_index: 0,
+        event_type: opts.eventType,
+        payload: JSON.stringify(opts.payload),
+      })
+      .execute();
+
+    await pgDb
+      .insertInto('archive_confirmation')
+      .values({
+        source_type: 'compound_governor',
+        dao_source_id: daoSourceId,
+        chain_id: '0x7a69',
+        block_number: opts.blockNumber.toString(),
+        block_hash: opts.blockHash,
+        tx_hash: opts.txHash,
+        log_index: 0,
+        event_type: opts.eventType,
+        received_at: new Date(),
+        confirmation_status: 'confirmed',
+        confirmed_at: new Date(),
+        orphaned_at: null,
+        orphaned_by_reorg_event_id: null,
+        derived_at: null,
+      })
+      .execute();
+  }
 });
+
+async function truncateDerivedTables(): Promise<void> {
+  await sql`TRUNCATE proposal, actor RESTART IDENTITY CASCADE`.execute(pgDb);
+}
+
+async function readOnlyProposal() {
+  const proposal = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
+  expect(proposal).toBeDefined();
+  return proposal!;
+}
+
+async function readProposalSnapshot() {
+  const proposals = await pgDb.selectFrom('proposal').selectAll().orderBy('id', 'asc').execute();
+  const actions = await pgDb
+    .selectFrom('proposal_action')
+    .selectAll()
+    .orderBy('action_index', 'asc')
+    .execute();
+  const choices = await pgDb
+    .selectFrom('proposal_choice')
+    .selectAll()
+    .orderBy('choice_index', 'asc')
+    .execute();
+
+  return { proposals, actions, choices };
+}
+
+function numberedHash(value: number): string {
+  return '0x' + value.toString(16).padStart(64, '0');
+}

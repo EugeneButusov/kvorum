@@ -7,7 +7,7 @@ import {
   ProposalRepository,
   pgDb,
 } from '@libs/db';
-import { CompoundProjectionApplier } from '@sources/compound';
+import { CompoundArchivePayloadRepository, CompoundProjectionApplier } from '@sources/compound';
 import { derivationMetrics } from './derivation-metrics';
 import { DerivationWorkerService } from './derivation-worker.service';
 import { PROJECTION_APPLIERS } from './projection-applier';
@@ -28,7 +28,7 @@ import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
     },
     {
       provide: ArchiveDerivationRepository,
-      useFactory: () => new ArchiveDerivationRepository(pgDb, chDb),
+      useFactory: () => new ArchiveDerivationRepository(pgDb),
     },
     {
       provide: CompoundProjectionApplier,
@@ -37,6 +37,7 @@ import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
           pgDb,
           chDb,
           archive,
+          payloads: new CompoundArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: (seconds) => derivationMetrics.batchLookupSeconds.record(seconds),
             processed: (labels) =>

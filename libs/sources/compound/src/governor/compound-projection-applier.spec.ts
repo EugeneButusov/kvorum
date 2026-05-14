@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ArchiveDerivationRow, CompoundArchivePayloadRow } from '@libs/db';
+import type { ArchiveDerivationRow } from '@libs/db';
+import type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
 import { CompoundProjectionApplier } from './compound-projection-applier';
 
 const ROW: ArchiveDerivationRow = {
@@ -120,8 +121,10 @@ describe('CompoundProjectionApplier', () => {
   it('projects ProposalCreated inside one transaction and marks archive row derived', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const archive = {
-      fetchCompoundPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+    };
+    const payloads = {
+      fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]),
     };
     const metrics = makeMetrics();
 
@@ -129,12 +132,13 @@ describe('CompoundProjectionApplier', () => {
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
+      payloads: payloads as never,
       metrics,
     });
 
     await applier.applyBatch([ROW]);
 
-    expect(archive.fetchCompoundPayloads).toHaveBeenCalledWith([ROW]);
+    expect(payloads.fetchPayloads).toHaveBeenCalledWith([ROW]);
     expect(metrics.batchLookupSeconds).toHaveBeenCalledWith(expect.any(Number));
     expect(calls.transactionCount).toBe(1);
     expect(tx.selectFrom).toHaveBeenCalledWith('dao_source');
@@ -163,9 +167,9 @@ describe('CompoundProjectionApplier', () => {
     const applier = new CompoundProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
-      archive: {
-        fetchCompoundPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]),
-        incrementAttemptCount: vi.fn(),
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]),
       } as never,
       metrics: makeMetrics(),
     });
@@ -179,13 +183,15 @@ describe('CompoundProjectionApplier', () => {
 
   it('increments attempt count when archive payload JSON cannot be decoded', async () => {
     const archive = {
-      fetchCompoundPayloads: vi.fn().mockResolvedValue([{ ...CREATED_PAYLOAD, payload: '{' }]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
     const applier = new CompoundProjectionApplier({
       pgDb: makeProjectionTx().pgDb as never,
       chDb: {} as never,
       archive: archive as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([{ ...CREATED_PAYLOAD, payload: '{' }]),
+      } as never,
       metrics: makeMetrics(),
     });
 
@@ -196,7 +202,6 @@ describe('CompoundProjectionApplier', () => {
 
   it('increments attempt count when archive payload is missing', async () => {
     const archive = {
-      fetchCompoundPayloads: vi.fn().mockResolvedValue([]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
     const metrics = makeMetrics();
@@ -205,6 +210,7 @@ describe('CompoundProjectionApplier', () => {
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([]) } as never,
       metrics,
     });
 
