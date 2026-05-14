@@ -14,6 +14,7 @@ export {
   decodeCompoundLog,
   DecodeError,
   EventRepository,
+  extractCompoundTitle,
   ArchiveWriter,
   makeIngesterListener,
   createCompoundGovernorPlugin,
