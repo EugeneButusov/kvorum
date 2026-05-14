@@ -1,9 +1,6 @@
 export { pgDb, chDb } from './client';
 export { ActorRepository } from './actor-repository';
-export type {
-  ArchiveDerivationRow,
-  CompoundArchivePayloadRow,
-} from './archive-derivation-repository';
+export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export type { ConfirmationKey } from './confirmation-repository';
 export { ConfirmationRepository } from './confirmation-repository';

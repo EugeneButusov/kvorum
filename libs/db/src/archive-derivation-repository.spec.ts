@@ -46,10 +46,7 @@ function makeUpdateChain() {
 describe('ArchiveDerivationRepository', () => {
   it('selects confirmed underived rows in deterministic order', async () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
-    const repo = new ArchiveDerivationRepository(
-      { selectFrom: pgSelect.selectFrom } as never,
-      {} as never,
-    );
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
     await expect(repo.findConfirmedUndderived(50)).resolves.toEqual([ARCHIVE_ROW]);
 
@@ -67,52 +64,9 @@ describe('ArchiveDerivationRepository', () => {
     expect(pgSelect.limit).toHaveBeenCalledWith(50);
   });
 
-  it('skips ClickHouse lookup for an empty batch', async () => {
-    const chSelect = makeSelectChain([]);
-    const repo = new ArchiveDerivationRepository(
-      {} as never,
-      {
-        selectFrom: chSelect.selectFrom,
-      } as never,
-    );
-
-    await expect(repo.fetchCompoundPayloads([])).resolves.toEqual([]);
-
-    expect(chSelect.selectFrom).not.toHaveBeenCalled();
-  });
-
-  it('fetches compound archive payloads with a FINAL table expression', async () => {
-    const payload = {
-      chain_id: '0x1',
-      tx_hash: '0xtx',
-      log_index: 1,
-      block_hash: '0xblock',
-      event_type: 'ProposalCreated',
-      payload: '{}',
-      received_at: new Date('2026-01-01T00:00:00Z'),
-    };
-    const chSelect = makeSelectChain([payload]);
-    const repo = new ArchiveDerivationRepository(
-      {} as never,
-      {
-        selectFrom: chSelect.selectFrom,
-      } as never,
-    );
-
-    await expect(repo.fetchCompoundPayloads([ARCHIVE_ROW])).resolves.toEqual([payload]);
-
-    expect(chSelect.selectFrom).toHaveBeenCalledOnce();
-    expect(chSelect.where).toHaveBeenCalledOnce();
-  });
-
   it('marks a row derived', async () => {
     const update = makeUpdateChain();
-    const repo = new ArchiveDerivationRepository(
-      { updateTable: update.updateTable } as never,
-      {
-        selectFrom: vi.fn(),
-      } as never,
-    );
+    const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
 
     await repo.markDerived('row-1');
 
@@ -122,12 +76,7 @@ describe('ArchiveDerivationRepository', () => {
 
   it('increments derivation attempt count', async () => {
     const update = makeUpdateChain();
-    const repo = new ArchiveDerivationRepository(
-      { updateTable: update.updateTable } as never,
-      {
-        selectFrom: vi.fn(),
-      } as never,
-    );
+    const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
 
     await repo.incrementAttemptCount('row-1');
 

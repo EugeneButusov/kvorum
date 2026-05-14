@@ -1,5 +1,4 @@
 import { sql, type Kysely } from 'kysely';
-import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
 
 export interface ArchiveDerivationRow {
@@ -16,32 +15,8 @@ export interface ArchiveDerivationRow {
   derivation_attempt_count: number;
 }
 
-interface CompoundArchiveTable {
-  dao_source_id: string;
-  chain_id: string;
-  block_number: string;
-  tx_hash: string;
-  log_index: number;
-  block_hash: string;
-  event_type: string;
-  payload: string;
-  received_at: Date;
-}
-
-export type CompoundArchivePayloadRow = Pick<
-  CompoundArchiveTable,
-  'chain_id' | 'tx_hash' | 'log_index' | 'block_hash' | 'event_type' | 'payload' | 'received_at'
->;
-
-interface ArchiveDerivationClickHouseDatabase extends ClickHouseDatabase {
-  event_archive_compound_governor: CompoundArchiveTable;
-}
-
 export class ArchiveDerivationRepository {
-  constructor(
-    private readonly pgDb: Kysely<PgDatabase>,
-    private readonly chDb: Kysely<ArchiveDerivationClickHouseDatabase>,
-  ) {}
+  constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
   async findConfirmedUndderived(limit: number): Promise<ArchiveDerivationRow[]> {
     return this.pgDb
@@ -66,34 +41,6 @@ export class ArchiveDerivationRepository {
       .orderBy('log_index', 'asc')
       .orderBy('id', 'asc')
       .limit(limit)
-      .execute();
-  }
-
-  async fetchCompoundPayloads(
-    rows: readonly ArchiveDerivationRow[],
-  ): Promise<CompoundArchivePayloadRow[]> {
-    if (rows.length === 0) return [];
-
-    const tuples = rows.map(
-      (row) => sql`(${row.chain_id}, ${row.tx_hash}, ${row.log_index}, ${row.block_hash})`,
-    );
-
-    return this.chDb
-      .selectFrom(
-        sql<CompoundArchiveTable>`event_archive_compound_governor FINAL`.as(
-          'event_archive_compound_governor',
-        ),
-      )
-      .select([
-        'chain_id',
-        'tx_hash',
-        'log_index',
-        'block_hash',
-        'event_type',
-        'payload',
-        'received_at',
-      ])
-      .where(sql<boolean>`(chain_id, tx_hash, log_index, block_hash) IN (${sql.join(tuples)})`)
       .execute();
   }
 

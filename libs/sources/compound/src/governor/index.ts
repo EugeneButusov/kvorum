@@ -39,6 +39,9 @@ export type {
 } from './compound-projection-applier';
 export { CompoundProjectionApplier } from './compound-projection-applier';
 
+export type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
+export { CompoundArchivePayloadRepository } from './compound-archive-payload-repository';
+
 export type { EventData, EventRepositoryDeps } from './event-repository.types';
 export { EventRepository } from './event-repository';
 
