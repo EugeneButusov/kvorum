@@ -14,7 +14,9 @@ export { DaoSourceRepository } from './dao-source-repository';
 export type {
   AdvanceProposalStateInput,
   InsertProposalResult,
+  PendingTimestampFillRow,
   ProposalActionInput,
+  TimestampFillInput,
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
 export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';

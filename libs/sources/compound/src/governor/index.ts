@@ -31,6 +31,14 @@ export type {
 } from './proposal-projector';
 export { ProposalProjectionError, projectCompoundProposalEvent } from './proposal-projector';
 
+export type {
+  CompoundDerivationFailureReason,
+  CompoundDerivationOutcome,
+  CompoundProjectionApplierDeps,
+  CompoundProjectionMetrics,
+} from './compound-projection-applier';
+export { CompoundProjectionApplier } from './compound-projection-applier';
+
 export type { EventData, EventRepositoryDeps } from './event-repository.types';
 export { EventRepository } from './event-repository';
 

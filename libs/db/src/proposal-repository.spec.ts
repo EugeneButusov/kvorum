@@ -64,13 +64,14 @@ function makeInsertChain(returnValue?: unknown) {
 
 function makeUpdateChain(numUpdatedRows: bigint) {
   const executeTakeFirst = vi.fn().mockResolvedValue({ numUpdatedRows });
+  const execute = vi.fn().mockResolvedValue(undefined);
   const where = vi.fn();
-  const chain = { set: vi.fn(), where, executeTakeFirst };
+  const chain = { set: vi.fn(), where, executeTakeFirst, execute };
   chain.set.mockReturnValue(chain);
   where.mockReturnValue(chain);
   const updateTable = vi.fn().mockReturnValue(chain);
 
-  return { updateTable, set: chain.set, where, executeTakeFirst };
+  return { updateTable, set: chain.set, where, executeTakeFirst, execute };
 }
 
 function makeSelectChain(returnValue: unknown) {
@@ -80,6 +81,26 @@ function makeSelectChain(returnValue: unknown) {
   const selectFrom = vi.fn().mockReturnValue({ select });
 
   return { selectFrom, select, where, executeTakeFirst };
+}
+
+function makePendingTimestampSelectChain(returnValue: unknown[]) {
+  const execute = vi.fn().mockResolvedValue(returnValue);
+  const chain = {
+    innerJoin: vi.fn(),
+    select: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    execute,
+  };
+  chain.innerJoin.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  const selectFrom = vi.fn().mockReturnValue(chain);
+
+  return { selectFrom, ...chain };
 }
 
 interface ConflictBuilder {
@@ -214,5 +235,41 @@ describe('ProposalRepository', () => {
     });
 
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
+  });
+
+  it('finds proposals pending lazy timestamp fill', async () => {
+    const expected = [
+      {
+        id: 'proposal-1',
+        chain_id: '0x1',
+        voting_starts_block: '123',
+        voting_starts_at: null,
+        voting_ends_block: '456',
+        voting_ends_at: null,
+      },
+    ];
+    const select = makePendingTimestampSelectChain(expected);
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findPendingTimestampFill(25)).resolves.toEqual(expected);
+
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal');
+    expect(select.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'proposal.dao_id');
+    expect(select.limit).toHaveBeenCalledWith(25);
+  });
+
+  it('fills timestamps idempotently', async () => {
+    const update = makeUpdateChain(1n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+    const startsAt = new Date('2026-01-01T00:00:00Z');
+
+    await repo.fillTimestamps([
+      { id: 'proposal-1', voting_starts_at: startsAt, voting_ends_at: null },
+    ]);
+
+    expect(update.updateTable).toHaveBeenCalledWith('proposal');
+    expect(update.set).toHaveBeenCalledWith(expect.any(Function));
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
+    expect(update.execute).toHaveBeenCalledOnce();
   });
 });

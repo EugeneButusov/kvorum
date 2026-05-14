@@ -1,6 +1,6 @@
 # ADR-043 - Voting window stored as blocks for block-anchored sources
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-05-14)
 - **Date**: 2026-05-13
 - **Spec sections affected**: 2.4.4, 4.5, 4.7
 - **Related**: ADR-022 (`voting_power_block`), ADR-030 (title extraction), ADR-038 (ClickHouse archive layer), ADR-041 (cross-DB integrity contract), `docs/planning/plan-m1-g1.md`
