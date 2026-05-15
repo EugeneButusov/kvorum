@@ -4,10 +4,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
 import { AuthModule } from '../auth/auth.module';
+import { HttpModule } from '../http/http.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
-  imports: [AuthModule, RateLimitModule],
+  imports: [AuthModule, HttpModule, RateLimitModule],
   controllers: [AppController, HealthController],
   providers: [AppService, OpsServer],
 })
