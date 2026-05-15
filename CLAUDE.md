@@ -77,10 +77,12 @@ No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template li
 ### Running integration tests locally
 
 ```bash
-docker compose up -d postgres anvil clickhouse
+docker compose up -d postgres anvil clickhouse redis
 pnpm -w db:migrate
 pnpm -w db:migrate:ch
 ANVIL_RPC_URL=http://localhost:8545 pnpm --filter indexer test
+REDIS_URL=redis://localhost:6379 pnpm --filter api test
+NEST_HTTP_TESTS=1 pnpm --filter api test:e2e
 ```
 
 ## NestJS workers (indexer, ai-worker)
