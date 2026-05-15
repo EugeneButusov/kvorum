@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
-import { metricPrefix } from '@libs/observability';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
@@ -252,12 +251,12 @@ describeIf('F3 full-pipeline reorg', () => {
 
     // Metric deltas — deterministic single-reorg shape
     const reorgEventDelta = await getCounterDelta(
-      `${metricPrefix}_ingestion_reorg_event_total`,
+      `ingestion_reorg_event_total`,
       { chain_id: '0x7a69' },
       metricsBefore,
     );
     const orphanedDelta = await getCounterDelta(
-      `${metricPrefix}_ingestion_orphaned_events_total`,
+      `ingestion_orphaned_events_total`,
       { chain_id: '0x7a69' },
       metricsBefore,
     );

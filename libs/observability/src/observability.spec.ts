@@ -27,12 +27,12 @@ afterEach(async () => {
 });
 
 describe('defineCounter', () => {
-  it('emits <prefix>_<name>_total in Prometheus text', async () => {
+  it('emits <name>_total in Prometheus text', async () => {
     const c = defineCounter({ name: 'rpc_requests', description: 'test' });
     c.add(3, { method: 'eth_call' });
     const text = await renderMetrics();
-    expect(text).toContain('test_rpc_requests_total');
-    expect(text).toMatch(/test_rpc_requests_total\{.*method="eth_call".*\}\s+3/);
+    expect(text).toContain('rpc_requests_total');
+    expect(text).toMatch(/rpc_requests_total\{.*method="eth_call".*\}\s+3/);
   });
 
   it('throws when name ends in _total', () => {
@@ -41,13 +41,13 @@ describe('defineCounter', () => {
 });
 
 describe('defineGauge', () => {
-  it('emits <prefix>_<name> with no auto-suffix', async () => {
+  it('emits <name> with no auto-suffix', async () => {
     const g = defineGauge({ name: 'head_block_age_seconds', description: 'test' });
     g.record(42.5, { chain: 'ethereum' });
     const text = await renderMetrics();
-    expect(text).toContain('test_head_block_age_seconds');
-    expect(text).not.toContain('test_head_block_age_seconds_total');
-    expect(text).toMatch(/test_head_block_age_seconds\{.*chain="ethereum".*\}\s+42\.5/);
+    expect(text).toContain('head_block_age_seconds');
+    expect(text).not.toContain('head_block_age_seconds_total');
+    expect(text).toMatch(/head_block_age_seconds\{.*chain="ethereum".*\}\s+42\.5/);
   });
 });
 
@@ -60,9 +60,9 @@ describe('defineHistogram', () => {
     });
     h.record(0.3, { provider: 'p1' });
     const text = await renderMetrics();
-    expect(text).toContain('test_rpc_duration_seconds_bucket');
-    expect(text).toContain('test_rpc_duration_seconds_sum');
-    expect(text).toContain('test_rpc_duration_seconds_count');
+    expect(text).toContain('rpc_duration_seconds_bucket');
+    expect(text).toContain('rpc_duration_seconds_sum');
+    expect(text).toContain('rpc_duration_seconds_count');
     expect(text).toContain('le="0.1"');
     expect(text).toContain('le="0.5"');
     expect(text).toContain('le="1"');
@@ -83,7 +83,7 @@ describe('shutdownForTest', () => {
     const c1 = defineCounter({ name: 'reset_test', description: 'test' });
     c1.add(5, {});
     const text1 = await renderMetrics();
-    expect(text1).toContain('test_reset_test_total');
+    expect(text1).toContain('reset_test_total');
 
     await shutdownForTest();
     vi.resetModules();
@@ -96,8 +96,8 @@ describe('shutdownForTest', () => {
     const c2 = dc2({ name: 'reset_test', description: 'test' });
     c2.add(1, {});
     const text2 = await rm2();
-    expect(text2).toContain('test2_reset_test_total');
-    expect(text2).toMatch(/test2_reset_test_total\{.*\}\s+1/);
+    expect(text2).toContain('reset_test_total');
+    expect(text2).toMatch(/reset_test_total\{.*\}\s+1/);
     await sft2();
     process.env['OTEL_SERVICE_NAMESPACE'] = 'test';
   });

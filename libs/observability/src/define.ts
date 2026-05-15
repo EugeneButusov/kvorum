@@ -1,5 +1,4 @@
 import type { Counter, Gauge, Histogram } from '@opentelemetry/api';
-import { metricPrefix } from './prefix';
 import { meter } from './provider';
 
 interface CounterOpts {
@@ -22,15 +21,15 @@ export function defineCounter(opts: CounterOpts): Counter {
       `Counter "${opts.name}" must not end in _total — the Prometheus exporter appends it`,
     );
   }
-  return meter.createCounter(`${metricPrefix}_${opts.name}`, { description: opts.description });
+  return meter.createCounter(opts.name, { description: opts.description });
 }
 
 export function defineGauge(opts: GaugeOpts): Gauge {
-  return meter.createGauge(`${metricPrefix}_${opts.name}`, { description: opts.description });
+  return meter.createGauge(opts.name, { description: opts.description });
 }
 
 export function defineHistogram(opts: HistogramOpts): Histogram {
-  return meter.createHistogram(`${metricPrefix}_${opts.name}`, {
+  return meter.createHistogram(opts.name, {
     description: opts.description,
     advice: { explicitBucketBoundaries: [...opts.buckets] },
   });

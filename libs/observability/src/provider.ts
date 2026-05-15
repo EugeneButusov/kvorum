@@ -3,14 +3,19 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { MeterProvider } from '@opentelemetry/sdk-metrics';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_NAMESPACE } from '@opentelemetry/semantic-conventions';
 
+const namespace = process.env['OTEL_SERVICE_NAMESPACE'];
+if (!namespace) {
+  throw new Error('OTEL_SERVICE_NAMESPACE must be set before importing @libs/observability');
+}
+
 export const exporter = new PrometheusExporter({ preventServerStart: true });
 
 export const provider = new MeterProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: process.env['OTEL_SERVICE_NAME'] ?? 'unspecified',
-    [ATTR_SERVICE_NAMESPACE]: process.env['OTEL_SERVICE_NAMESPACE']!,
+    [ATTR_SERVICE_NAMESPACE]: namespace,
   }),
   readers: [exporter],
 });
 
-export const meter = provider.getMeter(process.env['OTEL_SERVICE_NAMESPACE']!);
+export const meter = provider.getMeter(namespace);
