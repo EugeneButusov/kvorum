@@ -32,7 +32,7 @@ async function scrapeMetrics(port: number): Promise<string> {
 }
 
 describeHttpIf('api metrics e2e', () => {
-  it('emits api_requests_total and api_latency_seconds after a request', async () => {
+  it('emits service-prefixed api request metrics after a request', async () => {
     const previousOpsPort = process.env['OPS_PORT'];
     process.env['OPS_PORT'] = '19091';
 
@@ -44,8 +44,8 @@ describeHttpIf('api metrics e2e', () => {
       await request(app.getHttpServer()).get('/metrics-demo').expect(200);
 
       const metrics = await scrapeMetrics(19091);
-      expect(metrics).toContain('api_requests_total');
-      expect(metrics).toContain('api_latency_seconds_bucket');
+      expect(metrics).toContain('api_test_api_requests_total');
+      expect(metrics).toContain('api_test_api_latency_seconds_bucket');
       expect(metrics).toContain('method="GET"');
       expect(metrics).toContain('route="/metrics-demo"');
       expect(metrics).toContain('status="200"');
