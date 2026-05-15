@@ -5,10 +5,11 @@ import { AppService } from './app.service';
 import { HealthController } from './health.controller';
 import { AuthModule } from '../auth/auth.module';
 import { HttpModule } from '../http/http.module';
+import { LoggingModule } from '../logging/logging.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
-  imports: [AuthModule, HttpModule, RateLimitModule],
+  imports: [AuthModule, HttpModule, LoggingModule, RateLimitModule],
   controllers: [AppController, HealthController],
   providers: [AppService, OpsServer],
 })

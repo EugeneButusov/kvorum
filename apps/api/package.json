@@ -11,6 +11,12 @@
     "lint": "eslint src tests"
   },
   "dependencies": {
-    "@libs/auth": "workspace:*"
+    "@libs/auth": "workspace:*",
+    "nestjs-pino": "^4.6.1",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.1.3"
   }
 }
