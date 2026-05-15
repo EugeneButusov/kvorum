@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { parseRateLimitConfigFromEnv } from './rate-limit.config';
+import RedisMock from 'ioredis-mock';
 import { RateLimiterService } from './rate-limiter.service';
-import { createRateLimitRedis } from './redis.client';
+import { type SlidingWindowRedis } from './redis.client';
+import { SLIDING_WINDOW_LUA } from './sliding-window.lua';
 
-const describeIf = process.env.REDIS_URL ? describe : describe.skip;
-
-describeIf('sliding-window integration', () => {
+describe('sliding-window integration', () => {
   let redisService: RateLimiterService;
-  let redisClient: ReturnType<typeof createRateLimitRedis>;
+  let redisClient: SlidingWindowRedis;
 
   beforeAll(() => {
-    const config = parseRateLimitConfigFromEnv(process.env);
-    redisClient = createRateLimitRedis(config);
+    redisClient = new RedisMock() as SlidingWindowRedis;
+    redisClient.defineCommand('slidingWindow', {
+      numberOfKeys: 4,
+      lua: SLIDING_WINDOW_LUA,
+    });
     redisService = new RateLimiterService(redisClient);
   });
 
@@ -60,23 +62,28 @@ describeIf('sliding-window integration', () => {
   });
 
   it('enforces daily limit on 10,001st request', async () => {
-    const now = Date.UTC(2026, 0, 1, 12, 0, 0, 0);
+    const now = Date.UTC(2026, 0, 1, 0, 0, 0, 0);
     const identity = `it:${randomUUID()}`;
+    const requestIntervalMs = 8_000;
 
     for (let i = 0; i < 10_000; i += 1) {
-      const result = await redisService.consume(identity, 'authenticated_free', now + i * 60_100);
+      const result = await redisService.consume(
+        identity,
+        'authenticated_free',
+        now + i * requestIntervalMs,
+      );
       expect(result.allowed).toBe(true);
     }
 
     const rejected = await redisService.consume(
       identity,
       'authenticated_free',
-      now + 10_000 * 60_100,
+      now + 10_000 * requestIntervalMs,
     );
     expect(rejected.allowed).toBe(false);
     expect(rejected.bindingWindow).toBe('day');
     expect(rejected.retryAfterSeconds).toBeGreaterThan(0);
-  });
+  }, 20_000);
 
   it('is atomic under concurrency: exactly 60 allowed out of 100 parallel calls', async () => {
     const now = Date.UTC(2026, 0, 1, 0, 0, 20, 0);

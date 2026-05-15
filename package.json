@@ -45,6 +45,7 @@
     "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
+    "ioredis-mock": "^8.13.1",
     "lefthook": "^1.11.0",
     "postcss": "8.4.38",
     "prettier": "~3.6.2",
