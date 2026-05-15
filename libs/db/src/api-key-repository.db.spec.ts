@@ -53,10 +53,10 @@ describeWithDb('ApiKeyRepository (integration)', () => {
         const row = await repo.findActiveByHash(seeded.keyHash);
 
         expect(row).toBeDefined();
-        expect(row?.id).toBe(seeded.apiKeyId);
-        expect(row?.user_db_id).toBe(seeded.userId);
-        expect(row?.email).toContain('@example.com');
-        expect(row).not.toHaveProperty('key_hash');
+        expect(row?.apiKey.id).toBe(seeded.apiKeyId);
+        expect(row?.apiKey.user_id).toBe(seeded.userId);
+        expect(row?.user.email).toContain('@example.com');
+        expect(row?.apiKey).not.toHaveProperty('key_hash');
 
         throw new RollbackSignal();
       }),
@@ -168,7 +168,7 @@ describeWithDb('ApiKeyRepository (integration)', () => {
 
         await expect(repo.findActiveByHash(oldHash)).resolves.toBeUndefined();
         const updated = await repo.findActiveByHash(newHash);
-        expect(updated?.id).toBe(seeded.apiKeyId);
+        expect(updated?.apiKey.id).toBe(seeded.apiKeyId);
 
         // no-op update to same hash should not throw
         await expect(repo.rehashKey(seeded.apiKeyId, newHash)).resolves.toBeUndefined();
