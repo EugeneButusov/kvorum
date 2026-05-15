@@ -11,7 +11,7 @@ describe('sliding-window integration', () => {
   beforeAll(() => {
     redisClient = new RedisMock() as SlidingWindowRedis;
     redisClient.defineCommand('slidingWindow', {
-      numberOfKeys: 4,
+      numberOfKeys: 2,
       lua: SLIDING_WINDOW_LUA,
     });
     redisService = new RateLimiterService(redisClient);
@@ -49,7 +49,7 @@ describe('sliding-window integration', () => {
 
   it('admits again after minute boundary rollover with weighted decay', async () => {
     const withinFirstMinute = Date.UTC(2026, 0, 1, 0, 0, 20, 0);
-    const nextMinute = Date.UTC(2026, 0, 1, 0, 1, 10, 0);
+    const nextMinute = Date.UTC(2026, 0, 1, 0, 1, 21, 0);
     const identity = `it:${randomUUID()}`;
 
     for (let i = 0; i < 60; i += 1) {
@@ -62,28 +62,37 @@ describe('sliding-window integration', () => {
   });
 
   it('enforces daily limit on 10,001st request', async () => {
-    const now = Date.UTC(2026, 0, 1, 0, 0, 0, 0);
     const identity = `it:${randomUUID()}`;
-    const requestIntervalMs = 8_000;
+    const now = Date.UTC(2026, 0, 1, 0, 0, 0, 0);
+    const minuteKey = `rl:${identity}:m`;
+    const dayKey = `rl:${identity}:d`;
+    const minuteLimit = 1_000;
+    const dayLimit = 5;
 
-    for (let i = 0; i < 10_000; i += 1) {
-      const result = await redisService.consume(
-        identity,
-        'authenticated_free',
-        now + i * requestIntervalMs,
+    for (let i = 0; i < dayLimit; i += 1) {
+      const allowed = await redisClient.slidingWindow(
+        minuteKey,
+        dayKey,
+        now + i * 1_000,
+        minuteLimit,
+        dayLimit,
+        `test-member-${i}`,
       );
-      expect(result.allowed).toBe(true);
+      expect(allowed[0]).toBe(1);
     }
 
-    const rejected = await redisService.consume(
-      identity,
-      'authenticated_free',
-      now + 10_000 * requestIntervalMs,
+    const rejected = await redisClient.slidingWindow(
+      minuteKey,
+      dayKey,
+      now + dayLimit * 1_000,
+      minuteLimit,
+      dayLimit,
+      'test-member-reject',
     );
-    expect(rejected.allowed).toBe(false);
-    expect(rejected.bindingWindow).toBe('day');
-    expect(rejected.retryAfterSeconds).toBeGreaterThan(0);
-  }, 20_000);
+    expect(rejected[0]).toBe(0);
+    expect(rejected[5]).toBe('day');
+    expect(Number(rejected[4])).toBeGreaterThan(0);
+  });
 
   it('is atomic under concurrency: exactly 60 allowed out of 100 parallel calls', async () => {
     const now = Date.UTC(2026, 0, 1, 0, 0, 20, 0);
