@@ -2,12 +2,10 @@
 // Standard interface ABIs are not copyrightable; project-specific ABIs sourced
 // from their canonical open-source repositories.
 import { Interface, FunctionFragment } from 'ethers';
+import { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from '@sources/core';
 import compoundComptroller from './compound-comptroller.json' with { type: 'json' };
 import compoundCtoken from './compound-ctoken.json' with { type: 'json' };
 import compoundGovernorBravo from './compound-governor-bravo.json' with { type: 'json' };
-import erc20 from './erc20.json' with { type: 'json' };
-import ozAccessControl from './oz-access-control.json' with { type: 'json' };
-import ozGovernor from './oz-governor.json' with { type: 'json' };
 
 export interface AbiEntry {
   iface: Interface;
@@ -21,9 +19,9 @@ export interface LoadedAbiLibrary {
 }
 
 const SOURCES = [
-  { name: 'erc20', abi: erc20 },
-  { name: 'oz-access-control', abi: ozAccessControl },
-  { name: 'oz-governor', abi: ozGovernor },
+  { name: 'erc20', abi: ERC20_ABI },
+  { name: 'oz-access-control', abi: OZ_ACCESS_CONTROL_ABI },
+  { name: 'oz-governor', abi: OZ_GOVERNOR_ABI },
   { name: 'compound-comptroller', abi: compoundComptroller },
   { name: 'compound-ctoken', abi: compoundCtoken },
   { name: 'compound-governor-bravo', abi: compoundGovernorBravo },

@@ -1,3 +1,5 @@
+export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
+
 import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 
