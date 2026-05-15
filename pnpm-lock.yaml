@@ -195,13 +195,23 @@ importers:
 
   apps/ai-worker: {}
 
-  apps/api: {}
+  apps/api:
+    dependencies:
+      '@libs/auth':
+        specifier: workspace:*
+        version: link:../../libs/auth
 
   apps/dashboard: {}
 
   apps/indexer: {}
 
   libs/ai:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/auth:
     dependencies:
       tslib:
         specifier: ^2.3.0

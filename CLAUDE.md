@@ -29,6 +29,7 @@ ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_e
 | Layer                   | Members                                                                                             | Can depend on                                        |
 | ----------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `libs/utils`            | framework-agnostic utilities (`sleep`, …)                                                           | nothing                                              |
+| `libs/auth`             | framework-agnostic API-key auth primitives (bearer parse, pepper decode, HMAC hash/verify)          | nothing                                              |
 | `libs/domain`           | domain types                                                                                        | nothing                                              |
 | `libs/observability`    | OTel MeterProvider, `defineCounter/Gauge/Histogram`, `renderMetrics()`, `shutdownForTest()`         | nothing                                              |
 | `libs/db`               | Kysely clients (`pgDb`, `chDb`), DB schema types                                                    | `libs/domain`                                        |
@@ -143,6 +144,7 @@ apps/
 libs/
   domain/       Shared domain types and constants
   db/           Kysely clients (pgDb, chDb), PgDatabase/ClickHouseDatabase types, migrations, scripts
+  auth/         Framework-agnostic API-key auth primitives (HMAC/bearer/pepper helpers)
   chain/        Chain-interaction helpers (placeholder until M1)
   ai/           AI provider abstractions (placeholder until M5)
   observability/ OTel SDK wiring — MeterProvider, defineCounter/Gauge/Histogram, renderMetrics()

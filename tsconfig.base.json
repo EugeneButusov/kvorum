@@ -25,7 +25,8 @@
       "@sources/core": ["./libs/sources/core/src/index.ts"],
       "@sources/compound": ["./libs/sources/compound/src/index.ts"],
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
-      "@nest/observability": ["./nest/observability/src/index.ts"]
+      "@nest/observability": ["./nest/observability/src/index.ts"],
+      "@libs/auth": ["./libs/auth/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

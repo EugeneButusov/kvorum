@@ -3,19 +3,17 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/apps/api',
+  cacheDir: '../../node_modules/.vite/libs/auth',
   plugins: [tsconfigPaths()],
   test: {
-    name: 'api',
+    name: 'auth',
     watch: false,
     globals: true,
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
-    passWithNoTests: true,
-    setupFiles: ['./vitest.setup.ts'],
     coverage: {
-      reportsDirectory: '../../coverage/apps/api',
+      reportsDirectory: '../../coverage/libs/auth',
       provider: 'v8' as const,
     },
   },

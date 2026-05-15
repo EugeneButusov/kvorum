@@ -39,18 +39,30 @@ Outline:
 
 **Consumers**: `api`.
 
-The pepper rotation requires a grace window: both old and new values must be valid concurrently so in-flight API key verifications do not fail mid-rotation.
+The rotation uses a grace window with two peppers:
 
-**TBD** — full procedure to be written when the API key hashing feature lands (M1).
+- `HMAC_PEPPER_CURRENT` (required)
+- `HMAC_PEPPER_PREVIOUS` (optional; present only during rotation)
 
-Outline:
+Encoding contract: each pepper is canonical base64 for exactly 32 random bytes.
 
-1. Generate a new pepper value (`openssl rand -hex 32`).
-2. Add it to the vault as `HMAC_PEPPER_CURRENT`; copy the old value to `HMAC_PEPPER_PREVIOUS`.
-3. Run `provision-env.sh --force`.
-4. Restart `api`. The service now accepts keys hashed with either pepper.
-5. After the grace window (24 h recommended), remove `HMAC_PEPPER_PREVIOUS` from the vault.
-6. Run `provision-env.sh --force` again and restart `api`.
+```bash
+openssl rand -base64 32
+```
+
+Rotation procedure:
+
+1. Generate a new pepper value (`openssl rand -base64 32`).
+2. In vault, set:
+   `HMAC_PEPPER_CURRENT=<new>`
+   `HMAC_PEPPER_PREVIOUS=<old current>`
+3. Run `infra/scripts/provision-env.sh --force`.
+4. Restart `api`.
+5. During the grace window, monitor `kvorum_auth_pepper_match{pepper="previous"}`.
+6. Only remove `HMAC_PEPPER_PREVIOUS` after that metric has stayed at zero long enough that active keys have re-hashed on use.
+7. Run `infra/scripts/provision-env.sh --force` and restart `api` again.
+
+Residual risk: keys that remain dormant for the full grace window are never re-hashed. Once `HMAC_PEPPER_PREVIOUS` is removed, those keys will fail authentication (401). Operators must either force-rotate dormant keys before cutover or accept that breakage.
 
 ---
 

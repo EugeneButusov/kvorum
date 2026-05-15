@@ -1,6 +1,8 @@
 export { pgDb, chDb } from './client';
 export { AbiCacheRepository } from './abi-cache-repository';
 export { ActorRepository } from './actor-repository';
+export type { ActiveApiKeyResult, SafeApiKey } from './api-key-repository';
+export { ApiKeyRepository } from './api-key-repository';
 export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export type { ConfirmationKey } from './confirmation-repository';
