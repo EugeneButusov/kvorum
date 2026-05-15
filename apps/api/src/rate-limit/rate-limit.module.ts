@@ -12,7 +12,11 @@ class RedisShutdownHook implements OnApplicationShutdown {
   constructor(private readonly redis: SlidingWindowRedis) {}
 
   async onApplicationShutdown(): Promise<void> {
-    await this.redis.quit();
+    try {
+      await this.redis.quit();
+    } catch {
+      this.redis.disconnect();
+    }
   }
 }
 
