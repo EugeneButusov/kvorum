@@ -153,7 +153,7 @@ describeIf('F3 DLQ fault injection', () => {
 
     // archive_writes{result=inserted} must NOT increment for this malformed event
     const insertedDelta = await getCounterDelta(
-      `ingestion_archive_writes_total`,
+      `indexer_ingestion_archive_writes_total`,
       { result: 'inserted', source: 'compound_governor', chain_id: '0x7a69' },
       metricsBefore,
     );
@@ -166,12 +166,12 @@ describeIf('F3 DLQ fault injection', () => {
     await pollUntil(async () => {
       const after = await captureMetrics();
       const before =
-        findMetricValue(metricsBefore, `ingestion_dlq_size`, {
+        findMetricValue(metricsBefore, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
           source: 'compound_governor',
         }) ?? 0;
       const now =
-        findMetricValue(after, `ingestion_dlq_size`, {
+        findMetricValue(after, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
           source: 'compound_governor',
         }) ?? 0;

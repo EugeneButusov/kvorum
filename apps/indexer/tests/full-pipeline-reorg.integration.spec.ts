@@ -251,12 +251,12 @@ describeIf('F3 full-pipeline reorg', () => {
 
     // Metric deltas — deterministic single-reorg shape
     const reorgEventDelta = await getCounterDelta(
-      `ingestion_reorg_event_total`,
+      `indexer_ingestion_reorg_event_total`,
       { chain_id: '0x7a69' },
       metricsBefore,
     );
     const orphanedDelta = await getCounterDelta(
-      `ingestion_orphaned_events_total`,
+      `indexer_ingestion_orphaned_events_total`,
       { chain_id: '0x7a69' },
       metricsBefore,
     );

@@ -1,4 +1,4 @@
-# ADR-045 — Drop `OTEL_SERVICE_NAMESPACE` metric-name prefix
+# ADR-045 — Replace `OTEL_SERVICE_NAMESPACE` metric-name prefix with per-service prefix
 
 - **Status**: Accepted (2026-05-15)
 - **Date**: 2026-05-15
@@ -9,27 +9,26 @@
 
 ADR-042 introduced a `libs/observability` rule that prepended `OTEL_SERVICE_NAMESPACE` to every emitted metric name. In practice this produced names like `kvorum_ingestion_*` and `kvorum_api_*`.
 
-For M1, all metric families are already explicitly namespaced by purpose (`ingestion_*`, `derivation_*`, `api_*`, `rate_limit_*`, `auth_*`). The extra product namespace segment adds coupling without providing meaningful benefit in the current deployment model.
-
-This change happens pre-deployment, before production scrape contracts exist.
+We need to remove product-coupled `kvorum_` names while still preserving a stable prefix that identifies the emitting app (`api`, `indexer`, `ai-worker`).
 
 ## Decision
 
-1. `libs/observability` emits metric names exactly as declared at call sites; no automatic `<namespace>_` prefix is applied.
+1. `libs/observability` prepends a sanitized `OTEL_SERVICE_NAME` prefix to every emitted metric name.
 2. `OTEL_SERVICE_NAMESPACE` remains required and continues to populate the OpenTelemetry resource attribute (`service.namespace`).
-3. The authoritative committed metric-family list for M1 is:
-   `api_*`, `ingestion_*`, `derivation_*`, `rate_limit_*`, `auth_*`.
-4. `docs/SPEC.md` remains frozen at v1.0; this correction is recorded by ADR plus implementation docs (`docs/metrics.md`) rather than direct SPEC edits.
+3. `OTEL_SERVICE_NAME` is required at observability module load and drives both resource `service.name` and metric-name prefix.
+4. M1 committed families (after service prefixing) are:
+   `api_api_*`, `api_auth_*`, `api_rate_limit_*`, `indexer_ingestion_*`, `indexer_derivation_*`, plus related indexer archive/dual-write families.
+5. `docs/SPEC.md` remains frozen at v1.0; this correction is recorded by ADR plus implementation docs (`docs/metrics.md`) rather than direct SPEC edits.
 
 ## Consequences
 
-1. **Gain — cleaner stable names.** Emitted series are shorter and family-focused (`api_requests_total`, `ingestion_reorg_event_total`, etc.).
-2. **Gain — less rename coupling.** Product renames do not force metric-name rewrites.
-3. **Cost — no cross-deployment disambiguation in the metric name itself.** This is accepted for v1: each environment uses a distinct Prometheus target set and distinguishes series by target labels/resource metadata, not by a hardcoded name prefix.
-4. **Migration impact — test updates required.** Assertions that expected `${metricPrefix}_...` must switch to bare family names.
+1. **Gain — removes `kvorum_` coupling.** Product rename does not require metric-name rewrites.
+2. **Gain — keeps source attribution in metric names.** Emitting app is visible directly in series names.
+3. **Cost — names are longer.** Families now include service + domain prefixes (for example `api_api_requests_total`).
+4. **Migration impact — assertions update.** Tests must assert service-prefixed names.
 
 ## Alternatives considered
 
-1. Keep ADR-042 prefix behavior unchanged. Rejected: redundant name segment and avoidable coupling.
-2. Replace with a different global prefix. Rejected: same coupling under a different token.
+1. Keep ADR-042 namespace prefix behavior unchanged. Rejected: unwanted `kvorum_` coupling.
+2. Drop all prefixing entirely. Rejected: loses direct service attribution in metric names.
 3. Edit `docs/SPEC.md` directly. Rejected: ADR process governs post-freeze corrections.

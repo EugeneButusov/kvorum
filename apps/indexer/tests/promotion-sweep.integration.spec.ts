@@ -130,7 +130,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
     }
 
     const sweepSamples = await getHistogramSampleCount(
-      `ingestion_promotion_sweep_duration_seconds`,
+      `indexer_ingestion_promotion_sweep_duration_seconds`,
       { chain_id: '0x7a69' },
       metricsSnapshot,
     );
