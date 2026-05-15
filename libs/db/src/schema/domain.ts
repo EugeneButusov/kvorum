@@ -23,6 +23,8 @@ export type ProposalState =
   | 'expired'
   | 'vetoed';
 
+export type DecodeStatus = 'pending' | 'decoded' | 'undecodable';
+
 // ── Table row types ───────────────────────────────────────────────────────────
 
 export interface DaoTable {
@@ -112,6 +114,11 @@ export interface ProposalActionTable {
   decoded_function: string | null;
   decoded_arguments: unknown | null;
   created_at: Generated<Date>;
+  // Decode tracking — migration 0005. Generated<> = optional in Insert (DB supplies default).
+  decode_status: Generated<DecodeStatus>;
+  decode_attempted_at: Generated<Date | null>;
+  decode_attempt_count: Generated<number>;
+  next_decode_at: Generated<Date | null>;
 }
 
 export type ProposalAction = Selectable<ProposalActionTable>;

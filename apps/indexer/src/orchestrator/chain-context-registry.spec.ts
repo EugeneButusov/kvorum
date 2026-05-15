@@ -6,6 +6,7 @@ vi.mock('@libs/chain', () => ({
   FailoverRpcClient: vi.fn(),
   HeadTracker: vi.fn(),
   ReorgDetector: vi.fn(),
+  ProxyResolver: vi.fn(),
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },

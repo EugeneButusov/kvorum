@@ -23,6 +23,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'orphaned')
   `.execute(db);
 
+  await sql`
+    CREATE TYPE decode_status AS ENUM ('pending', 'decoded', 'undecodable')
+  `.execute(db);
+
   // ── dao ─────────────────────────────────────────────────────────────────────
   await db.schema
     .createTable('dao')
@@ -168,11 +172,22 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('calldata', 'text', (col) => col.notNull())
     .addColumn('decoded_function', 'text')
     .addColumn('decoded_arguments', 'jsonb')
+    .addColumn('decode_status', sql`decode_status`, (col) => col.notNull().defaultTo('pending'))
+    .addColumn('decode_attempted_at', 'timestamptz')
+    .addColumn('decode_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('next_decode_at', 'timestamptz')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .addUniqueConstraint('proposal_action_proposal_id_action_index_key', [
       'proposal_id',
       'action_index',
     ])
+    .execute();
+
+  await db.schema
+    .createIndex('idx_proposal_action_pending_decode')
+    .on('proposal_action')
+    .columns(['next_decode_at', 'created_at'])
+    .where(sql`decode_status = 'pending'`)
     .execute();
 
   // ── proposal_choice ──────────────────────────────────────────────────────────
@@ -260,4 +275,5 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
   await sql`DROP TYPE confirmation_status`.execute(db);
   await sql`DROP TYPE proposal_state`.execute(db);
+  await sql`DROP TYPE decode_status`.execute(db);
 }
