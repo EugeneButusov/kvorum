@@ -24,7 +24,6 @@ module.exports = {
       '@libs/utils': path.join(root, 'libs/utils/src/index.ts'),
       '@libs/auth': path.join(root, 'libs/auth/src/index.ts'),
       '@libs/observability': path.join(root, 'libs/observability/src/index.ts'),
-      '@libs/auth': path.join(root, 'libs/auth/src/index.ts'),
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
     },
   },
