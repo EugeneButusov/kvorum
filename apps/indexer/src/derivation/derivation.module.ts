@@ -14,7 +14,6 @@ import { DerivationWorkerService } from './derivation-worker.service';
 import { PROJECTION_APPLIERS } from './projection-applier';
 import { TimestampFillerService } from './timestamp-filler.service';
 import { toChainLogger } from '../infra/nest-logger-adapter';
-import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
@@ -60,6 +59,6 @@ import { ChainContextModule } from '../orchestrator/chain-context.module';
     DerivationWorkerService,
     TimestampFillerService,
   ],
-  exports: [ChainContextRegistry],
+  exports: [ChainContextModule],
 })
 export class DerivationModule {}
