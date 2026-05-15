@@ -1,8 +1,8 @@
 import { Controller, Get, Logger, Module } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
-import { LoggingModule, usePinoNestLogger } from '@nest/logging';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { LoggingModule, usePinoNestLogger } from '@nest/logging';
 import { HttpModule } from '../src/http/http.module';
 
 const describeHttpIf = process.env.NEST_HTTP_TESTS === '1' ? describe : describe.skip;
