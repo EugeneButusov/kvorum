@@ -195,7 +195,11 @@ importers:
 
   apps/ai-worker: {}
 
-  apps/api: {}
+  apps/api:
+    dependencies:
+      '@libs/auth':
+        specifier: workspace:*
+        version: link:../../libs/auth
 
   apps/dashboard: {}
 

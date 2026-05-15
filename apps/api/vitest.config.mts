@@ -13,6 +13,7 @@ export default defineConfig({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     passWithNoTests: true,
+    setupFiles: ['./vitest.setup.ts'],
     coverage: {
       reportsDirectory: '../../coverage/apps/api',
       provider: 'v8' as const,
