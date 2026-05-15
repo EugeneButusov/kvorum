@@ -1,21 +1,26 @@
 export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices';
-export { CalldataDecoder } from './calldata/decoder';
-export type { DecodeInput } from './calldata/decoder';
-export { ChainNotReadyError } from './calldata/types';
+export { loadAbiLibrary } from './calldata/abi-library';
+export type { LoadedAbiLibrary, AbiEntry } from './calldata/abi-library';
+export { decodeByHeuristic } from './calldata/heuristics';
+export type { HeuristicResult } from './calldata/heuristics';
+// Re-export from @sources/core so compound remains a single import point for consumers.
+export {
+  CalldataDecoder,
+  EtherscanClient,
+  readCalldataDecoderConfig,
+  ChainNotReadyError,
+} from '@sources/core';
 export type {
+  DecodeInput,
   DecodeResult,
   DecodeSource,
   DecoderDependencies,
   EtherscanClientLike,
-} from './calldata/types';
-export { loadAbiLibrary } from './calldata/abi-library';
-export type { LoadedAbiLibrary, AbiEntry } from './calldata/abi-library';
-export { EtherscanClient } from './calldata/etherscan-client';
-export type { EtherscanClientConfig } from './calldata/etherscan-client';
-export { readCalldataDecoderConfig } from './calldata/config';
-export type { CalldataDecoderConfig, EtherscanConfig } from './calldata/config';
-// Re-export the CH table type so @sources/compound is the canonical
-// import point for consumers of the compound archive schema.
+  EtherscanClientConfig,
+  CalldataDecoderConfig,
+  EtherscanConfig,
+} from '@sources/core';
+// Re-export the CH table type so @sources/compound is the canonical import point.
 export type {
   EventArchiveCompoundGovernor,
   EventArchiveCompoundGovernorTable,

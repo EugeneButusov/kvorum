@@ -1,5 +1,4 @@
 import { Interface, FunctionFragment } from 'ethers';
-import { decodeByHeuristic } from './heuristics';
 import type { DecodeResult, DecoderDependencies } from './types';
 
 const HEX_RE = /^0x[0-9a-f]*$/i;
@@ -61,19 +60,19 @@ export class CalldataDecoder {
     }
 
     // ── Step 2: heuristic decoder ─────────────────────────────────────────────
-    const heuristic = decodeByHeuristic(calldata);
-    if (heuristic !== null) {
-      return {
-        kind: 'decoded',
-        decodedFunction: heuristic.decodedFunction,
-        decodedArguments: heuristic.decodedArguments,
-        source: 'heuristic',
-      };
+    if (this.deps.decodeByHeuristic) {
+      const heuristic = this.deps.decodeByHeuristic(calldata);
+      if (heuristic !== null) {
+        return {
+          kind: 'decoded',
+          decodedFunction: heuristic.decodedFunction,
+          decodedArguments: heuristic.decodedArguments,
+          source: 'heuristic',
+        };
+      }
     }
 
     // ── Step 3: event_emitted shortcut (R3) ───────────────────────────────────
-    // Fires only when the calldata is selector-only (no args) and the event
-    // provided a function_signature we can verify.
     if (calldata.length === 10 && functionSignature) {
       try {
         const fragment = FunctionFragment.from(functionSignature);
@@ -140,7 +139,6 @@ export class CalldataDecoder {
       for (const entry of bucket) {
         try {
           const args = decodedArguments(entry.iface, entry.fragment, calldata);
-          // Persist ABI to cache so future calls skip the library scan.
           await this.deps.abiCache.upsert({
             chain_id: chainId,
             address,
@@ -186,7 +184,6 @@ export class CalldataDecoder {
         );
 
         if (implResult.kind === 'decoded') {
-          // R11: persist abi_cache for BOTH proxy and impl.
           const implCached = await this.deps.abiCache.findByAddress(
             chainId,
             resolution.implementation,
@@ -203,7 +200,6 @@ export class CalldataDecoder {
               fetched_at: new Date(),
               implementation_chain: implChain,
             });
-            // Impl row without implementation_chain (direct calls skip proxy resolution).
             await this.deps.abiCache.upsert({
               chain_id: chainId,
               address: resolution.implementation,
@@ -225,7 +221,6 @@ export class CalldataDecoder {
         const abi = await this.deps.etherscanClient.fetchAbi(chainId, address);
         if (abi !== null && abi.length > 0) {
           const iface = new Interface(abi as never[]);
-          // Populate selector_index from each function fragment.
           const selectorRows = iface.fragments
             .filter((f) => f.type === 'function')
             .map((f) => {

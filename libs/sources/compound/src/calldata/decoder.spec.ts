@@ -2,9 +2,10 @@ import { AbiCoder, FunctionFragment } from 'ethers';
 import { describe, it, expect, vi } from 'vitest';
 import FIXTURE from './__fixtures__/historical-actions.json' with { type: 'json' };
 import { loadAbiLibrary } from './abi-library';
-import { CalldataDecoder } from './decoder';
-import type { DecoderDependencies } from './types';
-import { ChainNotReadyError } from './types';
+import { CalldataDecoder } from '@sources/core';
+import type { DecoderDependencies } from '@sources/core';
+import { ChainNotReadyError } from '@sources/core';
+import { decodeByHeuristic } from './heuristics';
 
 type FixtureEntry = { sig: string; calldata: string };
 
@@ -43,6 +44,7 @@ function makeDeps(overrides: Partial<DecoderDependencies> = {}): DecoderDependen
       bulkInsert: vi.fn().mockResolvedValue(0),
     } as unknown as DecoderDependencies['selectorIndex'],
     bundledAbis: loadAbiLibrary(),
+    decodeByHeuristic,
     proxyResolverFor: vi.fn().mockReturnValue({
       resolve: vi.fn().mockResolvedValue({
         implementation: null,

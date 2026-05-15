@@ -1,38 +1,42 @@
 export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
+export type { AbiEntry, LoadedAbiLibrary } from './calldata/abi-library/index';
+
+export { CalldataDecoder } from './calldata/decoder';
+export type { DecodeInput } from './calldata/decoder';
+export { EtherscanClient } from './calldata/etherscan-client';
+export type { EtherscanClientConfig } from './calldata/etherscan-client';
+export { readCalldataDecoderConfig } from './calldata/config';
+export type { CalldataDecoderConfig, EtherscanConfig } from './calldata/config';
+export type {
+  DecodeResult,
+  DecodeSource,
+  DecoderDependencies,
+  EtherscanClientLike,
+  HeuristicResult,
+} from './calldata/types';
+export { ChainNotReadyError } from './calldata/types';
 
 import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 
-/** Nest injection token for the multi-provider array of registered SourcePlugins.
- *  Source modules provide with `multi: true`; the orchestrator injects the assembled array. */
+/** Nest injection token for the multi-provider array of registered SourcePlugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 
 export interface SourcePlugin<TConfig = unknown> {
-  /** Discriminant matched against `dao_source.source_type`. */
   readonly sourceType: SourceType;
-
-  /** Validates `dao_source.source_config`; throws on malformed input. */
   parseConfig(raw: unknown): TConfig;
-
-  /** Chain-family-tagged ingest descriptor: how to fetch AND how to handle each fetched event. */
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
 }
 
-/** Each variant pairs a fetch strategy with its event shape.
- *  The discriminant lets the orchestrator dispatch to the right FetchDriver without
- *  coupling source-specific logic to orchestration. */
 export type IngestSpec = {
   kind: 'evm-event-poller';
   filter: LogFilter;
   listener: EventsListener<LogEvent>;
 };
-// future: | { kind: 'solana-program-logs'; programId: string; listener: EventsListener<SolanaLog>; }
 
 export interface SourceContext {
   daoSourceId: string;
   sourceType: SourceType;
   chainId: string;
-  /** Low-cardinality metric/log label — MUST equal `sourceType`. Never set to `daoSourceId`
-   *  (UUIDs would blow up label cardinality on archive_* / batch_duration_seconds metrics). */
   sourceLabel: SourceType;
 }

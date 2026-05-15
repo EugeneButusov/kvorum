@@ -9,9 +9,9 @@ import {
   CalldataDecoder,
   ChainNotReadyError,
   EtherscanClient,
-  loadAbiLibrary,
   readCalldataDecoderConfig,
-} from '@sources/compound';
+} from '@sources/core';
+import { decodeByHeuristic, loadAbiLibrary } from '@sources/compound';
 import { toChainLogger } from '../infra/nest-logger-adapter';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
 import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
@@ -43,6 +43,7 @@ import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service'
           abiCache,
           selectorIndex,
           bundledAbis: loadAbiLibrary(),
+          decodeByHeuristic,
           proxyResolverFor: (chainId) => {
             const ctx = chains.peek(chainId);
             if (!ctx) throw new ChainNotReadyError(chainId);

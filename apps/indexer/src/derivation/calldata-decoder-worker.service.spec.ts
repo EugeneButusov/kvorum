@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { DecodeResult } from '@sources/compound';
+import type { DecodeResult } from '@sources/core';
 
 vi.mock('./calldata-decode-metrics', () => ({
   calldataDecodeMetrics: {
