@@ -5,17 +5,17 @@ import {
   SelectorIndexRepository,
   pgDb,
 } from '@libs/db';
+import { decodeByHeuristic, loadAbiLibrary } from '@sources/compound';
 import {
   CalldataDecoder,
   ChainNotReadyError,
   EtherscanClient,
   readCalldataDecoderConfig,
 } from '@sources/core';
-import { decodeByHeuristic, loadAbiLibrary } from '@sources/compound';
-import { toChainLogger } from '../infra/nest-logger-adapter';
-import { ChainContextModule } from '../orchestrator/chain-context.module';
-import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
+import { toChainLogger } from '../infra/nest-logger-adapter';
+import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
+import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
   imports: [ChainContextModule],

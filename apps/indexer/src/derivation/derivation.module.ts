@@ -8,14 +8,14 @@ import {
   pgDb,
 } from '@libs/db';
 import { CompoundArchivePayloadRepository, CompoundProjectionApplier } from '@sources/compound';
-import { toChainLogger } from '../infra/nest-logger-adapter';
-import { ChainContextModule } from '../orchestrator/chain-context.module';
-import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
 import { CalldataDecoderModule } from './calldata-decoder.module';
 import { derivationMetrics } from './derivation-metrics';
 import { DerivationWorkerService } from './derivation-worker.service';
 import { PROJECTION_APPLIERS } from './projection-applier';
 import { TimestampFillerService } from './timestamp-filler.service';
+import { toChainLogger } from '../infra/nest-logger-adapter';
+import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
+import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
   imports: [ScheduleModule.forRoot(), ChainContextModule, CalldataDecoderModule],

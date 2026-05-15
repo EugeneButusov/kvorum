@@ -1,10 +1,10 @@
 import { AbiCoder, FunctionFragment } from 'ethers';
 import { describe, it, expect, vi } from 'vitest';
+import type { DecoderDependencies } from '@sources/core';
+import { CalldataDecoder } from '@sources/core';
+import { ChainNotReadyError } from '@sources/core';
 import FIXTURE from './__fixtures__/historical-actions.json' with { type: 'json' };
 import { loadAbiLibrary } from './abi-library';
-import { CalldataDecoder } from '@sources/core';
-import type { DecoderDependencies } from '@sources/core';
-import { ChainNotReadyError } from '@sources/core';
 import { decodeByHeuristic } from './heuristics';
 
 type FixtureEntry = { sig: string; calldata: string };
