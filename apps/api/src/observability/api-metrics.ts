@@ -9,4 +9,8 @@ export const apiMetrics = {
     name: 'auth_rejections',
     description: 'API key authentication rejections by reason',
   }),
+  rateLimitRejections: defineCounter({
+    name: 'rate_limit_rejections',
+    description: 'Rate limit rejections by tier and reason',
+  }),
 } as const;
