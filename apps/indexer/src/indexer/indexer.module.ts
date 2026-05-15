@@ -8,9 +8,10 @@ import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
+import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
-  imports: [IndexerInfraModule, DerivationModule, CompoundSourceModule],
+  imports: [IndexerInfraModule, ChainContextModule, DerivationModule, CompoundSourceModule],
   providers: [
     {
       provide: SOURCE_PLUGINS,

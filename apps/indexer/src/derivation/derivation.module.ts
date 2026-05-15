@@ -59,6 +59,5 @@ import { ChainContextModule } from '../orchestrator/chain-context.module';
     DerivationWorkerService,
     TimestampFillerService,
   ],
-  exports: [ChainContextModule],
 })
 export class DerivationModule {}
