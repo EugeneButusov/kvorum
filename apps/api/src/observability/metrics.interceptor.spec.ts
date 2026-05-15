@@ -1,7 +1,7 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lastValueFrom, of, throwError } from 'rxjs';
 import { toArray } from 'rxjs/operators';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiMetrics } from './api-metrics';
 import { deriveRouteLabel, MetricsInterceptor } from './metrics.interceptor';
 

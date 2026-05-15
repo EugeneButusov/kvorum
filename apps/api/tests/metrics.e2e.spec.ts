@@ -1,8 +1,8 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
-import { OpsServer } from '../../../nest/observability/src/ops-server';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { OpsServer } from '../../../nest/observability/src/ops-server';
 import { HttpModule } from '../src/http/http.module';
 import { ObservabilityModule } from '../src/observability/observability.module';
 
