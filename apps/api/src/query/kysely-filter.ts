@@ -25,7 +25,7 @@ export function applyQuery<DB, TB extends keyof DB, O>(
   }
 
   for (const sort of parsed.sort) {
-    const expr = sortExpression(sort.column, sort.dir, sort.nullable);
+    const expr = sortExpression(sort.column, sort.dir, sort.nullable, sort.kind);
     out = out.orderBy(expr as never, sort.dir);
   }
 
@@ -34,7 +34,12 @@ export function applyQuery<DB, TB extends keyof DB, O>(
 
   if (cursor !== undefined && parsed.sort[0] !== undefined) {
     const primarySort = parsed.sort[0];
-    const expr = sortExpression(primarySort.column, primarySort.dir, primarySort.nullable);
+    const expr = sortExpression(
+      primarySort.column,
+      primarySort.dir,
+      primarySort.nullable,
+      primarySort.kind,
+    );
 
     if (cursor.dir === 'asc') {
       out = out.where(({ eb, or, and }) =>
@@ -67,11 +72,19 @@ function toComparator(op: 'eq' | 'gte' | 'lte'): '=' | '>=' | '<=' {
   }
 }
 
-function sortExpression(column: string, dir: 'asc' | 'desc', nullable: boolean) {
+function sortExpression(column: string, dir: 'asc' | 'desc', nullable: boolean, kind?: 'time') {
   if (!nullable) {
+    if (kind === 'time') {
+      return sql`date_trunc('milliseconds', ${sql.raw(column)})`;
+    }
     return sql.raw(column);
   }
 
   const sentinel = dir === 'asc' ? `'infinity'::timestamptz` : `'-infinity'::timestamptz`;
-  return sql`coalesce(${sql.raw(column)}, ${sql.raw(sentinel)})`;
+  const nullableExpr = sql`coalesce(${sql.raw(column)}, ${sql.raw(sentinel)})`;
+  if (kind === 'time') {
+    return sql`date_trunc('milliseconds', ${nullableExpr})`;
+  }
+
+  return nullableExpr;
 }
