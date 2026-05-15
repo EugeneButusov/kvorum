@@ -11,6 +11,7 @@
     "lint": "eslint src tests"
   },
   "dependencies": {
-    "@libs/auth": "workspace:*"
+    "@libs/auth": "workspace:*",
+    "@nest/logging": "workspace:*"
   }
 }

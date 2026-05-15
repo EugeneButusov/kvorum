@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LoggingModule } from '@nest/logging';
 import { OpsServer } from '@nest/observability';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -8,7 +9,7 @@ import { HttpModule } from '../http/http.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
-  imports: [AuthModule, HttpModule, RateLimitModule],
+  imports: [AuthModule, HttpModule, LoggingModule, RateLimitModule],
   controllers: [AppController, HealthController],
   providers: [AppService, OpsServer],
 })
