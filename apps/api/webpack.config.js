@@ -22,6 +22,7 @@ module.exports = {
       '@libs/chain': path.join(root, 'libs/chain/src/index.ts'),
       '@libs/ai': path.join(root, 'libs/ai/src/index.ts'),
       '@libs/utils': path.join(root, 'libs/utils/src/index.ts'),
+      '@libs/auth': path.join(root, 'libs/auth/src/index.ts'),
       '@libs/observability': path.join(root, 'libs/observability/src/index.ts'),
       '@libs/auth': path.join(root, 'libs/auth/src/index.ts'),
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),

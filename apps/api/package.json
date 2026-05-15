@@ -2,6 +2,9 @@
   "name": "api",
   "version": "0.0.0",
   "private": true,
+  "dependencies": {
+    "@libs/auth": "workspace:*"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "build": "webpack-cli build --node-env=production",
