@@ -47,8 +47,11 @@ export class RateLimitInterceptor implements NestInterceptor {
         throw error;
       }
 
+      // SPEC §7.3 calls this "fall-open": Redis down -> reject (503), NOT silent allow.
+      // The name is counterintuitive; do not change this to allow traffic through.
       response.setHeader('Retry-After', String(SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS));
       apiMetrics.rateLimitRejections.add(1, { tier, reason: 'redis_unavailable' });
+      this.logger.warn('Rate limiter Redis unavailable — returning 503 (fall-open)');
       throw new HttpException(
         problemBody('service-unavailable', 503, 'Rate limiter backend is unavailable.'),
         503,
@@ -76,6 +79,7 @@ function isTier(value: unknown): value is Tier {
   return typeof value === 'string' && value in TIERS;
 }
 
+// KNOWN-024: fold into H3 problem+json filter once it lands; delete this helper then.
 function problemBody(kind: 'rate-limited' | 'service-unavailable', status: number, detail: string) {
   return {
     type: `urn:error:${kind}`,
