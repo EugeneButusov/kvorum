@@ -1,6 +1,6 @@
 # ADR-042 — Adopt OpenTelemetry as the observability SDK; Prometheus as the M1 wire format
 
-- **Status**: Accepted (2026-05-11)
+- **Status**: Superseded in part by ADR-045 (2026-05-15)
 - **Date**: 2026-05-11
 - **Spec sections affected**: 3.12, 6.20
 - **Related**: ADR-038 (CH archive in M1 — many of the existing instruments serve that pipeline), ADR-041 (cross-DB contract metric names), `docs/planning/plan-metrics-rename.md` (execution plan)
@@ -78,7 +78,7 @@ OTel `MeterProvider.shutdown()` is terminal per spec. The natural fit for Vitest
 1. **Gain — one SDK for the full observability story.** Metrics now; tracing and structured logs unlock by configuration when their milestones land.
 2. **Gain — backend portability by configuration.** Prometheus today, OTLP push to a managed backend tomorrow. No call-site changes.
 3. **Gain — semantic-convention alignment available.** New HTTP/DB instruments can adopt OTel semantic conventions (`http.server.request.duration` with standard attributes), reducing bikeshed.
-4. **Gain — rename-safe metric prefix.** Source no longer hardcodes the product name. `OTEL_SERVICE_NAMESPACE` flip renames every emitted series; library code stays stable.
+4. **Superseded by ADR-045.** Metric names are no longer prefixed by `OTEL_SERVICE_NAMESPACE`; namespace remains on the OTel resource attribute only.
 5. **Cost — heavier SDK surface at boot.** Multiple `@opentelemetry/*` packages. `MeterProvider`, `Resource`, `PrometheusExporter` assembled at process boot in `libs/observability`. One-time cost, encapsulated.
 6. **Cost — `@opentelemetry/exporter-prometheus` is still on the `0.x` experimental version band.** Pin exact minor in root `package.json`; isolate all exporter-touching code behind `libs/observability` so a bump is a single-file change.
 7. **Cost — call-site API shape changes.** Every `.inc(...)` becomes `.add(1, {...})`, every `.set(...)` and `.observe(...)` becomes `.record(...)`. ~20 files; mechanical sweep documented in the execution plan.

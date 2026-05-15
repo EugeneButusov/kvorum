@@ -2,7 +2,6 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pgDb } from '@libs/db';
-import { metricPrefix } from '@libs/observability';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_MALFORMED_SELECTOR,
@@ -154,7 +153,7 @@ describeIf('F3 DLQ fault injection', () => {
 
     // archive_writes{result=inserted} must NOT increment for this malformed event
     const insertedDelta = await getCounterDelta(
-      `${metricPrefix}_ingestion_archive_writes_total`,
+      `indexer_ingestion_archive_writes_total`,
       { result: 'inserted', source: 'compound_governor', chain_id: '0x7a69' },
       metricsBefore,
     );
@@ -167,12 +166,12 @@ describeIf('F3 DLQ fault injection', () => {
     await pollUntil(async () => {
       const after = await captureMetrics();
       const before =
-        findMetricValue(metricsBefore, `${metricPrefix}_ingestion_dlq_size`, {
+        findMetricValue(metricsBefore, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
           source: 'compound_governor',
         }) ?? 0;
       const now =
-        findMetricValue(after, `${metricPrefix}_ingestion_dlq_size`, {
+        findMetricValue(after, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
           source: 'compound_governor',
         }) ?? 0;

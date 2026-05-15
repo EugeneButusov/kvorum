@@ -8,7 +8,7 @@ import { lowercaseFilter } from './utils/filter.utils.js';
  *
  *  Tick-dropping contract: if listeners are slower than pollIntervalMs the re-entry
  *  guard drops the overlapping tick and logs a warn. No events are lost (next tick
- *  re-fetches the same window), but kvorum_ingestion_log_poll_lag_seconds grows
+ *  re-fetches the same window), but ingestion_log_poll_lag_seconds grows
  *  unbounded under this condition — SPEC §6.20.2's alert fires on that gauge.
  *
  *  Cold-start gap: on indexer restart after downtime exceeding 2 × reorgHorizon blocks
