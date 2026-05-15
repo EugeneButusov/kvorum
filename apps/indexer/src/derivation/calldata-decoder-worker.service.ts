@@ -31,23 +31,29 @@ export class CalldataDecoderWorkerService implements OnApplicationBootstrap {
     if (this.inFlight) return;
     this.inFlight = true;
     const startedAt = Date.now();
+    const tally = { decoded: 0, partial: 0, miss: 0 };
     try {
       for (let i = 0; i < BATCH_SIZE; i++) {
-        const processed = await this.processOne();
-        if (!processed) break;
+        const outcome = await this.processOne();
+        if (outcome === null) break;
+        tally[outcome]++;
       }
     } catch (err) {
       this.logger.error('calldata_decode_tick_failed', { error: String(err) });
     } finally {
       calldataDecodeMetrics.tickDurationSeconds.record((Date.now() - startedAt) / 1000);
+      const total = tally.decoded + tally.partial + tally.miss;
+      if (total > 0) {
+        calldataDecodeMetrics.abiDecodeSuccessRate.record(tally.decoded / total);
+      }
       this.inFlight = false;
     }
   }
 
-  private async processOne(): Promise<boolean> {
+  private async processOne(): Promise<'decoded' | 'partial' | 'miss' | null> {
     return this.pgDb.transaction().execute(async (trx) => {
       const [row] = await this.actions.findPendingDecodeForUpdate(trx, 1);
-      if (!row) return false;
+      if (!row) return null;
 
       let result: DecodeResult;
       try {
@@ -68,7 +74,7 @@ export class CalldataDecoderWorkerService implements OnApplicationBootstrap {
           arguments: result.decodedArguments,
         });
         calldataDecodeMetrics.outcomes.add(1, { outcome: 'decoded', source: result.source });
-        return true;
+        return 'decoded';
       }
 
       const retryAt = jitteredRetryAt();
@@ -79,12 +85,12 @@ export class CalldataDecoderWorkerService implements OnApplicationBootstrap {
           functionSignatureGuess: result.functionSignatureGuess,
         });
         calldataDecodeMetrics.outcomes.add(1, { outcome: 'partial', source: 'selector_index' });
-        return true;
+        return 'partial';
       }
 
       await this.actions.markUndecodable(trx, row.id, { retryAt });
       calldataDecodeMetrics.outcomes.add(1, { outcome: 'miss' });
-      return true;
+      return 'miss';
     });
   }
 }

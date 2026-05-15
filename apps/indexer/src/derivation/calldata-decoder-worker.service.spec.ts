@@ -5,6 +5,7 @@ vi.mock('./calldata-decode-metrics', () => ({
   calldataDecodeMetrics: {
     outcomes: { add: vi.fn() },
     tickDurationSeconds: { record: vi.fn() },
+    abiDecodeSuccessRate: { record: vi.fn() },
   },
 }));
 
@@ -185,5 +186,44 @@ describe('CalldataDecoderWorkerService', () => {
     // inFlight must be reset so a subsequent tick can run
     await expect(worker.tick()).resolves.toBeUndefined();
     expect(badDb.transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it('#9 — success rate gauge recorded after a tick with mixed outcomes', async () => {
+    // Two rows: first decoded, second miss
+    const actions = {
+      findPendingDecodeForUpdate: vi
+        .fn()
+        .mockResolvedValueOnce([ROW])
+        .mockResolvedValueOnce([{ ...ROW, id: 'action-2' }])
+        .mockResolvedValue([]),
+      markDecoded: vi.fn().mockResolvedValue(undefined),
+      markUndecodable: vi.fn().mockResolvedValue(undefined),
+    };
+    const decoder = {
+      decode: vi
+        .fn()
+        .mockResolvedValueOnce({
+          kind: 'decoded',
+          decodedFunction: 'transfer(address,uint256)',
+          decodedArguments: {},
+          source: 'bundled_library',
+        } satisfies DecodeResult)
+        .mockResolvedValueOnce({ kind: 'miss' } satisfies DecodeResult),
+    };
+    const worker = makeWorker(actions as never, decoder as never);
+
+    await worker.tick();
+
+    // 1 decoded out of 2 total → 0.5
+    expect(calldataDecodeMetrics.abiDecodeSuccessRate.record).toHaveBeenCalledOnce();
+    expect(calldataDecodeMetrics.abiDecodeSuccessRate.record).toHaveBeenCalledWith(0.5);
+  });
+
+  it('#10 — success rate gauge not recorded when no rows processed', async () => {
+    const worker = makeWorker(makeActions([]));
+
+    await worker.tick();
+
+    expect(calldataDecodeMetrics.abiDecodeSuccessRate.record).not.toHaveBeenCalled();
   });
 });
