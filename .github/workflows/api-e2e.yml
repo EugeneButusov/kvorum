@@ -1,0 +1,80 @@
+name: API E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  api-e2e:
+    name: API e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: kvorum
+          POSTGRES_PASSWORD: kvorum
+          POSTGRES_DB: kvorum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kvorum"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        run: pnpm -w db:migrate
+        env:
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+
+      - name: API e2e tests
+        run: pnpm --filter api test:e2e
+        env:
+          NEST_HTTP_TESTS: '1'
+          CURSOR_SECRET: ci-dev-secret
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+          REDIS_URL: redis://localhost:6379

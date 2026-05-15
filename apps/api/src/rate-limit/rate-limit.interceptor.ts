@@ -1,5 +1,4 @@
 import {
-  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -14,6 +13,7 @@ import {
   type RateLimitResult,
 } from './rate-limiter.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { problemException } from '../http/problem-exception';
 import { apiMetrics } from '../observability/api-metrics';
 
 const SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS = 5;
@@ -52,10 +52,9 @@ export class RateLimitInterceptor implements NestInterceptor {
       response.setHeader('Retry-After', String(SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS));
       apiMetrics.rateLimitRejections.add(1, { tier, reason: 'redis_unavailable' });
       this.logger.warn('Rate limiter Redis unavailable — returning 503 (fall-open)');
-      throw new HttpException(
-        problemBody('service-unavailable', 503, 'Rate limiter backend is unavailable.'),
-        503,
-      );
+      throw problemException('service-unavailable', {
+        detail: 'Rate limiter backend is unavailable.',
+      });
     }
 
     response.setHeader('RateLimit-Limit', String(result.limit));
@@ -68,7 +67,7 @@ export class RateLimitInterceptor implements NestInterceptor {
         tier,
         reason: result.bindingWindow === 'day' ? 'quota_day' : 'quota_minute',
       });
-      throw new HttpException(problemBody('rate-limited', 429, 'Rate limit exceeded.'), 429);
+      throw problemException('rate-limited', { detail: 'Rate limit exceeded.' });
     }
 
     return next.handle();
@@ -77,14 +76,4 @@ export class RateLimitInterceptor implements NestInterceptor {
 
 function isTier(value: unknown): value is Tier {
   return typeof value === 'string' && value in TIERS;
-}
-
-// KNOWN-024: fold into H3 problem+json filter once it lands; delete this helper then.
-function problemBody(kind: 'rate-limited' | 'service-unavailable', status: number, detail: string) {
-  return {
-    type: `urn:error:${kind}`,
-    title: kind === 'rate-limited' ? 'Rate Limited' : 'Service Unavailable',
-    status,
-    detail,
-  };
 }

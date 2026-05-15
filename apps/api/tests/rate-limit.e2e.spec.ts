@@ -2,6 +2,7 @@ import { Controller, Get, Module } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { HttpModule } from '../src/http/http.module';
 import { RateLimitModule } from '../src/rate-limit/rate-limit.module';
 import {
   RateLimiterService,
@@ -20,7 +21,7 @@ class TestController {
 }
 
 @Module({
-  imports: [RateLimitModule],
+  imports: [HttpModule, RateLimitModule],
   controllers: [TestController],
 })
 class TestRateLimitAppModule {}
@@ -63,6 +64,8 @@ describeHttpIf('rate-limit headers e2e', () => {
       expect(response.headers['ratelimit-remaining']).toBe('0');
       expect(response.headers['ratelimit-reset']).toBe('20');
       expect(response.headers['retry-after']).toBe('20');
+      expect(response.headers['content-type']).toContain('application/problem+json');
+      expect(response.body.type).toBe('https://kvorum.example/errors/rate-limited');
     } finally {
       await app.close();
     }
@@ -78,6 +81,8 @@ describeHttpIf('rate-limit headers e2e', () => {
 
       expect(response.status).toBe(503);
       expect(response.headers['retry-after']).toBe('5');
+      expect(response.headers['content-type']).toContain('application/problem+json');
+      expect(response.body.type).toBe('https://kvorum.example/errors/service-unavailable');
     } finally {
       await app.close();
     }
