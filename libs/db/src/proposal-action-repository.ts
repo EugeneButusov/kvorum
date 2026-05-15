@@ -73,7 +73,7 @@ export class ProposalActionRepository {
         decode_attempted_at: sql`now()`,
         decode_attempt_count: sql`decode_attempt_count + 1`,
         function_signature: sql`COALESCE(${args.functionSignatureGuess ?? null}, function_signature)`,
-        next_decode_at: sql`CASE WHEN decode_attempt_count + 1 >= 10 THEN NULL ELSE ${args.retryAt} END`,
+        next_decode_at: sql`CASE WHEN decode_attempt_count + 1 >= 10 THEN NULL ELSE ${args.retryAt}::timestamptz END`,
         decode_status: sql`CASE WHEN decode_attempt_count + 1 >= 10 THEN 'undecodable'::decode_status ELSE 'pending'::decode_status END`,
       })
       .where('id', '=', id)

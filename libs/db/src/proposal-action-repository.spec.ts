@@ -67,6 +67,7 @@ async function insertPendingAction(
   trx: typeof pgDb,
   proposalId: string,
   overrides: {
+    action_index?: number;
     calldata?: string;
     function_signature?: string | null;
     next_decode_at?: Date | null;
@@ -77,7 +78,7 @@ async function insertPendingAction(
     .insertInto('proposal_action')
     .values({
       proposal_id: proposalId,
-      action_index: 0,
+      action_index: overrides.action_index ?? 0,
       target_address: '0x' + 'c'.repeat(40),
       target_chain_id: '1',
       value_wei: '0',
@@ -108,7 +109,7 @@ describeWithDb('ProposalActionRepository — filter', () => {
 
         // future next_decode_at — not yet eligible
         const futureAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await insertPendingAction(trx, proposalId, { next_decode_at: futureAt });
+        await insertPendingAction(trx, proposalId, { action_index: 1, next_decode_at: futureAt });
 
         // decoded — must be excluded
         const [decoded] = await trx
