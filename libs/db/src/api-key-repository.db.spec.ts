@@ -1,5 +1,5 @@
-import { pgDb } from './client';
 import { ApiKeyRepository } from './api-key-repository';
+import { pgDb } from './client';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 
