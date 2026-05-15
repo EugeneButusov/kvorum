@@ -78,7 +78,7 @@ function isTier(value: unknown): value is Tier {
 
 function problemBody(kind: 'rate-limited' | 'service-unavailable', status: number, detail: string) {
   return {
-    type: `https://kvorum.example/errors/${kind}`,
+    type: `urn:error:${kind}`,
     title: kind === 'rate-limited' ? 'Rate Limited' : 'Service Unavailable',
     status,
     detail,
