@@ -1,10 +1,9 @@
 import { Controller, Get, Logger, Module } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
+import { LoggingModule, usePinoNestLogger } from '@nest/logging';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { Logger as PinoLogger } from 'nestjs-pino';
 import { HttpModule } from '../src/http/http.module';
-import { LoggingModule } from '../src/logging/logging.module';
 
 const describeHttpIf = process.env.NEST_HTTP_TESTS === '1' ? describe : describe.skip;
 
@@ -32,7 +31,7 @@ describeHttpIf('structured request logging e2e', () => {
     }).compile();
 
     const app = moduleRef.createNestApplication({ bufferLogs: true });
-    app.useLogger(app.get(PinoLogger));
+    usePinoNestLogger(app);
     await app.init();
     return app;
   }

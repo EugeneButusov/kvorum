@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'libs/*'
   - 'libs/sources/*'
+  - 'nest/logging'
   - 'nest/observability'
   - 'nest/sources/*'
 allowBuilds:
