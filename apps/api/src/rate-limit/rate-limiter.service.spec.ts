@@ -12,13 +12,12 @@ describe('RateLimiterService', () => {
     const result = await service.consume('apikey:k1', 'authenticated_free', 1_700_000_000_000);
 
     expect(slidingWindow).toHaveBeenCalledWith(
-      'rl:apikey:k1:m:28333333',
-      'rl:apikey:k1:m:28333332',
-      'rl:apikey:k1:d:19675',
-      'rl:apikey:k1:d:19674',
+      'rl:apikey:k1:m',
+      'rl:apikey:k1:d',
       1_700_000_000_000,
       60,
       10_000,
+      expect.any(String),
     );
     expect(result).toEqual({
       allowed: true,

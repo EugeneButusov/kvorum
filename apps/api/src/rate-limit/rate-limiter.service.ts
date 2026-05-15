@@ -28,15 +28,8 @@ export class RateLimiterService {
 
   async consume(identity: string, tier: Tier, nowMs = Date.now()): Promise<RateLimitResult> {
     const limits = TIERS[tier];
-    const minuteBucket = Math.floor(nowMs / 60_000);
-    const dayBucket = Math.floor(nowMs / 86_400_000);
-
-    const keys = [
-      `rl:${identity}:m:${minuteBucket}`,
-      `rl:${identity}:m:${minuteBucket - 1}`,
-      `rl:${identity}:d:${dayBucket}`,
-      `rl:${identity}:d:${dayBucket - 1}`,
-    ];
+    const keys = [`rl:${identity}:m`, `rl:${identity}:d`];
+    const requestMember = `${nowMs}:${Math.random().toString(36).slice(2, 12)}`;
 
     try {
       const response = await this.redis.slidingWindow(
@@ -44,6 +37,7 @@ export class RateLimiterService {
         nowMs,
         limits.perMinute,
         limits.perDay,
+        requestMember,
       );
 
       return mapResult(response);

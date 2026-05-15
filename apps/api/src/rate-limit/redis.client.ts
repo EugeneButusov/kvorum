@@ -17,7 +17,7 @@ export function createRateLimitRedis(config: RateLimitConfig): SlidingWindowRedi
   }) as SlidingWindowRedis;
 
   redis.defineCommand('slidingWindow', {
-    numberOfKeys: 4,
+    numberOfKeys: 2,
     lua: SLIDING_WINDOW_LUA,
   });
 
