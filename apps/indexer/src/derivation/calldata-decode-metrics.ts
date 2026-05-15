@@ -1,9 +1,14 @@
-import { defineCounter, defineHistogram } from '@libs/observability';
+import { defineCounter, defineGauge, defineHistogram } from '@libs/observability';
 
 export const calldataDecodeMetrics = {
   outcomes: defineCounter({
     name: 'derivation_calldata_decode_outcomes',
     description: 'Decode-pipeline outcomes by source and outcome',
+  }),
+  abiDecodeSuccessRate: defineGauge({
+    name: 'derivation_abi_decode_success_rate',
+    description:
+      'Fraction of calldata decode attempts that fully decoded in the last worker tick (decoded / total)',
   }),
   tickDurationSeconds: defineHistogram({
     name: 'derivation_calldata_decode_tick_duration_seconds',
