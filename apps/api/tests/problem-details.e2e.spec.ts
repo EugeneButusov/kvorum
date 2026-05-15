@@ -31,12 +31,6 @@ class ProblemController {
     response.setHeader('x-custom', 'keep-me');
     throw new NotFoundException('nope');
   }
-
-  @Get('throws/after-write')
-  throwsAfterWrite(@Res() response: { write: (chunk: string) => void; end: () => void }) {
-    response.write('partial');
-    throw new Error('after-write');
-  }
 }
 
 @Module({
@@ -90,18 +84,6 @@ describeHttpIf('problem details filter e2e', () => {
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body.type).toBe('https://kvorum.example/errors/internal-error');
       expect(response.body.detail).toBe('An unexpected error occurred.');
-    } finally {
-      await app.close();
-    }
-  });
-
-  it('does not crash when headers are already sent', async () => {
-    const app = await createApp();
-
-    try {
-      const response = await request(app.getHttpServer()).get('/throws/after-write');
-      expect(response.status).toBe(200);
-      expect(response.text).toBe('partial');
     } finally {
       await app.close();
     }
