@@ -9,6 +9,7 @@ import { CacheModule } from '../cache/cache.module';
 import { DaoModule } from '../daos/dao.module';
 import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
+import { ProposalModule } from '../proposals/proposal.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { RateLimitModule } from '../rate-limit/rate-limit.module';
     HttpModule,
     LoggingModule,
     ObservabilityModule,
+    ProposalModule,
     RateLimitModule,
   ],
   controllers: [AppController, HealthController],

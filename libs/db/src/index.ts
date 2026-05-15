@@ -23,6 +23,7 @@ export type {
   TimestampFillInput,
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
+export { ProposalReadRepository } from './proposal-read-repository';
 export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
 export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';
