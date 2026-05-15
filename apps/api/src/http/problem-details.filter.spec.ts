@@ -45,7 +45,7 @@ describe('ProblemDetailsFilter', () => {
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'application/problem+json');
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://kvorum.example/errors/unknown-filter',
+        type: 'urn:error:unknown-filter',
         detail: 'bad filter',
         instance: '/items',
         violations: [{ field: 'q', message: 'nope' }],
@@ -68,7 +68,7 @@ describe('ProblemDetailsFilter', () => {
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://kvorum.example/errors/validation',
+        type: 'urn:error:validation',
         violations: expect.arrayContaining([{ field: 'user.age', message: expect.any(String) }]),
       }),
     );
@@ -83,7 +83,7 @@ describe('ProblemDetailsFilter', () => {
     expect(response.status).toHaveBeenCalledWith(404);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://kvorum.example/errors/not-found',
+        type: 'urn:error:not-found',
         instance: '/missing?x=1',
       }),
     );
@@ -98,7 +98,7 @@ describe('ProblemDetailsFilter', () => {
     expect(response.status).toHaveBeenCalledWith(500);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://kvorum.example/errors/internal-error',
+        type: 'urn:error:internal-error',
         detail: 'An unexpected error occurred.',
       }),
     );

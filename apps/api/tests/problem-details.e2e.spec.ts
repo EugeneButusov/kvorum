@@ -54,7 +54,7 @@ describeHttpIf('problem details filter e2e', () => {
       const response = await request(app.getHttpServer()).get('/throws/zod');
       expect(response.status).toBe(400);
       expect(response.headers['content-type']).toContain('application/problem+json');
-      expect(response.body.type).toBe('https://kvorum.example/errors/validation');
+      expect(response.body.type).toBe('urn:error:validation');
       expect(Array.isArray(response.body.violations)).toBe(true);
     } finally {
       await app.close();
@@ -69,7 +69,7 @@ describeHttpIf('problem details filter e2e', () => {
       expect(response.status).toBe(404);
       expect(response.headers['x-custom']).toBe('keep-me');
       expect(response.headers['content-type']).toContain('application/problem+json');
-      expect(response.body.type).toBe('https://kvorum.example/errors/not-found');
+      expect(response.body.type).toBe('urn:error:not-found');
     } finally {
       await app.close();
     }
@@ -82,7 +82,7 @@ describeHttpIf('problem details filter e2e', () => {
       const response = await request(app.getHttpServer()).get('/throws/raw');
       expect(response.status).toBe(500);
       expect(response.headers['content-type']).toContain('application/problem+json');
-      expect(response.body.type).toBe('https://kvorum.example/errors/internal-error');
+      expect(response.body.type).toBe('urn:error:internal-error');
       expect(response.body.detail).toBe('An unexpected error occurred.');
     } finally {
       await app.close();

@@ -1,4 +1,4 @@
-export const ERROR_BASE = 'https://kvorum.example/errors';
+export const ERROR_BASE = 'urn:error';
 
 export type ProblemSlug =
   | 'validation'
@@ -31,7 +31,7 @@ export const PROBLEM_META: Record<ProblemSlug, ProblemMeta> = {
 };
 
 export function problemType(slug: ProblemSlug): string {
-  return `${ERROR_BASE}/${slug}`;
+  return `${ERROR_BASE}:${slug}`;
 }
 
 export function slugFromHttpStatus(status: number): ProblemSlug {

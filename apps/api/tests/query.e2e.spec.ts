@@ -169,7 +169,7 @@ describeHttpIf('query e2e', () => {
       );
 
       expect(response.status).toBe(400);
-      expect(response.body.type).toBe('https://kvorum.example/errors/cursor-parameter-mismatch');
+      expect(response.body.type).toBe('urn:error:cursor-parameter-mismatch');
       expect(Array.isArray(response.body.violations)).toBe(true);
     } finally {
       await app.close();
@@ -188,7 +188,7 @@ describeHttpIf('query e2e', () => {
       );
 
       expect(response.status).toBe(400);
-      expect(response.body.type).toBe('https://kvorum.example/errors/invalid-cursor');
+      expect(response.body.type).toBe('urn:error:invalid-cursor');
     } finally {
       await app.close();
     }
@@ -204,11 +204,11 @@ describeHttpIf('query e2e', () => {
 
       const unknownFilter = await request(app.getHttpServer()).get('/proposals?bogus=1');
       expect(unknownFilter.status).toBe(400);
-      expect(unknownFilter.body.type).toBe('https://kvorum.example/errors/unknown-filter');
+      expect(unknownFilter.body.type).toBe('urn:error:unknown-filter');
 
       const unknownSort = await request(app.getHttpServer()).get('/proposals?sort=nope');
       expect(unknownSort.status).toBe(400);
-      expect(unknownSort.body.type).toBe('https://kvorum.example/errors/unknown-sort-field');
+      expect(unknownSort.body.type).toBe('urn:error:unknown-sort-field');
     } finally {
       await app.close();
     }

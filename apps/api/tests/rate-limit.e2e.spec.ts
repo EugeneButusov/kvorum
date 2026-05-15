@@ -65,7 +65,7 @@ describeHttpIf('rate-limit headers e2e', () => {
       expect(response.headers['ratelimit-reset']).toBe('20');
       expect(response.headers['retry-after']).toBe('20');
       expect(response.headers['content-type']).toContain('application/problem+json');
-      expect(response.body.type).toBe('https://kvorum.example/errors/rate-limited');
+      expect(response.body.type).toBe('urn:error:rate-limited');
     } finally {
       await app.close();
     }
@@ -82,7 +82,7 @@ describeHttpIf('rate-limit headers e2e', () => {
       expect(response.status).toBe(503);
       expect(response.headers['retry-after']).toBe('5');
       expect(response.headers['content-type']).toContain('application/problem+json');
-      expect(response.body.type).toBe('https://kvorum.example/errors/service-unavailable');
+      expect(response.body.type).toBe('urn:error:service-unavailable');
     } finally {
       await app.close();
     }
