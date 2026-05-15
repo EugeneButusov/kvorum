@@ -3,12 +3,12 @@ import type { SourcePlugin } from '@sources/core';
 import { CompoundSourceModule, COMPOUND_PLUGIN } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
+import { ChainContextModule } from '../orchestrator/chain-context.module';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
-import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, DerivationModule, CompoundSourceModule],
