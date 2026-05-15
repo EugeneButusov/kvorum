@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { HealthController } from './health.controller';
 import { AuthModule } from '../auth/auth.module';
 import { CacheModule } from '../cache/cache.module';
+import { DaoModule } from '../daos/dao.module';
 import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
@@ -14,6 +15,7 @@ import { RateLimitModule } from '../rate-limit/rate-limit.module';
   imports: [
     AuthModule,
     CacheModule,
+    DaoModule,
     HttpModule,
     LoggingModule,
     ObservabilityModule,

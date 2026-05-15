@@ -91,6 +91,7 @@ function parseSort(rawSort: unknown, descriptor: EndpointQuery): ParsedSort[] {
         column: sortable.column,
         dir: entry.dir,
         nullable: sortable.nullable ?? false,
+        kind: sortable.kind,
       };
     });
   }
@@ -115,6 +116,7 @@ function parseSort(rawSort: unknown, descriptor: EndpointQuery): ParsedSort[] {
       column: sortable.column,
       dir,
       nullable: sortable.nullable ?? false,
+      kind: sortable.kind,
     };
   });
 }
