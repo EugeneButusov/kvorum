@@ -68,6 +68,7 @@ describe('parseQuery', () => {
         column: 'proposal.created_at',
         dir: 'desc',
         nullable: false,
+        kind: undefined,
       },
     ]);
   });

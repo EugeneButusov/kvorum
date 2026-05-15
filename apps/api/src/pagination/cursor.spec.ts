@@ -33,6 +33,7 @@ const parsedQuery: ParsedQuery = {
       column: 'proposal.created_at',
       dir: 'desc',
       nullable: false,
+      kind: undefined,
     },
   ],
 };
@@ -122,7 +123,15 @@ describe('cursor', () => {
           value: 'Cafe\u0301',
         },
       },
-      sort: [{ field: 'created_at', column: 'proposal.created_at', dir: 'asc', nullable: false }],
+      sort: [
+        {
+          field: 'created_at',
+          column: 'proposal.created_at',
+          dir: 'asc',
+          nullable: false,
+          kind: undefined,
+        },
+      ],
     };
 
     const q2: ParsedQuery = {
@@ -142,12 +151,28 @@ describe('cursor', () => {
           value: ['a', 'b'],
         },
       },
-      sort: [{ field: 'created_at', column: 'proposal.created_at', dir: 'asc', nullable: false }],
+      sort: [
+        {
+          field: 'created_at',
+          column: 'proposal.created_at',
+          dir: 'asc',
+          nullable: false,
+          kind: undefined,
+        },
+      ],
     };
 
     const q3: ParsedQuery = {
       ...q2,
-      sort: [{ field: 'created_at', column: 'proposal.created_at', dir: 'desc', nullable: false }],
+      sort: [
+        {
+          field: 'created_at',
+          column: 'proposal.created_at',
+          dir: 'desc',
+          nullable: false,
+          kind: undefined,
+        },
+      ],
     };
 
     expect(canonicalQuery(q1)).toBe(canonicalQuery(q2));
