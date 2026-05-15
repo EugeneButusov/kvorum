@@ -5,11 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
 import { AuthModule } from '../auth/auth.module';
+import { CacheModule } from '../cache/cache.module';
 import { HttpModule } from '../http/http.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 
 @Module({
-  imports: [AuthModule, HttpModule, LoggingModule, RateLimitModule],
+  imports: [AuthModule, CacheModule, HttpModule, LoggingModule, RateLimitModule],
   controllers: [AppController, HealthController],
   providers: [AppService, OpsServer],
 })
