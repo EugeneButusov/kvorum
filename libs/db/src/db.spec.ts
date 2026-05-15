@@ -179,6 +179,109 @@ describeWithDb('ingestion domain smoke test', () => {
   });
 });
 
+describeWithDb('decode tracking schema (migration 0005)', () => {
+  it('idx_proposal_action_pending_decode exists and filters by decode_status=pending', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        // Verify the partial index was created by the migration.
+        const indexes = await trx
+          .selectFrom('pg_indexes')
+          .select(['indexname'])
+          .where('tablename', '=', 'proposal_action')
+          .where('indexname', '=', 'idx_proposal_action_pending_decode')
+          .execute();
+        expect(indexes).toHaveLength(1);
+
+        // Insert minimal FK chain.
+        const [dao] = await trx
+          .insertInto('dao')
+          .values({
+            slug: `schema-smoke-dao-${Date.now()}`,
+            name: 'Schema Smoke',
+            primary_token_address: '0x' + 'a'.repeat(40),
+            primary_chain_id: '1',
+            description: 'test',
+            website_url: 'https://example.com',
+            forum_url: 'https://example.com',
+            updated_at: new Date(),
+          })
+          .returning(['id'])
+          .execute();
+
+        const [actor] = await trx
+          .insertInto('actor')
+          .values({ primary_address: '0x' + 'b'.repeat(40), updated_at: new Date() })
+          .returning(['id'])
+          .execute();
+
+        const now = new Date();
+        const [proposal] = await trx
+          .insertInto('proposal')
+          .values({
+            dao_id: dao!.id,
+            source_type: 'compound_governor',
+            source_id: `schema-smoke-${Date.now()}`,
+            proposer_actor_id: actor!.id,
+            description: 'test',
+            description_hash: 'a'.repeat(64),
+            binding: true,
+            voting_starts_at: null,
+            voting_ends_at: null,
+            voting_starts_block: '1',
+            voting_ends_block: '2',
+            voting_power_block: '1',
+            state: 'active',
+            state_updated_at: now,
+            updated_at: now,
+          })
+          .returning(['id'])
+          .execute();
+
+        // Insert one pending and one decoded action.
+        const [pending] = await trx
+          .insertInto('proposal_action')
+          .values({
+            proposal_id: proposal!.id,
+            action_index: 0,
+            target_address: '0x' + 'c'.repeat(40),
+            target_chain_id: '1',
+            value_wei: '0',
+            calldata: '0xa9059cbb',
+          })
+          .returning(['id'])
+          .execute();
+
+        await trx
+          .insertInto('proposal_action')
+          .values({
+            proposal_id: proposal!.id,
+            action_index: 1,
+            target_address: '0x' + 'd'.repeat(40),
+            target_chain_id: '1',
+            value_wei: '0',
+            calldata: '0x',
+            decode_status: 'decoded',
+          })
+          .execute();
+
+        // A query filtered by decode_status='pending' should only return the pending row.
+        const rows = await trx
+          .selectFrom('proposal_action')
+          .select(['id', 'decode_status'])
+          .where('decode_status', '=', 'pending')
+          .where('proposal_id', '=', proposal!.id)
+          .execute();
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.id).toBe(pending!.id);
+        expect(rows[0]!.decode_status).toBe('pending');
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+});
+
 describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
   it('follows PG-first existence check → CH insert → PG insert protocol', async () => {
     // Fixed tuple for this smoke run — unique enough to not collide with real data.

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
+import { FailoverRpcClient, HeadTracker, ReorgDetector, ProxyResolver } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 
 export interface ChainContext {
@@ -7,6 +7,7 @@ export interface ChainContext {
   headTracker: HeadTracker;
   reorgDetector: ReorgDetector;
   chainCfg: ChainConfig;
+  proxyResolver: ProxyResolver;
 }
 
 @Injectable()
@@ -42,7 +43,9 @@ export class ChainContextRegistry {
     reorgDetector.attach(headTracker);
     await headTracker.start();
 
-    const ctx: ChainContext = { client, headTracker, reorgDetector, chainCfg };
+    const proxyResolver = new ProxyResolver({ rpcClient: client, chainName: chainCfg.name });
+
+    const ctx: ChainContext = { client, headTracker, reorgDetector, chainCfg, proxyResolver };
     this.map.set(chainCfg.chainId, ctx);
     return ctx;
   }

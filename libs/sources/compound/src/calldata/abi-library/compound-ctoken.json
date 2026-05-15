@@ -1,0 +1,55 @@
+[
+  {
+    "type": "function",
+    "name": "_setInterestRateModel",
+    "inputs": [{ "name": "newInterestRateModel", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setReserveFactor",
+    "inputs": [{ "name": "newReserveFactorMantissa", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_reduceReserves",
+    "inputs": [{ "name": "reduceAmount", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setComptroller",
+    "inputs": [{ "name": "newComptroller", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setImplementation",
+    "inputs": [
+      { "name": "implementation_", "type": "address" },
+      { "name": "allowResign", "type": "bool" },
+      { "name": "becomeImplementationData", "type": "bytes" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_acceptAdmin",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setPendingAdmin",
+    "inputs": [{ "name": "newPendingAdmin", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  }
+]

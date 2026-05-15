@@ -1,0 +1,132 @@
+[
+  {
+    "type": "function",
+    "name": "_setCollateralFactor",
+    "inputs": [
+      { "name": "cToken", "type": "address" },
+      { "name": "newCollateralFactorMantissa", "type": "uint256" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_supportMarket",
+    "inputs": [{ "name": "cToken", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setBorrowCap",
+    "inputs": [
+      { "name": "cToken", "type": "address" },
+      { "name": "newBorrowCap", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setMintPaused",
+    "inputs": [
+      { "name": "cToken", "type": "address" },
+      { "name": "state", "type": "bool" }
+    ],
+    "outputs": [{ "name": "", "type": "bool" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setBorrowPaused",
+    "inputs": [
+      { "name": "cToken", "type": "address" },
+      { "name": "state", "type": "bool" }
+    ],
+    "outputs": [{ "name": "", "type": "bool" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setSeizePaused",
+    "inputs": [{ "name": "state", "type": "bool" }],
+    "outputs": [{ "name": "", "type": "bool" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setPriceOracle",
+    "inputs": [{ "name": "newOracle", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setCloseFactor",
+    "inputs": [{ "name": "newCloseFactorMantissa", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setLiquidationIncentive",
+    "inputs": [{ "name": "newLiquidationIncentiveMantissa", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setCompSpeed",
+    "inputs": [
+      { "name": "cToken", "type": "address" },
+      { "name": "compSpeed", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setCompSpeeds",
+    "inputs": [
+      { "name": "cTokens", "type": "address[]" },
+      { "name": "supplySpeeds", "type": "uint256[]" },
+      { "name": "borrowSpeeds", "type": "uint256[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_grantComp",
+    "inputs": [
+      { "name": "recipient", "type": "address" },
+      { "name": "amount", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "_setMarketBorrowCaps",
+    "inputs": [
+      { "name": "cTokens", "type": "address[]" },
+      { "name": "newBorrowCaps", "type": "uint256[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimComp",
+    "inputs": [{ "name": "holder", "type": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "enterMarkets",
+    "inputs": [{ "name": "cTokens", "type": "address[]" }],
+    "outputs": [{ "name": "", "type": "uint256[]" }],
+    "stateMutability": "nonpayable"
+  }
+]

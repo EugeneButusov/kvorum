@@ -41,6 +41,7 @@ export type {
   DaoSourceUpdate,
   DaoTable,
   DaoUpdate,
+  DecodeStatus,
   NewActor,
   NewDao,
   NewDaoSource,

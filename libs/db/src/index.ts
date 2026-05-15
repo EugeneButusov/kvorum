@@ -1,4 +1,5 @@
 export { pgDb, chDb } from './client';
+export { AbiCacheRepository } from './abi-cache-repository';
 export { ActorRepository } from './actor-repository';
 export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
@@ -8,6 +9,9 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
+export type { PendingDecodeRow } from './proposal-action-repository';
+export { ProposalActionRepository } from './proposal-action-repository';
+export { SelectorIndexRepository } from './selector-index-repository';
 export type {
   AdvanceProposalStateInput,
   InsertProposalResult,
@@ -44,6 +48,7 @@ export type {
   DaoSourceUpdate,
   DaoTable,
   DaoUpdate,
+  DecodeStatus,
   NewActor,
   NewDao,
   NewDaoSource,

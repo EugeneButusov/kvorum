@@ -1,4 +1,19 @@
 export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices';
+export { CalldataDecoder } from './calldata/decoder';
+export type { DecodeInput } from './calldata/decoder';
+export { ChainNotReadyError } from './calldata/types';
+export type {
+  DecodeResult,
+  DecodeSource,
+  DecoderDependencies,
+  EtherscanClientLike,
+} from './calldata/types';
+export { loadAbiLibrary } from './calldata/abi-library';
+export type { LoadedAbiLibrary, AbiEntry } from './calldata/abi-library';
+export { EtherscanClient } from './calldata/etherscan-client';
+export type { EtherscanClientConfig } from './calldata/etherscan-client';
+export { readCalldataDecoderConfig } from './calldata/config';
+export type { CalldataDecoderConfig, EtherscanConfig } from './calldata/config';
 // Re-export the CH table type so @sources/compound is the canonical
 // import point for consumers of the compound archive schema.
 export type {
