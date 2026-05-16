@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
+import { buildContainer } from '../bootstrap.js';
 import {
   emit,
   emitNotImplemented,

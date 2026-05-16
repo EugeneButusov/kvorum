@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Command } from 'commander';
-import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
+import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 
 type DeriveCommon = { format?: string };

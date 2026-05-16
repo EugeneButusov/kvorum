@@ -1,4 +1,3 @@
-import { sql } from 'kysely';
 import { pgDb } from './client';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.

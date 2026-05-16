@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { chDb, ConfirmationRepository, DaoSourceRepository, DlqRepository, pgDb } from '@libs/db';
-import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
+import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 
 type DlqCommon = { format?: string };
