@@ -5,7 +5,7 @@ import type { DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import { COMPOUND_EVENT_TOPICS } from './events';
-import type { IngesterListenerDeps } from './ingester-listener';
+import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
 
 const CTX: ArchiveWriteContext = {
@@ -250,5 +250,50 @@ describe('makeIngesterListener', () => {
     await listener([log]);
     expect(recordSpy).toHaveBeenCalledOnce();
     expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), { source: 'compound_governor' });
+  });
+
+  it('#9 — onWriteFailure=throw: CH failure aborts the batch (rethrows)', async () => {
+    const chError = new Error('CH connection refused');
+    let callCount = 0;
+    const deps: IngesterListenerDeps = makeDeps(() => {
+      callCount++;
+      return Promise.reject(chError);
+    });
+    const options: IngesterListenerOptions = { onWriteFailure: 'throw' };
+    const listener = makeIngesterListener(deps, options);
+
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const enc = (id: bigint, idx: number) => {
+      const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
+        COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
+        [id],
+      );
+      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
+    };
+
+    await expect(listener([enc(1n, 0), enc(2n, 1)])).rejects.toThrow('CH connection refused');
+    // second event is never reached because the first failure rethrows
+    expect(callCount).toBe(1);
+  });
+
+  it('#10 — onWriteFailure=swallow (default): CH failure swallowed, batch continues', async () => {
+    let callCount = 0;
+    const deps = makeDeps(() => {
+      callCount++;
+      return Promise.reject(new Error('CH down'));
+    });
+    const listener = makeIngesterListener(deps); // no onWriteFailure → defaults to swallow
+
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const enc = (id: bigint, idx: number) => {
+      const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
+        COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
+        [id],
+      );
+      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
+    };
+
+    await expect(listener([enc(1n, 0), enc(2n, 1)])).resolves.not.toThrow();
+    expect(callCount).toBe(2);
   });
 });

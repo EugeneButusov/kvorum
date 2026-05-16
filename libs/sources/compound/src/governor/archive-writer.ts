@@ -62,6 +62,7 @@ export class ArchiveWriter {
     }
 
     const receivedAt = this.now();
+    const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
     // Step 2 — event archive insert (idempotent; errors propagate to listener)
     await this.eventRepo.insert({
@@ -86,8 +87,8 @@ export class ArchiveWriter {
       log_index: logRef.logIndex,
       event_type: decoded.type,
       received_at: receivedAt,
-      confirmation_status: 'pending',
-      confirmed_at: null,
+      confirmation_status: confirmationStatus,
+      confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
       orphaned_at: null,
       orphaned_by_reorg_event_id: null,
       derived_at: null,
