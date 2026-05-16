@@ -1,9 +1,19 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { DaoReadRepository } from '@libs/db';
+import { DaoDetailResponseDto, DaoListResponseDto, DaoSourceListResponseDto } from './dao.dto';
 import { toDaoDetailDto, toDaoListItemDto, toDaoSourceDto } from './dao.mappers';
 import { DAO_LIST_QUERY } from './dao.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ProblemDto } from '../openapi/openapi.dto';
 import {
   assertCursorMatchesQuery,
   buildPagination,
@@ -14,10 +24,17 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
+@ApiTags('daos')
+@ApiBearerAuth()
 @Controller('v1/daos')
 export class DaoController {
   constructor(private readonly repo: DaoReadRepository) {}
 
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'sort', required: false, type: String, example: 'slug,-created_at' })
+  @ApiOkResponse({ type: DaoListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async list(@Query() rawQuery: Record<string, unknown>) {
@@ -27,7 +44,6 @@ export class DaoController {
     const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
-      // ADR-044: conflicting cursor/query params are a 400 cursor-parameter-mismatch.
       assertCursorMatchesQuery(cursor, parsed);
     }
 
@@ -59,6 +75,9 @@ export class DaoController {
     };
   }
 
+  @ApiOkResponse({ type: DaoDetailResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get(':slug')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async detail(@Param('slug') slug: string) {
@@ -72,6 +91,9 @@ export class DaoController {
     return { data: toDaoDetailDto(dao, sources) };
   }
 
+  @ApiOkResponse({ type: DaoSourceListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get(':slug/sources')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async sources(@Param('slug') slug: string) {

@@ -1,9 +1,20 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
+import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ProblemDto } from '../openapi/openapi.dto';
 import {
   assertCursorMatchesQuery,
   buildPagination,
@@ -14,6 +25,8 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
+@ApiTags('proposals')
+@ApiBearerAuth()
 @Controller('v1')
 export class ProposalController {
   constructor(
@@ -21,6 +34,19 @@ export class ProposalController {
     private readonly daoRepo: DaoReadRepository,
   ) {}
 
+  @ApiParam({ name: 'slug', type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'state', required: false, type: String })
+  @ApiQuery({ name: 'source_type', required: false, type: String })
+  @ApiQuery({ name: 'proposer', required: false, type: String })
+  @ApiQuery({ name: 'binding', required: false, type: Boolean })
+  @ApiQuery({ name: 'voting_starts_at_min', required: false, type: String })
+  @ApiQuery({ name: 'voting_starts_at_max', required: false, type: String })
+  @ApiQuery({ name: 'sort', required: false, type: String })
+  @ApiOkResponse({ type: ProposalListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async listByDao(@Param('slug') slug: string, @Query() rawQuery: Record<string, unknown>) {
@@ -34,7 +60,6 @@ export class ProposalController {
     const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
-      // ADR-044: conflicting cursor/query params are a 400 cursor-parameter-mismatch.
       assertCursorMatchesQuery(cursor, parsed);
     }
 
@@ -61,6 +86,12 @@ export class ProposalController {
     };
   }
 
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: ProposalDetailResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals/:source_type/:source_id')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async detail(
@@ -81,6 +112,16 @@ export class ProposalController {
     return { data: toProposalDetailDto(row, actions, choices) };
   }
 
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'dao', required: false, type: String })
+  @ApiQuery({ name: 'state', required: false, type: String })
+  @ApiQuery({ name: 'binding', required: false, type: Boolean })
+  @ApiQuery({ name: 'voting_starts_at_min', required: false, type: String })
+  @ApiQuery({ name: 'voting_starts_at_max', required: false, type: String })
+  @ApiQuery({ name: 'sort', required: false, type: String })
+  @ApiOkResponse({ type: ProposalListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get('proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async listCrossDao(@Query() rawQuery: Record<string, unknown>) {
@@ -89,7 +130,6 @@ export class ProposalController {
     const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
-      // ADR-044: conflicting cursor/query params are a 400 cursor-parameter-mismatch.
       assertCursorMatchesQuery(cursor, parsed);
     }
 

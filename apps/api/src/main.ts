@@ -3,6 +3,7 @@ process.env['OTEL_SERVICE_NAME'] ??= 'api';
 import { NestFactory } from '@nestjs/core';
 import { usePinoNestLogger } from '@nest/logging';
 import { AppModule } from './app/app.module';
+import { configureOpenApi } from './openapi/openapi';
 import { getCursorConfig } from './pagination/cursor.config';
 
 async function bootstrap() {
@@ -10,6 +11,7 @@ async function bootstrap() {
   getCursorConfig();
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   usePinoNestLogger(app);
+  configureOpenApi(app);
   app.enableShutdownHooks();
   await app.listen(process.env['API_PORT'] ?? 3001);
 }

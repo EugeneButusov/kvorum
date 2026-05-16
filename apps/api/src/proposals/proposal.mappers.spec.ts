@@ -21,6 +21,7 @@ describe('proposal.mappers', () => {
 
   it('maps list item without heavy fields', () => {
     const dto = toProposalListItemDto(row);
+    expect(Object.getPrototypeOf(dto).constructor.name).toBe('ProposalListItemDto');
     expect(dto.proposer.address).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     expect(dto.voting_power_block).toBe('19854210');
     expect((dto as Record<string, unknown>)['description']).toBeUndefined();
@@ -56,9 +57,17 @@ describe('proposal.mappers', () => {
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
+    expect(Object.getPrototypeOf(dto).constructor.name).toBe('ProposalDetailDto');
     expect(dto._meta.confirmed).toBe(true);
     expect(dto.actions[0]?.target_address).toBe('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
     expect(dto.choices[0]?.value).toBe('For');
     expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+  });
+
+  it('keeps nullable title as null and does not leak undefined own-properties', () => {
+    const dto = toProposalListItemDto({ ...row, title: null });
+    expect(dto.title).toBeNull();
+    expect(Object.prototype.hasOwnProperty.call(dto, 'title')).toBe(true);
+    expect(Object.values(dto).includes(undefined)).toBe(false);
   });
 });
