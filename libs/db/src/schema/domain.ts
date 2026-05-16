@@ -54,6 +54,7 @@ export interface DaoSourceTable {
   active_to_block: string | null;
   backfill_started_at_block: string | null;
   backfill_head_block: string | null;
+  backfill_cancel_requested_at: Date | null;
   created_at: Generated<Date>;
 }
 
