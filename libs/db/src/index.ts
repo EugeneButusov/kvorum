@@ -12,6 +12,8 @@ export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoReadRepository } from './dao-read-repository';
+export { SystemStatusRepository } from './system-status-repository';
+export type { SystemStatusSnapshot } from './system-status-repository';
 export type { PendingDecodeRow } from './proposal-action-repository';
 export { ProposalActionRepository } from './proposal-action-repository';
 export { SelectorIndexRepository } from './selector-index-repository';

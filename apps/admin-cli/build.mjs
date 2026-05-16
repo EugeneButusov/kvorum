@@ -9,6 +9,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '../..');
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+const runtimeDependencies = {
+  '@founderpath/kysely-clickhouse': pkg.dependencies['@founderpath/kysely-clickhouse'],
+  kysely: pkg.dependencies['kysely'],
+  pg: pkg.dependencies['pg'],
+};
 
 // The banner injects a CJS-compatible `require` so that bundled CJS
 // dependencies (commander) can call require() inside an ESM context.
@@ -30,6 +35,9 @@ execFileSync(
     '--target=node24',
     '--format=esm',
     '--outfile=dist/apps/admin-cli/main.js',
+    '--external:pg',
+    '--external:kysely',
+    '--external:@founderpath/kysely-clickhouse',
     `--banner:js=${banner}`,
     `--define:PKG_VERSION="${pkg.version}"`,
   ],
@@ -38,4 +46,14 @@ execFileSync(
 
 // Write a package.json so Node.js recognises the ESM bundle without a
 // MODULE_TYPELESS_PACKAGE_JSON warning (the .js file uses import syntax).
-writeFileSync(join(outDir, 'package.json'), '{"type":"module"}\n');
+writeFileSync(
+  join(outDir, 'package.json'),
+  JSON.stringify(
+    {
+      type: 'module',
+      dependencies: runtimeDependencies,
+    },
+    null,
+    2,
+  ) + '\n',
+);
