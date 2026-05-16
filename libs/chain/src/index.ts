@@ -55,3 +55,10 @@ export type {
 export { EventPoller } from './poller/event-poller.js';
 export { HeadTracker } from './poller/head-tracker.js';
 export { buildIdempotencyKey } from './poller/utils/idempotency.utils.js';
+
+export { BackfillRangeFetcher } from './backfill/range-fetcher.js';
+export type {
+  BackfillRangeFetcherOptions,
+  BackfillRangeFetcherResult,
+} from './backfill/range-fetcher.js';
+export { BackfillChunkTooSmallError } from './backfill/errors.js';
