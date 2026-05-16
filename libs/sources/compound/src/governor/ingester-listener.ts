@@ -11,13 +11,19 @@ export interface IngesterListenerDeps {
   context: ArchiveWriteContext;
   logger: Logger;
   dlqRepo: DlqRepository;
+}
+
+export interface IngesterListenerOptions {
   /** 'throw' aborts the batch on a CH-write failure; used by the backfill driver (decision #9).
    *  Defaults to 'swallow' so live callers are byte-identical. */
   onWriteFailure?: 'swallow' | 'throw';
 }
 
 /** Returns an EventsListener that decodes and archives Compound Governor log events. */
-export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener {
+export function makeIngesterListener(
+  deps: IngesterListenerDeps,
+  options: IngesterListenerOptions = {},
+): EventsListener {
   return async (events: LogEvent[]) => {
     const batchStartMs = Date.now();
     try {
@@ -44,7 +50,7 @@ export function makeIngesterListener(deps: IngesterListenerDeps): EventsListener
             blockHash: log.blockHash,
             error: String(err),
           });
-          if ((deps.onWriteFailure ?? 'swallow') === 'throw') throw err;
+          if ((options.onWriteFailure ?? 'swallow') === 'throw') throw err;
         }
       }
     } finally {
