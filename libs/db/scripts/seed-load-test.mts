@@ -1,5 +1,4 @@
 import { createHmac } from 'node:crypto';
-import { pgDb } from '../src/client';
 
 const TEST_PEPPER = Buffer.alloc(32, 7);
 const TEST_BEARER_KEY = `${'kv_live_'}${'a'.repeat(32)}`;
@@ -25,6 +24,9 @@ function ts(base: Date, offsetMinutes: number): Date {
 }
 
 async function main(): Promise<void> {
+  process.env['DATABASE_URL'] ??= 'postgresql://kvorum:kvorum@localhost:5432/kvorum';
+  const { pgDb } = await import('../src/client');
+  dbRef = pgDb;
   await pgDb
     .deleteFrom('proposal_choice')
     .execute();
@@ -200,11 +202,15 @@ async function main(): Promise<void> {
   });
 }
 
+let dbRef: Awaited<ReturnType<typeof import('../src/client')>>['pgDb'] | undefined;
+
 main()
   .catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
   })
   .finally(async () => {
-    await pgDb.destroy();
+    if (dbRef !== undefined) {
+      await dbRef.destroy();
+    }
   });
