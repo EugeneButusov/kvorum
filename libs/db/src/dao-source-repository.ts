@@ -41,6 +41,15 @@ export class DaoSourceRepository {
 
   /** Returns the source row joined with its chain — the full shape the backfill driver needs. */
   async findByIdWithChain(id: string) {
+    return this.findWithChainWhere('dao_source.id', id);
+  }
+
+  /** Same as findByIdWithChain but keyed on source_type (assumes one row per type). */
+  async findBySourceTypeWithChain(sourceType: string) {
+    return this.findWithChainWhere('dao_source.source_type', sourceType);
+  }
+
+  private findWithChainWhere(column: 'dao_source.id' | 'dao_source.source_type', value: string) {
     return this.db
       .selectFrom('dao_source')
       .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
@@ -54,7 +63,7 @@ export class DaoSourceRepository {
         'dao_source.backfill_head_block',
         'dao.primary_chain_id',
       ])
-      .where('dao_source.id', '=', id)
+      .where(column, '=', value)
       .executeTakeFirst();
   }
 
@@ -87,6 +96,17 @@ export class DaoSourceRepository {
   }
 
   async readBackfillStatus(id: string): Promise<BackfillStatusRow | undefined> {
+    return this.readBackfillStatusWhere('dao_source.id', id);
+  }
+
+  async readBackfillStatusBySourceType(sourceType: string): Promise<BackfillStatusRow | undefined> {
+    return this.readBackfillStatusWhere('dao_source.source_type', sourceType);
+  }
+
+  private readBackfillStatusWhere(
+    column: 'dao_source.id' | 'dao_source.source_type',
+    value: string,
+  ): Promise<BackfillStatusRow | undefined> {
     return this.db
       .selectFrom('dao_source')
       .select([
@@ -94,7 +114,7 @@ export class DaoSourceRepository {
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
       ])
-      .where('dao_source.id', '=', id)
+      .where(column, '=', value)
       .executeTakeFirst();
   }
 }

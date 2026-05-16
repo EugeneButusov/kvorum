@@ -18,13 +18,13 @@ export function registerBackfill(program: Command): void {
   const backfill = program.command('backfill').description('Backfill management');
 
   backfill
-    .command('start <dao_source_id>')
+    .command('start <source_type>')
     .description('Start a backfill for a DAO source')
     .option('--from-block <N>', 'starting block number')
     .option('--to-block <N>', 'ending block number')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
-    .action(async function action(daoSourceId: string, opts: BackfillStartOptions) {
+    .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, silentLogger },
@@ -44,9 +44,9 @@ export function registerBackfill(program: Command): void {
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
-        const row = await daoSourceRepository.findByIdWithChain(daoSourceId);
+        const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
         if (row == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
+          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
         }
         if (row.source_type !== 'compound_governor') {
           fail(format, ExitCode.ValidationFailure, `unsupported source_type: ${row.source_type}`);
@@ -94,7 +94,7 @@ export function registerBackfill(program: Command): void {
         const rpcClient = new FailoverRpcClient(chainConfig, { logger: silentLogger });
         await rpcClient.start();
 
-        const status = await daoSourceRepository.readBackfillStatus(daoSourceId);
+        const status = await daoSourceRepository.readBackfillStatus(row.id);
         const mode =
           fromBlock != null
             ? 'fresh'
@@ -114,14 +114,15 @@ export function registerBackfill(program: Command): void {
               format,
               () =>
                 [
-                  `Would start backfill for ${daoSourceId}`,
+                  `Would start backfill for ${sourceType} (dao_source ${row.id})`,
                   `Mode: ${mode}`,
                   `From block: ${resolvedFromBlock.toString()}`,
                   `To block: ${resolvedToBlock.toString()}`,
                   `Cutoff block: ${cutoffBlock.toString()}`,
                 ].join('\n'),
               {
-                dao_source_id: daoSourceId,
+                source_type: sourceType,
+                dao_source_id: row.id,
                 dry_run: true,
                 mode,
                 from_block: resolvedFromBlock.toString(),
@@ -132,7 +133,7 @@ export function registerBackfill(program: Command): void {
             return;
           }
 
-          await withAudit('backfill start', { daoSourceId, ...opts }, async () => {
+          await withAudit('backfill start', { sourceType, ...opts }, async () => {
             const controller = new AbortController();
             const onSignal = (signal: NodeJS.Signals) => controller.abort(signal);
             process.once('SIGINT', onSignal);
@@ -164,7 +165,7 @@ export function registerBackfill(program: Command): void {
               });
 
               const outcome = await driver.run({
-                daoSourceId,
+                daoSourceId: row.id,
                 fromBlock: resolvedFromBlock,
                 toBlock: toBlock ?? undefined,
                 mode,
@@ -172,11 +173,12 @@ export function registerBackfill(program: Command): void {
               });
 
               if (outcome.status === 'completed') {
-                await daoSourceRepository.clearBackfillState(daoSourceId);
+                await daoSourceRepository.clearBackfillState(row.id);
               }
 
-              emit(format, () => `Backfill ${outcome.status} for ${daoSourceId}`, {
-                dao_source_id: daoSourceId,
+              emit(format, () => `Backfill ${outcome.status} for ${sourceType}`, {
+                source_type: sourceType,
+                dao_source_id: row.id,
                 ...serializeOutcome(outcome),
               });
             } catch (error) {
@@ -199,18 +201,19 @@ export function registerBackfill(program: Command): void {
     });
 
   backfill
-    .command('status <dao_source_id>')
+    .command('status <source_type>')
     .description('Show backfill status for a DAO source')
     .option('--format <format>', 'output format: human or json')
-    .action(async function action(daoSourceId: string, opts: BackfillCommonOptions) {
+    .action(async function action(sourceType: string, opts: BackfillCommonOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const { daoSourceRepository } = buildContainer();
-        const row = await daoSourceRepository.readBackfillStatus(daoSourceId);
+        const row = await daoSourceRepository.readBackfillStatusBySourceType(sourceType);
         if (row == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
+          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
         }
 
         const payload = {
+          source_type: sourceType,
           dao_source_id: row.id,
           in_progress: row.backfill_started_at_block !== null,
           backfill_started_at_block: row.backfill_started_at_block,
@@ -221,6 +224,7 @@ export function registerBackfill(program: Command): void {
           format,
           () =>
             [
+              `Source type: ${payload.source_type}`,
               `DAO source: ${payload.dao_source_id}`,
               `In progress: ${payload.in_progress ? 'yes' : 'no'}`,
               `Started-at block: ${payload.backfill_started_at_block ?? 'n/a'}`,
