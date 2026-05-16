@@ -12,7 +12,7 @@ const TEST_PEPPER = Buffer.alloc(32, 7);
 const TEST_PEPPER_B64 = TEST_PEPPER.toString('base64');
 const TEST_BEARER_KEY = `${'kv_live_'}${'a'.repeat(32)}`;
 const TEST_PRIMARY_TOKEN_ADDRESS = `0x${'c'.repeat(40)}`;
-const TEST_PROPOSER_ADDRESS = `0x${'a'.repeat(40)}`;
+export const TEST_PROPOSER_ADDRESS = `0x${'a'.repeat(40)}`;
 const TEST_ACTION_TARGET_ADDRESS = `0x${'b'.repeat(40)}`;
 
 export type SeedContext = {
@@ -132,6 +132,35 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
     ])
     .execute();
 
+  // Second DAO — aave — with no proposals (used to verify cross-DAO filter and DAO cursor)
+  const aave = await pgDb
+    .insertInto('dao')
+    .values({
+      slug: 'aave',
+      name: 'Aave',
+      primary_token_address: `0x${'d'.repeat(40)}`,
+      primary_chain_id: '1',
+      description: 'Aave DAO',
+      website_url: 'https://aave.com',
+      forum_url: 'https://governance.aave.com',
+      updated_at: new Date('2026-05-15T10:00:00.000Z'),
+    })
+    .returning(['id'])
+    .executeTakeFirstOrThrow();
+
+  await pgDb
+    .insertInto('dao_source')
+    .values({
+      dao_id: aave.id,
+      source_type: 'alt_governor',
+      source_config: { contract_address: '0xabcd', chain_id: '1' },
+      active_from_block: null,
+      active_to_block: null,
+      backfill_started_at_block: null,
+      backfill_head_block: null,
+    })
+    .execute();
+
   const actor = await pgDb
     .insertInto('actor')
     .values({
@@ -144,6 +173,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
     .returning(['id'])
     .executeTakeFirstOrThrow();
 
+  // Explicit created_at so page ordering is deterministic across both proposals.
   const proposal = await pgDb
     .insertInto('proposal')
     .values({
@@ -163,9 +193,34 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
       state: 'active',
       state_updated_at: new Date('2026-05-15T11:00:00.456Z'),
       updated_at: new Date('2026-05-15T11:00:00.456Z'),
+      created_at: new Date('2026-05-15T11:00:00.000Z'),
     })
     .returning(['id'])
     .executeTakeFirstOrThrow();
+
+  // Second proposal — older, binding=false, voting_starts_at=null — for filter/cursor tests.
+  await pgDb
+    .insertInto('proposal')
+    .values({
+      dao_id: dao.id,
+      source_type: 'compound_governor',
+      source_id: '43',
+      proposer_actor_id: actor.id,
+      title: 'Second Proposal',
+      description: 'Another proposal body',
+      description_hash: '0xdeadbeef02',
+      binding: false,
+      voting_starts_at: null,
+      voting_ends_at: null,
+      voting_starts_block: null,
+      voting_ends_block: null,
+      voting_power_block: '19854211',
+      state: 'active',
+      state_updated_at: new Date('2026-05-15T10:30:00.000Z'),
+      updated_at: new Date('2026-05-15T10:30:00.000Z'),
+      created_at: new Date('2026-05-15T10:00:00.000Z'),
+    })
+    .execute();
 
   await pgDb
     .insertInto('proposal_action')
