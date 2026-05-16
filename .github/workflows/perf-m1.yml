@@ -86,7 +86,7 @@ jobs:
 
       - name: Start API
         run: |
-          pnpm --filter api exec tsx src/main.ts > /tmp/api.log 2>&1 &
+          pnpm exec ts-node -P apps/api/tsconfig.app.json apps/api/src/main.ts > /tmp/api.log 2>&1 &
           echo $! > /tmp/api.pid
         env:
           API_PORT: '3001'
