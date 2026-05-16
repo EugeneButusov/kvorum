@@ -49,52 +49,50 @@ export class DlqRepository {
     reason: string,
     resolvedBy: string,
   ): Promise<'accepted' | 'not_found' | 'already_resolved'> {
-    return this.pgDb.transaction().execute(async (trx) => {
-      const row = await trx
-        .selectFrom('ingestion_dlq')
-        .selectAll()
-        .where('id', '=', id)
-        .executeTakeFirst();
-      if (row == null) {
-        return 'not_found';
+    const row = await this.pgDb
+      .selectFrom('ingestion_dlq')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (row == null) {
+      return 'not_found';
+    }
+
+    const resolvedRow: NewIngestionDlqResolved = {
+      original_dlq_id: row.id,
+      stage: row.stage,
+      source: row.source,
+      payload: row.payload,
+      error: row.error,
+      retries: row.retries,
+      first_seen_at: row.first_seen_at,
+      last_attempt_at: row.last_attempt_at,
+      archive_source_type: row.archive_source_type,
+      archive_chain_id: row.archive_chain_id,
+      archive_tx_hash: row.archive_tx_hash,
+      archive_log_index: row.archive_log_index,
+      archive_block_hash: row.archive_block_hash,
+      resolved_at: new Date(),
+      resolved_by: resolvedBy,
+      resolution_kind: 'accepted',
+      reason,
+    };
+
+    try {
+      await this.pgDb.insertInto('ingestion_dlq_resolved').values(resolvedRow).execute();
+    } catch (error) {
+      if (
+        error != null &&
+        typeof error === 'object' &&
+        (error as { code?: unknown }).code === '23505'
+      ) {
+        return 'already_resolved';
       }
+      throw error;
+    }
 
-      const resolvedRow: NewIngestionDlqResolved = {
-        original_dlq_id: row.id,
-        stage: row.stage,
-        source: row.source,
-        payload: row.payload,
-        error: row.error,
-        retries: row.retries,
-        first_seen_at: row.first_seen_at,
-        last_attempt_at: row.last_attempt_at,
-        archive_source_type: row.archive_source_type,
-        archive_chain_id: row.archive_chain_id,
-        archive_tx_hash: row.archive_tx_hash,
-        archive_log_index: row.archive_log_index,
-        archive_block_hash: row.archive_block_hash,
-        resolved_at: new Date(),
-        resolved_by: resolvedBy,
-        resolution_kind: 'accepted',
-        reason,
-      };
-
-      try {
-        await trx.insertInto('ingestion_dlq_resolved').values(resolvedRow).execute();
-      } catch (error) {
-        if (
-          error != null &&
-          typeof error === 'object' &&
-          (error as { code?: unknown }).code === '23505'
-        ) {
-          return 'already_resolved';
-        }
-        throw error;
-      }
-
-      await trx.deleteFrom('ingestion_dlq').where('id', '=', id).execute();
-      return 'accepted';
-    });
+    await this.pgDb.deleteFrom('ingestion_dlq').where('id', '=', id).execute();
+    return 'accepted';
   }
 
   async markRetrySucceeded(
@@ -102,50 +100,48 @@ export class DlqRepository {
     reason: string,
     resolvedBy: string,
   ): Promise<'resolved' | 'not_found' | 'already_resolved'> {
-    return this.pgDb.transaction().execute(async (trx) => {
-      const row = await trx
-        .selectFrom('ingestion_dlq')
-        .selectAll()
-        .where('id', '=', id)
-        .executeTakeFirst();
-      if (row == null) {
-        return 'not_found';
-      }
+    const row = await this.pgDb
+      .selectFrom('ingestion_dlq')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (row == null) {
+      return 'not_found';
+    }
 
-      const resolvedRow: NewIngestionDlqResolved = {
-        original_dlq_id: row.id,
-        stage: row.stage,
-        source: row.source,
-        payload: row.payload,
-        error: row.error,
-        retries: row.retries,
-        first_seen_at: row.first_seen_at,
-        last_attempt_at: row.last_attempt_at,
-        archive_source_type: row.archive_source_type,
-        archive_chain_id: row.archive_chain_id,
-        archive_tx_hash: row.archive_tx_hash,
-        archive_log_index: row.archive_log_index,
-        archive_block_hash: row.archive_block_hash,
-        resolved_at: new Date(),
-        resolved_by: resolvedBy,
-        resolution_kind: 'retry_succeeded',
-        reason,
-      };
-      try {
-        await trx.insertInto('ingestion_dlq_resolved').values(resolvedRow).execute();
-      } catch (error) {
-        if (
-          error != null &&
-          typeof error === 'object' &&
-          (error as { code?: unknown }).code === '23505'
-        ) {
-          return 'already_resolved';
-        }
-        throw error;
+    const resolvedRow: NewIngestionDlqResolved = {
+      original_dlq_id: row.id,
+      stage: row.stage,
+      source: row.source,
+      payload: row.payload,
+      error: row.error,
+      retries: row.retries,
+      first_seen_at: row.first_seen_at,
+      last_attempt_at: row.last_attempt_at,
+      archive_source_type: row.archive_source_type,
+      archive_chain_id: row.archive_chain_id,
+      archive_tx_hash: row.archive_tx_hash,
+      archive_log_index: row.archive_log_index,
+      archive_block_hash: row.archive_block_hash,
+      resolved_at: new Date(),
+      resolved_by: resolvedBy,
+      resolution_kind: 'retry_succeeded',
+      reason,
+    };
+    try {
+      await this.pgDb.insertInto('ingestion_dlq_resolved').values(resolvedRow).execute();
+    } catch (error) {
+      if (
+        error != null &&
+        typeof error === 'object' &&
+        (error as { code?: unknown }).code === '23505'
+      ) {
+        return 'already_resolved';
       }
+      throw error;
+    }
 
-      await trx.deleteFrom('ingestion_dlq').where('id', '=', id).execute();
-      return 'resolved';
-    });
+    await this.pgDb.deleteFrom('ingestion_dlq').where('id', '=', id).execute();
+    return 'resolved';
   }
 }

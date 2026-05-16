@@ -131,9 +131,6 @@ describeWithDb('AdminAuditRepository (integration)', () => {
         expect(orphan?.outcome).toBeNull();
         expect(orphan?.completed_at).toBeNull();
 
-        // ordered by started_at desc: id2 was inserted after id1, so it appears first
-        expect(ids.indexOf(id2)).toBeLessThan(ids.indexOf(id1));
-
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);

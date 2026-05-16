@@ -132,11 +132,15 @@ export function registerDlq(program: Command): void {
             },
           ]);
 
-          const resolved = await dlqRepository.markRetrySucceeded(
-            dlqId,
-            'archive_write replay succeeded',
-            executorFromEnv(),
-          );
+          const resolved = await pgDb
+            .transaction()
+            .execute((trx) =>
+              new DlqRepository(trx).markRetrySucceeded(
+                dlqId,
+                'archive_write replay succeeded',
+                executorFromEnv(),
+              ),
+            );
           emit(format, () => `DLQ retry completed for ${dlqId}`, {
             dlq_id: dlqId,
             status: resolved,
@@ -157,7 +161,11 @@ export function registerDlq(program: Command): void {
         }
         const { dlqRepository } = buildContainer();
         await withAudit('dlq accept', { dlqId, reason: opts.reason }, async () => {
-          const result = await dlqRepository.accept(dlqId, opts.reason.trim(), executorFromEnv());
+          const result = await pgDb
+            .transaction()
+            .execute((trx) =>
+              new DlqRepository(trx).accept(dlqId, opts.reason.trim(), executorFromEnv()),
+            );
           if (result === 'not_found') {
             fail(format, ExitCode.NotFound, `dlq row not found: ${dlqId}`);
           }
