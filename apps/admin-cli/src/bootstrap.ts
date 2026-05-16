@@ -4,6 +4,7 @@ import {
   DlqRepository,
   ReorgEventRepository,
   pgDb,
+  SystemStatusRepository,
 } from '@libs/db';
 
 export interface AdminCliContainer {
@@ -11,6 +12,7 @@ export interface AdminCliContainer {
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
+  systemStatusRepository: SystemStatusRepository;
 }
 
 export function buildContainer(): AdminCliContainer {
@@ -19,5 +21,6 @@ export function buildContainer(): AdminCliContainer {
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
+    systemStatusRepository: new SystemStatusRepository(pgDb),
   };
 }
