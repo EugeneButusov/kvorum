@@ -199,9 +199,10 @@ describeWithDb('decode tracking schema (baseline migration)', () => {
           .returning(['id'])
           .execute();
 
+        const actorAddress = `0x${Date.now().toString(16).padStart(40, 'b').slice(0, 40)}`;
         const [actor] = await trx
           .insertInto('actor')
-          .values({ primary_address: '0x' + 'b'.repeat(40), updated_at: new Date() })
+          .values({ primary_address: actorAddress, updated_at: new Date() })
           .returning(['id'])
           .execute();
 
