@@ -5,7 +5,6 @@ export interface BackfillStatusRow {
   id: string;
   backfill_started_at_block: string | null;
   backfill_head_block: string | null;
-  backfill_cancel_requested_at: Date | null;
 }
 
 export class DaoSourceRepository {
@@ -53,7 +52,6 @@ export class DaoSourceRepository {
         'dao_source.active_from_block',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao_source.backfill_cancel_requested_at',
         'dao.primary_chain_id',
       ])
       .where('dao_source.id', '=', id)
@@ -95,28 +93,8 @@ export class DaoSourceRepository {
         'dao_source.id',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao_source.backfill_cancel_requested_at',
       ])
       .where('dao_source.id', '=', id)
       .executeTakeFirst();
-  }
-
-  async requestCancel(id: string): Promise<number> {
-    const result = await this.db
-      .updateTable('dao_source')
-      .set({ backfill_cancel_requested_at: new Date() })
-      .where('dao_source.id', '=', id)
-      .where('dao_source.backfill_started_at_block', 'is not', null)
-      .executeTakeFirst();
-
-    return Number(result?.numUpdatedRows ?? 0n);
-  }
-
-  async clearCancel(id: string): Promise<void> {
-    await this.db
-      .updateTable('dao_source')
-      .set({ backfill_cancel_requested_at: null })
-      .where('dao_source.id', '=', id)
-      .execute();
   }
 }

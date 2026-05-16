@@ -178,7 +178,6 @@ describe('DaoSourceRepository', () => {
         active_from_block: null,
         backfill_started_at_block: '19000000',
         backfill_head_block: '19500000',
-        backfill_cancel_requested_at: null,
         primary_chain_id: '0x1',
       };
       const { selectFrom } = makeSelectTakeFirst(row);
@@ -200,7 +199,6 @@ describe('DaoSourceRepository', () => {
         expect.arrayContaining([
           'dao_source.backfill_started_at_block',
           'dao_source.backfill_head_block',
-          'dao_source.backfill_cancel_requested_at',
           'dao_source.active_from_block',
         ]),
       );
@@ -246,12 +244,11 @@ describe('DaoSourceRepository', () => {
   });
 
   describe('readBackfillStatus', () => {
-    it('#1 — returns row with cancel-request timestamp field', async () => {
+    it('#1 — returns row with only checkpoint fields', async () => {
       const row = {
         id: 'src-1',
         backfill_started_at_block: '10',
         backfill_head_block: '9',
-        backfill_cancel_requested_at: new Date('2026-05-16T12:00:00.000Z'),
       };
       const { selectFrom, chain } = makeSelectTakeFirst(row);
       const repo = new DaoSourceRepository({ selectFrom } as never);
@@ -261,42 +258,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.id',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao_source.backfill_cancel_requested_at',
       ]);
-    });
-  });
-
-  describe('requestCancel', () => {
-    it('#1 — updates only when backfill is in progress and returns updated row count', async () => {
-      const executeTakeFirst = vi.fn().mockResolvedValue({ numUpdatedRows: 1n });
-      const chain = {
-        set: vi.fn(),
-        where: vi.fn(),
-        executeTakeFirst,
-      };
-      chain.set.mockReturnValue(chain);
-      chain.where.mockReturnValue(chain);
-      const updateTable = vi.fn().mockReturnValue(chain);
-
-      const repo = new DaoSourceRepository({ updateTable } as never);
-      expect(await repo.requestCancel('src-1')).toBe(1);
-      expect(chain.where).toHaveBeenCalledWith('dao_source.id', '=', 'src-1');
-      expect(chain.where).toHaveBeenCalledWith(
-        'dao_source.backfill_started_at_block',
-        'is not',
-        null,
-      );
-    });
-  });
-
-  describe('clearCancel', () => {
-    it('#1 — clears backfill_cancel_requested_at', async () => {
-      const { updateTable, chain } = makeUpdateChain();
-      const repo = new DaoSourceRepository({ updateTable } as never);
-      await repo.clearCancel('src-1');
-
-      expect(chain.set).toHaveBeenCalledWith({ backfill_cancel_requested_at: null });
-      expect(chain.where).toHaveBeenCalledWith('dao_source.id', '=', 'src-1');
     });
   });
 });

@@ -2,14 +2,7 @@ import { Command } from 'commander';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
-import {
-  emit,
-  emitNotImplemented,
-  ExitCode,
-  fail,
-  type OutputFormat,
-  resolveFormat,
-} from '../output.js';
+import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 
 type BackfillCommonOptions = {
   format?: string;
@@ -144,22 +137,10 @@ export function registerBackfill(program: Command): void {
           }
 
           await withAudit('backfill start', { daoSourceId, ...opts }, async () => {
-            await daoSourceRepository.clearCancel(daoSourceId);
-
             const controller = new AbortController();
-            const onSigint = () => controller.abort('sigint');
-            process.on('SIGINT', onSigint);
-
-            const pollTimer = setInterval(async () => {
-              try {
-                const current = await daoSourceRepository.readBackfillStatus(daoSourceId);
-                if (current?.backfill_cancel_requested_at != null) {
-                  controller.abort('cancel_requested');
-                }
-              } catch {
-                // Keep polling even if one read fails.
-              }
-            }, 1000);
+            const onSignal = (signal: NodeJS.Signals) => controller.abort(signal);
+            process.once('SIGINT', onSignal);
+            process.once('SIGTERM', onSignal);
 
             try {
               const driver = new BackfillDriver({
@@ -211,9 +192,8 @@ export function registerBackfill(program: Command): void {
               }
               throw error;
             } finally {
-              clearInterval(pollTimer);
-              process.off('SIGINT', onSigint);
-              await daoSourceRepository.clearCancel(daoSourceId);
+              process.off('SIGINT', onSignal);
+              process.off('SIGTERM', onSignal);
             }
           });
         } finally {
@@ -239,7 +219,6 @@ export function registerBackfill(program: Command): void {
           in_progress: row.backfill_started_at_block !== null,
           backfill_started_at_block: row.backfill_started_at_block,
           backfill_head_block: row.backfill_head_block,
-          cancel_requested_at: row.backfill_cancel_requested_at?.toISOString() ?? null,
         };
 
         emit(
@@ -250,7 +229,6 @@ export function registerBackfill(program: Command): void {
               `In progress: ${payload.in_progress ? 'yes' : 'no'}`,
               `Started-at block: ${payload.backfill_started_at_block ?? 'n/a'}`,
               `Head block: ${payload.backfill_head_block ?? 'n/a'}`,
-              `Cancel requested at: ${payload.cancel_requested_at ?? 'n/a'}`,
             ].join('\n'),
           payload,
         );
@@ -259,36 +237,26 @@ export function registerBackfill(program: Command): void {
 
   backfill
     .command('cancel <dao_source_id>')
-    .description('Cancel an in-progress backfill')
+    .description('Show how to stop a running backfill')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(daoSourceId: string, opts: BackfillCancelOptions) {
       await withBackfillFormat(this, opts, async (format) => {
-        const { daoSourceRepository } = buildContainer();
-        const status = await daoSourceRepository.readBackfillStatus(daoSourceId);
-        if (status == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
-        }
-        if (status.backfill_started_at_block == null) {
-          fail(format, ExitCode.ValidationFailure, 'backfill is not in progress');
-        }
-
         if (opts.dryRun === true) {
-          emit(
-            format,
-            () => `Would request cancellation for in-progress backfill on ${daoSourceId}`,
-            { dao_source_id: daoSourceId, dry_run: true, action: 'request_cancel' },
-          );
+          emit(format, () => `Would stop the running backfill CLI process for ${daoSourceId}`, {
+            dao_source_id: daoSourceId,
+            dry_run: true,
+            action: 'stop_process',
+            note: 'Terminate the backfill start process (Ctrl-C or SIGTERM) to stop it',
+          });
           return;
         }
 
-        await withAudit('backfill cancel', { daoSourceId, ...opts }, async () => {
-          await daoSourceRepository.requestCancel(daoSourceId);
-          emit(format, () => `Cancellation requested for in-progress backfill on ${daoSourceId}`, {
-            dao_source_id: daoSourceId,
-            cancel_requested: true,
-          });
-        });
+        fail(
+          format,
+          ExitCode.ValidationFailure,
+          'backfill cancel is process-local now; stop the running backfill CLI process (Ctrl-C or SIGTERM)',
+        );
       });
     });
 }
