@@ -10,6 +10,14 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "commander": "^14.0.3"
+    "@libs/auth": "workspace:*",
+    "@libs/chain": "workspace:*",
+    "@libs/db": "workspace:*",
+    "@sources/compound": "workspace:*",
+    "@sources/core": "workspace:*",
+    "@founderpath/kysely-clickhouse": "^1.7.0",
+    "commander": "^14.0.3",
+    "kysely": "^0.29.0",
+    "pg": "^8.20.0"
   }
 }

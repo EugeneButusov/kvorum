@@ -20,7 +20,7 @@ describe('admin-cli bundle smoke test', () => {
     let stdout = '';
     let stderr = '';
     try {
-      execFileSync('node', [BUNDLE, 'status'], {
+      execFileSync('node', [BUNDLE, 'maintenance', 'disable'], {
         encoding: 'utf8',
         env: { ...process.env, ADMIN_FORMAT: 'json' },
       });
@@ -31,7 +31,10 @@ describe('admin-cli bundle smoke test', () => {
       stderr = e.stderr;
     }
     expect(exitCode).toBe(69);
-    expect(JSON.parse(stdout)).toMatchObject({ error: 'not_implemented', command: 'status' });
+    expect(JSON.parse(stdout)).toMatchObject({
+      error: 'not_implemented',
+      command: 'maintenance disable',
+    });
     expect(stderr).toBe('');
   });
 
@@ -40,7 +43,7 @@ describe('admin-cli bundle smoke test', () => {
     let stdout = '';
     let stderr = '';
     try {
-      execFileSync('node', [BUNDLE, 'status'], { encoding: 'utf8' });
+      execFileSync('node', [BUNDLE, 'maintenance', 'disable'], { encoding: 'utf8' });
     } catch (err: unknown) {
       const e = err as { status: number; stdout: string; stderr: string };
       exitCode = e.status;
