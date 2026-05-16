@@ -17,6 +17,11 @@ export type {
 export { ChainNotReadyError } from './calldata/types';
 
 export { makeCutoffClassifier } from './backfill/cutoff-classifier';
+export { BackfillDriver } from './backfill/backfill-driver';
+export type { BackfillDriverDeps } from './backfill/backfill-driver';
+export type { BackfillMode, BackfillRunInput, BackfillOutcome } from './backfill/types';
+export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
+export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 
 import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
