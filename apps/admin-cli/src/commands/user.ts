@@ -1,5 +1,17 @@
 import { Command } from 'commander';
-import { emitNotImplemented } from '../output.js';
+import type { UserRole } from '@libs/db';
+import { withAudit } from '../audit.js';
+import { buildContainer } from '../bootstrap.js';
+import {
+  emit,
+  emitNotImplemented,
+  ExitCode,
+  fail,
+  type OutputFormat,
+  resolveFormat,
+} from '../output.js';
+
+type UserCreateOptions = { email: string; name: string; role: string; format?: string };
 
 export function registerUser(program: Command): void {
   const user = program.command('user').description('User management');
@@ -37,7 +49,40 @@ export function registerUser(program: Command): void {
     .requiredOption('--name <name>', 'display name')
     .option('--role <role>', 'account role: user or admin', 'user')
     .option('--format <format>', 'output format: human or json')
-    .action((opts) => emitNotImplemented('user create', opts));
+    .action(async function action(opts: UserCreateOptions) {
+      let format: OutputFormat = 'human';
+      try {
+        const globalFormat = this.optsWithGlobals()['format'];
+        format = resolveFormat(
+          opts.format,
+          typeof globalFormat === 'string' ? globalFormat : undefined,
+        );
+        if (opts.role !== 'user' && opts.role !== 'admin') {
+          fail(format, ExitCode.ValidationFailure, `--role must be 'user' or 'admin'`);
+        }
+        const { userRepository } = buildContainer();
+        await withAudit('user create', { email: opts.email, role: opts.role }, async () => {
+          const created = await userRepository.create({
+            email: opts.email,
+            displayName: opts.name,
+            role: opts.role as UserRole,
+          });
+          emit(format, () => `User created: ${created.id} (${created.email})`, {
+            id: created.id,
+            email: created.email,
+            display_name: created.display_name,
+            role: created.role,
+            created_at: created.created_at,
+          });
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error';
+        if (message.startsWith('invalid --format value:')) {
+          fail(opts.format === 'json' ? 'json' : 'human', ExitCode.ValidationFailure, message);
+        }
+        fail(format, ExitCode.RuntimeFailure, 'user create failed', { message });
+      }
+    });
 
   user
     .command('update <user_id>')
