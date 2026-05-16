@@ -137,6 +137,11 @@ export const chainMetrics = {
     description:
       'Count of unresolved rows in ingestion_dlq per (stage, source). Updated by periodic recalculation (~10s), not per-write. Drains on dlq retry/accept (ADR-032).',
   }),
+  backfillProgressBlock: defineGauge({
+    name: 'ingestion_backfill_progress_block',
+    description:
+      'Last block committed by the backfill driver per source. Advances once per chunk; resets to 0 on fresh start.',
+  }),
 
   // ---- histograms ----
   promotionSweepDuration: defineHistogram({
