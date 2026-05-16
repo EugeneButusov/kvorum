@@ -27,30 +27,14 @@ async function main(): Promise<void> {
   process.env['DATABASE_URL'] ??= 'postgresql://kvorum:kvorum@localhost:5432/kvorum';
   const { pgDb } = await import('../src/client');
   dbRef = pgDb;
-  await pgDb
-    .deleteFrom('proposal_choice')
-    .execute();
-  await pgDb
-    .deleteFrom('proposal_action')
-    .execute();
-  await pgDb
-    .deleteFrom('proposal')
-    .execute();
-  await pgDb
-    .deleteFrom('dao_source')
-    .execute();
-  await pgDb
-    .deleteFrom('actor')
-    .execute();
-  await pgDb
-    .deleteFrom('dao')
-    .execute();
-  await pgDb
-    .deleteFrom('api_key')
-    .execute();
-  await pgDb
-    .deleteFrom('users')
-    .execute();
+  await pgDb.deleteFrom('proposal_choice').execute();
+  await pgDb.deleteFrom('proposal_action').execute();
+  await pgDb.deleteFrom('proposal').execute();
+  await pgDb.deleteFrom('dao_source').execute();
+  await pgDb.deleteFrom('actor').execute();
+  await pgDb.deleteFrom('dao').execute();
+  await pgDb.deleteFrom('api_key').execute();
+  await pgDb.deleteFrom('users').execute();
 
   await pgDb
     .insertInto('source_type')
