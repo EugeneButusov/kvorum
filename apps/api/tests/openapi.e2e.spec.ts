@@ -31,9 +31,10 @@ describeHttpIf('openapi e2e', () => {
       const docsRes = await request(app.getHttpServer()).get('/v1/docs').expect(200);
       expect(docsRes.headers['content-type']).toContain('text/html');
 
-      const rendered = `${JSON.stringify(openapiRes.body, null, 2)}\n`;
-      const committed = readFileSync(resolve(process.cwd(), '../../docs/openapi.json'), 'utf8');
-      expect(rendered).toBe(committed);
+      const committed = JSON.parse(
+        readFileSync(resolve(process.cwd(), '../../docs/openapi.json'), 'utf8'),
+      ) as Record<string, unknown>;
+      expect(openapiRes.body).toEqual(committed);
     } finally {
       await app.close();
       await resetDaoProposalApiTables();
