@@ -1,0 +1,131 @@
+name: M1 Perf Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  perf-m1:
+    name: M1 load test gate
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'run-perf')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: kvorum
+          POSTGRES_PASSWORD: kvorum
+          POSTGRES_DB: kvorum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kvorum"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        run: pnpm -w db:migrate
+        env:
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+
+      - name: Seed load-test data
+        run: pnpm -w db:seed:loadtest
+        env:
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+
+      - name: Build API
+        run: pnpm --filter api build
+
+      - name: Start API
+        run: |
+          pnpm exec tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/main.ts > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+        env:
+          API_PORT: '3001'
+          CURSOR_SECRET: ci-dev-secret
+          HMAC_PEPPER_CURRENT: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+          REDIS_URL: redis://localhost:6379
+          OTEL_SERVICE_NAMESPACE: ci
+          OTEL_SERVICE_NAME: api
+
+      - name: Wait for API health
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3001/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to become healthy" >&2
+          cat /tmp/api.log || true
+          exit 1
+
+      - name: Assert p95 < 500ms (200-path)
+        run: pnpm -w loadtest:m1
+        env:
+          API_URL: http://127.0.0.1:3001
+          API_BEARER: Bearer kv_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          LOADTEST_CONNECTIONS: '50'
+          LOADTEST_DURATION_SECONDS: '30'
+          LOADTEST_WARMUP_SECONDS: '10'
+          LOADTEST_P95_THRESHOLD_MS: '500'
+
+      - name: Show API log on failure
+        if: failure()
+        run: cat /tmp/api.log || true
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/api.pid ]; then
+            kill "$(cat /tmp/api.pid)" || true
+          fi
