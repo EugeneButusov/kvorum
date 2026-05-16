@@ -7,6 +7,7 @@ import {
   DaoSourceRepository,
   DlqRepository,
   ReorgEventRepository,
+  SystemStatusRepository,
   pgDb,
 } from '@libs/db';
 
@@ -19,6 +20,7 @@ export interface AdminCliContainer {
   dlqRepository: DlqRepository;
   adminAuditRepository: AdminAuditRepository;
   archiveDerivationRepository: ArchiveDerivationRepository;
+  systemStatusRepository: SystemStatusRepository;
 }
 
 export function buildContainer(): AdminCliContainer {
@@ -31,5 +33,6 @@ export function buildContainer(): AdminCliContainer {
     dlqRepository: new DlqRepository(pgDb),
     adminAuditRepository: new AdminAuditRepository(pgDb),
     archiveDerivationRepository: new ArchiveDerivationRepository(pgDb),
+    systemStatusRepository: new SystemStatusRepository(pgDb),
   };
 }
