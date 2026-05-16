@@ -55,6 +55,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('active_to_block', 'bigint')
     .addColumn('backfill_started_at_block', 'bigint')
     .addColumn('backfill_head_block', 'bigint')
+    .addColumn('backfill_cancel_requested_at', 'timestamptz')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .addUniqueConstraint('dao_source_dao_id_source_type_key', ['dao_id', 'source_type'])
     .execute();

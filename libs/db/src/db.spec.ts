@@ -179,7 +179,7 @@ describeWithDb('ingestion domain smoke test', () => {
   });
 });
 
-describeWithDb('decode tracking schema (migration 0005)', () => {
+describeWithDb('decode tracking schema (baseline migration)', () => {
   it('idx_proposal_action_pending_decode exists and filters by decode_status=pending', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
