@@ -1,4 +1,5 @@
 export { pgDb, chDb } from './client';
+export { AdminAuditRepository } from './admin-audit-repository';
 export { AbiCacheRepository } from './abi-cache-repository';
 export { ActorRepository } from './actor-repository';
 export type { ActiveApiKeyResult, SafeApiKey } from './api-key-repository';
@@ -11,9 +12,11 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DaoSourceRepository } from './dao-source-repository';
+export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
 export { SystemStatusRepository } from './system-status-repository';
 export type { SystemStatusSnapshot } from './system-status-repository';
+export { UserRepository } from './user-repository';
 export type { PendingDecodeRow } from './proposal-action-repository';
 export { ProposalActionRepository } from './proposal-action-repository';
 export { SelectorIndexRepository } from './selector-index-repository';

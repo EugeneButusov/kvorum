@@ -21,10 +21,12 @@ function makeSelectChain(returnValue: unknown[]) {
   const chain = {
     select: vi.fn(),
     where: vi.fn(),
+    orderBy: vi.fn(),
     execute,
   };
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
   const selectFrom = vi.fn().mockReturnValue(chain);
 
   return { selectFrom, ...chain };
@@ -61,5 +63,27 @@ describe('CompoundArchivePayloadRepository', () => {
 
     expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor');
     expect(chSelect.where).toHaveBeenCalledOnce();
+  });
+
+  it('findByProposalId queries by dao source and proposal id', async () => {
+    const payload = {
+      chain_id: '0x1',
+      tx_hash: '0xtx',
+      log_index: 1,
+      block_hash: '0xblock',
+      event_type: 'ProposalCreated',
+      payload: '{"proposalId":"42"}',
+      received_at: new Date('2026-01-01T00:00:00Z'),
+    };
+    const chSelect = makeSelectChain([payload]);
+    const repo = new CompoundArchivePayloadRepository({
+      selectFrom: chSelect.selectFrom,
+    } as never);
+
+    await expect(repo.findByProposalId('source-1', '42')).resolves.toEqual([payload]);
+
+    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor');
+    expect(chSelect.where).toHaveBeenCalledTimes(2);
+    expect(chSelect.orderBy).toHaveBeenCalledWith('received_at', 'asc');
   });
 });

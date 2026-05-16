@@ -114,7 +114,8 @@ export interface ProposalActionTable {
   decoded_function: string | null;
   decoded_arguments: unknown | null;
   created_at: Generated<Date>;
-  // Decode tracking — migration 0005. Generated<> = optional in Insert (DB supplies default).
+  // Decode tracking is part of the baseline schema. Generated<> = optional in Insert
+  // (DB supplies default).
   decode_status: Generated<DecodeStatus>;
   decode_attempted_at: Generated<Date | null>;
   decode_attempt_count: Generated<number>;

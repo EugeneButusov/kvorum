@@ -242,4 +242,23 @@ describe('DaoSourceRepository', () => {
       expect(chain.where).toHaveBeenCalledWith('dao_source.id', '=', 'src-1');
     });
   });
+
+  describe('readBackfillStatus', () => {
+    it('#1 — returns row with only checkpoint fields', async () => {
+      const row = {
+        id: 'src-1',
+        backfill_started_at_block: '10',
+        backfill_head_block: '9',
+      };
+      const { selectFrom, chain } = makeSelectTakeFirst(row);
+      const repo = new DaoSourceRepository({ selectFrom } as never);
+
+      expect(await repo.readBackfillStatus('src-1')).toEqual(row);
+      expect(chain.select).toHaveBeenCalledWith([
+        'dao_source.id',
+        'dao_source.backfill_started_at_block',
+        'dao_source.backfill_head_block',
+      ]);
+    });
+  });
 });

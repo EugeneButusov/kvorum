@@ -1,6 +1,12 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from './schema/pg';
 
+export interface BackfillStatusRow {
+  id: string;
+  backfill_started_at_block: string | null;
+  backfill_head_block: string | null;
+}
+
 export class DaoSourceRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -78,5 +84,17 @@ export class DaoSourceRepository {
       .set({ backfill_started_at_block: null, backfill_head_block: null })
       .where('dao_source.id', '=', id)
       .execute();
+  }
+
+  async readBackfillStatus(id: string): Promise<BackfillStatusRow | undefined> {
+    return this.db
+      .selectFrom('dao_source')
+      .select([
+        'dao_source.id',
+        'dao_source.backfill_started_at_block',
+        'dao_source.backfill_head_block',
+      ])
+      .where('dao_source.id', '=', id)
+      .executeTakeFirst();
   }
 }
