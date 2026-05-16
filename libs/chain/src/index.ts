@@ -61,4 +61,4 @@ export type {
   BackfillRangeFetcherOptions,
   BackfillRangeFetcherResult,
 } from './backfill/range-fetcher.js';
-export { BackfillChunkTooSmallError } from './backfill/errors.js';
+export { BackfillChunkTooSmallError } from './backfill/backfill-chunk-too-small.error.js';

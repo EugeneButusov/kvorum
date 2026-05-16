@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BackfillChunkTooSmallError } from './errors.js';
+import { BackfillChunkTooSmallError } from './backfill-chunk-too-small.error.js';
 import { BackfillRangeFetcher } from './range-fetcher.js';
 import { FailoverRpcClient } from '../client/failover-rpc-client.js';
 import { silentLogger } from '../logger.js';
