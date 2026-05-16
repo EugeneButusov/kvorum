@@ -1,6 +1,9 @@
 name: M1 Perf Gate
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +13,12 @@ permissions:
 jobs:
   perf-m1:
     name: M1 load test gate
-    if: github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'run-perf')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
