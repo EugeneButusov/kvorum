@@ -22,4 +22,22 @@ export class DaoReadRepository {
       .where('dao_id', '=', daoId)
       .execute();
   }
+
+  async findSourceByDaoSlugAndType(
+    daoSlug: string,
+    sourceType: string,
+  ): Promise<Pick<DaoSource, 'id' | 'dao_id' | 'source_type' | 'source_config'> | undefined> {
+    return this.db
+      .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+      .select([
+        'dao_source.id',
+        'dao_source.dao_id',
+        'dao_source.source_type',
+        'dao_source.source_config',
+      ])
+      .where('dao.slug', '=', daoSlug)
+      .where('dao_source.source_type', '=', sourceType)
+      .executeTakeFirst();
+  }
 }

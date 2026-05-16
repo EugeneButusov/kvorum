@@ -18,6 +18,21 @@ export interface ArchiveDerivationRow {
 export class ArchiveDerivationRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
+  async countConfirmedUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
+    let query = this.pgDb
+      .selectFrom('archive_confirmation')
+      .select((eb) => eb.fn.countAll<string>().as('count'))
+      .where('dao_source_id', '=', daoSourceId)
+      .where('confirmation_status', '=', 'confirmed');
+
+    if (fromBlock != null) {
+      query = query.where('block_number', '>=', fromBlock.toString());
+    }
+
+    const row = await query.executeTakeFirstOrThrow();
+    return Number(row.count);
+  }
+
   async findConfirmedUndderived(limit: number): Promise<ArchiveDerivationRow[]> {
     return this.pgDb
       .selectFrom('archive_confirmation')

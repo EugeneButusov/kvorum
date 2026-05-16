@@ -16,6 +16,7 @@ export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
 export { SystemStatusRepository } from './system-status-repository';
 export type { SystemStatusSnapshot } from './system-status-repository';
+export { UserRepository } from './user-repository';
 export type { PendingDecodeRow } from './proposal-action-repository';
 export { ProposalActionRepository } from './proposal-action-repository';
 export { SelectorIndexRepository } from './selector-index-repository';

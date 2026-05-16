@@ -15,10 +15,13 @@ export class ProposalReadRepository {
       source_id: string;
       title: string | null;
       description: string;
+      description_hash: string;
       state: string;
       binding: boolean;
       voting_starts_at: Date | null;
       voting_ends_at: Date | null;
+      voting_starts_block: string | null;
+      voting_ends_block: string | null;
       voting_power_block: string;
       state_updated_at: Date;
       created_at: Date;
@@ -37,10 +40,13 @@ export class ProposalReadRepository {
         'proposal.source_id',
         'proposal.title',
         'proposal.description',
+        'proposal.description_hash',
         'proposal.state',
         'proposal.binding',
         'proposal.voting_starts_at',
         'proposal.voting_ends_at',
+        'proposal.voting_starts_block',
+        'proposal.voting_ends_block',
         'proposal.voting_power_block',
         'proposal.state_updated_at',
         'proposal.created_at',

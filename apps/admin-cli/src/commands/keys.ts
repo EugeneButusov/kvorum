@@ -1,5 +1,4 @@
 import { generateApiKey, hashApiKey, parsePepperSetFromEnv } from '@libs/auth';
-import { pgDb } from '@libs/db';
 import { Command } from 'commander';
 import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
@@ -28,12 +27,8 @@ export function registerKeys(program: Command): void {
     .option('--format <format>', 'output format: human or json')
     .action(async function action(userId: string, opts: KeysCreateOptions) {
       await withKeysFormat(this, opts, async (format) => {
-        const { apiKeyRepository } = buildContainer();
-        const user = await pgDb
-          .selectFrom('users')
-          .select(['id'])
-          .where('id', '=', userId)
-          .executeTakeFirst();
+        const { apiKeyRepository, userRepository } = buildContainer();
+        const user = await userRepository.findById(userId);
         if (user == null) {
           fail(format, ExitCode.NotFound, `user not found: ${userId}`);
         }

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Command } from 'commander';
 import { sql } from 'kysely';
-import { chDb, pgDb } from '@libs/db';
+import { chDb } from '@libs/db';
 import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -31,17 +31,14 @@ export function registerDerive(program: Command): void {
         const fromBlock = parseOptionalBlock(opts.fromBlock, '--from-block');
 
         if (opts.dryRun === true) {
-          const rows = await pgDb
-            .selectFrom('archive_confirmation')
-            .select((eb) => eb.fn.countAll<string>().as('count'))
-            .where('dao_source_id', '=', daoSourceId)
-            .where('confirmation_status', '=', 'confirmed')
-            .$if(fromBlock != null, (qb) => qb.where('block_number', '>=', fromBlock!.toString()))
-            .executeTakeFirstOrThrow();
-          emit(format, () => `Would reset derivation watermark for ${rows.count} rows`, {
+          const rows = await archiveDerivationRepository.countConfirmedUnderived(
+            daoSourceId,
+            fromBlock,
+          );
+          emit(format, () => `Would reset derivation watermark for ${rows} rows`, {
             dao_source_id: daoSourceId,
             dry_run: true,
-            affected_rows: Number(rows.count),
+            affected_rows: rows,
           });
           return;
         }
@@ -88,36 +85,13 @@ export function registerDerive(program: Command): void {
           );
         }
 
-        const proposal = await pgDb
-          .selectFrom('proposal')
-          .innerJoin('dao', 'dao.id', 'proposal.dao_id')
-          .select([
-            'proposal.id',
-            'proposal.title',
-            'proposal.state',
-            'proposal.description',
-            'proposal.description_hash',
-            'proposal.voting_starts_block',
-            'proposal.voting_ends_block',
-            'proposal.proposer_actor_id',
-            'proposal.source_id',
-            'proposal.source_type',
-          ])
-          .where('dao.slug', '=', daoSlug)
-          .where('proposal.source_type', '=', sourceType)
-          .where('proposal.source_id', '=', sourceId)
-          .executeTakeFirst();
+        const { daoReadRepository, proposalReadRepository } = buildContainer();
+        const proposal = await proposalReadRepository.findOne(daoSlug, sourceType, sourceId);
         if (proposal == null) {
           fail(format, ExitCode.NotFound, `proposal not found: ${proposalExternalId}`);
         }
 
-        const daoSource = await pgDb
-          .selectFrom('dao_source')
-          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
-          .select(['dao_source.id'])
-          .where('dao.slug', '=', daoSlug)
-          .where('dao_source.source_type', '=', sourceType)
-          .executeTakeFirst();
+        const daoSource = await daoReadRepository.findSourceByDaoSlugAndType(daoSlug, sourceType);
         if (daoSource == null) {
           fail(format, ExitCode.NotFound, `dao source not found for ${daoSlug}:${sourceType}`);
         }
