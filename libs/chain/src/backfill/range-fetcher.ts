@@ -1,6 +1,6 @@
 import type { RpcClient } from '../client/rpc-client.js';
 import type { Logger } from '../logger.js';
-import { BackfillChunkTooSmallError } from './errors.js';
+import { BackfillChunkTooSmallError } from './backfill-chunk-too-small.error.js';
 import { chainMetrics } from '../metrics/metrics.js';
 import type { EventsListener, LogEvent, LogFilter } from '../poller/types.js';
 import { decodeLogEvent } from '../poller/utils/decode.utils.js';
