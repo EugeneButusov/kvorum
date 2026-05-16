@@ -31,4 +31,25 @@ export class CompoundArchivePayloadRepository {
       .where(sql<boolean>`(chain_id, tx_hash, log_index, block_hash) IN (${sql.join(tuples)})`)
       .execute();
   }
+
+  async findByProposalId(
+    daoSourceId: string,
+    proposalId: string,
+  ): Promise<CompoundArchivePayloadRow[]> {
+    return this.chDb
+      .selectFrom('event_archive_compound_governor')
+      .select([
+        'chain_id',
+        'tx_hash',
+        'log_index',
+        'block_hash',
+        'event_type',
+        'payload',
+        'received_at',
+      ])
+      .where('dao_source_id', '=', daoSourceId)
+      .where(sql<boolean>`JSONExtractString(payload, 'proposalId') = ${proposalId}`)
+      .orderBy('received_at', 'asc')
+      .execute();
+  }
 }

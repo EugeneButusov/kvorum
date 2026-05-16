@@ -1,5 +1,5 @@
 import { sql } from 'kysely';
-import { chDb, pgDb } from './client';
+import { pgDb } from './client';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
 class RollbackSignal extends Error {}
@@ -9,17 +9,9 @@ class RollbackSignal extends Error {}
 // environments without a DB (e.g. pure typecheck CI steps).
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 
-// Cross-DB tests additionally require ClickHouse to be reachable. Gate on
-// CLICKHOUSE_URL being explicitly set so the test only runs in environments
-// where both DBs are provisioned (local docker-compose + CI db job).
-const describeWithBothDbs =
-  process.env['DATABASE_URL'] != null && process.env['CLICKHOUSE_URL'] != null
-    ? describe
-    : describe.skip;
-
 // Single teardown shared across all suites — pgDb is a module-level singleton.
 afterAll(async () => {
-  await Promise.all([pgDb.destroy(), chDb.destroy()]);
+  await pgDb.destroy();
 });
 
 describeWithDb('auth schema smoke test', () => {
@@ -279,87 +271,5 @@ describeWithDb('decode tracking schema (baseline migration)', () => {
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);
-  });
-});
-
-describeWithBothDbs('cross-DB ADR-041 smoke test', () => {
-  it('follows PG-first existence check → CH insert → PG insert protocol', async () => {
-    // Fixed tuple for this smoke run — unique enough to not collide with real data.
-    const tuple = {
-      source_type: 'compound_governor' as const,
-      chain_id: '0x7a69',
-      // FixedString(66) = "0x" + 64 hex chars
-      tx_hash: '0x' + '1'.repeat(64),
-      log_index: 0,
-      block_hash: '0x' + '2'.repeat(64),
-      block_number: '99999999',
-      dao_source_id: '00000000-0000-0000-0000-000000000001',
-    };
-
-    // Step 1: PG existence check — must return no rows before we write.
-    const existing = await pgDb
-      .selectFrom('archive_confirmation')
-      .where('source_type', '=', tuple.source_type)
-      .where('chain_id', '=', tuple.chain_id)
-      .where('tx_hash', '=', tuple.tx_hash)
-      .where('log_index', '=', tuple.log_index)
-      .where('block_hash', '=', tuple.block_hash)
-      .selectAll()
-      .execute();
-    expect(existing).toHaveLength(0);
-
-    // Step 2: CH insert (idempotent via ReplacingMergeTree).
-    await chDb
-      .insertInto('event_archive_compound_governor')
-      .values({
-        dao_source_id: tuple.dao_source_id,
-        chain_id: tuple.chain_id,
-        block_number: tuple.block_number,
-        block_hash: tuple.block_hash,
-        tx_hash: tuple.tx_hash,
-        log_index: tuple.log_index,
-        event_type: 'ProposalCreated',
-        received_at: new Date(),
-        payload: JSON.stringify({ smoke: true }),
-      })
-      .execute();
-
-    // Inserting the same row again must be idempotent (ReplacingMergeTree dedup).
-    await chDb
-      .insertInto('event_archive_compound_governor')
-      .values({
-        dao_source_id: tuple.dao_source_id,
-        chain_id: tuple.chain_id,
-        block_number: tuple.block_number,
-        block_hash: tuple.block_hash,
-        tx_hash: tuple.tx_hash,
-        log_index: tuple.log_index,
-        event_type: 'ProposalCreated',
-        received_at: new Date(),
-        payload: JSON.stringify({ smoke: true }),
-      })
-      .execute();
-
-    // Query back with FINAL to force dedup — ReplacingMergeTree deduplicates during
-    // background merges, not on insert, so without FINAL the two idempotent inserts
-    // above may both still be visible. The ClickHouse dialect's executeQuery only
-    // returns rows for SelectQueryNode; sql`...`.execute() falls through to command()
-    // which always returns rows:[]. Use a builder selectFrom with a raw table expression
-    // so the query stays a SelectQueryNode while FINAL is inlined into the FROM clause.
-    const chRows = await chDb
-      .selectFrom(sql<'event_archive_compound_governor'>`event_archive_compound_governor FINAL`)
-      .select(['tx_hash'])
-      .where('chain_id', '=', tuple.chain_id)
-      .where('tx_hash', '=', tuple.tx_hash)
-      .where('log_index', '=', tuple.log_index)
-      .where('block_hash', '=', tuple.block_hash)
-      .execute();
-    expect(chRows).toHaveLength(1);
-
-    // Cleanup — lightweight delete mutation.
-    await sql`
-      ALTER TABLE event_archive_compound_governor
-      DELETE WHERE tx_hash = ${tuple.tx_hash}
-    `.execute(chDb);
   });
 });

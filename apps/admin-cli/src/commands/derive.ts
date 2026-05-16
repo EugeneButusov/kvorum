@@ -94,8 +94,11 @@ export function registerDerive(program: Command): void {
           fail(format, ExitCode.NotFound, `dao source not found for ${daoSlug}:${sourceType}`);
         }
 
-        const { compoundArchiveRepository } = buildContainer();
-        const archived = await compoundArchiveRepository.findByProposalId(daoSource.id, sourceId);
+        const { compoundArchivePayloadRepository } = buildContainer();
+        const archived = await compoundArchivePayloadRepository.findByProposalId(
+          daoSource.id,
+          sourceId,
+        );
 
         const created = archived.find((row) => row.event_type === 'ProposalCreated');
         if (created == null) {

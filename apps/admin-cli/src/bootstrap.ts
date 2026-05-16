@@ -2,7 +2,6 @@ import {
   AdminAuditRepository,
   ApiKeyRepository,
   ArchiveDerivationRepository,
-  CompoundArchiveRepository,
   DaoAdminRepository,
   DaoReadRepository,
   DaoSourceRepository,
@@ -14,6 +13,7 @@ import {
   chDb,
   pgDb,
 } from '@libs/db';
+import { CompoundArchivePayloadRepository } from '../../../libs/sources/compound/src/governor/compound-archive-payload-repository.js';
 
 export interface AdminCliContainer {
   daoSourceRepository: DaoSourceRepository;
@@ -21,7 +21,7 @@ export interface AdminCliContainer {
   daoAdminRepository: DaoAdminRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
-  compoundArchiveRepository: CompoundArchiveRepository;
+  compoundArchivePayloadRepository: CompoundArchivePayloadRepository;
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
@@ -37,7 +37,7 @@ export function buildContainer(): AdminCliContainer {
     daoAdminRepository: new DaoAdminRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
-    compoundArchiveRepository: new CompoundArchiveRepository(chDb),
+    compoundArchivePayloadRepository: new CompoundArchivePayloadRepository(chDb),
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
