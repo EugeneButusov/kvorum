@@ -4,8 +4,8 @@ import type { RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
 import type { BackfillDriverDeps } from './backfill-driver';
-import { BackfillAlreadyStartedError } from './backfill-already-started.error';
-import { BackfillNotResumableError } from './backfill-not-resumable.error';
+import { BackfillAlreadyStartedError } from './errors/backfill-already-started.error';
+import { BackfillNotResumableError } from './errors/backfill-not-resumable.error';
 
 // ---- Fixtures ----
 

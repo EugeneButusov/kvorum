@@ -3,8 +3,8 @@ import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { makeCutoffClassifier } from './cutoff-classifier';
-import { BackfillAlreadyStartedError } from './backfill-already-started.error';
-import { BackfillNotResumableError } from './backfill-not-resumable.error';
+import { BackfillAlreadyStartedError } from './errors/backfill-already-started.error';
+import { BackfillNotResumableError } from './errors/backfill-not-resumable.error';
 import type { BackfillOutcome, BackfillRunInput } from './types';
 
 export interface BackfillDriverDeps {
