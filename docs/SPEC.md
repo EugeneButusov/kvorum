@@ -2077,7 +2077,6 @@ admin-cli dao source update <dao_source_id> --config <json>
 
 admin-cli backfill start <dao_source_id> [--from-block N] [--to-block N]
 admin-cli backfill status <dao_source_id>
-admin-cli backfill cancel <dao_source_id>
 
 admin-cli derive replay <dao_source_id> [--from-block N]
 admin-cli derive verify <proposal_external_id>

@@ -14,10 +14,6 @@ type BackfillStartOptions = BackfillCommonOptions & {
   dryRun?: boolean;
 };
 
-type BackfillCancelOptions = BackfillCommonOptions & {
-  dryRun?: boolean;
-};
-
 export function registerBackfill(program: Command): void {
   const backfill = program.command('backfill').description('Backfill management');
 
@@ -231,31 +227,6 @@ export function registerBackfill(program: Command): void {
               `Head block: ${payload.backfill_head_block ?? 'n/a'}`,
             ].join('\n'),
           payload,
-        );
-      });
-    });
-
-  backfill
-    .command('cancel <dao_source_id>')
-    .description('Show how to stop a running backfill')
-    .option('--dry-run', 'show what would happen without making changes')
-    .option('--format <format>', 'output format: human or json')
-    .action(async function action(daoSourceId: string, opts: BackfillCancelOptions) {
-      await withBackfillFormat(this, opts, async (format) => {
-        if (opts.dryRun === true) {
-          emit(format, () => `Would stop the running backfill CLI process for ${daoSourceId}`, {
-            dao_source_id: daoSourceId,
-            dry_run: true,
-            action: 'stop_process',
-            note: 'Terminate the backfill start process (Ctrl-C or SIGTERM) to stop it',
-          });
-          return;
-        }
-
-        fail(
-          format,
-          ExitCode.ValidationFailure,
-          'backfill cancel is process-local now; stop the running backfill CLI process (Ctrl-C or SIGTERM)',
         );
       });
     });
