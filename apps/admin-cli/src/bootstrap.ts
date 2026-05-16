@@ -2,6 +2,7 @@ import {
   AdminAuditRepository,
   ApiKeyRepository,
   ArchiveDerivationRepository,
+  CompoundArchiveRepository,
   DaoAdminRepository,
   DaoReadRepository,
   DaoSourceRepository,
@@ -10,6 +11,7 @@ import {
   ProposalReadRepository,
   SystemStatusRepository,
   UserRepository,
+  chDb,
   pgDb,
 } from '@libs/db';
 
@@ -19,6 +21,7 @@ export interface AdminCliContainer {
   daoAdminRepository: DaoAdminRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
+  compoundArchiveRepository: CompoundArchiveRepository;
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
@@ -34,6 +37,7 @@ export function buildContainer(): AdminCliContainer {
     daoAdminRepository: new DaoAdminRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
+    compoundArchiveRepository: new CompoundArchiveRepository(chDb),
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),

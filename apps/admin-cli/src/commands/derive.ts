@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
 import { Command } from 'commander';
-import { sql } from 'kysely';
-import { chDb } from '@libs/db';
 import { buildContainer } from '../bootstrap.js';
 import { withAudit } from '../audit.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -96,13 +94,8 @@ export function registerDerive(program: Command): void {
           fail(format, ExitCode.NotFound, `dao source not found for ${daoSlug}:${sourceType}`);
         }
 
-        const archived = await chDb
-          .selectFrom('event_archive_compound_governor')
-          .select(['event_type', 'payload', 'received_at'])
-          .where('dao_source_id', '=', daoSource.id)
-          .where(sql<boolean>`JSONExtractString(payload, 'proposalId') = ${sourceId}`)
-          .orderBy('received_at', 'asc')
-          .execute();
+        const { compoundArchiveRepository } = buildContainer();
+        const archived = await compoundArchiveRepository.findByProposalId(daoSource.id, sourceId);
 
         const created = archived.find((row) => row.event_type === 'ProposalCreated');
         if (created == null) {
