@@ -1,10 +1,7 @@
 name: M1 Perf Gate
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,6 +10,7 @@ permissions:
 jobs:
   perf-m1:
     name: M1 load test gate
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
