@@ -1,0 +1,315 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > cross-dao-proposals 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T18:30:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/44",
+          "votes": "/v1/daos/compound/proposals/compound_governor/44/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "display_name": "Second Proposer",
+      },
+      "source_id": "44",
+      "source_type": "compound_governor",
+      "state": "active",
+      "title": "Paged proposal",
+      "voting_ends_at": "2026-05-16T18:00:00Z",
+      "voting_power_block": "19854212",
+      "voting_starts_at": "2026-05-15T18:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T17:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/43",
+          "votes": "/v1/daos/compound/proposals/compound_governor/43/votes",
+        },
+      },
+      "binding": false,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "43",
+      "source_type": "compound_governor",
+      "state": "pending",
+      "title": null,
+      "voting_ends_at": null,
+      "voting_power_block": "19854211",
+      "voting_starts_at": null,
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T16:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/42",
+          "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "42",
+      "source_type": "compound_governor",
+      "state": "executed",
+      "title": "Executed proposal",
+      "voting_ends_at": "2026-05-15T15:00:00Z",
+      "voting_power_block": "19854210",
+      "voting_starts_at": "2026-05-15T09:00:00Z",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > dao-detail 1`] = `
+{
+  "data": {
+    "_meta": {
+      "last_updated_at": "2026-05-16T10:00:00Z",
+      "links": {
+        "self": "/v1/daos/compound",
+      },
+    },
+    "description": "Compound DAO",
+    "forum_url": "https://www.comp.xyz",
+    "name": "Compound",
+    "primary_chain_id": "1",
+    "primary_token_address": "0xcccccccccccccccccccccccccccccccccccccccc",
+    "slug": "compound",
+    "sources": [
+      {
+        "chain_id": "1",
+        "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
+        "source_type": "compound_governor",
+      },
+      {
+        "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "source_type": "alt_governor",
+      },
+    ],
+    "website_url": "https://compound.finance",
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > dao-proposals-list 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T18:30:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/44",
+          "votes": "/v1/daos/compound/proposals/compound_governor/44/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "display_name": "Second Proposer",
+      },
+      "source_id": "44",
+      "source_type": "compound_governor",
+      "state": "active",
+      "title": "Paged proposal",
+      "voting_ends_at": "2026-05-16T18:00:00Z",
+      "voting_power_block": "19854212",
+      "voting_starts_at": "2026-05-15T18:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T17:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/43",
+          "votes": "/v1/daos/compound/proposals/compound_governor/43/votes",
+        },
+      },
+      "binding": false,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "43",
+      "source_type": "compound_governor",
+      "state": "pending",
+      "title": null,
+      "voting_ends_at": null,
+      "voting_power_block": "19854211",
+      "voting_starts_at": null,
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T16:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor/42",
+          "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "42",
+      "source_type": "compound_governor",
+      "state": "executed",
+      "title": "Executed proposal",
+      "voting_ends_at": "2026-05-15T15:00:00Z",
+      "voting_power_block": "19854210",
+      "voting_starts_at": "2026-05-15T09:00:00Z",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > dao-sources 1`] = `
+{
+  "data": [
+    {
+      "chain_id": "1",
+      "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
+      "source_type": "compound_governor",
+    },
+    {
+      "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "source_type": "alt_governor",
+    },
+  ],
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > daos-list 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "last_updated_at": "2026-05-16T10:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound",
+        },
+      },
+      "description": "Compound DAO",
+      "forum_url": "https://www.comp.xyz",
+      "name": "Compound",
+      "primary_chain_id": "1",
+      "primary_token_address": "0xcccccccccccccccccccccccccccccccccccccccc",
+      "slug": "compound",
+      "website_url": "https://compound.finance",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
+{
+  "cross-dao-proposals": ""pYg7Y0gvz5zaNSCk94U_r0YL8JA"",
+  "dao-detail": ""q4No6AQfoiP2F8IZ7BSQGMLVtmk"",
+  "dao-proposals-list": ""pYg7Y0gvz5zaNSCk94U_r0YL8JA"",
+  "dao-sources": ""AptQGPHnbwcmulD8hE2qb6hAEw8"",
+  "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
+  "proposal-detail": ""Kh6KbW6F9qt5vqbc2e2DrnJN9vw"",
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > proposal-detail 1`] = `
+{
+  "data": {
+    "_meta": {
+      "confirmed": true,
+      "last_updated_at": "2026-05-15T16:00:00Z",
+      "links": {
+        "self": "/v1/daos/compound/proposals/compound_governor/42",
+        "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+      },
+    },
+    "actions": [
+      {
+        "action_index": 0,
+        "calldata": "0x1234",
+        "decoded_arguments": {
+          "value": "1",
+        },
+        "decoded_function": "setParameter",
+        "function_signature": "setParameter(uint256)",
+        "target_address": "0xffffffffffffffffffffffffffffffffffffffff",
+        "target_chain_id": "1",
+        "value_wei": "0",
+      },
+      {
+        "action_index": 1,
+        "calldata": "0xabcd",
+        "decoded_arguments": null,
+        "decoded_function": null,
+        "function_signature": null,
+        "target_address": "0x1111111111111111111111111111111111111111",
+        "target_chain_id": "1",
+        "value_wei": "42",
+      },
+    ],
+    "binding": true,
+    "choices": [
+      {
+        "choice_index": 0,
+        "value": "Against",
+      },
+      {
+        "choice_index": 1,
+        "value": "For",
+      },
+      {
+        "choice_index": 2,
+        "value": "Abstain",
+      },
+    ],
+    "dao_slug": "compound",
+    "description": "Executed proposal body",
+    "proposer": {
+      "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "display_name": null,
+    },
+    "source_id": "42",
+    "source_type": "compound_governor",
+    "state": "executed",
+    "title": "Executed proposal",
+    "voting_ends_at": "2026-05-15T15:00:00Z",
+    "voting_power_block": "19854210",
+    "voting_starts_at": "2026-05-15T09:00:00Z",
+  },
+}
+`;
