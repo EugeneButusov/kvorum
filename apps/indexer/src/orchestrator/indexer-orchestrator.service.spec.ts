@@ -264,4 +264,63 @@ describe('IndexerOrchestratorService', () => {
     vi.useRealTimers();
     await svc.drain();
   });
+
+  describe('INDEXER_LIVE_POLLER_ENABLED gate', () => {
+    afterEach(() => {
+      delete process.env['INDEXER_LIVE_POLLER_ENABLED'];
+    });
+
+    it('#9 — flag unset: live poller starts (existing behaviour, regression guard)', async () => {
+      delete process.env['INDEXER_LIVE_POLLER_ENABLED'];
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-1', 'compound_governor', '0x1'),
+      ]);
+
+      const driver = makeFakeDriver();
+      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      expect(driver.start).toHaveBeenCalledTimes(1);
+    });
+
+    it('#10 — flag="true": live poller starts', async () => {
+      process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'true';
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-1', 'compound_governor', '0x1'),
+      ]);
+
+      const driver = makeFakeDriver();
+      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      expect(driver.start).toHaveBeenCalledTimes(1);
+    });
+
+    it('#11 — flag="false": poller does not start; daoSourceRepo not called; no driver.start()', async () => {
+      process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'false';
+
+      const driver = makeFakeDriver();
+      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      expect(driver.start).not.toHaveBeenCalled();
+      expect(mockDaoSourceRepo.findAll).not.toHaveBeenCalled();
+    });
+
+    it('#12 — flag="false": bootstrap completes without CHAIN_CONFIG (no parseChainConfigFromEnv call)', async () => {
+      process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'false';
+
+      const driver = makeFakeDriver();
+      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      expect(parseChainConfigFromEnv).not.toHaveBeenCalled();
+    });
+  });
 });

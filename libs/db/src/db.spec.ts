@@ -273,3 +273,49 @@ describeWithDb('decode tracking schema (baseline migration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 });
+
+// Must match compound_003_active_from_block.ts:GOVERNOR_BRAVO_DEPLOY_BLOCK.
+// Verified via Etherscan tx 0x2fdbaee2ac15cfbe04ddb020f84f072fa353e5703a84a422d6ca3cf734dd1855.
+const EXPECTED_BRAVO_DEPLOY_BLOCK = '12006099';
+
+describeWithDb('compound_003_active_from_block migration', () => {
+  it('up sets active_from_block exactly to the verified Bravo deploy block', async () => {
+    const rows = await pgDb
+      .selectFrom('dao_source')
+      .select(['active_from_block'])
+      .where('source_type', '=', 'compound_governor')
+      .execute();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.active_from_block).toBe(EXPECTED_BRAVO_DEPLOY_BLOCK);
+  });
+
+  it('down would revert active_from_block to NULL (simulated via transaction rollback)', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await tx
+          .updateTable('dao_source')
+          .set({ active_from_block: null })
+          .where('source_type', '=', 'compound_governor')
+          .execute();
+
+        const rows = await tx
+          .selectFrom('dao_source')
+          .select(['active_from_block'])
+          .where('source_type', '=', 'compound_governor')
+          .execute();
+        expect(rows[0]!.active_from_block).toBeNull();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+
+    // Verify the rollback left the migrated value intact.
+    const rows = await pgDb
+      .selectFrom('dao_source')
+      .select(['active_from_block'])
+      .where('source_type', '=', 'compound_governor')
+      .execute();
+    expect(rows[0]!.active_from_block).toBe(EXPECTED_BRAVO_DEPLOY_BLOCK);
+  });
+});

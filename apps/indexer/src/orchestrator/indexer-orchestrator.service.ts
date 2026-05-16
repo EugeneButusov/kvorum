@@ -31,6 +31,16 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   }
 
   private async start(): Promise<void> {
+    const pollerEnabled = (process.env['INDEXER_LIVE_POLLER_ENABLED'] ?? 'true') !== 'false';
+    this.logger.log(`live_poller_enabled=${String(pollerEnabled)}`);
+
+    if (!pollerEnabled) {
+      this.logger.log(
+        'Live EventPoller disabled (INDEXER_LIVE_POLLER_ENABLED=false); derivation/decode/promotion/reorg still active',
+      );
+      return;
+    }
+
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map<string, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
