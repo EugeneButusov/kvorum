@@ -16,6 +16,8 @@ export type {
 } from './calldata/types';
 export { ChainNotReadyError } from './calldata/types';
 
+export { makeCutoffClassifier } from './backfill/cutoff-classifier';
+
 import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 
