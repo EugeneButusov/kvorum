@@ -13,7 +13,7 @@ import {
   chDb,
   pgDb,
 } from '@libs/db';
-import { CompoundArchivePayloadRepository } from '../../../libs/sources/compound/src/governor/compound-archive-payload-repository.js';
+import { CompoundArchivePayloadRepository } from '@sources/compound/governor/data-access';
 
 export interface AdminCliContainer {
   daoSourceRepository: DaoSourceRepository;
