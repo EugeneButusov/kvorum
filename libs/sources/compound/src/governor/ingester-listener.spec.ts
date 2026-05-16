@@ -5,7 +5,7 @@ import type { DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import { COMPOUND_EVENT_TOPICS } from './events';
-import type { IngesterListenerDeps } from './ingester-listener';
+import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
 
 const CTX: ArchiveWriteContext = {
@@ -255,14 +255,12 @@ describe('makeIngesterListener', () => {
   it('#9 — onWriteFailure=throw: CH failure aborts the batch (rethrows)', async () => {
     const chError = new Error('CH connection refused');
     let callCount = 0;
-    const deps: IngesterListenerDeps = {
-      ...makeDeps(() => {
-        callCount++;
-        return Promise.reject(chError);
-      }),
-      onWriteFailure: 'throw',
-    };
-    const listener = makeIngesterListener(deps);
+    const deps: IngesterListenerDeps = makeDeps(() => {
+      callCount++;
+      return Promise.reject(chError);
+    });
+    const options: IngesterListenerOptions = { onWriteFailure: 'throw' };
+    const listener = makeIngesterListener(deps, options);
 
     const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
     const enc = (id: bigint, idx: number) => {
