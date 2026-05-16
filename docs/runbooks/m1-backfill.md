@@ -12,11 +12,11 @@ GovernorAlpha-era proposals (~1–42, 2020 → May 2021) are explicitly out of M
 
 These values must be written here **before** `backfill start` so they cannot be back-fitted.
 
-| Field               | Value                                                                                     |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `REF_BRAVO_BINDING` | _(record count from Tally / Compound governance UI)_                                      |
-| `REF_AS_OF_BLOCK`   | _(Ethereum mainnet block number at which you captured the count)_                         |
-| `reorg_margin`      | _(small constant for proposals created between `REF_AS_OF_BLOCK` and chain head, e.g. 5)_ |
+| Field               | Value    |
+| ------------------- | -------- |
+| `REF_BRAVO_BINDING` | 539      |
+| `REF_AS_OF_BLOCK`   | 25108665 |
+| `reorg_margin`      | 5        |
 
 Pass gate (acceptance #1): `count ≥ 0.95 × REF_BRAVO_BINDING` AND `count ≤ REF_BRAVO_BINDING + reorg_margin`.
 
