@@ -1,9 +1,20 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
+import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ProblemDto } from '../openapi/openapi.dto';
+import { ApiListQueryDto } from '../openapi/query.dto';
 import {
   assertCursorMatchesQuery,
   buildPagination,
@@ -14,6 +25,8 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
+@ApiTags('proposals')
+@ApiBearerAuth()
 @Controller('v1')
 export class ProposalController {
   constructor(
@@ -21,20 +34,24 @@ export class ProposalController {
     private readonly daoRepo: DaoReadRepository,
   ) {}
 
+  @ApiParam({ name: 'slug', type: String })
+  @ApiOkResponse({ type: ProposalListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
-  async listByDao(@Param('slug') slug: string, @Query() rawQuery: Record<string, unknown>) {
+  async listByDao(@Param('slug') slug: string, @Query() rawQuery: ApiListQueryDto) {
     const dao = await this.daoRepo.findDaoBySlug(slug);
     if (dao === undefined) {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
     }
 
-    const parsed = parseQuery(rawQuery, PER_DAO_PROPOSAL_QUERY);
-    const limit = parseLimit(rawQuery['limit']);
-    const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
+    const query = rawQuery as Record<string, unknown>;
+    const parsed = parseQuery(query, PER_DAO_PROPOSAL_QUERY);
+    const limit = parseLimit(query['limit']);
+    const cursorRaw = typeof query['cursor'] === 'string' ? query['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
-      // ADR-044: conflicting cursor/query params are a 400 cursor-parameter-mismatch.
       assertCursorMatchesQuery(cursor, parsed);
     }
 
@@ -61,6 +78,12 @@ export class ProposalController {
     };
   }
 
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: ProposalDetailResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals/:source_type/:source_id')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
   async detail(
@@ -81,15 +104,17 @@ export class ProposalController {
     return { data: toProposalDetailDto(row, actions, choices) };
   }
 
+  @ApiOkResponse({ type: ProposalListResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get('proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
-  async listCrossDao(@Query() rawQuery: Record<string, unknown>) {
-    const parsed = parseQuery(rawQuery, CROSS_DAO_PROPOSAL_QUERY);
-    const limit = parseLimit(rawQuery['limit']);
-    const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
+  async listCrossDao(@Query() rawQuery: ApiListQueryDto) {
+    const query = rawQuery as Record<string, unknown>;
+    const parsed = parseQuery(query, CROSS_DAO_PROPOSAL_QUERY);
+    const limit = parseLimit(query['limit']);
+    const cursorRaw = typeof query['cursor'] === 'string' ? query['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
-      // ADR-044: conflicting cursor/query params are a 400 cursor-parameter-mismatch.
       assertCursorMatchesQuery(cursor, parsed);
     }
 

@@ -1,12 +1,7 @@
 import type { Dao, DaoSource } from '@libs/db';
+import { DaoDetailDto, DaoListItemDto, DaoSourceDto } from './dao.dto';
 
 type CuratedSourceConfig = {
-  contract_address?: string;
-  chain_id?: string;
-};
-
-type DaoSourceDto = {
-  source_type: string;
   contract_address?: string;
   chain_id?: string;
 };
@@ -37,10 +32,10 @@ export function curateSourceConfig(raw: unknown): CuratedSourceConfig {
 export function toDaoSourceDto(
   row: Pick<DaoSource, 'source_type' | 'source_config'>,
 ): DaoSourceDto {
-  return {
+  return Object.assign(new DaoSourceDto(), {
     source_type: row.source_type,
     ...curateSourceConfig(row.source_config),
-  };
+  });
 }
 
 export function isoSeconds(value: Date | null): string | null {
@@ -51,8 +46,8 @@ export function isoSeconds(value: Date | null): string | null {
   return `${value.toISOString().slice(0, 19)}Z`;
 }
 
-export function toDaoListItemDto(dao: Dao) {
-  return {
+export function toDaoListItemDto(dao: Dao): DaoListItemDto {
+  return Object.assign(new DaoListItemDto(), {
     slug: dao.slug,
     name: dao.name,
     description: dao.description,
@@ -66,15 +61,15 @@ export function toDaoListItemDto(dao: Dao) {
         self: `/v1/daos/${dao.slug}`,
       },
     },
-  };
+  });
 }
 
 export function toDaoDetailDto(
   dao: Dao,
   sources: Array<Pick<DaoSource, 'source_type' | 'source_config'>>,
-) {
-  return {
+): DaoDetailDto {
+  return Object.assign(new DaoDetailDto(), {
     ...toDaoListItemDto(dao),
     sources: sources.map(toDaoSourceDto),
-  };
+  });
 }

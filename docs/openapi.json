@@ -1,0 +1,1039 @@
+{
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getData",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["App"]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Health"]
+      }
+    },
+    "/v1/daos": {
+      "get": {
+        "operationId": "DaoController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaoListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["daos"]
+      }
+    },
+    "/v1/daos/{slug}": {
+      "get": {
+        "operationId": "DaoController_detail",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaoDetailResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["daos"]
+      }
+    },
+    "/v1/daos/{slug}/sources": {
+      "get": {
+        "operationId": "DaoController_sources",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaoSourceListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["daos"]
+      }
+    },
+    "/v1/daos/{slug}/proposals": {
+      "get": {
+        "operationId": "ProposalController_listByDao",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}": {
+      "get": {
+        "operationId": "ProposalController_detail",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalDetailResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
+    "/v1/proposals": {
+      "get": {
+        "operationId": "ProposalController_listCrossDao",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    }
+  },
+  "info": {
+    "title": "Kvorum API",
+    "description": "Kvorum M1 DAO + proposal read API",
+    "version": "0.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "type": "http",
+        "description": "ADR-025 API-key bearer authentication"
+      }
+    },
+    "schemas": {
+      "DaoLinksDto": {
+        "type": "object",
+        "properties": {
+          "self": {
+            "type": "string"
+          }
+        },
+        "required": ["self"]
+      },
+      "DaoMetaDto": {
+        "type": "object",
+        "properties": {
+          "last_updated_at": {
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/DaoLinksDto"
+          }
+        },
+        "required": ["last_updated_at", "links"]
+      },
+      "DaoListItemDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "website_url": {
+            "type": "string"
+          },
+          "forum_url": {
+            "type": "string"
+          },
+          "primary_token_address": {
+            "type": "string"
+          },
+          "primary_chain_id": {
+            "type": "string"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/DaoMetaDto"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "website_url",
+          "forum_url",
+          "primary_token_address",
+          "primary_chain_id",
+          "_meta"
+        ]
+      },
+      "PaginationDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number"
+          },
+          "next_cursor": {
+            "type": "object",
+            "nullable": true
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": ["limit", "next_cursor", "has_more"]
+      },
+      "DaoListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaoListItemDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          }
+        },
+        "required": ["data", "pagination"]
+      },
+      "ProblemDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "number"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": ["type", "title", "status", "detail", "instance"]
+      },
+      "DaoSourceDto": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string"
+          },
+          "contract_address": {
+            "type": "string"
+          },
+          "chain_id": {
+            "type": "string"
+          }
+        },
+        "required": ["source_type"]
+      },
+      "DaoDetailDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "website_url": {
+            "type": "string"
+          },
+          "forum_url": {
+            "type": "string"
+          },
+          "primary_token_address": {
+            "type": "string"
+          },
+          "primary_chain_id": {
+            "type": "string"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/DaoMetaDto"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaoSourceDto"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "website_url",
+          "forum_url",
+          "primary_token_address",
+          "primary_chain_id",
+          "_meta",
+          "sources"
+        ]
+      },
+      "DaoDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DaoDetailDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "DaoSourceListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaoSourceDto"
+            }
+          }
+        },
+        "required": ["data"]
+      },
+      "ProposerDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["address"]
+      },
+      "ProposalLinksDto": {
+        "type": "object",
+        "properties": {
+          "self": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "string"
+          }
+        },
+        "required": ["self", "votes"]
+      },
+      "ProposalMetaDto": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          },
+          "last_updated_at": {
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/ProposalLinksDto"
+          }
+        },
+        "required": ["confirmed", "last_updated_at", "links"]
+      },
+      "ProposalListItemDto": {
+        "type": "object",
+        "properties": {
+          "dao_slug": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "state": {
+            "type": "string"
+          },
+          "binding": {
+            "type": "boolean"
+          },
+          "voting_starts_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_ends_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_power_block": {
+            "type": "string",
+            "description": "Snapshot block number as string. Interpretation chain may differ from the DAO primary chain (ADR-022)."
+          },
+          "proposer": {
+            "$ref": "#/components/schemas/ProposerDto"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ProposalMetaDto"
+          }
+        },
+        "required": [
+          "dao_slug",
+          "source_type",
+          "source_id",
+          "title",
+          "state",
+          "binding",
+          "voting_starts_at",
+          "voting_ends_at",
+          "voting_power_block",
+          "proposer",
+          "_meta"
+        ]
+      },
+      "ProposalListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalListItemDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          }
+        },
+        "required": ["data", "pagination"]
+      },
+      "ProposalActionDto": {
+        "type": "object",
+        "properties": {
+          "action_index": {
+            "type": "number"
+          },
+          "target_address": {
+            "type": "string"
+          },
+          "target_chain_id": {
+            "type": "string"
+          },
+          "value_wei": {
+            "type": "string"
+          },
+          "function_signature": {
+            "type": "object",
+            "nullable": true
+          },
+          "calldata": {
+            "type": "string"
+          },
+          "decoded_function": {
+            "type": "object",
+            "nullable": true
+          },
+          "decoded_arguments": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["action_index", "target_address", "target_chain_id", "value_wei", "calldata"]
+      },
+      "ProposalChoiceDto": {
+        "type": "object",
+        "properties": {
+          "choice_index": {
+            "type": "number"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": ["choice_index", "value"]
+      },
+      "ProposalDetailDto": {
+        "type": "object",
+        "properties": {
+          "dao_slug": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "state": {
+            "type": "string"
+          },
+          "binding": {
+            "type": "boolean"
+          },
+          "voting_starts_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_ends_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_power_block": {
+            "type": "string",
+            "description": "Snapshot block number as string. Interpretation chain may differ from the DAO primary chain (ADR-022)."
+          },
+          "proposer": {
+            "$ref": "#/components/schemas/ProposerDto"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ProposalMetaDto"
+          },
+          "description": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalActionDto"
+            }
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalChoiceDto"
+            }
+          }
+        },
+        "required": [
+          "dao_slug",
+          "source_type",
+          "source_id",
+          "title",
+          "state",
+          "binding",
+          "voting_starts_at",
+          "voting_ends_at",
+          "voting_power_block",
+          "proposer",
+          "_meta",
+          "description",
+          "actions",
+          "choices"
+        ]
+      },
+      "ProposalDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalDetailDto"
+          }
+        },
+        "required": ["data"]
+      }
+    }
+  }
+}

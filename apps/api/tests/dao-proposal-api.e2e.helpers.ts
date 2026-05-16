@@ -4,6 +4,7 @@ import { sql } from 'kysely';
 import { hashApiKey } from '../../../libs/auth/src/hash';
 import { pgDb } from '../../../libs/db/src/client';
 import { AppModule } from '../src/app/app.module';
+import { configureOpenApi } from '../src/openapi/openapi';
 import { RateLimiterService } from '../src/rate-limit/rate-limiter.service';
 
 export const describeHttpIf = process.env.NEST_HTTP_TESTS === '1' ? describe : describe.skip;
@@ -39,6 +40,7 @@ export async function createRealApp(): Promise<INestApplication> {
     })
     .compile();
   const app = moduleRef.createNestApplication();
+  configureOpenApi(app);
   await app.init();
   return app;
 }

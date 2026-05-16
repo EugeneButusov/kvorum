@@ -1,4 +1,5 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
+import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
 
 type ProposalListRow = {
   id: string;
@@ -36,8 +37,8 @@ function proposalMeta(row: ProposalListRow) {
   };
 }
 
-export function toProposalActionDto(action: ProposalAction) {
-  return {
+export function toProposalActionDto(action: ProposalAction): ProposalActionDto {
+  return Object.assign(new ProposalActionDto(), {
     action_index: action.action_index,
     target_address: action.target_address.toLowerCase(),
     target_chain_id: action.target_chain_id,
@@ -46,15 +47,15 @@ export function toProposalActionDto(action: ProposalAction) {
     calldata: action.calldata,
     decoded_function: action.decoded_function,
     decoded_arguments: action.decoded_arguments,
-  };
+  });
 }
 
 export function toProposalDetailDto(
   row: ProposalDetailRow,
   actions: ProposalAction[],
   choices: ProposalChoice[],
-) {
-  return {
+): ProposalDetailDto {
+  return Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
     source_type: row.source_type,
     source_id: row.source_id,
@@ -75,11 +76,11 @@ export function toProposalDetailDto(
       value: choice.value,
     })),
     _meta: proposalMeta(row),
-  };
+  });
 }
 
-export function toProposalListItemDto(row: ProposalListRow) {
-  return {
+export function toProposalListItemDto(row: ProposalListRow): ProposalListItemDto {
+  return Object.assign(new ProposalListItemDto(), {
     dao_slug: row.dao_slug,
     source_type: row.source_type,
     source_id: row.source_id,
@@ -94,5 +95,5 @@ export function toProposalListItemDto(row: ProposalListRow) {
       display_name: row.proposer_display_name,
     },
     _meta: proposalMeta(row),
-  };
+  });
 }

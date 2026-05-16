@@ -22,16 +22,27 @@ describe('dao.mappers', () => {
   });
 
   it('toDaoSourceDto preserves source_type and curated fields', () => {
-    expect(
-      toDaoSourceDto({
-        source_type: 'compound_governor',
-        source_config: { contract_address: '0xEF', chain_id: '10' },
-      }),
-    ).toEqual({
+    const dto = toDaoSourceDto({
+      source_type: 'compound_governor',
+      source_config: { contract_address: '0xEF', chain_id: '10' },
+    });
+    expect(dto).toEqual({
       source_type: 'compound_governor',
       contract_address: '0xef',
       chain_id: '10',
     });
+    expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
+  });
+
+  it('omits curated-absent fields without null/undefined leakage', () => {
+    const dto = toDaoSourceDto({
+      source_type: 'alt_governor',
+      source_config: {},
+    });
+    expect(Object.prototype.hasOwnProperty.call(dto, 'contract_address')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(dto, 'chain_id')).toBe(false);
+    expect(JSON.stringify(dto)).not.toContain('contract_address');
+    expect(JSON.stringify(dto)).not.toContain('chain_id');
   });
 
   it('isoSeconds truncates milliseconds and supports null', () => {
