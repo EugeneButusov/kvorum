@@ -1,6 +1,6 @@
 # ADR-027 — Backfill confirmation cutoff rule
 
-- **Status**: Accepted
+- **Status**: Superseded in part by ADR-046 (2026-05-16) — the cutoff-boundary formula changes from `1 × reorg_horizon` to `2 × reorg_horizon`. The capture-once / rehydrate-on-resume / never-refresh determinism rule below is **unchanged and still authoritative**.
 - **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by `dao_source.backfill_started_at_block` column + `archive_confirmation` write semantics in `docs/plan-m1-e1.md` v3)
 - **Spec sections affected**: 3.10
 - **Related**: DR-006
@@ -12,6 +12,8 @@ SPEC §3.10 says backfill writes events directly with `confirmation_status = 'co
 This matters at the meeting point between backfill and live ingestion. If the rule is "always confirmed during backfill," a backfill that runs to within seconds of chain head will mark live-zone events as confirmed without waiting for the reorg horizon — bypassing the very correctness guarantee the lifecycle exists to provide. If the rule is "always pending," backfill generates millions of pending → confirmed transitions for ancient events, doing pointless work.
 
 ## Decision
+
+> **Amended by ADR-046 (2026-05-16):** the boundary below is now `chain_head_at_backfill_start − 2 × reorg_horizon` (was `1 ×`). Read this section with that substitution; everything else here still governs.
 
 A backfill chunk writes events with `confirmation_status` determined per event:
 
