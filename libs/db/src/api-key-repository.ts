@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { ApiKey, PgDatabase, User } from './schema/pg';
+import type { ApiKey, ApiKeyTier, PgDatabase, User } from './schema/pg';
 
 export type SafeApiKey = Omit<ApiKey, 'key_hash'>;
 
@@ -94,6 +94,59 @@ export class ApiKeyRepository {
 
       throw error;
     }
+  }
+
+  async listByUser(userId?: string): Promise<SafeApiKey[]> {
+    let query = this.db.selectFrom('api_key').selectAll().orderBy('created_at', 'desc');
+    if (userId != null) {
+      query = query.where('user_id', '=', userId);
+    }
+    const rows = await query.execute();
+    return rows.map(({ key_hash: _ignored, ...rest }) => rest);
+  }
+
+  async create(input: {
+    userId: string;
+    keyHash: Buffer;
+    prefix: string;
+    lastFour: string;
+    label?: string;
+    tier?: ApiKeyTier;
+  }): Promise<SafeApiKey> {
+    const row = await this.db
+      .insertInto('api_key')
+      .values({
+        user_id: input.userId,
+        key_hash: input.keyHash,
+        prefix: input.prefix,
+        last_four: input.lastFour,
+        label: input.label ?? null,
+        tier: input.tier ?? 'authenticated_free',
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    const { key_hash: _ignored, ...rest } = row;
+    return rest;
+  }
+
+  async revoke(id: string): Promise<'revoked' | 'already_revoked' | 'not_found'> {
+    const row = await this.db
+      .selectFrom('api_key')
+      .select(['id', 'revoked_at'])
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (row == null) {
+      return 'not_found';
+    }
+    if (row.revoked_at != null) {
+      return 'already_revoked';
+    }
+    await this.db
+      .updateTable('api_key')
+      .set({ revoked_at: sql`now()` })
+      .where('id', '=', id)
+      .execute();
+    return 'revoked';
   }
 
   private toActiveResult(row: ActiveApiKeyRow): ActiveApiKeyResult {

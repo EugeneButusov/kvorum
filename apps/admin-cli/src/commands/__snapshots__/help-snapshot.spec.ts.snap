@@ -141,13 +141,14 @@ exports[`admin-cli help snapshots > keys --help 1`] = `
 API key management
 
 Options:
-  -h, --help                 display help for command
+  -h, --help                  display help for command
 
 Commands:
-  list [options]             List API keys
-  revoke [options] <key_id>  Revoke an API key
-  ban-ip [options] <ip>      Ban an IP address (destructive)
-  help [command]             display help for command
+  create [options] <user_id>  Create API key for user
+  list [options]              List API keys
+  revoke [options] <key_id>   Revoke an API key
+  ban-ip [options] <ip>       Ban an IP address (destructive)
+  help [command]              display help for command
 "
 `;
 

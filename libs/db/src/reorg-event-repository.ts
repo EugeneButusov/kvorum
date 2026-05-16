@@ -71,4 +71,15 @@ export class ReorgEventRepository {
       .limit(limit)
       .execute();
   }
+
+  async listRecentSince(chainId: string, since: Date, limit = 50): Promise<ReorgEvent[]> {
+    return this.pgDb
+      .selectFrom('reorg_event')
+      .selectAll()
+      .where('chain_id', '=', chainId)
+      .where('detected_at', '>=', since)
+      .orderBy('detected_at', 'desc')
+      .limit(limit)
+      .execute();
+  }
 }

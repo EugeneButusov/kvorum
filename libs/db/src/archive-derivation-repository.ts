@@ -59,4 +59,19 @@ export class ArchiveDerivationRepository {
       .where('id', '=', id)
       .execute();
   }
+
+  async resetWatermarkForSource(daoSourceId: string, fromBlock?: bigint): Promise<number> {
+    let query = this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derived_at: null, derivation_attempt_count: 0 })
+      .where('dao_source_id', '=', daoSourceId)
+      .where('confirmation_status', '=', 'confirmed');
+
+    if (fromBlock != null) {
+      query = query.where('block_number', '>=', fromBlock.toString());
+    }
+
+    const result = await query.executeTakeFirst();
+    return Number(result?.numUpdatedRows ?? 0n);
+  }
 }
