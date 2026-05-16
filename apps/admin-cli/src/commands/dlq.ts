@@ -159,7 +159,6 @@ export function registerDlq(program: Command): void {
         if (opts.reason.trim().length === 0) {
           fail(format, ExitCode.ValidationFailure, '--reason must not be empty');
         }
-        const { dlqRepository } = buildContainer();
         await withAudit('dlq accept', { dlqId, reason: opts.reason }, async () => {
           const result = await pgDb
             .transaction()
