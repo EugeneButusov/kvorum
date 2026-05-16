@@ -30,12 +30,11 @@
         "operationId": "DaoController_list",
         "parameters": [
           {
-            "name": "sort",
+            "name": "limit",
             "required": false,
             "in": "query",
             "schema": {
-              "example": "slug,-created_at",
-              "type": "string"
+              "type": "number"
             }
           },
           {
@@ -47,11 +46,72 @@
             }
           },
           {
-            "name": "limit",
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
             "required": false,
             "in": "query",
             "schema": {
-              "type": "number"
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -204,41 +264,45 @@
             }
           },
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "voting_starts_at_max",
+            "name": "state",
             "required": false,
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
+            "description": "Comma-delimited proposal states",
             "schema": {
               "type": "string"
             }
@@ -252,7 +316,24 @@
             }
           },
           {
-            "name": "state",
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
             "required": false,
             "in": "query",
             "schema": {
@@ -260,19 +341,11 @@
             }
           },
           {
-            "name": "cursor",
+            "name": "voting_starts_at_max",
             "required": false,
             "in": "query",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
             }
           }
         ],
@@ -390,15 +463,51 @@
         "operationId": "ProposalController_listCrossDao",
         "parameters": [
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "voting_starts_at_max",
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
             "required": false,
             "in": "query",
             "schema": {
@@ -406,9 +515,10 @@
             }
           },
           {
-            "name": "voting_starts_at_min",
+            "name": "proposer",
             "required": false,
             "in": "query",
+            "description": "0x-prefixed proposer address",
             "schema": {
               "type": "string"
             }
@@ -422,7 +532,7 @@
             }
           },
           {
-            "name": "state",
+            "name": "voting_starts_at_min",
             "required": false,
             "in": "query",
             "schema": {
@@ -430,27 +540,11 @@
             }
           },
           {
-            "name": "dao",
+            "name": "voting_starts_at_max",
             "required": false,
             "in": "query",
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "name": "cursor",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "number"
             }
           }
         ],

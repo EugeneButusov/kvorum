@@ -3,7 +3,6 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
-  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -14,6 +13,7 @@ import { DAO_LIST_QUERY } from './dao.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
+import { ApiListQueryDto } from '../openapi/query.dto';
 import {
   assertCursorMatchesQuery,
   buildPagination,
@@ -30,18 +30,16 @@ import { parseQuery } from '../query/query-parser';
 export class DaoController {
   constructor(private readonly repo: DaoReadRepository) {}
 
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'cursor', required: false, type: String })
-  @ApiQuery({ name: 'sort', required: false, type: String, example: 'slug,-created_at' })
   @ApiOkResponse({ type: DaoListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
-  async list(@Query() rawQuery: Record<string, unknown>) {
-    const parsed = parseQuery(rawQuery, DAO_LIST_QUERY);
-    const limit = parseLimit(rawQuery['limit']);
+  async list(@Query() rawQuery: ApiListQueryDto) {
+    const query = rawQuery as Record<string, unknown>;
+    const parsed = parseQuery(query, DAO_LIST_QUERY);
+    const limit = parseLimit(query['limit']);
 
-    const cursorRaw = typeof rawQuery['cursor'] === 'string' ? rawQuery['cursor'] : undefined;
+    const cursorRaw = typeof query['cursor'] === 'string' ? query['cursor'] : undefined;
     const cursor = cursorRaw === undefined ? undefined : decodeCursor(cursorRaw);
     if (cursor !== undefined) {
       assertCursorMatchesQuery(cursor, parsed);
