@@ -3,12 +3,9 @@ import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { makeCutoffClassifier } from './cutoff-classifier';
-import {
-  BackfillAlreadyStartedError,
-  BackfillNotResumableError,
-  type BackfillOutcome,
-  type BackfillRunInput,
-} from './types';
+import { BackfillAlreadyStartedError } from './backfill-already-started.error';
+import { BackfillNotResumableError } from './backfill-not-resumable.error';
+import type { BackfillOutcome, BackfillRunInput } from './types';
 
 export interface BackfillDriverDeps {
   rpcClient: RpcClient;
