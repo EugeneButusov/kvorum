@@ -29,7 +29,8 @@
         "./libs/sources/compound/src/governor/data-access.ts"
       ],
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
-      "@nest/observability": ["./nest/observability/src/index.ts"]
+      "@nest/observability": ["./nest/observability/src/index.ts"],
+      "@nest/logging": ["./nest/logging/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
