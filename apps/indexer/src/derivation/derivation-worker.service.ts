@@ -7,11 +7,13 @@ import { PROJECTION_APPLIERS, type ProjectionApplier } from './projection-applie
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
+const PROGRESS_LOG_INTERVAL_MS = 30_000;
 
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger('DerivationWorker');
   private inFlight = false;
+  private lastProgressLogAt = 0;
 
   constructor(
     private readonly archive: ArchiveDerivationRepository,
@@ -40,10 +42,8 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       }
 
       const oldest = watermark[0]!;
-      derivationMetrics.lagSeconds.record(computeLagSeconds(oldest.confirmed_at), {
-        source_type: oldest.source_type,
-      });
-
+      const lagSeconds = computeLagSeconds(oldest.confirmed_at);
+      derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
       const bySourceType = groupBySourceType(watermark);
       for (const [sourceType, rows] of bySourceType) {
         const applier = this.appliers.find((candidate) => candidate.sourceType === sourceType);
@@ -53,6 +53,16 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         }
 
         await applier.applyBatch(rows);
+      }
+
+      const now = Date.now();
+      if (now - this.lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {
+        this.logger.log('derivation_progress', {
+          batch: watermark.length,
+          lag_s: Math.round(lagSeconds),
+          source_types: [...bySourceType.keys()],
+        });
+        this.lastProgressLogAt = now;
       }
     } catch (err) {
       this.logger.error('derivation_tick_failed', { error: String(err) });
