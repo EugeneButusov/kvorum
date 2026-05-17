@@ -120,7 +120,7 @@ UNDECODED_NO_ATTEMPT=$(psql_val "
 
 # ── 4. DLQ ───────────────────────────────────────────────────────────────────
 
-DLQ_SIZE=$(psql_val "SELECT count(*) FROM dlq WHERE source_type='compound_governor'")
+DLQ_SIZE=$(psql_val "SELECT count(*) FROM ingestion_dlq WHERE archive_source_type='compound_governor'")
 
 # ── 5. duplicate proposals ───────────────────────────────────────────────────
 
@@ -151,12 +151,11 @@ else
   CH_PG_OK="CH=$CH_COUNT PG=$ARCHIVED DLQ=$DLQ_SIZE — verify manually"
 fi
 
-# ── 7. admin-cli status ───────────────────────────────────────────────────────
+# ── 7. system status (direct SQL — admin-cli may not be on PATH) ─────────────
 
-STATUS_JSON=$(admin-cli status --format json 2>/dev/null || echo '{}')
-IDLE_SECS=$(echo "$STATUS_JSON"         | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ingestion_idle_for_seconds','N/A'))" 2>/dev/null || echo "N/A")
-LAST_ARCHIVED=$(echo "$STATUS_JSON"     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_archived_event_at','N/A'))"    2>/dev/null || echo "N/A")
-LAST_REORG=$(echo "$STATUS_JSON"        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_reorg_detected_at','N/A'))"    2>/dev/null || echo "N/A")
+LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHERE source_type='compound_governor'")
+LAST_REORG=$(psql_val    "SELECT max(detected_at)  FROM reorg_event")
+IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor'")
 
 # ── print summary ─────────────────────────────────────────────────────────────
 
@@ -198,7 +197,7 @@ echo
 # ── patch runbook ─────────────────────────────────────────────────────────────
 
 read -r -p "Patch runbook at $RUNBOOK with these values? [y/N] " CONFIRM
-if [[ "${CONFIRM,,}" != "y" ]]; then
+if [[ "$(echo "$CONFIRM" | tr '[:upper:]' '[:lower:]')" != "y" ]]; then
   echo "Skipped. Copy values above manually."
   exit 0
 fi
