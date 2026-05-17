@@ -152,7 +152,8 @@ Max-drain budget: _(record value, e.g. 60 min post-backfill-completion)_
 
 ```bash
 # (a) backfill not in progress AND head == cutoff
-admin-cli backfill status compound_governor --format json
+psql -c "SELECT backfill_started_at_block, backfill_head_block FROM dao_source WHERE source_type='compound_governor'"
+# Expected once drained: backfill_started_at_block = null, backfill_head_block = cutoff_block recorded above
 
 # (b) derivation backlog = 0
 psql -c "

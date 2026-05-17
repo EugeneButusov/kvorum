@@ -207,41 +207,6 @@ export function registerBackfill(program: Command): void {
         }
       });
     });
-
-  backfill
-    .command('status <source_type>')
-    .description('Show backfill status for a DAO source')
-    .option('--format <format>', 'output format: human or json')
-    .action(async function action(sourceType: string, opts: BackfillCommonOptions) {
-      await withBackfillFormat(this, opts, async (format) => {
-        const { daoSourceRepository } = buildContainer();
-        const row = await daoSourceRepository.readBackfillStatusBySourceType(sourceType);
-        if (row == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
-        }
-
-        const payload = {
-          source_type: sourceType,
-          dao_source_id: row.id,
-          in_progress: row.backfill_started_at_block !== null,
-          backfill_started_at_block: row.backfill_started_at_block,
-          backfill_head_block: row.backfill_head_block,
-        };
-
-        emit(
-          format,
-          () =>
-            [
-              `Source type: ${payload.source_type}`,
-              `DAO source: ${payload.dao_source_id}`,
-              `In progress: ${payload.in_progress ? 'yes' : 'no'}`,
-              `Started-at block: ${payload.backfill_started_at_block ?? 'n/a'}`,
-              `Head block: ${payload.backfill_head_block ?? 'n/a'}`,
-            ].join('\n'),
-          payload,
-        );
-      });
-    });
 }
 
 function serializeOutcome(
