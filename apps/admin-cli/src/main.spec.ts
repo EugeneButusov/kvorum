@@ -5,13 +5,18 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = resolve(__dirname, '../../../dist/apps/admin-cli/main.js');
+const BUNDLE_ENV = {
+  ...process.env,
+  OTEL_SERVICE_NAMESPACE: process.env['OTEL_SERVICE_NAMESPACE'] ?? 'kvorum',
+  OTEL_SERVICE_NAME: process.env['OTEL_SERVICE_NAME'] ?? 'admin-cli',
+};
 
 describe('admin-cli bundle smoke test', () => {
   it('prints version matching package.json', () => {
     const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as {
       version: string;
     };
-    const out = execFileSync('node', [BUNDLE, '--version'], { encoding: 'utf8' });
+    const out = execFileSync('node', [BUNDLE, '--version'], { encoding: 'utf8', env: BUNDLE_ENV });
     expect(out.trim()).toBe(pkg.version);
   });
 
@@ -22,7 +27,7 @@ describe('admin-cli bundle smoke test', () => {
     try {
       execFileSync('node', [BUNDLE, 'maintenance', 'disable'], {
         encoding: 'utf8',
-        env: { ...process.env, ADMIN_FORMAT: 'json' },
+        env: { ...BUNDLE_ENV, ADMIN_FORMAT: 'json' },
       });
     } catch (err: unknown) {
       const e = err as { status: number; stdout: string; stderr: string };
@@ -43,7 +48,10 @@ describe('admin-cli bundle smoke test', () => {
     let stdout = '';
     let stderr = '';
     try {
-      execFileSync('node', [BUNDLE, 'maintenance', 'disable'], { encoding: 'utf8' });
+      execFileSync('node', [BUNDLE, 'maintenance', 'disable'], {
+        encoding: 'utf8',
+        env: BUNDLE_ENV,
+      });
     } catch (err: unknown) {
       const e = err as { status: number; stdout: string; stderr: string };
       exitCode = e.status;
