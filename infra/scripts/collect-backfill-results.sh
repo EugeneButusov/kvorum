@@ -5,10 +5,10 @@
 # and patches docs/runbooks/m1-backfill.md in-place with real values.
 #
 # Usage:
-#   DAO_SOURCE_ID=<uuid> ./infra/scripts/collect-backfill-results.sh
+#   DAO_SLUG=compound ./infra/scripts/collect-backfill-results.sh
 #
 # Requires:
-#   DATABASE_URL, DAO_SOURCE_ID
+#   DATABASE_URL, DAO_SLUG (defaults to "compound")
 #   docker (postgres queries run via docker exec), curl (ClickHouse + API)
 # Optional:
 #   API_KEY   — Bearer token for authenticated API checks (skipped if unset)
@@ -65,7 +65,7 @@ patch_runbook() {
 # ── pre-flight ────────────────────────────────────────────────────────────────
 
 [[ -n "${DATABASE_URL:-}" ]] || die "DATABASE_URL is not set"
-[[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
+DAO_SLUG="${DAO_SLUG:-compound}"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
 [[ -n "$_PG_CONTAINER" ]] \
@@ -73,14 +73,14 @@ patch_runbook() {
 docker exec -i "$_PG_CONTAINER" psql -U "$_PG_USER" -d "$_PG_DB" -Atc "SELECT 1" >/dev/null 2>&1 \
   || die "Postgres container found but psql query failed (container: ${_PG_CONTAINER})"
 
-echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
+echo "Collecting backfill results for dao_slug=$DAO_SLUG ..."
 echo
 
 # ── 1. backfill status (direct dao_source query) ─────────────────────────────
 # admin-cli backfill status was removed; query the table directly.
 # Columns: backfill_started_at_block (cleared on drain), backfill_head_block (last checkpoint).
 
-DS_ROW=$(psql_val "SELECT coalesce(backfill_head_block::text,'null')||'|'||coalesce(backfill_started_at_block::text,'null') FROM dao_source WHERE id='${DAO_SOURCE_ID}'")
+DS_ROW=$(psql_val "SELECT coalesce(ds.backfill_head_block::text,'null')||'|'||coalesce(ds.backfill_started_at_block::text,'null') FROM dao_source ds JOIN dao d ON d.id=ds.dao_id WHERE d.slug='${DAO_SLUG}' AND ds.source_type='compound_governor'")
 BACKFILL_HEAD=$(echo "$DS_ROW" | cut -d'|' -f1)
 BACKFILL_STARTED=$(echo "$DS_ROW" | cut -d'|' -f2)
 
@@ -186,15 +186,15 @@ if [[ -z "${API_KEY:-}" ]]; then
   API_PROP_HAS_MORE="skipped"
   API_BINDING_OK="skipped"
 elif [[ "$API_HEALTH" == "ok" ]]; then
-  _DAO_JSON=$(api_get "/v1/daos/compound")
+  _DAO_JSON=$(api_get "/v1/daos/${DAO_SLUG}")
   API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d.get('slug','N/A')")
   API_DAO_SOURCES=$(echo "$_DAO_JSON" | py_field "','.join(s['source_type'] for s in d.get('sources',[]))")
 
-  _PROP_JSON=$(api_get "/v1/daos/compound/proposals?limit=1")
+  _PROP_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?limit=1")
   API_PROP_FIRST=$(echo "$_PROP_JSON"    | py_field "d['data'][0]['source_id'] if d.get('data') else 'none'")
   API_PROP_HAS_MORE=$(echo "$_PROP_JSON" | py_field "d.get('pagination',{}).get('has_more','N/A')")
 
-  _BIND_JSON=$(api_get "/v1/daos/compound/proposals?binding=true&limit=1")
+  _BIND_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?binding=true&limit=1")
   API_BINDING_OK=$(echo "$_BIND_JSON" | py_field "'yes' if d.get('data') else 'no — 0 binding proposals returned'")
 else
   API_DAO_SLUG="N/A (health=$API_HEALTH)"
