@@ -66,7 +66,7 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 
 ### Migration
 
-- New `compound_governor_alpha` value inserted into `source_type` reference table, and a new `dao_source` row (compound DAO, `source_config = {"governor_address": "0xc0dA01a04C3f3E0be433606045bB7017A7323E38"}`, `active_from_block = 9601459`) — migration `compound_004_governor_alpha.ts`, following the `compound_001`/`compound_002`/`compound_003` patterns. Add `export const GOVERNOR_ALPHA_DEPLOY_BLOCK = 9601459;` with the creation-tx provenance comment, mirroring `GOVERNOR_BRAVO_DEPLOY_BLOCK`. The `dao_source` unique constraint is `(dao_id, source_type)`, so a second Compound row under a distinct `source_type` is permitted.
+- New `compound_governor_alpha` value is seeded in `compound_001_source_type.ts`, and a new `dao_source` row (compound DAO, `source_config = {"governor_address": "0xc0dA01a04C3f3E0be433606045bB7017A7323E38"}`, `active_from_block = 9601459`) is seeded in `compound_002_dao_seed.ts`. `GOVERNOR_ALPHA_DEPLOY_BLOCK = 9601459` is documented with creation-tx provenance, mirroring Bravo's provenance style. The `dao_source` unique constraint is `(dao_id, source_type)`, so a second Compound row under a distinct `source_type` is permitted.
 
 ### Code
 
