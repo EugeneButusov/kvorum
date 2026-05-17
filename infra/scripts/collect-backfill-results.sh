@@ -58,20 +58,28 @@ patch_runbook() {
 [[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
+psql "$DATABASE_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
+  || die "Cannot connect to Postgres — check DATABASE_URL (current value: ${DATABASE_URL})"
+
 echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
 echo
 
-# ── 1. backfill status ────────────────────────────────────────────────────────
+# ── 1. backfill status (direct dao_source query) ─────────────────────────────
+# admin-cli backfill status was removed; query the table directly.
+# Columns: backfill_started_at_block (cleared on drain), backfill_head_block (last checkpoint).
 
-BACKFILL_JSON=$(admin-cli backfill status "$DAO_SOURCE_ID" --format json 2>/dev/null || echo '{}')
-BACKFILL_HEAD=$(echo "$BACKFILL_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('backfill_head_block','N/A'))" 2>/dev/null || echo "N/A")
-CUTOFF_BLOCK=$(echo "$BACKFILL_JSON"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cutoff_block','N/A'))"       2>/dev/null || echo "N/A")
-ACTIVE_BACKFILLS=$(echo "$BACKFILL_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('active_backfills','N/A'))"  2>/dev/null || echo "N/A")
+DS_ROW=$(psql_val "SELECT coalesce(backfill_head_block::text,'null')||'|'||coalesce(backfill_started_at_block::text,'null') FROM dao_source WHERE id='${DAO_SOURCE_ID}'")
+BACKFILL_HEAD=$(echo "$DS_ROW" | cut -d'|' -f1)
+BACKFILL_STARTED=$(echo "$DS_ROW" | cut -d'|' -f2)
 
-if [[ "$BACKFILL_HEAD" == "$CUTOFF_BLOCK" && "$BACKFILL_HEAD" != "N/A" ]]; then
-  HEAD_EQ_CUTOFF="yes"
+if [[ "$DS_ROW" == "N/A" ]]; then
+  DRAIN_STATUS="N/A (DB query failed)"
+elif [[ "$BACKFILL_HEAD" == "null" ]]; then
+  DRAIN_STATUS="never started (backfill_head_block is null)"
+elif [[ "$BACKFILL_STARTED" == "null" ]]; then
+  DRAIN_STATUS="drained — backfill_started_at_block cleared (head=$BACKFILL_HEAD)"
 else
-  HEAD_EQ_CUTOFF="no (head=$BACKFILL_HEAD cutoff=$CUTOFF_BLOCK)"
+  DRAIN_STATUS="in progress — started=$BACKFILL_STARTED head=$BACKFILL_HEAD"
 fi
 
 # ── 2. archive counts ─────────────────────────────────────────────────────────
@@ -148,10 +156,9 @@ NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 echo "=== Collected at $NOW ==="
 echo
 echo "Backfill"
-echo "  backfill_head_block : $BACKFILL_HEAD"
-echo "  cutoff_block        : $CUTOFF_BLOCK"
-echo "  head == cutoff      : $HEAD_EQ_CUTOFF"
-echo "  active_backfills    : $ACTIVE_BACKFILLS"
+echo "  backfill_head_block   : $BACKFILL_HEAD"
+echo "  backfill_started_at   : $BACKFILL_STARTED"
+echo "  drain status          : $DRAIN_STATUS"
 echo
 echo "Archive / derivation"
 echo "  archived (PG)       : $ARCHIVED"
@@ -190,8 +197,7 @@ fi
 # Run results table
 patch_runbook '_(timestamp)_.*Run started at'           "_(fill in)_ | Run started at"  # timestamps are manual
 patch_runbook '_\(block\)_.*backfill_head_block'        "${BACKFILL_HEAD}"
-patch_runbook '_\(block\)_.*cutoff_block[^)]'           "${CUTOFF_BLOCK}"
-patch_runbook '_\(yes\/no\)_.*backfill_head_block == cutoff' "${HEAD_EQ_CUTOFF}"
+patch_runbook '_\(yes\/no\)_.*drain status'             "${DRAIN_STATUS}"
 patch_runbook '_\(count\)_.*DLQ entries'                "${DLQ_SIZE}"
 
 # Acceptance tables
