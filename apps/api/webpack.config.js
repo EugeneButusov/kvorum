@@ -45,10 +45,7 @@ module.exports = {
         !request.startsWith('.') &&
         !path.isAbsolute(request) &&
         !request.startsWith('@libs/') &&
-        !request.startsWith('@nest/') &&
-        request !== 'nestjs-pino' &&
-        request !== 'pino-http' &&
-        request !== 'pino'
+        !request.startsWith('@nest/')
       ) {
         return callback(null, `commonjs ${request}`);
       }

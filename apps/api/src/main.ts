@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 process.env['OTEL_SERVICE_NAME'] ??= 'api';
 import { NestFactory } from '@nestjs/core';
-import { usePinoNestLogger } from '@nest/logging';
 import { AppModule } from './app/app.module';
 import { configureOpenApi } from './openapi/openapi';
 import { getCursorConfig } from './pagination/cursor.config';
@@ -9,8 +8,7 @@ import { getCursorConfig } from './pagination/cursor.config';
 async function bootstrap() {
   // Fail fast: H3 requires signed cursors, so the secret must be configured at boot.
   getCursorConfig();
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  usePinoNestLogger(app);
+  const app = await NestFactory.create(AppModule);
   configureOpenApi(app);
   app.enableShutdownHooks();
   await app.listen(process.env['API_PORT'] ?? 3001);
