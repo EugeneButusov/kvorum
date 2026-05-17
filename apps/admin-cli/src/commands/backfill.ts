@@ -1,11 +1,12 @@
 import { Command } from 'commander';
-import type { SourceType } from '@libs/db';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
-import type { CompoundGovernorConfig } from '@sources/compound';
-import type { SourcePlugin } from '@sources/core';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
+import {
+  buildBackfillSourcePlugins,
+  resolveBackfillSourcePlugin,
+} from '../plugins/backfill-source-plugins.js';
 
 type BackfillCommonOptions = {
   format?: string;
@@ -16,13 +17,6 @@ type BackfillStartOptions = BackfillCommonOptions & {
   toBlock?: string;
   dryRun?: boolean;
 };
-
-export function resolveCompoundBackfillPlugin(
-  sourceType: SourceType,
-  plugins: readonly SourcePlugin<CompoundGovernorConfig>[],
-): SourcePlugin<CompoundGovernorConfig> | undefined {
-  return plugins.find((plugin) => plugin.sourceType === sourceType);
-}
 
 export function registerBackfill(program: Command): void {
   const backfill = program.command('backfill').description('Backfill management');
@@ -51,8 +45,7 @@ export function registerBackfill(program: Command): void {
           import('@sources/compound'),
           import('@sources/core'),
         ]);
-        const { ArchiveWriter, createCompoundPlugins, EventRepository, makeIngesterListener } =
-          compound;
+        const { ArchiveWriter, EventRepository, makeIngesterListener } = compound;
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
@@ -83,9 +76,9 @@ export function registerBackfill(program: Command): void {
           logger: silentLogger,
         });
         const dlqRepo = new DlqRepository(pgDb);
-        const plugin = resolveCompoundBackfillPlugin(
+        const plugin = resolveBackfillSourcePlugin(
           row.source_type,
-          createCompoundPlugins({
+          buildBackfillSourcePlugins({
             archiveWriter,
             dlqRepo,
             logger: silentLogger,

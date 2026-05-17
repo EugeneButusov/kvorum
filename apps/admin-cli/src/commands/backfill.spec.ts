@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveCompoundBackfillPlugin } from './backfill.js';
+import { resolveBackfillSourcePlugin } from '../plugins/backfill-source-plugins.js';
 
-describe('resolveCompoundBackfillPlugin', () => {
+describe('resolveBackfillSourcePlugin', () => {
   const bravoPlugin = {
     sourceType: 'compound_governor',
     parseConfig: vi.fn(),
@@ -14,13 +14,13 @@ describe('resolveCompoundBackfillPlugin', () => {
   };
 
   it('returns bravo plugin for compound_governor', () => {
-    const plugin = resolveCompoundBackfillPlugin('compound_governor', [bravoPlugin, alphaPlugin]);
+    const plugin = resolveBackfillSourcePlugin('compound_governor', [bravoPlugin, alphaPlugin]);
 
     expect(plugin).toBe(bravoPlugin);
   });
 
   it('returns alpha plugin for compound_governor_alpha', () => {
-    const plugin = resolveCompoundBackfillPlugin('compound_governor_alpha', [
+    const plugin = resolveBackfillSourcePlugin('compound_governor_alpha', [
       bravoPlugin,
       alphaPlugin,
     ]);
@@ -29,7 +29,7 @@ describe('resolveCompoundBackfillPlugin', () => {
   });
 
   it('returns undefined for unknown source types', () => {
-    const plugin = resolveCompoundBackfillPlugin('unknown_source', [bravoPlugin, alphaPlugin]);
+    const plugin = resolveBackfillSourcePlugin('unknown_source', [bravoPlugin, alphaPlugin]);
 
     expect(plugin).toBeUndefined();
   });
