@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { LoggingModule } from '@nest/logging';
 import { OpsServer } from '@nest/observability';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,7 +17,6 @@ import { RateLimitModule } from '../rate-limit/rate-limit.module';
     CacheModule,
     DaoModule,
     HttpModule,
-    LoggingModule,
     ObservabilityModule,
     ProposalModule,
     RateLimitModule,
