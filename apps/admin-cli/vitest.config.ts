@@ -9,6 +9,7 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'node',
+    setupFiles: ['src/test/setup-env.ts'],
     include: ['src/**/*.spec.ts'],
     exclude: ['src/main.spec.ts'],
     reporters: ['default'],
