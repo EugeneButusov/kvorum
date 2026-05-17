@@ -9,7 +9,7 @@
 #
 # Requires:
 #   DATABASE_URL, DAO_SOURCE_ID
-#   psql, curl (for ClickHouse HTTP), admin-cli on PATH
+#   docker (postgres queries run via docker exec), curl (ClickHouse), admin-cli on PATH
 #
 # ClickHouse defaults to localhost:8123 (docker-compose defaults).
 # Override with: CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD, CLICKHOUSE_DATABASE
@@ -22,15 +22,15 @@ RUNBOOK="$(git rev-parse --show-toplevel)/docs/runbooks/m1-backfill.md"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-# Strip application-level query params (schema=, connection_limit=, etc.) that
-# psql does not understand but Node database drivers accept.
-PG_URL="${DATABASE_URL%%\?*}"
-# Extract password for PGPASSWORD — some psql versions don't pick it up from
-# the URI reliably on macOS.
-_PG_PASS="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${PG_URL}').password or '')" 2>/dev/null || true)"
+# Extract Postgres connection params from DATABASE_URL for docker exec.
+# Uses docker exec into the compose postgres container — no psql install needed.
+_PG_CONTAINER="$(docker compose ps -q postgres 2>/dev/null || true)"
+_PG_USER="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${DATABASE_URL%%\?*}').username or 'postgres')" 2>/dev/null || echo 'postgres')"
+_PG_DB="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${DATABASE_URL%%\?*}').path.lstrip('/') or 'postgres')" 2>/dev/null || echo 'postgres')"
 
 psql_val() {
-  PGPASSWORD="$_PG_PASS" psql "$PG_URL" -Atc "$1" 2>/dev/null || echo "N/A"
+  [[ -n "$_PG_CONTAINER" ]] || { echo "N/A"; return; }
+  docker exec -i "$_PG_CONTAINER" psql -U "$_PG_USER" -d "$_PG_DB" -Atc "$1" 2>/dev/null || echo "N/A"
 }
 
 ch_val() {
@@ -65,8 +65,10 @@ patch_runbook() {
 [[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
-PGPASSWORD="$_PG_PASS" psql "$PG_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
-  || die "Cannot connect to Postgres — check DATABASE_URL (psql URL: ${PG_URL})"
+[[ -n "$_PG_CONTAINER" ]] \
+  || die "Postgres container not found — is 'just up' running? (docker compose ps -q postgres returned empty)"
+docker exec -i "$_PG_CONTAINER" psql -U "$_PG_USER" -d "$_PG_DB" -Atc "SELECT 1" >/dev/null 2>&1 \
+  || die "Postgres container found but psql query failed (container: ${_PG_CONTAINER})"
 
 echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
 echo
