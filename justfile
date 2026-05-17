@@ -51,7 +51,7 @@ doctor:
     fi
     echo ""
     echo "infra ports (must-pass; run 'just up' first):"
-    for PORT in 5432 6379 8545; do
+    for PORT in 5432 6379 8123 8545; do
         if nc -z localhost "$PORT" 2>/dev/null; then
             echo "  [ok] port $PORT"
         else
@@ -59,7 +59,7 @@ doctor:
         fi
     done
     echo ""
-    echo "app ports (informational, M0 — not started in this epic):"
+    echo "app ports (informational):"
     for PORT in 3000 3001; do
         if nc -z localhost "$PORT" 2>/dev/null; then
             echo "  [info] port $PORT in use"
@@ -75,7 +75,7 @@ doctor:
         exit 1
     fi
 
-# Start infra services (postgres, redis, anvil)
+# Start infra services (postgres, redis, anvil, clickhouse)
 up:
     {{ compose }} up -d --wait --wait-timeout 120
 
@@ -83,17 +83,14 @@ up:
 down:
     {{ compose }} down
 
-# Apply pending Prisma migrations
+# Apply pending Kysely migrations (Postgres + ClickHouse)
 migrate:
     {{ pnpm }} db:migrate
+    {{ pnpm }} db:migrate:ch
 
-# Create and apply a new migration (interactive, dev only)
-migrate-dev:
-    {{ pnpm }} db:migrate:dev
-
-# Show Prisma migration status
-migrate-status:
-    {{ pnpm }} db:migrate:status
+# Roll back the last Postgres migration (dev only)
+migrate-down:
+    {{ pnpm }} db:migrate:down
 
 # Wipe volumes and re-migrate — pass 'yes' to confirm: just reset yes
 reset confirm:
@@ -102,6 +99,7 @@ reset confirm:
     {{ compose }} down -v
     just up
     {{ pnpm }} db:migrate
+    {{ pnpm }} db:migrate:ch
 
 # Tail service logs — pass service name to filter: just logs postgres
 logs service='':
@@ -111,9 +109,8 @@ logs service='':
 ps:
     {{ compose }} ps
 
-# Start infra, migrate, and serve all apps (each app in its own terminal)
+# Start infra and migrate — start apps separately (see README)
 dev: up migrate
-    {{ pnpm }} dev
 
 # Run tests — pass package name to scope: just test api
 test project='':
@@ -124,9 +121,9 @@ test project='':
         {{ pnpm }} test
     fi
 
-# Seed the database (not implemented — lands in M1+ alongside indexer)
+# Seed the database with load-test fixtures
 seed:
-    @echo "seed: not implemented"; exit 69
+    {{ pnpm }} db:seed:loadtest
 
 # Remove build artifacts and caches
 clean:
