@@ -5,11 +5,14 @@
 # and patches docs/runbooks/m1-backfill.md in-place with real values.
 #
 # Usage:
-#   DAO_SOURCE_ID=<uuid> ./infra/scripts/collect-backfill-results.sh
+#   DAO_SLUG=compound ./infra/scripts/collect-backfill-results.sh
 #
 # Requires:
-#   DATABASE_URL, DAO_SOURCE_ID
-#   psql, curl (for ClickHouse HTTP), admin-cli on PATH
+#   DATABASE_URL, DAO_SLUG (defaults to "compound")
+#   docker (postgres queries run via docker exec), curl (ClickHouse + API)
+# Optional:
+#   API_KEY   — Bearer token for authenticated API checks (skipped if unset)
+#   API_URL   — override API base URL (default: http://localhost:API_PORT)
 #
 # ClickHouse defaults to localhost:8123 (docker-compose defaults).
 # Override with: CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD, CLICKHOUSE_DATABASE
@@ -22,8 +25,15 @@ RUNBOOK="$(git rev-parse --show-toplevel)/docs/runbooks/m1-backfill.md"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+# Extract Postgres connection params from DATABASE_URL for docker exec.
+# Uses docker exec into the compose postgres container — no psql install needed.
+_PG_CONTAINER="$(docker compose ps -q postgres 2>/dev/null || true)"
+_PG_USER="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${DATABASE_URL%%\?*}').username or 'postgres')" 2>/dev/null || echo 'postgres')"
+_PG_DB="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${DATABASE_URL%%\?*}').path.lstrip('/') or 'postgres')" 2>/dev/null || echo 'postgres')"
+
 psql_val() {
-  psql "$DATABASE_URL" -Atc "$1" 2>/dev/null || echo "N/A"
+  [[ -n "$_PG_CONTAINER" ]] || { echo "N/A"; return; }
+  docker exec -i "$_PG_CONTAINER" psql -U "$_PG_USER" -d "$_PG_DB" -Atc "$1" 2>/dev/null || echo "N/A"
 }
 
 ch_val() {
@@ -49,29 +59,39 @@ sed_inplace() {
 patch_runbook() {
   local pattern="$1"
   local replacement="$2"
-  sed_inplace "s|${pattern}|${replacement}|g" "$RUNBOOK"
+  sed_inplace "s~${pattern}~${replacement}~g" "$RUNBOOK"
 }
 
 # ── pre-flight ────────────────────────────────────────────────────────────────
 
 [[ -n "${DATABASE_URL:-}" ]] || die "DATABASE_URL is not set"
-[[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
+DAO_SLUG="${DAO_SLUG:-compound}"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
-echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
+[[ -n "$_PG_CONTAINER" ]] \
+  || die "Postgres container not found — is 'just up' running? (docker compose ps -q postgres returned empty)"
+docker exec -i "$_PG_CONTAINER" psql -U "$_PG_USER" -d "$_PG_DB" -Atc "SELECT 1" >/dev/null 2>&1 \
+  || die "Postgres container found but psql query failed (container: ${_PG_CONTAINER})"
+
+echo "Collecting backfill results for dao_slug=$DAO_SLUG ..."
 echo
 
-# ── 1. backfill status ────────────────────────────────────────────────────────
+# ── 1. backfill status (direct dao_source query) ─────────────────────────────
+# admin-cli backfill status was removed; query the table directly.
+# Columns: backfill_started_at_block (cleared on drain), backfill_head_block (last checkpoint).
 
-BACKFILL_JSON=$(admin-cli backfill status "$DAO_SOURCE_ID" --format json 2>/dev/null || echo '{}')
-BACKFILL_HEAD=$(echo "$BACKFILL_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('backfill_head_block','N/A'))" 2>/dev/null || echo "N/A")
-CUTOFF_BLOCK=$(echo "$BACKFILL_JSON"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cutoff_block','N/A'))"       2>/dev/null || echo "N/A")
-ACTIVE_BACKFILLS=$(echo "$BACKFILL_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('active_backfills','N/A'))"  2>/dev/null || echo "N/A")
+DS_ROW=$(psql_val "SELECT coalesce(ds.backfill_head_block::text,'null')||'|'||coalesce(ds.backfill_started_at_block::text,'null') FROM dao_source ds JOIN dao d ON d.id=ds.dao_id WHERE d.slug='${DAO_SLUG}' AND ds.source_type='compound_governor'")
+BACKFILL_HEAD=$(echo "$DS_ROW" | cut -d'|' -f1)
+BACKFILL_STARTED=$(echo "$DS_ROW" | cut -d'|' -f2)
 
-if [[ "$BACKFILL_HEAD" == "$CUTOFF_BLOCK" && "$BACKFILL_HEAD" != "N/A" ]]; then
-  HEAD_EQ_CUTOFF="yes"
+if [[ "$DS_ROW" == "N/A" ]]; then
+  DRAIN_STATUS="N/A (DB query failed)"
+elif [[ "$BACKFILL_HEAD" == "null" ]]; then
+  DRAIN_STATUS="never started (backfill_head_block is null)"
+elif [[ "$BACKFILL_STARTED" == "null" ]]; then
+  DRAIN_STATUS="drained — backfill_started_at_block cleared (head=$BACKFILL_HEAD)"
 else
-  HEAD_EQ_CUTOFF="no (head=$BACKFILL_HEAD cutoff=$CUTOFF_BLOCK)"
+  DRAIN_STATUS="in progress — started=$BACKFILL_STARTED head=$BACKFILL_HEAD"
 fi
 
 # ── 2. archive counts ─────────────────────────────────────────────────────────
@@ -103,7 +123,7 @@ UNDECODED_NO_ATTEMPT=$(psql_val "
 
 # ── 4. DLQ ───────────────────────────────────────────────────────────────────
 
-DLQ_SIZE=$(psql_val "SELECT count(*) FROM dlq WHERE source_type='compound_governor'")
+DLQ_SIZE=$(psql_val "SELECT count(*) FROM ingestion_dlq WHERE archive_source_type='compound_governor'")
 
 # ── 5. duplicate proposals ───────────────────────────────────────────────────
 
@@ -134,12 +154,102 @@ else
   CH_PG_OK="CH=$CH_COUNT PG=$ARCHIVED DLQ=$DLQ_SIZE — verify manually"
 fi
 
-# ── 7. admin-cli status ───────────────────────────────────────────────────────
+# ── 7. system status (direct SQL — admin-cli may not be on PATH) ─────────────
 
-STATUS_JSON=$(admin-cli status --format json 2>/dev/null || echo '{}')
-IDLE_SECS=$(echo "$STATUS_JSON"         | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ingestion_idle_for_seconds','N/A'))" 2>/dev/null || echo "N/A")
-LAST_ARCHIVED=$(echo "$STATUS_JSON"     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_archived_event_at','N/A'))"    2>/dev/null || echo "N/A")
-LAST_REORG=$(echo "$STATUS_JSON"        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('last_reorg_detected_at','N/A'))"    2>/dev/null || echo "N/A")
+LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHERE source_type='compound_governor'")
+LAST_REORG=$(psql_val    "SELECT max(detected_at)  FROM reorg_event")
+IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor'")
+
+# ── 8. API spot-checks ───────────────────────────────────────────────────────
+# Requires API_KEY env var (Bearer token). Authenticated checks are skipped if unset.
+
+API_BASE="${API_URL:-http://localhost:${API_PORT:-3001}}"
+
+api_get() {
+  local path="$1"
+  if [[ -n "${API_KEY:-}" ]]; then
+    curl -sf -H "Authorization: Bearer ${API_KEY}" "${API_BASE}${path}" 2>/dev/null || echo 'ERROR'
+  else
+    curl -sf "${API_BASE}${path}" 2>/dev/null || echo 'ERROR'
+  fi
+}
+
+py_field() { python3 -c "import sys,json; d=json.load(sys.stdin); print($1)" 2>/dev/null || echo "N/A"; }
+
+_HEALTH_JSON=$(api_get "/health")
+API_HEALTH=$(echo "$_HEALTH_JSON" | py_field "d.get('status','N/A')")
+
+if [[ -z "${API_KEY:-}" ]]; then
+  API_DAO_SLUG="skipped (API_KEY not set)"
+  API_DAO_SOURCES="skipped"
+  API_PROP_FIRST="skipped"
+  API_PROP_HAS_MORE="skipped"
+  API_BINDING_OK="skipped"
+  API_PROP_TOTAL="skipped"
+elif [[ "$API_HEALTH" == "ok" ]]; then
+  _DAO_JSON=$(api_get "/v1/daos/${DAO_SLUG}")
+  API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d['data'].get('slug','N/A')")
+  API_DAO_SOURCES=$(echo "$_DAO_JSON" | py_field "','.join(s['source_type'] for s in d['data'].get('sources',[]))")
+
+  _PROP_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?limit=1")
+  API_PROP_FIRST=$(echo "$_PROP_JSON"    | py_field "d['data'][0]['source_id'] if d.get('data') else 'none'")
+  API_PROP_HAS_MORE=$(echo "$_PROP_JSON" | py_field "d.get('pagination',{}).get('has_more','N/A')")
+
+  _BIND_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?binding=true&limit=1")
+  API_BINDING_OK=$(echo "$_BIND_JSON" | py_field "'yes' if d.get('data') else 'no — 0 binding proposals returned'")
+
+  echo "  (paginating proposals via API...)" >&2
+  API_PROP_TOTAL=$(python3 - <<PYEOF
+import urllib.request, urllib.parse, json, sys
+
+base   = "${API_BASE}"
+slug   = "${DAO_SLUG}"
+key    = "${API_KEY:-}"
+total  = 0
+cursor = None
+pages  = 0
+
+while True:
+    params = {"limit": "100"}
+    if cursor:
+        params["cursor"] = cursor
+    url = f"{base}/v1/daos/{slug}/proposals?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"} if key else {})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            body = json.loads(r.read())
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        print("N/A")
+        sys.exit(0)
+    total += len(body.get("data", []))
+    pages += 1
+    pag = body.get("pagination", {})
+    if not pag.get("has_more"):
+        break
+    cursor = pag.get("next_cursor")
+
+print(total)
+PYEOF
+)
+else
+  API_DAO_SLUG="N/A (health=$API_HEALTH)"
+  API_DAO_SOURCES="N/A"
+  API_PROP_FIRST="N/A"
+  API_PROP_HAS_MORE="N/A"
+  API_BINDING_OK="N/A"
+  API_PROP_TOTAL="N/A"
+fi
+
+if [[ "$API_PROP_TOTAL" =~ ^[0-9]+$ && "$DERIVED" =~ ^[0-9]+$ ]]; then
+  if [[ "$API_PROP_TOTAL" -eq "$DERIVED" ]]; then
+    API_VS_DB="yes — API=$API_PROP_TOTAL DB=$DERIVED"
+  else
+    API_VS_DB="MISMATCH — API=$API_PROP_TOTAL DB=$DERIVED delta=$(( API_PROP_TOTAL - DERIVED ))"
+  fi
+else
+  API_VS_DB="API=$API_PROP_TOTAL DB=$DERIVED — verify manually"
+fi
 
 # ── print summary ─────────────────────────────────────────────────────────────
 
@@ -148,10 +258,9 @@ NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 echo "=== Collected at $NOW ==="
 echo
 echo "Backfill"
-echo "  backfill_head_block : $BACKFILL_HEAD"
-echo "  cutoff_block        : $CUTOFF_BLOCK"
-echo "  head == cutoff      : $HEAD_EQ_CUTOFF"
-echo "  active_backfills    : $ACTIVE_BACKFILLS"
+echo "  backfill_head_block   : $BACKFILL_HEAD"
+echo "  backfill_started_at   : $BACKFILL_STARTED"
+echo "  drain status          : $DRAIN_STATUS"
 echo
 echo "Archive / derivation"
 echo "  archived (PG)       : $ARCHIVED"
@@ -178,11 +287,21 @@ echo "  idle_secs           : $IDLE_SECS"
 echo "  last_archived_at    : $LAST_ARCHIVED"
 echo "  last_reorg_at       : $LAST_REORG"
 echo
+echo "API ($API_BASE)"
+echo "  health              : $API_HEALTH"
+echo "  dao slug            : $API_DAO_SLUG"
+echo "  dao sources         : $API_DAO_SOURCES"
+echo "  first proposal id   : $API_PROP_FIRST"
+echo "  has_more proposals  : $API_PROP_HAS_MORE"
+echo "  binding filter ok   : $API_BINDING_OK"
+echo "  total proposals     : $API_PROP_TOTAL"
+echo "  API count == DB     : $API_VS_DB"
+echo
 
 # ── patch runbook ─────────────────────────────────────────────────────────────
 
 read -r -p "Patch runbook at $RUNBOOK with these values? [y/N] " CONFIRM
-if [[ "${CONFIRM,,}" != "y" ]]; then
+if [[ "$(echo "$CONFIRM" | tr '[:upper:]' '[:lower:]')" != "y" ]]; then
   echo "Skipped. Copy values above manually."
   exit 0
 fi
@@ -190,8 +309,7 @@ fi
 # Run results table
 patch_runbook '_(timestamp)_.*Run started at'           "_(fill in)_ | Run started at"  # timestamps are manual
 patch_runbook '_\(block\)_.*backfill_head_block'        "${BACKFILL_HEAD}"
-patch_runbook '_\(block\)_.*cutoff_block[^)]'           "${CUTOFF_BLOCK}"
-patch_runbook '_\(yes\/no\)_.*backfill_head_block == cutoff' "${HEAD_EQ_CUTOFF}"
+patch_runbook '_\(yes\/no\)_.*drain status'             "${DRAIN_STATUS}"
 patch_runbook '_\(count\)_.*DLQ entries'                "${DLQ_SIZE}"
 
 # Acceptance tables
