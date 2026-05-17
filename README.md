@@ -29,14 +29,15 @@ pnpm install
 
 ```bash
 cp .env.example .env
-# No edits required — defaults work for M0 (anvil runs standalone, no fork URL needed).
+# Edit .env — at minimum set CHAIN_CONFIG (mainnet RPC endpoints) and HMAC_PEPPER_CURRENT.
+# See .env.example for documentation on each variable.
 ```
 
 ### Start the stack
 
 ```bash
 just up       # starts postgres, redis, anvil, clickhouse; waits for all to be healthy
-just migrate  # applies pending Kysely migrations (Postgres + ClickHouse)
+just migrate  # applies pending Kysely migrations — Postgres then ClickHouse
 ```
 
 ### Run the full stack
@@ -76,49 +77,61 @@ apps/
   dashboard/     Next.js 16 App Router — governance dashboard (port 3000)
   indexer/       NestJS standalone worker — block event consumer
   ai-worker/     NestJS standalone worker — AI summarisation
-  admin-cli/  Admin CLI — operator command surface (M0 stubs)
+  admin-cli/     Operator CLI — backfill, keys, DLQ, status commands
 
 libs/
-  domain/       Shared types and constants
-  db/           Kysely clients (pgDb, chDb), schema types, migrations
-  chain/        Chain-interaction helpers
-  ai/           AI provider abstractions
+  domain/        Shared domain types and constants
+  db/            Kysely clients (pgDb, chDb), schema types, migrations
+  chain/         Chain-interaction helpers, RPC client, backfill fetcher
+  ai/            AI provider abstractions
+  auth/          API-key auth primitives (HMAC, bearer, pepper)
+  utils/         Framework-agnostic utilities (sleep, …)
+  observability/ OTel MeterProvider, metric helpers
+  sources/
+    compound/    Compound Governor — ABI, decoder, archive writer, listener
+    core/        Backfill driver, cutoff classifier
+
+nest/
+  observability/ OpsServer — GET /metrics on OPS_PORT for all apps
+  sources/
+    compound/    NestJS DI wiring for compound source primitives
 
 docs/
-  SPEC.md       Frozen v1.0 product specification
-  adr/          Architecture Decision Records
-  runbooks/     Operational runbooks
+  SPEC.md        Frozen v1.0 product specification
+  adr/           Architecture Decision Records
+  runbooks/      Operational runbooks
 
 infra/
-  caddy/        Caddy reverse-proxy config (production + dev overlay)
-  scripts/      Provisioning scripts
+  caddy/         Caddy reverse-proxy config (production + dev overlay)
+  scripts/       Provisioning scripts
 ```
 
 ---
 
 ## just recipes
 
-| Recipe                | Description                                      |
-| --------------------- | ------------------------------------------------ |
-| `just`                | List all recipes                                 |
-| `just doctor`         | Check prerequisites and infra port health        |
-| `just up`             | Start postgres, redis, anvil (waits for healthy) |
-| `just down`           | Stop infra services                              |
-| `just migrate`        | Apply pending Kysely migrations (PG + CH)        |
-| `just migrate-dev`    | Roll back one migration (dev)                    |
-| `just reset yes`      | Wipe volumes and re-migrate                      |
-| `just dev`            | `up` + `migrate` + serve all apps                |
-| `just logs [service]` | Tail logs (omit service name for all)            |
-| `just ps`             | Show service status                              |
-| `just test [project]` | Run all tests (pass project name to scope)       |
-| `just clean`          | Remove `node_modules`, `dist`, `.next`           |
+| Recipe                | Description                                          |
+| --------------------- | ---------------------------------------------------- |
+| `just`                | List all recipes                                     |
+| `just doctor`         | Check prerequisites and infra port health            |
+| `just up`             | Start postgres, redis, anvil, clickhouse             |
+| `just down`           | Stop infra services                                  |
+| `just migrate`        | Apply pending Kysely migrations (Postgres + CH)      |
+| `just migrate-down`   | Roll back the last Postgres migration (dev only)     |
+| `just reset yes`      | Wipe volumes and re-migrate                          |
+| `just dev`            | `up` + `migrate` (start apps separately — see above) |
+| `just logs [service]` | Tail logs (omit service name for all)                |
+| `just ps`             | Show service status                                  |
+| `just test [project]` | Run all tests (pass project name to scope)           |
+| `just seed`           | Seed database with load-test fixtures                |
+| `just clean`          | Remove `node_modules`, `dist`, `.next`               |
 
 ---
 
 ## Contributing
 
 1. Branch from `main` using the milestone prefix: `feat/m1-…`, `fix/…`, `chore/…`.
-2. All four checks must pass before pushing (`pnpm -w format:check && pnpm -w lint && pnpm -w typecheck && pnpm -w test`). Lefthook enforces formatting at commit and typecheck+test at push.
+2. All four checks must pass before pushing (`pnpm -w format:check && pnpm -w lint && pnpm -w typecheck && pnpm -w test`). Lefthook enforces formatting + typecheck at commit; lint and tests run manually and in CI.
 3. Follow the query-builder-first database convention (see `CLAUDE.md`).
 4. PRs should close the relevant GitHub issue.
 5. Operator branch protection setup: see [`docs/runbooks/branch-protection.md`](docs/runbooks/branch-protection.md).
