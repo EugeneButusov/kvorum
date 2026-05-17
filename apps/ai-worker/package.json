@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ../../dist/apps/ai-worker/main.js",
-    "start:dev": "tsx --tsconfig ../../tsconfig.base.json src/main.ts",
+    "start:dev": "pnpm run build:dev && node ../../dist/apps/ai-worker/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "build": "webpack-cli build --node-env=production",
     "build:dev": "webpack-cli build --node-env=development",
