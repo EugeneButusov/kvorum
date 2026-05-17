@@ -55,7 +55,7 @@ interface CompoundProjectionRepositories {
 }
 
 export class CompoundProjectionApplier {
-  readonly sourceType = 'compound_governor';
+  readonly sourceTypes = ['compound_governor', 'compound_governor_alpha'] as const;
 
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;
