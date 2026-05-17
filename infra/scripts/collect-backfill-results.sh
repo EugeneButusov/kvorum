@@ -22,8 +22,12 @@ RUNBOOK="$(git rev-parse --show-toplevel)/docs/runbooks/m1-backfill.md"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+# Strip application-level query params (schema=, connection_limit=, etc.) that
+# psql does not understand but Prisma/Node drivers accept.
+PG_URL="${DATABASE_URL%%\?*}"
+
 psql_val() {
-  psql "$DATABASE_URL" -Atc "$1" 2>/dev/null || echo "N/A"
+  psql "$PG_URL" -Atc "$1" 2>/dev/null || echo "N/A"
 }
 
 ch_val() {
@@ -58,8 +62,8 @@ patch_runbook() {
 [[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
-psql "$DATABASE_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
-  || die "Cannot connect to Postgres — check DATABASE_URL (current value: ${DATABASE_URL})"
+psql "$PG_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
+  || die "Cannot connect to Postgres — check DATABASE_URL (psql URL: ${PG_URL})"
 
 echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
 echo
