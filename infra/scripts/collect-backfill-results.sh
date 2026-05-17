@@ -187,8 +187,8 @@ if [[ -z "${API_KEY:-}" ]]; then
   API_BINDING_OK="skipped"
 elif [[ "$API_HEALTH" == "ok" ]]; then
   _DAO_JSON=$(api_get "/v1/daos/${DAO_SLUG}")
-  API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d.get('slug','N/A')")
-  API_DAO_SOURCES=$(echo "$_DAO_JSON" | py_field "','.join(s['source_type'] for s in d.get('sources',[]))")
+  API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d['data'].get('slug','N/A')")
+  API_DAO_SOURCES=$(echo "$_DAO_JSON" | py_field "','.join(s['source_type'] for s in d['data'].get('sources',[]))")
 
   _PROP_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?limit=1")
   API_PROP_FIRST=$(echo "$_PROP_JSON"    | py_field "d['data'][0]['source_id'] if d.get('data') else 'none'")
