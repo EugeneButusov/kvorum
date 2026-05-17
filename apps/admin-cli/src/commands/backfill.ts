@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
+import type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from '@sources/compound';
+import type { SourcePlugin } from '@sources/core';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -13,6 +15,22 @@ type BackfillStartOptions = BackfillCommonOptions & {
   toBlock?: string;
   dryRun?: boolean;
 };
+
+type PluginFactory = (deps: CompoundGovernorPluginDeps) => SourcePlugin<CompoundGovernorConfig>;
+
+export function resolveCompoundBackfillFactory(
+  sourceType: string,
+  factories: {
+    createCompoundGovernorPlugin: PluginFactory;
+    createCompoundGovernorAlphaPlugin: PluginFactory;
+  },
+): PluginFactory | undefined {
+  const bySourceType: Record<string, PluginFactory> = {
+    compound_governor: factories.createCompoundGovernorPlugin,
+    compound_governor_alpha: factories.createCompoundGovernorAlphaPlugin,
+  };
+  return bySourceType[sourceType];
+}
 
 export function registerBackfill(program: Command): void {
   const backfill = program.command('backfill').description('Backfill management');
@@ -43,6 +61,7 @@ export function registerBackfill(program: Command): void {
         ]);
         const {
           ArchiveWriter,
+          createCompoundGovernorAlphaPlugin,
           createCompoundGovernorPlugin,
           EventRepository,
           makeIngesterListener,
@@ -54,7 +73,11 @@ export function registerBackfill(program: Command): void {
         if (row == null) {
           fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
         }
-        if (row.source_type !== 'compound_governor') {
+        const pluginFactory = resolveCompoundBackfillFactory(row.source_type, {
+          createCompoundGovernorPlugin,
+          createCompoundGovernorAlphaPlugin,
+        });
+        if (pluginFactory == null) {
           fail(format, ExitCode.ValidationFailure, `unsupported source_type: ${row.source_type}`);
         }
 
@@ -81,7 +104,7 @@ export function registerBackfill(program: Command): void {
           logger: silentLogger,
         });
         const dlqRepo = new DlqRepository(pgDb);
-        const plugin = createCompoundGovernorPlugin({
+        const plugin = pluginFactory({
           archiveWriter,
           dlqRepo,
           logger: silentLogger,

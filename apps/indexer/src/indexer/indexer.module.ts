@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import type { SourcePlugin } from '@sources/core';
-import { CompoundSourceModule, COMPOUND_PLUGIN } from '@nest/compound';
+import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
@@ -15,8 +15,8 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
   providers: [
     {
       provide: SOURCE_PLUGINS,
-      useFactory: (compound: SourcePlugin) => [compound],
-      inject: [COMPOUND_PLUGIN],
+      useFactory: (compoundPlugins: SourcePlugin[]) => compoundPlugins,
+      inject: [COMPOUND_PLUGINS],
     },
     EvmEventPollerDriver,
     { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },
