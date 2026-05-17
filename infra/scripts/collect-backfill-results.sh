@@ -56,7 +56,7 @@ sed_inplace() {
 patch_runbook() {
   local pattern="$1"
   local replacement="$2"
-  sed_inplace "s|${pattern}|${replacement}|g" "$RUNBOOK"
+  sed_inplace "s~${pattern}~${replacement}~g" "$RUNBOOK"
 }
 
 # ── pre-flight ────────────────────────────────────────────────────────────────
