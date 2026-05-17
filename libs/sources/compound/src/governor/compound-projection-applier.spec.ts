@@ -118,6 +118,18 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
 }
 
 describe('CompoundProjectionApplier', () => {
+  it('supports both compound governor source types', () => {
+    const applier = new CompoundProjectionApplier({
+      pgDb: {} as never,
+      chDb: {} as never,
+      archive: {} as never,
+      payloads: {} as never,
+      metrics: makeMetrics(),
+    });
+
+    expect(applier.sourceTypes).toEqual(['compound_governor', 'compound_governor_alpha']);
+  });
+
   it('projects ProposalCreated inside one transaction and marks archive row derived', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const archive = {

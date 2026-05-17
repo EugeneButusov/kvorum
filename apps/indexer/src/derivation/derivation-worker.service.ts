@@ -37,7 +37,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       );
       const watermark = await this.archive.findConfirmedUndderived(batchSize);
       if (watermark.length === 0) {
-        derivationMetrics.lagSeconds.record(0, { source_type: 'compound_governor' });
+        derivationMetrics.lagSeconds.record(0);
         return;
       }
 
@@ -46,7 +46,9 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
       const bySourceType = groupBySourceType(watermark);
       for (const [sourceType, rows] of bySourceType) {
-        const applier = this.appliers.find((candidate) => candidate.sourceType === sourceType);
+        const applier = this.appliers.find((candidate) =>
+          candidate.sourceTypes.includes(sourceType),
+        );
         if (applier === undefined) {
           await this.markUnsupportedSource(rows);
           continue;

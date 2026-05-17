@@ -30,11 +30,13 @@ The existing Bravo plugin's log filter subscribes to **all four** topics in `COM
 | `ProposalCanceled` | `ProposalCanceled(uint256)`                                                                                   | identical                | **Shared decoder safe**              |
 | `VoteCast`         | Alpha `VoteCast(address,uint256,bool,uint256)` vs Bravo `VoteCast(address,uint256,uint8,uint256,string)`      | divergent                | **Out of M1 scope — deferred to M2** |
 
-`ProposalCreated` parity was confirmed independently: both contracts declare it with byte-identical parameter lists and **no `indexed` modifiers**, so both topic-0 and data layout match — `COMPOUND_GOVERNOR_INTERFACE.parseLog` decodes Alpha logs unchanged. The three lifecycle events are likewise byte-identical, so the shared decoder and projector handle Alpha lifecycle logs with zero code change. Only `VoteCast` diverges (Alpha uses `bool support` and carries no `reason`), and `VoteCast` is out of M1 scope.
+`ProposalCreated` parity was confirmed independently: both contracts declare it with byte-identical parameter lists and **no `indexed` modifiers**, so both topic-0 and data layout match — `COMPOUND_GOVERNOR_INTERFACE.parseLog` decodes Alpha logs unchanged. The three lifecycle events are likewise byte-identical, so the shared decoder and projector handle Alpha lifecycle logs with zero decoder/projector logic change. Only `VoteCast` diverges (Alpha uses `bool support` and carries no `reason`), and `VoteCast` is out of M1 scope.
 
 ---
 
 ## Decision
+
+> **Amended 2026-05-17 (correction):** this ADR originally implied projection-applier reuse required no code changes. That was incorrect. The projection dispatch contract in `apps/indexer` was singular (`ProjectionApplier.sourceType`), so Alpha rows would be marked `unsupported_source` and never projected. The accepted implementation updates dispatch to `ProjectionApplier.sourceTypes: readonly string[]` and matches via `includes(sourceType)`, with one Compound applier instance serving both `compound_governor` and `compound_governor_alpha`.
 
 Add `compound_governor_alpha` as a second source type that re-uses all M1 Bravo primitives (decoder, archive writer, ingester listener, projection applier). `createCompoundGovernorPlugin` is refactored to delegate to an internal factory parameterized by `sourceType`; a thin `createCompoundGovernorAlphaPlugin` sets `sourceType: 'compound_governor_alpha'`. Everything else is shared.
 
@@ -64,20 +66,20 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 
 ### Migration
 
-- New `compound_governor_alpha` value inserted into `source_type` reference table, and a new `dao_source` row (compound DAO, `source_config = {"governor_address": "0xc0dA01a04C3f3E0be433606045bB7017A7323E38"}`, `active_from_block = 9601459`) — migration `compound_004_governor_alpha.ts`, following the `compound_001`/`compound_002`/`compound_003` patterns. Add `export const GOVERNOR_ALPHA_DEPLOY_BLOCK = 9601459;` with the creation-tx provenance comment, mirroring `GOVERNOR_BRAVO_DEPLOY_BLOCK`. The `dao_source` unique constraint is `(dao_id, source_type)`, so a second Compound row under a distinct `source_type` is permitted.
+- New `compound_governor_alpha` value is seeded in `compound_001_source_type.ts`, and a new `dao_source` row (compound DAO, `source_config = {"governor_address": "0xc0dA01a04C3f3E0be433606045bB7017A7323E38"}`, `active_from_block = 9601459`) is seeded in `compound_002_dao_seed.ts`. `GOVERNOR_ALPHA_DEPLOY_BLOCK = 9601459` is documented with creation-tx provenance, mirroring Bravo's provenance style. The `dao_source` unique constraint is `(dao_id, source_type)`, so a second Compound row under a distinct `source_type` is permitted.
 
 ### Code
 
 - `createCompoundGovernorAlphaPlugin` added to `libs/sources/compound`; `createCompoundGovernorPlugin` refactored to share an internal `sourceType`-parameterized factory. The Zod `source_config` schema and the decoder are unchanged (shared).
-- `CompoundSourceModule` (`nest/sources/compound`) exposes a `COMPOUND_ALPHA_PLUGIN` token alongside `COMPOUND_PLUGIN`.
-- `IndexerModule` (`apps/indexer`) injects both plugins into `SOURCE_PLUGINS`.
+- `CompoundSourceModule` (`nest/sources/compound`) encapsulates Bravo+Alpha plugin creation and exports a single `COMPOUND_PLUGINS` token; `IndexerModule` injects that token into `SOURCE_PLUGINS`, keeping generic orchestration source-agnostic.
+- `ProjectionApplier` dispatch in `apps/indexer` is widened from singular `sourceType` to `sourceTypes: readonly string[]`; worker dispatch matches with `includes(sourceType)`. `CompoundProjectionApplier` declares both source types on one instance.
 - **`apps/admin-cli` backfill command must be generalized** (`backfill.ts:57,84`): replace the hardcoded `compound_governor` guard and plugin constructor with selection by `row.source_type` (e.g. a small `{ compound_governor, compound_governor_alpha }` plugin map keyed by source type). This is a required code change, not optional — the ADR's backfill step depends on it.
 
 ### Data correctness (archive, confirmation, projection)
 
-- **Archive (ClickHouse) — safe.** `event_archive_compound_governor` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Alpha and Bravo are distinct on-chain addresses, so identical-coordinate logs across the two contracts are physically impossible — no cross-source dedup collision.
+- **Archive (ClickHouse) — safe.** `event_archive_compound_governor` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Cross-source dedup safety relies on log-coordinate global uniqueness (`tx_hash`+`log_index`+`block_hash` identifies one emitted log globally), so Alpha and Bravo rows are disjoint in the dedup key space.
 - **Confirmation (Postgres) — safe.** The `archive_confirmation` idempotency and canonical uniqueness keys both lead with `source_type`, so Alpha and Bravo confirmations occupy distinct key spaces.
-- **Projection — no corruption, but a semantic split.** The derived `proposal` natural key is `(dao_id, source_type, source_id)`. Compound's proposal-id counter is _continuous_ across the two contracts (Alpha 1–~64, Bravo ~65–present), but indexing Alpha under a distinct `source_type` partitions that single id space into two namespaces under one DAO. There is **no collision, no duplication, no mis-attribution** (Alpha and Bravo id ranges are disjoint anyway, and `source_type` further separates them). State transitions (`advanceState`, keyed on `source_type`+`source_id`) resolve correctly because each contract emits its own proposals' lifecycle events — recorded here as a relied-upon **invariant**: a future source that re-emits lifecycle events under a different `source_type` would break this assumption.
+- **Projection — no corruption, but a semantic split.** The derived `proposal` natural key is `(dao_id, source_type, source_id)`. Compound's proposal-id counter is _continuous_ across the two contracts (Alpha 1–~64, Bravo ~65–present), but indexing Alpha under a distinct `source_type` partitions that single id space into two namespaces under one DAO. There is **no collision, no duplication, no mis-attribution** (Alpha and Bravo id ranges are disjoint anyway, and `source_type` further separates them). State transitions (`advanceState`, keyed on `source_type`+`source_id`) resolve correctly because each contract emits its own proposals' lifecycle events. Dispatch for the new source type is explicitly covered by the `sourceTypes[]` applier contract above.
 
 ### Read model / API surface
 
@@ -94,6 +96,7 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 ### Tests
 
 - Add a `createCompoundGovernorAlphaPlugin` spec mirroring `plugin.spec.ts` (asserts `sourceType === 'compound_governor_alpha'`, shared config schema, shared filter topics). The existing `decoder.spec.ts` topic-0 regression test already covers the shared event signatures and needs no Alpha-specific addition for M1.
+- Add `apps/indexer` projection-dispatch coverage for `compound_governor_alpha` routing plus `CompoundProjectionApplier.sourceTypes` coverage, ensuring Alpha rows do not hit `unsupported_source`.
 
 ### M2 note
 

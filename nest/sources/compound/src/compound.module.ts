@@ -1,10 +1,11 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter, EventRepository, createCompoundGovernorPlugin } from '@sources/compound';
+import { ArchiveWriter, EventRepository, createCompoundPlugins } from '@sources/compound';
+import type { SourcePlugin } from '@sources/core';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
-export const COMPOUND_PLUGIN = 'COMPOUND_PLUGIN';
+export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
 
 @Module({
   providers: [
@@ -31,16 +32,19 @@ export const COMPOUND_PLUGIN = 'COMPOUND_PLUGIN';
       },
     },
     {
-      provide: COMPOUND_PLUGIN,
-      useFactory: (archiveWriter: ArchiveWriter, dlqRepo: DlqRepository) =>
-        createCompoundGovernorPlugin({
-          archiveWriter,
-          dlqRepo,
-          logger: toChainLogger(new Logger('CompoundGovernor')),
-        }),
+      provide: COMPOUND_PLUGINS,
+      useFactory: (archiveWriter: ArchiveWriter, dlqRepo: DlqRepository): SourcePlugin[] => {
+        return [
+          ...createCompoundPlugins({
+            archiveWriter,
+            dlqRepo,
+            logger: toChainLogger(new Logger('CompoundGovernor')),
+          }),
+        ];
+      },
       inject: [ArchiveWriter, DlqRepository],
     },
   ],
-  exports: [COMPOUND_PLUGIN],
+  exports: [COMPOUND_PLUGINS],
 })
 export class CompoundSourceModule {}

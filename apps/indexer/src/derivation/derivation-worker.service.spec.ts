@@ -36,7 +36,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
-      sourceType: 'compound_governor',
+      sourceTypes: ['compound_governor'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
     const worker = new DerivationWorkerService(archive as never, [applier]);
@@ -44,6 +44,24 @@ describe('DerivationWorkerService', () => {
     await worker.tick();
 
     expect(applier.applyBatch).toHaveBeenCalledWith([ROW]);
+    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
+
+  it('routes alpha rows to an applier that supports compound_governor_alpha', async () => {
+    const alphaRow = { ...ROW, source_type: 'compound_governor_alpha' };
+    const archive = {
+      findConfirmedUndderived: vi.fn().mockResolvedValue([alphaRow]),
+      incrementAttemptCount: vi.fn(),
+    };
+    const applier = {
+      sourceTypes: ['compound_governor', 'compound_governor_alpha'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(archive as never, [applier]);
+
+    await worker.tick();
+
+    expect(applier.applyBatch).toHaveBeenCalledWith([alphaRow]);
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 });
