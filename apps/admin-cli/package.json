@@ -5,6 +5,8 @@
   "main": "main.js",
   "scripts": {
     "build": "node build.mjs",
+    "start": "node ../../dist/apps/admin-cli/main.js",
+    "start:dev": "tsx --tsconfig ../../tsconfig.base.json src/main.ts",
     "test": "vitest run --config vitest.config.ts",
     "test:bundle": "vitest run --config vitest.bundle.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
