@@ -8,6 +8,18 @@ GovernorAlpha-era proposals (~1–42, 2020 → May 2021) are explicitly out of M
 
 ---
 
+## Helpers
+
+```bash
+# psql shorthand — no local install needed
+alias psql='docker exec -i kvorum-postgres-1 psql -U kvorum -d kvorum'
+
+# ClickHouse shorthand
+alias chsql='docker exec -i kvorum-clickhouse-1 clickhouse-client'
+```
+
+---
+
 ## Pre-run: record reference counts (fill before starting the backfill)
 
 These values must be written here **before** `backfill start` so they cannot be back-fitted.
@@ -26,10 +38,10 @@ Pass gate (acceptance #1): `count ≥ 0.95 × REF_BRAVO_BINDING` AND `count ≤ 
 
 ```bash
 # Verify CH free space (Bravo archive is small, ~hundreds of rows, but check anyway)
-docker exec kvorum-clickhouse-1 clickhouse-client --query "SELECT formatReadableSize(free_space) FROM system.disks"
+chsql --query "SELECT formatReadableSize(free_space) FROM system.disks"
 
 # Confirm migration ran and active_from_block is set correctly
-psql "$DATABASE_URL" -c "SELECT id, source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
+psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
 # Expected: active_from_block = 12006099
 ```
 
@@ -51,7 +63,7 @@ pnpm -w db:migrate        # applies core + compound_001/002/003
 pnpm -w db:migrate:ch     # CH archive table
 
 # Verify
-psql "$DATABASE_URL" -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
+psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
 ```
 
 ### Step 3 — Export env
@@ -59,69 +71,59 @@ psql "$DATABASE_URL" -c "SELECT source_type, active_from_block FROM dao_source W
 ```bash
 # Source vault-provisioned vars per ADR-028. Never commit real values.
 # infra/scripts/provision-env.sh populates CHAIN_CONFIG, HMAC_PEPPER_CURRENT, etc.
-export CHAIN_CONFIG='...'   # mainnet, ≥2 providers
-export HMAC_PEPPER_CURRENT='...'
-export CURSOR_SECRET='...'
-export DATABASE_URL='...'
-export REDIS_URL='...'
+export $(grep -v '^#' .env | grep -v '^$' | xargs)  # load .env into shell
 
-# Optional: lower intervals for faster drain
+export CHAIN_CONFIG='...'   # mainnet, ≥2 providers (from vault)
+export HMAC_PEPPER_CURRENT='...'
+
+# Optional: lower intervals for faster drain (default: 5000 / 10000 ms)
 export DERIVATION_INTERVAL_MS=2000
 export INDEXER_CALLDATA_DECODE_INTERVAL_MS=2000
 ```
 
-### Step 4 — Resolve dao_source id
-
-```bash
-# No 'dao source list' command in M1; use direct SQL.
-psql "$DATABASE_URL" -c "SELECT id FROM dao_source WHERE source_type='compound_governor'"
-# Record value:
-DAO_SOURCE_ID=<id-from-above>
-```
-
-### Step 5 — Bootstrap read path FIRST (before the ~30-min backfill)
+### Step 4 — Bootstrap read path FIRST (before the ~30-min backfill)
 
 ```bash
 # Start apps/api in another terminal
 # Create test user (existing path) then mint acceptance key
 admin-cli keys create <user_id> --format json
-# Store the returned key for step 10 validation
+# Store the returned key for step 9 validation
 API_KEY=<key>
 ```
 
-### Step 6 — Start apps/indexer with live poller DISABLED
+### Step 5 — Start apps/indexer with live poller DISABLED
 
 ```bash
 # In a separate terminal
 INDEXER_LIVE_POLLER_ENABLED=false \
 OTEL_SERVICE_NAMESPACE=kvorum \
-  node dist/main.js   # or: pnpm --filter indexer start
+  pnpm --filter indexer start
 
 # Assert gate is off — look for this in the boot log:
 # [IndexerOrchestrator] live_poller_enabled=false
 # [IndexerOrchestrator] Live EventPoller disabled …
 
-# Also confirm /metrics on OPS_PORT responds
-curl http://localhost:9091/metrics | head -5
+# Confirm /metrics on OPS_PORT responds
+curl http://localhost:9091/metrics | head -3
 ```
 
-### Step 7 — Dry-run then run the backfill
+### Step 6 — Dry-run then run the backfill
 
 ```bash
 # Dry-run: assert resolved from_block = 12006099
-admin-cli backfill start "$DAO_SOURCE_ID" --dry-run --format json
+admin-cli backfill start compound_governor --dry-run --format json
 
 # Snapshot state before crash-resume test (mid-run)
 # S_pre_count = archive_confirmation row count
 # S_pre_hash  = sha256 of sorted (source_type, chain_id, tx_hash, log_index, block_hash) 5-tuples
 
 # Start the actual run (~30 min wall-clock)
-admin-cli backfill start "$DAO_SOURCE_ID" --format json
+admin-cli backfill start compound_governor --format json
 
 # --- CRASH-RESUME SPOT-CHECK (once, mid-run) ---
 # 1. Record S_pre (count + 5-tuple hash)
 # 2. Ctrl-C (SIGINT)
-# 3. Resume: admin-cli backfill start "$DAO_SOURCE_ID" --format json
+# 3. Resume: admin-cli backfill start compound_governor --format json
 # 4. Assert:
 #    a. resumed from backfill_head_block+1, backfill_started_at_block unchanged (ADR-027/046/047)
 #    b. after completed: final 5-tuple set ⊇ S_pre, zero duplicate 5-tuples,
@@ -142,7 +144,7 @@ admin-cli backfill start "$DAO_SOURCE_ID" --format json
 | RPC provider failovers observed       | _(yes/no; which provider)_          |
 | DLQ entries after run                 | _(count)_                           |
 
-### Step 8 — Drain wait (four-part stop condition)
+### Step 7 — Drain wait (four-part stop condition)
 
 Declare drain complete only when **all four** hold across **≥3 consecutive polls ≥60 s apart**.
 
@@ -150,19 +152,19 @@ Max-drain budget: _(record value, e.g. 60 min post-backfill-completion)_
 
 ```bash
 # (a) backfill not in progress AND head == cutoff
-admin-cli backfill status "$DAO_SOURCE_ID" --format json
+admin-cli backfill status compound_governor --format json
 
 # (b) derivation backlog = 0
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT
     (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor') AS archived,
-    (SELECT count(*) FROM proposal WHERE source_type='compound_governor') AS derived,
+    (SELECT count(*) FROM proposal           WHERE source_type='compound_governor') AS derived,
     (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor')
-      - (SELECT count(*) FROM proposal WHERE source_type='compound_governor') AS backlog
+      - (SELECT count(*) FROM proposal       WHERE source_type='compound_governor') AS backlog
 "
 
 # (c) every proposal_action has had ≥1 decode attempt
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT count(*) AS undecoded_no_attempt
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
@@ -182,16 +184,24 @@ psql "$DATABASE_URL" -c "
 | 2    |      |          |         |         |                      |           |
 | 3    |      |          |         |         |                      |           |
 
-### Step 9 — Enable the live EventPoller post-drain
+### Step 8 — Enable the live EventPoller post-drain
 
 ```bash
 # Restart apps/indexer without the gate flag (default = true)
 # Assert boot log now shows: [IndexerOrchestrator] live_poller_enabled=true
+OTEL_SERVICE_NAMESPACE=kvorum pnpm --filter indexer start
 ```
 
-### Step 10 — Validation
+### Step 9 — Validation
 
-See acceptance criteria below. Use `API_KEY` minted in step 5.
+See acceptance criteria below. Use `API_KEY` minted in step 4.
+
+After validation, run the collect script to patch this file with real values:
+
+```bash
+DAO_SOURCE_ID=$(psql -Atc "SELECT id FROM dao_source WHERE source_type='compound_governor'") \
+  ./infra/scripts/collect-backfill-results.sh
+```
 
 ---
 
@@ -208,7 +218,7 @@ curl -H "Authorization: Bearer $API_KEY" \
 # Follow cursor pages, sum total count
 
 # Cross-check via SQL
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT count(*) FROM proposal
   WHERE source_type='compound_governor'
     AND state IN ('executed','defeated','canceled','expired')
@@ -219,7 +229,7 @@ psql "$DATABASE_URL" -c "
 | ------------------------------------------- | ----- |
 | API count (paginated)                       |       |
 | SQL count                                   |       |
-| REF_BRAVO_BINDING (pre-recorded)            |       |
+| REF_BRAVO_BINDING (pre-recorded)            | 539   |
 | `count ≥ 0.95 × REF_BRAVO_BINDING`?         |       |
 | `count ≤ REF_BRAVO_BINDING + reorg_margin`? |       |
 | **Gate passed?**                            |       |
@@ -227,7 +237,7 @@ psql "$DATABASE_URL" -c "
 ### #4 — Calldata decode rate ≥95% (action-level)
 
 ```bash
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT
     count(*) FILTER (WHERE pa.decoded_function IS NOT NULL) AS decoded,
     count(*) AS total,
@@ -242,7 +252,7 @@ psql "$DATABASE_URL" -c "
 "
 
 # Per-target miss histogram (targets with any undecoded actions)
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT pa.target_address, count(*) AS undecoded
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
@@ -264,7 +274,7 @@ psql "$DATABASE_URL" -c "
 ### #2 — New proposal ≤ 4 min (post-drain, deliberate check)
 
 ```bash
-# After step 9 (poller re-enabled), observe for a new ProposalCreated event.
+# After step 8 (poller re-enabled), observe for a new ProposalCreated event.
 # If one lands: assert it appears in API within 4 min.
 # If none in the window: record as "not exercised — covered by F live-ingestion tests".
 ```
@@ -290,7 +300,7 @@ Result: _(paste JSON output)_
 ### Backfill/live overlap — zero duplicate proposals
 
 ```bash
-psql "$DATABASE_URL" -c "
+psql -c "
   SELECT dao_id, source_type, source_id, count(*) AS cnt
   FROM proposal
   WHERE source_type = 'compound_governor'
@@ -304,14 +314,13 @@ psql "$DATABASE_URL" -c "
 
 ```bash
 # CH count (FINAL for ReplacingMergeTree dedup)
-# Run inside the ClickHouse container or via chDb
-SELECT count() FROM event_archive_compound_governor FINAL;
+chsql --query "SELECT count() FROM event_archive_compound_governor FINAL"
 
 # PG count
-psql "$DATABASE_URL" -c "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor'"
+psql -c "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor'"
 
 # DLQ size
-psql "$DATABASE_URL" -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor'"
+psql -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor'"
 
 # Assert: CH_count >= PG_count AND (CH_count - PG_count) == DLQ_size
 ```
@@ -352,13 +361,13 @@ Cross-check vs Tally/Etherscan:
 
 ## Phase 3 — Capture & forward-links
 
-- [ ] Fill "Run results" sections above with real command output
+- [ ] Fill "Run results" sections above with real command output (or run `infra/scripts/collect-backfill-results.sh`)
 - [ ] If acceptance #4 < 95%: record per-target miss histogram; open G follow-up issue; apply contingency decision tree from plan (action-level < 0.90 blocks M1)
-- [ ] Open GovernorAlpha follow-up issue: _"Index Compound GovernorAlpha-era proposals (1–~42)"_ (plan decision #2)
+- [x] GovernorAlpha follow-up issue opened: [#110](https://github.com/EugeneButusov/kvorum/issues/110)
 - [ ] File post-I3 M1-closeout checklist (separate from this runbook — plan decision #5)
 
 ---
 
 ## GovernorAlpha gap (explicit, not silently dropped)
 
-Compound used GovernorAlpha (`0xc0dA01a04C3f3E0bE433606045bB7017A7323E38`) for proposals ~1–42 (2020 → ~May 2021). These are out of M1 scope. The acceptance-#1 count is against the Bravo-era total only. Forward-linked as a post-M1 issue (tentatively M2/M3).
+Compound used GovernorAlpha (`0xc0dA01a04C3f3E0bE433606045bB7017A7323E38`) for proposals ~1–42 (2020 → ~May 2021). These are out of M1 scope. The acceptance-#1 count is against the Bravo-era total only. Tracked in [#110](https://github.com/EugeneButusov/kvorum/issues/110) (tentatively M2/M3).
