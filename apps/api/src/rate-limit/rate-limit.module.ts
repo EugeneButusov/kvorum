@@ -1,4 +1,4 @@
-import { Module, type OnApplicationShutdown } from '@nestjs/common';
+import { Module, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { parseRateLimitConfigFromEnv } from './rate-limit.config';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
@@ -8,8 +8,12 @@ import { createRateLimitRedis, type SlidingWindowRedis } from './redis.client';
 const RATE_LIMIT_CONFIG = Symbol('RATE_LIMIT_CONFIG');
 const RATE_LIMIT_REDIS = Symbol('RATE_LIMIT_REDIS');
 
-class RedisShutdownHook implements OnApplicationShutdown {
+class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   constructor(private readonly redis: SlidingWindowRedis) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.redis.connect();
+  }
 
   async onApplicationShutdown(): Promise<void> {
     try {
@@ -48,8 +52,8 @@ class RedisShutdownHook implements OnApplicationShutdown {
       useExisting: RateLimitInterceptor,
     },
     {
-      provide: RedisShutdownHook,
-      useFactory: (redis: SlidingWindowRedis) => new RedisShutdownHook(redis),
+      provide: RedisLifecycle,
+      useFactory: (redis: SlidingWindowRedis) => new RedisLifecycle(redis),
       inject: [RATE_LIMIT_REDIS],
     },
   ],
