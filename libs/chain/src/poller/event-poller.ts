@@ -4,6 +4,9 @@ import { chainMetrics } from '../metrics/metrics.js';
 import { decodeLogEvent } from './utils/decode.utils.js';
 import { lowercaseFilter } from './utils/filter.utils.js';
 
+const PROGRESS_LOG_BLOCK_INTERVAL = 50n;
+const PROGRESS_LOG_MS = 5 * 60 * 1_000;
+
 /** Polls eth_getLogs over a sliding window of 2 × reorgHorizon blocks.
  *
  *  Tick-dropping contract: if listeners are slower than pollIntervalMs the re-entry
@@ -19,6 +22,8 @@ export class EventPoller extends AbstractPoller {
   private readonly filter: LogFilter;
   private readonly listeners: Set<EventsListener> = new Set();
   private lastSuccessAt: Date | null = null;
+  private lastLoggedHead: bigint = 0n;
+  private lastLoggedAt: number = 0;
 
   constructor(private readonly opts: EventPollerOptions) {
     super({
@@ -95,6 +100,21 @@ export class EventPoller extends AbstractPoller {
 
     this.lastSuccessAt = new Date();
     chainMetrics.logPollLag.record(0, { chain, dao_source: src });
+
+    const now = Date.now();
+    if (
+      headBn - this.lastLoggedHead >= PROGRESS_LOG_BLOCK_INTERVAL ||
+      now - this.lastLoggedAt >= PROGRESS_LOG_MS
+    ) {
+      this.logger.info('poller_tick', {
+        head: Number(headBn),
+        advanced: Number(headBn - this.lastLoggedHead),
+        source: src,
+        chain,
+      });
+      this.lastLoggedHead = headBn;
+      this.lastLoggedAt = now;
+    }
 
     const events: LogEvent[] = [];
     for (const raw of rawLogs) {
