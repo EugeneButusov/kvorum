@@ -9,7 +9,10 @@
 #
 # Requires:
 #   DATABASE_URL, DAO_SOURCE_ID
-#   docker (postgres queries run via docker exec), curl (ClickHouse), admin-cli on PATH
+#   docker (postgres queries run via docker exec), curl (ClickHouse + API)
+# Optional:
+#   API_KEY   — Bearer token for authenticated API checks (skipped if unset)
+#   API_URL   — override API base URL (default: http://localhost:API_PORT)
 #
 # ClickHouse defaults to localhost:8123 (docker-compose defaults).
 # Override with: CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD, CLICKHOUSE_DATABASE
@@ -157,6 +160,50 @@ LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHE
 LAST_REORG=$(psql_val    "SELECT max(detected_at)  FROM reorg_event")
 IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor'")
 
+# ── 8. API spot-checks ───────────────────────────────────────────────────────
+# Requires API_KEY env var (Bearer token). Authenticated checks are skipped if unset.
+
+API_BASE="${API_URL:-http://localhost:${API_PORT:-3001}}"
+
+api_get() {
+  local path="$1"
+  if [[ -n "${API_KEY:-}" ]]; then
+    curl -sf -H "Authorization: Bearer ${API_KEY}" "${API_BASE}${path}" 2>/dev/null || echo 'ERROR'
+  else
+    curl -sf "${API_BASE}${path}" 2>/dev/null || echo 'ERROR'
+  fi
+}
+
+py_field() { python3 -c "import sys,json; d=json.load(sys.stdin); print($1)" 2>/dev/null || echo "N/A"; }
+
+_HEALTH_JSON=$(api_get "/health")
+API_HEALTH=$(echo "$_HEALTH_JSON" | py_field "d.get('status','N/A')")
+
+if [[ -z "${API_KEY:-}" ]]; then
+  API_DAO_SLUG="skipped (API_KEY not set)"
+  API_DAO_SOURCES="skipped"
+  API_PROP_FIRST="skipped"
+  API_PROP_HAS_MORE="skipped"
+  API_BINDING_OK="skipped"
+elif [[ "$API_HEALTH" == "ok" ]]; then
+  _DAO_JSON=$(api_get "/v1/daos/compound")
+  API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d.get('slug','N/A')")
+  API_DAO_SOURCES=$(echo "$_DAO_JSON" | py_field "','.join(s['source_type'] for s in d.get('sources',[]))")
+
+  _PROP_JSON=$(api_get "/v1/daos/compound/proposals?limit=1")
+  API_PROP_FIRST=$(echo "$_PROP_JSON"    | py_field "d['data'][0]['source_id'] if d.get('data') else 'none'")
+  API_PROP_HAS_MORE=$(echo "$_PROP_JSON" | py_field "d.get('pagination',{}).get('has_more','N/A')")
+
+  _BIND_JSON=$(api_get "/v1/daos/compound/proposals?binding=true&limit=1")
+  API_BINDING_OK=$(echo "$_BIND_JSON" | py_field "'yes' if d.get('data') else 'no — 0 binding proposals returned'")
+else
+  API_DAO_SLUG="N/A (health=$API_HEALTH)"
+  API_DAO_SOURCES="N/A"
+  API_PROP_FIRST="N/A"
+  API_PROP_HAS_MORE="N/A"
+  API_BINDING_OK="N/A"
+fi
+
 # ── print summary ─────────────────────────────────────────────────────────────
 
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -192,6 +239,14 @@ echo "admin-cli status"
 echo "  idle_secs           : $IDLE_SECS"
 echo "  last_archived_at    : $LAST_ARCHIVED"
 echo "  last_reorg_at       : $LAST_REORG"
+echo
+echo "API ($API_BASE)"
+echo "  health              : $API_HEALTH"
+echo "  dao slug            : $API_DAO_SLUG"
+echo "  dao sources         : $API_DAO_SOURCES"
+echo "  first proposal id   : $API_PROP_FIRST"
+echo "  has_more proposals  : $API_PROP_HAS_MORE"
+echo "  binding filter ok   : $API_BINDING_OK"
 echo
 
 # ── patch runbook ─────────────────────────────────────────────────────────────
