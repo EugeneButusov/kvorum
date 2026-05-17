@@ -23,11 +23,14 @@ RUNBOOK="$(git rev-parse --show-toplevel)/docs/runbooks/m1-backfill.md"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 # Strip application-level query params (schema=, connection_limit=, etc.) that
-# psql does not understand but Prisma/Node drivers accept.
+# psql does not understand but Node database drivers accept.
 PG_URL="${DATABASE_URL%%\?*}"
+# Extract password for PGPASSWORD — some psql versions don't pick it up from
+# the URI reliably on macOS.
+_PG_PASS="$(python3 -c "from urllib.parse import urlparse; print(urlparse('${PG_URL}').password or '')" 2>/dev/null || true)"
 
 psql_val() {
-  psql "$PG_URL" -Atc "$1" 2>/dev/null || echo "N/A"
+  PGPASSWORD="$_PG_PASS" psql "$PG_URL" -Atc "$1" 2>/dev/null || echo "N/A"
 }
 
 ch_val() {
@@ -62,7 +65,7 @@ patch_runbook() {
 [[ -n "${DAO_SOURCE_ID:-}" ]] || die "DAO_SOURCE_ID is not set"
 [[ -f "$RUNBOOK" ]] || die "Runbook not found at $RUNBOOK"
 
-psql "$PG_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
+PGPASSWORD="$_PG_PASS" psql "$PG_URL" -Atc "SELECT 1" >/dev/null 2>&1 \
   || die "Cannot connect to Postgres — check DATABASE_URL (psql URL: ${PG_URL})"
 
 echo "Collecting backfill results for dao_source $DAO_SOURCE_ID ..."
