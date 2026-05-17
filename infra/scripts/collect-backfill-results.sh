@@ -185,6 +185,7 @@ if [[ -z "${API_KEY:-}" ]]; then
   API_PROP_FIRST="skipped"
   API_PROP_HAS_MORE="skipped"
   API_BINDING_OK="skipped"
+  API_PROP_TOTAL="skipped"
 elif [[ "$API_HEALTH" == "ok" ]]; then
   _DAO_JSON=$(api_get "/v1/daos/${DAO_SLUG}")
   API_DAO_SLUG=$(echo "$_DAO_JSON"    | py_field "d['data'].get('slug','N/A')")
@@ -196,12 +197,58 @@ elif [[ "$API_HEALTH" == "ok" ]]; then
 
   _BIND_JSON=$(api_get "/v1/daos/${DAO_SLUG}/proposals?binding=true&limit=1")
   API_BINDING_OK=$(echo "$_BIND_JSON" | py_field "'yes' if d.get('data') else 'no — 0 binding proposals returned'")
+
+  echo "  (paginating proposals via API...)" >&2
+  API_PROP_TOTAL=$(python3 - <<PYEOF
+import urllib.request, urllib.parse, json, sys
+
+base   = "${API_BASE}"
+slug   = "${DAO_SLUG}"
+key    = "${API_KEY:-}"
+total  = 0
+cursor = None
+pages  = 0
+
+while True:
+    params = {"limit": "100"}
+    if cursor:
+        params["cursor"] = cursor
+    url = f"{base}/v1/daos/{slug}/proposals?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"} if key else {})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            body = json.loads(r.read())
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        print("N/A")
+        sys.exit(0)
+    total += len(body.get("data", []))
+    pages += 1
+    pag = body.get("pagination", {})
+    if not pag.get("has_more"):
+        break
+    cursor = pag.get("next_cursor")
+
+print(total)
+PYEOF
+)
 else
   API_DAO_SLUG="N/A (health=$API_HEALTH)"
   API_DAO_SOURCES="N/A"
   API_PROP_FIRST="N/A"
   API_PROP_HAS_MORE="N/A"
   API_BINDING_OK="N/A"
+  API_PROP_TOTAL="N/A"
+fi
+
+if [[ "$API_PROP_TOTAL" =~ ^[0-9]+$ && "$DERIVED" =~ ^[0-9]+$ ]]; then
+  if [[ "$API_PROP_TOTAL" -eq "$DERIVED" ]]; then
+    API_VS_DB="yes — API=$API_PROP_TOTAL DB=$DERIVED"
+  else
+    API_VS_DB="MISMATCH — API=$API_PROP_TOTAL DB=$DERIVED delta=$(( API_PROP_TOTAL - DERIVED ))"
+  fi
+else
+  API_VS_DB="API=$API_PROP_TOTAL DB=$DERIVED — verify manually"
 fi
 
 # ── print summary ─────────────────────────────────────────────────────────────
@@ -247,6 +294,8 @@ echo "  dao sources         : $API_DAO_SOURCES"
 echo "  first proposal id   : $API_PROP_FIRST"
 echo "  has_more proposals  : $API_PROP_HAS_MORE"
 echo "  binding filter ok   : $API_BINDING_OK"
+echo "  total proposals     : $API_PROP_TOTAL"
+echo "  API count == DB     : $API_VS_DB"
 echo
 
 # ── patch runbook ─────────────────────────────────────────────────────────────
