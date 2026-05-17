@@ -95,6 +95,10 @@ export class BackfillDriver {
         onChunkComplete: async (chunkEnd) => {
           await daoSourceRepo.updateBackfillHead(input.daoSourceId, chunkEnd);
           lastCheckpointedBlock = chunkEnd;
+          logger.info('backfill_chunk_complete', {
+            daoSourceId: input.daoSourceId,
+            chunkEnd: chunkEnd.toString(),
+          });
         },
       });
 

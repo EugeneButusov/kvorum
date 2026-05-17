@@ -27,7 +27,13 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, silentLogger },
+          {
+            FailoverRpcClient,
+            normalizeChainId,
+            parseChainConfigFromEnv,
+            silentLogger,
+            consoleLogger,
+          },
           compound,
           core,
         ] = await Promise.all([
@@ -91,7 +97,7 @@ export function registerBackfill(program: Command): void {
           parsedConfig,
         );
 
-        const rpcClient = new FailoverRpcClient(chainConfig, { logger: silentLogger });
+        const rpcClient = new FailoverRpcClient(chainConfig, { logger: consoleLogger });
         await rpcClient.start();
 
         const status = await daoSourceRepository.readBackfillStatus(row.id);
@@ -133,6 +139,8 @@ export function registerBackfill(program: Command): void {
             return;
           }
 
+          const progressLogger = makeProgressLogger(resolvedFromBlock, resolvedToBlock);
+
           await withAudit('backfill start', { sourceType, ...opts }, async () => {
             const controller = new AbortController();
             const onSignal = (signal: NodeJS.Signals) => controller.abort(signal);
@@ -161,7 +169,7 @@ export function registerBackfill(program: Command): void {
                     },
                     { onWriteFailure: 'throw' },
                   ),
-                logger: silentLogger,
+                logger: progressLogger,
               });
 
               const outcome = await driver.run({
@@ -255,10 +263,14 @@ function serializeOutcome(
       resume_from_block: outcome.resumeFromBlock?.toString() ?? null,
     };
   }
+  const err = outcome.error;
   return {
     status: outcome.status,
     resume_from_block: outcome.resumeFromBlock?.toString() ?? null,
-    error: outcome.error instanceof Error ? outcome.error.message : String(outcome.error),
+    error: err instanceof Error ? err.message : String(err),
+    ...(err instanceof Error && 'attempts' in err
+      ? { attempts: (err as Record<string, unknown>)['attempts'] }
+      : {}),
   };
 }
 
@@ -270,6 +282,60 @@ function parseOptionalBlock(value: string | undefined, optionName: string): bigi
     throw new Error(`${optionName} must be an unsigned integer`);
   }
   return BigInt(value);
+}
+
+function makeProgressLogger(fromBlock: bigint, toBlock: bigint): import('@libs/chain').Logger {
+  const isTTY = process.stderr.isTTY === true;
+  let lineLen = 0;
+
+  function clearLine(): void {
+    if (isTTY && lineLen > 0) {
+      process.stderr.write('\r' + ' '.repeat(lineLen) + '\r');
+      lineLen = 0;
+    }
+  }
+
+  function renderProgress(chunkEnd: bigint): void {
+    const total = toBlock - fromBlock;
+    if (total <= 0n) return;
+    const done = chunkEnd - fromBlock + 1n;
+    const pct = Math.min(100, Math.floor(Number((done * 100n) / total)));
+    const width = 28;
+    const filled = Math.round((width * pct) / 100);
+    const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+    const line = `  [${bar}] ${String(pct).padStart(3)}%  block ${Number(chunkEnd).toLocaleString()} / ${Number(toBlock).toLocaleString()}`;
+    if (isTTY) {
+      process.stderr.write('\r' + line);
+      lineLen = line.length;
+    } else {
+      process.stderr.write(line + '\n');
+    }
+  }
+
+  return {
+    debug: () => {},
+    info: (msg: string, data?: unknown) => {
+      if (msg === 'backfill_run_start') {
+        process.stderr.write(
+          `Backfilling blocks ${Number(fromBlock).toLocaleString()} → ${Number(toBlock).toLocaleString()}\n`,
+        );
+      } else if (msg === 'backfill_chunk_complete') {
+        const d = data as Record<string, string>;
+        renderProgress(BigInt(d['chunkEnd'] ?? '0'));
+      } else if (msg === 'backfill_run_completed') {
+        clearLine();
+        process.stderr.write('✓ Backfill complete\n');
+      }
+    },
+    warn: (msg: string, data?: unknown) => {
+      clearLine();
+      process.stderr.write(`WARN  ${msg}${data ? ' ' + JSON.stringify(data) : ''}\n`);
+    },
+    error: (msg: string, data?: unknown) => {
+      clearLine();
+      process.stderr.write(`ERROR ${msg}${data ? ' ' + JSON.stringify(data) : ''}\n`);
+    },
+  };
 }
 
 function parseBigintOrZero(value: string | null): bigint {
