@@ -38,11 +38,6 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const watermark = await this.archive.findConfirmedUndderived(batchSize);
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0, { source_type: 'compound_governor' });
-        const now = Date.now();
-        if (now - this.lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {
-          this.logger.log('derivation_idle', { message: 'archive up to date, no pending events' });
-          this.lastProgressLogAt = now;
-        }
         return;
       }
 
