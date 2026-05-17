@@ -50,7 +50,7 @@ module.exports = {
         !path.isAbsolute(request) &&
         !request.startsWith('@libs/') &&
         !request.startsWith('@sources/') &&
-        request !== '@nest/observability'
+        !request.startsWith('@nest/')
       ) {
         return callback(null, `commonjs ${request}`);
       }
