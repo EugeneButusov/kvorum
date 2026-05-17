@@ -134,7 +134,7 @@ export class BackfillDriver {
     });
 
     // Leave both checkpoint columns populated on natural completion (Q4 / decision #11).
-    // I2's 'backfill status' + explicit finalize clears them.
+    // Checkpoint columns are cleared by the caller (admin-cli backfill start) on completion.
     return { status: 'completed', fromBlock: startBlock, toBlock };
   }
 }

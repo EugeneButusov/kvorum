@@ -99,10 +99,6 @@ export class DaoSourceRepository {
     return this.readBackfillStatusWhere('dao_source.id', id);
   }
 
-  async readBackfillStatusBySourceType(sourceType: string): Promise<BackfillStatusRow | undefined> {
-    return this.readBackfillStatusWhere('dao_source.source_type', sourceType);
-  }
-
   private readBackfillStatusWhere(
     column: 'dao_source.id' | 'dao_source.source_type',
     value: string,
