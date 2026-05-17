@@ -25,7 +25,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
     .addColumn('archive_chain_id', sql`varchar(32)`)
     .addColumn('archive_tx_hash', 'text')
-    .addColumn('archive_log_index', 'integer')
+    .addColumn('archive_log_index', 'bigint')
     .addColumn('archive_block_hash', 'text')
     .execute();
 
@@ -61,7 +61,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
     .addColumn('archive_chain_id', sql`varchar(32)`)
     .addColumn('archive_tx_hash', 'text')
-    .addColumn('archive_log_index', 'integer')
+    .addColumn('archive_log_index', 'bigint')
     .addColumn('archive_block_hash', 'text')
     .addColumn('resolved_at', 'timestamptz', (col) => col.notNull())
     .addColumn('resolved_by', 'text', (col) => col.notNull())

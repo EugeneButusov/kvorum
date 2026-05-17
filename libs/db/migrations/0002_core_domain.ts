@@ -215,7 +215,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('block_number', 'bigint', (col) => col.notNull())
     .addColumn('block_hash', 'text', (col) => col.notNull())
     .addColumn('tx_hash', 'text', (col) => col.notNull())
-    .addColumn('log_index', 'integer', (col) => col.notNull())
+    .addColumn('log_index', 'bigint', (col) => col.notNull())
     .addColumn('event_type', 'text', (col) => col.notNull())
     .addColumn('received_at', 'timestamptz', (col) => col.notNull())
     .addColumn('confirmation_status', sql`confirmation_status`, (col) => col.notNull())
