@@ -52,3 +52,9 @@ export function createCompoundGovernorAlphaPlugin(
 ): SourcePlugin<CompoundGovernorConfig> {
   return createPlugin('compound_governor_alpha', deps);
 }
+
+export function createCompoundPlugins(
+  deps: CompoundGovernorPluginDeps,
+): readonly [SourcePlugin<CompoundGovernorConfig>, SourcePlugin<CompoundGovernorConfig>] {
+  return [createCompoundGovernorPlugin(deps), createCompoundGovernorAlphaPlugin(deps)] as const;
+}

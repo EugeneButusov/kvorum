@@ -1,34 +1,36 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveCompoundBackfillFactory } from './backfill.js';
+import { resolveCompoundBackfillPlugin } from './backfill.js';
 
-describe('resolveCompoundBackfillFactory', () => {
-  const createCompoundGovernorPlugin = vi.fn();
-  const createCompoundGovernorAlphaPlugin = vi.fn();
+describe('resolveCompoundBackfillPlugin', () => {
+  const bravoPlugin = {
+    sourceType: 'compound_governor',
+    parseConfig: vi.fn(),
+    buildIngestSpec: vi.fn(),
+  };
+  const alphaPlugin = {
+    sourceType: 'compound_governor_alpha',
+    parseConfig: vi.fn(),
+    buildIngestSpec: vi.fn(),
+  };
 
-  it('returns bravo factory for compound_governor', () => {
-    const factory = resolveCompoundBackfillFactory('compound_governor', {
-      createCompoundGovernorPlugin,
-      createCompoundGovernorAlphaPlugin,
-    });
+  it('returns bravo plugin for compound_governor', () => {
+    const plugin = resolveCompoundBackfillPlugin('compound_governor', [bravoPlugin, alphaPlugin]);
 
-    expect(factory).toBe(createCompoundGovernorPlugin);
+    expect(plugin).toBe(bravoPlugin);
   });
 
-  it('returns alpha factory for compound_governor_alpha', () => {
-    const factory = resolveCompoundBackfillFactory('compound_governor_alpha', {
-      createCompoundGovernorPlugin,
-      createCompoundGovernorAlphaPlugin,
-    });
+  it('returns alpha plugin for compound_governor_alpha', () => {
+    const plugin = resolveCompoundBackfillPlugin('compound_governor_alpha', [
+      bravoPlugin,
+      alphaPlugin,
+    ]);
 
-    expect(factory).toBe(createCompoundGovernorAlphaPlugin);
+    expect(plugin).toBe(alphaPlugin);
   });
 
   it('returns undefined for unknown source types', () => {
-    const factory = resolveCompoundBackfillFactory('unknown_source', {
-      createCompoundGovernorPlugin,
-      createCompoundGovernorAlphaPlugin,
-    });
+    const plugin = resolveCompoundBackfillPlugin('unknown_source', [bravoPlugin, alphaPlugin]);
 
-    expect(factory).toBeUndefined();
+    expect(plugin).toBeUndefined();
   });
 });

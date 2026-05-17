@@ -1,6 +1,7 @@
 import { Command } from 'commander';
+import type { SourceType } from '@libs/db';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
-import type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from '@sources/compound';
+import type { CompoundGovernorConfig } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
@@ -16,20 +17,11 @@ type BackfillStartOptions = BackfillCommonOptions & {
   dryRun?: boolean;
 };
 
-type PluginFactory = (deps: CompoundGovernorPluginDeps) => SourcePlugin<CompoundGovernorConfig>;
-
-export function resolveCompoundBackfillFactory(
-  sourceType: string,
-  factories: {
-    createCompoundGovernorPlugin: PluginFactory;
-    createCompoundGovernorAlphaPlugin: PluginFactory;
-  },
-): PluginFactory | undefined {
-  const bySourceType: Record<string, PluginFactory> = {
-    compound_governor: factories.createCompoundGovernorPlugin,
-    compound_governor_alpha: factories.createCompoundGovernorAlphaPlugin,
-  };
-  return bySourceType[sourceType];
+export function resolveCompoundBackfillPlugin(
+  sourceType: SourceType,
+  plugins: readonly SourcePlugin<CompoundGovernorConfig>[],
+): SourcePlugin<CompoundGovernorConfig> | undefined {
+  return plugins.find((plugin) => plugin.sourceType === sourceType);
 }
 
 export function registerBackfill(program: Command): void {
@@ -59,13 +51,8 @@ export function registerBackfill(program: Command): void {
           import('@sources/compound'),
           import('@sources/core'),
         ]);
-        const {
-          ArchiveWriter,
-          createCompoundGovernorAlphaPlugin,
-          createCompoundGovernorPlugin,
-          EventRepository,
-          makeIngesterListener,
-        } = compound;
+        const { ArchiveWriter, createCompoundPlugins, EventRepository, makeIngesterListener } =
+          compound;
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
@@ -73,14 +60,6 @@ export function registerBackfill(program: Command): void {
         if (row == null) {
           fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
         }
-        const pluginFactory = resolveCompoundBackfillFactory(row.source_type, {
-          createCompoundGovernorPlugin,
-          createCompoundGovernorAlphaPlugin,
-        });
-        if (pluginFactory == null) {
-          fail(format, ExitCode.ValidationFailure, `unsupported source_type: ${row.source_type}`);
-        }
-
         const fromBlock = parseOptionalBlock(opts.fromBlock, '--from-block');
         const toBlock = parseOptionalBlock(opts.toBlock, '--to-block');
 
@@ -104,11 +83,18 @@ export function registerBackfill(program: Command): void {
           logger: silentLogger,
         });
         const dlqRepo = new DlqRepository(pgDb);
-        const plugin = pluginFactory({
-          archiveWriter,
-          dlqRepo,
-          logger: silentLogger,
-        });
+        const plugin = resolveCompoundBackfillPlugin(
+          row.source_type,
+          createCompoundPlugins({
+            archiveWriter,
+            dlqRepo,
+            logger: silentLogger,
+          }),
+        );
+        if (plugin == null) {
+          fail(format, ExitCode.ValidationFailure, `unsupported source_type: ${row.source_type}`);
+        }
+
         const parsedConfig = plugin.parseConfig(row.source_config);
         const ingestSpec = plugin.buildIngestSpec(
           {

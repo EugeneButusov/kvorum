@@ -43,6 +43,7 @@ export {
   makeIngesterListener,
   createCompoundGovernorPlugin,
   createCompoundGovernorAlphaPlugin,
+  createCompoundPlugins,
 } from './governor/index';
 
 export type {

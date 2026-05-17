@@ -3,7 +3,11 @@ import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { SourceContext } from '@sources/core';
 import { ArchiveWriter } from './archive-writer';
-import { createCompoundGovernorAlphaPlugin, createCompoundGovernorPlugin } from './plugin';
+import {
+  createCompoundGovernorAlphaPlugin,
+  createCompoundGovernorPlugin,
+  createCompoundPlugins,
+} from './plugin';
 
 const CTX: SourceContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
@@ -156,5 +160,20 @@ describe('createCompoundGovernorAlphaPlugin', () => {
       const spec = plugin.buildIngestSpec(ALPHA_CTX, cfg);
       expect(typeof spec.listener).toBe('function');
     });
+  });
+});
+
+describe('createCompoundPlugins', () => {
+  it('#17 — returns bravo + alpha plugins', () => {
+    const plugins = createCompoundPlugins({
+      archiveWriter: mockArchiveWriter,
+      dlqRepo: mockDlqRepo,
+      logger: silentLogger,
+    });
+
+    expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
+      'compound_governor',
+      'compound_governor_alpha',
+    ]);
   });
 });
