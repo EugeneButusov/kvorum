@@ -56,4 +56,4 @@ export type { IngesterListenerDeps } from './ingester-listener';
 export { makeIngesterListener } from './ingester-listener';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin';
-export { createCompoundGovernorPlugin } from './plugin';
+export { createCompoundGovernorPlugin, createCompoundGovernorAlphaPlugin } from './plugin';

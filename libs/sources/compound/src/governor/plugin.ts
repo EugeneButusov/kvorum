@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Logger } from '@libs/chain';
-import type { DlqRepository } from '@libs/db';
+import type { DlqRepository, SourceType } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import { ArchiveWriter } from './archive-writer';
 import { COMPOUND_EVENT_TOPICS } from './events';
@@ -18,11 +18,12 @@ export interface CompoundGovernorPluginDeps {
   logger: Logger;
 }
 
-export function createCompoundGovernorPlugin(
+function createPlugin(
+  sourceType: SourceType,
   deps: CompoundGovernorPluginDeps,
 ): SourcePlugin<CompoundGovernorConfig> {
   return {
-    sourceType: 'compound_governor',
+    sourceType,
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (ctx, cfg) => ({
       kind: 'evm-event-poller',
@@ -38,4 +39,16 @@ export function createCompoundGovernorPlugin(
       }),
     }),
   };
+}
+
+export function createCompoundGovernorPlugin(
+  deps: CompoundGovernorPluginDeps,
+): SourcePlugin<CompoundGovernorConfig> {
+  return createPlugin('compound_governor', deps);
+}
+
+export function createCompoundGovernorAlphaPlugin(
+  deps: CompoundGovernorPluginDeps,
+): SourcePlugin<CompoundGovernorConfig> {
+  return createPlugin('compound_governor_alpha', deps);
 }

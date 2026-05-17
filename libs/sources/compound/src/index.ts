@@ -42,6 +42,7 @@ export {
   ArchiveWriter,
   makeIngesterListener,
   createCompoundGovernorPlugin,
+  createCompoundGovernorAlphaPlugin,
 } from './governor/index';
 
 export type {
