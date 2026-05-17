@@ -1,12 +1,8 @@
 import { Command } from 'commander';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
-import {
-  buildBackfillSourcePlugins,
-  resolveBackfillSourcePlugin,
-} from '../plugins/backfill-source-plugins.js';
+import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
 
 type BackfillCommonOptions = {
   format?: string;
@@ -38,14 +34,8 @@ export function registerBackfill(program: Command): void {
             silentLogger,
             consoleLogger,
           },
-          compound,
           core,
-        ] = await Promise.all([
-          import('@libs/chain'),
-          import('@sources/compound'),
-          import('@sources/core'),
-        ]);
-        const { ArchiveWriter, EventRepository, makeIngesterListener } = compound;
+        ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
@@ -69,35 +59,22 @@ export function registerBackfill(program: Command): void {
           );
         }
 
-        const archiveWriter = new ArchiveWriter({
-          eventRepo: new EventRepository({ chDb }),
-          confirmationRepo: new ConfirmationRepository(pgDb),
-          dlqRepo: new DlqRepository(pgDb),
-          logger: silentLogger,
-        });
-        const dlqRepo = new DlqRepository(pgDb);
-        const plugin = resolveBackfillSourcePlugin(
-          row.source_type,
-          buildBackfillSourcePlugins({
-            archiveWriter,
-            dlqRepo,
-            logger: silentLogger,
-          }),
-        );
-        if (plugin == null) {
-          fail(format, ExitCode.ValidationFailure, `unsupported source_type: ${row.source_type}`);
-        }
-
-        const parsedConfig = plugin.parseConfig(row.source_config);
-        const ingestSpec = plugin.buildIngestSpec(
-          {
+        let sourceRuntime;
+        try {
+          sourceRuntime = buildBackfillSourceRuntime({
             daoSourceId: row.id,
             sourceType: row.source_type,
+            sourceConfig: row.source_config,
             chainId: chainConfig.chainId,
-            sourceLabel: row.source_type,
-          },
-          parsedConfig,
-        );
+            logger: silentLogger,
+          });
+        } catch (error) {
+          fail(
+            format,
+            ExitCode.ValidationFailure,
+            error instanceof Error ? error.message : String(error),
+          );
+        }
 
         const rpcClient = new FailoverRpcClient(chainConfig, { logger: consoleLogger });
         await rpcClient.start();
@@ -154,23 +131,8 @@ export function registerBackfill(program: Command): void {
                 rpcClient,
                 daoSourceRepo: daoSourceRepository,
                 chainConfig,
-                filter: ingestSpec.filter,
-                listenerFactory: (classifier) =>
-                  makeIngesterListener(
-                    {
-                      archiveWriter,
-                      context: {
-                        daoSourceId: row.id,
-                        sourceType: row.source_type,
-                        chainId: chainConfig.chainId,
-                        sourceLabel: row.source_type,
-                        confirmationClassifier: classifier,
-                      },
-                      logger: silentLogger,
-                      dlqRepo,
-                    },
-                    { onWriteFailure: 'throw' },
-                  ),
+                filter: sourceRuntime.filter,
+                listenerFactory: sourceRuntime.listenerFactory,
                 logger: progressLogger,
               });
 
