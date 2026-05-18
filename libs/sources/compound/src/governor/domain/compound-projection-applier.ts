@@ -11,7 +11,7 @@ import {
 import {
   CompoundArchivePayloadRepository,
   type CompoundArchivePayloadRow,
-} from './compound-archive-payload-repository';
+} from '../persistence/compound-archive-payload-repository';
 import { projectCompoundProposalEvent } from './proposal-projector';
 import type {
   CompoundGovernorEvent,

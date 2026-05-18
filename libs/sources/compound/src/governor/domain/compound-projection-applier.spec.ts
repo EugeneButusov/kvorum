@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
+import type { CompoundArchivePayloadRow } from '../persistence/compound-archive-payload-repository';
 import { CompoundProjectionApplier } from './compound-projection-applier';
 
 const ROW: ArchiveDerivationRow = {

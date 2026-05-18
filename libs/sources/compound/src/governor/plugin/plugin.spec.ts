@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { SourceContext } from '@sources/core';
-import { ArchiveWriter } from './archive-writer';
+import { ArchiveWriter } from '../ingestion/archive-writer';
 import {
   createCompoundGovernorAlphaPlugin,
   createCompoundGovernorPlugin,

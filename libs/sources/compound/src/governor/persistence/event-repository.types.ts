@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { ClickHouseDatabase } from '@libs/db';
-import type { CompoundGovernorEvent } from './types';
+import type { CompoundGovernorEvent } from '../domain/types';
 
 export interface EventData {
   daoSourceId: string;

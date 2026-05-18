@@ -1,2 +1,2 @@
-export type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
-export { CompoundArchivePayloadRepository } from './compound-archive-payload-repository';
+export type { CompoundArchivePayloadRow } from './persistence/data-access';
+export { CompoundArchivePayloadRepository } from './persistence/data-access';
