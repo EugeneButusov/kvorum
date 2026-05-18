@@ -44,7 +44,7 @@ G1 batches its CH lookups: select up to 500 confirmed PG rows ordered by `(dao_s
 
 ```sql
 SELECT chain_id, tx_hash, log_index, block_hash, payload
-FROM event_archive_compound_governor FINAL
+FROM event_archive_compound_governor_bravo FINAL
 WHERE (chain_id, tx_hash, log_index, block_hash) IN (
   (1, '0xabc...', 0, '0xdef...'),
   ...

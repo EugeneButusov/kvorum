@@ -105,7 +105,7 @@ describeIf('F3 full-pipeline reorg', () => {
     });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor',
+      sourceType: 'compound_governor_bravo',
       chainId: '0x7a69',
       contractAddress,
     });
@@ -125,7 +125,7 @@ describeIf('F3 full-pipeline reorg', () => {
     await truncateAllIngestionTables(pgDb);
     await truncateDerivedTables();
     await sql`
-      ALTER TABLE event_archive_compound_governor
+      ALTER TABLE event_archive_compound_governor_bravo
       DELETE WHERE chain_id = '0x7a69'
     `.execute(chDb);
   });
@@ -305,7 +305,7 @@ describeIf('F3 full-pipeline reorg', () => {
 
     const createdSnapshot = await readProposalSnapshot();
     const proposal = createdSnapshot.proposals[0]!;
-    expect(proposal.source_type).toBe('compound_governor');
+    expect(proposal.source_type).toBe('compound_governor_bravo');
     expect(proposal.source_id).toBe('1');
     expect(proposal.voting_power_block).toBe('100');
     expect(proposal.voting_starts_block).toBe('100');
@@ -377,7 +377,7 @@ describeIf('F3 full-pipeline reorg', () => {
     payload: Record<string, string>;
   }): Promise<void> {
     await chDb
-      .insertInto('event_archive_compound_governor')
+      .insertInto('event_archive_compound_governor_bravo')
       .values({
         dao_source_id: daoSourceId,
         chain_id: '0x7a69',
@@ -393,7 +393,7 @@ describeIf('F3 full-pipeline reorg', () => {
     await pgDb
       .insertInto('archive_confirmation')
       .values({
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         dao_source_id: daoSourceId,
         chain_id: '0x7a69',
         block_number: opts.blockNumber.toString(),

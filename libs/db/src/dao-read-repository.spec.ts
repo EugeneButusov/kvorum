@@ -31,7 +31,7 @@ describe('DaoReadRepository', () => {
   });
 
   it('listSourcesForDao selects the expected columns', async () => {
-    const rows = [{ source_type: 'compound_governor', source_config: {} }];
+    const rows = [{ source_type: 'compound_governor_bravo', source_config: {} }];
     const { selectFrom, chain } = makeSelectChain(rows);
     const repo = new DaoReadRepository({ selectFrom } as never);
 
@@ -45,15 +45,15 @@ describe('DaoReadRepository', () => {
     const row = {
       id: 'src-1',
       dao_id: 'dao-1',
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_config: {},
     };
     const { selectFrom, chain } = makeSelectChain(row);
     const repo = new DaoReadRepository({ selectFrom } as never);
 
-    await expect(repo.findSourceByDaoSlugAndType('alpha', 'compound_governor')).resolves.toEqual(
-      row,
-    );
+    await expect(
+      repo.findSourceByDaoSlugAndType('alpha', 'compound_governor_bravo'),
+    ).resolves.toEqual(row);
     expect(selectFrom).toHaveBeenCalledWith('dao_source');
     expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'dao_source.dao_id');
     expect(chain.select).toHaveBeenCalledWith([
@@ -63,6 +63,10 @@ describe('DaoReadRepository', () => {
       'dao_source.source_config',
     ]);
     expect(chain.where).toHaveBeenCalledWith('dao.slug', '=', 'alpha');
-    expect(chain.where).toHaveBeenCalledWith('dao_source.source_type', '=', 'compound_governor');
+    expect(chain.where).toHaveBeenCalledWith(
+      'dao_source.source_type',
+      '=',
+      'compound_governor_bravo',
+    );
   });
 });

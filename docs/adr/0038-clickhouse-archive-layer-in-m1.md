@@ -11,7 +11,7 @@ ADR-026 (Proposed, 2026-05-08) defers all of ClickHouse to v1.x and ships v1 on 
 
 That trade-off conflated two different ClickHouse use cases that the SPEC describes side-by-side in §2.7:
 
-1. **Raw event archive layer.** SPEC §3.2 commits to one archive table per source (`event_archive_compound_governor`, future `event_archive_aave_governor`, etc.), storing every observed governance event for SPEC §3.3 idempotency, SPEC §3.4 reorg observability, and SPEC §3.10 backfill resumability. By end of M3 this is 5 tables × every governance event from every chain Kvorum tracks — millions of rows, append-mostly, queried by `(chain_id, block_number)` ranges and by the `(chain_id, tx_hash, log_index, block_hash)` exact-key lookups.
+1. **Raw event archive layer.** SPEC §3.2 commits to one archive table per source (`event_archive_compound_governor_bravo`, future `event_archive_aave_governor`, etc.), storing every observed governance event for SPEC §3.3 idempotency, SPEC §3.4 reorg observability, and SPEC §3.10 backfill resumability. By end of M3 this is 5 tables × every governance event from every chain Kvorum tracks — millions of rows, append-mostly, queried by `(chain_id, block_number)` ranges and by the `(chain_id, tx_hash, log_index, block_hash)` exact-key lookups.
 
 2. **Analytical mirror layer.** SPEC §2.7 describes denormalized join tables (`vote_events_flat`, `delegation_flow_flat`) for SPEC §4.6.2 analytical endpoints — concentration, delegation flow, delegate alignment, cross-DAO actor analytics, proposal pass-rate.
 
@@ -43,7 +43,7 @@ ADR-026's RAM concern was the right concern. Its conclusion ("defer all of Click
 The archive ships in ClickHouse from the start. The schema is a `ReplacingMergeTree` engine keyed on the SPEC §3.3 idempotency tuple, with `received_at` as the version column for natural deduplication on retry:
 
 ```sql
-CREATE TABLE event_archive_compound_governor (
+CREATE TABLE event_archive_compound_governor_bravo (
   dao_source_id   UUID,
   chain_id        UInt32,
   block_number    UInt64,
@@ -131,7 +131,7 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 
 ### 2026-05-10 — Polymorphic `archive_confirmation` table (sub-decision)
 
-The original ADR text (line 27) describes "a separate Postgres `archive_confirmation` table" without specifying whether the table is **per-source** (e.g., `archive_confirmation_compound_governor`, `archive_confirmation_aave_governor`) or **polymorphic** (one table for all sources, discriminated by `source_type`). plan-m1-e1.md v3 picked polymorphic implicitly; v4 makes the choice explicit and ratifies it here:
+The original ADR text (line 27) describes "a separate Postgres `archive_confirmation` table" without specifying whether the table is **per-source** (e.g., `archive_confirmation_compound_governor_bravo`, `archive_confirmation_aave_governor`) or **polymorphic** (one table for all sources, discriminated by `source_type`). plan-m1-e1.md v3 picked polymorphic implicitly; v4 makes the choice explicit and ratifies it here:
 
 > The Postgres `archive_confirmation` table is **polymorphic across all source types**. A single table carries `source_type` as the leading column of its idempotency key, and a single set of indexes serves F1/F2/G1/F3 across all current and future sources.
 
@@ -143,7 +143,7 @@ Rationale:
 
 Trade-off: a single hot table for all sources rather than N per-source tables. At v1 scale (3 DAOs, ~10 events/day post-backfill steady-state), the table is small (~10k rows/year). Revisit if a future high-volume source pushes the table past ~10M rows; partitioning by `source_type` is a one-step migration if needed.
 
-The ClickHouse archive layer remains **per-source** (one table per `source_type` — `event_archive_compound_governor`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
+The ClickHouse archive layer remains **per-source** (one table per `source_type` — `event_archive_compound_governor_bravo`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
 
 ### 2026-05-10 — Cross-DB integrity contract refined by ADR-041
 

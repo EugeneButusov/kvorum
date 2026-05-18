@@ -11,7 +11,7 @@
 
 ```sql
 -- Connect to ClickHouse and run:
-OPTIMIZE TABLE event_archive_compound_governor FINAL;
+OPTIMIZE TABLE event_archive_compound_governor_bravo FINAL;
 ```
 
 ## Warnings

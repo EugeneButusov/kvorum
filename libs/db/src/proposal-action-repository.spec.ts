@@ -41,7 +41,7 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
     .insertInto('proposal')
     .values({
       dao_id: dao!.id,
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_id: `spec-${Date.now()}`,
       proposer_actor_id: actor!.id,
       description: 'test proposal',

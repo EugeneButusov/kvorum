@@ -29,9 +29,9 @@ const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: '0x89', name: 'polygon' };
 
 const CTX: SourceContext = {
   daoSourceId: 'src-1',
-  sourceType: 'compound_governor',
+  sourceType: 'compound_governor_bravo',
   chainId: '0x1',
-  sourceLabel: 'compound_governor',
+  sourceLabel: 'compound_governor_bravo',
 };
 
 const LISTENER = vi.fn();

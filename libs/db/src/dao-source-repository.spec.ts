@@ -27,7 +27,7 @@ describe('DaoSourceRepository', () => {
       const { selectFrom } = makeSelectChain(rows);
       const repo = new DaoSourceRepository({ selectFrom } as never);
 
-      const result = await repo.findBySourceType('compound_governor');
+      const result = await repo.findBySourceType('compound_governor_bravo');
       expect(result).toEqual(rows);
     });
 
@@ -35,13 +35,13 @@ describe('DaoSourceRepository', () => {
       const { selectFrom } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
 
-      expect(await repo.findBySourceType('compound_governor')).toEqual([]);
+      expect(await repo.findBySourceType('compound_governor_bravo')).toEqual([]);
     });
 
     it('#3 — queries dao_source with dao inner join', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
-      await repo.findBySourceType('compound_governor');
+      await repo.findBySourceType('compound_governor_bravo');
 
       expect(selectFrom).toHaveBeenCalledWith('dao_source');
       expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'dao_source.dao_id');
@@ -50,7 +50,7 @@ describe('DaoSourceRepository', () => {
     it('#4 — selects the expected columns', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
-      await repo.findBySourceType('compound_governor');
+      await repo.findBySourceType('compound_governor_bravo');
 
       expect(chain.select).toHaveBeenCalledWith([
         'dao_source.id',
@@ -75,7 +75,7 @@ describe('DaoSourceRepository', () => {
         {
           id: 'src-1',
           dao_id: 'dao-1',
-          source_type: 'compound_governor',
+          source_type: 'compound_governor_bravo',
           source_config: {},
           primary_chain_id: 1,
         },
@@ -173,7 +173,7 @@ describe('DaoSourceRepository', () => {
       const row = {
         id: 'src-1',
         dao_id: 'dao-1',
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_config: {},
         active_from_block: null,
         backfill_started_at_block: '19000000',

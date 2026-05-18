@@ -15,7 +15,7 @@ import { DecodeError } from '@sources/compound';
 describe('malformed-emitter skew guard', () => {
   it('decodeCompoundLog throws DecodeError(parse_failed) on the 8-byte truncated payload', () => {
     const fakeLog = {
-      sourceType: 'compound_governor',
+      sourceType: 'compound_governor_bravo',
       chainId: '0x7a69',
       topics: [COMPOUND_EVENT_TOPICS.ProposalCreated],
       data: '0x0000000000000000', // 8 bytes — emitMalformed() emits exactly these

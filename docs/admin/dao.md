@@ -8,4 +8,4 @@ Commands:
 
 Notes:
 
-- `source_type=compound_governor` config is validated against plugin schema.
+- `source_type=compound_governor_bravo` config is validated against plugin schema.

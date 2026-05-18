@@ -5,7 +5,7 @@ import type { CompoundArchivePayloadRow } from '../persistence/compound-archive-
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   dao_source_id: 'source-1',
   chain_id: '0x1',
   block_number: '100',
@@ -127,7 +127,7 @@ describe('CompoundProjectionApplier', () => {
       metrics: makeMetrics(),
     });
 
-    expect(applier.sourceTypes).toEqual(['compound_governor', 'compound_governor_alpha']);
+    expect(applier.sourceTypes).toEqual(['compound_governor_bravo', 'compound_governor_alpha']);
   });
 
   it('projects ProposalCreated inside one transaction and marks archive row derived', async () => {

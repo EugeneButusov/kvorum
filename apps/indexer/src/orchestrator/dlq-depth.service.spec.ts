@@ -27,19 +27,21 @@ describe('DlqDepthService drain semantics', () => {
   });
 
   it('records count for each series returned by the query', async () => {
-    const repo = makeRepo([[{ stage: 'archive_decode', source: 'compound_governor', count: 3 }]]);
+    const repo = makeRepo([
+      [{ stage: 'archive_decode', source: 'compound_governor_bravo', count: 3 }],
+    ]);
     const svc = new DlqDepthService(repo as never);
     await (svc as unknown as { tick: () => Promise<void> }).tick();
 
     expect(recordFn()).toHaveBeenCalledWith(3, {
       stage: 'archive_decode',
-      source: 'compound_governor',
+      source: 'compound_governor_bravo',
     });
   });
 
   it('emits 0 for a series that drops out of subsequent SELECT results (drain semantics)', async () => {
     const repo = makeRepo([
-      [{ stage: 'archive_decode', source: 'compound_governor', count: 1 }],
+      [{ stage: 'archive_decode', source: 'compound_governor_bravo', count: 1 }],
       [], // second tick: no rows (series drained)
     ]);
     const svc = new DlqDepthService(repo as never);
@@ -50,16 +52,16 @@ describe('DlqDepthService drain semantics', () => {
     await (svc as unknown as { tick: () => Promise<void> }).tick();
     expect(recordFn()).toHaveBeenCalledWith(0, {
       stage: 'archive_decode',
-      source: 'compound_governor',
+      source: 'compound_governor_bravo',
     });
   });
 
   it('independently tracks a second series appearing in a later tick', async () => {
     const repo = makeRepo([
-      [{ stage: 'archive_decode', source: 'compound_governor', count: 1 }],
+      [{ stage: 'archive_decode', source: 'compound_governor_bravo', count: 1 }],
       [
-        { stage: 'archive_decode', source: 'compound_governor', count: 0 },
-        { stage: 'archive_confirmation_write', source: 'compound_governor', count: 3 },
+        { stage: 'archive_decode', source: 'compound_governor_bravo', count: 0 },
+        { stage: 'archive_confirmation_write', source: 'compound_governor_bravo', count: 3 },
       ],
     ]);
     const svc = new DlqDepthService(repo as never);
@@ -70,11 +72,11 @@ describe('DlqDepthService drain semantics', () => {
     await (svc as unknown as { tick: () => Promise<void> }).tick();
     expect(recordFn()).toHaveBeenCalledWith(0, {
       stage: 'archive_decode',
-      source: 'compound_governor',
+      source: 'compound_governor_bravo',
     });
     expect(recordFn()).toHaveBeenCalledWith(3, {
       stage: 'archive_confirmation_write',
-      source: 'compound_governor',
+      source: 'compound_governor_bravo',
     });
   });
 });

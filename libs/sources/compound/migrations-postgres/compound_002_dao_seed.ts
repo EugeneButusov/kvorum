@@ -29,7 +29,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     INSERT INTO dao_source (dao_id, source_type, source_config)
     SELECT id,
-           'compound_governor',
+           'compound_governor_bravo',
            '{"governor_address": "0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb
     FROM dao
     WHERE slug = 'compound'
@@ -57,7 +57,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
   await sql`
     DELETE FROM dao_source
-    WHERE source_type = 'compound_governor'
+    WHERE source_type = 'compound_governor_bravo'
       AND dao_id = (SELECT id FROM dao WHERE slug = 'compound')
   `.execute(db);
 

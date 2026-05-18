@@ -97,7 +97,7 @@ describeIf('F3 DLQ fault injection', () => {
     const daoId = await insertTestDao(pgDb, { slug: 'dlq-fault-test', name: 'DLQ Fault Test' });
     await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor',
+      sourceType: 'compound_governor_bravo',
       chainId: '0x7a69',
       contractAddress,
     });
@@ -140,8 +140,8 @@ describeIf('F3 DLQ fault injection', () => {
     expect(dlqRows.length).toBeGreaterThanOrEqual(1);
     // All DLQ rows for this fault share the same shape — verify on the first one.
     expect(dlqRows[0]!.stage).toBe('archive_decode');
-    expect(dlqRows[0]!.source).toBe('compound_governor');
-    expect(dlqRows[0]!.archive_source_type).toBe('compound_governor');
+    expect(dlqRows[0]!.source).toBe('compound_governor_bravo');
+    expect(dlqRows[0]!.archive_source_type).toBe('compound_governor_bravo');
     expect(dlqRows[0]!.archive_chain_id).toBe('0x7a69');
     // archive_tx_hash is populated from the raw log envelope before decoding — regression
     // guard that routeDecodeErrorToDlq captures the envelope for I2's dlq retry path.
@@ -154,7 +154,7 @@ describeIf('F3 DLQ fault injection', () => {
     // archive_writes{result=inserted} must NOT increment for this malformed event
     const insertedDelta = await getCounterDelta(
       `indexer_ingestion_archive_writes_total`,
-      { result: 'inserted', source: 'compound_governor', chain_id: '0x7a69' },
+      { result: 'inserted', source: 'compound_governor_bravo', chain_id: '0x7a69' },
       metricsBefore,
     );
     expect(insertedDelta).toBe(0);
@@ -168,12 +168,12 @@ describeIf('F3 DLQ fault injection', () => {
       const before =
         findMetricValue(metricsBefore, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
-          source: 'compound_governor',
+          source: 'compound_governor_bravo',
         }) ?? 0;
       const now =
         findMetricValue(after, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
-          source: 'compound_governor',
+          source: 'compound_governor_bravo',
         }) ?? 0;
       return now - before >= 1;
     }, 20_000);

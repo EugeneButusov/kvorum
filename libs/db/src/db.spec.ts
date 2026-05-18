@@ -86,7 +86,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .insertInto('dao_source')
           .values({
             dao_id: dao!.id,
-            source_type: 'compound_governor',
+            source_type: 'compound_governor_bravo',
             source_config: { governor_address: '0x' + 'b'.repeat(40) },
           })
           .returning(['id'])
@@ -106,7 +106,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .insertInto('proposal')
           .values({
             dao_id: dao!.id,
-            source_type: 'compound_governor',
+            source_type: 'compound_governor_bravo',
             source_id: 'smoke-1',
             proposer_actor_id: actor!.id,
             description: 'smoke proposal',
@@ -148,7 +148,7 @@ describeWithDb('ingestion domain smoke test', () => {
         await tx
           .insertInto('archive_confirmation')
           .values({
-            source_type: 'compound_governor',
+            source_type: 'compound_governor_bravo',
             dao_source_id: daoSource!.id,
             chain_id: 1,
             block_number: '12345678',
@@ -211,7 +211,7 @@ describeWithDb('decode tracking schema (baseline migration)', () => {
           .insertInto('proposal')
           .values({
             dao_id: dao!.id,
-            source_type: 'compound_governor',
+            source_type: 'compound_governor_bravo',
             source_id: `schema-smoke-${Date.now()}`,
             proposer_actor_id: actor!.id,
             description: 'test',

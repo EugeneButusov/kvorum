@@ -24,7 +24,7 @@
 -- UUID CODEC(ZSTD(1)) on dao_source_id is a no-op (UUIDs are incompressible random
 -- bytes); kept for per-column codec-spec consistency.
 
-CREATE TABLE IF NOT EXISTS event_archive_compound_governor
+CREATE TABLE IF NOT EXISTS event_archive_compound_governor_bravo
 (
     dao_source_id   UUID CODEC(ZSTD(1)),
     chain_id        LowCardinality(String) CODEC(ZSTD(1)),

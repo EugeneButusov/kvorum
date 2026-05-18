@@ -4,7 +4,7 @@ import { CompoundArchivePayloadRepository } from './compound-archive-payload-rep
 
 const ARCHIVE_ROW: ArchiveDerivationRow = {
   id: 'row-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   dao_source_id: 'source-1',
   chain_id: '0x1',
   block_number: '100',
@@ -61,7 +61,7 @@ describe('CompoundArchivePayloadRepository', () => {
 
     await expect(repo.fetchPayloads([ARCHIVE_ROW])).resolves.toEqual([payload]);
 
-    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor');
+    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
     expect(chSelect.where).toHaveBeenCalledOnce();
   });
 
@@ -82,7 +82,7 @@ describe('CompoundArchivePayloadRepository', () => {
 
     await expect(repo.findByProposalId('source-1', '42')).resolves.toEqual([payload]);
 
-    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor');
+    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
     expect(chSelect.where).toHaveBeenCalledTimes(2);
     expect(chSelect.orderBy).toHaveBeenCalledWith('received_at', 'asc');
   });

@@ -22,9 +22,9 @@ export type {
 } from '@sources/core';
 // Re-export the CH table type so @sources/compound is the canonical import point.
 export type {
-  EventArchiveCompoundGovernor,
-  EventArchiveCompoundGovernorTable,
-  NewEventArchiveCompoundGovernor,
+  EventArchiveCompoundGovernorBravo,
+  EventArchiveCompoundGovernorBravoTable,
+  NewEventArchiveCompoundGovernorBravo,
 } from './governor/index';
 
 export {
@@ -41,7 +41,7 @@ export {
   projectCompoundProposalEvent,
   ArchiveWriter,
   makeIngesterListener,
-  createCompoundGovernorPlugin,
+  createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,
 } from './governor/index';
