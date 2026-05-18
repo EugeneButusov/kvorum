@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import type { SourcePlugin } from '@sources/core';
-import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
+import { COMPOUND_PLUGINS, COMPOUND_RECONCILERS, CompoundSourceModule } from '@nest/compound';
 import { pgDb, ProposalRepository } from '@libs/db';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
@@ -10,7 +10,7 @@ import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
 import { StateReconcilerService } from '../orchestrator/state-reconciler.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
+import { SOURCE_PLUGINS, FETCH_DRIVERS, STATE_RECONCILERS } from '../orchestrator/tokens';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, DerivationModule, CompoundSourceModule],
@@ -23,6 +23,11 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
     {
       provide: ProposalRepository,
       useFactory: () => new ProposalRepository(pgDb),
+    },
+    {
+      provide: STATE_RECONCILERS,
+      useFactory: (reconcilers: unknown[]) => reconcilers,
+      inject: [COMPOUND_RECONCILERS],
     },
     EvmEventPollerDriver,
     { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },

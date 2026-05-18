@@ -187,11 +187,12 @@ export class ProposalRepository {
   }
 
   async findStaleForReconciliation(
+    sourceTypes: readonly string[],
     perChainBounds: readonly ReconcilePerChainBound[],
     recheckGapBlocks: number,
     limit: number,
   ): Promise<StaleReconciliationRow[]> {
-    if (perChainBounds.length === 0 || limit <= 0) return [];
+    if (sourceTypes.length === 0 || perChainBounds.length === 0 || limit <= 0) return [];
 
     return this.db
       .selectFrom('proposal')
@@ -201,7 +202,6 @@ export class ProposalRepository {
           .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
           .onRef('dao_source.source_type', '=', 'proposal.source_type'),
       )
-      .innerJoin('source_type', 'source_type.value', 'proposal.source_type')
       .select([
         'proposal.id',
         'proposal.source_id',
@@ -213,7 +213,7 @@ export class ProposalRepository {
         'proposal.voting_ends_block',
         'proposal.timelock_eta',
       ])
-      .where('source_type.reconcilable', '=', true)
+      .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'succeeded', 'queued'])
       .where((eb) =>
         eb.or(

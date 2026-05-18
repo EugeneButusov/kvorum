@@ -43,6 +43,7 @@ export {
   encodeGracePeriodCall,
   decodeGracePeriodResult,
   mapGovernorStateCode,
+  CompoundStateReconciler,
   EventRepository,
   extractCompoundTitle,
   ProposalProjectionError,

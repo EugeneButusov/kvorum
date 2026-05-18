@@ -320,6 +320,7 @@ describe('ProposalRepository', () => {
 
     await expect(
       repo.findStaleForReconciliation(
+        ['compound_governor_bravo'],
         [
           {
             chainId: '0x1',
@@ -333,7 +334,7 @@ describe('ProposalRepository', () => {
     ).resolves.toEqual(expected);
 
     expect(select.selectFrom).toHaveBeenCalledWith('proposal');
-    expect(select.innerJoin).toHaveBeenCalledTimes(3);
+    expect(select.innerJoin).toHaveBeenCalledTimes(2);
     expect(select.orderBy).toHaveBeenCalledWith('proposal.voting_ends_block', 'asc');
     expect(select.limit).toHaveBeenCalledWith(50);
   });
@@ -341,9 +342,17 @@ describe('ProposalRepository', () => {
   it('returns no stale rows when bounds are empty or limit is non-positive', async () => {
     const repo = new ProposalRepository({} as never);
 
-    await expect(repo.findStaleForReconciliation([], 100, 50)).resolves.toEqual([]);
     await expect(
       repo.findStaleForReconciliation(
+        [],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1000', confirmedThresholdTs: new Date() }],
+        100,
+        50,
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      repo.findStaleForReconciliation(
+        ['compound_governor_bravo'],
         [{ chainId: '0x1', confirmedThresholdBlock: '1000', confirmedThresholdTs: new Date() }],
         100,
         0,

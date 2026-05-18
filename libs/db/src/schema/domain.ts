@@ -8,7 +8,6 @@ export type SourceType = string;
 
 export interface SourceTypeTable {
   value: string;
-  reconcilable: boolean;
 }
 
 // ── Enum string-literal unions ────────────────────────────────────────────────

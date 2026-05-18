@@ -4,8 +4,8 @@ This runbook covers operation and validation of the indexer state reconciler for
 
 ## Scope
 
-- Source type: `compound_governor_bravo` (reconcilable = true)
-- Explicitly excluded: `compound_governor_alpha` (reconcilable = false, ADR-048)
+- Source type: `compound_governor_bravo` (reconciler plugin enabled)
+- Explicitly excluded: `compound_governor_alpha` (no reconciler plugin, ADR-048)
 - Reconciler writes only event-silent states.
 
 ## Prerequisites
@@ -14,11 +14,9 @@ This runbook covers operation and validation of the indexer state reconciler for
 
 - `proposal.timelock_eta`
 - `proposal.last_reconcile_check_block`
-- `source_type.reconcilable`
 
-2. Compound source migration sets `compound_governor_bravo.reconcilable = true`.
-3. Indexer is deployed with `StateReconcilerService`.
-4. RPC provider can serve:
+2. Indexer is deployed with `StateReconcilerService` and source reconciler plugins.
+3. RPC provider can serve:
 
 - `eth_getBlockByNumber` for old historical blocks
 - `eth_call state(uint256)` at confirmed-threshold block tags.
@@ -37,18 +35,17 @@ Tick cadence reuses `sweepIntervalMs ?? SWEEP_INTERVAL_MS`.
 ## Deployment checks
 
 1. Boot indexer and confirm no startup errors from `StateReconcilerService`.
-2. Confirm source flag:
+2. Confirm source types are seeded:
 
 ```sql
-SELECT value, reconcilable
+SELECT value
 FROM source_type
 WHERE value IN ('compound_governor_bravo', 'compound_governor_alpha');
 ```
 
 Expected:
 
-- bravo: `true`
-- alpha: `false`
+- both rows exist.
 
 3. Confirm backlog visibility:
 
@@ -56,8 +53,7 @@ Expected:
 SELECT count(*)
 FROM proposal p
 JOIN dao d ON d.id = p.dao_id
-JOIN source_type st ON st.value = p.source_type
-WHERE st.reconcilable = true
+WHERE p.source_type = 'compound_governor_bravo'
   AND p.state IN ('pending','active','succeeded','queued');
 ```
 
@@ -74,8 +70,7 @@ SELECT
   count(*) FILTER (WHERE last_reconcile_check_block IS NULL) AS unchecked,
   count(*) FILTER (WHERE last_reconcile_check_block IS NOT NULL) AS checked
 FROM proposal p
-JOIN source_type st ON st.value = p.source_type
-WHERE st.reconcilable = true
+WHERE p.source_type = 'compound_governor_bravo'
   AND p.state IN ('pending','active','succeeded','queued');
 ```
 

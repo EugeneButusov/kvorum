@@ -1,11 +1,17 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter, EventRepository, createCompoundPlugins } from '@sources/compound';
-import type { SourcePlugin } from '@sources/core';
+import {
+  ArchiveWriter,
+  CompoundStateReconciler,
+  EventRepository,
+  createCompoundPlugins,
+} from '@sources/compound';
+import type { ProposalStateReconcilerPlugin, SourcePlugin } from '@sources/core';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
+export const COMPOUND_RECONCILERS = 'COMPOUND_RECONCILERS';
 
 @Module({
   providers: [
@@ -44,7 +50,15 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       },
       inject: [ArchiveWriter, DlqRepository],
     },
+    {
+      provide: COMPOUND_RECONCILERS,
+      useFactory: (): ProposalStateReconcilerPlugin[] => {
+        return [
+          new CompoundStateReconciler('0x1', toChainLogger(new Logger('CompoundStateReconciler'))),
+        ];
+      },
+    },
   ],
-  exports: [COMPOUND_PLUGINS],
+  exports: [COMPOUND_PLUGINS, COMPOUND_RECONCILERS],
 })
 export class CompoundSourceModule {}

@@ -59,16 +59,28 @@ function makeRepo() {
   };
 }
 
+const mockReconciler = {
+  sourceType: 'compound_governor_bravo',
+  supportedChainId: '0x1',
+  reconcileRow: vi.fn().mockResolvedValue({ outcome: 'guard_skipped' }),
+};
+
 describe('StateReconcilerService', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    mockReconciler.reconcileRow.mockReset();
+    mockReconciler.reconcileRow.mockResolvedValue({ outcome: 'guard_skipped' });
   });
 
   it('skips when head is unavailable', async () => {
     const { registry } = makeRegistry(null);
     const repo = makeRepo();
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
 
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
@@ -93,11 +105,20 @@ describe('StateReconcilerService', () => {
       },
     ]);
 
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    mockReconciler.reconcileRow.mockResolvedValueOnce({
+      outcome: 'corrected',
+      fromState: 'pending',
+      toState: 'defeated',
+    });
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(repo.reconcileState).toHaveBeenCalledTimes(1);
+    expect(mockReconciler.reconcileRow).toHaveBeenCalledTimes(1);
   });
 
   it('treats executed/queued/canceled mismatch as missed_event without writes', async () => {
@@ -123,11 +144,16 @@ describe('StateReconcilerService', () => {
       return null;
     });
 
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    mockReconciler.reconcileRow.mockResolvedValueOnce({ outcome: 'missed_event' });
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(repo.reconcileState).not.toHaveBeenCalled();
+    expect(mockReconciler.reconcileRow).toHaveBeenCalledTimes(1);
   });
 
   it('escalates repeated rpc_failed for same proposal id', async () => {
@@ -155,12 +181,17 @@ describe('StateReconcilerService', () => {
       return null;
     });
 
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    mockReconciler.reconcileRow.mockRejectedValueOnce(new AllProvidersFailedError('0x1', []));
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(30_000);
     delete process.env['STATE_RECONCILE_RPC_FAIL_ESCALATE'];
 
-    expect(repo.reconcileState).not.toHaveBeenCalled();
+    expect(mockReconciler.reconcileRow).toHaveBeenCalled();
   });
 
   it('skips expired correction when eta is missing (expired_no_eta path)', async () => {
@@ -186,11 +217,16 @@ describe('StateReconcilerService', () => {
       return null;
     });
 
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    mockReconciler.reconcileRow.mockResolvedValueOnce({ outcome: 'expired_no_eta' });
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(repo.reconcileState).not.toHaveBeenCalled();
+    expect(mockReconciler.reconcileRow).toHaveBeenCalled();
   });
 
   it('records guard_skipped when optimistic reconcile update returns 0', async () => {
@@ -209,12 +245,15 @@ describe('StateReconcilerService', () => {
         timelock_eta: null,
       },
     ]);
-    repo.reconcileState.mockResolvedValue(0);
-
-    const svc = new StateReconcilerService(registry as never, repo as never);
+    mockReconciler.reconcileRow.mockResolvedValueOnce({ outcome: 'guard_skipped' });
+    const svc = new StateReconcilerService(
+      registry as never,
+      repo as never,
+      [mockReconciler] as never,
+    );
     await svc.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(repo.reconcileState).toHaveBeenCalledTimes(1);
+    expect(mockReconciler.reconcileRow).toHaveBeenCalledTimes(1);
   });
 });

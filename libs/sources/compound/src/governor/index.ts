@@ -66,6 +66,7 @@ export { ArchiveWriter } from './ingestion/archive-writer';
 
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';
 export { makeIngesterListener } from './ingestion/ingester-listener';
+export { CompoundStateReconciler } from './reconcile/compound-state-reconciler';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
