@@ -4,9 +4,9 @@ import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
+import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 
 const CTX: ArchiveWriteContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',

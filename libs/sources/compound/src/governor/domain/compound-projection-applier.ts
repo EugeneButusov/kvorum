@@ -8,10 +8,6 @@ import {
   ProposalRepository,
   type PgDatabase,
 } from '@libs/db';
-import {
-  CompoundArchivePayloadRepository,
-  type CompoundArchivePayloadRow,
-} from '../persistence/compound-archive-payload-repository';
 import { projectCompoundProposalEvent } from './proposal-projector';
 import type {
   CompoundGovernorEvent,
@@ -20,6 +16,10 @@ import type {
   ProposalExecutedPayload,
   ProposalQueuedPayload,
 } from './types';
+import {
+  CompoundArchivePayloadRepository,
+  type CompoundArchivePayloadRow,
+} from '../persistence/compound-archive-payload-repository';
 
 export type CompoundDerivationOutcome =
   | 'derived'

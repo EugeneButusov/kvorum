@@ -11,8 +11,8 @@ import type {
   ArchiveWriterDeps,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
-import type { EventRepository } from '../persistence/event-repository';
 import type { CompoundGovernorEvent } from '../domain/types';
+import type { EventRepository } from '../persistence/event-repository';
 
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {

@@ -4,8 +4,8 @@ import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import type { EventRepository } from '../persistence/event-repository';
 import type { CompoundGovernorEvent } from '../domain/types';
+import type { EventRepository } from '../persistence/event-repository';
 
 // ---- Shared test fixtures ----
 

@@ -2,12 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { SourceContext } from '@sources/core';
-import { ArchiveWriter } from '../ingestion/archive-writer';
 import {
   createCompoundGovernorAlphaPlugin,
   createCompoundGovernorPlugin,
   createCompoundPlugins,
 } from './plugin';
+import { ArchiveWriter } from '../ingestion/archive-writer';
 
 const CTX: SourceContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
