@@ -3,8 +3,8 @@ import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/comm
 import { AllProvidersFailedError, ClientStoppedError } from '@libs/chain';
 import { ProposalRepository, type ReconcilePerChainBound } from '@libs/db';
 import type { ProposalStateReconcilerPlugin } from '@sources/core';
-import { stateReconcilerMetrics } from './state-reconciler-metrics';
 import { ChainContextRegistry } from './chain-context-registry';
+import { stateReconcilerMetrics } from './state-reconciler-metrics';
 import { STATE_RECONCILERS } from './tokens';
 
 type ReconcileOutcome =
@@ -157,7 +157,7 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
     proposalId: string,
     sourceType: string,
     sourceId: string,
-    err: AllProvidersFailedError | ClientStoppedError,
+    _err: AllProvidersFailedError | ClientStoppedError,
   ): void {
     const streak = (this.rpcFailedStreak.get(proposalId) ?? 0) + 1;
     this.rpcFailedStreak.set(proposalId, streak);

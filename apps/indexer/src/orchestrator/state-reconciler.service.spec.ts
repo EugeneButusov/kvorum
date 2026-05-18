@@ -89,7 +89,7 @@ describe('StateReconcilerService', () => {
   });
 
   it('reconciles candidate row when stale proposal is returned', async () => {
-    const { registry, ctx } = makeRegistry(2000n);
+    const { registry } = makeRegistry(2000n);
     const repo = makeRepo();
     repo.findStaleForReconciliation.mockResolvedValue([
       {

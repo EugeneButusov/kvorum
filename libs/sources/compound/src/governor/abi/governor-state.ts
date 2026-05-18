@@ -1,5 +1,5 @@
-import type { ProposalState } from '@libs/db';
 import { Interface } from 'ethers';
+import type { ProposalState } from '@libs/db';
 
 export const GOVERNOR_STATE_INTERFACE = new Interface([
   'function state(uint256) view returns (uint8)',
