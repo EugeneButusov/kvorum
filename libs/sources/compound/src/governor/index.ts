@@ -81,6 +81,7 @@ export { CompoundReconcileDriver } from './reconcile/compound-reconcile-driver';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
+  SUPPORTED_CHAIN_IDS,
   createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,

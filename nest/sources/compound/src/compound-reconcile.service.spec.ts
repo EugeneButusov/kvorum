@@ -36,7 +36,7 @@ function makeRegistry() {
   };
   return {
     ctx,
-    registry: { allActive: vi.fn().mockReturnValue([ctx]) },
+    registry: { peek: vi.fn().mockReturnValue(ctx) },
     emitHead: (blockNumber: bigint) => listeners.forEach((l) => l({ blockNumber })),
   };
 }
@@ -105,7 +105,7 @@ describe('CompoundReconcileService', () => {
       },
       client: { send: vi.fn() },
     };
-    const registry = { allActive: vi.fn().mockReturnValue([ctx]) };
+    const registry = { peek: vi.fn().mockReturnValue(ctx) };
     const svc = new CompoundReconcileService(registry as never, makeRepo() as never);
 
     await svc.onApplicationBootstrap();

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
+  SUPPORTED_CHAIN_IDS,
   CompoundProposalRepository,
   CompoundReconcileDriver,
   CompoundStateReconciler,
@@ -28,7 +29,9 @@ export class CompoundReconcileService implements OnApplicationBootstrap, OnAppli
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    for (const ctx of this.registry.allActive()) {
+    for (const chainId of SUPPORTED_CHAIN_IDS) {
+      const ctx = this.registry.peek(chainId);
+      if (!ctx) continue;
       const unsub = ctx.headTracker.onHead((head) => {
         const horizon = BigInt(ctx.chainCfg.reorgHorizon);
         if (head.blockNumber < horizon) return;

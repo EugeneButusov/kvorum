@@ -56,6 +56,7 @@ export {
   projectCompoundProposalEvent,
   ArchiveWriter,
   makeIngesterListener,
+  SUPPORTED_CHAIN_IDS,
   createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,
