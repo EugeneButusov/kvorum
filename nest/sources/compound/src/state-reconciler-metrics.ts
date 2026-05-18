@@ -1,4 +1,5 @@
 import { defineCounter, defineGauge, defineHistogram } from '@libs/observability';
+import type { ReconcileDriverMetrics } from '@sources/compound';
 
 export const stateReconcilerMetrics = {
   stateReconcile: defineCounter({
@@ -27,3 +28,15 @@ export const stateReconcilerMetrics = {
     buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
   }),
 } as const;
+
+export function buildDriverMetrics(): ReconcileDriverMetrics {
+  return {
+    recordBacklog: (size) => stateReconcilerMetrics.stateReconcileBacklog.record(size),
+    recordBatchSaturated: () => stateReconcilerMetrics.stateReconcileBatchSaturated.add(1),
+    recordOutcome: (attrs) => stateReconcilerMetrics.stateReconcile.add(1, attrs),
+    recordRpcFailEscalated: (sourceType) =>
+      stateReconcilerMetrics.stateReconcileRpcFailEscalated.add(1, { source_type: sourceType }),
+    recordTickDurationSeconds: (seconds) =>
+      stateReconcilerMetrics.stateReconcileTickDurationSeconds.record(seconds),
+  };
+}

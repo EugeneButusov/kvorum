@@ -46,6 +46,7 @@ export {
   decodeDelayResult,
   mapGovernorStateCode,
   CompoundStateReconciler,
+  CompoundReconcileDriver,
   CompoundProposalRepository,
   EventRepository,
   extractCompoundTitle,
@@ -88,4 +89,6 @@ export type {
   ReconcilePerChainBound,
   StaleReconciliationRow,
   ReconcileStateInput,
+  ReconcileBound,
+  ReconcileDriverMetrics,
 } from './governor/index';

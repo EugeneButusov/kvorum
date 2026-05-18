@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AllProvidersFailedError } from '@libs/chain';
 import { CompoundReconcileService } from './compound-reconcile.service';
 
 vi.mock('./state-reconciler-metrics', () => ({
+  buildDriverMetrics: () => ({
+    recordBacklog: vi.fn(),
+    recordBatchSaturated: vi.fn(),
+    recordOutcome: vi.fn(),
+    recordRpcFailEscalated: vi.fn(),
+    recordTickDurationSeconds: vi.fn(),
+  }),
   stateReconcilerMetrics: {
     stateReconcile: { add: vi.fn() },
     stateReconcileRpcFailEscalated: { add: vi.fn() },
@@ -13,48 +19,32 @@ vi.mock('./state-reconciler-metrics', () => ({
   },
 }));
 
-function makeHead(blockNumber: bigint) {
-  return {
-    chainId: '0x1',
-    blockNumber,
-    blockHash: '0xabc',
-    parentHash: '0xdef',
-    timestamp: 0n,
-    observedAt: new Date(),
-  };
-}
+type HeadListener = (head: { blockNumber: bigint }) => void | Promise<void>;
 
-function makeRegistry(headBlock: bigint | null = 2000n) {
-  const send = vi.fn(async (method: string) => {
-    if (method === 'eth_call')
-      return '0x0000000000000000000000000000000000000000000000000000000000000003';
-    if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' };
-    return null;
-  });
-
+function makeRegistry() {
+  const listeners: HeadListener[] = [];
+  const send = vi.fn(async () => null);
   const ctx = {
-    chainCfg: { chainId: '0x1', name: 'ethereum', reorgHorizon: 12, providers: [] },
+    chainCfg: { chainId: '0x1', reorgHorizon: 12 },
     headTracker: {
-      getLastHead: vi.fn().mockReturnValue(headBlock === null ? null : makeHead(headBlock)),
+      onHead: vi.fn((listener: HeadListener) => {
+        listeners.push(listener);
+        return () => {};
+      }),
     },
     client: { send },
-    reorgDetector: {},
-    proxyResolver: {},
   };
-
   return {
     ctx,
-    registry: {
-      allActive: vi.fn().mockReturnValue([ctx]),
-      peek: vi.fn().mockReturnValue(ctx),
-    },
+    registry: { allActive: vi.fn().mockReturnValue([ctx]) },
+    emitHead: (blockNumber: bigint) => listeners.forEach((l) => l({ blockNumber })),
   };
 }
 
 function makeRepo() {
   return {
     findStaleForReconciliation: vi.fn().mockResolvedValue([]),
-    markReconcileChecked: vi.fn().mockResolvedValue(1),
+    markReconcileChecked: vi.fn().mockResolvedValue(undefined),
     reconcileState: vi.fn().mockResolvedValue(1),
   };
 }
@@ -62,90 +52,66 @@ function makeRepo() {
 describe('CompoundReconcileService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllEnvs();
   });
 
-  it('skips tick when head is null', async () => {
-    const { registry } = makeRegistry(null);
+  it('subscribes to onHead for each active chain on bootstrap', async () => {
+    const { registry, ctx } = makeRegistry();
+    const svc = new CompoundReconcileService(registry as never, makeRepo() as never);
+
+    await svc.onApplicationBootstrap();
+
+    expect(ctx.headTracker.onHead).toHaveBeenCalledOnce();
+  });
+
+  it('does not trigger driver for heads below reorgHorizon', async () => {
+    const { registry, emitHead } = makeRegistry();
     const repo = makeRepo();
     const svc = new CompoundReconcileService(registry as never, repo as never);
 
     await svc.onApplicationBootstrap();
-    await svc.onApplicationShutdown();
+    emitHead(5n); // below reorgHorizon of 12
 
     expect(repo.findStaleForReconciliation).not.toHaveBeenCalled();
   });
 
-  it('skips tick when head is below reorgHorizon', async () => {
-    const { registry } = makeRegistry(5n);
+  it('passes confirmedThresholdBlock = head - reorgHorizon to driver', async () => {
+    const { registry, emitHead } = makeRegistry();
     const repo = makeRepo();
     const svc = new CompoundReconcileService(registry as never, repo as never);
 
     await svc.onApplicationBootstrap();
-    await svc.onApplicationShutdown();
+    emitHead(2000n);
 
-    expect(repo.findStaleForReconciliation).not.toHaveBeenCalled();
-  });
-
-  it('passes confirmedThresholdBlock = head - reorgHorizon to repository', async () => {
-    const { registry } = makeRegistry(2000n);
-    const repo = makeRepo();
-    const svc = new CompoundReconcileService(registry as never, repo as never);
-
-    await svc.onApplicationBootstrap();
-    await svc.onApplicationShutdown();
-
+    await vi.waitFor(() => expect(repo.findStaleForReconciliation).toHaveBeenCalled());
     expect(repo.findStaleForReconciliation).toHaveBeenCalledWith(
       ['compound_governor_bravo'],
-      [{ chainId: '0x1', confirmedThresholdBlock: '1988' }],
+      [expect.objectContaining({ chainId: '0x1', confirmedThresholdBlock: '1988' })],
       expect.any(Number),
       expect.any(Number),
     );
   });
 
-  it('re-entrancy guard prevents overlapping ticks', async () => {
-    const { registry } = makeRegistry(2000n);
-    const repo = makeRepo();
-    let resolveTick!: () => void;
-    repo.findStaleForReconciliation.mockReturnValue(
-      new Promise<never[]>((r) => {
-        resolveTick = () => r([]);
-      }),
-    );
-
-    const svc = new CompoundReconcileService(registry as never, repo as never);
-
-    const tick1 = svc['tick']();
-    const tick2 = svc['tick']();
-    resolveTick();
-    await Promise.all([tick1, tick2]);
-
-    expect(repo.findStaleForReconciliation).toHaveBeenCalledTimes(1);
-  });
-
-  it('records rpc_failed and escalates after threshold', async () => {
-    vi.stubEnv('STATE_RECONCILE_RPC_FAIL_ESCALATE', '2');
-    const { registry, ctx } = makeRegistry(2000n);
-    const repo = makeRepo();
-    const row = {
-      id: 'p1',
-      source_id: '42',
-      source_type: 'compound_governor_bravo',
-      chain_id: '0x1',
-      governor_address: '0xgov',
-      state: 'pending',
-      voting_starts_block: '100',
-      voting_ends_block: '200',
-      queued_block: null,
+  it('unsubscribes all listeners on shutdown', async () => {
+    const listeners: Array<() => void> = [];
+    const ctx = {
+      chainCfg: { chainId: '0x1', reorgHorizon: 12 },
+      headTracker: {
+        onHead: vi.fn((listener: HeadListener) => {
+          const unsub = vi.fn();
+          listeners.push(unsub);
+          void listener; // register but capture unsub
+          return unsub;
+        }),
+      },
+      client: { send: vi.fn() },
     };
-    repo.findStaleForReconciliation.mockResolvedValue([row]);
-    ctx.client.send.mockRejectedValue(new AllProvidersFailedError([]));
+    const registry = { allActive: vi.fn().mockReturnValue([ctx]) };
+    const svc = new CompoundReconcileService(registry as never, makeRepo() as never);
 
-    const svc = new CompoundReconcileService(registry as never, repo as never);
-    await svc['tick']();
-    await svc['tick']();
+    await svc.onApplicationBootstrap();
+    await svc.onApplicationShutdown();
 
-    const { stateReconcilerMetrics } = await import('./state-reconciler-metrics');
-    expect(stateReconcilerMetrics.stateReconcileRpcFailEscalated.add).toHaveBeenCalledOnce();
+    expect(listeners).toHaveLength(1);
+    expect(listeners[0]).toHaveBeenCalledOnce();
   });
 });
