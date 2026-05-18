@@ -203,7 +203,7 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
-  it('#5b — unsupported chain for plugin: throws BEFORE any driver.start()', async () => {
+  it('#5b — unsupported chain for plugin: source skipped, driver.start() not called', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x89'), // polygon, not supported
@@ -217,7 +217,7 @@ describe('IndexerOrchestratorService', () => {
     const module = await buildModule([plugin], driver);
     const svc = module.get(IndexerOrchestratorService);
 
-    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/does not support chain_id/);
+    await svc.onApplicationBootstrap();
     expect(driver.start).not.toHaveBeenCalled();
   });
 
