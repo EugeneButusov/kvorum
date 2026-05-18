@@ -2,9 +2,9 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv } from '@libs/chain';
+import { ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -21,15 +21,12 @@ vi.mock('@libs/chain', () => ({
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
   },
+  ChainContextRegistry: vi.fn(),
 }));
 
 vi.mock('@libs/db', () => ({
   DaoSourceRepository: vi.fn(),
   ConfirmationRepository: vi.fn(),
-}));
-
-vi.mock('./chain-context-registry', () => ({
-  ChainContextRegistry: vi.fn(),
 }));
 
 vi.mock('./reorg-watcher.service', () => ({

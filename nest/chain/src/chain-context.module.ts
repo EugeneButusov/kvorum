@@ -1,10 +1,13 @@
 import { Global, Module } from '@nestjs/common';
-import { ChainContextRegistry } from './chain-context-registry';
+import { ChainContextRegistry } from '@libs/chain';
 
 @Global()
 @Module({
   providers: [
-    ChainContextRegistry,
+    {
+      provide: ChainContextRegistry,
+      useFactory: () => new ChainContextRegistry(),
+    },
     { provide: 'ChainContextRegistry', useExisting: ChainContextRegistry },
   ],
   exports: [ChainContextRegistry, 'ChainContextRegistry'],

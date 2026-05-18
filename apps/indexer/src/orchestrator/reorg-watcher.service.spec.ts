@@ -9,7 +9,7 @@ vi.mock('@libs/chain', () => ({
 }));
 
 import { chainMetrics } from '@libs/chain';
-import type { ChainContext } from './chain-context-registry';
+import type { ChainContext } from '@libs/chain';
 import { ReorgWatcherService } from './reorg-watcher.service';
 
 function makeReorgSignal(

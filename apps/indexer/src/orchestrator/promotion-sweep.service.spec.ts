@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@libs/chain', () => ({
+  ChainContextRegistry: vi.fn(),
   chainMetrics: {
     promotionSweepDuration: { record: vi.fn() },
   },

@@ -1,25 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
-import { ChainContextRegistry } from './chain-context-registry';
+import { ChainContextRegistry } from './chain-context-registry.js';
 
-vi.mock('@libs/chain', () => ({
-  FailoverRpcClient: vi.fn(),
-  HeadTracker: vi.fn(),
-  ReorgDetector: vi.fn(),
-  ProxyResolver: vi.fn(),
-  chainMetrics: {
-    pendingEventCount: { record: vi.fn() },
-    indexerActiveSources: { record: vi.fn() },
-  },
-}));
+vi.mock('./client/failover-rpc-client.js', () => ({ FailoverRpcClient: vi.fn() }));
+vi.mock('./poller/head-tracker.js', () => ({ HeadTracker: vi.fn() }));
+vi.mock('./reorg/reorg-detector.js', () => ({ ReorgDetector: vi.fn() }));
+vi.mock('./proxy/proxy-resolver.js', () => ({ ProxyResolver: vi.fn() }));
 
-const CHAIN_CFG = {
-  chainId: '0x1',
-  name: 'ethereum',
-  reorgHorizon: 12,
-  providers: [],
-};
+import { FailoverRpcClient } from './client/failover-rpc-client.js';
+import { HeadTracker } from './poller/head-tracker.js';
+import { ReorgDetector } from './reorg/reorg-detector.js';
 
+const CHAIN_CFG = { chainId: '0x1', name: 'ethereum', reorgHorizon: 12, providers: [] };
 const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: '0x89', name: 'polygon' };
 
 function makeClient() {

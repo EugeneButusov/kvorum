@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventPoller } from '@libs/chain';
 import type { Logger as ChainLogger } from '@libs/chain';
+import { EventPoller } from '@libs/chain';
+import { ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
-import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 
 @Injectable()

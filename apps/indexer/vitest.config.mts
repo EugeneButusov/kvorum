@@ -13,6 +13,7 @@ const alias = {
   '@libs/observability': resolve(root, 'libs/observability/src/index.ts'),
   '@sources/core': resolve(root, 'libs/sources/core/src/index.ts'),
   '@sources/compound': resolve(root, 'libs/sources/compound/src/index.ts'),
+  '@nest/chain': resolve(root, 'nest/chain/src/index.ts'),
   '@nest/compound': resolve(root, 'nest/sources/compound/src/index.ts'),
   '@nest/observability': resolve(root, 'nest/observability/src/index.ts'),
 };

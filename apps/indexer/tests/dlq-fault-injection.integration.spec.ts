@@ -1,6 +1,7 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ChainContextRegistry } from '@libs/chain';
 import { pgDb } from '@libs/db';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
@@ -15,7 +16,6 @@ import {
   truncateAllTestTables,
 } from './helpers/pg-test-fixtures';
 import { IndexerModule } from '../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];

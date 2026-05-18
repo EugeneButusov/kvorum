@@ -2,6 +2,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ChainContextRegistry } from '@libs/chain';
 import { chDb, pgDb } from '@libs/db';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
@@ -18,7 +19,6 @@ import {
 } from './helpers/pg-test-fixtures';
 import { DerivationWorkerService } from '../src/derivation/derivation-worker.service';
 import { IndexerModule } from '../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];

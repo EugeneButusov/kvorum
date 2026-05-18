@@ -1,8 +1,6 @@
-import { FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
-import type { ChainConfig } from '@libs/chain';
+import { ChainContextRegistry, FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
+import type { ChainConfig, ChainContext } from '@libs/chain';
 import { pollUntil } from './pg-test-fixtures';
-import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
-import type { ChainContext } from '../../src/orchestrator/chain-context-registry';
 
 export interface AnvilTestContext {
   client: FailoverRpcClient;
