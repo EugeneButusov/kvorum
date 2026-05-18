@@ -103,6 +103,26 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
+function makeStaleReconcileSelectChain(returnValue: unknown[]) {
+  const execute = vi.fn().mockResolvedValue(returnValue);
+  const chain = {
+    innerJoin: vi.fn(),
+    select: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    execute,
+  };
+  chain.innerJoin.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  const selectFrom = vi.fn().mockReturnValue(chain);
+
+  return { selectFrom, ...chain };
+}
+
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -279,5 +299,88 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('finds stale proposals for reconciliation with expected joins and ordering', async () => {
+    const expected = [
+      {
+        id: 'proposal-1',
+        source_id: '42',
+        source_type: 'compound_governor_bravo',
+        chain_id: '0x1',
+        governor_address: '0xc0da02939e1441f497fd74f78ce7decb17b66529',
+        state: 'pending',
+        voting_starts_block: '100',
+        voting_ends_block: '200',
+        timelock_eta: null,
+      },
+    ];
+    const select = makeStaleReconcileSelectChain(expected);
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(
+      repo.findStaleForReconciliation(
+        [
+          {
+            chainId: '0x1',
+            confirmedThresholdBlock: '1000',
+            confirmedThresholdTs: new Date('2026-01-01T00:00:00Z'),
+          },
+        ],
+        100,
+        50,
+      ),
+    ).resolves.toEqual(expected);
+
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal');
+    expect(select.innerJoin).toHaveBeenCalledTimes(3);
+    expect(select.orderBy).toHaveBeenCalledWith('proposal.voting_ends_block', 'asc');
+    expect(select.limit).toHaveBeenCalledWith(50);
+  });
+
+  it('returns no stale rows when bounds are empty or limit is non-positive', async () => {
+    const repo = new ProposalRepository({} as never);
+
+    await expect(repo.findStaleForReconciliation([], 100, 50)).resolves.toEqual([]);
+    await expect(
+      repo.findStaleForReconciliation(
+        [{ chainId: '0x1', confirmedThresholdBlock: '1000', confirmedThresholdTs: new Date() }],
+        100,
+        0,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it('reconciles state with optimistic guard', async () => {
+    const update = makeUpdateChain(1n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+
+    await expect(
+      repo.reconcileState({
+        proposalId: 'proposal-1',
+        expectedStates: ['pending', 'active', 'queued', 'succeeded'],
+        targetState: 'defeated',
+        stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+      }),
+    ).resolves.toBe(1);
+
+    expect(update.where.mock.calls).toEqual([
+      ['id', '=', 'proposal-1'],
+      ['state', 'in', ['pending', 'active', 'queued', 'succeeded']],
+      ['state', '<>', 'defeated'],
+    ]);
+  });
+
+  it('marks proposal as checked at confirmed threshold', async () => {
+    const update = makeUpdateChain(1n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+
+    await expect(repo.markReconcileChecked('proposal-1', '123456')).resolves.toBe(1);
+
+    expect(update.where.mock.calls).toEqual([['id', '=', 'proposal-1']]);
+    expect(update.set).toHaveBeenCalledWith({
+      last_reconcile_check_block: '123456',
+      updated_at: expect.anything(),
+    });
   });
 });

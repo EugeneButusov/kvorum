@@ -25,6 +25,9 @@ export type {
   InsertProposalResult,
   PendingTimestampFillRow,
   ProposalActionInput,
+  ReconcilePerChainBound,
+  ReconcileStateInput,
+  StaleReconciliationRow,
   TimestampFillInput,
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
