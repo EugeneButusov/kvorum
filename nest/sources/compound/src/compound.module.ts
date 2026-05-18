@@ -8,6 +8,7 @@ import {
   createCompoundPlugins,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
+import { CompoundReconcileService } from './compound-reconcile.service';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
@@ -53,6 +54,7 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       provide: CompoundProposalRepository,
       useFactory: () => new CompoundProposalRepository(pgDb),
     },
+    CompoundReconcileService,
   ],
   exports: [COMPOUND_PLUGINS, CompoundProposalRepository],
 })

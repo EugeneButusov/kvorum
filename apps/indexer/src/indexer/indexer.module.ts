@@ -4,7 +4,6 @@ import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
-import { CompoundReconcileService } from '../orchestrator/compound-reconcile.service';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
@@ -24,7 +23,6 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
     IndexerOrchestratorService,
     ReorgWatcherService,
     PromotionSweepService,
-    CompoundReconcileService,
   ],
 })
 export class IndexerModule {}

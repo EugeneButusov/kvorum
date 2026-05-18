@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import {
   AllProvidersFailedError,
@@ -10,8 +10,18 @@ import {
   CompoundStateReconciler,
   type ReconcilePerChainBound,
 } from '@sources/compound';
-import { ChainContextRegistry } from './chain-context-registry';
 import { stateReconcilerMetrics } from './state-reconciler-metrics';
+
+interface IChainContext {
+  headTracker: { getLastHead(): { blockNumber: bigint } | null };
+  chainCfg: { chainId: string; reorgHorizon: number; sweepIntervalMs?: number };
+  client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
+}
+
+interface IChainContextRegistry {
+  allActive(): IChainContext[];
+  peek(chainId: string): IChainContext | undefined;
+}
 
 type ReconcileOutcome =
   | 'corrected'
@@ -42,7 +52,7 @@ export class CompoundReconcileService implements OnApplicationBootstrap, OnAppli
   private readonly rpcFailedStreak = new Map<string, number>();
 
   constructor(
-    private readonly registry: ChainContextRegistry,
+    @Inject('ChainContextRegistry') private readonly registry: IChainContextRegistry,
     private readonly proposals: CompoundProposalRepository,
   ) {}
 
