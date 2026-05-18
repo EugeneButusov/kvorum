@@ -110,14 +110,14 @@ describe('DaoAdminRepository', () => {
       const expected = {
         id: 'src-1',
         dao_id: 'dao-1',
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_config: { governor_address: '0x' + 'b'.repeat(40) },
       };
       const { insertInto } = makeInsertReturningAllChain(expected);
       const repo = new DaoAdminRepository({ insertInto } as never);
       const result = await repo.addSource({
         daoId: 'dao-1',
-        sourceType: 'compound_governor',
+        sourceType: 'compound_governor_bravo',
         sourceConfig: { governor_address: '0x' + 'b'.repeat(40) },
       });
       expect(result).toEqual(expected);
@@ -129,13 +129,13 @@ describe('DaoAdminRepository', () => {
       const repo = new DaoAdminRepository({ insertInto } as never);
       await repo.addSource({
         daoId: 'd1',
-        sourceType: 'compound_governor',
+        sourceType: 'compound_governor_bravo',
         sourceConfig: { a: 1 },
       });
       expect(values).toHaveBeenCalledWith(
         expect.objectContaining({
           dao_id: 'd1',
-          source_type: 'compound_governor',
+          source_type: 'compound_governor_bravo',
           source_config: { a: 1 },
         }),
       );
@@ -171,7 +171,7 @@ describe('DaoAdminRepository', () => {
 
   describe('findSourceById', () => {
     it('#1 — returns the source row when found', async () => {
-      const row = { id: 'src-1', source_type: 'compound_governor', source_config: {} };
+      const row = { id: 'src-1', source_type: 'compound_governor_bravo', source_config: {} };
       const { selectFrom } = makeSelectChain(row);
       const repo = new DaoAdminRepository({ selectFrom } as never);
       expect(await repo.findSourceById('src-1')).toEqual(row);
@@ -196,7 +196,7 @@ describe('DaoAdminRepository', () => {
     it('#1 — returns true when a matching row exists', async () => {
       const { selectFrom } = makeSelectChain({ ok: 1 });
       const repo = new DaoAdminRepository({ selectFrom } as never);
-      expect(await repo.sourceTypeExists('compound_governor')).toBe(true);
+      expect(await repo.sourceTypeExists('compound_governor_bravo')).toBe(true);
     });
 
     it('#2 — returns false when no matching row exists', async () => {

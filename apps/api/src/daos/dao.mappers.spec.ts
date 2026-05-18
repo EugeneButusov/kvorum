@@ -23,11 +23,11 @@ describe('dao.mappers', () => {
 
   it('toDaoSourceDto preserves source_type and curated fields', () => {
     const dto = toDaoSourceDto({
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_config: { contract_address: '0xEF', chain_id: '10' },
     });
     expect(dto).toEqual({
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       contract_address: '0xef',
       chain_id: '10',
     });

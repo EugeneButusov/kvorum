@@ -12,7 +12,7 @@ const CONFIRMED_AT = new Date('2026-01-01T00:00:00Z');
 const ARCHIVE_ROW: CompoundProjectionArchiveRow = {
   id: 'archive-row-1',
   dao_source_id: 'dao-source-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   chain_id: '0x1',
   confirmed_at: CONFIRMED_AT,
 };
@@ -41,7 +41,7 @@ describe('projectCompoundProposalEvent', () => {
 
     expect(projection.proposerAddress).toBe('0xabcdef');
     expect(projection.proposal).toMatchObject({
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_id: '42',
       title: 'Proposal 42',
       description: '# Proposal 42\nBody',
@@ -96,7 +96,7 @@ describe('projectCompoundProposalEvent', () => {
       kind: 'proposal_state_transition',
       archiveRowId: 'archive-row-1',
       daoSourceId: 'dao-source-1',
-      sourceType: 'compound_governor',
+      sourceType: 'compound_governor_bravo',
       sourceId: '42',
       targetState,
       stateUpdatedAt: CONFIRMED_AT,

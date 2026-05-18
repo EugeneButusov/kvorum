@@ -225,7 +225,7 @@ Essential fields: `id`, `dao_id`, `source_type`, `source_config` (JSONB — cont
 
 Rationale: Decouples DAO identity from the specific governance mechanism. Adding a fourth DAO is a `dao_source` insert, not a schema change. Tracking activation windows lets us model migrations correctly (e.g., when a DAO moves from Aragon to a custom Governor).
 
-`source_type` is an enum: `compound_governor`, `aave_governor_v3`, `aragon_voting`, `snapshot`, `dual_governance`. The enum is extended carefully; new values require a migration but signal real architectural commitment.
+`source_type` is an enum: `compound_governor_bravo`, `aave_governor_v3`, `aragon_voting`, `snapshot`, `dual_governance`. The enum is extended carefully; new values require a migration but signal real architectural commitment.
 
 #### 2.4.3 `actor`
 
@@ -363,7 +363,7 @@ The archive tables are not directly queried by user-facing features. They exist 
 
 Per-source archives are appropriate because event shapes differ substantially. Concrete tables:
 
-- `event_archive_compound_governor`
+- `event_archive_compound_governor_bravo`
 - `event_archive_aave_v3`
 - `event_archive_aragon`
 - `event_archive_snapshot`
@@ -838,7 +838,7 @@ Resource identifiers in URLs and response payloads use stable, source-derived va
 **Proposals** are identified by the triple `(dao_slug, source_type, source_id)`. The URL pattern is `/v1/daos/{dao_slug}/proposals/{source_type}/{source_id}`. Examples:
 
 ```
-/v1/daos/compound/proposals/compound_governor/42
+/v1/daos/compound/proposals/compound_governor_bravo/42
 /v1/daos/aave/proposals/aave_governor_v3/137
 /v1/daos/lido/proposals/aragon_voting/89
 /v1/daos/lido/proposals/snapshot/0xa3f8...91c
@@ -1033,7 +1033,7 @@ Response envelopes are consistent across all endpoints.
 {
   "data": {
     "dao_slug": "compound",
-    "source_type": "compound_governor",
+    "source_type": "compound_governor_bravo",
     "source_id": "42",
     "title": "...",
     "description": "...",
@@ -1052,8 +1052,8 @@ Response envelopes are consistent across all endpoints.
       "confirmed": true,
       "last_updated_at": "2026-04-19T00:00:00Z",
       "links": {
-        "self": "/v1/daos/compound/proposals/compound_governor/42",
-        "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+        "self": "/v1/daos/compound/proposals/compound_governor_bravo/42",
+        "votes": "/v1/daos/compound/proposals/compound_governor_bravo/42/votes",
         "forum": "/v1/daos/compound/forum-threads/12345"
       }
     }
@@ -1078,8 +1078,8 @@ Errors follow RFC 7807 (Problem Details for HTTP APIs).
   "type": "https://kvorum.example/errors/proposal-not-found",
   "title": "Proposal not found",
   "status": 404,
-  "detail": "No proposal found for dao=compound, source_type=compound_governor, source_id=99999",
-  "instance": "/v1/daos/compound/proposals/compound_governor/99999"
+  "detail": "No proposal found for dao=compound, source_type=compound_governor_bravo, source_id=99999",
+  "instance": "/v1/daos/compound/proposals/compound_governor_bravo/99999"
 }
 ```
 
@@ -1296,7 +1296,7 @@ AI outputs are exposed in two ways: embedded in entity responses and accessible 
 {
   "data": {
     "dao_slug": "compound",
-    "source_type": "compound_governor",
+    "source_type": "compound_governor_bravo",
     "source_id": "42",
     "title": "...",
     "description": "...",

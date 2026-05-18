@@ -1,9 +1,9 @@
 import { sql, type Kysely } from 'kysely';
 import type { ArchiveDerivationRow, ClickHouseDatabase } from '@libs/db';
-import type { EventArchiveCompoundGovernorTable } from './schema';
+import type { EventArchiveCompoundGovernorBravoTable } from './schema';
 
 export type CompoundArchivePayloadRow = Pick<
-  EventArchiveCompoundGovernorTable,
+  EventArchiveCompoundGovernorBravoTable,
   'chain_id' | 'tx_hash' | 'log_index' | 'block_hash' | 'event_type' | 'payload' | 'received_at'
 >;
 
@@ -18,7 +18,7 @@ export class CompoundArchivePayloadRepository {
     );
 
     return this.chDb
-      .selectFrom('event_archive_compound_governor')
+      .selectFrom('event_archive_compound_governor_bravo')
       .select([
         'chain_id',
         'tx_hash',
@@ -37,7 +37,7 @@ export class CompoundArchivePayloadRepository {
     proposalId: string,
   ): Promise<CompoundArchivePayloadRow[]> {
     return this.chDb
-      .selectFrom('event_archive_compound_governor')
+      .selectFrom('event_archive_compound_governor_bravo')
       .select([
         'chain_id',
         'tx_hash',

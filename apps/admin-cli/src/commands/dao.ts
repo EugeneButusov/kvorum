@@ -121,9 +121,9 @@ function parseJson(raw: string, optionName: string): unknown {
 }
 
 async function validateSourceConfig(sourceType: string, config: unknown): Promise<void> {
-  if (sourceType === 'compound_governor') {
-    const { createCompoundGovernorPlugin } = await import('@sources/compound');
-    const plugin = createCompoundGovernorPlugin({
+  if (sourceType === 'compound_governor_bravo') {
+    const { createCompoundGovernorBravoPlugin } = await import('@sources/compound');
+    const plugin = createCompoundGovernorBravoPlugin({
       archiveWriter: {} as never,
       dlqRepo: {} as never,
       logger: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },

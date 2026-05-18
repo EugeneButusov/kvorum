@@ -3,7 +3,7 @@ import { resolveBackfillSourcePlugin } from '../plugins/backfill-source-plugins.
 
 describe('resolveBackfillSourcePlugin', () => {
   const bravoPlugin = {
-    sourceType: 'compound_governor',
+    sourceType: 'compound_governor_bravo',
     parseConfig: vi.fn(),
     buildIngestSpec: vi.fn(),
   };
@@ -13,8 +13,11 @@ describe('resolveBackfillSourcePlugin', () => {
     buildIngestSpec: vi.fn(),
   };
 
-  it('returns bravo plugin for compound_governor', () => {
-    const plugin = resolveBackfillSourcePlugin('compound_governor', [bravoPlugin, alphaPlugin]);
+  it('returns bravo plugin for compound_governor_bravo', () => {
+    const plugin = resolveBackfillSourcePlugin('compound_governor_bravo', [
+      bravoPlugin,
+      alphaPlugin,
+    ]);
 
     expect(plugin).toBe(bravoPlugin);
   });

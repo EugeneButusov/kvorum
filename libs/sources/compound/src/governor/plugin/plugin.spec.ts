@@ -4,16 +4,16 @@ import type { DlqRepository } from '@libs/db';
 import type { SourceContext } from '@sources/core';
 import {
   createCompoundGovernorAlphaPlugin,
-  createCompoundGovernorPlugin,
+  createCompoundGovernorBravoPlugin,
   createCompoundPlugins,
 } from './plugin';
 import { ArchiveWriter } from '../ingestion/archive-writer';
 
 const CTX: SourceContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
-  sourceType: 'compound_governor',
+  sourceType: 'compound_governor_bravo',
   chainId: 1,
-  sourceLabel: 'compound_governor',
+  sourceLabel: 'compound_governor_bravo',
 };
 
 const ALPHA_CTX: SourceContext = {
@@ -26,7 +26,7 @@ const mockArchiveWriter = {} as ArchiveWriter;
 const mockDlqRepo = { insert: vi.fn() } as unknown as DlqRepository;
 
 function makePlugin() {
-  return createCompoundGovernorPlugin({
+  return createCompoundGovernorBravoPlugin({
     archiveWriter: mockArchiveWriter,
     dlqRepo: mockDlqRepo,
     logger: silentLogger,
@@ -41,9 +41,9 @@ function makeAlphaPlugin() {
   });
 }
 
-describe('createCompoundGovernorPlugin', () => {
-  it('#1 — sourceType is compound_governor', () => {
-    expect(makePlugin().sourceType).toBe('compound_governor');
+describe('createCompoundGovernorBravoPlugin', () => {
+  it('#1 — sourceType is compound_governor_bravo', () => {
+    expect(makePlugin().sourceType).toBe('compound_governor_bravo');
   });
 
   describe('parseConfig', () => {
@@ -172,7 +172,7 @@ describe('createCompoundPlugins', () => {
     });
 
     expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
-      'compound_governor',
+      'compound_governor_bravo',
       'compound_governor_alpha',
     ]);
   });

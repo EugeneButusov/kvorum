@@ -1,5 +1,5 @@
 // UInt64 block_number exceeds JS number precision; typed as string.
-export interface EventArchiveCompoundGovernorTable {
+export interface EventArchiveCompoundGovernorBravoTable {
   dao_source_id: string;
   chain_id: string;
   block_number: string;
@@ -12,10 +12,10 @@ export interface EventArchiveCompoundGovernorTable {
   payload: string;
 }
 
-export type EventArchiveCompoundGovernor = EventArchiveCompoundGovernorTable;
+export type EventArchiveCompoundGovernorBravo = EventArchiveCompoundGovernorBravoTable;
 // received_at is server-stamped; excluded from insert type.
-export type NewEventArchiveCompoundGovernor = Omit<
-  EventArchiveCompoundGovernorTable,
+export type NewEventArchiveCompoundGovernorBravo = Omit<
+  EventArchiveCompoundGovernorBravoTable,
   'received_at'
 >;
 
@@ -23,6 +23,6 @@ export type NewEventArchiveCompoundGovernor = Omit<
 // Any compilation that transitively imports this file gets type-safe chDb access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    event_archive_compound_governor: EventArchiveCompoundGovernorTable;
+    event_archive_compound_governor_bravo: EventArchiveCompoundGovernorBravoTable;
   }
 }

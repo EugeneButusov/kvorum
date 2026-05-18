@@ -16,7 +16,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     UPDATE dao_source
     SET active_from_block = ${sql.lit(GOVERNOR_BRAVO_DEPLOY_BLOCK)}
-    WHERE source_type = 'compound_governor'
+    WHERE source_type = 'compound_governor_bravo'
   `.execute(db);
 
   // Upsert: existing installs may not have the compound_governor_alpha row if
@@ -39,6 +39,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await sql`
     UPDATE dao_source
     SET active_from_block = NULL
-    WHERE source_type IN ('compound_governor', 'compound_governor_alpha')
+    WHERE source_type IN ('compound_governor_bravo', 'compound_governor_alpha')
   `.execute(db);
 }

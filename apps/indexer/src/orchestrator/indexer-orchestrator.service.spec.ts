@@ -138,7 +138,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
@@ -148,13 +148,13 @@ describe('IndexerOrchestratorService', () => {
   it('#2 — 2 sources with different source_types: driver.start() called twice', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', '0x1'),
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
       makeSource('src-2', 'aave_governor', '0x1'),
     ]);
 
     const driver = makeFakeDriver();
     const module = await buildModule(
-      [makeFakePlugin('compound_governor'), makeFakePlugin('aave_governor')],
+      [makeFakePlugin('compound_governor_bravo'), makeFakePlugin('aave_governor')],
       driver,
     );
     const svc = module.get(IndexerOrchestratorService);
@@ -168,7 +168,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', '0x1')]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No plugin registered/);
@@ -178,11 +178,11 @@ describe('IndexerOrchestratorService', () => {
   it('#4 — malformed source_config: throws BEFORE any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', '0x1', { bad: true }),
+      makeSource('src-1', 'compound_governor_bravo', '0x1', { bad: true }),
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor', false)], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo', false)], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/malformed source_config/);
@@ -192,11 +192,11 @@ describe('IndexerOrchestratorService', () => {
   it('#5 — chain not in CHAIN_CONFIG: throws BEFORE any driver.start()', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 0x1
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', '0x999'),
+      makeSource('src-1', 'compound_governor_bravo', '0x999'),
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
@@ -206,8 +206,8 @@ describe('IndexerOrchestratorService', () => {
   it('#6 — partial bootstrap failure: started handles drained via allSettled', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
-      makeSource('src-1', 'compound_governor', '0x1'),
-      makeSource('src-2', 'compound_governor', '0x1'),
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+      makeSource('src-2', 'compound_governor_bravo', '0x1'),
     ]);
 
     const driver: FetchDriver & { _handles: FetchDriverHandle[] } = {
@@ -219,7 +219,7 @@ describe('IndexerOrchestratorService', () => {
         .mockRejectedValueOnce(new Error('driver start failed')),
     };
 
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow('driver start failed');
@@ -227,7 +227,9 @@ describe('IndexerOrchestratorService', () => {
 
   it('#7 — drain: all handles stopped via allSettled even if one rejects', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', '0x1')]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
 
     const rejectingHandle: FetchDriverHandle = {
       stop: vi.fn().mockRejectedValue(new Error('stop failed')),
@@ -237,7 +239,7 @@ describe('IndexerOrchestratorService', () => {
       start: vi.fn().mockResolvedValue(rejectingHandle),
     };
 
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
@@ -248,19 +250,23 @@ describe('IndexerOrchestratorService', () => {
   it('#8 — pending-depth gauge interval loops active source types', async () => {
     vi.useFakeTimers();
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'compound_governor', '0x1')]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
     mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([
-      { count: 3, chain_id: '0x1', source_type: 'compound_governor' },
+      { count: 3, chain_id: '0x1', source_type: 'compound_governor_bravo' },
     ]);
 
     const driver = makeFakeDriver();
-    const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(mockConfirmationRepo.countPendingBySourceType).toHaveBeenCalledWith('compound_governor');
+    expect(mockConfirmationRepo.countPendingBySourceType).toHaveBeenCalledWith(
+      'compound_governor_bravo',
+    );
     vi.useRealTimers();
     await svc.drain();
   });
@@ -274,11 +280,11 @@ describe('IndexerOrchestratorService', () => {
       delete process.env['INDEXER_LIVE_POLLER_ENABLED'];
       vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
       mockDaoSourceRepo.findAll.mockResolvedValue([
-        makeSource('src-1', 'compound_governor', '0x1'),
+        makeSource('src-1', 'compound_governor_bravo', '0x1'),
       ]);
 
       const driver = makeFakeDriver();
-      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
       const svc = module.get(IndexerOrchestratorService);
       await svc.onApplicationBootstrap();
 
@@ -289,11 +295,11 @@ describe('IndexerOrchestratorService', () => {
       process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'true';
       vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
       mockDaoSourceRepo.findAll.mockResolvedValue([
-        makeSource('src-1', 'compound_governor', '0x1'),
+        makeSource('src-1', 'compound_governor_bravo', '0x1'),
       ]);
 
       const driver = makeFakeDriver();
-      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
       const svc = module.get(IndexerOrchestratorService);
       await svc.onApplicationBootstrap();
 
@@ -304,7 +310,7 @@ describe('IndexerOrchestratorService', () => {
       process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'false';
 
       const driver = makeFakeDriver();
-      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
       const svc = module.get(IndexerOrchestratorService);
       await svc.onApplicationBootstrap();
 
@@ -316,7 +322,7 @@ describe('IndexerOrchestratorService', () => {
       process.env['INDEXER_LIVE_POLLER_ENABLED'] = 'false';
 
       const driver = makeFakeDriver();
-      const module = await buildModule([makeFakePlugin('compound_governor')], driver);
+      const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
       const svc = module.get(IndexerOrchestratorService);
       await svc.onApplicationBootstrap();
 

@@ -35,7 +35,7 @@ describeWithDb('compound_003_active_from_block migration', () => {
 
         await sql`
           INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-          SELECT id, 'compound_governor',
+          SELECT id, 'compound_governor_bravo',
                  '{"governor_address":"0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb, NULL
           FROM dao
           WHERE slug = 'compound'
@@ -47,7 +47,7 @@ describeWithDb('compound_003_active_from_block migration', () => {
         const rows = await tx
           .selectFrom('dao_source')
           .select(['active_from_block'])
-          .where('source_type', '=', 'compound_governor')
+          .where('source_type', '=', 'compound_governor_bravo')
           .execute();
 
         expect(rows).toHaveLength(1);
@@ -104,7 +104,7 @@ describeWithDb('compound_003_active_from_block migration', () => {
 
         await sql`
           INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-          SELECT id, 'compound_governor',
+          SELECT id, 'compound_governor_bravo',
                  '{"governor_address":"0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb, NULL
           FROM dao
           WHERE slug = 'compound'
@@ -117,7 +117,7 @@ describeWithDb('compound_003_active_from_block migration', () => {
         const nulledRows = await tx
           .selectFrom('dao_source')
           .select(['active_from_block'])
-          .where('source_type', 'in', ['compound_governor', 'compound_governor_alpha'])
+          .where('source_type', 'in', ['compound_governor_bravo', 'compound_governor_alpha'])
           .where('dao_id', 'in', (eb) =>
             eb.selectFrom('dao').select('id').where('slug', '=', 'compound'),
           )
@@ -129,14 +129,14 @@ describeWithDb('compound_003_active_from_block migration', () => {
         const rows = await tx
           .selectFrom('dao_source')
           .select(['source_type', 'active_from_block'])
-          .where('source_type', 'in', ['compound_governor', 'compound_governor_alpha'])
+          .where('source_type', 'in', ['compound_governor_bravo', 'compound_governor_alpha'])
           .where('dao_id', 'in', (eb) =>
             eb.selectFrom('dao').select('id').where('slug', '=', 'compound'),
           )
           .orderBy('source_type')
           .execute();
         expect(rows).toHaveLength(2);
-        const bravo = rows.find((r) => r.source_type === 'compound_governor');
+        const bravo = rows.find((r) => r.source_type === 'compound_governor_bravo');
         const alpha = rows.find((r) => r.source_type === 'compound_governor_alpha');
         expect(bravo!.active_from_block).toBe(EXPECTED_BRAVO_DEPLOY_BLOCK);
         expect(alpha!.active_from_block).toBe(EXPECTED_ALPHA_DEPLOY_BLOCK);

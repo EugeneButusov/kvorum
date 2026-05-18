@@ -4,7 +4,7 @@ import { DerivationWorkerService } from './derivation-worker.service';
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   dao_source_id: 'source-1',
   chain_id: '0x1',
   block_number: '100',
@@ -36,7 +36,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
-      sourceTypes: ['compound_governor'],
+      sourceTypes: ['compound_governor_bravo'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
     const worker = new DerivationWorkerService(archive as never, [applier]);
@@ -54,7 +54,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
-      sourceTypes: ['compound_governor', 'compound_governor_alpha'],
+      sourceTypes: ['compound_governor_bravo', 'compound_governor_alpha'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
     const worker = new DerivationWorkerService(archive as never, [applier]);

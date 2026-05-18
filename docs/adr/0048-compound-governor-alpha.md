@@ -36,20 +36,20 @@ The existing Bravo plugin's log filter subscribes to **all four** topics in `COM
 
 ## Decision
 
-> **Amended 2026-05-17 (correction):** this ADR originally implied projection-applier reuse required no code changes. That was incorrect. The projection dispatch contract in `apps/indexer` was singular (`ProjectionApplier.sourceType`), so Alpha rows would be marked `unsupported_source` and never projected. The accepted implementation updates dispatch to `ProjectionApplier.sourceTypes: readonly string[]` and matches via `includes(sourceType)`, with one Compound applier instance serving both `compound_governor` and `compound_governor_alpha`.
+> **Amended 2026-05-17 (correction):** this ADR originally implied projection-applier reuse required no code changes. That was incorrect. The projection dispatch contract in `apps/indexer` was singular (`ProjectionApplier.sourceType`), so Alpha rows would be marked `unsupported_source` and never projected. The accepted implementation updates dispatch to `ProjectionApplier.sourceTypes: readonly string[]` and matches via `includes(sourceType)`, with one Compound applier instance serving both `compound_governor_bravo` and `compound_governor_alpha`.
 
 Add `compound_governor_alpha` as a second source type that re-uses all M1 Bravo primitives (decoder, archive writer, ingester listener, projection applier). `createCompoundGovernorPlugin` is refactored to delegate to an internal factory parameterized by `sourceType`; a thin `createCompoundGovernorAlphaPlugin` sets `sourceType: 'compound_governor_alpha'`. Everything else is shared.
 
 Both composition roots that construct a Compound plugin must be updated, not only the indexer:
 
 - **`apps/indexer`** (`IndexerModule`) — DI registers both plugins into `SOURCE_PLUGINS`; the orchestrator already routes logs by `sourceType` string, so no orchestrator change is needed.
-- **`apps/admin-cli`** (`backfill start <source_type>`) — this is a **separate composition root** that today hardcodes both the guard `if (row.source_type !== 'compound_governor')` and the plugin constructor `createCompoundGovernorPlugin(...)` (`apps/admin-cli/src/commands/backfill.ts:57,84`). It must be generalized to accept `compound_governor_alpha` and select the matching plugin by `source_type`. Without this the ADR's prescribed backfill command fails with `ValidationFailure`.
+- **`apps/admin-cli`** (`backfill start <source_type>`) — this is a **separate composition root** that today hardcodes both the guard `if (row.source_type !== 'compound_governor_bravo')` and the plugin constructor `createCompoundGovernorPlugin(...)` (`apps/admin-cli/src/commands/backfill.ts:57,84`). It must be generalized to accept `compound_governor_alpha` and select the matching plugin by `source_type`. Without this the ADR's prescribed backfill command fails with `ValidationFailure`.
 
 ---
 
 ## Options considered
 
-**A — Multi-address filter on existing `compound_governor`**  
+**A — Multi-address filter on existing `compound_governor_bravo`**  
 Extend `source_config` from `{governor_address: string}` to `{governor_addresses: string[]}` and index both contracts under one source type.  
 Rejected: conflates two distinct governance eras; complicates M2 where `VoteCast` ABIs differ; requires config-schema migration on the live `dao_source` row. Note: this option _would_ have kept Compound's continuous proposal-id space under a single `source_type`, avoiding the read-model split described in Consequences. That tradeoff is real but is outweighed by the M2 `VoteCast` divergence and the live config-schema migration risk.
 
@@ -73,11 +73,11 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 - `createCompoundGovernorAlphaPlugin` added to `libs/sources/compound`; `createCompoundGovernorPlugin` refactored to share an internal `sourceType`-parameterized factory. The Zod `source_config` schema and the decoder are unchanged (shared).
 - `CompoundSourceModule` (`nest/sources/compound`) encapsulates Bravo+Alpha plugin creation and exports a single `COMPOUND_PLUGINS` token; `IndexerModule` injects that token into `SOURCE_PLUGINS`, keeping generic orchestration source-agnostic.
 - `ProjectionApplier` dispatch in `apps/indexer` is widened from singular `sourceType` to `sourceTypes: readonly string[]`; worker dispatch matches with `includes(sourceType)`. `CompoundProjectionApplier` declares both source types on one instance.
-- **`apps/admin-cli` backfill command must be generalized** (`backfill.ts:57,84`): replace the hardcoded `compound_governor` guard and plugin constructor with selection by `row.source_type` (e.g. a small `{ compound_governor, compound_governor_alpha }` plugin map keyed by source type). This is a required code change, not optional — the ADR's backfill step depends on it.
+- **`apps/admin-cli` backfill command must be generalized** (`backfill.ts:57,84`): replace the hardcoded `compound_governor_bravo` guard and plugin constructor with selection by `row.source_type` (e.g. a small `{ compound_governor_bravo, compound_governor_alpha }` plugin map keyed by source type). This is a required code change, not optional — the ADR's backfill step depends on it.
 
 ### Data correctness (archive, confirmation, projection)
 
-- **Archive (ClickHouse) — safe.** `event_archive_compound_governor` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Cross-source dedup safety relies on log-coordinate global uniqueness (`tx_hash`+`log_index`+`block_hash` identifies one emitted log globally), so Alpha and Bravo rows are disjoint in the dedup key space.
+- **Archive (ClickHouse) — safe.** `event_archive_compound_governor_bravo` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Cross-source dedup safety relies on log-coordinate global uniqueness (`tx_hash`+`log_index`+`block_hash` identifies one emitted log globally), so Alpha and Bravo rows are disjoint in the dedup key space.
 - **Confirmation (Postgres) — safe.** The `archive_confirmation` idempotency and canonical uniqueness keys both lead with `source_type`, so Alpha and Bravo confirmations occupy distinct key spaces.
 - **Projection — no corruption, but a semantic split.** The derived `proposal` natural key is `(dao_id, source_type, source_id)`. Compound's proposal-id counter is _continuous_ across the two contracts (Alpha 1–~64, Bravo ~65–present), but indexing Alpha under a distinct `source_type` partitions that single id space into two namespaces under one DAO. There is **no collision, no duplication, no mis-attribution** (Alpha and Bravo id ranges are disjoint anyway, and `source_type` further separates them). State transitions (`advanceState`, keyed on `source_type`+`source_id`) resolve correctly because each contract emits its own proposals' lifecycle events. Dispatch for the new source type is explicitly covered by the `sourceTypes[]` applier contract above.
 
@@ -85,7 +85,7 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 
 - The per-DAO list endpoint (`GET /v1/daos/compound/proposals`) is dao-scoped and `source_type`-agnostic, so it returns a unified Alpha+Bravo list with **correct count (~539) and no gaps/dupes** — this closes the M1 acceptance gap. The accepted definition of "complete" is **count parity with Tally**, _not_ a single contiguous `source_id` namespace 1..539 (the system produces two namespaces tagged by `source_type`).
 - The detail route is `source_type`-scoped: `GET /v1/daos/:slug/proposals/:source_type/:source_id`. Addressing a historical Compound proposal therefore requires its `source_type` discriminator (Alpha-era proposals live under `compound_governor_alpha`). The list response exposes `source_type` per item so the dashboard can construct correct links; external consumers that know only "Compound proposal N" must list first.
-- The exposed per-DAO `?source_type=` filter will now _exclude_ Alpha-era proposals when set to `compound_governor`. This is a behavior change for any client using that filter and a footgun for "all Compound proposals" semantics — flagged for the API/product owners; no code change mandated by this ADR.
+- The exposed per-DAO `?source_type=` filter will now _exclude_ Alpha-era proposals when set to `compound_governor_bravo`. This is a behavior change for any client using that filter and a footgun for "all Compound proposals" semantics — flagged for the API/product owners; no code change mandated by this ADR.
 
 ### Operational
 

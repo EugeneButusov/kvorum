@@ -24,7 +24,7 @@ const KNOWN_TOPIC0S = {
 
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {
-    sourceType: 'compound_governor',
+    sourceType: 'compound_governor_bravo',
     chainId: 1,
     blockNumber: 20000000n,
     blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',

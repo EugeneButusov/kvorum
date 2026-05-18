@@ -4,7 +4,7 @@ import type { NewProposal, NewProposalChoice } from './schema/pg';
 
 const NEW_PROPOSAL: NewProposal = {
   dao_id: 'dao-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   source_id: '42',
   proposer_actor_id: 'actor-1',
   description: 'proposal body',
@@ -205,7 +205,7 @@ describe('ProposalRepository', () => {
     await expect(
       repo.advanceState({
         daoId: 'dao-1',
-        sourceType: 'compound_governor',
+        sourceType: 'compound_governor_bravo',
         sourceId: '42',
         targetState: 'executed',
         stateUpdatedAt,
@@ -215,7 +215,7 @@ describe('ProposalRepository', () => {
     expect(update.updateTable).toHaveBeenCalledWith('proposal');
     expect(update.where.mock.calls).toEqual([
       ['dao_id', '=', 'dao-1'],
-      ['source_type', '=', 'compound_governor'],
+      ['source_type', '=', 'compound_governor_bravo'],
       ['source_id', '=', '42'],
       ['state', 'not in', ['executed', 'canceled']],
       ['state', 'in', ['pending', 'queued']],
@@ -228,7 +228,7 @@ describe('ProposalRepository', () => {
 
     await repo.advanceState({
       daoId: 'dao-1',
-      sourceType: 'compound_governor',
+      sourceType: 'compound_governor_bravo',
       sourceId: '42',
       targetState: 'queued',
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),

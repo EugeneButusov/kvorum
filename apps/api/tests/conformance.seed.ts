@@ -16,7 +16,7 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
 
   await pgDb
     .insertInto('source_type')
-    .values([{ value: 'compound_governor' }, { value: 'alt_governor' }])
+    .values([{ value: 'compound_governor_bravo' }, { value: 'alt_governor' }])
     .onConflict((oc) => oc.column('value').doNothing())
     .execute();
 
@@ -80,7 +80,7 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
       {
         id: '00000000-0000-0000-0000-000000000999',
         dao_id: daoId,
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_config: { contract_address: `0x${'d'.repeat(40)}`, chain_id: '1', ignored: true },
         active_from_block: null,
         active_to_block: null,
@@ -132,7 +132,7 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
       {
         id: proposalExecutedId,
         dao_id: daoId,
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_id: '42',
         proposer_actor_id: actorAId,
         title: 'Executed proposal',
@@ -152,7 +152,7 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
       {
         id: proposalNullVotingWindowId,
         dao_id: daoId,
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_id: '43',
         proposer_actor_id: actorAId,
         title: null,
@@ -172,7 +172,7 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
       {
         id: proposalPagedId,
         dao_id: daoId,
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_id: '44',
         proposer_actor_id: actorBId,
         title: 'Paged proposal',

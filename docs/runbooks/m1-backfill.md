@@ -41,7 +41,7 @@ Pass gate (acceptance #1): `count ≥ 0.95 × REF_BRAVO_BINDING` AND `count ≤ 
 chsql --query "SELECT formatReadableSize(free_space) FROM system.disks"
 
 # Confirm migration ran and active_from_block is set correctly
-psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
+psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor_bravo'"
 # Expected: active_from_block = 12006099
 ```
 
@@ -63,7 +63,7 @@ pnpm -w db:migrate        # applies core + compound_001/002/003
 pnpm -w db:migrate:ch     # CH archive table
 
 # Verify
-psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor'"
+psql -c "SELECT source_type, active_from_block FROM dao_source WHERE source_type='compound_governor_bravo'"
 ```
 
 ### Step 3 — Export env
@@ -111,19 +111,19 @@ curl http://localhost:9091/metrics | head -3
 
 ```bash
 # Dry-run: assert resolved from_block = 12006099
-admin-cli backfill start compound_governor --dry-run --format json
+admin-cli backfill start compound_governor_bravo --dry-run --format json
 
 # Snapshot state before crash-resume test (mid-run)
 # S_pre_count = archive_confirmation row count
 # S_pre_hash  = sha256 of sorted (source_type, chain_id, tx_hash, log_index, block_hash) 5-tuples
 
 # Start the actual run (~30 min wall-clock)
-admin-cli backfill start compound_governor --format json
+admin-cli backfill start compound_governor_bravo --format json
 
 # --- CRASH-RESUME SPOT-CHECK (once, mid-run) ---
 # 1. Record S_pre (count + 5-tuple hash)
 # 2. Ctrl-C (SIGINT)
-# 3. Resume: admin-cli backfill start compound_governor --format json
+# 3. Resume: admin-cli backfill start compound_governor_bravo --format json
 # 4. Assert:
 #    a. resumed from backfill_head_block+1, backfill_started_at_block unchanged (ADR-027/046/047)
 #    b. after completed: final 5-tuple set ⊇ S_pre, zero duplicate 5-tuples,
@@ -152,16 +152,16 @@ Max-drain budget: _(record value, e.g. 60 min post-backfill-completion)_
 
 ```bash
 # (a) backfill not in progress AND head == cutoff
-psql -c "SELECT backfill_started_at_block, backfill_head_block FROM dao_source WHERE source_type='compound_governor'"
+psql -c "SELECT backfill_started_at_block, backfill_head_block FROM dao_source WHERE source_type='compound_governor_bravo'"
 # Expected once drained: backfill_started_at_block = null, backfill_head_block = cutoff_block recorded above
 
 # (b) derivation backlog = 0
 psql -c "
   SELECT
-    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor') AS archived,
-    (SELECT count(*) FROM proposal           WHERE source_type='compound_governor') AS derived,
-    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor')
-      - (SELECT count(*) FROM proposal       WHERE source_type='compound_governor') AS backlog
+    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo') AS archived,
+    (SELECT count(*) FROM proposal           WHERE source_type='compound_governor_bravo') AS derived,
+    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo')
+      - (SELECT count(*) FROM proposal       WHERE source_type='compound_governor_bravo') AS backlog
 "
 
 # (c) every proposal_action has had ≥1 decode attempt
@@ -169,7 +169,7 @@ psql -c "
   SELECT count(*) AS undecoded_no_attempt
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
-  WHERE p.source_type = 'compound_governor'
+  WHERE p.source_type = 'compound_governor_bravo'
     AND pa.decode_attempt_count = 0
 "
 # Target: 0
@@ -200,7 +200,7 @@ See acceptance criteria below. Use `API_KEY` minted in step 4.
 After validation, run the collect script to patch this file with real values:
 
 ```bash
-DAO_SOURCE_ID=$(psql -Atc "SELECT id FROM dao_source WHERE source_type='compound_governor'") \
+DAO_SOURCE_ID=$(psql -Atc "SELECT id FROM dao_source WHERE source_type='compound_governor_bravo'") \
   ./infra/scripts/collect-backfill-results.sh
 ```
 
@@ -221,7 +221,7 @@ curl -H "Authorization: Bearer $API_KEY" \
 # Cross-check via SQL
 psql -c "
   SELECT count(*) FROM proposal
-  WHERE source_type='compound_governor'
+  WHERE source_type='compound_governor_bravo'
     AND state IN ('executed','defeated','canceled','expired')
 "
 ```
@@ -248,7 +248,7 @@ psql -c "
     ) AS action_level_pct
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
-  WHERE p.source_type = 'compound_governor'
+  WHERE p.source_type = 'compound_governor_bravo'
     AND p.state IN ('executed','defeated','canceled','expired')
 "
 
@@ -257,7 +257,7 @@ psql -c "
   SELECT pa.target_address, count(*) AS undecoded
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
-  WHERE p.source_type = 'compound_governor'
+  WHERE p.source_type = 'compound_governor_bravo'
     AND p.state IN ('executed','defeated','canceled','expired')
     AND pa.decoded_function IS NULL
   GROUP BY pa.target_address
@@ -304,7 +304,7 @@ Result: _(paste JSON output)_
 psql -c "
   SELECT dao_id, source_type, source_id, count(*) AS cnt
   FROM proposal
-  WHERE source_type = 'compound_governor'
+  WHERE source_type = 'compound_governor_bravo'
   GROUP BY 1, 2, 3
   HAVING count(*) > 1
 "
@@ -315,13 +315,13 @@ psql -c "
 
 ```bash
 # CH count (FINAL for ReplacingMergeTree dedup)
-chsql --query "SELECT count() FROM event_archive_compound_governor FINAL"
+chsql --query "SELECT count() FROM event_archive_compound_governor_bravo FINAL"
 
 # PG count
-psql -c "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor'"
+psql -c "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo'"
 
 # DLQ size
-psql -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor'"
+psql -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor_bravo'"
 
 # Assert: CH_count >= PG_count AND (CH_count - PG_count) == DLQ_size
 ```
@@ -336,12 +336,12 @@ psql -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor'"
 ### Known-proposal sanity (scoped per decision #6)
 
 Pick a well-known Bravo proposal (e.g., a COMP distribution or market-add proposal).  
-Use the **3-segment** detail route: `GET /v1/daos/compound/proposals/compound_governor/<source_id>`  
+Use the **3-segment** detail route: `GET /v1/daos/compound/proposals/compound_governor_bravo/<source_id>`  
 (A plain `/proposals/<id>` 404s.)
 
 ```bash
 curl -H "Authorization: Bearer $API_KEY" \
-  'http://localhost:3001/v1/daos/compound/proposals/compound_governor/<source_id>'
+  'http://localhost:3001/v1/daos/compound/proposals/compound_governor_bravo/<source_id>'
 ```
 
 Cross-check vs Tally/Etherscan:

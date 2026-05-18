@@ -4,7 +4,7 @@ describe('proposal.mappers', () => {
   const row = {
     id: 'p1',
     dao_slug: 'compound',
-    source_type: 'compound_governor',
+    source_type: 'compound_governor_bravo',
     source_id: '42',
     title: 'Title',
     description: 'Desc',

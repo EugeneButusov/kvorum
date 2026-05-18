@@ -80,7 +80,7 @@ echo
 # admin-cli backfill status was removed; query the table directly.
 # Columns: backfill_started_at_block (cleared on drain), backfill_head_block (last checkpoint).
 
-DS_ROW=$(psql_val "SELECT coalesce(ds.backfill_head_block::text,'null')||'|'||coalesce(ds.backfill_started_at_block::text,'null') FROM dao_source ds JOIN dao d ON d.id=ds.dao_id WHERE d.slug='${DAO_SLUG}' AND ds.source_type='compound_governor'")
+DS_ROW=$(psql_val "SELECT coalesce(ds.backfill_head_block::text,'null')||'|'||coalesce(ds.backfill_started_at_block::text,'null') FROM dao_source ds JOIN dao d ON d.id=ds.dao_id WHERE d.slug='${DAO_SLUG}' AND ds.source_type='compound_governor_bravo'")
 BACKFILL_HEAD=$(echo "$DS_ROW" | cut -d'|' -f1)
 BACKFILL_STARTED=$(echo "$DS_ROW" | cut -d'|' -f2)
 
@@ -96,10 +96,10 @@ fi
 
 # ── 2. archive counts ─────────────────────────────────────────────────────────
 
-ARCHIVED=$(psql_val "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor'")
-DERIVED=$(psql_val  "SELECT count(*) FROM proposal           WHERE source_type='compound_governor'")
-BACKLOG=$(psql_val  "SELECT (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor')
-                           - (SELECT count(*) FROM proposal           WHERE source_type='compound_governor')")
+ARCHIVED=$(psql_val "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo'")
+DERIVED=$(psql_val  "SELECT count(*) FROM proposal           WHERE source_type='compound_governor_bravo'")
+BACKLOG=$(psql_val  "SELECT (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo')
+                           - (SELECT count(*) FROM proposal           WHERE source_type='compound_governor_bravo')")
 
 # ── 3. decode rate ────────────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ DECODE_STATS=$(psql_val "
     round(100.0 * count(*) FILTER (WHERE pa.decoded_function IS NOT NULL) / nullif(count(*),0), 2)::text || '%' AS pct
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
-  WHERE p.source_type = 'compound_governor'
+  WHERE p.source_type = 'compound_governor_bravo'
     AND p.state IN ('executed','defeated','canceled','expired')")
 DECODE_RATIO=$(echo "$DECODE_STATS" | awk -F'|' '{print $1}' | xargs)
 DECODE_PCT=$(echo   "$DECODE_STATS" | awk -F'|' '{print $2}' | xargs)
@@ -118,12 +118,12 @@ UNDECODED_NO_ATTEMPT=$(psql_val "
   SELECT count(*)
   FROM proposal_action pa
   JOIN proposal p ON p.id = pa.proposal_id
-  WHERE p.source_type = 'compound_governor'
+  WHERE p.source_type = 'compound_governor_bravo'
     AND pa.decode_attempt_count = 0")
 
 # ── 4. DLQ ───────────────────────────────────────────────────────────────────
 
-DLQ_SIZE=$(psql_val "SELECT count(*) FROM ingestion_dlq WHERE archive_source_type='compound_governor'")
+DLQ_SIZE=$(psql_val "SELECT count(*) FROM ingestion_dlq WHERE archive_source_type='compound_governor_bravo'")
 
 # ── 5. duplicate proposals ───────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ DUPE_ROWS=$(psql_val "
   FROM (
     SELECT source_type, source_id
     FROM proposal
-    WHERE source_type='compound_governor'
+    WHERE source_type='compound_governor_bravo'
     GROUP BY 1,2
     HAVING count(*) > 1
   ) t")
@@ -140,7 +140,7 @@ DUPES_OK=$([[ "$DUPE_ROWS" == "0" ]] && echo "yes — 0 duplicate rows" || echo 
 
 # ── 6. ClickHouse count ───────────────────────────────────────────────────────
 
-CH_COUNT=$(ch_val "SELECT count() FROM event_archive_compound_governor FINAL")
+CH_COUNT=$(ch_val "SELECT count() FROM event_archive_compound_governor_bravo FINAL")
 CH_COUNT=$(echo "$CH_COUNT" | tr -d '[:space:]')
 
 if [[ "$CH_COUNT" =~ ^[0-9]+$ && "$ARCHIVED" =~ ^[0-9]+$ && "$DLQ_SIZE" =~ ^[0-9]+$ ]]; then
@@ -156,9 +156,9 @@ fi
 
 # ── 7. system status (direct SQL — admin-cli may not be on PATH) ─────────────
 
-LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHERE source_type='compound_governor'")
+LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHERE source_type='compound_governor_bravo'")
 LAST_REORG=$(psql_val    "SELECT max(detected_at)  FROM reorg_event")
-IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor'")
+IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor_bravo'")
 
 # ── 8. API spot-checks ───────────────────────────────────────────────────────
 # Requires API_KEY env var (Bearer token). Authenticated checks are skipped if unset.

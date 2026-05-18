@@ -4,7 +4,7 @@ import type { ArchiveDerivationRow } from './archive-derivation-repository';
 
 const ARCHIVE_ROW: ArchiveDerivationRow = {
   id: 'row-1',
-  source_type: 'compound_governor',
+  source_type: 'compound_governor_bravo',
   dao_source_id: 'source-1',
   chain_id: '0x1',
   block_number: '100',

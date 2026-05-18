@@ -26,7 +26,7 @@ describe('ProposalReadRepository', () => {
     const row = {
       id: 'proposal-1',
       dao_slug: 'alpha',
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_id: '42',
       title: 'Title',
       description: 'Description',
@@ -46,7 +46,7 @@ describe('ProposalReadRepository', () => {
     const { selectFrom, chain } = makeSelectChain(row);
     const repo = new ProposalReadRepository({ selectFrom } as never);
 
-    await expect(repo.findOne('alpha', 'compound_governor', '42')).resolves.toEqual(row);
+    await expect(repo.findOne('alpha', 'compound_governor_bravo', '42')).resolves.toEqual(row);
     expect(selectFrom).toHaveBeenCalledWith('proposal');
     expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'proposal.dao_id');
     expect(chain.innerJoin).toHaveBeenCalledWith('actor', 'actor.id', 'proposal.proposer_actor_id');

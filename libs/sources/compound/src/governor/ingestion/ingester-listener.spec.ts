@@ -10,14 +10,14 @@ import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 
 const CTX: ArchiveWriteContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
-  sourceType: 'compound_governor',
+  sourceType: 'compound_governor_bravo',
   chainId: 1,
-  sourceLabel: 'compound_governor',
+  sourceLabel: 'compound_governor_bravo',
 };
 
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {
-    sourceType: 'compound_governor',
+    sourceType: 'compound_governor_bravo',
     chainId: 1,
     blockNumber: 20000000n,
     blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
@@ -249,7 +249,9 @@ describe('makeIngesterListener', () => {
 
     await listener([log]);
     expect(recordSpy).toHaveBeenCalledOnce();
-    expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), { source: 'compound_governor' });
+    expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), {
+      source: 'compound_governor_bravo',
+    });
   });
 
   it('#9 — onWriteFailure=throw: CH failure aborts the batch (rethrows)', async () => {

@@ -4,13 +4,13 @@ import type { NewIngestionDlq } from './schema/pg';
 
 const DLQ_ROW: NewIngestionDlq = {
   stage: 'archive_confirmation_write',
-  source: 'compound_governor',
+  source: 'compound_governor_bravo',
   payload: { raw: { topics: [], data: '0x' }, block_number: '20000000' },
   error: { name: 'Error', message: 'boom' },
   retries: 3,
   first_seen_at: new Date('2026-01-01T00:00:00Z'),
   last_attempt_at: new Date('2026-01-01T00:00:01Z'),
-  archive_source_type: 'compound_governor',
+  archive_source_type: 'compound_governor_bravo',
   archive_chain_id: 1,
   archive_tx_hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
   archive_log_index: 3,

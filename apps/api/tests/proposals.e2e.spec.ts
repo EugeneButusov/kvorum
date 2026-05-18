@@ -17,7 +17,7 @@ describeHttpIf('proposal endpoints e2e', () => {
       await request(app.getHttpServer()).get('/v1/proposals').expect(401);
 
       const detail = await request(app.getHttpServer())
-        .get('/v1/daos/compound/proposals/compound_governor/42')
+        .get('/v1/daos/compound/proposals/compound_governor_bravo/42')
         .set('Authorization', seeded.bearer)
         .expect(200);
 
@@ -53,7 +53,7 @@ describeHttpIf('proposal endpoints e2e', () => {
         });
 
       await request(app.getHttpServer())
-        .get('/v1/daos/compound/proposals/compound_governor/999')
+        .get('/v1/daos/compound/proposals/compound_governor_bravo/999')
         .set('Authorization', seeded.bearer)
         .expect(404);
     } finally {

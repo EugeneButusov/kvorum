@@ -12,13 +12,13 @@ afterAll(async () => {
 
 const BASE_DLQ_ROW: NewIngestionDlq = {
   stage: 'archive_write',
-  source: 'compound_governor',
+  source: 'compound_governor_bravo',
   payload: { raw: { topics: [], data: '0x' }, block_number: '20000000' },
   error: { name: 'Error', message: 'write failed' },
   retries: 1,
   first_seen_at: new Date('2026-01-01T00:00:00Z'),
   last_attempt_at: new Date('2026-01-01T00:00:01Z'),
-  archive_source_type: 'compound_governor',
+  archive_source_type: 'compound_governor_bravo',
   archive_chain_id: 1,
   archive_tx_hash: '0x' + '1'.repeat(64),
   archive_log_index: 0,
@@ -65,7 +65,7 @@ describeWithDb('DlqRepository (integration)', () => {
       pgDb.transaction().execute(async (trx) => {
         const repo = new DlqRepository(trx as never);
         const id1 = await seedDlqRow(trx, {
-          source: 'compound_governor',
+          source: 'compound_governor_bravo',
           archive_tx_hash: '0x' + 'c'.repeat(64),
         });
         await seedDlqRow(trx, {
@@ -73,8 +73,8 @@ describeWithDb('DlqRepository (integration)', () => {
           archive_tx_hash: '0x' + 'd'.repeat(64),
         });
 
-        const rows = await repo.list({ source: 'compound_governor', limit: 10 });
-        expect(rows.every((r) => r.source === 'compound_governor')).toBe(true);
+        const rows = await repo.list({ source: 'compound_governor_bravo', limit: 10 });
+        expect(rows.every((r) => r.source === 'compound_governor_bravo')).toBe(true);
         expect(rows.some((r) => r.id === id1)).toBe(true);
 
         throw new RollbackSignal();

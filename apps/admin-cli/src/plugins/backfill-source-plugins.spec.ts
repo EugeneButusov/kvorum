@@ -15,7 +15,7 @@ describe('buildBackfillSourcePlugins', () => {
     });
 
     expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
-      'compound_governor',
+      'compound_governor_bravo',
       'compound_governor_alpha',
     ]);
   });

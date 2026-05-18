@@ -19,7 +19,7 @@ const ENDPOINTS: EndpointCase[] = [
   { name: 'dao-detail', path: '/v1/daos/compound' },
   { name: 'dao-sources', path: '/v1/daos/compound/sources' },
   { name: 'dao-proposals-list', path: '/v1/daos/compound/proposals' },
-  { name: 'proposal-detail', path: '/v1/daos/compound/proposals/compound_governor/42' },
+  { name: 'proposal-detail', path: '/v1/daos/compound/proposals/compound_governor_bravo/42' },
   { name: 'cross-dao-proposals', path: '/v1/proposals?dao=compound' },
 ];
 
@@ -150,7 +150,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
         }
       }
       const proposalDetail = await request(server)
-        .get('/v1/daos/compound/proposals/compound_governor/42')
+        .get('/v1/daos/compound/proposals/compound_governor_bravo/42')
         .set('Authorization', seeded.bearer)
         .expect(200);
 
@@ -159,8 +159,8 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
 
       const links = ((proposalDetailData['_meta'] as Record<string, unknown>)['links'] ??
         {}) as Record<string, unknown>;
-      expect(links['self']).toBe('/v1/daos/compound/proposals/compound_governor/42');
-      expect(links['votes']).toBe('/v1/daos/compound/proposals/compound_governor/42/votes');
+      expect(links['self']).toBe('/v1/daos/compound/proposals/compound_governor_bravo/42');
+      expect(links['votes']).toBe('/v1/daos/compound/proposals/compound_governor_bravo/42/votes');
 
       const actions = proposalDetailData['actions'] as Record<string, unknown>[];
       for (const action of actions) {

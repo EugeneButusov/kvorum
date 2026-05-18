@@ -63,7 +63,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('addSource() links a compound_governor source to the DAO', async () => {
+  it('addSource() links a compound_governor_bravo source to the DAO', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
         const repo = new DaoAdminRepository(trx as never);
@@ -76,13 +76,13 @@ describeWithDb('DaoAdminRepository (integration)', () => {
 
         const source = await repo.addSource({
           daoId: dao.id,
-          sourceType: 'compound_governor',
+          sourceType: 'compound_governor_bravo',
           sourceConfig: { governor_address: '0x' + 'd'.repeat(40) },
         });
 
         expect(source.id).toBeDefined();
         expect(source.dao_id).toBe(dao.id);
-        expect(source.source_type).toBe('compound_governor');
+        expect(source.source_type).toBe('compound_governor_bravo');
         expect(source.source_config).toEqual({ governor_address: '0x' + 'd'.repeat(40) });
 
         throw new RollbackSignal();
@@ -102,7 +102,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
         });
         const source = await repo.addSource({
           daoId: dao.id,
-          sourceType: 'compound_governor',
+          sourceType: 'compound_governor_bravo',
           sourceConfig: { governor_address: '0x' + 'f'.repeat(40) },
         });
 
@@ -133,13 +133,13 @@ describeWithDb('DaoAdminRepository (integration)', () => {
         });
         const source = await repo.addSource({
           daoId: dao.id,
-          sourceType: 'compound_governor',
+          sourceType: 'compound_governor_bravo',
           sourceConfig: { governor_address: '0x' + 'b'.repeat(40) },
         });
 
         const found = await repo.findSourceById(source.id);
         expect(found?.id).toBe(source.id);
-        expect(found?.source_type).toBe('compound_governor');
+        expect(found?.source_type).toBe('compound_governor_bravo');
 
         const missing = await repo.findSourceById('00000000-0000-0000-0000-000000000000');
         expect(missing).toBeUndefined();
@@ -149,12 +149,12 @@ describeWithDb('DaoAdminRepository (integration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('sourceTypeExists() returns true for compound_governor and false for unknown types', async () => {
+  it('sourceTypeExists() returns true for compound_governor_bravo and false for unknown types', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
         const repo = new DaoAdminRepository(trx as never);
 
-        expect(await repo.sourceTypeExists('compound_governor')).toBe(true);
+        expect(await repo.sourceTypeExists('compound_governor_bravo')).toBe(true);
         expect(await repo.sourceTypeExists('nonexistent_source_type_xyz')).toBe(false);
 
         throw new RollbackSignal();

@@ -1,7 +1,7 @@
 export type {
-  EventArchiveCompoundGovernor,
-  EventArchiveCompoundGovernorTable,
-  NewEventArchiveCompoundGovernor,
+  EventArchiveCompoundGovernorBravo,
+  EventArchiveCompoundGovernorBravoTable,
+  NewEventArchiveCompoundGovernorBravo,
 } from './persistence/schema';
 
 export {
@@ -57,7 +57,7 @@ export { makeIngesterListener } from './ingestion/ingester-listener';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
-  createCompoundGovernorPlugin,
+  createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,
 } from './plugin/plugin';

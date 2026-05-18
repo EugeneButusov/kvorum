@@ -63,7 +63,7 @@ export async function resetDaoProposalApiTables(): Promise<void> {
 export async function seedDaoProposalApiData(): Promise<SeedContext> {
   await pgDb
     .insertInto('source_type')
-    .values([{ value: 'compound_governor' }, { value: 'alt_governor' }])
+    .values([{ value: 'compound_governor_bravo' }, { value: 'alt_governor' }])
     .onConflict((oc) => oc.column('value').doNothing())
     .execute();
 
@@ -115,7 +115,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
     .values([
       {
         dao_id: dao.id,
-        source_type: 'compound_governor',
+        source_type: 'compound_governor_bravo',
         source_config: { contract_address: '0x1234', chain_id: '1', ignored: true },
         active_from_block: null,
         active_to_block: null,
@@ -150,7 +150,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
     .insertInto('proposal')
     .values({
       dao_id: dao.id,
-      source_type: 'compound_governor',
+      source_type: 'compound_governor_bravo',
       source_id: '42',
       proposer_actor_id: actor.id,
       title: 'Test Proposal',
