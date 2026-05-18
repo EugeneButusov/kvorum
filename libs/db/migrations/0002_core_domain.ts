@@ -10,6 +10,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('source_type')
     .addColumn('value', 'text', (col) => col.primaryKey())
+    .addColumn('reconcilable', 'boolean', (col) => col.notNull().defaultTo(false))
     .execute();
 
   // ── Enum types ──────────────────────────────────────────────────────────────
@@ -116,6 +117,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('voting_starts_block', 'bigint')
     .addColumn('voting_ends_block', 'bigint')
     .addColumn('voting_power_block', 'bigint', (col) => col.notNull())
+    .addColumn('timelock_eta', 'timestamptz')
+    .addColumn('last_reconcile_check_block', 'bigint')
     .addColumn('state', sql`proposal_state`, (col) => col.notNull())
     .addColumn('state_updated_at', 'timestamptz', (col) => col.notNull())
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
