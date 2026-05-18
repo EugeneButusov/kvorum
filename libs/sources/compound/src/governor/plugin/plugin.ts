@@ -24,6 +24,7 @@ function createPlugin(
 ): SourcePlugin<CompoundGovernorConfig> {
   return {
     sourceType,
+    supportedChainIds: SUPPORTED_CHAIN_IDS,
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (ctx, cfg) => ({
       kind: 'evm-event-poller',

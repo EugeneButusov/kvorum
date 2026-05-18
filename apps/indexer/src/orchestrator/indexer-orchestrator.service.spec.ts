@@ -203,6 +203,24 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
+  it('#5b — unsupported chain for plugin: throws BEFORE any driver.start()', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x89'), // polygon, not supported
+    ]);
+
+    const driver = makeFakeDriver();
+    const plugin: SourcePlugin = {
+      ...makeFakePlugin('compound_governor_bravo'),
+      supportedChainIds: ['0x1'],
+    };
+    const module = await buildModule([plugin], driver);
+    const svc = module.get(IndexerOrchestratorService);
+
+    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/does not support chain_id/);
+    expect(driver.start).not.toHaveBeenCalled();
+  });
+
   it('#6 — partial bootstrap failure: started handles drained via allSettled', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([

@@ -69,6 +69,11 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           `No plugin registered for source_type="${src.source_type}" (dao_source ${src.id})`,
         );
       }
+      if (plugin.supportedChainIds && !plugin.supportedChainIds.includes(src.primary_chain_id)) {
+        throw new Error(
+          `Plugin "${src.source_type}" does not support chain_id="${src.primary_chain_id}" (dao_source ${src.id})`,
+        );
+      }
       const chainCfg = chainsByChainId.get(src.primary_chain_id);
       if (!chainCfg) {
         throw new Error(

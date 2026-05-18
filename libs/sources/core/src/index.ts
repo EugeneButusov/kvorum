@@ -31,6 +31,8 @@ export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 
 export interface SourcePlugin<TConfig = unknown> {
   readonly sourceType: SourceType;
+  /** When set, the orchestrator rejects any dao_source whose chain is not in this list. */
+  readonly supportedChainIds?: readonly string[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
 }
