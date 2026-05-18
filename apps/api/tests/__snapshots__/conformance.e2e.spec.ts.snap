@@ -236,6 +236,16 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 }
 `;
 
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
+{
+  "cross-dao-proposals": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
+  "dao-detail": ""37VW5TmJ5WLDrG5Qn8qZuRIRGag"",
+  "dao-proposals-list": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
+  "dao-sources": ""bdCiJ2RaPd7Ug_k7D9A5X1M87CU"",
+  "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
+  "proposal-detail": ""sWtY4YTOkDuEi4Hya5M_eCy0rHg"",
+}
+`;
 
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > proposal-detail 1`] = `
 {
