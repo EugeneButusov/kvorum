@@ -1,28 +1,28 @@
 import type { Logger } from '@libs/chain';
 import type { ProposalRepository, ProposalState, StaleReconciliationRow } from '@libs/db';
-import type { ProposalStateReconcilerPlugin } from '@sources/core';
 import {
   GovernorStateDecodeError,
+  decodeDelayResult,
   decodeGracePeriodResult,
   decodeStateResult,
   decodeTimelockResult,
+  encodeDelayCall,
   encodeGracePeriodCall,
   encodeStateCall,
   encodeTimelockCall,
   mapGovernorStateCode,
 } from '../abi/governor-state';
 
-export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
-  readonly sourceType = 'compound_governor_bravo';
-  readonly supportedChainId: string;
-  private readonly graceCache = new Map<string, number>();
+interface TimelockParams {
+  gracePeriod: number;
+  delay: number;
+}
 
-  constructor(
-    chainId: string,
-    private readonly logger: Logger,
-  ) {
-    this.supportedChainId = chainId;
-  }
+export class CompoundStateReconciler {
+  readonly sourceType = 'compound_governor_bravo';
+  private readonly timelockCache = new Map<string, TimelockParams>();
+
+  constructor(private readonly logger: Logger) {}
 
   async reconcileRow(args: {
     row: StaleReconciliationRow;
@@ -35,7 +35,13 @@ export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
     };
   }): Promise<
     | { outcome: 'corrected'; fromState: string; toState: string }
-    | { outcome: 'already_consistent' | 'guard_skipped' | 'missed_event' | 'expired_no_eta' }
+    | {
+        outcome:
+          | 'already_consistent'
+          | 'guard_skipped'
+          | 'missed_event'
+          | 'expired_no_queued_block';
+      }
   > {
     const { row, chainCtx, proposals, confirmedThreshold, confirmedThresholdTag } = args;
     const mapped = await this.readOnchainState({
@@ -57,7 +63,9 @@ export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
       });
       return { outcome: 'missed_event' };
     }
-    if (mapped === 'expired' && row.timelock_eta === null) return { outcome: 'expired_no_eta' };
+    if (mapped === 'expired' && row.queued_block === null) {
+      return { outcome: 'expired_no_queued_block' };
+    }
 
     let stateUpdatedAt: Date | null = null;
     if (mapped === 'defeated') {
@@ -67,14 +75,18 @@ export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
       if (row.voting_starts_block === null) return { outcome: 'guard_skipped' };
       stateUpdatedAt = await this.readBlockTimestamp(chainCtx, row.voting_starts_block);
     } else if (mapped === 'expired') {
-      const graceSeconds = await this.resolveGracePeriodSeconds({
+      if (row.queued_block === null) return { outcome: 'expired_no_queued_block' };
+      const timelockParams = await this.resolveTimelockParams({
         chainId: chainCtx.chainCfg.chainId,
         governorAddress: row.governor_address,
         confirmedThresholdTag,
         chainCtx,
       });
-      if (graceSeconds === null || row.timelock_eta === null) return { outcome: 'expired_no_eta' };
-      stateUpdatedAt = new Date(row.timelock_eta.getTime() + graceSeconds * 1000);
+      if (timelockParams === null) return { outcome: 'expired_no_queued_block' };
+      const queuedTs = await this.readBlockTimestamp(chainCtx, row.queued_block);
+      stateUpdatedAt = new Date(
+        queuedTs.getTime() + (timelockParams.delay + timelockParams.gracePeriod) * 1000,
+      );
     }
 
     if (stateUpdatedAt === null) return { outcome: 'guard_skipped' };
@@ -122,16 +134,16 @@ export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
     return new Date(Number(BigInt(timestamp)) * 1000);
   }
 
-  private async resolveGracePeriodSeconds(args: {
+  private async resolveTimelockParams(args: {
     chainId: string;
     governorAddress: string;
     confirmedThresholdTag: string;
     chainCtx: {
       client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
     };
-  }): Promise<number | null> {
+  }): Promise<TimelockParams | null> {
     const cacheKey = `${args.chainId}:${args.governorAddress.toLowerCase()}`;
-    const cached = this.graceCache.get(cacheKey);
+    const cached = this.timelockCache.get(cacheKey);
     if (cached !== undefined) return cached;
 
     try {
@@ -140,29 +152,34 @@ export class CompoundStateReconciler implements ProposalStateReconcilerPlugin {
         args.confirmedThresholdTag,
       ]);
       const timelockAddress = decodeTimelockResult(timelockRaw);
-      const graceRaw = await args.chainCtx.client.send<string>('eth_call', [
-        { to: timelockAddress, data: encodeGracePeriodCall() },
-        args.confirmedThresholdTag,
+
+      const [graceRaw, delayRaw] = await Promise.all([
+        args.chainCtx.client.send<string>('eth_call', [
+          { to: timelockAddress, data: encodeGracePeriodCall() },
+          args.confirmedThresholdTag,
+        ]),
+        args.chainCtx.client.send<string>('eth_call', [
+          { to: timelockAddress, data: encodeDelayCall() },
+          args.confirmedThresholdTag,
+        ]),
       ]);
-      const grace = this.validateGrace(decodeGracePeriodResult(graceRaw));
-      if (grace !== null) {
-        this.graceCache.set(cacheKey, grace);
-        return grace;
+
+      const gracePeriod = this.validateSeconds(decodeGracePeriodResult(graceRaw));
+      const delay = this.validateSeconds(decodeDelayResult(delayRaw));
+
+      if (gracePeriod !== null && delay !== null) {
+        const params = { gracePeriod, delay };
+        this.timelockCache.set(cacheKey, params);
+        return params;
       }
     } catch (err) {
       if (err instanceof GovernorStateDecodeError) throw err;
     }
 
-    const fallbackRaw = process.env['GOVERNOR_GRACE_PERIOD_SECONDS'];
-    const fallback = fallbackRaw === undefined ? null : this.validateGrace(Number(fallbackRaw));
-    if (fallback !== null) {
-      this.graceCache.set(cacheKey, fallback);
-      return fallback;
-    }
     return null;
   }
 
-  private validateGrace(value: number): number | null {
+  private validateSeconds(value: number): number | null {
     const min = Number(process.env['GOVERNOR_GRACE_MIN_SECONDS'] ?? 3_600);
     const max = Number(process.env['GOVERNOR_GRACE_MAX_SECONDS'] ?? 7_776_000);
     if (!Number.isInteger(value)) return null;

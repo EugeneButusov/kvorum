@@ -42,6 +42,8 @@ export {
   decodeTimelockResult,
   encodeGracePeriodCall,
   decodeGracePeriodResult,
+  encodeDelayCall,
+  decodeDelayResult,
   mapGovernorStateCode,
   CompoundStateReconciler,
   EventRepository,

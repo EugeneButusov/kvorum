@@ -26,7 +26,7 @@ export interface AdvanceProposalStateInput {
   sourceId: string;
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>;
   stateUpdatedAt: Date;
-  timelockEta?: Date;
+  queuedBlock?: string;
 }
 
 export interface PendingTimestampFillRow {
@@ -47,7 +47,6 @@ export interface TimestampFillInput {
 export interface ReconcilePerChainBound {
   chainId: string;
   confirmedThresholdBlock: string;
-  confirmedThresholdTs: Date;
 }
 
 export interface StaleReconciliationRow {
@@ -59,7 +58,7 @@ export interface StaleReconciliationRow {
   state: ProposalState;
   voting_starts_block: string | null;
   voting_ends_block: string | null;
-  timelock_eta: Date | null;
+  queued_block: string | null;
 }
 
 export interface ReconcileStateInput {
@@ -142,7 +141,7 @@ export class ProposalRepository {
             .set({
               state: input.targetState,
               state_updated_at: input.stateUpdatedAt,
-              timelock_eta: input.timelockEta ?? null,
+              queued_block: input.queuedBlock ?? null,
               updated_at: sql<Date>`now()`,
             })
             .executeTakeFirst()
@@ -211,7 +210,7 @@ export class ProposalRepository {
         'proposal.state',
         'proposal.voting_starts_block',
         'proposal.voting_ends_block',
-        'proposal.timelock_eta',
+        'proposal.queued_block',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'succeeded', 'queued'])
@@ -238,15 +237,11 @@ export class ProposalRepository {
                   eb('proposal.state', '=', 'queued'),
                   eb.or([
                     eb.and([
-                      eb('proposal.timelock_eta', 'is not', null),
-                      eb(
-                        sql<number>`extract(epoch from proposal.timelock_eta)`,
-                        '<',
-                        Math.floor(bound.confirmedThresholdTs.getTime() / 1000),
-                      ),
+                      eb('proposal.queued_block', 'is not', null),
+                      eb('proposal.queued_block', '<', bound.confirmedThresholdBlock),
                     ]),
                     eb.and([
-                      eb('proposal.timelock_eta', 'is', null),
+                      eb('proposal.queued_block', 'is', null),
                       eb('proposal.voting_ends_block', 'is not', null),
                       eb('proposal.voting_ends_block', '<', bound.confirmedThresholdBlock),
                     ]),

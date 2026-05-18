@@ -31,6 +31,8 @@ export {
   decodeTimelockResult,
   encodeGracePeriodCall,
   decodeGracePeriodResult,
+  encodeDelayCall,
+  decodeDelayResult,
   mapGovernorStateCode,
 } from './abi/governor-state';
 export { extractCompoundTitle } from './domain/title-extractor';

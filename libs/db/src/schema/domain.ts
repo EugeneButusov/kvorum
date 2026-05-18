@@ -91,7 +91,8 @@ export interface ProposalTable {
   voting_starts_block: string | null;
   voting_ends_block: string | null;
   voting_power_block: string;
-  timelock_eta: Date | null;
+  // pg driver returns bigint as string
+  queued_block: string | null;
   // pg driver returns bigint as string
   last_reconcile_check_block: string | null;
   state: ProposalState;

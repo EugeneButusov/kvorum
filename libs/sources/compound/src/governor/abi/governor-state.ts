@@ -6,7 +6,10 @@ export const GOVERNOR_STATE_INTERFACE = new Interface([
   'function timelock() view returns (address)',
 ]);
 
-export const TIMELOCK_INTERFACE = new Interface(['function GRACE_PERIOD() view returns (uint256)']);
+export const TIMELOCK_INTERFACE = new Interface([
+  'function GRACE_PERIOD() view returns (uint256)',
+  'function delay() view returns (uint256)',
+]);
 
 export class GovernorStateDecodeError extends Error {
   constructor(
@@ -54,6 +57,19 @@ export function decodeGracePeriodResult(data: string): number {
     return Number(seconds);
   } catch (err) {
     throw new GovernorStateDecodeError('failed to decode timelock GRACE_PERIOD() result', err);
+  }
+}
+
+export function encodeDelayCall(): string {
+  return TIMELOCK_INTERFACE.encodeFunctionData('delay');
+}
+
+export function decodeDelayResult(data: string): number {
+  try {
+    const [seconds] = TIMELOCK_INTERFACE.decodeFunctionResult('delay', data);
+    return Number(seconds);
+  } catch (err) {
+    throw new GovernorStateDecodeError('failed to decode timelock delay() result', err);
   }
 }
 

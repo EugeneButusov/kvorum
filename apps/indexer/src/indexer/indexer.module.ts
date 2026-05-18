@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { pgDb, ProposalRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
-import { COMPOUND_PLUGINS, COMPOUND_RECONCILERS, CompoundSourceModule } from '@nest/compound';
+import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
+import { CompoundReconcileService } from '../orchestrator/compound-reconcile.service';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
-import { StateReconcilerService } from '../orchestrator/state-reconciler.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS, STATE_RECONCILERS } from '../orchestrator/tokens';
+import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, DerivationModule, CompoundSourceModule],
@@ -24,17 +24,12 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS, STATE_RECONCILERS } from '../orchestrato
       provide: ProposalRepository,
       useFactory: () => new ProposalRepository(pgDb),
     },
-    {
-      provide: STATE_RECONCILERS,
-      useFactory: (reconcilers: unknown[]) => reconcilers,
-      inject: [COMPOUND_RECONCILERS],
-    },
     EvmEventPollerDriver,
     { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },
     IndexerOrchestratorService,
     ReorgWatcherService,
     PromotionSweepService,
-    StateReconcilerService,
+    CompoundReconcileService,
   ],
 })
 export class IndexerModule {}

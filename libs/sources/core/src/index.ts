@@ -25,7 +25,6 @@ export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-
 
 import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
-import type { ProposalRepository, StaleReconciliationRow } from '@libs/db';
 
 /** Nest injection token for the multi-provider array of registered SourcePlugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
@@ -47,22 +46,4 @@ export interface SourceContext {
   sourceType: SourceType;
   chainId: string;
   sourceLabel: SourceType;
-}
-
-export interface ProposalStateReconcilerPlugin {
-  readonly sourceType: SourceType;
-  readonly supportedChainId: string;
-  reconcileRow(args: {
-    row: StaleReconciliationRow;
-    confirmedThreshold: bigint;
-    confirmedThresholdTag: string;
-    proposals: ProposalRepository;
-    chainCtx: {
-      client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
-      chainCfg: { chainId: string };
-    };
-  }): Promise<
-    | { outcome: 'corrected'; fromState: string; toState: string }
-    | { outcome: 'already_consistent' | 'guard_skipped' | 'missed_event' | 'expired_no_eta' }
-  >;
 }

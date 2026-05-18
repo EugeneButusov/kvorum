@@ -1,24 +1,39 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { AllProvidersFailedError, ClientStoppedError } from '@libs/chain';
+import {
+  AllProvidersFailedError,
+  ClientStoppedError,
+  type Logger as ChainLogger,
+} from '@libs/chain';
 import { ProposalRepository, type ReconcilePerChainBound } from '@libs/db';
-import type { ProposalStateReconcilerPlugin } from '@sources/core';
+import { CompoundStateReconciler } from '@sources/compound';
 import { ChainContextRegistry } from './chain-context-registry';
 import { stateReconcilerMetrics } from './state-reconciler-metrics';
-import { STATE_RECONCILERS } from './tokens';
 
 type ReconcileOutcome =
   | 'corrected'
   | 'already_consistent'
   | 'guard_skipped'
   | 'missed_event'
-  | 'expired_no_eta'
+  | 'expired_no_queued_block'
   | 'rpc_failed'
   | 'decode_failed';
 
+function toChainLogger(nestLogger: Logger): ChainLogger {
+  return {
+    info: (msg, ...args) => nestLogger.log(msg, ...args),
+    warn: (msg, ...args) => nestLogger.warn(msg, ...args),
+    error: (msg, ...args) => nestLogger.error(msg, ...args),
+    debug: (msg, ...args) => nestLogger.debug(msg, ...args),
+  };
+}
+
 @Injectable()
-export class StateReconcilerService implements OnApplicationBootstrap, OnApplicationShutdown {
-  private readonly logger = new Logger('StateReconciler');
+export class CompoundReconcileService implements OnApplicationBootstrap, OnApplicationShutdown {
+  private readonly logger = new Logger('CompoundReconcile');
+  private readonly reconciler = new CompoundStateReconciler(
+    toChainLogger(new Logger('CompoundStateReconciler')),
+  );
   private interval: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
   private readonly rpcFailedStreak = new Map<string, number>();
@@ -26,8 +41,6 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
   constructor(
     private readonly registry: ChainContextRegistry,
     private readonly proposals: ProposalRepository,
-    @Inject(STATE_RECONCILERS)
-    private readonly reconcilers: readonly ProposalStateReconcilerPlugin[],
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -50,16 +63,13 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
     const tickStart = Date.now();
 
     try {
-      const bounds = await this.computeBounds();
-      if (bounds.length === 0 || this.reconcilers.length === 0) return;
-
-      const sourceTypes = this.reconcilers.map((x) => x.sourceType);
-      const bySourceType = new Map(this.reconcilers.map((x) => [x.sourceType, x]));
+      const bounds = this.computeBounds();
+      if (bounds.length === 0) return;
 
       const batchSize = Number(process.env['STATE_RECONCILE_BATCH_SIZE'] ?? 50);
       const recheckGapBlocks = Number(process.env['STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 7_200);
       const rows = await this.proposals.findStaleForReconciliation(
-        sourceTypes,
+        [this.reconciler.sourceType],
         bounds,
         recheckGapBlocks,
         batchSize,
@@ -67,11 +77,8 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
       stateReconcilerMetrics.stateReconcileBacklog.record(rows.length);
       if (rows.length === batchSize) stateReconcilerMetrics.stateReconcileBatchSaturated.add(1);
 
-      const boundsByChain = new Map(bounds.map((bound) => [bound.chainId, bound]));
+      const boundsByChain = new Map(bounds.map((b) => [b.chainId, b]));
       for (const row of rows) {
-        const reconciler = bySourceType.get(row.source_type);
-        if (!reconciler) continue;
-
         const bound = boundsByChain.get(row.chain_id);
         if (!bound) continue;
 
@@ -79,10 +86,10 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
         if (!ctx) continue;
 
         try {
-          const result = await reconciler.reconcileRow({
+          const result = await this.reconciler.reconcileRow({
             row,
             confirmedThreshold: BigInt(bound.confirmedThresholdBlock),
-            confirmedThresholdTag: toHexBlockTag(bound.confirmedThresholdBlock),
+            confirmedThresholdTag: `0x${BigInt(bound.confirmedThresholdBlock).toString(16)}`,
             proposals: this.proposals,
             chainCtx: ctx,
           });
@@ -120,7 +127,7 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
     }
   }
 
-  private async computeBounds(): Promise<ReconcilePerChainBound[]> {
+  private computeBounds(): ReconcilePerChainBound[] {
     const bounds: ReconcilePerChainBound[] = [];
     for (const ctx of this.registry.allActive()) {
       const head = ctx.headTracker.getLastHead();
@@ -129,21 +136,9 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
       const horizon = BigInt(ctx.chainCfg.reorgHorizon);
       if (head.blockNumber < horizon) continue;
 
-      const confirmedThreshold = head.blockNumber - horizon;
-      const block = await ctx.client.send<{ timestamp?: string }>('eth_getBlockByNumber', [
-        `0x${confirmedThreshold.toString(16)}`,
-        false,
-      ]);
-      stateReconcilerMetrics.stateReconcileRpcCalls.add(1, {
-        source_type: 'all',
-        method: 'eth_getBlockByNumber',
-      });
-      if (!block?.timestamp) continue;
-
       bounds.push({
         chainId: ctx.chainCfg.chainId,
-        confirmedThresholdBlock: confirmedThreshold.toString(),
-        confirmedThresholdTs: new Date(Number(BigInt(block.timestamp)) * 1000),
+        confirmedThresholdBlock: (head.blockNumber - horizon).toString(),
       });
     }
     return bounds;
@@ -173,10 +168,6 @@ export class StateReconcilerService implements OnApplicationBootstrap, OnApplica
       });
     }
   }
-}
-
-function toHexBlockTag(blockNumber: string): string {
-  return `0x${BigInt(blockNumber).toString(16)}`;
 }
 
 function isTransientRpcError(err: unknown): err is AllProvidersFailedError | ClientStoppedError {

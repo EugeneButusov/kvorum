@@ -245,7 +245,7 @@ describe('ProposalRepository', () => {
   it('only queues pending proposals', async () => {
     const update = makeUpdateChain(0n);
     const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
-    const timelockEta = new Date('2026-01-02T00:00:00Z');
+    const queuedBlock = '15000000';
 
     await repo.advanceState({
       daoId: 'dao-1',
@@ -253,14 +253,14 @@ describe('ProposalRepository', () => {
       sourceId: '42',
       targetState: 'queued',
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
-      timelockEta,
+      queuedBlock,
     });
 
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
     expect(update.set).toHaveBeenCalledWith({
       state: 'queued',
       state_updated_at: new Date('2026-01-01T00:00:00Z'),
-      timelock_eta: timelockEta,
+      queued_block: queuedBlock,
       updated_at: expect.anything(),
     });
   });
@@ -312,7 +312,7 @@ describe('ProposalRepository', () => {
         state: 'pending',
         voting_starts_block: '100',
         voting_ends_block: '200',
-        timelock_eta: null,
+        queued_block: null,
       },
     ];
     const select = makeStaleReconcileSelectChain(expected);
@@ -325,7 +325,6 @@ describe('ProposalRepository', () => {
           {
             chainId: '0x1',
             confirmedThresholdBlock: '1000',
-            confirmedThresholdTs: new Date('2026-01-01T00:00:00Z'),
           },
         ],
         100,
@@ -345,7 +344,7 @@ describe('ProposalRepository', () => {
     await expect(
       repo.findStaleForReconciliation(
         [],
-        [{ chainId: '0x1', confirmedThresholdBlock: '1000', confirmedThresholdTs: new Date() }],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1000' }],
         100,
         50,
       ),
@@ -353,7 +352,7 @@ describe('ProposalRepository', () => {
     await expect(
       repo.findStaleForReconciliation(
         ['compound_governor_bravo'],
-        [{ chainId: '0x1', confirmedThresholdBlock: '1000', confirmedThresholdTs: new Date() }],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1000' }],
         100,
         0,
       ),

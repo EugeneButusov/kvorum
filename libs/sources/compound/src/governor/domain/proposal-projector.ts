@@ -8,6 +8,7 @@ export interface CompoundProjectionArchiveRow {
   dao_source_id: string;
   source_type: string;
   chain_id: string;
+  block_number: string;
   confirmed_at: Date | null;
 }
 
@@ -32,7 +33,7 @@ export interface ProposalStateTransitionProjection {
   sourceId: string;
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>;
   stateUpdatedAt: Date;
-  eta?: Date;
+  queuedBlock?: string;
 }
 
 export type CompoundProposalProjection =
@@ -70,7 +71,7 @@ export function projectCompoundProposalEvent(
         'queued',
         archiveRow,
         confirmedAt,
-        new Date(Number(event.payload.eta) * 1000),
+        archiveRow.block_number,
       );
     case 'ProposalExecuted':
       return projectStateTransition(event.payload.proposalId, 'executed', archiveRow, confirmedAt);
@@ -128,7 +129,7 @@ function projectStateTransition(
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>,
   archiveRow: CompoundProjectionArchiveRow,
   confirmedAt: Date,
-  eta?: Date,
+  queuedBlock?: string,
 ): ProposalStateTransitionProjection {
   return {
     kind: 'proposal_state_transition',
@@ -138,7 +139,7 @@ function projectStateTransition(
     sourceId,
     targetState,
     stateUpdatedAt: confirmedAt,
-    eta,
+    queuedBlock,
   };
 }
 

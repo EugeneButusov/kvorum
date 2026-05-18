@@ -132,6 +132,7 @@ export class CompoundProjectionApplier {
         dao_source_id: row.dao_source_id,
         source_type: row.source_type,
         chain_id: row.chain_id,
+        block_number: row.block_number,
         confirmed_at: row.confirmed_at,
       });
 
@@ -163,7 +164,7 @@ export class CompoundProjectionApplier {
             sourceId: projection.sourceId,
             targetState: projection.targetState,
             stateUpdatedAt: projection.stateUpdatedAt,
-            timelockEta: projection.eta,
+            queuedBlock: projection.queuedBlock,
           });
           this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
         }
