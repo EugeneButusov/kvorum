@@ -21,6 +21,18 @@ export type {
 export { DecodeError } from './domain/types';
 
 export { decodeCompoundLog } from './abi/decoder';
+export {
+  GOVERNOR_STATE_INTERFACE,
+  TIMELOCK_INTERFACE,
+  GovernorStateDecodeError,
+  encodeStateCall,
+  decodeStateResult,
+  encodeTimelockCall,
+  decodeTimelockResult,
+  encodeGracePeriodCall,
+  decodeGracePeriodResult,
+  mapGovernorStateCode,
+} from './abi/governor-state';
 export { extractCompoundTitle } from './domain/title-extractor';
 export type {
   CompoundProjectionArchiveRow,
