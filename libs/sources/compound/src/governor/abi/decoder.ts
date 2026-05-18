@@ -1,7 +1,7 @@
 import type { LogEvent } from '@libs/chain';
 import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events';
-import type { CompoundGovernorEvent } from './types';
-import { DecodeError } from './types';
+import type { CompoundGovernorEvent } from '../domain/types';
+import { DecodeError } from '../domain/types';
 
 /** Decodes a normalised LogEvent from EventPoller into a typed CompoundGovernorEvent.
  *  Throws DecodeError on unknown topic0 or malformed args. */

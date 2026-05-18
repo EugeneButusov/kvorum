@@ -4,9 +4,9 @@ import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import { COMPOUND_EVENT_TOPICS } from './events';
 import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
+import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 
 const CTX: ArchiveWriteContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
@@ -59,7 +59,7 @@ describe('makeIngesterListener', () => {
     // We use a mock that bypasses real decoding by patching the listener's decode call.
     // Actually, we need the listener to reach archiveWriter.write, which means the decode must succeed.
     // Use a fixture log from the decoder spec that we know decodes correctly.
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const encoded = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
       [42n],
@@ -83,7 +83,7 @@ describe('makeIngesterListener', () => {
     });
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const encodeExecuted = (id: bigint) => {
       const enc = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
         COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
@@ -100,7 +100,7 @@ describe('makeIngesterListener', () => {
     const deps = makeDeps();
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const unknownLog = makeLog({ topics: ['0x' + '00'.repeat(32)] });
     const validEncoded = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
@@ -130,7 +130,7 @@ describe('makeIngesterListener', () => {
     });
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
       const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
         COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
@@ -152,7 +152,7 @@ describe('makeIngesterListener', () => {
     });
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
       const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
         COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
@@ -169,7 +169,7 @@ describe('makeIngesterListener', () => {
     const deps = makeDeps(() => Promise.resolve({ result: 'skipped_existing' as const }));
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
       [1n],
@@ -191,7 +191,7 @@ describe('makeIngesterListener', () => {
     );
 
     const listener = makeIngesterListener(deps);
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
 
     const events = [
       (() => {
@@ -240,7 +240,7 @@ describe('makeIngesterListener', () => {
     const deps = makeDeps();
     const listener = makeIngesterListener(deps);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
       [1n],
@@ -262,7 +262,7 @@ describe('makeIngesterListener', () => {
     const options: IngesterListenerOptions = { onWriteFailure: 'throw' };
     const listener = makeIngesterListener(deps, options);
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
       const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
         COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,
@@ -284,7 +284,7 @@ describe('makeIngesterListener', () => {
     });
     const listener = makeIngesterListener(deps); // no onWriteFailure → defaults to swallow
 
-    const { COMPOUND_GOVERNOR_INTERFACE } = await import('./events.js');
+    const { COMPOUND_GOVERNOR_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
       const e = COMPOUND_GOVERNOR_INTERFACE.encodeEventLog(
         COMPOUND_GOVERNOR_INTERFACE.getEvent('ProposalExecuted')!,

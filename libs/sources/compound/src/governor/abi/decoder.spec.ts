@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { decodeCompoundLog } from './decoder';
 import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events';
-import { DecodeError } from './types';
+import { DecodeError } from '../domain/types';
 
 // Reference topic0 hashes from the canonical Compound GovernorBravoDelegate ABI.
 // Computed via `keccak256(eventSignature)`. The ProposalCreated hash is widely known;

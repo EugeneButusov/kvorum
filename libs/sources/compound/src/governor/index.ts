@@ -2,14 +2,14 @@ export type {
   EventArchiveCompoundGovernor,
   EventArchiveCompoundGovernorTable,
   NewEventArchiveCompoundGovernor,
-} from './schema';
+} from './persistence/schema';
 
 export {
   COMPOUND_GOVERNOR_EVENTS,
   COMPOUND_GOVERNOR_INTERFACE,
   COMPOUND_EVENT_TOPICS,
-} from './events';
-export type { CompoundEventType } from './events';
+} from './abi/events';
+export type { CompoundEventType } from './abi/events';
 
 export type {
   CompoundGovernorEvent,
@@ -17,47 +17,47 @@ export type {
   ProposalQueuedPayload,
   ProposalExecutedPayload,
   ProposalCanceledPayload,
-} from './types';
-export { DecodeError } from './types';
+} from './domain/types';
+export { DecodeError } from './domain/types';
 
-export { decodeCompoundLog } from './decoder';
-export { extractCompoundTitle } from './title-extractor';
+export { decodeCompoundLog } from './abi/decoder';
+export { extractCompoundTitle } from './domain/title-extractor';
 export type {
   CompoundProjectionArchiveRow,
   CompoundProposalProjection,
   ProposalCreatedProjection,
   ProposalStateTransitionProjection,
   ProposalWithoutResolvedRefs,
-} from './proposal-projector';
-export { ProposalProjectionError, projectCompoundProposalEvent } from './proposal-projector';
+} from './domain/proposal-projector';
+export { ProposalProjectionError, projectCompoundProposalEvent } from './domain/proposal-projector';
 
 export type {
   CompoundDerivationFailureReason,
   CompoundDerivationOutcome,
   CompoundProjectionApplierDeps,
   CompoundProjectionMetrics,
-} from './compound-projection-applier';
-export { CompoundProjectionApplier } from './compound-projection-applier';
+} from './domain/compound-projection-applier';
+export { CompoundProjectionApplier } from './domain/compound-projection-applier';
 
-export type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
-export { CompoundArchivePayloadRepository } from './compound-archive-payload-repository';
+export type { CompoundArchivePayloadRow } from './persistence/compound-archive-payload-repository';
+export { CompoundArchivePayloadRepository } from './persistence/compound-archive-payload-repository';
 
-export type { EventData, EventRepositoryDeps } from './event-repository.types';
-export { EventRepository } from './event-repository';
+export type { EventData, EventRepositoryDeps } from './persistence/event-repository.types';
+export { EventRepository } from './persistence/event-repository';
 
 export type {
   ArchiveWriterDeps,
   ArchiveWriteContext,
   ArchiveWriteOutcome,
-} from './archive-writer.types';
-export { ArchiveWriter } from './archive-writer';
+} from './ingestion/archive-writer.types';
+export { ArchiveWriter } from './ingestion/archive-writer';
 
-export type { IngesterListenerDeps } from './ingester-listener';
-export { makeIngesterListener } from './ingester-listener';
+export type { IngesterListenerDeps } from './ingestion/ingester-listener';
+export { makeIngesterListener } from './ingestion/ingester-listener';
 
-export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin';
+export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
   createCompoundGovernorPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,
-} from './plugin';
+} from './plugin/plugin';

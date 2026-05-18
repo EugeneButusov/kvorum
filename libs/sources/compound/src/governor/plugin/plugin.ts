@@ -2,9 +2,9 @@ import { z } from 'zod';
 import type { Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
-import { ArchiveWriter } from './archive-writer';
-import { COMPOUND_EVENT_TOPICS } from './events';
-import { makeIngesterListener } from './ingester-listener';
+import { COMPOUND_EVENT_TOPICS } from '../abi/events';
+import { ArchiveWriter } from '../ingestion/archive-writer';
+import { makeIngesterListener } from '../ingestion/ingester-listener';
 
 const DaoSourceConfigSchema = z.object({
   governor_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
