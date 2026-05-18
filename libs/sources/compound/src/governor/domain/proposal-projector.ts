@@ -32,6 +32,7 @@ export interface ProposalStateTransitionProjection {
   sourceId: string;
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>;
   stateUpdatedAt: Date;
+  eta?: Date;
 }
 
 export type CompoundProposalProjection =
@@ -64,7 +65,13 @@ export function projectCompoundProposalEvent(
     case 'ProposalCreated':
       return projectProposalCreated(event.payload, archiveRow, confirmedAt);
     case 'ProposalQueued':
-      return projectStateTransition(event.payload.proposalId, 'queued', archiveRow, confirmedAt);
+      return projectStateTransition(
+        event.payload.proposalId,
+        'queued',
+        archiveRow,
+        confirmedAt,
+        new Date(Number(event.payload.eta) * 1000),
+      );
     case 'ProposalExecuted':
       return projectStateTransition(event.payload.proposalId, 'executed', archiveRow, confirmedAt);
     case 'ProposalCanceled':
@@ -121,6 +128,7 @@ function projectStateTransition(
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>,
   archiveRow: CompoundProjectionArchiveRow,
   confirmedAt: Date,
+  eta?: Date,
 ): ProposalStateTransitionProjection {
   return {
     kind: 'proposal_state_transition',
@@ -130,6 +138,7 @@ function projectStateTransition(
     sourceId,
     targetState,
     stateUpdatedAt: confirmedAt,
+    eta,
   };
 }
 

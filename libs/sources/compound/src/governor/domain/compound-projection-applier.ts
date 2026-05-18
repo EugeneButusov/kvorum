@@ -163,6 +163,7 @@ export class CompoundProjectionApplier {
             sourceId: projection.sourceId,
             targetState: projection.targetState,
             stateUpdatedAt: projection.stateUpdatedAt,
+            timelockEta: projection.eta,
           });
           this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
         }

@@ -100,6 +100,7 @@ describe('projectCompoundProposalEvent', () => {
       sourceId: '42',
       targetState,
       stateUpdatedAt: CONFIRMED_AT,
+      eta: targetState === 'queued' ? new Date('2023-11-14T22:13:20.000Z') : undefined,
     });
   });
 

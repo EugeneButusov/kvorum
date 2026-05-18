@@ -225,6 +225,7 @@ describe('ProposalRepository', () => {
   it('only queues pending proposals', async () => {
     const update = makeUpdateChain(0n);
     const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+    const timelockEta = new Date('2026-01-02T00:00:00Z');
 
     await repo.advanceState({
       daoId: 'dao-1',
@@ -232,9 +233,16 @@ describe('ProposalRepository', () => {
       sourceId: '42',
       targetState: 'queued',
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+      timelockEta,
     });
 
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
+    expect(update.set).toHaveBeenCalledWith({
+      state: 'queued',
+      state_updated_at: new Date('2026-01-01T00:00:00Z'),
+      timelock_eta: timelockEta,
+      updated_at: expect.anything(),
+    });
   });
 
   it('finds proposals pending lazy timestamp fill', async () => {

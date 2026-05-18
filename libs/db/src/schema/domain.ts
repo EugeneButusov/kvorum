@@ -8,6 +8,7 @@ export type SourceType = string;
 
 export interface SourceTypeTable {
   value: string;
+  reconcilable: boolean;
 }
 
 // ── Enum string-literal unions ────────────────────────────────────────────────
@@ -91,6 +92,9 @@ export interface ProposalTable {
   voting_starts_block: string | null;
   voting_ends_block: string | null;
   voting_power_block: string;
+  timelock_eta: Date | null;
+  // pg driver returns bigint as string
+  last_reconcile_check_block: string | null;
   state: ProposalState;
   state_updated_at: Date;
   created_at: Generated<Date>;
