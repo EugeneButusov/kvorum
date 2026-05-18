@@ -8,8 +8,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T18:30:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/44",
-          "votes": "/v1/daos/compound/proposals/compound_governor/44/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/44",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/44/votes",
         },
       },
       "binding": true,
@@ -19,7 +19,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": "Second Proposer",
       },
       "source_id": "44",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "active",
       "title": "Paged proposal",
       "voting_ends_at": "2026-05-16T18:00:00Z",
@@ -31,8 +31,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T17:00:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/43",
-          "votes": "/v1/daos/compound/proposals/compound_governor/43/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/43",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/43/votes",
         },
       },
       "binding": false,
@@ -42,7 +42,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": null,
       },
       "source_id": "43",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "pending",
       "title": null,
       "voting_ends_at": null,
@@ -54,8 +54,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T16:00:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/42",
-          "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/42",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/42/votes",
         },
       },
       "binding": true,
@@ -65,7 +65,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": null,
       },
       "source_id": "42",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "executed",
       "title": "Executed proposal",
       "voting_ends_at": "2026-05-15T15:00:00Z",
@@ -100,7 +100,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       {
         "chain_id": "1",
         "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
-        "source_type": "compound_governor",
+        "source_type": "compound_governor_bravo",
       },
       {
         "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -120,8 +120,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T18:30:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/44",
-          "votes": "/v1/daos/compound/proposals/compound_governor/44/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/44",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/44/votes",
         },
       },
       "binding": true,
@@ -131,7 +131,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": "Second Proposer",
       },
       "source_id": "44",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "active",
       "title": "Paged proposal",
       "voting_ends_at": "2026-05-16T18:00:00Z",
@@ -143,8 +143,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T17:00:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/43",
-          "votes": "/v1/daos/compound/proposals/compound_governor/43/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/43",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/43/votes",
         },
       },
       "binding": false,
@@ -154,7 +154,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": null,
       },
       "source_id": "43",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "pending",
       "title": null,
       "voting_ends_at": null,
@@ -166,8 +166,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "confirmed": true,
         "last_updated_at": "2026-05-15T16:00:00Z",
         "links": {
-          "self": "/v1/daos/compound/proposals/compound_governor/42",
-          "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/42",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/42/votes",
         },
       },
       "binding": true,
@@ -177,7 +177,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "display_name": null,
       },
       "source_id": "42",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
       "state": "executed",
       "title": "Executed proposal",
       "voting_ends_at": "2026-05-15T15:00:00Z",
@@ -199,7 +199,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     {
       "chain_id": "1",
       "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
-      "source_type": "compound_governor",
+      "source_type": "compound_governor_bravo",
     },
     {
       "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -236,16 +236,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 }
 `;
 
-exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
-{
-  "cross-dao-proposals": ""pYg7Y0gvz5zaNSCk94U_r0YL8JA"",
-  "dao-detail": ""q4No6AQfoiP2F8IZ7BSQGMLVtmk"",
-  "dao-proposals-list": ""pYg7Y0gvz5zaNSCk94U_r0YL8JA"",
-  "dao-sources": ""AptQGPHnbwcmulD8hE2qb6hAEw8"",
-  "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
-  "proposal-detail": ""Kh6KbW6F9qt5vqbc2e2DrnJN9vw"",
-}
-`;
 
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > proposal-detail 1`] = `
 {
@@ -254,8 +244,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "confirmed": true,
       "last_updated_at": "2026-05-15T16:00:00Z",
       "links": {
-        "self": "/v1/daos/compound/proposals/compound_governor/42",
-        "votes": "/v1/daos/compound/proposals/compound_governor/42/votes",
+        "self": "/v1/daos/compound/proposals/compound_governor_bravo/42",
+        "votes": "/v1/daos/compound/proposals/compound_governor_bravo/42/votes",
       },
     },
     "actions": [
@@ -304,7 +294,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "display_name": null,
     },
     "source_id": "42",
-    "source_type": "compound_governor",
+    "source_type": "compound_governor_bravo",
     "state": "executed",
     "title": "Executed proposal",
     "voting_ends_at": "2026-05-15T15:00:00Z",
