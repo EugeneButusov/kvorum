@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
+import { pgDb, ProposalRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import { COMPOUND_PLUGINS, COMPOUND_RECONCILERS, CompoundSourceModule } from '@nest/compound';
-import { pgDb, ProposalRepository } from '@libs/db';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { ChainContextModule } from '../orchestrator/chain-context.module';
