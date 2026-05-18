@@ -5,8 +5,11 @@ import {
   ClientStoppedError,
   type Logger as ChainLogger,
 } from '@libs/chain';
-import { ProposalRepository, type ReconcilePerChainBound } from '@libs/db';
-import { CompoundStateReconciler } from '@sources/compound';
+import {
+  CompoundProposalRepository,
+  CompoundStateReconciler,
+  type ReconcilePerChainBound,
+} from '@sources/compound';
 import { ChainContextRegistry } from './chain-context-registry';
 import { stateReconcilerMetrics } from './state-reconciler-metrics';
 
@@ -40,7 +43,7 @@ export class CompoundReconcileService implements OnApplicationBootstrap, OnAppli
 
   constructor(
     private readonly registry: ChainContextRegistry,
-    private readonly proposals: ProposalRepository,
+    private readonly proposals: CompoundProposalRepository,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {

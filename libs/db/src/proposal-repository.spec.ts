@@ -103,26 +103,6 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
-function makeStaleReconcileSelectChain(returnValue: unknown[]) {
-  const execute = vi.fn().mockResolvedValue(returnValue);
-  const chain = {
-    innerJoin: vi.fn(),
-    select: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    execute,
-  };
-  chain.innerJoin.mockReturnValue(chain);
-  chain.select.mockReturnValue(chain);
-  chain.where.mockReturnValue(chain);
-  chain.orderBy.mockReturnValue(chain);
-  chain.limit.mockReturnValue(chain);
-  const selectFrom = vi.fn().mockReturnValue(chain);
-
-  return { selectFrom, ...chain };
-}
-
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -245,7 +225,6 @@ describe('ProposalRepository', () => {
   it('only queues pending proposals', async () => {
     const update = makeUpdateChain(0n);
     const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
-    const queuedBlock = '15000000';
 
     await repo.advanceState({
       daoId: 'dao-1',
@@ -253,14 +232,12 @@ describe('ProposalRepository', () => {
       sourceId: '42',
       targetState: 'queued',
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
-      queuedBlock,
     });
 
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
     expect(update.set).toHaveBeenCalledWith({
       state: 'queued',
       state_updated_at: new Date('2026-01-01T00:00:00Z'),
-      queued_block: queuedBlock,
       updated_at: expect.anything(),
     });
   });
@@ -299,96 +276,5 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
-  });
-
-  it('finds stale proposals for reconciliation with expected joins and ordering', async () => {
-    const expected = [
-      {
-        id: 'proposal-1',
-        source_id: '42',
-        source_type: 'compound_governor_bravo',
-        chain_id: '0x1',
-        governor_address: '0xc0da02939e1441f497fd74f78ce7decb17b66529',
-        state: 'pending',
-        voting_starts_block: '100',
-        voting_ends_block: '200',
-        queued_block: null,
-      },
-    ];
-    const select = makeStaleReconcileSelectChain(expected);
-    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
-
-    await expect(
-      repo.findStaleForReconciliation(
-        ['compound_governor_bravo'],
-        [
-          {
-            chainId: '0x1',
-            confirmedThresholdBlock: '1000',
-          },
-        ],
-        100,
-        50,
-      ),
-    ).resolves.toEqual(expected);
-
-    expect(select.selectFrom).toHaveBeenCalledWith('proposal');
-    expect(select.innerJoin).toHaveBeenCalledTimes(2);
-    expect(select.orderBy).toHaveBeenCalledWith('proposal.voting_ends_block', 'asc');
-    expect(select.limit).toHaveBeenCalledWith(50);
-  });
-
-  it('returns no stale rows when bounds are empty or limit is non-positive', async () => {
-    const repo = new ProposalRepository({} as never);
-
-    await expect(
-      repo.findStaleForReconciliation(
-        [],
-        [{ chainId: '0x1', confirmedThresholdBlock: '1000' }],
-        100,
-        50,
-      ),
-    ).resolves.toEqual([]);
-    await expect(
-      repo.findStaleForReconciliation(
-        ['compound_governor_bravo'],
-        [{ chainId: '0x1', confirmedThresholdBlock: '1000' }],
-        100,
-        0,
-      ),
-    ).resolves.toEqual([]);
-  });
-
-  it('reconciles state with optimistic guard', async () => {
-    const update = makeUpdateChain(1n);
-    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
-
-    await expect(
-      repo.reconcileState({
-        proposalId: 'proposal-1',
-        expectedStates: ['pending', 'active', 'queued', 'succeeded'],
-        targetState: 'defeated',
-        stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
-      }),
-    ).resolves.toBe(1);
-
-    expect(update.where.mock.calls).toEqual([
-      ['id', '=', 'proposal-1'],
-      ['state', 'in', ['pending', 'active', 'queued', 'succeeded']],
-      ['state', '<>', 'defeated'],
-    ]);
-  });
-
-  it('marks proposal as checked at confirmed threshold', async () => {
-    const update = makeUpdateChain(1n);
-    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
-
-    await expect(repo.markReconcileChecked('proposal-1', '123456')).resolves.toBe(1);
-
-    expect(update.where.mock.calls).toEqual([['id', '=', 'proposal-1']]);
-    expect(update.set).toHaveBeenCalledWith({
-      last_reconcile_check_block: '123456',
-      updated_at: expect.anything(),
-    });
   });
 });

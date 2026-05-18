@@ -56,6 +56,13 @@ export { CompoundProjectionApplier } from './domain/compound-projection-applier'
 export type { CompoundArchivePayloadRow } from './persistence/compound-archive-payload-repository';
 export { CompoundArchivePayloadRepository } from './persistence/compound-archive-payload-repository';
 
+export type {
+  ReconcilePerChainBound,
+  StaleReconciliationRow,
+  ReconcileStateInput,
+} from './persistence/compound-proposal-repository';
+export { CompoundProposalRepository } from './persistence/compound-proposal-repository';
+
 export type { EventData, EventRepositoryDeps } from './persistence/event-repository.types';
 export { EventRepository } from './persistence/event-repository';
 

@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { pgDb, ProposalRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
@@ -19,10 +18,6 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
       provide: SOURCE_PLUGINS,
       useFactory: (compoundPlugins: SourcePlugin[]) => compoundPlugins,
       inject: [COMPOUND_PLUGINS],
-    },
-    {
-      provide: ProposalRepository,
-      useFactory: () => new ProposalRepository(pgDb),
     },
     EvmEventPollerDriver,
     { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },

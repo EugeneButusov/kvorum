@@ -1,7 +1,12 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter, EventRepository, createCompoundPlugins } from '@sources/compound';
+import {
+  ArchiveWriter,
+  CompoundProposalRepository,
+  EventRepository,
+  createCompoundPlugins,
+} from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
@@ -44,7 +49,11 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       },
       inject: [ArchiveWriter, DlqRepository],
     },
+    {
+      provide: CompoundProposalRepository,
+      useFactory: () => new CompoundProposalRepository(pgDb),
+    },
   ],
-  exports: [COMPOUND_PLUGINS],
+  exports: [COMPOUND_PLUGINS, CompoundProposalRepository],
 })
 export class CompoundSourceModule {}

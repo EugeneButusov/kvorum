@@ -19,10 +19,20 @@ export type NewEventArchiveCompoundGovernorBravo = Omit<
   'received_at'
 >;
 
-// Extend @libs/db's ClickHouseDatabase with compound governor tables.
-// Any compilation that transitively imports this file gets type-safe chDb access.
+export interface CompoundProposalMetaTable {
+  proposal_id: string;
+  queued_block: string | null;
+  last_reconcile_check_block: string | null;
+}
+
+// Extend @libs/db interfaces with compound-specific tables.
+// Any compilation that transitively imports this file gets type-safe db access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
     event_archive_compound_governor_bravo: EventArchiveCompoundGovernorBravoTable;
+  }
+
+  interface PgDatabase {
+    compound_proposal_meta: CompoundProposalMetaTable;
   }
 }

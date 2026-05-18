@@ -1,5 +1,5 @@
 import type { Logger } from '@libs/chain';
-import type { ProposalRepository, ProposalState, StaleReconciliationRow } from '@libs/db';
+import type { ProposalState } from '@libs/db';
 import {
   GovernorStateDecodeError,
   decodeDelayResult,
@@ -12,6 +12,10 @@ import {
   encodeTimelockCall,
   mapGovernorStateCode,
 } from '../abi/governor-state';
+import type {
+  CompoundProposalRepository,
+  StaleReconciliationRow,
+} from '../persistence/compound-proposal-repository';
 
 interface TimelockParams {
   gracePeriod: number;
@@ -28,7 +32,7 @@ export class CompoundStateReconciler {
     row: StaleReconciliationRow;
     confirmedThreshold: bigint;
     confirmedThresholdTag: string;
-    proposals: ProposalRepository;
+    proposals: CompoundProposalRepository;
     chainCtx: {
       client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
       chainCfg: { chainId: string };

@@ -20,6 +20,7 @@ import {
   CompoundArchivePayloadRepository,
   type CompoundArchivePayloadRow,
 } from '../persistence/compound-archive-payload-repository';
+import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 
 export type CompoundDerivationOutcome =
   | 'derived'
@@ -51,6 +52,7 @@ export interface CompoundProjectionApplierDeps {
 interface CompoundProjectionRepositories {
   actors: ActorRepository;
   proposals: ProposalRepository;
+  compoundProposals: CompoundProposalRepository;
   archive: ArchiveDerivationRepository;
 }
 
@@ -136,7 +138,7 @@ export class CompoundProjectionApplier {
         confirmed_at: row.confirmed_at,
       });
 
-      await this.transaction(async ({ actors, proposals, archive }) => {
+      await this.transaction(async ({ actors, proposals, compoundProposals, archive }) => {
         const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
         if (daoId === undefined) {
           throw new Error(`unknown dao_source ${projection.daoSourceId}`);
@@ -164,8 +166,15 @@ export class CompoundProjectionApplier {
             sourceId: projection.sourceId,
             targetState: projection.targetState,
             stateUpdatedAt: projection.stateUpdatedAt,
-            queuedBlock: projection.queuedBlock,
           });
+          if (advanced > 0 && projection.queuedBlock !== undefined) {
+            await compoundProposals.upsertQueuedBlock(
+              daoId,
+              projection.sourceType,
+              projection.sourceId,
+              projection.queuedBlock,
+            );
+          }
           this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
         }
 
@@ -194,6 +203,7 @@ export class CompoundProjectionApplier {
       fn({
         actors: new ActorRepository(tx),
         proposals: new ProposalRepository(tx),
+        compoundProposals: new CompoundProposalRepository(tx),
         archive: new ArchiveDerivationRepository(tx),
       }),
     );
