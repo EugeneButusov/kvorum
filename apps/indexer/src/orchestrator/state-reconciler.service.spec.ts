@@ -162,4 +162,59 @@ describe('StateReconcilerService', () => {
 
     expect(repo.reconcileState).not.toHaveBeenCalled();
   });
+
+  it('skips expired correction when eta is missing (expired_no_eta path)', async () => {
+    const { registry, ctx } = makeRegistry(2000n);
+    const repo = makeRepo();
+    repo.findStaleForReconciliation.mockResolvedValue([
+      {
+        id: 'proposal-1',
+        source_id: '42',
+        source_type: 'compound_governor_bravo',
+        chain_id: '0x1',
+        governor_address: '0xc0da02939e1441f497fd74f78ce7decb17b66529',
+        state: 'queued',
+        voting_starts_block: '100',
+        voting_ends_block: '200',
+        timelock_eta: null,
+      },
+    ]);
+    ctx.client.send = vi.fn(async (method: string) => {
+      if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' };
+      if (method === 'eth_call')
+        return '0x0000000000000000000000000000000000000000000000000000000000000006';
+      return null;
+    });
+
+    const svc = new StateReconcilerService(registry as never, repo as never);
+    await svc.onApplicationBootstrap();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(repo.reconcileState).not.toHaveBeenCalled();
+  });
+
+  it('records guard_skipped when optimistic reconcile update returns 0', async () => {
+    const { registry } = makeRegistry(2000n);
+    const repo = makeRepo();
+    repo.findStaleForReconciliation.mockResolvedValue([
+      {
+        id: 'proposal-1',
+        source_id: '42',
+        source_type: 'compound_governor_bravo',
+        chain_id: '0x1',
+        governor_address: '0xc0da02939e1441f497fd74f78ce7decb17b66529',
+        state: 'pending',
+        voting_starts_block: '100',
+        voting_ends_block: '200',
+        timelock_eta: null,
+      },
+    ]);
+    repo.reconcileState.mockResolvedValue(0);
+
+    const svc = new StateReconcilerService(registry as never, repo as never);
+    await svc.onApplicationBootstrap();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(repo.reconcileState).toHaveBeenCalledTimes(1);
+  });
 });
