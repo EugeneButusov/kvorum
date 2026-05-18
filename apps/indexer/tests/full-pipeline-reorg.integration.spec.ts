@@ -54,6 +54,7 @@ describeIf('F3 full-pipeline reorg', () => {
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
+    process.env['COMPOUND_SUPPORTED_CHAIN_IDS'] = '0x7a69';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {

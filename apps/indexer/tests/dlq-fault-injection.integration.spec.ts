@@ -52,6 +52,7 @@ describeIf('F3 DLQ fault injection', () => {
     await truncateAllTestTables(pgDb);
     // DlqDepthService ticks at 500ms in tests — keeps gauge assertion window tight.
     process.env['DLQ_DEPTH_INTERVAL_MS'] = '500';
+    process.env['COMPOUND_SUPPORTED_CHAIN_IDS'] = '0x7a69';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {
