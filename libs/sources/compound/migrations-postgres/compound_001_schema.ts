@@ -1,6 +1,10 @@
 import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
 
 export async function up(db: Kysely<unknown>): Promise<void> {
+  await sql`INSERT INTO source_type (value) VALUES ('compound_governor_bravo')`.execute(db);
+  await sql`INSERT INTO source_type (value) VALUES ('compound_governor_alpha')`.execute(db);
+
   await db.schema
     .createTable('compound_proposal_meta')
     .addColumn('proposal_id', 'uuid', (col) =>
@@ -19,4 +23,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable('compound_proposal_meta').execute();
+  await sql`DELETE FROM source_type WHERE value = 'compound_governor_alpha'`.execute(db);
+  await sql`DELETE FROM source_type WHERE value = 'compound_governor_bravo'`.execute(db);
 }

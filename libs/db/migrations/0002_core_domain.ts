@@ -4,7 +4,7 @@ import { sql } from 'kysely';
 export async function up(db: Kysely<unknown>): Promise<void> {
   // ── source_type reference table ──────────────────────────────────────────────
   // Values are injected by each source package's own migrations-postgres migration
-  // (e.g. libs/sources/compound/migrations-postgres/compound_001_source_type.ts).
+  // (e.g. libs/sources/compound/migrations-postgres/compound_001_schema.ts).
   // Using a reference table instead of an enum keeps DDL fully transactional and
   // lets sources self-register without touching core migrations.
   await db.schema

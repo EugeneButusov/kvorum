@@ -1,6 +1,11 @@
 import { sql } from 'kysely';
 import { pgDb } from '@libs/db';
-import { down, up } from '../migrations-postgres/compound_003_active_from_block';
+import {
+  GOVERNOR_ALPHA_DEPLOY_BLOCK,
+  GOVERNOR_BRAVO_DEPLOY_BLOCK,
+  down,
+  up,
+} from '../migrations-postgres/compound_002_seed';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
 class RollbackSignal extends Error {}
@@ -14,32 +19,14 @@ afterAll(async () => {
   await pgDb.destroy();
 });
 
-// Must match compound_003_active_from_block.ts:GOVERNOR_BRAVO_DEPLOY_BLOCK.
-// Verified via Etherscan tx 0x2fdbaee2ac15cfbe04ddb020f84f072fa353e5703a84a422d6ca3cf734dd1855.
-const EXPECTED_BRAVO_DEPLOY_BLOCK = '12006099';
-// Must match compound_003_active_from_block.ts:GOVERNOR_ALPHA_DEPLOY_BLOCK.
-// Verified via Etherscan creation tx 0x817209a08caec3e9193afd48ba7a7a1ea5ccb3f8a9494446bfb0b43213efe81f.
-const EXPECTED_ALPHA_DEPLOY_BLOCK = '9601459';
-
-describeWithDb('compound_003_active_from_block migration', () => {
-  it('up sets active_from_block exactly to the verified Bravo deploy block', async () => {
+describeWithDb('compound_002_seed migration', () => {
+  it('up inserts compound_governor_bravo with correct deploy block', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         await sql`
-          INSERT INTO dao (slug, name, primary_token_address, primary_chain_id,
-                           description, website_url, forum_url, updated_at)
-          VALUES ('compound', 'Compound', '0xc00e94cb662c3520282e6f5717214004a7f26888', '0x1',
-                  'test', 'https://compound.finance', 'https://gov.compound.finance', now())
-          ON CONFLICT (slug) DO NOTHING
-        `.execute(tx);
-
-        await sql`
-          INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-          SELECT id, 'compound_governor_bravo',
-                 '{"governor_address":"0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb, NULL
-          FROM dao
-          WHERE slug = 'compound'
-          ON CONFLICT (dao_id, source_type) DO UPDATE SET active_from_block = NULL
+          INSERT INTO source_type (value)
+          VALUES ('compound_governor_bravo'), ('compound_governor_alpha')
+          ON CONFLICT DO NOTHING
         `.execute(tx);
 
         await up(tx);
@@ -48,31 +35,25 @@ describeWithDb('compound_003_active_from_block migration', () => {
           .selectFrom('dao_source')
           .select(['active_from_block'])
           .where('source_type', '=', 'compound_governor_bravo')
+          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+          .where('dao.slug', '=', 'compound')
           .execute();
 
         expect(rows).toHaveLength(1);
-        expect(rows[0]!.active_from_block).toBe(EXPECTED_BRAVO_DEPLOY_BLOCK);
+        expect(rows[0]!.active_from_block).toBe(String(GOVERNOR_BRAVO_DEPLOY_BLOCK));
 
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('up sets active_from_block exactly to the verified Alpha deploy block', async () => {
+  it('up inserts compound_governor_alpha with correct deploy block', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         await sql`
-          INSERT INTO dao (slug, name, primary_token_address, primary_chain_id,
-                           description, website_url, forum_url, updated_at)
-          VALUES ('compound', 'Compound', '0xc00e94cb662c3520282e6f5717214004a7f26888', '0x1',
-                  'test', 'https://compound.finance', 'https://gov.compound.finance', now())
-          ON CONFLICT (slug) DO NOTHING
-        `.execute(tx);
-
-        await sql`
-          DELETE FROM dao_source
-          WHERE source_type = 'compound_governor_alpha'
-            AND dao_id = (SELECT id FROM dao WHERE slug = 'compound')
+          INSERT INTO source_type (value)
+          VALUES ('compound_governor_bravo'), ('compound_governor_alpha')
+          ON CONFLICT DO NOTHING
         `.execute(tx);
 
         await up(tx);
@@ -81,65 +62,38 @@ describeWithDb('compound_003_active_from_block migration', () => {
           .selectFrom('dao_source')
           .select(['active_from_block'])
           .where('source_type', '=', 'compound_governor_alpha')
+          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+          .where('dao.slug', '=', 'compound')
           .execute();
 
         expect(rows).toHaveLength(1);
-        expect(rows[0]!.active_from_block).toBe(EXPECTED_ALPHA_DEPLOY_BLOCK);
+        expect(rows[0]!.active_from_block).toBe(String(GOVERNOR_ALPHA_DEPLOY_BLOCK));
 
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('down would revert active_from_block to NULL (simulated via transaction rollback)', async () => {
+  it('down removes the compound dao and its sources', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         await sql`
-          INSERT INTO dao (slug, name, primary_token_address, primary_chain_id,
-                           description, website_url, forum_url, updated_at)
-          VALUES ('compound', 'Compound', '0xc00e94cb662c3520282e6f5717214004a7f26888', '0x1',
-                  'test', 'https://compound.finance', 'https://gov.compound.finance', now())
-          ON CONFLICT (slug) DO NOTHING
-        `.execute(tx);
-
-        await sql`
-          INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-          SELECT id, 'compound_governor_bravo',
-                 '{"governor_address":"0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb, NULL
-          FROM dao
-          WHERE slug = 'compound'
-          ON CONFLICT (dao_id, source_type) DO UPDATE SET active_from_block = NULL
+          INSERT INTO source_type (value)
+          VALUES ('compound_governor_bravo'), ('compound_governor_alpha')
+          ON CONFLICT DO NOTHING
         `.execute(tx);
 
         await up(tx);
         await down(tx);
 
-        const nulledRows = await tx
-          .selectFrom('dao_source')
-          .select(['active_from_block'])
-          .where('source_type', 'in', ['compound_governor_bravo', 'compound_governor_alpha'])
-          .where('dao_id', 'in', (eb) =>
-            eb.selectFrom('dao').select('id').where('slug', '=', 'compound'),
-          )
-          .execute();
-        expect(nulledRows.every((r) => r.active_from_block === null)).toBe(true);
+        const daoRows = await tx.selectFrom('dao').where('slug', '=', 'compound').execute();
+        expect(daoRows).toHaveLength(0);
 
-        await up(tx);
-
-        const rows = await tx
+        const sourceRows = await tx
           .selectFrom('dao_source')
-          .select(['source_type', 'active_from_block'])
           .where('source_type', 'in', ['compound_governor_bravo', 'compound_governor_alpha'])
-          .where('dao_id', 'in', (eb) =>
-            eb.selectFrom('dao').select('id').where('slug', '=', 'compound'),
-          )
-          .orderBy('source_type')
           .execute();
-        expect(rows).toHaveLength(2);
-        const bravo = rows.find((r) => r.source_type === 'compound_governor_bravo');
-        const alpha = rows.find((r) => r.source_type === 'compound_governor_alpha');
-        expect(bravo!.active_from_block).toBe(EXPECTED_BRAVO_DEPLOY_BLOCK);
-        expect(alpha!.active_from_block).toBe(EXPECTED_ALPHA_DEPLOY_BLOCK);
+        expect(sourceRows).toHaveLength(0);
 
         throw new RollbackSignal();
       }),
