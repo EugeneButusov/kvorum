@@ -102,6 +102,15 @@ describeWithDb('compound_003_active_from_block migration', () => {
           ON CONFLICT (slug) DO NOTHING
         `.execute(tx);
 
+        await sql`
+          INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+          SELECT id, 'compound_governor',
+                 '{"governor_address":"0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb, NULL
+          FROM dao
+          WHERE slug = 'compound'
+          ON CONFLICT (dao_id, source_type) DO UPDATE SET active_from_block = NULL
+        `.execute(tx);
+
         await up(tx);
         await down(tx);
 
