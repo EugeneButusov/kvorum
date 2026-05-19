@@ -7,7 +7,7 @@ import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
+import { SOURCE_PLUGINS, FETCH_DRIVERS, CHAIN_HEAD_LISTENERS } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -119,6 +119,7 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
       { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
       { provide: ReorgWatcherService, useValue: mockReorgWatcher },
+      { provide: CHAIN_HEAD_LISTENERS, useValue: [] },
     ],
   }).compile();
 }

@@ -4,10 +4,14 @@ import { ChainContextRegistry, parseChainConfigFromEnv, chainMetrics } from '@li
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
-import { CompoundReconcileService } from '@nest/compound';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
+import {
+  SOURCE_PLUGINS,
+  FETCH_DRIVERS,
+  CHAIN_HEAD_LISTENERS,
+  type ChainHeadListener,
+} from './tokens';
 
 @Injectable()
 export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -23,7 +27,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     private readonly confirmationRepo: ConfirmationRepository,
     private readonly registry: ChainContextRegistry,
     private readonly reorgWatcher: ReorgWatcherService,
-    private readonly compoundReconcile: CompoundReconcileService,
+    @Inject(CHAIN_HEAD_LISTENERS) private readonly chainHeadListeners: ChainHeadListener[],
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -115,8 +119,10 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
     for (const chainCtx of this.registry.allActive()) {
       this.reorgWatcher.watch(chainCtx);
+      for (const listener of this.chainHeadListeners) {
+        listener.onChainReady(chainCtx);
+      }
     }
-    this.compoundReconcile.startListening();
 
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
       chainMetrics.indexerActiveSources.record(count, { source_type: sourceType });
