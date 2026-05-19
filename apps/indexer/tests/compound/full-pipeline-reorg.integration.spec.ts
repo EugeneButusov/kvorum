@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChainContextRegistry } from '@libs/chain';
 import { pgDb } from '@libs/db';
+import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import {
   EVM_TEST_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
@@ -25,7 +26,13 @@ const DB_URL = process.env['DATABASE_URL'];
 
 const describeIf = ANVIL_URL && DB_URL ? describe : describe.skip;
 
-@Module({ imports: [TestEvmIndexerModule, TestEvmSourceModule] })
+// IndexerOrchestratorService is provided here (not in TestEvmIndexerModule) so that
+// NestJS can inject SOURCE_PLUGINS from TestEvmSourceModule alongside the infra
+// exports from TestEvmIndexerModule — sibling imports are only visible at this level.
+@Module({
+  imports: [TestEvmIndexerModule, TestEvmSourceModule],
+  providers: [IndexerOrchestratorService],
+})
 class FullPipelineReorgTestModule {}
 
 /** Sends a transaction and polls until the receipt is available. */
