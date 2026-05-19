@@ -2,20 +2,20 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pgDb } from '@libs/db';
+import { IndexerModule } from '../../src/indexer/indexer.module';
+import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_MALFORMED_SELECTOR,
-} from './_fixtures/compound-emitter.bytecode';
-import { captureMetrics, findMetricValue, getCounterDelta } from './helpers/metrics-helpers';
+} from '../_fixtures/compound-emitter.bytecode';
+import { captureMetrics, findMetricValue, getCounterDelta } from '../helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from './helpers/pg-test-fixtures';
-import { IndexerModule } from '../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
+} from '../helpers/pg-test-fixtures';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];

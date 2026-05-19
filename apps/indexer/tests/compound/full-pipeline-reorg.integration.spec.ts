@@ -3,22 +3,22 @@ import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
+import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
+import { IndexerModule } from '../../src/indexer/indexer.module';
+import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
-} from './_fixtures/compound-emitter.bytecode';
-import { awaitHead } from './helpers/anvil-test-context';
-import { captureMetrics, getCounterDelta } from './helpers/metrics-helpers';
+} from '../_fixtures/compound-emitter.bytecode';
+import { awaitHead } from '../helpers/anvil-test-context';
+import { captureMetrics, getCounterDelta } from '../helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from './helpers/pg-test-fixtures';
-import { DerivationWorkerService } from '../src/derivation/derivation-worker.service';
-import { IndexerModule } from '../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
+} from '../helpers/pg-test-fixtures';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];
@@ -54,7 +54,6 @@ describeIf('F3 full-pipeline reorg', () => {
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
-    process.env['COMPOUND_SUPPORTED_CHAIN_IDS'] = '0x7a69';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {

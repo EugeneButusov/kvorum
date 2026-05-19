@@ -59,7 +59,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
     daoId = await insertTestDao(pgDb, { slug: 'test-dao', name: 'Test DAO' });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
       chainId: '0x7a69',
       contractAddress: '0x' + '00'.repeat(20),
     });
@@ -123,7 +123,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       blockNumber: num1,
       txHash: fakeTx1,
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
     await insertPendingConfirmation(pgDb, {
       daoSourceId,
@@ -132,7 +132,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       blockNumber: num2,
       txHash: fakeTx2,
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
 
     const metricsSnapshot = await captureMetrics();
@@ -227,7 +227,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       blockNumber: num1,
       txHash: fakeTx1,
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
     const pendingId = await insertPendingConfirmation(pgDb, {
       daoSourceId,
@@ -236,7 +236,7 @@ describeIf('F2-anvil-1 reorg orphan flow', () => {
       blockNumber: num2,
       txHash: fakeTx2,
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
 
     await pgDb
