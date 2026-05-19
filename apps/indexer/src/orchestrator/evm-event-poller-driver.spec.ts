@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventPoller } from '@libs/chain';
+import type { ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
-import type { ChainContextRegistry } from './chain-context-registry';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
 
 vi.mock('@libs/chain', () => ({
+  ChainContextRegistry: vi.fn(),
   EventPoller: vi.fn(),
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },

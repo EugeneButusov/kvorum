@@ -36,7 +36,7 @@ const CHAIN_CFG: ChainConfig = {
   ],
 };
 
-describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
+describeIf('promotion sweep healthy chain', () => {
   let anvilCtx: AnvilTestContext;
   let sweepService: PromotionSweepService;
   let daoId: string;
@@ -50,7 +50,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
     daoId = await insertTestDao(pgDb, { slug: 'sweep-dao', name: 'Sweep DAO' });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
       chainId: '0x7a69',
       contractAddress: '0x' + '00'.repeat(20),
     });
@@ -88,7 +88,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
       blockNumber: base + 1n,
       txHash: '0x' + 'ff'.repeat(32),
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
     await insertPendingConfirmation(pgDb, {
       daoSourceId,
@@ -97,7 +97,7 @@ describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
       blockNumber: base + 2n,
       txHash: '0x' + 'fe'.repeat(32),
       logIndex: 0,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
     });
 
     await client.send('anvil_mine', ['0x4']);

@@ -1,4 +1,5 @@
 import { Logger, Module } from '@nestjs/common';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   AbiCacheRepository,
   ProposalActionRepository,
@@ -12,10 +13,9 @@ import {
   EtherscanClient,
   readCalldataDecoderConfig,
 } from '@sources/core';
+import { ChainContextModule } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
 import { toChainLogger } from '../infra/nest-logger-adapter';
-import { ChainContextRegistry } from '../orchestrator/chain-context-registry';
-import { ChainContextModule } from '../orchestrator/chain-context.module';
 
 @Module({
   imports: [ChainContextModule],

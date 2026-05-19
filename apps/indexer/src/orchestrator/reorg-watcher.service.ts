@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationShutdown } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
-import type { ReorgSignal } from '@libs/chain';
+import type { ChainContext, ReorgSignal } from '@libs/chain';
 import { ReorgEventRepository } from '@libs/db';
-import type { ChainContext } from './chain-context-registry';
 
 @Injectable()
 export class ReorgWatcherService implements OnApplicationShutdown {

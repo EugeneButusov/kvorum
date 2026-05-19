@@ -12,6 +12,9 @@ const DaoSourceConfigSchema = z.object({
 
 export type CompoundGovernorConfig = z.infer<typeof DaoSourceConfigSchema>;
 
+// Ethereum mainnet — the only chain where Compound Governor contracts are deployed.
+export const SUPPORTED_CHAIN_IDS = ['0x1'] as const;
+
 export interface CompoundGovernorPluginDeps {
   archiveWriter: ArchiveWriter;
   dlqRepo: DlqRepository;
@@ -24,6 +27,7 @@ function createPlugin(
 ): SourcePlugin<CompoundGovernorConfig> {
   return {
     sourceType,
+    supportedChainIds: SUPPORTED_CHAIN_IDS,
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (ctx, cfg) => ({
       kind: 'evm-event-poller',

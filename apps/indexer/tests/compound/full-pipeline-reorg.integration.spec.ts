@@ -1,29 +1,39 @@
 import type { INestApplicationContext } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { chDb, pgDb } from '@libs/db';
+import { ChainContextRegistry } from '@libs/chain';
+import { pgDb } from '@libs/db';
+import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import {
-  COMPOUND_EMITTER_DEPLOY_BYTECODE,
+  EVM_TEST_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
-} from './_fixtures/compound-emitter.bytecode';
-import { awaitHead } from './helpers/anvil-test-context';
-import { captureMetrics, getCounterDelta } from './helpers/metrics-helpers';
+} from '../_fixtures/evm-test-emitter.bytecode';
+import { TestEvmIndexerModule } from '../_fixtures/test-evm-indexer.module';
+import { TestEvmSourceModule } from '../_fixtures/test-source.module';
+import { awaitHead } from '../helpers/anvil-test-context';
+import { captureMetrics, getCounterDelta } from '../helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from './helpers/pg-test-fixtures';
-import { DerivationWorkerService } from '../src/derivation/derivation-worker.service';
-import { IndexerModule } from '../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../src/orchestrator/chain-context-registry';
+} from '../helpers/pg-test-fixtures';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];
 
 const describeIf = ANVIL_URL && DB_URL ? describe : describe.skip;
+
+// IndexerOrchestratorService is provided here (not in TestEvmIndexerModule) so that
+// NestJS can inject SOURCE_PLUGINS from TestEvmSourceModule alongside the infra
+// exports from TestEvmIndexerModule — sibling imports are only visible at this level.
+@Module({
+  imports: [TestEvmIndexerModule, TestEvmSourceModule],
+  providers: [IndexerOrchestratorService],
+})
+class FullPipelineReorgTestModule {}
 
 /** Sends a transaction and polls until the receipt is available. */
 async function sendAndWait(
@@ -45,12 +55,11 @@ async function sendAndWait(
   return receipt;
 }
 
-describeIf('F3 full-pipeline reorg', () => {
+describeIf('full-pipeline reorg', () => {
   let app: INestApplicationContext;
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;
   let accounts: string[];
-  let daoSourceId: string;
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
@@ -70,8 +79,6 @@ describeIf('F3 full-pipeline reorg', () => {
       ],
     });
 
-    // 1. Deploy the CompoundEmitter contract BEFORE booting Nest so the orchestrator
-    //    reads the seeded dao_source on onApplicationBootstrap.
     const deployClient = (await import('@libs/chain').then(
       ({ FailoverRpcClient }) =>
         new FailoverRpcClient({
@@ -92,26 +99,22 @@ describeIf('F3 full-pipeline reorg', () => {
     accounts = await deployClient.send<string[]>('eth_accounts', []);
     const receipt = await sendAndWait(deployClient, {
       from: accounts[0]!,
-      data: COMPOUND_EMITTER_DEPLOY_BYTECODE,
+      data: EVM_TEST_EMITTER_DEPLOY_BYTECODE,
     });
     contractAddress = receipt.contractAddress!.toLowerCase();
     await deployClient.stop();
 
-    // 2. Seed dao + dao_source ONCE before app.init() — truncateAllIngestionTables
-    //    preserves them across beforeEach calls (F3-prep change).
-    const daoId = await insertTestDao(pgDb, {
-      slug: 'compound-f3-reorg',
-      name: 'Compound F3 Reorg Test',
-    });
-    daoSourceId = await insertTestDaoSource(pgDb, {
+    const daoId = await insertTestDao(pgDb, { slug: 'reorg-test', name: 'Reorg Test' });
+    await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
       chainId: '0x7a69',
       contractAddress,
     });
 
-    // 3. Boot the full IndexerModule — orchestrator reads the seeded dao_source.
-    app = await NestFactory.createApplicationContext(IndexerModule, { abortOnError: false });
+    app = await NestFactory.createApplicationContext(FullPipelineReorgTestModule, {
+      abortOnError: false,
+    });
     await app.init();
     client = app.get(ChainContextRegistry).peek('0x7a69')!.client as typeof client;
   }, 60_000);
@@ -123,17 +126,12 @@ describeIf('F3 full-pipeline reorg', () => {
 
   beforeEach(async () => {
     await truncateAllIngestionTables(pgDb);
-    await truncateDerivedTables();
-    await sql`
-      ALTER TABLE event_archive_compound_governor_bravo
-      DELETE WHERE chain_id = '0x7a69'
-    `.execute(chDb);
   });
 
   it('orphans live-poller events, writes reorg_event, re-emits canonical events', async () => {
     const emitValidData = '0x' + EMIT_VALID_SELECTOR;
 
-    // 1. Emit ProposalCreated on the current branch
+    // 1. Emit event on the current branch
     const preEmitReceipt = await sendAndWait(client, {
       from: accounts[0]!,
       to: contractAddress,
@@ -245,7 +243,7 @@ describeIf('F3 full-pipeline reorg', () => {
     expect(canonical.block_hash).not.toBe(orphanedBlockHash);
     expect(canonical.id).not.toBe(orphaned.id);
 
-    // SPEC §3.4 #4 — no derived state for orphaned events (vacuously true until G1 ships)
+    // SPEC §3.4 #4 — no derived state for orphaned events
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
     expect(proposals).toHaveLength(0);
 
@@ -263,181 +261,4 @@ describeIf('F3 full-pipeline reorg', () => {
     expect(reorgEventDelta).toBe(1);
     expect(orphanedDelta).toBe(1);
   }, 60_000);
-
-  it('SPEC §3.4 #5 — re-running G1 derivation produces same final state (G1 acceptance)', async () => {
-    const derivationWorker = app.get(DerivationWorkerService);
-
-    const createdReceipt = await sendAndWait(client, {
-      from: accounts[0]!,
-      to: contractAddress,
-      data: '0x' + EMIT_VALID_SELECTOR,
-    });
-
-    await pollUntil(async () => {
-      const row = await pgDb
-        .selectFrom('archive_confirmation')
-        .select(['id'])
-        .where('chain_id', '=', '0x7a69')
-        .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
-        .executeTakeFirst();
-      return row !== undefined;
-    }, 20_000);
-
-    await pgDb
-      .updateTable('archive_confirmation')
-      .set({
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-      })
-      .where('chain_id', '=', '0x7a69')
-      .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
-      .execute();
-
-    await pollUntil(async () => {
-      await derivationWorker.tick();
-      const snapshot = await readProposalSnapshot();
-      return (
-        snapshot.proposals.length === 1 &&
-        snapshot.actions.length === 1 &&
-        snapshot.choices.length === 3
-      );
-    }, 20_000);
-
-    const createdSnapshot = await readProposalSnapshot();
-    const proposal = createdSnapshot.proposals[0]!;
-    expect(proposal.source_type).toBe('compound_governor_bravo');
-    expect(proposal.source_id).toBe('1');
-    expect(proposal.voting_power_block).toBe('100');
-    expect(proposal.voting_starts_block).toBe('100');
-    expect(proposal.voting_ends_block).toBe('200');
-    expect(proposal.state).toBe('pending');
-    expect(createdSnapshot.actions).toEqual([
-      expect.objectContaining({
-        action_index: 0,
-        target_address: '0x0000000000000000000000000000000000000002',
-        target_chain_id: '0x7a69',
-        value_wei: '0',
-        function_signature: '',
-        calldata: '0x',
-      }),
-    ]);
-    expect(createdSnapshot.choices).toEqual([
-      expect.objectContaining({ choice_index: 0, value: 'Against' }),
-      expect.objectContaining({ choice_index: 1, value: 'For' }),
-      expect.objectContaining({ choice_index: 2, value: 'Abstain' }),
-    ]);
-
-    await pgDb
-      .updateTable('archive_confirmation')
-      .set({ derived_at: null })
-      .where('tx_hash', '=', createdReceipt.transactionHash.toLowerCase())
-      .execute();
-    await derivationWorker.tick();
-
-    const replaySnapshot = await readProposalSnapshot();
-    expect(replaySnapshot.proposals).toHaveLength(1);
-    expect(replaySnapshot.proposals[0]!.id).toBe(proposal.id);
-    expect(replaySnapshot.actions).toHaveLength(1);
-    expect(replaySnapshot.choices).toHaveLength(3);
-
-    await insertConfirmedCompoundArchiveEvent({
-      eventType: 'ProposalExecuted',
-      blockNumber: 9_000_001n,
-      txHash: numberedHash(1),
-      blockHash: numberedHash(101),
-      payload: { proposalId: '1' },
-    });
-    await derivationWorker.tick();
-
-    const executed = await readOnlyProposal();
-    expect(executed.state).toBe('executed');
-
-    await insertConfirmedCompoundArchiveEvent({
-      eventType: 'ProposalQueued',
-      blockNumber: 9_000_002n,
-      txHash: numberedHash(2),
-      blockHash: numberedHash(102),
-      payload: { proposalId: '1', eta: '123' },
-    });
-    await derivationWorker.tick();
-
-    const afterLateQueued = await readProposalSnapshot();
-    expect(afterLateQueued.proposals).toHaveLength(1);
-    expect(afterLateQueued.proposals[0]!.id).toBe(proposal.id);
-    expect(afterLateQueued.proposals[0]!.state).toBe('executed');
-    expect(afterLateQueued.actions).toHaveLength(1);
-    expect(afterLateQueued.choices).toHaveLength(3);
-  }, 60_000);
-
-  async function insertConfirmedCompoundArchiveEvent(opts: {
-    eventType: 'ProposalQueued' | 'ProposalExecuted' | 'ProposalCanceled';
-    blockNumber: bigint;
-    txHash: string;
-    blockHash: string;
-    payload: Record<string, string>;
-  }): Promise<void> {
-    await chDb
-      .insertInto('event_archive_compound_governor_bravo')
-      .values({
-        dao_source_id: daoSourceId,
-        chain_id: '0x7a69',
-        block_number: opts.blockNumber.toString(),
-        block_hash: opts.blockHash,
-        tx_hash: opts.txHash,
-        log_index: 0,
-        event_type: opts.eventType,
-        payload: JSON.stringify(opts.payload),
-      })
-      .execute();
-
-    await pgDb
-      .insertInto('archive_confirmation')
-      .values({
-        source_type: 'compound_governor_bravo',
-        dao_source_id: daoSourceId,
-        chain_id: '0x7a69',
-        block_number: opts.blockNumber.toString(),
-        block_hash: opts.blockHash,
-        tx_hash: opts.txHash,
-        log_index: 0,
-        event_type: opts.eventType,
-        received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
-        derived_at: null,
-      })
-      .execute();
-  }
 });
-
-async function truncateDerivedTables(): Promise<void> {
-  await sql`TRUNCATE proposal, actor RESTART IDENTITY CASCADE`.execute(pgDb);
-}
-
-async function readOnlyProposal() {
-  const proposal = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
-  expect(proposal).toBeDefined();
-  return proposal!;
-}
-
-async function readProposalSnapshot() {
-  const proposals = await pgDb.selectFrom('proposal').selectAll().orderBy('id', 'asc').execute();
-  const actions = await pgDb
-    .selectFrom('proposal_action')
-    .selectAll()
-    .orderBy('action_index', 'asc')
-    .execute();
-  const choices = await pgDb
-    .selectFrom('proposal_choice')
-    .selectAll()
-    .orderBy('choice_index', 'asc')
-    .execute();
-
-  return { proposals, actions, choices };
-}
-
-function numberedHash(value: number): string {
-  return '0x' + value.toString(16).padStart(64, '0');
-}

@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import type { SourcePlugin } from '@sources/core';
+import { ChainContextModule } from '@nest/chain';
 import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
-import { ChainContextModule } from '../orchestrator/chain-context.module';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';

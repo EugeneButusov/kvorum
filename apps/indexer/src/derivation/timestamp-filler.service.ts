@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { ChainContextRegistry, type ChainContext } from '@libs/chain';
 import {
   ProposalRepository,
   type PendingTimestampFillRow,
   type TimestampFillInput,
 } from '@libs/db';
 import { derivationMetrics } from './derivation-metrics';
-import { ChainContextRegistry, type ChainContext } from '../orchestrator/chain-context-registry';
 
 const TIMESTAMP_FILL_INTERVAL_MS = readIntervalMs('TIMESTAMP_FILL_INTERVAL_MS', 15_000);
 const DEFAULT_TIMESTAMP_FILL_BATCH_SIZE = 25;
