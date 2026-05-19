@@ -1,8 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { parseChainConfigFromEnv } from '@libs/chain';
-import { ChainContextRegistry } from '@libs/chain';
+import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
@@ -17,6 +16,7 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
+  ChainContextRegistry: vi.fn(),
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
@@ -55,6 +55,7 @@ function makeSource(id: string, sourceType: string, primaryChainId: string, sour
 function makeFakePlugin(sourceType: string, parseOk = true): SourcePlugin {
   return {
     sourceType,
+    supportedChainIds: ['0x1', '0x89', '0x999'],
     parseConfig: (raw: unknown) => {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
@@ -197,6 +198,24 @@ describe('IndexerOrchestratorService', () => {
     const svc = module.get(IndexerOrchestratorService);
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
+    expect(driver.start).not.toHaveBeenCalled();
+  });
+
+  it('#5b — unsupported chain for plugin: source skipped, driver.start() not called', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x89'), // polygon, not supported
+    ]);
+
+    const driver = makeFakeDriver();
+    const plugin: SourcePlugin = {
+      ...makeFakePlugin('compound_governor_bravo'),
+      supportedChainIds: ['0x1'],
+    };
+    const module = await buildModule([plugin], driver);
+    const svc = module.get(IndexerOrchestratorService);
+
+    await svc.onApplicationBootstrap();
     expect(driver.start).not.toHaveBeenCalled();
   });
 

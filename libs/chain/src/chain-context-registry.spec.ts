@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChainContextRegistry } from './chain-context-registry.js';
 
 vi.mock('./client/failover-rpc-client.js', () => ({ FailoverRpcClient: vi.fn() }));
 vi.mock('./poller/head-tracker.js', () => ({ HeadTracker: vi.fn() }));
 vi.mock('./reorg/reorg-detector.js', () => ({ ReorgDetector: vi.fn() }));
 vi.mock('./proxy/proxy-resolver.js', () => ({ ProxyResolver: vi.fn() }));
 
+import { ChainContextRegistry } from './chain-context-registry.js';
 import { FailoverRpcClient } from './client/failover-rpc-client.js';
 import { HeadTracker } from './poller/head-tracker.js';
 import { ReorgDetector } from './reorg/reorg-detector.js';

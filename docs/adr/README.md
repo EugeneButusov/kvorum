@@ -35,6 +35,8 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-045](0045-drop-metric-name-prefix.md)              | Drop `OTEL_SERVICE_NAMESPACE` metric-name prefix                                  | Accepted                      | 3.12, 6.20, 7.4                         |
 | [ADR-046](0046-backfill-cutoff-two-reorg-horizons.md)   | Backfill confirmation cutoff uses `2 × reorg_horizon`                             | Accepted                      | 3.10, 3.4                               |
 | [ADR-047](0047-backfill-process-signal-cancellation.md) | Backfill cancellation is process-local via SIGINT/SIGTERM                         | Accepted                      | 6.20.1                                  |
+| [ADR-048](0048-compound-governor-alpha.md)              | Index Compound Governor Alpha as `compound_governor_alpha`                        | Accepted                      | 2.4.4, 3.3, 3.10                        |
+| [ADR-049](0049-onchain-state-reconciliation.md)         | On-chain state reconciliation for event-silent governor transitions               | Accepted                      | 2.4.4, 3.10, 3.12                       |
 
 ## Status legend
 

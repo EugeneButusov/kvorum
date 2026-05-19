@@ -6,14 +6,14 @@ import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 import { ArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
 
-// Ethereum mainnet — the only chain where Compound Governor contracts are deployed.
-export const SUPPORTED_CHAIN_IDS = ['0x1'] as const;
-
 const DaoSourceConfigSchema = z.object({
   governor_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 
 export type CompoundGovernorConfig = z.infer<typeof DaoSourceConfigSchema>;
+
+// Ethereum mainnet — the only chain where Compound Governor contracts are deployed.
+export const SUPPORTED_CHAIN_IDS = ['0x1'] as const;
 
 export interface CompoundGovernorPluginDeps {
   archiveWriter: ArchiveWriter;
@@ -27,6 +27,7 @@ function createPlugin(
 ): SourcePlugin<CompoundGovernorConfig> {
   return {
     sourceType,
+    supportedChainIds: SUPPORTED_CHAIN_IDS,
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (ctx, cfg) => ({
       kind: 'evm-event-poller',

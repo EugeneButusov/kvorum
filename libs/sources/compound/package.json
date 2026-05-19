@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",
     "build": "tsc -p tsconfig.lib.json",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "lint": "eslint src"
   }
 }
