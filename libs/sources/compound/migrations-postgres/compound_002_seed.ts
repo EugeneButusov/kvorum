@@ -22,7 +22,9 @@ export const GOVERNOR_OZ_DEPLOY_BLOCK = 21688680;
 export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     INSERT INTO source_type (value)
-    VALUES ('compound_governor_oz')
+    VALUES ('compound_governor_oz'),
+           ('compound_governor_bravo_reconcile'),
+           ('compound_governor_oz_reconcile')
     ON CONFLICT (value) DO NOTHING
   `.execute(db);
 
@@ -74,6 +76,22 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     WHERE slug = 'compound'
     ON CONFLICT (dao_id, source_type) DO NOTHING
   `.execute(db);
+
+  await sql`
+    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    SELECT dao_id, 'compound_governor_bravo_reconcile', source_config, active_from_block
+    FROM dao_source
+    WHERE source_type = 'compound_governor_bravo'
+    ON CONFLICT (dao_id, source_type) DO NOTHING
+  `.execute(db);
+
+  await sql`
+    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    SELECT dao_id, 'compound_governor_oz_reconcile', source_config, active_from_block
+    FROM dao_source
+    WHERE source_type = 'compound_governor_oz'
+    ON CONFLICT (dao_id, source_type) DO NOTHING
+  `.execute(db);
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
@@ -82,7 +100,9 @@ export async function down(db: Kysely<unknown>): Promise<void> {
     WHERE source_type IN (
       'compound_governor_alpha',
       'compound_governor_bravo',
-      'compound_governor_oz'
+      'compound_governor_oz',
+      'compound_governor_bravo_reconcile',
+      'compound_governor_oz_reconcile'
     )
       AND dao_id = (SELECT id FROM dao WHERE slug = 'compound')
   `.execute(db);
