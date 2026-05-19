@@ -4,6 +4,7 @@ import { ChainContextRegistry, parseChainConfigFromEnv, chainMetrics } from '@li
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
+import { CompoundReconcileService } from '@nest/compound';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
@@ -22,6 +23,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     private readonly confirmationRepo: ConfirmationRepository,
     private readonly registry: ChainContextRegistry,
     private readonly reorgWatcher: ReorgWatcherService,
+    private readonly compoundReconcile: CompoundReconcileService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -114,6 +116,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     for (const chainCtx of this.registry.allActive()) {
       this.reorgWatcher.watch(chainCtx);
     }
+    this.compoundReconcile.startListening();
 
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
       chainMetrics.indexerActiveSources.record(count, { source_type: sourceType });

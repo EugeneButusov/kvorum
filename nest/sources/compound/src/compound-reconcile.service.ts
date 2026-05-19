@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import type { OnApplicationShutdown } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
   SUPPORTED_CHAIN_IDS,
@@ -12,7 +12,7 @@ import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 @Injectable()
-export class CompoundReconcileService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class CompoundReconcileService implements OnApplicationShutdown {
   private readonly driver: CompoundReconcileDriver;
   private readonly unsubscribers: Array<() => void> = [];
 
@@ -28,13 +28,15 @@ export class CompoundReconcileService implements OnApplicationBootstrap, OnAppli
     );
   }
 
-  async onApplicationBootstrap(): Promise<void> {
+  startListening(): void {
     const recheckGapSeconds = Number(
       process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'] ?? 7_200,
     );
-    for (const chainId of SUPPORTED_CHAIN_IDS) {
-      const ctx = this.registry.peek(chainId);
-      if (!ctx) continue;
+    for (const ctx of this.registry.allActive()) {
+      if (
+        !SUPPORTED_CHAIN_IDS.includes(ctx.chainCfg.chainId as (typeof SUPPORTED_CHAIN_IDS)[number])
+      )
+        continue;
       const blocksPerMinute = ctx.chainCfg.blocksPerMinute ?? 5;
       const recheckGapBlocks = Math.ceil((recheckGapSeconds / 60) * blocksPerMinute);
       const unsub = ctx.headTracker.onHead((head) => {
