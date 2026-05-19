@@ -6,9 +6,11 @@ import {
   CompoundProposalRepository,
   EventRepository,
   createCompoundPlugins,
+  createCompoundGovernorBravoReconcilePlugin,
+  createCompoundGovernorOzReconcilePlugin,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
-import { CompoundReconcileService } from './compound-reconcile.service';
+import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
@@ -38,24 +40,39 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       },
     },
     {
+      provide: CompoundProposalRepository,
+      useFactory: () => new CompoundProposalRepository(pgDb),
+    },
+    {
       provide: COMPOUND_PLUGINS,
-      useFactory: (archiveWriter: ArchiveWriter, dlqRepo: DlqRepository): SourcePlugin[] => {
+      useFactory: (
+        archiveWriter: ArchiveWriter,
+        dlqRepo: DlqRepository,
+        proposalRepo: CompoundProposalRepository,
+      ): SourcePlugin[] => {
+        const reconcileLogger = toChainLogger(new Logger('CompoundReconcile'));
+        const metrics = buildDriverMetrics();
         return [
           ...createCompoundPlugins({
             archiveWriter,
             dlqRepo,
             logger: toChainLogger(new Logger('CompoundGovernor')),
           }),
+          createCompoundGovernorBravoReconcilePlugin({
+            proposals: proposalRepo,
+            metrics,
+            logger: reconcileLogger,
+          }),
+          createCompoundGovernorOzReconcilePlugin({
+            proposals: proposalRepo,
+            metrics,
+            logger: reconcileLogger,
+          }),
         ];
       },
-      inject: [ArchiveWriter, DlqRepository],
+      inject: [ArchiveWriter, DlqRepository, CompoundProposalRepository],
     },
-    {
-      provide: CompoundProposalRepository,
-      useFactory: () => new CompoundProposalRepository(pgDb),
-    },
-    CompoundReconcileService,
   ],
-  exports: [COMPOUND_PLUGINS, CompoundReconcileService],
+  exports: [COMPOUND_PLUGINS],
 })
 export class CompoundSourceModule {}

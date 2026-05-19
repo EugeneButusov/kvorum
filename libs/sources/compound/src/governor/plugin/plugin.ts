@@ -6,7 +6,7 @@ import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 import { ArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
 
-const DaoSourceConfigSchema = z.object({
+export const DaoSourceConfigSchema = z.object({
   governor_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 

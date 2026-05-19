@@ -61,6 +61,8 @@ export {
   createCompoundGovernorAlphaPlugin,
   createCompoundGovernorOzPlugin,
   createCompoundPlugins,
+  createCompoundGovernorBravoReconcilePlugin,
+  createCompoundGovernorOzReconcilePlugin,
 } from './governor/index';
 
 export type {
@@ -93,4 +95,5 @@ export type {
   ReconcileStateInput,
   ReconcileBound,
   ReconcileDriverMetrics,
+  CompoundReconcilePluginDeps,
 } from './governor/index';

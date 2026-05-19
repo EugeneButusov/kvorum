@@ -78,6 +78,11 @@ export { makeIngesterListener } from './ingestion/ingester-listener';
 export { CompoundStateReconciler } from './reconcile/compound-state-reconciler';
 export type { ReconcileBound, ReconcileDriverMetrics } from './reconcile/compound-reconcile-driver';
 export { CompoundReconcileDriver } from './reconcile/compound-reconcile-driver';
+export type { CompoundReconcilePluginDeps } from './reconcile/compound-reconcile-plugin';
+export {
+  createCompoundGovernorBravoReconcilePlugin,
+  createCompoundGovernorOzReconcilePlugin,
+} from './reconcile/compound-reconcile-plugin';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
