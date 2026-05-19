@@ -12,7 +12,6 @@ import { decodeHead } from './utils/decode.utils.js';
  *  (E4's parent-hash compare is in-memory) and ordering simplifies E4's reasoning. */
 export class HeadTracker extends AbstractPoller {
   private readonly listeners: Set<HeadListener> = new Set();
-  private readonly rawListeners: Set<(head: Head) => void | Promise<void>> = new Set();
   private lastHead: Head | null = null;
   private lastSuccessAt: Date | null = null;
 
@@ -33,15 +32,6 @@ export class HeadTracker extends AbstractPoller {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
-    };
-  }
-
-  /** Internal hook for ReorgDetector — receives the raw Head object before the public
-   *  HeadListener fan-out. Not part of the public API. */
-  _onHeadRaw(listener: (head: Head) => void | Promise<void>): () => void {
-    this.rawListeners.add(listener);
-    return () => {
-      this.rawListeners.delete(listener);
     };
   }
 
@@ -117,17 +107,9 @@ export class HeadTracker extends AbstractPoller {
       resolve(head);
     }
 
-    for (const rawListener of this.rawListeners) {
-      try {
-        await rawListener(head);
-      } catch (err) {
-        this.logger.error(`[chain:${chain}] HeadTracker raw listener threw: ${String(err)}`);
-      }
-    }
-
     for (const listener of this.listeners) {
       try {
-        await listener({ chainCfg, headBlock: head.blockNumber, client: rpcClient });
+        await listener({ head, chainCfg, headBlock: head.blockNumber, client: rpcClient });
       } catch (err) {
         this.logger.error(`[chain:${chain}] HeadTracker listener threw: ${String(err)}`);
       }

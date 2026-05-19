@@ -64,6 +64,7 @@ export interface HeadTrackerOptions {
 
 export type EventsListener<T = LogEvent> = (evs: T[]) => void | Promise<void>;
 export type HeadListener = (args: {
+  head: Head;
   chainCfg: ChainConfig;
   headBlock: bigint;
   client: RpcClient;
