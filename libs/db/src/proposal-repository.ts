@@ -102,18 +102,20 @@ export class ProposalRepository {
     const allowedCurrentStates: readonly ProposalState[] =
       input.targetState === 'queued' ? ['pending'] : ['pending', 'queued'];
 
-    const result = await this.db
+    const query = this.db
       .updateTable('proposal')
-      .set({
-        state: input.targetState,
-        state_updated_at: input.stateUpdatedAt,
-        updated_at: sql`now()`,
-      })
       .where('dao_id', '=', input.daoId)
       .where('source_type', '=', input.sourceType)
       .where('source_id', '=', input.sourceId)
       .where('state', 'not in', ['executed', 'canceled'])
-      .where('state', 'in', allowedCurrentStates)
+      .where('state', 'in', allowedCurrentStates);
+
+    const result = await query
+      .set({
+        state: input.targetState,
+        state_updated_at: input.stateUpdatedAt,
+        updated_at: sql<Date>`now()`,
+      })
       .executeTakeFirst();
 
     return Number(result?.numUpdatedRows ?? 0n);

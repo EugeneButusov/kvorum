@@ -420,6 +420,12 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../../libs/db
+      '@libs/observability':
+        specifier: workspace:*
+        version: link:../../../libs/observability
+      '@nest/chain':
+        specifier: workspace:*
+        version: link:../../chain
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)

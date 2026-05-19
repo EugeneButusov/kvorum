@@ -187,12 +187,12 @@ describe('FailoverRpcClient.send() (with FakeProvider)', () => {
 
   it('(d) 429 → next provider, breaker tick', async () => {
     // ethers v6 converts 429 → TIMEOUT code (retries internally until per-attempt timeout fires).
-    // Use a short per-attempt timeout (200ms) so p1 fails fast even with ethers retry backoff,
-    // leaving ample time in the 3s overall deadline for p2.
+    // Use a short per-attempt timeout (200ms) so p1 fails fast, and a generous overall deadline
+    // so slow CI runners don't exhaust the budget before p2 gets a turn.
     fakes[0]!.returnError(429);
     fakes[1]!.returnSuccess('0x5');
 
-    const { client } = await makeClient(fakes, {}, 200);
+    const { client } = await makeClient(fakes, { overallTimeoutMs: 8_000 }, 200);
     const result = await client.send('eth_blockNumber', []);
     expect(result).toBe('0x5');
 

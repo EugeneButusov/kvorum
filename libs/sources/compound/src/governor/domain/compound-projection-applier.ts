@@ -20,6 +20,7 @@ import {
   CompoundArchivePayloadRepository,
   type CompoundArchivePayloadRow,
 } from '../persistence/compound-archive-payload-repository';
+import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 
 export type CompoundDerivationOutcome =
   | 'derived'
@@ -51,6 +52,7 @@ export interface CompoundProjectionApplierDeps {
 interface CompoundProjectionRepositories {
   actors: ActorRepository;
   proposals: ProposalRepository;
+  compoundProposals: CompoundProposalRepository;
   archive: ArchiveDerivationRepository;
 }
 
@@ -132,10 +134,11 @@ export class CompoundProjectionApplier {
         dao_source_id: row.dao_source_id,
         source_type: row.source_type,
         chain_id: row.chain_id,
+        block_number: row.block_number,
         confirmed_at: row.confirmed_at,
       });
 
-      await this.transaction(async ({ actors, proposals, archive }) => {
+      await this.transaction(async ({ actors, proposals, compoundProposals, archive }) => {
         const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
         if (daoId === undefined) {
           throw new Error(`unknown dao_source ${projection.daoSourceId}`);
@@ -164,6 +167,14 @@ export class CompoundProjectionApplier {
             targetState: projection.targetState,
             stateUpdatedAt: projection.stateUpdatedAt,
           });
+          if (advanced > 0 && projection.queuedAtBlock !== undefined) {
+            await compoundProposals.upsertQueuedAtBlock(
+              daoId,
+              projection.sourceType,
+              projection.sourceId,
+              projection.queuedAtBlock,
+            );
+          }
           this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
         }
 
@@ -192,6 +203,7 @@ export class CompoundProjectionApplier {
       fn({
         actors: new ActorRepository(tx),
         proposals: new ProposalRepository(tx),
+        compoundProposals: new CompoundProposalRepository(tx),
         archive: new ArchiveDerivationRepository(tx),
       }),
     );

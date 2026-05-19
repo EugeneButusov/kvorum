@@ -21,6 +21,20 @@ export type {
 export { DecodeError } from './domain/types';
 
 export { decodeCompoundLog } from './abi/decoder';
+export {
+  GOVERNOR_STATE_INTERFACE,
+  TIMELOCK_INTERFACE,
+  GovernorStateDecodeError,
+  encodeStateCall,
+  decodeStateResult,
+  encodeTimelockCall,
+  decodeTimelockResult,
+  encodeGracePeriodCall,
+  decodeGracePeriodResult,
+  encodeDelayCall,
+  decodeDelayResult,
+  mapGovernorStateCode,
+} from './abi/governor-state';
 export { extractCompoundTitle } from './domain/title-extractor';
 export type {
   CompoundProjectionArchiveRow,
@@ -42,6 +56,13 @@ export { CompoundProjectionApplier } from './domain/compound-projection-applier'
 export type { CompoundArchivePayloadRow } from './persistence/compound-archive-payload-repository';
 export { CompoundArchivePayloadRepository } from './persistence/compound-archive-payload-repository';
 
+export type {
+  ReconcilePerChainBound,
+  StaleReconciliationRow,
+  ReconcileStateInput,
+} from './persistence/compound-proposal-repository';
+export { CompoundProposalRepository } from './persistence/compound-proposal-repository';
+
 export type { EventData, EventRepositoryDeps } from './persistence/event-repository.types';
 export { EventRepository } from './persistence/event-repository';
 
@@ -54,9 +75,13 @@ export { ArchiveWriter } from './ingestion/archive-writer';
 
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';
 export { makeIngesterListener } from './ingestion/ingester-listener';
+export { CompoundStateReconciler } from './reconcile/compound-state-reconciler';
+export type { ReconcileBound, ReconcileDriverMetrics } from './reconcile/compound-reconcile-driver';
+export { CompoundReconcileDriver } from './reconcile/compound-reconcile-driver';
 
 export type { CompoundGovernorConfig, CompoundGovernorPluginDeps } from './plugin/plugin';
 export {
+  SUPPORTED_CHAIN_IDS,
   createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
   createCompoundPlugins,

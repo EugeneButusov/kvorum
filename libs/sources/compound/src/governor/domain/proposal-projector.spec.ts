@@ -14,6 +14,7 @@ const ARCHIVE_ROW: CompoundProjectionArchiveRow = {
   dao_source_id: 'dao-source-1',
   source_type: 'compound_governor_bravo',
   chain_id: '0x1',
+  block_number: '12345',
   confirmed_at: CONFIRMED_AT,
 };
 
@@ -100,6 +101,7 @@ describe('projectCompoundProposalEvent', () => {
       sourceId: '42',
       targetState,
       stateUpdatedAt: CONFIRMED_AT,
+      queuedAtBlock: targetState === 'queued' ? '12345' : undefined,
     });
   });
 

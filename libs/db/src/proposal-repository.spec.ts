@@ -235,6 +235,11 @@ describe('ProposalRepository', () => {
     });
 
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
+    expect(update.set).toHaveBeenCalledWith({
+      state: 'queued',
+      state_updated_at: new Date('2026-01-01T00:00:00Z'),
+      updated_at: expect.anything(),
+    });
   });
 
   it('finds proposals pending lazy timestamp fill', async () => {

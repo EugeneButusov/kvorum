@@ -10,13 +10,7 @@ import { FailoverRpcClient } from './client/failover-rpc-client.js';
 import { HeadTracker } from './poller/head-tracker.js';
 import { ReorgDetector } from './reorg/reorg-detector.js';
 
-const CHAIN_CFG = {
-  chainId: '0x1',
-  name: 'ethereum',
-  reorgHorizon: 12,
-  providers: [],
-};
-
+const CHAIN_CFG = { chainId: '0x1', name: 'ethereum', reorgHorizon: 12, providers: [] };
 const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: '0x89', name: 'polygon' };
 
 function makeClient() {

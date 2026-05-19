@@ -21,6 +21,7 @@ vi.mock('@libs/chain', () => ({
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
   },
+  ChainContextRegistry: vi.fn(),
 }));
 
 vi.mock('@libs/db', () => ({
