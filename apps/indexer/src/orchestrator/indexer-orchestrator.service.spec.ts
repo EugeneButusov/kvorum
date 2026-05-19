@@ -54,6 +54,7 @@ function makeSource(id: string, sourceType: string, primaryChainId: string, sour
 function makeFakePlugin(sourceType: string, parseOk = true): SourcePlugin {
   return {
     sourceType,
+    supportedChainIds: ['0x1', '0x89', '0x999'],
     parseConfig: (raw: unknown) => {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
