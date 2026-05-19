@@ -164,7 +164,11 @@ describe('CompoundProjectionApplier', () => {
       metrics: makeMetrics(),
     });
 
-    expect(applier.sourceTypes).toEqual(['compound_governor_bravo', 'compound_governor_alpha']);
+    expect(applier.sourceTypes).toEqual([
+      'compound_governor_bravo',
+      'compound_governor_alpha',
+      'compound_governor_oz',
+    ]);
   });
 
   it('projects ProposalCreated inside one transaction and marks archive row derived', async () => {

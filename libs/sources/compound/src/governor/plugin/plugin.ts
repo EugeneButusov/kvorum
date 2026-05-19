@@ -57,11 +57,18 @@ export function createCompoundGovernorAlphaPlugin(
   return createPlugin('compound_governor_alpha', deps);
 }
 
+export function createCompoundGovernorOzPlugin(
+  deps: CompoundGovernorPluginDeps,
+): SourcePlugin<CompoundGovernorConfig> {
+  return createPlugin('compound_governor_oz', deps);
+}
+
 export function createCompoundPlugins(
   deps: CompoundGovernorPluginDeps,
-): readonly [SourcePlugin<CompoundGovernorConfig>, SourcePlugin<CompoundGovernorConfig>] {
+): readonly SourcePlugin<CompoundGovernorConfig>[] {
   return [
     createCompoundGovernorBravoPlugin(deps),
     createCompoundGovernorAlphaPlugin(deps),
+    createCompoundGovernorOzPlugin(deps),
   ] as const;
 }

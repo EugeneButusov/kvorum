@@ -59,6 +59,7 @@ export {
   SUPPORTED_CHAIN_IDS,
   createCompoundGovernorBravoPlugin,
   createCompoundGovernorAlphaPlugin,
+  createCompoundGovernorOzPlugin,
   createCompoundPlugins,
 } from './governor/index';
 

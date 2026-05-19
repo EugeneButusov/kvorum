@@ -36,7 +36,7 @@ Add a confirmed-head-driven proposal state reconciler that performs bounded on-c
 
 4. Add reconcile watermarking (`last_reconcile_check_block`) to bound re-check frequency and prevent starvation from permanently reselected rows.
 
-5. Keep source applicability data-driven via `source_type.reconcilable`.
+5. Keep source applicability explicit in the reconciler `sourceTypes` list.
 
 6. Persist `timelock_eta` from `ProposalQueued` projection so `expired` timestamps derive from on-chain ETA + validated grace.
 
@@ -56,7 +56,7 @@ Add a confirmed-head-driven proposal state reconciler that performs bounded on-c
 - `expired` uses `timelock_eta + GRACE_PERIOD`
 - authoritative-event states are never overwritten by reconciler guesses.
 - RPC cost is bounded by watermark gap and batch size, with explicit observability (`state_reconcile_*` metrics).
-- `compound_governor_alpha` remains excluded by reference-data (`reconcilable=false`) per ADR-048.
+- `compound_governor_alpha` remains excluded from reconciliation; `compound_governor_bravo` and `compound_governor_oz` are included.
 
 ## Alternatives considered
 

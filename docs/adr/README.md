@@ -37,6 +37,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-047](0047-backfill-process-signal-cancellation.md) | Backfill cancellation is process-local via SIGINT/SIGTERM                         | Accepted                      | 6.20.1                                  |
 | [ADR-048](0048-compound-governor-alpha.md)              | Index Compound Governor Alpha as `compound_governor_alpha`                        | Accepted                      | 2.4.4, 3.3, 3.10                        |
 | [ADR-049](0049-onchain-state-reconciliation.md)         | On-chain state reconciliation for event-silent governor transitions               | Accepted                      | 2.4.4, 3.10, 3.12                       |
+| [ADR-050](0050-compound-governor-oz.md)                 | Index Compound Governor OZ as `compound_governor_oz`                              | Accepted                      | 2.4.4, 3.3, 3.10                        |
 
 ## Status legend
 
