@@ -84,7 +84,7 @@ describe('CompoundReconcileService', () => {
 
     await vi.waitFor(() => expect(repo.findStaleForReconciliation).toHaveBeenCalled());
     expect(repo.findStaleForReconciliation).toHaveBeenCalledWith(
-      ['compound_governor_bravo'],
+      ['compound_governor_bravo', 'compound_governor_oz'],
       [
         expect.objectContaining({
           chainId: '0x1',
