@@ -32,14 +32,14 @@ function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
 }
 
-function makeBound(chainId = '0x1', confirmedThresholdBlock = '1988') {
+function makeBound(chainId = '0x1', confirmedThresholdBlock = '1988', recheckGapBlocks = 600) {
   const send = vi.fn(async (method: string) => {
     if (method === 'eth_call')
       return '0x0000000000000000000000000000000000000000000000000000000000000003';
     if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' };
     return null;
   });
-  return { chainId, confirmedThresholdBlock, client: { send } };
+  return { chainId, confirmedThresholdBlock, recheckGapBlocks, client: { send } };
 }
 
 function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -116,8 +116,14 @@ describe('CompoundReconcileDriver', () => {
 
     expect(proposals.findStaleForReconciliation).toHaveBeenCalledWith(
       ['compound_governor_bravo'],
-      [{ chainId: '0x1', confirmedThresholdBlock: '1988', client: bound.client }],
-      expect.any(Number),
+      [
+        {
+          chainId: '0x1',
+          confirmedThresholdBlock: '1988',
+          recheckGapBlocks: 600,
+          client: bound.client,
+        },
+      ],
       expect.any(Number),
     );
   });

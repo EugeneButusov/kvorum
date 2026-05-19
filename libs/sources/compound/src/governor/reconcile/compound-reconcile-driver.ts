@@ -5,6 +5,7 @@ import type { CompoundProposalRepository } from '../persistence/compound-proposa
 export interface ReconcileBound {
   chainId: string;
   confirmedThresholdBlock: string;
+  recheckGapBlocks: number;
   client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
 }
 
@@ -41,13 +42,9 @@ export class CompoundReconcileDriver {
       if (bounds.length === 0) return;
 
       const batchSize = Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50);
-      const recheckGapBlocks = Number(
-        process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 600,
-      );
       const rows = await this.proposals.findStaleForReconciliation(
         [this.reconciler.sourceType],
         bounds,
-        recheckGapBlocks,
         batchSize,
       );
       this.metrics.recordBacklog(rows.length);

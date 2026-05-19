@@ -29,15 +29,21 @@ export class CompoundReconcileService implements OnApplicationBootstrap, OnAppli
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    const recheckGapSeconds = Number(
+      process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'] ?? 7_200,
+    );
     for (const chainId of SUPPORTED_CHAIN_IDS) {
       const ctx = this.registry.peek(chainId);
       if (!ctx) continue;
+      const blocksPerMinute = ctx.chainCfg.blocksPerMinute ?? 5;
+      const recheckGapBlocks = Math.ceil((recheckGapSeconds / 60) * blocksPerMinute);
       const unsub = ctx.headTracker.onHead((head) => {
         const horizon = BigInt(ctx.chainCfg.reorgHorizon);
         if (head.blockNumber < horizon) return;
         const bound: ReconcileBound = {
           chainId: ctx.chainCfg.chainId,
           confirmedThresholdBlock: (head.blockNumber - horizon).toString(),
+          recheckGapBlocks,
           client: ctx.client,
         };
         void this.driver.onConfirmedHeads([bound]);

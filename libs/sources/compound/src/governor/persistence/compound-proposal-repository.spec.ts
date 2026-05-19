@@ -27,7 +27,7 @@ function makeDb(executeResult: unknown[] = []) {
   return { db, chain };
 }
 
-const BOUND = { chainId: '0x1', confirmedThresholdBlock: '1000' };
+const BOUND = { chainId: '0x1', confirmedThresholdBlock: '1000', recheckGapBlocks: 600 };
 
 describe('CompoundProposalRepository', () => {
   describe('findStaleForReconciliation', () => {
@@ -35,7 +35,7 @@ describe('CompoundProposalRepository', () => {
       const { db } = makeDb();
       const repo = new CompoundProposalRepository(db as never);
 
-      const result = await repo.findStaleForReconciliation([], [BOUND], 100, 50);
+      const result = await repo.findStaleForReconciliation([], [BOUND], 50);
 
       expect(result).toEqual([]);
       expect(db.selectFrom).not.toHaveBeenCalled();
@@ -45,12 +45,7 @@ describe('CompoundProposalRepository', () => {
       const { db } = makeDb();
       const repo = new CompoundProposalRepository(db as never);
 
-      const result = await repo.findStaleForReconciliation(
-        ['compound_governor_bravo'],
-        [],
-        100,
-        50,
-      );
+      const result = await repo.findStaleForReconciliation(['compound_governor_bravo'], [], 50);
 
       expect(result).toEqual([]);
       expect(db.selectFrom).not.toHaveBeenCalled();
@@ -60,12 +55,7 @@ describe('CompoundProposalRepository', () => {
       const { db } = makeDb();
       const repo = new CompoundProposalRepository(db as never);
 
-      const result = await repo.findStaleForReconciliation(
-        ['compound_governor_bravo'],
-        [BOUND],
-        100,
-        0,
-      );
+      const result = await repo.findStaleForReconciliation(['compound_governor_bravo'], [BOUND], 0);
 
       expect(result).toEqual([]);
       expect(db.selectFrom).not.toHaveBeenCalled();
@@ -79,7 +69,6 @@ describe('CompoundProposalRepository', () => {
       const result = await repo.findStaleForReconciliation(
         ['compound_governor_bravo'],
         [BOUND],
-        7_200,
         50,
       );
 

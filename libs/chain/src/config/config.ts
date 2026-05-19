@@ -27,6 +27,7 @@ const ChainConfigSchema = z.object({
   chainId: z.string().min(1).transform(normalizeChainId),
   name: z.string().min(1),
   reorgHorizon: z.number().int().positive(),
+  blocksPerMinute: z.number().positive().optional(),
   lagThresholdBlocks: z.number().int().positive().optional(),
   overallTimeoutMs: z.number().int().positive().optional(),
   headPollIntervalMs: z.number().int().positive().optional(),

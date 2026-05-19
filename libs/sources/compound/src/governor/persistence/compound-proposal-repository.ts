@@ -5,6 +5,7 @@ import './schema';
 export interface ReconcilePerChainBound {
   chainId: string;
   confirmedThresholdBlock: string;
+  recheckGapBlocks: number;
 }
 
 export interface StaleReconciliationRow {
@@ -32,7 +33,6 @@ export class CompoundProposalRepository {
   async findStaleForReconciliation(
     sourceTypes: readonly string[],
     perChainBounds: readonly ReconcilePerChainBound[],
-    recheckGapBlocks: number,
     limit: number,
   ): Promise<StaleReconciliationRow[]> {
     if (sourceTypes.length === 0 || perChainBounds.length === 0 || limit <= 0) return [];
@@ -69,7 +69,7 @@ export class CompoundProposalRepository {
                 eb(
                   'compound_proposal_meta.last_reconcile_check_block',
                   '<',
-                  String(BigInt(bound.confirmedThresholdBlock) - BigInt(recheckGapBlocks)),
+                  String(BigInt(bound.confirmedThresholdBlock) - BigInt(bound.recheckGapBlocks)),
                 ),
               ]),
               eb.or([
