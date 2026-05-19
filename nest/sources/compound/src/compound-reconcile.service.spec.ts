@@ -85,8 +85,13 @@ describe('CompoundReconcileService', () => {
     await vi.waitFor(() => expect(repo.findStaleForReconciliation).toHaveBeenCalled());
     expect(repo.findStaleForReconciliation).toHaveBeenCalledWith(
       ['compound_governor_bravo'],
-      [expect.objectContaining({ chainId: '0x1', confirmedThresholdBlock: '1988' })],
-      expect.any(Number),
+      [
+        expect.objectContaining({
+          chainId: '0x1',
+          confirmedThresholdBlock: '1988',
+          recheckGapBlocks: expect.any(Number),
+        }),
+      ],
       expect.any(Number),
     );
   });
