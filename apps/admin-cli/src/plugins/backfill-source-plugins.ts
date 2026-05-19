@@ -1,5 +1,4 @@
 import type { Logger } from '@libs/chain';
-import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
   ArchiveWriter,
@@ -7,9 +6,8 @@ import {
   createCompoundPlugins,
   type CompoundGovernorConfig,
   type CompoundGovernorPluginDeps,
-  makeIngesterListener,
 } from '@sources/compound';
-import type { SourcePlugin } from '@sources/core';
+import type { BackfillRuntime, SourcePlugin } from '@sources/core';
 
 export type BackfillSourcePlugin = SourcePlugin<CompoundGovernorConfig>;
 
@@ -26,12 +24,6 @@ export function resolveBackfillSourcePlugin(
   return plugins.find((plugin) => plugin.sourceType === sourceType);
 }
 
-export interface BuildBackfillSourcePluginDeps {
-  archiveWriter: ArchiveWriter;
-  dlqRepo: DlqRepository;
-  logger: Logger;
-}
-
 export interface BackfillSourceRuntimeInput {
   daoSourceId: string;
   sourceType: SourceType;
@@ -40,16 +32,7 @@ export interface BackfillSourceRuntimeInput {
   logger: Logger;
 }
 
-export interface BackfillSourceRuntime {
-  filter: LogFilter;
-  listenerFactory: (
-    classifier: Parameters<typeof makeIngesterListener>[0]['context']['confirmationClassifier'],
-  ) => EventsListener<LogEvent>;
-}
-
-export function buildBackfillSourceRuntime(
-  input: BackfillSourceRuntimeInput,
-): BackfillSourceRuntime {
+export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): BackfillRuntime {
   const archiveWriter = new ArchiveWriter({
     eventRepo: new EventRepository({ chDb }),
     confirmationRepo: new ConfirmationRepository(pgDb),
@@ -64,7 +47,7 @@ export function buildBackfillSourceRuntime(
   }
 
   const parsedConfig = plugin.parseConfig(input.sourceConfig);
-  const ingestSpec = plugin.buildIngestSpec(
+  return plugin.buildBackfillRuntime(
     {
       daoSourceId: input.daoSourceId,
       sourceType: input.sourceType,
@@ -73,30 +56,4 @@ export function buildBackfillSourceRuntime(
     },
     parsedConfig,
   );
-
-  if (ingestSpec.kind !== 'evm-event-poller') {
-    throw new Error(
-      `backfill does not support IngestSpec.kind="${ingestSpec.kind}" for source_type="${input.sourceType}"`,
-    );
-  }
-
-  return {
-    filter: ingestSpec.filter,
-    listenerFactory: (classifier) =>
-      makeIngesterListener(
-        {
-          archiveWriter,
-          context: {
-            daoSourceId: input.daoSourceId,
-            sourceType: input.sourceType,
-            chainId: input.chainId,
-            sourceLabel: input.sourceType,
-            confirmationClassifier: classifier,
-          },
-          logger: input.logger,
-          dlqRepo,
-        },
-        { onWriteFailure: 'throw' },
-      ),
-  };
 }

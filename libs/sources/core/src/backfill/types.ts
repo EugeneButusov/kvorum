@@ -15,3 +15,10 @@ export type BackfillOutcome =
   | { status: 'completed'; fromBlock: bigint; toBlock: bigint }
   | { status: 'cancelled'; resumeFromBlock: bigint | null }
   | { status: 'error'; error: unknown; resumeFromBlock: bigint | null };
+
+export interface BackfillRuntime {
+  filter: import('@libs/chain').LogFilter;
+  listenerFactory: (
+    classifier: (blockNumber: bigint) => 'confirmed' | 'pending',
+  ) => import('@libs/chain').EventsListener<import('@libs/chain').LogEvent>;
+}

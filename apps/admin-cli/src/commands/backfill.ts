@@ -3,6 +3,8 @@ import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
+import { chainMetrics, silentLogger } from '@libs/chain';
+import { pgDb } from '@libs/db';
 
 type BackfillCommonOptions = {
   format?: string;
@@ -11,6 +13,11 @@ type BackfillCommonOptions = {
 type BackfillStartOptions = BackfillCommonOptions & {
   fromBlock?: string;
   toBlock?: string;
+  dryRun?: boolean;
+};
+
+type BackfillCatchUpOptions = BackfillCommonOptions & {
+  confirm?: boolean;
   dryRun?: boolean;
 };
 
@@ -27,16 +34,15 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          {
-            FailoverRpcClient,
-            normalizeChainId,
-            parseChainConfigFromEnv,
-            silentLogger,
-            consoleLogger,
-          },
+          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
+        const {
+          BackfillAlreadyStartedError,
+          BackfillDriver,
+          BackfillNotResumableError,
+          withDaoSourceAdvisoryLock,
+        } = core;
 
         const { daoSourceRepository } = buildContainer();
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -136,13 +142,33 @@ export function registerBackfill(program: Command): void {
                 logger: progressLogger,
               });
 
-              const outcome = await driver.run({
+              const lockResult = await withDaoSourceAdvisoryLock({
+                db: pgDb,
                 daoSourceId: row.id,
-                fromBlock: resolvedFromBlock,
-                toBlock: toBlock ?? undefined,
-                mode,
-                signal: controller.signal,
+                run: async () =>
+                  driver.run({
+                    daoSourceId: row.id,
+                    fromBlock: resolvedFromBlock,
+                    toBlock: toBlock ?? undefined,
+                    mode,
+                    signal: controller.signal,
+                  }),
               });
+
+              if (lockResult.status === 'contended') {
+                chainMetrics.ingestionGapFillSkipped.add(1, {
+                  reason: 'lock_contended',
+                  dao_source: row.id,
+                  chain: chainConfig.name,
+                });
+                fail(
+                  format,
+                  ExitCode.RuntimeFailure,
+                  `backfill lock is contended for dao_source ${row.id}`,
+                );
+              }
+
+              const outcome = lockResult.value;
 
               if (outcome.status === 'completed') {
                 await daoSourceRepository.clearBackfillState(row.id);
@@ -165,6 +191,114 @@ export function registerBackfill(program: Command): void {
               process.off('SIGINT', onSignal);
               process.off('SIGTERM', onSignal);
             }
+          });
+        } finally {
+          await rpcClient.stop();
+        }
+      });
+    });
+
+  backfill
+    .command('catch-up <source_type>')
+    .description('Run startup-style gap fill for an existing DAO source')
+    .option('--confirm', 'confirm execution (required unless --dry-run)')
+    .option('--dry-run', 'show computed gap without running backfill')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(sourceType: string, opts: BackfillCatchUpOptions) {
+      await withBackfillFormat(this, opts, async (format) => {
+        const [
+          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
+          core,
+        ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
+        const { withDaoSourceAdvisoryLock, runStartupGapFill, computeGap } = core;
+        const { daoSourceRepository } = buildContainer();
+
+        const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
+        if (row == null) {
+          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
+        }
+
+        const chainConfigs = parseChainConfigFromEnv(process.env);
+        const targetChainId = normalizeChainId(row.primary_chain_id);
+        const chainConfig = chainConfigs.find(
+          (chain) => normalizeChainId(chain.chainId) === targetChainId,
+        );
+        if (chainConfig == null) {
+          fail(
+            format,
+            ExitCode.RuntimeFailure,
+            `CHAIN_CONFIG does not contain chain ${targetChainId}`,
+          );
+        }
+
+        const runtime = buildBackfillSourceRuntime({
+          daoSourceId: row.id,
+          sourceType: row.source_type,
+          sourceConfig: row.source_config,
+          chainId: chainConfig.chainId,
+          logger: silentLogger,
+        });
+
+        const rpcClient = new FailoverRpcClient(chainConfig, { logger: consoleLogger });
+        await rpcClient.start();
+        try {
+          const headBlock = BigInt(await rpcClient.send<string>('eth_blockNumber', []));
+          const gap = computeGap({
+            row: {
+              active_from_block: row.active_from_block,
+              backfill_head_block: row.backfill_head_block,
+              live_head_block: row.live_head_block,
+            },
+            headBlock,
+            reorgHorizon: chainConfig.reorgHorizon,
+          });
+
+          if (opts.dryRun === true || opts.confirm !== true) {
+            emit(format, () => `Gap check for ${sourceType}: ${renderGap(gap)}`, {
+              source_type: sourceType,
+              dao_source_id: row.id,
+              dry_run: opts.dryRun === true,
+              gap,
+            });
+            if (opts.dryRun !== true && opts.confirm !== true) {
+              fail(format, ExitCode.ValidationFailure, 'backfill catch-up requires --confirm');
+            }
+            return;
+          }
+
+          await withAudit('backfill catch-up', { sourceType, ...opts }, async () => {
+            const lockResult = await withDaoSourceAdvisoryLock({
+              db: pgDb,
+              daoSourceId: row.id,
+              run: async () =>
+                runStartupGapFill({
+                  daoSourceId: row.id,
+                  chainConfig,
+                  rpcClient,
+                  daoSourceRepo: daoSourceRepository,
+                  runtime,
+                  logger: consoleLogger,
+                }),
+            });
+
+            if (lockResult.status === 'contended') {
+              chainMetrics.ingestionGapFillSkipped.add(1, {
+                reason: 'lock_contended',
+                dao_source: row.id,
+                chain: chainConfig.name,
+              });
+              fail(
+                format,
+                ExitCode.RuntimeFailure,
+                `backfill lock is contended for dao_source ${row.id}`,
+              );
+            }
+
+            emit(format, () => `Catch-up ${lockResult.value.status} for ${sourceType}`, {
+              source_type: sourceType,
+              dao_source_id: row.id,
+              ...lockResult.value,
+            });
           });
         } finally {
           await rpcClient.stop();
@@ -272,6 +406,17 @@ function parseBigintOrZero(value: string | null): bigint {
     return 0n;
   }
   return BigInt(value);
+}
+
+function renderGap(
+  gap:
+    | { kind: 'gap'; gapStart: bigint; gapEnd: bigint }
+    | { kind: 'none' }
+    | { kind: 'skip'; reason: string },
+): string {
+  if (gap.kind === 'gap') return `gap ${gap.gapStart.toString()}..${gap.gapEnd.toString()}`;
+  if (gap.kind === 'none') return 'no gap';
+  return `skipped (${gap.reason})`;
 }
 
 async function withBackfillFormat(

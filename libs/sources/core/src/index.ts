@@ -19,12 +19,23 @@ export { ChainNotReadyError } from './calldata/types';
 export { makeCutoffClassifier } from './backfill/cutoff-classifier';
 export { BackfillDriver } from './backfill/backfill-driver';
 export type { BackfillDriverDeps } from './backfill/backfill-driver';
-export type { BackfillMode, BackfillRunInput, BackfillOutcome } from './backfill/types';
+export type {
+  BackfillMode,
+  BackfillRunInput,
+  BackfillOutcome,
+  BackfillRuntime,
+} from './backfill/types';
+export { computeGap } from './backfill/gap-detector';
+export type { GapComputationResult, GapRangeInput } from './backfill/gap-detector';
+export { withDaoSourceAdvisoryLock } from './backfill/dao-source-lock';
+export { runStartupGapFill } from './backfill/startup-gap-fill';
+export type { StartupGapFillInput, StartupGapFillResult } from './backfill/startup-gap-fill';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
+import type { BackfillRuntime } from './backfill/types';
 
 /** Nest injection token for the multi-provider array of registered SourcePlugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
@@ -35,6 +46,7 @@ export interface SourcePlugin<TConfig = unknown> {
   readonly supportedChainIds: readonly string[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
+  buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
 }
 
 export type IngestSpec =

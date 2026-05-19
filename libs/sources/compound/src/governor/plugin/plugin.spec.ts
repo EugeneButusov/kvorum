@@ -127,6 +127,17 @@ describe('createCompoundGovernorBravoPlugin', () => {
       expect(spy).toHaveBeenCalledWith(expect.any(Object), { onWriteFailure: 'throw' });
     });
   });
+
+  it('#8.2 — buildBackfillRuntime returns evm log filter + listenerFactory', () => {
+    const plugin = makePlugin();
+    const cfg = plugin.parseConfig({
+      governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',
+    });
+    const runtime = plugin.buildBackfillRuntime(CTX, cfg);
+
+    expect(runtime.filter.address).toBe('0xc0da02939e1441f497fd74f78ce7decb17b66529');
+    expect(typeof runtime.listenerFactory).toBe('function');
+  });
 });
 
 describe('createCompoundGovernorAlphaPlugin', () => {

@@ -4,6 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
+import { withDaoSourceAdvisoryLock, runStartupGapFill } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -27,6 +28,13 @@ vi.mock('@libs/chain', () => ({
 vi.mock('@libs/db', () => ({
   DaoSourceRepository: vi.fn(),
   ConfirmationRepository: vi.fn(),
+  pgDb: {},
+}));
+
+vi.mock('@sources/core', () => ({
+  SOURCE_PLUGINS: 'SOURCE_PLUGINS',
+  withDaoSourceAdvisoryLock: vi.fn(),
+  runStartupGapFill: vi.fn(),
 }));
 
 vi.mock('./reorg-watcher.service', () => ({
@@ -60,6 +68,10 @@ function makeFakePlugin(sourceType: string, parseOk = true): SourcePlugin {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
     },
+    buildBackfillRuntime: () => ({
+      filter: { address: '0xabc', topics: [] },
+      listenerFactory: () => vi.fn(),
+    }),
     buildIngestSpec: (_ctx: SourceContext, _cfg: unknown): IngestSpec => ({
       kind: 'evm-event-poller',
       filter: { address: '0xabc', topics: [] },
@@ -94,6 +106,7 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 const mockDaoSourceRepo = { findAll: vi.fn() };
 const mockConfirmationRepo = { countPendingBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
+  getOrCreate: vi.fn().mockResolvedValue({ client: { send: vi.fn() } }),
   allActive: vi.fn().mockReturnValue([]),
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
@@ -126,8 +139,16 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
 beforeEach(() => {
   vi.clearAllMocks();
   mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
+  mockRegistry.getOrCreate.mockResolvedValue({
+    client: { send: vi.fn().mockResolvedValue('0x10') },
+  });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
+  vi.mocked(withDaoSourceAdvisoryLock).mockResolvedValue({
+    status: 'executed',
+    value: { status: 'no_gap' },
+  } as never);
+  vi.mocked(runStartupGapFill).mockResolvedValue({ status: 'no_gap' } as never);
 });
 
 describe('IndexerOrchestratorService', () => {
@@ -356,6 +377,10 @@ describe('IndexerOrchestratorService', () => {
       sourceType: 'compound_governor_bravo_reconcile',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
+      buildBackfillRuntime: () => ({
+        filter: { address: '0xabc', topics: [] },
+        listenerFactory: () => vi.fn(),
+      }),
       buildIngestSpec: (): IngestSpec => ({
         kind: 'evm-block-head-poller',
         listener: vi.fn(),
@@ -404,6 +429,10 @@ describe('IndexerOrchestratorService', () => {
       sourceType: 'compound_governor_bravo',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
+      buildBackfillRuntime: () => ({
+        filter: { address: '0xabc', topics: [] },
+        listenerFactory: () => vi.fn(),
+      }),
       buildIngestSpec: (): IngestSpec => ({
         kind: 'evm-event-poller',
         filter: { address: '0x0', topics: [] },

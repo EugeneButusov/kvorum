@@ -40,6 +40,14 @@ export const chainMetrics = {
     name: 'ingestion_live_watermark_skipped',
     description: 'Count of live watermark writes skipped because one or more listeners failed.',
   }),
+  ingestionGapFillFailed: defineCounter({
+    name: 'ingestion_gap_fill_failed',
+    description: 'Count of startup/manual gap-fill failures by reason.',
+  }),
+  ingestionGapFillSkipped: defineCounter({
+    name: 'ingestion_gap_fill_skipped',
+    description: 'Count of startup/manual gap fills skipped by reason.',
+  }),
   reorgSignals: defineCounter({
     name: 'ingestion_reorg_signals',
     description:

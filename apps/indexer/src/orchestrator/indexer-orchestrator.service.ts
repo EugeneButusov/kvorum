@@ -1,9 +1,14 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { ChainContextRegistry, parseChainConfigFromEnv, chainMetrics } from '@libs/chain';
+import {
+  ChainContextRegistry,
+  parseChainConfigFromEnv,
+  chainMetrics,
+  silentLogger,
+} from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
-import type { SourcePlugin } from '@sources/core';
+import { ConfirmationRepository, DaoSourceRepository, pgDb } from '@libs/db';
+import { withDaoSourceAdvisoryLock, runStartupGapFill, type SourcePlugin } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
@@ -14,6 +19,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private readonly handles: FetchDriverHandle[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
   private activeSourceTypes: Set<string> = new Set();
+  private shutdownController = new AbortController();
 
   constructor(
     @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
@@ -89,6 +95,52 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           chainId: entry.src.primary_chain_id,
           sourceLabel: entry.sourceType,
         };
+        const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
+        const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
+        const lockResult = await withDaoSourceAdvisoryLock({
+          db: pgDb,
+          daoSourceId: entry.src.id,
+          run: async () =>
+            runStartupGapFill({
+              daoSourceId: entry.src.id,
+              chainConfig: entry.chainCfg,
+              rpcClient: chainCtx.client,
+              daoSourceRepo: this.daoSourceRepo,
+              runtime,
+              logger: silentLogger,
+              signal: this.shutdownController.signal,
+            }),
+        });
+
+        if (lockResult.status === 'contended') {
+          chainMetrics.ingestionGapFillSkipped.add(1, {
+            chain: entry.chainCfg.name,
+            dao_source: entry.src.id,
+            reason: 'lock_contended',
+          });
+        } else if (lockResult.value.status === 'skipped') {
+          chainMetrics.ingestionGapFillSkipped.add(1, {
+            chain: entry.chainCfg.name,
+            dao_source: entry.src.id,
+            reason: lockResult.value.reason,
+          });
+        } else if (lockResult.value.status === 'error') {
+          chainMetrics.ingestionGapFillFailed.add(1, {
+            chain: entry.chainCfg.name,
+            dao_source: entry.src.id,
+            reason: 'error',
+          });
+        } else if (lockResult.value.status === 'cancelled') {
+          chainMetrics.ingestionGapFillFailed.add(1, {
+            chain: entry.chainCfg.name,
+            dao_source: entry.src.id,
+            reason: 'shutdown',
+          });
+          if (this.shutdownController.signal.aborted) {
+            break;
+          }
+        }
+
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
         const driver = driversByKind.get(spec.kind);
         if (!driver) {
@@ -137,6 +189,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.shutdownController.abort('shutdown');
     await this.drain();
   }
 

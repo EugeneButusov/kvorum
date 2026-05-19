@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
-import type { SourcePlugin } from '@sources/core';
+import type { BackfillRuntime, SourcePlugin } from '@sources/core';
 import { COMPOUND_EVENT_TOPICS } from '../abi/events';
 import { ArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
@@ -25,26 +25,39 @@ function createPlugin(
   sourceType: SourceType,
   deps: CompoundGovernorPluginDeps,
 ): SourcePlugin<CompoundGovernorConfig> {
-  return {
-    sourceType,
-    supportedChainIds: SUPPORTED_CHAIN_IDS,
-    parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
-    buildIngestSpec: (ctx, cfg) => ({
-      kind: 'evm-event-poller',
-      filter: {
-        address: cfg.governor_address.toLowerCase(),
-        topics: [Object.values(COMPOUND_EVENT_TOPICS)],
-      },
-      listener: makeIngesterListener(
+  const buildBackfillRuntime = (
+    ctx: Parameters<SourcePlugin<CompoundGovernorConfig>['buildIngestSpec']>[0],
+    cfg: CompoundGovernorConfig,
+  ): BackfillRuntime => ({
+    filter: {
+      address: cfg.governor_address.toLowerCase(),
+      topics: [Object.values(COMPOUND_EVENT_TOPICS)],
+    },
+    listenerFactory: (classifier) =>
+      makeIngesterListener(
         {
           archiveWriter: deps.archiveWriter,
-          context: ctx,
+          context: { ...ctx, confirmationClassifier: classifier },
           logger: deps.logger,
           dlqRepo: deps.dlqRepo,
         },
         { onWriteFailure: 'throw' },
       ),
-    }),
+  });
+
+  return {
+    sourceType,
+    supportedChainIds: SUPPORTED_CHAIN_IDS,
+    parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
+    buildIngestSpec: (ctx, cfg) => {
+      const runtime = buildBackfillRuntime(ctx, cfg);
+      return {
+        kind: 'evm-event-poller',
+        filter: runtime.filter,
+        listener: runtime.listenerFactory(() => 'pending'),
+      };
+    },
+    buildBackfillRuntime,
   };
 }
 

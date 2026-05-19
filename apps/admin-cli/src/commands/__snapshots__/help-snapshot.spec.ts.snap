@@ -63,11 +63,13 @@ exports[`admin-cli help snapshots > backfill --help 1`] = `
 Backfill management
 
 Options:
-  -h, --help                     display help for command
+  -h, --help                        display help for command
 
 Commands:
-  start [options] <source_type>  Start a backfill for a DAO source
-  help [command]                 display help for command
+  start [options] <source_type>     Start a backfill for a DAO source
+  catch-up [options] <source_type>  Run startup-style gap fill for an existing
+                                    DAO source
+  help [command]                    display help for command
 "
 `;
 

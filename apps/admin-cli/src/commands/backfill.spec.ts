@@ -5,16 +5,19 @@ describe('resolveBackfillSourcePlugin', () => {
   const bravoPlugin = {
     sourceType: 'compound_governor_bravo',
     parseConfig: vi.fn(),
+    buildBackfillRuntime: vi.fn(),
     buildIngestSpec: vi.fn(),
   };
   const alphaPlugin = {
     sourceType: 'compound_governor_alpha',
     parseConfig: vi.fn(),
+    buildBackfillRuntime: vi.fn(),
     buildIngestSpec: vi.fn(),
   };
   const ozPlugin = {
     sourceType: 'compound_governor_oz',
     parseConfig: vi.fn(),
+    buildBackfillRuntime: vi.fn(),
     buildIngestSpec: vi.fn(),
   };
 
