@@ -13,7 +13,7 @@ The contract is an OZ-based governor, but for M1 lifecycle events (`ProposalCrea
 
 Add a new source type `compound_governor_oz` and reuse existing Compound M1 primitives:
 
-1. Add Postgres migration `compound_003_governor_oz.ts` to seed:
+1. Extend Postgres seed migration `compound_002_seed.ts` to seed:
 
 - `source_type.value = 'compound_governor_oz'`
 - `dao_source` row for `compound` with `governor_address=0x309a...c8C0` and `active_from_block=21688680`
