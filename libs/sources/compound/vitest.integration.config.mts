@@ -3,20 +3,21 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libs/sources/compound',
+  cacheDir: '../../../node_modules/.vite/libs/sources/compound-integration',
   plugins: [tsconfigPaths()],
   test: {
-    name: 'sources-compound',
+    name: 'sources-compound-integration',
     watch: false,
     globals: true,
     environment: 'node',
+    pool: 'forks',
+    fileParallelism: false,
     setupFiles: ['./vitest.setup.ts'],
-    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['tests/**/*.integration.spec.{ts,mts}'],
+    include: ['tests/**/*.integration.spec.{ts,mts}'],
     passWithNoTests: true,
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/libs/sources/compound',
+      reportsDirectory: '../../../coverage/libs/sources/compound-integration',
       provider: 'v8' as const,
     },
   },
