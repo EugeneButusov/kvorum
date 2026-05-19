@@ -2,10 +2,10 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ChainContextRegistry } from '@libs/chain';
 import { chDb, pgDb } from '@libs/db';
 import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
 import { IndexerModule } from '../../src/indexer/indexer.module';
-import { ChainContextRegistry } from '@libs/chain';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
