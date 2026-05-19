@@ -27,8 +27,7 @@ export class ChainContextRegistry {
 
     const headTracker = new HeadTracker({
       rpcClient: client,
-      chainId: chainCfg.chainId,
-      chainName: chainCfg.name,
+      chainCfg,
       pollIntervalMs: headPollIntervalMs,
       stopTimeoutMs: 5_000,
     });

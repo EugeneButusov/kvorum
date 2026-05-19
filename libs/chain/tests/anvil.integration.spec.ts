@@ -12,7 +12,7 @@ import { FailoverRpcClient } from '../src/client/failover-rpc-client.js';
 import type { ChainConfig } from '../src/config/config.js';
 import { EventPoller } from '../src/poller/event-poller.js';
 import { HeadTracker } from '../src/poller/head-tracker.js';
-import type { LogEvent, Head } from '../src/poller/types.js';
+import type { LogEvent } from '../src/poller/types.js';
 import { buildIdempotencyKey } from '../src/poller/utils/idempotency.utils.js';
 import { ProxyResolver } from '../src/proxy/proxy-resolver.js';
 import { ReorgDetector } from '../src/reorg/reorg-detector.js';
@@ -161,15 +161,14 @@ describeIf('Anvil integration', () => {
   it('E3d-3: HeadTracker resolves awaitFirstHead() and emits heads', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: '0x7a69',
-      chainName: 'anvil',
+      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
     });
 
-    const heads: Head[] = [];
-    tracker.onHead((h) => {
-      heads.push(h);
+    let headCount = 0;
+    tracker.onHead(() => {
+      headCount++;
     });
 
     const firstHeadPromise = tracker.awaitFirstHead();
@@ -194,7 +193,7 @@ describeIf('Anvil integration', () => {
     await new Promise<void>((r) => setTimeout(r, 500));
     await tracker.stop();
 
-    expect(heads.length).toBeGreaterThanOrEqual(1);
+    expect(headCount).toBeGreaterThanOrEqual(1);
   }, 15_000);
 
   // E4-anvil-1 — ProxyResolver: deploy a mock proxy with EIP-1967 slot, verify resolution
@@ -252,8 +251,7 @@ describeIf('Anvil integration', () => {
 
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: '0x7a69',
-      chainName: 'anvil',
+      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 5_000,
     });
@@ -274,8 +272,8 @@ describeIf('Anvil integration', () => {
     detector.onBufferReset((s) => {
       resetSignals.push(s);
     });
-    tracker.onHead((h) => {
-      seenHeads.push(h.blockNumber);
+    tracker.onHead(({ headBlock }) => {
+      seenHeads.push(headBlock);
     });
 
     detector.attach(tracker);
@@ -338,8 +336,7 @@ describeIf('Anvil integration', () => {
   it('E3d-4: head_block_age_seconds metric is set after first tick and stays reasonable', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainId: '0x7a69',
-      chainName: 'anvil',
+      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
     });

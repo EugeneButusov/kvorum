@@ -1,3 +1,4 @@
+import type { ChainConfig } from '../config/config.js';
 import type { RpcClient } from '../client/rpc-client.js';
 import type { Logger } from '../logger.js';
 
@@ -55,12 +56,15 @@ export interface EventPollerOptions {
 
 export interface HeadTrackerOptions {
   rpcClient: RpcClient;
-  chainId: string;
-  chainName: string;
+  chainCfg: ChainConfig;
   pollIntervalMs?: number;
   stopTimeoutMs?: number;
   logger?: Logger;
 }
 
 export type EventsListener<T = LogEvent> = (evs: T[]) => void | Promise<void>;
-export type HeadListener = (h: Head) => void | Promise<void>;
+export type HeadListener = (args: {
+  chainCfg: ChainConfig;
+  headBlock: bigint;
+  client: RpcClient;
+}) => void | Promise<void>;

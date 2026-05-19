@@ -16,13 +16,7 @@ export class EvmBlockHeadPollerDriver implements FetchDriver<'evm-block-head-pol
   ): Promise<FetchDriverHandle> {
     const chainCtx = await this.registry.getOrCreate(chainCfg);
 
-    const unsub = chainCtx.headTracker.onHead((head) => {
-      spec.listener({
-        chainCfg,
-        headBlock: head.blockNumber,
-        client: chainCtx.client,
-      });
-    });
+    const unsub = chainCtx.headTracker.onHead(spec.listener);
 
     return {
       stop: async () => {

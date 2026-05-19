@@ -12,6 +12,7 @@ import { decodeHead } from './utils/decode.utils.js';
  *  (E4's parent-hash compare is in-memory) and ordering simplifies E4's reasoning. */
 export class HeadTracker extends AbstractPoller {
   private readonly listeners: Set<HeadListener> = new Set();
+  private readonly rawListeners: Set<(head: Head) => void | Promise<void>> = new Set();
   private lastHead: Head | null = null;
   private lastSuccessAt: Date | null = null;
 
@@ -20,7 +21,7 @@ export class HeadTracker extends AbstractPoller {
 
   constructor(private readonly opts: HeadTrackerOptions) {
     super({
-      chainName: opts.chainName,
+      chainName: opts.chainCfg.name,
       pollIntervalMs: opts.pollIntervalMs,
       stopTimeoutMs: opts.stopTimeoutMs,
       logger: opts.logger,
@@ -32,6 +33,15 @@ export class HeadTracker extends AbstractPoller {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  /** Internal hook for ReorgDetector — receives the raw Head object before the public
+   *  HeadListener fan-out. Not part of the public API. */
+  _onHeadRaw(listener: (head: Head) => void | Promise<void>): () => void {
+    this.rawListeners.add(listener);
+    return () => {
+      this.rawListeners.delete(listener);
     };
   }
 
@@ -69,7 +79,7 @@ export class HeadTracker extends AbstractPoller {
   }
 
   protected override async runTick(): Promise<void> {
-    const { rpcClient, chainId } = this.opts;
+    const { rpcClient, chainCfg } = this.opts;
     const chain = this.chainName;
 
     let raw: Record<string, unknown>;
@@ -87,7 +97,7 @@ export class HeadTracker extends AbstractPoller {
     let head: Head;
     const now = new Date();
     try {
-      head = decodeHead(raw, chainId, now);
+      head = decodeHead(raw, chainCfg.chainId, now);
     } catch (err) {
       this.logger.error(
         `[chain:${chain}] HeadTracker received malformed block response: ${String(err)}`,
@@ -107,9 +117,17 @@ export class HeadTracker extends AbstractPoller {
       resolve(head);
     }
 
+    for (const rawListener of this.rawListeners) {
+      try {
+        await rawListener(head);
+      } catch (err) {
+        this.logger.error(`[chain:${chain}] HeadTracker raw listener threw: ${String(err)}`);
+      }
+    }
+
     for (const listener of this.listeners) {
       try {
-        await listener(head);
+        await listener({ chainCfg, headBlock: head.blockNumber, client: rpcClient });
       } catch (err) {
         this.logger.error(`[chain:${chain}] HeadTracker listener threw: ${String(err)}`);
       }

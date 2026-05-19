@@ -57,7 +57,7 @@ export class ReorgDetector {
 
   /** Registers processHead as a HeadTracker listener. Returns the unsubscribe function. */
   attach(tracker: HeadTracker): () => void {
-    return tracker.onHead((h) => this.processHead(h));
+    return tracker._onHeadRaw((h) => this.processHead(h));
   }
 
   /** Number of entries currently in the sliding-window buffer. Useful for tests and
