@@ -16,7 +16,7 @@ export interface StaleReconciliationRow {
   state: ProposalState;
   voting_starts_block: string | null;
   voting_ends_block: string | null;
-  queued_block: string | null;
+  queued_at_block: string | null;
 }
 
 export interface ReconcileStateInput {
@@ -55,7 +55,7 @@ export class CompoundProposalRepository {
         'proposal.state',
         'proposal.voting_starts_block',
         'proposal.voting_ends_block',
-        'compound_proposal_meta.queued_block',
+        'compound_proposal_meta.queued_at_block',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'succeeded', 'queued'])
@@ -82,11 +82,15 @@ export class CompoundProposalRepository {
                   eb('proposal.state', '=', 'queued'),
                   eb.or([
                     eb.and([
-                      eb('compound_proposal_meta.queued_block', 'is not', null),
-                      eb('compound_proposal_meta.queued_block', '<', bound.confirmedThresholdBlock),
+                      eb('compound_proposal_meta.queued_at_block', 'is not', null),
+                      eb(
+                        'compound_proposal_meta.queued_at_block',
+                        '<',
+                        bound.confirmedThresholdBlock,
+                      ),
                     ]),
                     eb.and([
-                      eb('compound_proposal_meta.queued_block', 'is', null),
+                      eb('compound_proposal_meta.queued_at_block', 'is', null),
                       eb('proposal.voting_ends_block', 'is not', null),
                       eb('proposal.voting_ends_block', '<', bound.confirmedThresholdBlock),
                     ]),
@@ -132,17 +136,17 @@ export class CompoundProposalRepository {
     daoId: string,
     sourceType: string,
     sourceId: string,
-    queuedBlock: string,
+    queuedAtBlock: string,
   ): Promise<void> {
     await sql`
-      INSERT INTO compound_proposal_meta (proposal_id, queued_block)
-      SELECT id, ${sql.lit(queuedBlock)}
+      INSERT INTO compound_proposal_meta (proposal_id, queued_at_block)
+      SELECT id, ${sql.lit(queuedAtBlock)}
       FROM proposal
       WHERE dao_id = ${sql.lit(daoId)}
         AND source_type = ${sql.lit(sourceType)}
         AND source_id = ${sql.lit(sourceId)}
       ON CONFLICT (proposal_id)
-        DO UPDATE SET queued_block = excluded.queued_block
+        DO UPDATE SET queued_at_block = excluded.queued_at_block
     `.execute(this.db);
   }
 }

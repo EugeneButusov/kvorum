@@ -33,7 +33,7 @@ export interface ProposalStateTransitionProjection {
   sourceId: string;
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>;
   stateUpdatedAt: Date;
-  queuedBlock?: string;
+  queuedAtBlock?: string;
 }
 
 export type CompoundProposalProjection =
@@ -129,7 +129,7 @@ function projectStateTransition(
   targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>,
   archiveRow: CompoundProjectionArchiveRow,
   confirmedAt: Date,
-  queuedBlock?: string,
+  queuedAtBlock?: string,
 ): ProposalStateTransitionProjection {
   return {
     kind: 'proposal_state_transition',
@@ -139,7 +139,7 @@ function projectStateTransition(
     sourceId,
     targetState,
     stateUpdatedAt: confirmedAt,
-    queuedBlock,
+    queuedAtBlock,
   };
 }
 

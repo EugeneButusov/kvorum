@@ -44,7 +44,7 @@ export class CompoundStateReconciler {
           | 'already_consistent'
           | 'guard_skipped'
           | 'missed_event'
-          | 'expired_no_queued_block';
+          | 'expired_no_queued_at_block';
       }
   > {
     const { row, chainCtx, proposals, confirmedThreshold, confirmedThresholdTag } = args;
@@ -67,8 +67,8 @@ export class CompoundStateReconciler {
       });
       return { outcome: 'missed_event' };
     }
-    if (mapped === 'expired' && row.queued_block === null) {
-      return { outcome: 'expired_no_queued_block' };
+    if (mapped === 'expired' && row.queued_at_block === null) {
+      return { outcome: 'expired_no_queued_at_block' };
     }
 
     let stateUpdatedAt: Date | null = null;
@@ -79,15 +79,15 @@ export class CompoundStateReconciler {
       if (row.voting_starts_block === null) return { outcome: 'guard_skipped' };
       stateUpdatedAt = await this.readBlockTimestamp(chainCtx, row.voting_starts_block);
     } else if (mapped === 'expired') {
-      if (row.queued_block === null) return { outcome: 'expired_no_queued_block' };
+      if (row.queued_at_block === null) return { outcome: 'expired_no_queued_at_block' };
       const timelockParams = await this.resolveTimelockParams({
         chainId: chainCtx.chainCfg.chainId,
         governorAddress: row.governor_address,
         confirmedThresholdTag,
         chainCtx,
       });
-      if (timelockParams === null) return { outcome: 'expired_no_queued_block' };
-      const queuedTs = await this.readBlockTimestamp(chainCtx, row.queued_block);
+      if (timelockParams === null) return { outcome: 'expired_no_queued_at_block' };
+      const queuedTs = await this.readBlockTimestamp(chainCtx, row.queued_at_block);
       stateUpdatedAt = new Date(
         queuedTs.getTime() + (timelockParams.delay + timelockParams.gracePeriod) * 1000,
       );

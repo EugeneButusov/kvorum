@@ -52,7 +52,7 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
     state: 'pending',
     voting_starts_block: '100',
     voting_ends_block: '200',
-    queued_block: null,
+    queued_at_block: null,
     ...overrides,
   };
 }

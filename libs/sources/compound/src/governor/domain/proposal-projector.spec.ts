@@ -101,7 +101,7 @@ describe('projectCompoundProposalEvent', () => {
       sourceId: '42',
       targetState,
       stateUpdatedAt: CONFIRMED_AT,
-      queuedBlock: targetState === 'queued' ? '12345' : undefined,
+      queuedAtBlock: targetState === 'queued' ? '12345' : undefined,
     });
   });
 

@@ -167,12 +167,12 @@ export class CompoundProjectionApplier {
             targetState: projection.targetState,
             stateUpdatedAt: projection.stateUpdatedAt,
           });
-          if (advanced > 0 && projection.queuedBlock !== undefined) {
+          if (advanced > 0 && projection.queuedAtBlock !== undefined) {
             await compoundProposals.upsertQueuedBlock(
               daoId,
               projection.sourceType,
               projection.sourceId,
-              projection.queuedBlock,
+              projection.queuedAtBlock,
             );
           }
           this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);

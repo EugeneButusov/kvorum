@@ -21,7 +21,7 @@ export type NewEventArchiveCompoundGovernorBravo = Omit<
 
 export interface CompoundProposalMetaTable {
   proposal_id: string;
-  queued_block: string | null;
+  queued_at_block: string | null;
   last_reconcile_check_block: string | null;
 }
 

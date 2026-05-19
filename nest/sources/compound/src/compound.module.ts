@@ -58,6 +58,6 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
     },
     CompoundReconcileService,
   ],
-  exports: [COMPOUND_PLUGINS, CompoundProposalRepository],
+  exports: [COMPOUND_PLUGINS],
 })
 export class CompoundSourceModule {}

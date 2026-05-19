@@ -10,7 +10,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('proposal_id', 'uuid', (col) =>
       col.primaryKey().references('proposal.id').onDelete('cascade'),
     )
-    .addColumn('queued_block', 'bigint')
+    .addColumn('queued_at_block', 'bigint')
     .addColumn('last_reconcile_check_block', 'bigint')
     .execute();
 
