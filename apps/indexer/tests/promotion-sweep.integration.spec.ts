@@ -36,7 +36,7 @@ const CHAIN_CFG: ChainConfig = {
   ],
 };
 
-describeIf('F2-anvil-2 promotion sweep healthy chain', () => {
+describeIf('promotion sweep healthy chain', () => {
   let anvilCtx: AnvilTestContext;
   let sweepService: PromotionSweepService;
   let daoId: string;

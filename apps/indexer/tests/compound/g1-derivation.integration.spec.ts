@@ -49,7 +49,7 @@ const describeIf = ANVIL_URL && DB_URL ? describe : describe.skip;
     },
   ],
 })
-class G1DerivationTestModule {}
+class CompoundDerivationTestModule {}
 
 /** Sends a transaction and polls until the receipt is available. */
 async function sendAndWait(
@@ -71,7 +71,7 @@ async function sendAndWait(
   return receipt;
 }
 
-describeIf('G1 derivation — compound governor', () => {
+describeIf('derivation — compound governor', () => {
   let app: INestApplicationContext;
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;
@@ -123,7 +123,7 @@ describeIf('G1 derivation — compound governor', () => {
 
     const daoId = await insertTestDao(pgDb, {
       slug: 'compound-g1-derivation',
-      name: 'Compound G1 Derivation Test',
+      name: 'Compound Derivation Test',
     });
     daoSourceId = await insertTestDaoSource(pgDb, {
       daoId,
@@ -132,7 +132,7 @@ describeIf('G1 derivation — compound governor', () => {
       contractAddress,
     });
 
-    app = await NestFactory.createApplicationContext(G1DerivationTestModule, {
+    app = await NestFactory.createApplicationContext(CompoundDerivationTestModule, {
       abortOnError: false,
     });
     await app.init();
@@ -152,7 +152,7 @@ describeIf('G1 derivation — compound governor', () => {
     );
   });
 
-  it('SPEC §3.4 #5 — re-running G1 derivation produces same final state (G1 acceptance)', async () => {
+  it('SPEC §3.4 #5 — re-running derivation produces same final state (idempotency)', async () => {
     const derivationWorker = app.get(DerivationWorkerService);
 
     const createdReceipt = await sendAndWait(client, {

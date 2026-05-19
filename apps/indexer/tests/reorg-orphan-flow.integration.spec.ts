@@ -44,7 +44,7 @@ async function awaitHead(ctx: AnvilTestContext, target: bigint): Promise<void> {
   );
 }
 
-describeIf('F2-anvil-1 reorg orphan flow', () => {
+describeIf('reorg orphan flow', () => {
   let anvilCtx: AnvilTestContext;
   let reorgWatcher: ReorgWatcherService;
   let daoId: string;

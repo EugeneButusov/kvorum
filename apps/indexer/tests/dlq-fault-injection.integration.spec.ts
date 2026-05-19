@@ -42,7 +42,7 @@ async function sendAndWait(
   return receipt;
 }
 
-describeIf('F3 DLQ fault injection', () => {
+describeIf('DLQ fault injection', () => {
   let app: INestApplicationContext;
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;

@@ -48,7 +48,7 @@ async function sendAndWait(
   return receipt;
 }
 
-describeIf('F3 full-pipeline reorg', () => {
+describeIf('full-pipeline reorg', () => {
   let app: INestApplicationContext;
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;
@@ -236,7 +236,7 @@ describeIf('F3 full-pipeline reorg', () => {
     expect(canonical.block_hash).not.toBe(orphanedBlockHash);
     expect(canonical.id).not.toBe(orphaned.id);
 
-    // SPEC §3.4 #4 — no derived state for orphaned events (vacuously true until G1 ships)
+    // SPEC §3.4 #4 — no derived state for orphaned events
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
     expect(proposals).toHaveLength(0);
 
