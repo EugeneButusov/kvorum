@@ -178,6 +178,7 @@ describe('DaoSourceRepository', () => {
         active_from_block: null,
         backfill_started_at_block: '19000000',
         backfill_head_block: '19500000',
+        live_head_block: '19500012',
         primary_chain_id: '0x1',
       };
       const { selectFrom } = makeSelectTakeFirst(row);
@@ -199,6 +200,7 @@ describe('DaoSourceRepository', () => {
         expect.arrayContaining([
           'dao_source.backfill_started_at_block',
           'dao_source.backfill_head_block',
+          'dao_source.live_head_block',
           'dao_source.active_from_block',
         ]),
       );
@@ -243,12 +245,24 @@ describe('DaoSourceRepository', () => {
     });
   });
 
+  describe('updateLiveHead', () => {
+    it('#1 — sets live_head_block for the given id', async () => {
+      const { updateTable, chain } = makeUpdateChain();
+      const repo = new DaoSourceRepository({ updateTable } as never);
+      await repo.updateLiveHead('src-1', 19_500_012n);
+
+      expect(chain.set).toHaveBeenCalledWith({ live_head_block: '19500012' });
+      expect(chain.where).toHaveBeenCalledWith('dao_source.id', '=', 'src-1');
+    });
+  });
+
   describe('readBackfillStatus', () => {
     it('#1 — returns row with only checkpoint fields', async () => {
       const row = {
         id: 'src-1',
         backfill_started_at_block: '10',
         backfill_head_block: '9',
+        live_head_block: '12',
       };
       const { selectFrom, chain } = makeSelectTakeFirst(row);
       const repo = new DaoSourceRepository({ selectFrom } as never);
@@ -258,6 +272,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.id',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
+        'dao_source.live_head_block',
       ]);
     });
   });

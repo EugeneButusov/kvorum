@@ -254,6 +254,50 @@ describe('EventPoller', () => {
     });
   });
 
+  describe('onTickComplete', () => {
+    it('fires after a successful tick with head block', async () => {
+      fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
+      fake.returnSuccess([]);
+
+      const onTickComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      poller.onEvents(() => {});
+      await poller.start();
+      await poller.stop();
+
+      expect(onTickComplete).toHaveBeenCalledWith(16n);
+    });
+
+    it('does not fire when any listener rejects', async () => {
+      fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
+      fake.returnSuccess([]);
+
+      const onTickComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      poller.onEvents(async () => {
+        throw new Error('listener failed');
+      });
+      poller.onEvents(() => {});
+      await poller.start();
+      await poller.stop();
+
+      expect(onTickComplete).not.toHaveBeenCalled();
+    });
+
+    it('fires when no events are returned', async () => {
+      fake.enqueueSuccess('0x10').enqueueSuccess([]);
+      fake.returnSuccess([]);
+
+      const onTickComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      poller.onEvents(() => {});
+      await poller.start();
+      await poller.stop();
+
+      expect(onTickComplete).toHaveBeenCalledWith(16n);
+    });
+  });
+
   describe('re-entry guard', () => {
     it('skips overlapping ticks when previous is still in flight', async () => {
       let resolveFirst!: () => void;

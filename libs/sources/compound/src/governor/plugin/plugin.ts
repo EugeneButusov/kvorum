@@ -35,12 +35,15 @@ function createPlugin(
         address: cfg.governor_address.toLowerCase(),
         topics: [Object.values(COMPOUND_EVENT_TOPICS)],
       },
-      listener: makeIngesterListener({
-        archiveWriter: deps.archiveWriter,
-        context: ctx,
-        logger: deps.logger,
-        dlqRepo: deps.dlqRepo,
-      }),
+      listener: makeIngesterListener(
+        {
+          archiveWriter: deps.archiveWriter,
+          context: ctx,
+          logger: deps.logger,
+          dlqRepo: deps.dlqRepo,
+        },
+        { onWriteFailure: 'throw' },
+      ),
     }),
   };
 }
