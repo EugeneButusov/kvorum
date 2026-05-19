@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
 import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
 import { IndexerModule } from '../../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
