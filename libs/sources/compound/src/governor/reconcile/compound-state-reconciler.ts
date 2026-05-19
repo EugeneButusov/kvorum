@@ -23,7 +23,7 @@ interface TimelockParams {
 }
 
 export class CompoundStateReconciler {
-  readonly sourceType = 'compound_governor_bravo';
+  readonly sourceTypes = ['compound_governor_bravo', 'compound_governor_oz'] as const;
   private readonly timelockCache = new Map<string, TimelockParams>();
 
   constructor(private readonly logger: Logger) {}

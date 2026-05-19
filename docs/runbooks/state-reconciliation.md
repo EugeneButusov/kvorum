@@ -4,7 +4,7 @@ This runbook covers operation and validation of the indexer state reconciler for
 
 ## Scope
 
-- Source type: `compound_governor_bravo` (reconciler plugin enabled)
+- Source types: `compound_governor_bravo`, `compound_governor_oz` (reconciler plugin enabled)
 - Explicitly excluded: `compound_governor_alpha` (no reconciler plugin, ADR-048)
 - Reconciler writes only event-silent states.
 
@@ -44,7 +44,7 @@ Tick cadence: driven by the head tracker — one reconcile attempt per confirmed
 ```sql
 SELECT value
 FROM source_type
-WHERE value IN ('compound_governor_bravo', 'compound_governor_alpha');
+WHERE value IN ('compound_governor_bravo', 'compound_governor_alpha', 'compound_governor_oz');
 ```
 
 Expected: both rows exist.

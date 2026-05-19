@@ -5,6 +5,7 @@ import type { SourceContext } from '@sources/core';
 import {
   createCompoundGovernorAlphaPlugin,
   createCompoundGovernorBravoPlugin,
+  createCompoundGovernorOzPlugin,
   createCompoundPlugins,
 } from './plugin';
 import { ArchiveWriter } from '../ingestion/archive-writer';
@@ -22,6 +23,12 @@ const ALPHA_CTX: SourceContext = {
   sourceLabel: 'compound_governor_alpha',
 };
 
+const OZ_CTX: SourceContext = {
+  ...CTX,
+  sourceType: 'compound_governor_oz',
+  sourceLabel: 'compound_governor_oz',
+};
+
 const mockArchiveWriter = {} as ArchiveWriter;
 const mockDlqRepo = { insert: vi.fn() } as unknown as DlqRepository;
 
@@ -35,6 +42,14 @@ function makePlugin() {
 
 function makeAlphaPlugin() {
   return createCompoundGovernorAlphaPlugin({
+    archiveWriter: mockArchiveWriter,
+    dlqRepo: mockDlqRepo,
+    logger: silentLogger,
+  });
+}
+
+function makeOzPlugin() {
+  return createCompoundGovernorOzPlugin({
     archiveWriter: mockArchiveWriter,
     dlqRepo: mockDlqRepo,
     logger: silentLogger,
@@ -164,7 +179,7 @@ describe('createCompoundGovernorAlphaPlugin', () => {
 });
 
 describe('createCompoundPlugins', () => {
-  it('#17 — returns bravo + alpha plugins', () => {
+  it('#17 — returns bravo + alpha + oz plugins', () => {
     const plugins = createCompoundPlugins({
       archiveWriter: mockArchiveWriter,
       dlqRepo: mockDlqRepo,
@@ -174,6 +189,22 @@ describe('createCompoundPlugins', () => {
     expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
       'compound_governor_bravo',
       'compound_governor_alpha',
+      'compound_governor_oz',
     ]);
+  });
+});
+
+describe('createCompoundGovernorOzPlugin', () => {
+  it('#18 — sourceType is compound_governor_oz', () => {
+    expect(makeOzPlugin().sourceType).toBe('compound_governor_oz');
+  });
+
+  it('#19 — buildIngestSpec lowercases address', () => {
+    const plugin = makeOzPlugin();
+    const cfg = plugin.parseConfig({
+      governor_address: '0x309a862bbC1A00e45506cB8A802D1ff10004c8C0',
+    });
+    const spec = plugin.buildIngestSpec(OZ_CTX, cfg);
+    expect(spec.filter.address).toBe('0x309a862bbc1a00e45506cb8a802d1ff10004c8c0');
   });
 });

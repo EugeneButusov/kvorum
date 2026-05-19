@@ -3,9 +3,9 @@ import { AllProvidersFailedError } from '@libs/chain';
 import type { ReconcileDriverMetrics } from './compound-reconcile-driver';
 import { CompoundReconcileDriver } from './compound-reconcile-driver';
 
-function makeReconciler(sourceType = 'compound_governor_bravo') {
+function makeReconciler(sourceTypes = ['compound_governor_bravo', 'compound_governor_oz']) {
   return {
-    sourceType,
+    sourceTypes,
     reconcileRow: vi.fn().mockResolvedValue({ outcome: 'already_consistent' }),
   };
 }
@@ -115,7 +115,7 @@ describe('CompoundReconcileDriver', () => {
     await driver.onConfirmedHeads([bound]);
 
     expect(proposals.findStaleForReconciliation).toHaveBeenCalledWith(
-      ['compound_governor_bravo'],
+      ['compound_governor_bravo', 'compound_governor_oz'],
       [
         {
           chainId: '0x1',

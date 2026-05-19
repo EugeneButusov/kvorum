@@ -43,7 +43,7 @@ export class CompoundReconcileDriver {
 
       const batchSize = Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50);
       const rows = await this.proposals.findStaleForReconciliation(
-        [this.reconciler.sourceType],
+        [...this.reconciler.sourceTypes],
         bounds,
         batchSize,
       );
