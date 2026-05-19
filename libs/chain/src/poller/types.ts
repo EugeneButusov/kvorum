@@ -1,5 +1,5 @@
-import type { ChainConfig } from '../config/config.js';
 import type { RpcClient } from '../client/rpc-client.js';
+import type { ChainConfig } from '../config/config.js';
 import type { Logger } from '../logger.js';
 
 /** Immutable post-construction. Address/topics are lowercased in the EventPoller
