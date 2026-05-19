@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { FailoverRpcClient, HeadTracker, ReorgDetector, ProxyResolver } from '@libs/chain';
-import type { ChainConfig } from '@libs/chain';
+import { FailoverRpcClient } from './client/failover-rpc-client.js';
+import type { ChainConfig } from './config/config.js';
+import { HeadTracker } from './poller/head-tracker.js';
+import { ProxyResolver } from './proxy/proxy-resolver.js';
+import { ReorgDetector } from './reorg/reorg-detector.js';
 
 export interface ChainContext {
   client: FailoverRpcClient;
@@ -10,9 +12,7 @@ export interface ChainContext {
   proxyResolver: ProxyResolver;
 }
 
-@Injectable()
 export class ChainContextRegistry {
-  private readonly logger = new Logger('ChainContextRegistry');
   private readonly map = new Map<string, ChainContext>();
 
   async getOrCreate(chainCfg: ChainConfig): Promise<ChainContext> {

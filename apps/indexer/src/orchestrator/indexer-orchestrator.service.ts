@@ -1,11 +1,9 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { parseChainConfigFromEnv } from '@libs/chain';
-import { chainMetrics } from '@libs/chain';
+import { ChainContextRegistry, parseChainConfigFromEnv, chainMetrics } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
-import { ChainContextRegistry } from './chain-context-registry';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
