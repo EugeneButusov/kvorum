@@ -1,7 +1,8 @@
 # ADR-052 — Post-backfill reconciliation pass for event-silent state transitions
 
-**Status:** Accepted  
+**Status:** Rejected  
 **Date:** 2026-05-19  
+**Rejected:** 2026-05-19  
 **Related:** ADR-046, ADR-047, ADR-049
 
 ---
@@ -149,3 +150,26 @@ adapter (metrics are optional for a one-shot pass) and runs the drain loop.
 - **Run reconciliation inside `BackfillDriver` itself.** Rejected: `BackfillDriver` lives in
   `@sources/core` and is source-agnostic. Compound-specific reconciliation logic does not belong
   there.
+
+## Rejection rationale
+
+The problem this ADR set out to solve does not require a dedicated solution.
+
+`findStaleForReconciliation` uses a `LEFT JOIN` on `compound_proposal_meta`, so proposals that
+have no meta row (i.e. were never queued and never previously reconciled) are fully eligible for
+the live reconciler. Both gate conditions — `voting_ends_block IS NOT NULL` and
+`voting_ends_block < confirmedThresholdBlock` — are satisfied by the stuck proposals observed in
+the logs that motivated this ADR.
+
+On the first confirmed-head tick after the live indexer starts, all stuck proposals are resolved
+in a single batch (the observed count of 46 is below the default `COMPOUND_STATE_RECONCILE_BATCH_SIZE`
+of 50). The actual window of incorrect state is one Ethereum block (~12 seconds), not "many
+blocks" as stated in the Context section above.
+
+The post-backfill hook interface (`reconcileAfterBackfill` on `BackfillSourceRuntime`) adds
+accidental complexity — a new interface contract, result type, and drain loop — to eliminate a
+gap that is already closed by the existing live reconciler within one block. The cost is not
+justified by the benefit.
+
+No implementation should be based on this ADR. The live reconciler (ADR-049) handles the
+post-backfill cold-start case correctly via its LEFT JOIN eligibility query.
