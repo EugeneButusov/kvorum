@@ -37,6 +37,26 @@ const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
+const QUEUED_PAYLOAD: CompoundArchivePayloadRow = {
+  chain_id: '0x1',
+  tx_hash: '0xtx',
+  log_index: 1,
+  block_hash: '0xblock',
+  event_type: 'ProposalQueued',
+  payload: JSON.stringify({ proposalId: '42', eta: '1700000000' }),
+  received_at: new Date('2026-01-01T00:00:00Z'),
+};
+
+const EXECUTED_PAYLOAD: CompoundArchivePayloadRow = {
+  chain_id: '0x1',
+  tx_hash: '0xtx',
+  log_index: 1,
+  block_hash: '0xblock',
+  event_type: 'ProposalExecuted',
+  payload: JSON.stringify({ proposalId: '42' }),
+  received_at: new Date('2026-01-01T00:00:00Z'),
+};
+
 function makeMetrics() {
   return {
     batchLookupSeconds: vi.fn(),
@@ -46,6 +66,7 @@ function makeMetrics() {
 
 interface ProjectionTxOptions {
   proposalInserted?: boolean;
+  advanceStateRows?: number;
 }
 
 function makeProjectionTx(options: ProjectionTxOptions = {}) {
@@ -54,9 +75,11 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
     insertedActions: undefined as unknown,
     insertedChoices: undefined as unknown,
     markedDerivedId: undefined as string | undefined,
+    upsertedCompoundMeta: false,
     transactionCount: 0,
   };
   const proposalInserted = options.proposalInserted ?? true;
+  const advanceStateRows = options.advanceStateRows ?? 1;
 
   function chain<T extends object>(methods: T): T {
     return methods;
@@ -70,8 +93,20 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
         executeTakeFirst: vi.fn().mockResolvedValue({ dao_id: 'dao-1' }),
       }),
     ),
-    insertInto: vi.fn((table: string) =>
-      chain({
+    insertInto: vi.fn((table: string) => {
+      if (table === 'compound_proposal_meta') {
+        const metaChain = {
+          columns: vi.fn(() => metaChain),
+          expression: vi.fn(() => metaChain),
+          onConflict: vi.fn(() => metaChain),
+          execute: vi.fn(() => {
+            calls.upsertedCompoundMeta = true;
+            return Promise.resolve(undefined);
+          }),
+        };
+        return metaChain;
+      }
+      return chain({
         values: vi.fn(function (this: unknown, values: unknown) {
           if (table === 'proposal') calls.insertedProposal = values;
           if (table === 'proposal_action') calls.insertedActions = values;
@@ -83,14 +118,12 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
         returning: vi.fn().mockReturnThis(),
         executeTakeFirst: vi.fn(async () => {
           if (table === 'actor') return { id: 'actor-1' };
-          if (table === 'proposal') {
-            return proposalInserted ? { id: 'proposal-1' } : undefined;
-          }
+          if (table === 'proposal') return proposalInserted ? { id: 'proposal-1' } : undefined;
           return undefined;
         }),
         execute: vi.fn().mockResolvedValue(undefined),
-      }),
-    ),
+      });
+    }),
     updateTable: vi.fn((table: string) =>
       chain({
         set: vi.fn().mockReturnThis(),
@@ -101,6 +134,10 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
           return this;
         }),
         execute: vi.fn().mockResolvedValue(undefined),
+        executeTakeFirst: vi.fn(async () => {
+          if (table === 'proposal') return { numUpdatedRows: BigInt(advanceStateRows) };
+          return undefined;
+        }),
       }),
     ),
   };
@@ -191,6 +228,74 @@ describe('CompoundProjectionApplier', () => {
     expect(calls.insertedActions).toBeUndefined();
     expect(calls.insertedChoices).toBeUndefined();
     expect(calls.markedDerivedId).toBe('archive-1');
+  });
+
+  it('advances state and upserts queued_at_block on ProposalQueued', async () => {
+    const { pgDb, tx, calls } = makeProjectionTx();
+    const metrics = makeMetrics();
+    const applier = new CompoundProjectionApplier({
+      pgDb: pgDb as never,
+      chDb: {} as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([QUEUED_PAYLOAD]),
+      } as never,
+      metrics,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'ProposalQueued' }]);
+
+    expect(tx.updateTable).toHaveBeenCalledWith('proposal');
+    expect(calls.upsertedCompoundMeta).toBe(true);
+    expect(calls.markedDerivedId).toBe('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'derived', reason: null }),
+    );
+  });
+
+  it('advances state without touching compound_proposal_meta on ProposalExecuted', async () => {
+    const { pgDb, tx, calls } = makeProjectionTx();
+    const metrics = makeMetrics();
+    const applier = new CompoundProjectionApplier({
+      pgDb: pgDb as never,
+      chDb: {} as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([EXECUTED_PAYLOAD]),
+      } as never,
+      metrics,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'ProposalExecuted' }]);
+
+    expect(tx.updateTable).toHaveBeenCalledWith('proposal');
+    expect(calls.upsertedCompoundMeta).toBe(false);
+    expect(calls.markedDerivedId).toBe('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'derived', reason: null }),
+    );
+  });
+
+  it('records skipped_state_guard and skips queued_at_block upsert when state guard blocks', async () => {
+    const { pgDb, calls } = makeProjectionTx({ advanceStateRows: 0 });
+    const metrics = makeMetrics();
+    const applier = new CompoundProjectionApplier({
+      pgDb: pgDb as never,
+      chDb: {} as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([QUEUED_PAYLOAD]),
+      } as never,
+      metrics,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'ProposalQueued' }]);
+
+    expect(calls.upsertedCompoundMeta).toBe(false);
+    expect(calls.markedDerivedId).toBe('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_state_guard', reason: null }),
+    );
   });
 
   it('increments attempt count when archive payload JSON cannot be decoded', async () => {
