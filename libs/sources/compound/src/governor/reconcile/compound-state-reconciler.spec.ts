@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GOVERNOR_STATE_INTERFACE } from '../abi/governor-state';
 import { CompoundStateReconciler } from './compound-state-reconciler';
+import { GOVERNOR_STATE_INTERFACE } from '../abi/governor-state';
 
 function makeLogger() {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
