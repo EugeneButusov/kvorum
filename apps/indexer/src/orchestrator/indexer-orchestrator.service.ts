@@ -17,7 +17,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
 
   constructor(
     @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
-    @Inject(FETCH_DRIVERS) private readonly driver: FetchDriver,
+    @Inject(FETCH_DRIVERS) private readonly drivers: readonly FetchDriver[],
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
     private readonly registry: ChainContextRegistry,
@@ -42,7 +42,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map<string, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
-    const driversByKind = new Map([[this.driver.kind, this.driver]]);
+    const driversByKind = new Map(this.drivers.map((d) => [d.kind, d]));
 
     const sources = await this.daoSourceRepo.findAll();
 

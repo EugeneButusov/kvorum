@@ -8,7 +8,7 @@ function makeLogger() {
 
 describe('CompoundStateReconciler', () => {
   it('reconciles oz governor row to defeated using voting_ends_block timestamp', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never);
+    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn().mockResolvedValue(1),

@@ -23,10 +23,12 @@ interface TimelockParams {
 }
 
 export class CompoundStateReconciler {
-  readonly sourceTypes = ['compound_governor_bravo', 'compound_governor_oz'] as const;
   private readonly timelockCache = new Map<string, TimelockParams>();
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    readonly sourceTypes: readonly string[],
+  ) {}
 
   async reconcileRow(args: {
     row: StaleReconciliationRow;

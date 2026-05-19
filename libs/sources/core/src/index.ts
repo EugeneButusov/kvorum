@@ -23,7 +23,7 @@ export type { BackfillMode, BackfillRunInput, BackfillOutcome } from './backfill
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 
-import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
+import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 
 /** Nest injection token for the multi-provider array of registered SourcePlugins. */
@@ -37,11 +37,9 @@ export interface SourcePlugin<TConfig = unknown> {
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
 }
 
-export type IngestSpec = {
-  kind: 'evm-event-poller';
-  filter: LogFilter;
-  listener: EventsListener<LogEvent>;
-};
+export type IngestSpec =
+  | { kind: 'evm-event-poller'; filter: LogFilter; listener: EventsListener<LogEvent> }
+  | { kind: 'evm-block-head-poller'; listener: HeadListener };
 
 export interface SourceContext {
   daoSourceId: string;

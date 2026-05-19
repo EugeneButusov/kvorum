@@ -4,7 +4,9 @@ import { ChainContextModule } from '@nest/chain';
 import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
+import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-driver';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
+import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
@@ -19,7 +21,15 @@ import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
       inject: [COMPOUND_PLUGINS],
     },
     EvmEventPollerDriver,
-    { provide: FETCH_DRIVERS, useExisting: EvmEventPollerDriver },
+    EvmBlockHeadPollerDriver,
+    {
+      provide: FETCH_DRIVERS,
+      useFactory: (ep: EvmEventPollerDriver, bhp: EvmBlockHeadPollerDriver): FetchDriver[] => [
+        ep,
+        bhp,
+      ],
+      inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
+    },
     IndexerOrchestratorService,
     ReorgWatcherService,
     PromotionSweepService,

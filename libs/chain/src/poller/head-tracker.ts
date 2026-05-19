@@ -20,7 +20,7 @@ export class HeadTracker extends AbstractPoller {
 
   constructor(private readonly opts: HeadTrackerOptions) {
     super({
-      chainName: opts.chainName,
+      chainName: opts.chainCfg.name,
       pollIntervalMs: opts.pollIntervalMs,
       stopTimeoutMs: opts.stopTimeoutMs,
       logger: opts.logger,
@@ -69,7 +69,7 @@ export class HeadTracker extends AbstractPoller {
   }
 
   protected override async runTick(): Promise<void> {
-    const { rpcClient, chainId } = this.opts;
+    const { rpcClient, chainCfg } = this.opts;
     const chain = this.chainName;
 
     let raw: Record<string, unknown>;
@@ -87,7 +87,7 @@ export class HeadTracker extends AbstractPoller {
     let head: Head;
     const now = new Date();
     try {
-      head = decodeHead(raw, chainId, now);
+      head = decodeHead(raw, chainCfg.chainId, now);
     } catch (err) {
       this.logger.error(
         `[chain:${chain}] HeadTracker received malformed block response: ${String(err)}`,
@@ -109,7 +109,7 @@ export class HeadTracker extends AbstractPoller {
 
     for (const listener of this.listeners) {
       try {
-        await listener(head);
+        await listener({ head, chainCfg, headBlock: head.blockNumber, client: rpcClient });
       } catch (err) {
         this.logger.error(`[chain:${chain}] HeadTracker listener threw: ${String(err)}`);
       }

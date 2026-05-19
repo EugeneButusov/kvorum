@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HeadTracker } from './head-tracker.js';
-import type { Head, HeadTrackerOptions } from './types.js';
+import type { HeadTrackerOptions } from './types.js';
 import { FailoverRpcClient } from '../client/failover-rpc-client.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
 
@@ -33,8 +33,7 @@ function baseOpts(
 ): HeadTrackerOptions {
   return {
     rpcClient: client,
-    chainId: CHAIN_ID,
-    chainName: 'test',
+    chainCfg: { chainId: CHAIN_ID, name: 'test', reorgHorizon: 12, providers: [] },
     pollIntervalMs: 50,
     stopTimeoutMs: 500,
     ...overrides,
@@ -134,8 +133,7 @@ describe('HeadTracker', () => {
 
       const tracker = new HeadTracker({
         rpcClient: mockRpc,
-        chainId: CHAIN_ID,
-        chainName: 'test',
+        chainCfg: { chainId: CHAIN_ID, name: 'test', reorgHorizon: 12, providers: [] },
         pollIntervalMs: 50,
         stopTimeoutMs: 200,
       });
@@ -155,24 +153,24 @@ describe('HeadTracker', () => {
   describe('listener fan-out', () => {
     it('delivers to onHead listener on each tick', async () => {
       fake.returnSuccess(makeBlock(7));
-      const heads: Head[] = [];
+      const blockNumbers: bigint[] = [];
       const tracker = new HeadTracker(baseOpts(client, { pollIntervalMs: 30 }));
-      tracker.onHead((h) => {
-        heads.push(h);
+      tracker.onHead(({ headBlock }) => {
+        blockNumbers.push(headBlock);
       });
       await tracker.start();
       await new Promise<void>((r) => setTimeout(r, 80));
       await tracker.stop();
-      expect(heads.length).toBeGreaterThanOrEqual(1);
-      expect(heads[0]!.blockNumber).toBe(7n);
+      expect(blockNumbers.length).toBeGreaterThanOrEqual(1);
+      expect(blockNumbers[0]).toBe(7n);
     });
 
     it('unsubscribe stops listener from receiving heads', async () => {
       fake.returnSuccess(makeBlock());
-      const received: Head[] = [];
+      const received: bigint[] = [];
       const tracker = new HeadTracker(baseOpts(client, { pollIntervalMs: 30 }));
-      const unsub = tracker.onHead((h) => {
-        received.push(h);
+      const unsub = tracker.onHead(({ headBlock }) => {
+        received.push(headBlock);
       });
       unsub();
       await tracker.start();
@@ -183,13 +181,13 @@ describe('HeadTracker', () => {
 
     it('a throwing listener does not break other listeners', async () => {
       fake.returnSuccess(makeBlock(99));
-      const goodHeads: Head[] = [];
+      const goodHeads: bigint[] = [];
       const tracker = new HeadTracker(baseOpts(client));
       tracker.onHead(() => {
         throw new Error('bad listener');
       });
-      tracker.onHead((h) => {
-        goodHeads.push(h);
+      tracker.onHead(({ headBlock }) => {
+        goodHeads.push(headBlock);
       });
       await tracker.start();
       await tracker.stop();

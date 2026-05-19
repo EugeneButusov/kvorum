@@ -74,6 +74,12 @@ export function buildBackfillSourceRuntime(
     parsedConfig,
   );
 
+  if (ingestSpec.kind !== 'evm-event-poller') {
+    throw new Error(
+      `backfill does not support IngestSpec.kind="${ingestSpec.kind}" for source_type="${input.sourceType}"`,
+    );
+  }
+
   return {
     filter: ingestSpec.filter,
     listenerFactory: (classifier) =>
