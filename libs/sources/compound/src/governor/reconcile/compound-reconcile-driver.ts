@@ -40,8 +40,10 @@ export class CompoundReconcileDriver {
     try {
       if (bounds.length === 0) return;
 
-      const batchSize = Number(process.env['STATE_RECONCILE_BATCH_SIZE'] ?? 50);
-      const recheckGapBlocks = Number(process.env['STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 7_200);
+      const batchSize = Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50);
+      const recheckGapBlocks = Number(
+        process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 7_200,
+      );
       const rows = await this.proposals.findStaleForReconciliation(
         [this.reconciler.sourceType],
         bounds,
@@ -109,7 +111,7 @@ export class CompoundReconcileDriver {
     this.rpcFailedStreak.set(proposalId, streak);
     this.metrics.recordOutcome({ source_type: sourceType, outcome: 'rpc_failed' });
 
-    const escalateAfter = Number(process.env['STATE_RECONCILE_RPC_FAIL_ESCALATE'] ?? 5);
+    const escalateAfter = Number(process.env['COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE'] ?? 5);
     if (streak >= escalateAfter) {
       this.metrics.recordRpcFailEscalated(sourceType);
       this.logger.error('state_reconcile_rpc_escalated', {

@@ -23,12 +23,12 @@ This runbook covers operation and validation of the indexer state reconciler for
 
 ## Configuration
 
-- `STATE_RECONCILE_BATCH_SIZE` (default `50`)
-- `STATE_RECONCILE_RECHECK_GAP_BLOCKS` (default `7200`)
-- `STATE_RECONCILE_RPC_FAIL_ESCALATE` (default `5`)
-- `GOVERNOR_GRACE_PERIOD_SECONDS` (optional fallback)
-- `GOVERNOR_GRACE_MIN_SECONDS` (default `3600`)
-- `GOVERNOR_GRACE_MAX_SECONDS` (default `7776000`)
+- `COMPOUND_COMPOUND_STATE_RECONCILE_BATCH_SIZE` (default `50`)
+- `COMPOUND_COMPOUND_STATE_RECONCILE_RECHECK_GAP_BLOCKS` (default `7200`)
+- `COMPOUND_COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE` (default `5`)
+- `COMPOUND_COMPOUND_GOVERNOR_GRACE_PERIOD_SECONDS` (optional fallback)
+- `COMPOUND_COMPOUND_GOVERNOR_GRACE_MIN_SECONDS` (default `3600`)
+- `COMPOUND_COMPOUND_GOVERNOR_GRACE_MAX_SECONDS` (default `7776000`)
 
 Tick cadence reuses `sweepIntervalMs ?? SWEEP_INTERVAL_MS`.
 
@@ -60,7 +60,7 @@ WHERE p.source_type = 'compound_governor_bravo'
 ## First-run backlog drain expectations
 
 - Rows without `last_reconcile_check_block` are eligible immediately.
-- Batch drains in `STATE_RECONCILE_BATCH_SIZE` chunks.
+- Batch drains in `COMPOUND_COMPOUND_STATE_RECONCILE_BATCH_SIZE` chunks.
 - Long-lived non-transition rows are rotated by watermark and do not starve newly-eligible rows.
 
 Check watermark progress:
@@ -114,7 +114,7 @@ Watch logs/metrics for `state_reconcile_missed_event` (on-chain `executed|queued
 
 1. Validate RPC health and quota.
 2. Verify historical header availability.
-3. Reduce `STATE_RECONCILE_BATCH_SIZE` temporarily.
+3. Reduce `COMPOUND_COMPOUND_STATE_RECONCILE_BATCH_SIZE` temporarily.
 
 ### `expired_no_eta`
 
@@ -126,7 +126,7 @@ Watch logs/metrics for `state_reconcile_missed_event` (on-chain `executed|queued
 
 - If on-chain read fails or value is invalid range:
 
-1. Set `GOVERNOR_GRACE_PERIOD_SECONDS` to validated value.
+1. Set `COMPOUND_COMPOUND_GOVERNOR_GRACE_PERIOD_SECONDS` to validated value.
 2. Restart indexer.
 
 ## Optional manual SQL escape hatch

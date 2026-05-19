@@ -184,8 +184,8 @@ export class CompoundStateReconciler {
   }
 
   private validateSeconds(value: number): number | null {
-    const min = Number(process.env['GOVERNOR_GRACE_MIN_SECONDS'] ?? 3_600);
-    const max = Number(process.env['GOVERNOR_GRACE_MAX_SECONDS'] ?? 7_776_000);
+    const min = Number(process.env['COMPOUND_GOVERNOR_GRACE_MIN_SECONDS'] ?? 3_600);
+    const max = Number(process.env['COMPOUND_GOVERNOR_GRACE_MAX_SECONDS'] ?? 7_776_000);
     if (!Number.isInteger(value)) return null;
     if (value < min || value > max) return null;
     return value;

@@ -139,7 +139,7 @@ describe('CompoundReconcileDriver', () => {
   });
 
   it('records batch_saturated when row count equals batch size', async () => {
-    vi.stubEnv('STATE_RECONCILE_BATCH_SIZE', '2');
+    vi.stubEnv('COMPOUND_STATE_RECONCILE_BATCH_SIZE', '2');
     const proposals = makeProposals();
     proposals.findStaleForReconciliation.mockResolvedValue([makeRow(), makeRow({ id: 'p2' })]);
     const metrics = makeMetrics();
@@ -187,7 +187,7 @@ describe('CompoundReconcileDriver', () => {
   });
 
   it('records rpc_failed and escalates after threshold', async () => {
-    vi.stubEnv('STATE_RECONCILE_RPC_FAIL_ESCALATE', '2');
+    vi.stubEnv('COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE', '2');
     const proposals = makeProposals();
     proposals.findStaleForReconciliation.mockResolvedValue([makeRow()]);
     const metrics = makeMetrics();
