@@ -54,6 +54,22 @@ describe('chainMetrics counters', () => {
     const text = await renderMetrics();
     expect(text).toContain('test_ingestion_proxy_resolutions_total');
   });
+
+  it('gap fill counters emit _total series', async () => {
+    chainMetrics.ingestionGapFillFailed.add(1, {
+      chain: 'ethereum',
+      dao_source: 'src-1',
+      reason: 'error',
+    });
+    chainMetrics.ingestionGapFillSkipped.add(1, {
+      chain: 'ethereum',
+      dao_source: 'src-1',
+      reason: 'lock_contended',
+    });
+    const text = await renderMetrics();
+    expect(text).toContain('test_ingestion_gap_fill_failed_total');
+    expect(text).toContain('test_ingestion_gap_fill_skipped_total');
+  });
 });
 
 describe('chainMetrics gauges', () => {
