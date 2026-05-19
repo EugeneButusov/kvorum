@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChainContextRegistry } from '@libs/chain';
 import { chDb, pgDb } from '@libs/db';
 import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
-import { IndexerModule } from '../../src/indexer/indexer.module';
+import { TestCompoundIndexerModule } from '../_fixtures/test-compound-indexer.module';
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
@@ -54,7 +54,6 @@ describeIf('F3 full-pipeline reorg', () => {
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
-    process.env['COMPOUND_SUPPORTED_CHAIN_IDS'] = '0x7a69';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {
@@ -112,7 +111,9 @@ describeIf('F3 full-pipeline reorg', () => {
     });
 
     // 3. Boot the full IndexerModule — orchestrator reads the seeded dao_source.
-    app = await NestFactory.createApplicationContext(IndexerModule, { abortOnError: false });
+    app = await NestFactory.createApplicationContext(TestCompoundIndexerModule, {
+      abortOnError: false,
+    });
     await app.init();
     client = app.get(ChainContextRegistry).peek('0x7a69')!.client as typeof client;
   }, 60_000);
@@ -120,7 +121,6 @@ describeIf('F3 full-pipeline reorg', () => {
   afterAll(async () => {
     await app?.close();
     await truncateAllTestTables(pgDb);
-    delete process.env['COMPOUND_SUPPORTED_CHAIN_IDS'];
   });
 
   beforeEach(async () => {

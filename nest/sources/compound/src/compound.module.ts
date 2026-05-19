@@ -34,16 +34,13 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
     {
       provide: COMPOUND_PLUGINS,
       useFactory: (archiveWriter: ArchiveWriter, dlqRepo: DlqRepository): SourcePlugin[] => {
-        const plugins = createCompoundPlugins({
-          archiveWriter,
-          dlqRepo,
-          logger: toChainLogger(new Logger('CompoundGovernor')),
-        });
-        const chainOverride = process.env['COMPOUND_SUPPORTED_CHAIN_IDS']?.split(',');
-        if (chainOverride) {
-          return plugins.map((p) => ({ ...p, supportedChainIds: chainOverride }));
-        }
-        return [...plugins];
+        return [
+          ...createCompoundPlugins({
+            archiveWriter,
+            dlqRepo,
+            logger: toChainLogger(new Logger('CompoundGovernor')),
+          }),
+        ];
       },
       inject: [ArchiveWriter, DlqRepository],
     },
