@@ -1,11 +1,16 @@
 import type { INestApplicationContext } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChainContextRegistry } from '@libs/chain';
 import { chDb, pgDb } from '@libs/db';
 import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
-import { TestCompoundIndexerModule } from '../_fixtures/test-compound-indexer.module';
+import { TestCompoundSourceModule } from '../_fixtures/test-compound-source.module';
+import { TestEvmIndexerModule } from '../_fixtures/test-evm-indexer.module';
+
+@Module({ imports: [TestEvmIndexerModule, TestCompoundSourceModule] })
+class FullPipelineReorgTestModule {}
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
   EMIT_VALID_SELECTOR,
@@ -111,7 +116,7 @@ describeIf('F3 full-pipeline reorg', () => {
     });
 
     // 3. Boot the full IndexerModule — orchestrator reads the seeded dao_source.
-    app = await NestFactory.createApplicationContext(TestCompoundIndexerModule, {
+    app = await NestFactory.createApplicationContext(FullPipelineReorgTestModule, {
       abortOnError: false,
     });
     await app.init();
