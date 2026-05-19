@@ -3,13 +3,36 @@ import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { ChainContextRegistry } from '@libs/chain';
-import { chDb, pgDb } from '@libs/db';
+import { ChainContextRegistry, silentLogger } from '@libs/chain';
+import { ConfirmationRepository, DlqRepository, pgDb, chDb } from '@libs/db';
+import { ArchiveWriter, EventRepository, createCompoundPlugins } from '@sources/compound';
+import type { SourcePlugin } from '@sources/core';
+import { SOURCE_PLUGINS } from '@sources/core';
 import { DerivationWorkerService } from '../../src/derivation/derivation-worker.service';
-import { TestCompoundSourceModule } from '../_fixtures/test-compound-source.module';
 import { TestEvmIndexerModule } from '../_fixtures/test-evm-indexer.module';
 
-@Module({ imports: [TestEvmIndexerModule, TestCompoundSourceModule] })
+@Module({
+  imports: [TestEvmIndexerModule],
+  providers: [
+    {
+      provide: SOURCE_PLUGINS,
+      useFactory: (): SourcePlugin[] => {
+        const confirmationRepo = new ConfirmationRepository(pgDb);
+        const dlqRepo = new DlqRepository(pgDb);
+        const archiveWriter = new ArchiveWriter({
+          eventRepo: new EventRepository({ chDb }),
+          confirmationRepo,
+          dlqRepo,
+          logger: silentLogger,
+        });
+        return createCompoundPlugins({ archiveWriter, dlqRepo, logger: silentLogger }).map((p) => ({
+          ...p,
+          supportedChainIds: ['0x7a69'],
+        }));
+      },
+    },
+  ],
+})
 class FullPipelineReorgTestModule {}
 import {
   COMPOUND_EMITTER_DEPLOY_BYTECODE,
