@@ -18,7 +18,7 @@ export class EvmBlockHeadPollerDriver implements FetchDriver<'evm-block-head-pol
 
     const unsub = chainCtx.headTracker.onHead((head) => {
       spec.listener({
-        chainId: chainCfg.chainId,
+        chainCfg,
         headBlock: head.blockNumber,
         client: chainCtx.client,
       });

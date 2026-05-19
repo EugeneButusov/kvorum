@@ -23,7 +23,7 @@ export type { BackfillMode, BackfillRunInput, BackfillOutcome } from './backfill
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 
-import type { LogFilter, EventsListener, LogEvent } from '@libs/chain';
+import type { ChainConfig, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 
 /** Nest injection token for the multi-provider array of registered SourcePlugins. */
@@ -42,7 +42,7 @@ export type IngestSpec =
   | {
       kind: 'evm-block-head-poller';
       listener: (args: {
-        chainId: string;
+        chainCfg: ChainConfig;
         headBlock: bigint;
         client: { send<T>(method: string, params: unknown[]): Promise<T> };
       }) => void;
