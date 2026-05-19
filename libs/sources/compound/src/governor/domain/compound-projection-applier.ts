@@ -168,7 +168,7 @@ export class CompoundProjectionApplier {
             stateUpdatedAt: projection.stateUpdatedAt,
           });
           if (advanced > 0 && projection.queuedAtBlock !== undefined) {
-            await compoundProposals.upsertQueuedBlock(
+            await compoundProposals.upsertQueuedAtBlock(
               daoId,
               projection.sourceType,
               projection.sourceId,

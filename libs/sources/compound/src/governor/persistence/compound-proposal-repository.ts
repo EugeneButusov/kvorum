@@ -1,4 +1,4 @@
-import { sql, type Kysely } from 'kysely';
+import { type Kysely, sql } from 'kysely';
 import type { PgDatabase, ProposalState } from '@libs/db';
 import './schema';
 
@@ -132,21 +132,24 @@ export class CompoundProposalRepository {
       .execute();
   }
 
-  async upsertQueuedBlock(
+  async upsertQueuedAtBlock(
     daoId: string,
     sourceType: string,
     sourceId: string,
     queuedAtBlock: string,
   ): Promise<void> {
-    await sql`
-      INSERT INTO compound_proposal_meta (proposal_id, queued_at_block)
-      SELECT id, ${sql.lit(queuedAtBlock)}
-      FROM proposal
-      WHERE dao_id = ${sql.lit(daoId)}
-        AND source_type = ${sql.lit(sourceType)}
-        AND source_id = ${sql.lit(sourceId)}
-      ON CONFLICT (proposal_id)
-        DO UPDATE SET queued_at_block = excluded.queued_at_block
-    `.execute(this.db);
+    await this.db
+      .insertInto('compound_proposal_meta')
+      .columns(['proposal_id', 'queued_at_block'])
+      .expression((eb) =>
+        eb
+          .selectFrom('proposal')
+          .select((eb) => ['id', eb.val(queuedAtBlock).as('queued_at_block')])
+          .where('dao_id', '=', daoId)
+          .where('source_type', '=', sourceType)
+          .where('source_id', '=', sourceId),
+      )
+      .onConflict((oc) => oc.column('proposal_id').doUpdateSet({ queued_at_block: queuedAtBlock }))
+      .execute();
   }
 }
