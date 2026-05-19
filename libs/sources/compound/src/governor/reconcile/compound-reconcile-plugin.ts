@@ -26,16 +26,22 @@ function createReconcilePlugin(
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, _cfg) => ({
       kind: 'evm-block-head-poller',
-      recheckGapSeconds: Number(
-        process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'] ?? 7_200,
-      ),
-      listener: (args) => {
+      listener: ({ chainId, headBlock, client }) => {
+        const reorgHorizon = BigInt(process.env['COMPOUND_STATE_RECONCILE_REORG_HORIZON'] ?? 12);
+        if (headBlock < reorgHorizon) return;
+        const blocksPerMinute = Number(
+          process.env['COMPOUND_STATE_RECONCILE_BLOCKS_PER_MINUTE'] ?? 5,
+        );
+        const recheckGapSeconds = Number(
+          process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'] ?? 7_200,
+        );
+        const recheckGapBlocks = Math.ceil((recheckGapSeconds / 60) * blocksPerMinute);
         void driver.onConfirmedHeads([
           {
-            chainId: args.chainId,
-            confirmedThresholdBlock: args.confirmedThresholdBlock.toString(),
-            recheckGapBlocks: args.recheckGapBlocks,
-            client: args.client,
+            chainId,
+            confirmedThresholdBlock: (headBlock - reorgHorizon).toString(),
+            recheckGapBlocks,
+            client,
           },
         ]);
       },

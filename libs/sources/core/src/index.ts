@@ -37,19 +37,15 @@ export interface SourcePlugin<TConfig = unknown> {
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
 }
 
-export type BlockHeadArgs = {
-  chainId: string;
-  confirmedThresholdBlock: bigint;
-  recheckGapBlocks: number;
-  client: { send<T>(method: string, params: unknown[]): Promise<T> };
-};
-
 export type IngestSpec =
   | { kind: 'evm-event-poller'; filter: LogFilter; listener: EventsListener<LogEvent> }
   | {
       kind: 'evm-block-head-poller';
-      recheckGapSeconds: number;
-      listener: (args: BlockHeadArgs) => void;
+      listener: (args: {
+        chainId: string;
+        headBlock: bigint;
+        client: { send<T>(method: string, params: unknown[]): Promise<T> };
+      }) => void;
     };
 
 export interface SourceContext {
