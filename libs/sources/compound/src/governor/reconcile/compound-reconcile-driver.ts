@@ -42,7 +42,7 @@ export class CompoundReconcileDriver {
 
       const batchSize = Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50);
       const recheckGapBlocks = Number(
-        process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 7_200,
+        process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_BLOCKS'] ?? 600,
       );
       const rows = await this.proposals.findStaleForReconciliation(
         [this.reconciler.sourceType],
