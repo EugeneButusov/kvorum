@@ -1,21 +1,21 @@
 import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ChainContextRegistry } from '@libs/chain';
 import { pgDb } from '@libs/db';
-import { IndexerModule } from '../../src/indexer/indexer.module';
-import { ChainContextRegistry } from '../../src/orchestrator/chain-context-registry';
 import {
-  COMPOUND_EMITTER_DEPLOY_BYTECODE,
+  EVM_TEST_EMITTER_DEPLOY_BYTECODE,
   EMIT_MALFORMED_SELECTOR,
-} from '../_fixtures/compound-emitter.bytecode';
-import { captureMetrics, findMetricValue, getCounterDelta } from '../helpers/metrics-helpers';
+} from './_fixtures/evm-test-emitter.bytecode';
+import { TestIndexerModule } from './_fixtures/test-indexer.module';
+import { captureMetrics, findMetricValue, getCounterDelta } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
   pollUntil,
   truncateAllIngestionTables,
   truncateAllTestTables,
-} from '../helpers/pg-test-fixtures';
+} from './helpers/pg-test-fixtures';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const DB_URL = process.env['DATABASE_URL'];
@@ -52,7 +52,6 @@ describeIf('F3 DLQ fault injection', () => {
     await truncateAllTestTables(pgDb);
     // DlqDepthService ticks at 500ms in tests — keeps gauge assertion window tight.
     process.env['DLQ_DEPTH_INTERVAL_MS'] = '500';
-    process.env['COMPOUND_SUPPORTED_CHAIN_IDS'] = '0x7a69';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
         {
@@ -69,7 +68,7 @@ describeIf('F3 DLQ fault injection', () => {
       ],
     });
 
-    // Deploy CompoundEmitter BEFORE booting Nest.
+    // Deploy the EVM test emitter BEFORE booting Nest.
     const deployClient = (await import('@libs/chain').then(
       ({ FailoverRpcClient }) =>
         new FailoverRpcClient({
@@ -90,7 +89,7 @@ describeIf('F3 DLQ fault injection', () => {
     accounts = await deployClient.send<string[]>('eth_accounts', []);
     const receipt = await sendAndWait(deployClient, {
       from: accounts[0]!,
-      data: COMPOUND_EMITTER_DEPLOY_BYTECODE,
+      data: EVM_TEST_EMITTER_DEPLOY_BYTECODE,
     });
     contractAddress = receipt.contractAddress!.toLowerCase();
     await deployClient.stop();
@@ -98,12 +97,12 @@ describeIf('F3 DLQ fault injection', () => {
     const daoId = await insertTestDao(pgDb, { slug: 'dlq-fault-test', name: 'DLQ Fault Test' });
     await insertTestDaoSource(pgDb, {
       daoId,
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'evm_test_emitter',
       chainId: '0x7a69',
       contractAddress,
     });
 
-    app = await NestFactory.createApplicationContext(IndexerModule, { abortOnError: false });
+    app = await NestFactory.createApplicationContext(TestIndexerModule, { abortOnError: false });
     await app.init();
     client = app.get(ChainContextRegistry).peek('0x7a69')!.client as typeof client;
   }, 60_000);
@@ -141,40 +140,38 @@ describeIf('F3 DLQ fault injection', () => {
     expect(dlqRows.length).toBeGreaterThanOrEqual(1);
     // All DLQ rows for this fault share the same shape — verify on the first one.
     expect(dlqRows[0]!.stage).toBe('archive_decode');
-    expect(dlqRows[0]!.source).toBe('compound_governor_bravo');
-    expect(dlqRows[0]!.archive_source_type).toBe('compound_governor_bravo');
+    expect(dlqRows[0]!.source).toBe('evm_test_emitter');
+    expect(dlqRows[0]!.archive_source_type).toBe('evm_test_emitter');
     expect(dlqRows[0]!.archive_chain_id).toBe('0x7a69');
     // archive_tx_hash is populated from the raw log envelope before decoding — regression
-    // guard that routeDecodeErrorToDlq captures the envelope for I2's dlq retry path.
+    // guard that the DLQ row captures the envelope for the retry path.
     expect(dlqRows[0]!.archive_tx_hash).not.toBeNull();
 
-    // No archive_confirmation row: decoder failed, never reached the archive writer
+    // No archive_confirmation row: decode check failed, never reached the archive writer
     const archiveRows = await pgDb.selectFrom('archive_confirmation').selectAll().execute();
     expect(archiveRows).toHaveLength(0);
 
     // archive_writes{result=inserted} must NOT increment for this malformed event
     const insertedDelta = await getCounterDelta(
       `indexer_ingestion_archive_writes_total`,
-      { result: 'inserted', source: 'compound_governor_bravo', chain_id: '0x7a69' },
+      { result: 'inserted', source: 'evm_test_emitter', chain_id: '0x7a69' },
       metricsBefore,
     );
     expect(insertedDelta).toBe(0);
 
     // Gauge reflects at least one DLQ entry (delta-based: robust against residual values
-    // from earlier test runs; see D-F3b-9). 20s window covers ≥2 DlqDepthService ticks at
-    // 500ms. As above we assert "≥ 1" rather than "exactly 1" because the EventPoller
-    // re-fetches inflate the count over time.
+    // from earlier test runs). 20s window covers ≥2 DlqDepthService ticks at 500ms.
     await pollUntil(async () => {
       const after = await captureMetrics();
       const before =
         findMetricValue(metricsBefore, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
-          source: 'compound_governor_bravo',
+          source: 'evm_test_emitter',
         }) ?? 0;
       const now =
         findMetricValue(after, `indexer_ingestion_dlq_size`, {
           stage: 'archive_decode',
-          source: 'compound_governor_bravo',
+          source: 'evm_test_emitter',
         }) ?? 0;
       return now - before >= 1;
     }, 20_000);
