@@ -345,4 +345,79 @@ describe('IndexerOrchestratorService', () => {
       expect(parseChainConfigFromEnv).not.toHaveBeenCalled();
     });
   });
+
+  it('#13 — evm-block-head-poller spec: routed to block-head driver, not event-poller driver', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo_reconcile', '0x1'),
+    ]);
+
+    const blockHeadPlugin: SourcePlugin = {
+      sourceType: 'compound_governor_bravo_reconcile',
+      supportedChainIds: ['0x1'],
+      parseConfig: (raw: unknown) => raw,
+      buildIngestSpec: (): IngestSpec => ({
+        kind: 'evm-block-head-poller',
+        listener: vi.fn(),
+      }),
+    };
+
+    const eventDriver = makeFakeDriver(); // kind: 'evm-event-poller'
+    const blockHeadDriver: FetchDriver = {
+      kind: 'evm-block-head-poller',
+      start: vi.fn().mockResolvedValue(makeFakeHandle()),
+    };
+
+    vi.mocked(ChainContextRegistry).mockImplementation(function () {
+      return mockRegistry;
+    } as never);
+    vi.mocked(ReorgWatcherService).mockImplementation(function () {
+      return mockReorgWatcher;
+    } as never);
+
+    const module = await Test.createTestingModule({
+      providers: [
+        IndexerOrchestratorService,
+        { provide: SOURCE_PLUGINS, useValue: [blockHeadPlugin] },
+        { provide: FETCH_DRIVERS, useValue: [eventDriver, blockHeadDriver] },
+        { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+        { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+        { provide: ChainContextRegistry, useValue: mockRegistry },
+        { provide: ReorgWatcherService, useValue: mockReorgWatcher },
+      ],
+    }).compile();
+
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    expect(blockHeadDriver.start).toHaveBeenCalledTimes(1);
+    expect(eventDriver.start).not.toHaveBeenCalled();
+  });
+
+  it('#14 — unknown IngestSpec kind: throws before any driver.start()', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
+
+    const unknownKindPlugin: SourcePlugin = {
+      sourceType: 'compound_governor_bravo',
+      supportedChainIds: ['0x1'],
+      parseConfig: (raw: unknown) => raw,
+      buildIngestSpec: (): IngestSpec => ({
+        kind: 'evm-event-poller',
+        filter: { address: '0x0', topics: [] },
+        listener: vi.fn(),
+      }),
+    };
+    // Override spec kind after type-check by casting
+    unknownKindPlugin.buildIngestSpec = (): never => ({ kind: 'unknown-kind' }) as never;
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([unknownKindPlugin], driver);
+    const svc = module.get(IndexerOrchestratorService);
+
+    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No FetchDriver registered/);
+    expect(driver.start).not.toHaveBeenCalled();
+  });
 });
