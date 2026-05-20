@@ -1,4 +1,4 @@
-import type { ChainConfig, Logger, RpcClient } from '@libs/chain';
+import { chainMetrics, type ChainConfig, type Logger, type RpcClient } from '@libs/chain';
 import { pgDb, type DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
 import { withDaoSourceAdvisoryLock } from './dao-source-lock';
@@ -27,6 +27,12 @@ export type StartupGapFillWithLockResult =
   | { status: 'executed'; value: StartupGapFillResult };
 
 export type StartupGapFillWithLockInput = StartupGapFillInput;
+
+export class StartupGapFillShutdownError extends Error {
+  constructor() {
+    super('startup gap fill cancelled by shutdown');
+  }
+}
 
 export async function runStartupGapFill(input: StartupGapFillInput): Promise<StartupGapFillResult> {
   const { daoSourceId, chainConfig, rpcClient, daoSourceRepo, runtime, logger, signal } = input;
@@ -89,4 +95,46 @@ export async function runStartupGapFillWithLock(
   });
   if (lockResult.status === 'contended') return { status: 'contended' };
   return { status: 'executed', value: lockResult.value };
+}
+
+export async function processStartupGapFill(input: StartupGapFillWithLockInput): Promise<void> {
+  const lockResult = await runStartupGapFillWithLock(input);
+  const chain = input.chainConfig.name;
+  const daoSource = input.daoSourceId;
+
+  if (lockResult.status === 'contended') {
+    chainMetrics.ingestionGapFillSkipped.add(1, {
+      chain,
+      dao_source: daoSource,
+      reason: 'lock_contended',
+    });
+    return;
+  }
+
+  if (lockResult.value.status === 'skipped') {
+    chainMetrics.ingestionGapFillSkipped.add(1, {
+      chain,
+      dao_source: daoSource,
+      reason: lockResult.value.reason,
+    });
+    return;
+  }
+
+  if (lockResult.value.status === 'error') {
+    chainMetrics.ingestionGapFillFailed.add(1, {
+      chain,
+      dao_source: daoSource,
+      reason: 'error',
+    });
+    return;
+  }
+
+  if (lockResult.value.status === 'cancelled') {
+    chainMetrics.ingestionGapFillFailed.add(1, {
+      chain,
+      dao_source: daoSource,
+      reason: 'shutdown',
+    });
+    if (input.signal?.aborted) throw new StartupGapFillShutdownError();
+  }
 }

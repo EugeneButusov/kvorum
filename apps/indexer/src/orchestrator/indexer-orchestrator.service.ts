@@ -8,7 +8,11 @@ import {
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
-import { runStartupGapFillWithLock, type SourcePlugin } from '@sources/core';
+import {
+  processStartupGapFill,
+  StartupGapFillShutdownError,
+  type SourcePlugin,
+} from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
@@ -96,8 +100,12 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           sourceLabel: entry.sourceType,
         };
         const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
-        const gapFillShouldContinue = await this.runStartupGapFillWithMetrics(entry, runtime);
-        if (!gapFillShouldContinue) break;
+        try {
+          await this.runStartupGapFill(entry, runtime);
+        } catch (error) {
+          if (error instanceof StartupGapFillShutdownError) break;
+          throw error;
+        }
 
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
         const driver = driversByKind.get(spec.kind);
@@ -173,15 +181,15 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     }, 10_000);
   }
 
-  private async runStartupGapFillWithMetrics(
+  private async runStartupGapFill(
     entry: {
       chainCfg: ChainConfig;
       src: { id: string };
     },
     runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
-  ): Promise<boolean> {
+  ): Promise<void> {
     const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
-    const lockResult = await runStartupGapFillWithLock({
+    await processStartupGapFill({
       daoSourceId: entry.src.id,
       chainConfig: entry.chainCfg,
       rpcClient: chainCtx.client,
@@ -190,44 +198,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       logger: silentLogger,
       signal: this.shutdownController.signal,
     });
-
-    if (lockResult.status === 'contended') {
-      chainMetrics.ingestionGapFillSkipped.add(1, {
-        chain: entry.chainCfg.name,
-        dao_source: entry.src.id,
-        reason: 'lock_contended',
-      });
-      return true;
-    }
-
-    if (lockResult.value.status === 'skipped') {
-      chainMetrics.ingestionGapFillSkipped.add(1, {
-        chain: entry.chainCfg.name,
-        dao_source: entry.src.id,
-        reason: lockResult.value.reason,
-      });
-      return true;
-    }
-
-    if (lockResult.value.status === 'error') {
-      chainMetrics.ingestionGapFillFailed.add(1, {
-        chain: entry.chainCfg.name,
-        dao_source: entry.src.id,
-        reason: 'error',
-      });
-      return true;
-    }
-
-    if (lockResult.value.status === 'cancelled') {
-      chainMetrics.ingestionGapFillFailed.add(1, {
-        chain: entry.chainCfg.name,
-        dao_source: entry.src.id,
-        reason: 'shutdown',
-      });
-      return !this.shutdownController.signal.aborted;
-    }
-
-    return true;
   }
 }
 

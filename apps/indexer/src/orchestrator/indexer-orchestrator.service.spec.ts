@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { runStartupGapFillWithLock } from '@sources/core';
+import { processStartupGapFill } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -35,7 +35,7 @@ vi.mock('@libs/db', () => ({
 
 vi.mock('@sources/core', () => ({
   SOURCE_PLUGINS: 'SOURCE_PLUGINS',
-  runStartupGapFillWithLock: vi.fn(),
+  processStartupGapFill: vi.fn(),
 }));
 
 vi.mock('./reorg-watcher.service', () => ({
@@ -145,10 +145,7 @@ beforeEach(() => {
   });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
-  vi.mocked(runStartupGapFillWithLock).mockResolvedValue({
-    status: 'executed',
-    value: { status: 'no_gap' },
-  } as never);
+  vi.mocked(processStartupGapFill).mockResolvedValue(undefined);
 });
 
 describe('IndexerOrchestratorService', () => {
