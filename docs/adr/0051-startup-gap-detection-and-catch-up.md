@@ -1,96 +1,67 @@
 # ADR-051 — Startup gap detection and catch-up ingestion
 
-- **Status**: Proposed
-- **Date**: 2026-05-19
+- **Status**: Accepted
+- **Date**: 2026-05-20
 - **Spec sections affected**: 3.10
-- **Related**: ADR-027, ADR-046, ADR-047, ADR-037
+- **Related**: ADR-027, ADR-037, ADR-041, ADR-046, ADR-047
 
 ## Context
 
-Two gaps currently exist in the backfill-to-live handoff that no existing mechanism closes:
+Two startup/downtime gap classes exist under sliding-window polling:
 
-**Gap 1 — backfill-to-live cold start.** Backfill ends at block X (the chain head captured at backfill start). The live `EventPoller` is started some minutes later. Its first tick fetches `[currentHead − 2H, currentHead]`. If `currentHead − 2H > X`, events in `(X, currentHead − 2H)` are never fetched — they fall below the live window floor and above the backfill ceiling. The `event-poller.ts` comment (lines 17–19) acknowledges this and defers it to backfill, but no code enforces that a gap fill actually runs.
+- gap between persisted contiguous history and current live poll window floor
+- long downtime where `EventPoller` restarts at `[head - 2H, head]` and misses older unseen blocks
 
-**Gap 2 — indexer downtime.** The live indexer runs for a while, advancing some internal head, then stops. On restart after extended downtime (> `2 × reorgHorizon` blocks, roughly 5 minutes on Ethereum mainnet), the poller window starts well above the last processed block, leaving the same class of gap.
-
-In both cases the `EventPoller` cannot self-heal: it fetches only a fixed `2 × reorgHorizon` window per tick (`event-poller.ts:79–80`) and holds no persisted watermark.
-
-The existing `BackfillDriver` already handles arbitrary `[from, to]` range ingestion and writes everything below `cutoffBlock = head − 2H` as `confirmed` directly. There is no reason to build a separate catch-up path when the driver already does exactly what is needed for these gaps.
+`EventPoller` is intentionally stateless for history and cannot close these gaps by itself. `BackfillDriver` already provides chunked historical fetch, checkpointing, cancellation, and resume.
 
 ## Decision
 
-### 1. Persist a live ingestion watermark
+### 1. Remove `live_head_block`; use `backfill_head_block` as the contiguous floor
 
-Add `live_head_block BIGINT NULL` to `dao_source`. This column records the most recent block successfully processed by the live `EventPoller` for that source. It is updated after each successful poller tick, replacing the previous value (last-write wins — the column is a high-water mark, not a log).
+`live_head_block` is not used. The contiguous persisted floor is `backfill_head_block` (or `active_from_block - 1` when unset).
 
-`NULL` means the live poller has never completed a tick for this source.
+### 2. Start live poller first; run catch-up in parallel
 
-### 2. Define the effective last-processed block
+Per source at boot:
 
-On indexer startup, for each `dao_source`, compute:
+1. Start live `EventPoller` immediately.
+2. Wait for first **successful** tick head `L` (`onFirstTickComplete`).
+3. Run boot catch-up in background over `[floor + 1, L - 2H]`.
 
-```
-lastBlock = max(
-  backfill_head_block  ?? (active_from_block - 1),
-  live_head_block      ?? 0,
-)
-```
+`H = reorgHorizon` and `L - 2H` is below reorg-sensitive range by construction.
 
-`active_from_block − 1` is used when backfill has never run so that a gap fill from block 0 (or the contract deploy block) is never silently skipped.
+### 3. Catch-up mode in `BackfillDriver`
 
-### 3. Define the gap
+`BackfillDriver` supports `mode='catch-up'`:
 
-```
-gapStart = lastBlock + 1
-gapEnd   = currentHead − 2 × reorgHorizon
-```
+- floor = `backfill_head_block` else `active_from_block - 1`
+- start = `floor + 1`
+- end = supplied `toBlock` when provided by orchestrator
+- when end is omitted (CLI/manual fallback), driver captures head and uses `head - 2H`
+- advances `backfill_head_block` per chunk
+- does **not** clear floor state on completion
 
-A gap exists when `gapEnd >= gapStart`.
+### 4. Failure and shutdown behavior
 
-There is no minimum gap threshold. A gap of one block still requires a fill; suppressing small gaps creates the same class of subtle correctness risk as suppressing large ones.
+- Catch-up is background work; live polling continues if catch-up fails.
+- Startup/shutdown abort path must cancel pending catch-up wait and in-flight catch-up orchestration.
+- `raceWithAbort` is used while waiting for first successful tick so shutdown does not hang when first tick never succeeds.
 
-### 4. Fill the gap on indexer startup
+### 5. Operator controls
 
-Before the `EventPoller` starts for a source, the indexer checks for a gap and, if one exists, runs the existing `BackfillDriver` with:
+- `admin-cli backfill catch-up <source_type>` uses the same catch-up path in foreground.
+- `admin-cli backfill start --from-block X` must satisfy:
+  `X >= max(active_from_block, backfill_head_block + 1)`.
 
-```
-mode    = fresh (force = true, to preserve existing backfill_head_block semantics)
-fromBlock = gapStart
-toBlock   = gapEnd
-```
+### 6. Current-stage concurrency rule (no lock yet)
 
-Because `toBlock = currentHead − 2H`, every event in the range satisfies `blockNumber <= cutoffBlock` and is written `confirmed` directly. The live poller then starts from its normal sliding window with no further coordination needed.
+Advisory locking is deferred at this stage. Operational rule:
 
-The gap fill runs **sequentially before** the `EventPoller` starts for that source. Parallel start (live + fill concurrently) is deferred; the sequential model is sufficient and simpler to reason about.
-
-### 5. Gap fill failure does not block the live poller
-
-If the gap fill errors or is cancelled (SIGINT/SIGTERM, matching ADR-047), the indexer logs the error with source ID and gap range, emits a `gap_fill_failed_total` counter, and proceeds to start the `EventPoller` normally. The operator can re-trigger manually (decision 6). Blocking live ingestion indefinitely on a fill failure would be worse than the gap itself.
-
-### 6. Manual trigger via admin-cli
-
-`admin-cli backfill catch-up <dao-source-id>` triggers a gap fill on demand without restarting the indexer. This is the resolution path for the long-downtime case where the operator wants explicit control. The command:
-
-- reads `live_head_block` and `backfill_head_block` from the DB
-- computes `gapStart`/`gapEnd` against the current chain head
-- prints the gap range and asks for confirmation before running
-- uses the same `BackfillDriver` as the startup path
-
-### 7. `live_head_block` is not a backfill checkpoint
-
-`live_head_block` is updated only by the live poller path. It is never read or written by `BackfillDriver`. The existing `backfill_head_block` / `backfill_started_at_block` columns are unchanged and continue to serve ADR-027's crash-resume and determinism guarantees.
-
-## Alternatives considered
-
-- **WebSocket-based head subscription with catch-up.** Would replace polling entirely and natively emit missed blocks on reconnect. Deferred by ADR-037; the gap problem predates WebSocket support and needs a solution that works under the current polling model.
-- **Gap fill runs concurrently with live poller.** Avoids blocking live ingestion during a large historical gap. Rejected for now: concurrent writes from both paths to overlapping block ranges require careful ordering and add coordination complexity. Sequential is correct and auditable; concurrency can be layered on later if large gaps become operationally common.
-- **Extend EventPoller with its own catch-up loop.** Would make the poller stateful and responsible for its own gap detection. Rejected: the poller is intentionally stateless (ADR-037, tick-dropping contract); adding state and history-fetching merges two distinct concerns. `BackfillDriver` already owns historical range fetching correctly.
-- **Persist watermark in Redis / external store.** Rejected: `dao_source` is already the authoritative per-source state record for backfill progress; co-locating `live_head_block` there keeps all per-source progress in one row and one schema migration.
+- do not run manual `backfill catch-up` / `backfill start` for a source while that source is executing boot catch-up.
 
 ## Consequences
 
-- Backfill-to-live and downtime-recovery gaps are closed for all sources that run the startup check.
-- `dao_source` gains one nullable column. The schema migration is non-breaking (existing rows default to `NULL`; `NULL` is handled as "never polled" in the gap formula).
-- The gap fill on startup may add latency before the `EventPoller` starts for a source with a large gap. The operator is expected to run `admin-cli backfill catch-up` proactively for sources known to have large gaps rather than letting startup block on them.
-- `live_head_block` is a best-effort watermark: if the indexer crashes mid-tick before the update commits, the next startup gap fill re-processes up to one poller window of already-seen blocks. That re-processing is idempotent (ADR-041 unique key).
-- The `gap_fill_failed_total` metric gives operators observability on gap fill failures without requiring log parsing.
+- Live ingestion is no longer blocked by startup catch-up.
+- `backfill_head_block` becomes load-bearing restart state for contiguous history.
+- Seam overlap is intentional and absorbed by idempotent writes (ADR-041).
+- Without lock, concurrency safety is operationally enforced for now.
