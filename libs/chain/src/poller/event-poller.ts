@@ -20,6 +20,7 @@ const PROGRESS_LOG_MS = 5 * 60 * 1_000;
 export class EventPoller extends AbstractPoller {
   private readonly daoSourceLabel: string;
   private readonly filter: LogFilter;
+  private bootstrapFromBlock: bigint | null;
   private readonly listeners: Set<EventsListener> = new Set();
   private lastSuccessAt: Date | null = null;
   private lastLoggedHead: bigint = 0n;
@@ -34,6 +35,7 @@ export class EventPoller extends AbstractPoller {
     });
     this.daoSourceLabel = opts.daoSourceLabel;
     this.filter = Object.freeze(lowercaseFilter(opts.filter));
+    this.bootstrapFromBlock = opts.bootstrapFromBlock ?? null;
   }
 
   /** Returns an unsubscribe function. Listeners are dispatched in parallel via
@@ -77,7 +79,13 @@ export class EventPoller extends AbstractPoller {
     }
 
     const windowSize = BigInt(reorgHorizon) * 2n;
-    const fromBn = headBn > windowSize ? headBn - windowSize : 0n;
+    const rollingFromBn = headBn > windowSize ? headBn - windowSize : 0n;
+    const fromBn =
+      this.bootstrapFromBlock !== null
+        ? this.bootstrapFromBlock > headBn
+          ? headBn
+          : this.bootstrapFromBlock
+        : rollingFromBn;
     const fromHex = '0x' + fromBn.toString(16);
     const toHex = '0x' + headBn.toString(16);
 
@@ -156,6 +164,8 @@ export class EventPoller extends AbstractPoller {
       });
       return;
     }
+    // Bootstrap lower bound is one-time; after first successful listener pass we revert to rolling window.
+    this.bootstrapFromBlock = null;
 
     if (this.opts.onBlockComplete) {
       try {
