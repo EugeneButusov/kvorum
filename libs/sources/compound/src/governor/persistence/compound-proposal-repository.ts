@@ -78,6 +78,12 @@ export class CompoundProposalRepository {
                   eb('proposal.voting_ends_block', 'is not', null),
                   eb('proposal.voting_ends_block', '<', bound.confirmedThresholdBlock),
                 ]),
+                // pending→active has no on-chain event; detect when startBlock is confirmed
+                eb.and([
+                  eb('proposal.state', '=', 'pending'),
+                  eb('proposal.voting_starts_block', 'is not', null),
+                  eb('proposal.voting_starts_block', '<', bound.confirmedThresholdBlock),
+                ]),
                 eb.and([
                   eb('proposal.state', '=', 'queued'),
                   eb.or([
