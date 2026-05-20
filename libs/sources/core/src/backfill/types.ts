@@ -1,4 +1,4 @@
-export type BackfillMode = 'fresh' | 'resume';
+export type BackfillMode = 'fresh' | 'resume' | 'catch-up';
 
 export interface BackfillRunInput {
   daoSourceId: string;

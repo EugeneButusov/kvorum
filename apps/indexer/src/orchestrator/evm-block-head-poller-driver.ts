@@ -13,6 +13,9 @@ export class EvmBlockHeadPollerDriver implements FetchDriver<'evm-block-head-pol
     spec: Extract<IngestSpec, { kind: 'evm-block-head-poller' }>,
     _ctx: SourceContext,
     chainCfg: Parameters<ChainContextRegistry['getOrCreate']>[0],
+    _opts?: {
+      onFirstHeadComplete?: (head: bigint) => void;
+    },
   ): Promise<FetchDriverHandle> {
     const chainCtx = await this.registry.getOrCreate(chainCfg);
 

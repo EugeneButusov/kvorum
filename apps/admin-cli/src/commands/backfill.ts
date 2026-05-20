@@ -80,13 +80,31 @@ export function registerBackfill(program: Command): void {
         await rpcClient.start();
 
         const status = await daoSourceRepository.readBackfillStatus(row.id);
-        const mode =
-          fromBlock != null
-            ? 'fresh'
-            : status?.backfill_started_at_block != null
-              ? 'resume'
-              : 'fresh';
+        let mode: 'fresh' | 'resume' = 'fresh';
+        if (fromBlock == null && status?.backfill_started_at_block != null) {
+          mode = 'resume';
+        }
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
+        if (fromBlock != null) {
+          const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
+          const backfillFloor =
+            row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
+          let minFrom = 0n;
+          if (activeFloor === null) {
+            minFrom = backfillFloor ?? 0n;
+          } else if (backfillFloor === null) {
+            minFrom = activeFloor;
+          } else {
+            minFrom = activeFloor > backfillFloor ? activeFloor : backfillFloor;
+          }
+          if (fromBlock < minFrom) {
+            fail(
+              format,
+              ExitCode.ValidationFailure,
+              `--from-block (${fromBlock.toString()}) must be >= ${minFrom.toString()} (= max(active_from_block=${row.active_from_block ?? 'NULL'}, backfill_head_block+1=${backfillFloor?.toString() ?? 'NULL'}))`,
+            );
+          }
+        }
 
         try {
           const headHex = await rpcClient.send<string>('eth_blockNumber', []);
@@ -184,7 +202,7 @@ export function registerBackfill(program: Command): void {
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { runStartupGapFill, computeGap } = core;
+        const { runBootCatchUp, computeGap } = core;
         const { daoSourceRepository } = buildContainer();
 
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -221,7 +239,6 @@ export function registerBackfill(program: Command): void {
             row: {
               active_from_block: row.active_from_block,
               backfill_head_block: row.backfill_head_block,
-              live_head_block: row.live_head_block,
             },
             headBlock,
             reorgHorizon: chainConfig.reorgHorizon,
@@ -241,7 +258,7 @@ export function registerBackfill(program: Command): void {
           }
 
           await withAudit('backfill catch-up', { sourceType, ...opts }, async () => {
-            const result = await runStartupGapFill({
+            const result = await runBootCatchUp({
               daoSourceId: row.id,
               chainConfig,
               rpcClient,

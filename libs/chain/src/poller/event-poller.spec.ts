@@ -254,26 +254,29 @@ describe('EventPoller', () => {
     });
   });
 
-  describe('onBlockComplete', () => {
-    it('fires after a successful tick with head block', async () => {
+  describe('onFirstHeadComplete', () => {
+    it('fires once after first successful tick', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
+      fake.returnSuccess('0x11').returnSuccess([]);
 
-      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(() => {});
       await poller.start();
+      await new Promise<void>((r) => setTimeout(r, 80));
       await poller.stop();
 
-      expect(onBlockComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledTimes(1);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
     });
 
     it('does not fire when any listener rejects', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
 
-      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(async () => {
         throw new Error('listener failed');
       });
@@ -281,20 +284,20 @@ describe('EventPoller', () => {
       await poller.start();
       await poller.stop();
 
-      expect(onBlockComplete).not.toHaveBeenCalled();
+      expect(onFirstHeadComplete).not.toHaveBeenCalled();
     });
 
     it('fires when no events are returned', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([]);
       fake.returnSuccess([]);
 
-      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(() => {});
       await poller.start();
       await poller.stop();
 
-      expect(onBlockComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
     });
   });
 

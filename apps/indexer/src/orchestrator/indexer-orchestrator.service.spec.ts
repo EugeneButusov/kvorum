@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { BackfillAlreadyStartedError, processStartupGapFill } from '@sources/core';
+import { BackfillAlreadyStartedError, runBootCatchUp } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -17,6 +17,9 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
+  reorgCutoff: vi.fn(
+    (head: bigint, cfg: { reorgHorizon: number }) => head - BigInt(cfg.reorgHorizon) * 2n,
+  ),
   ChainContextRegistry: vi.fn(),
   silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
@@ -35,11 +38,11 @@ vi.mock('@libs/db', () => ({
 
 vi.mock('@sources/core', () => ({
   SOURCE_PLUGINS: 'SOURCE_PLUGINS',
-  processStartupGapFill: vi.fn(),
-  StartupGapFillShutdownError: class StartupGapFillShutdownError extends Error {
+  runBootCatchUp: vi.fn(),
+  BootCatchUpShutdownError: class BootCatchUpShutdownError extends Error {
     constructor() {
-      super('startup gap fill cancelled by shutdown');
-      this.name = 'StartupGapFillShutdownError';
+      super('boot catch-up cancelled by shutdown');
+      this.name = 'BootCatchUpShutdownError';
     }
   },
   BackfillAlreadyStartedError: class BackfillAlreadyStartedError extends Error {
@@ -112,7 +115,8 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
   return {
     kind: 'evm-event-poller',
     _handles: handles,
-    start: vi.fn().mockImplementation(async () => {
+    start: vi.fn().mockImplementation(async (_spec, _ctx, _chainCfg, opts) => {
+      opts?.onFirstHeadComplete?.(16n);
       const h = makeFakeHandle();
       handles.push(h);
       return h;
@@ -161,7 +165,7 @@ beforeEach(() => {
   });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
-  vi.mocked(processStartupGapFill).mockResolvedValue(undefined);
+  vi.mocked(runBootCatchUp).mockResolvedValue({ status: 'no_gap' });
 });
 
 describe('IndexerOrchestratorService', () => {
@@ -195,12 +199,12 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(2);
   });
 
-  it('#2b — BackfillAlreadyStartedError from startup gap-fill is skipped and driver still starts', async () => {
+  it('#2b — BackfillAlreadyStartedError from boot catch-up is skipped and driver still starts', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+    vi.mocked(runBootCatchUp).mockRejectedValueOnce(
       new BackfillAlreadyStartedError('src-1', '100'),
     );
 
@@ -480,12 +484,12 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
-  it('#15 — BackfillAlreadyStartedError during startup gap-fill is skipped and live driver starts', async () => {
+  it('#15 — BackfillAlreadyStartedError during boot catch-up is skipped and live driver starts', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+    vi.mocked(runBootCatchUp).mockRejectedValueOnce(
       new BackfillAlreadyStartedError('src-1', '100'),
     );
 
@@ -498,12 +502,12 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#16 — startup gap fill returns without throw and live driver starts', async () => {
+  it('#16 — boot catch-up returns without throw and live driver starts', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(processStartupGapFill).mockResolvedValueOnce(undefined);
+    vi.mocked(runBootCatchUp).mockResolvedValueOnce({ status: 'no_gap' });
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);

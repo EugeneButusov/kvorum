@@ -24,6 +24,7 @@ export class EventPoller extends AbstractPoller {
   private lastSuccessAt: Date | null = null;
   private lastLoggedHead: bigint = 0n;
   private lastLoggedAt: number = 0;
+  private firstTickFired = false;
 
   constructor(private readonly opts: EventPollerOptions) {
     super({
@@ -148,21 +149,14 @@ export class EventPoller extends AbstractPoller {
       }
     }
 
-    if (!allListenersFulfilled) {
-      chainMetrics.ingestionLiveWatermarkSkipped.add(1, {
-        chain,
-        dao_source: src,
-        reason: 'listener_failed',
-      });
-      return;
-    }
-
-    if (this.opts.onBlockComplete) {
+    if (!allListenersFulfilled) return;
+    if (!this.firstTickFired) {
+      this.firstTickFired = true;
       try {
-        await this.opts.onBlockComplete(headBn);
+        this.opts.onFirstHeadComplete?.(headBn);
       } catch (err) {
         this.logger.warn(
-          `[chain:${chain}][source:${src}] EventPoller onBlockComplete threw: ${String(err)}`,
+          `[chain:${chain}][source:${src}] EventPoller onFirstHeadComplete threw: ${String(err)}`,
         );
       }
     }
