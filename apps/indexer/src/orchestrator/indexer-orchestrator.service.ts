@@ -4,13 +4,15 @@ import {
   ChainContextRegistry,
   parseChainConfigFromEnv,
   chainMetrics,
+  reorgCutoff,
   silentLogger,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
+import { raceWithAbort, AbortError } from '@libs/utils';
 import {
   BackfillAlreadyStartedError,
-  processStartupGapFill,
+  runStartupGapFill,
   StartupGapFillShutdownError,
   type SourcePlugin,
 } from '@sources/core';
@@ -25,6 +27,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
   private activeSourceTypes: Set<string> = new Set();
   private shutdownController = new AbortController();
+  private catchUpTasks: Promise<void>[] = [];
 
   constructor(
     @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
@@ -100,37 +103,35 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           chainId: entry.src.primary_chain_id,
           sourceLabel: entry.sourceType,
         };
-        const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
-        try {
-          await this.runStartupGapFill(entry, runtime);
-        } catch (error) {
-          if (error instanceof StartupGapFillShutdownError) break;
-          if (error instanceof BackfillAlreadyStartedError) {
-            this.logger.warn('startup_gap_fill_already_started_skip', {
-              dao_source: entry.src.id,
-              chain_id: entry.src.primary_chain_id,
-              error: error.message,
-            });
-          } else {
-            throw error;
-          }
-        }
-
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
         const driver = driversByKind.get(spec.kind);
         if (!driver) {
           throw new Error(`No FetchDriver registered for IngestSpec.kind="${spec.kind}"`);
         }
+        let resolveFirstTick: ((head: bigint) => void) | undefined;
+        const firstTickPromise = new Promise<bigint>((resolve) => {
+          resolveFirstTick = resolve;
+        });
         const handle = await (driver as FetchDriver<typeof spec.kind>).start(
           spec as never,
           ctx,
           entry.chainCfg,
+          spec.kind === 'evm-event-poller' ? { onFirstTickComplete: resolveFirstTick } : undefined,
         );
         this.handles.push(handle);
         this.activeSourceTypes.add(entry.sourceType);
+
+        const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
+        if (spec.kind === 'evm-event-poller') {
+          const task = this.runParallelCatchUp(entry, runtime, firstTickPromise);
+          this.catchUpTasks.push(task);
+        }
       }
     } catch (err) {
       this.logger.error('bootstrap_failed_cleanup', { error: String(err) });
+      this.shutdownController.abort('bootstrap_failed_cleanup');
+      await Promise.allSettled(this.catchUpTasks);
+      this.catchUpTasks = [];
       await Promise.allSettled(this.handles.map((h) => h.stop()));
       this.handles.length = 0;
       this.activeSourceTypes.clear();
@@ -157,6 +158,8 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       clearInterval(this.gaugeInterval);
       this.gaugeInterval = null;
     }
+    await Promise.allSettled(this.catchUpTasks);
+    this.catchUpTasks = [];
     await Promise.allSettled(this.handles.map((h) => h.stop()));
     this.handles.length = 0;
     this.activeSourceTypes.clear();
@@ -190,23 +193,62 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     }, 10_000);
   }
 
-  private async runStartupGapFill(
+  private async runParallelCatchUp(
     entry: {
       chainCfg: ChainConfig;
       src: { id: string };
+      sourceType: string;
     },
     runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
+    firstTickPromise: Promise<bigint>,
   ): Promise<void> {
-    const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
-    await processStartupGapFill({
-      daoSourceId: entry.src.id,
-      chainConfig: entry.chainCfg,
-      rpcClient: chainCtx.client,
-      daoSourceRepo: this.daoSourceRepo,
-      runtime,
-      logger: silentLogger,
-      signal: this.shutdownController.signal,
-    });
+    try {
+      const firstTickHead = await raceWithAbort(firstTickPromise, this.shutdownController.signal);
+      const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
+      const result = await runStartupGapFill({
+        daoSourceId: entry.src.id,
+        chainConfig: entry.chainCfg,
+        rpcClient: chainCtx.client,
+        daoSourceRepo: this.daoSourceRepo,
+        runtime,
+        logger: silentLogger,
+        signal: this.shutdownController.signal,
+        toBlock: reorgCutoff(firstTickHead, entry.chainCfg),
+      });
+      if (result.status === 'cancelled' && this.shutdownController.signal.aborted) {
+        throw new StartupGapFillShutdownError();
+      }
+      if (result.status === 'error') {
+        throw result.error;
+      }
+      if (result.status === 'skipped') {
+        chainMetrics.ingestionGapFillSkipped.add(1, {
+          chain: entry.chainCfg.name,
+          dao_source: entry.src.id,
+          reason: result.reason,
+        });
+      }
+    } catch (error) {
+      if (error instanceof AbortError || error instanceof StartupGapFillShutdownError) return;
+      if (error instanceof BackfillAlreadyStartedError) {
+        this.logger.warn('startup_gap_fill_already_started_skip', {
+          dao_source: entry.src.id,
+          chain_id: entry.chainCfg.chainId,
+          error: error.message,
+        });
+        return;
+      }
+      chainMetrics.ingestionGapFillFailed.add(1, {
+        chain: entry.chainCfg.name,
+        dao_source: entry.src.id,
+        reason: 'error',
+      });
+      this.logger.error('startup_gap_fill_failed', {
+        source: entry.sourceType,
+        dao_source: entry.src.id,
+        error: String(error),
+      });
+    }
   }
 }
 

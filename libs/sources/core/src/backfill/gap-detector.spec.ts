@@ -7,7 +7,6 @@ describe('computeGap', () => {
       row: {
         active_from_block: null,
         backfill_head_block: null,
-        live_head_block: null,
       },
       headBlock: 1000n,
       reorgHorizon: 10,
@@ -21,7 +20,6 @@ describe('computeGap', () => {
       row: {
         active_from_block: '0',
         backfill_head_block: null,
-        live_head_block: null,
       },
       headBlock: 30n,
       reorgHorizon: 10,
@@ -35,7 +33,6 @@ describe('computeGap', () => {
       row: {
         active_from_block: '100',
         backfill_head_block: '120',
-        live_head_block: '121',
       },
       headBlock: 130n,
       reorgHorizon: 5,
@@ -44,17 +41,16 @@ describe('computeGap', () => {
     expect(out).toEqual({ kind: 'none' });
   });
 
-  it('#4 - uses max(backfill_head, live_head)', () => {
+  it('#4 - uses backfill_head when present', () => {
     const out = computeGap({
       row: {
         active_from_block: '100',
         backfill_head_block: '140',
-        live_head_block: '145',
       },
       headBlock: 180n,
       reorgHorizon: 10,
     });
 
-    expect(out).toEqual({ kind: 'gap', gapStart: 146n, gapEnd: 160n });
+    expect(out).toEqual({ kind: 'gap', gapStart: 141n, gapEnd: 160n });
   });
 });

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventPoller } from '@libs/chain';
 import type { ChainContextRegistry } from '@libs/chain';
-import type { DaoSourceRepository } from '@libs/db';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
 
@@ -78,12 +77,6 @@ function setupMockPoller() {
   return instance;
 }
 
-function makeDaoSourceRepo(): DaoSourceRepository {
-  return {
-    updateLiveHead: vi.fn().mockResolvedValue(undefined),
-  } as unknown as DaoSourceRepository;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -91,10 +84,9 @@ beforeEach(() => {
 describe('EvmEventPollerDriver', () => {
   it('#1 — start() gets context from registry, starts poller, wires listener', async () => {
     const { registry } = makeRegistry();
-    const daoSourceRepo = makeDaoSourceRepo();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG);
@@ -104,7 +96,6 @@ describe('EvmEventPollerDriver', () => {
 
   it('#2 — two sources on same chain: registry.getOrCreate called twice (registry handles caching)', async () => {
     const { registry } = makeRegistry();
-    const daoSourceRepo = makeDaoSourceRepo();
     vi.mocked(EventPoller).mockImplementation(function () {
       return {
         onEvents: vi.fn(),
@@ -113,7 +104,7 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     const ctx2 = { ...CTX, daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG);
@@ -125,7 +116,6 @@ describe('EvmEventPollerDriver', () => {
   it('#3 — two sources on different chains: getOrCreate called per chain', async () => {
     const ctxA = makeRegistryContext();
     const ctxB = makeRegistryContext();
-    const daoSourceRepo = makeDaoSourceRepo();
     const registry = {
       getOrCreate: vi.fn().mockResolvedValueOnce(ctxA).mockResolvedValueOnce(ctxB),
     } as unknown as ChainContextRegistry;
@@ -138,7 +128,7 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     const ctx2 = { ...CTX, chainId: '0x89', daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG_137);
@@ -150,10 +140,9 @@ describe('EvmEventPollerDriver', () => {
 
   it('#4 — stop() stops poller only', async () => {
     const { registry } = makeRegistry();
-    const daoSourceRepo = makeDaoSourceRepo();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     const handle = await driver.start(SPEC, CTX, CHAIN_CFG);
     await handle.stop();
 
@@ -163,10 +152,9 @@ describe('EvmEventPollerDriver', () => {
   it('#5 — EventPoller constructed with rpcClient from registry context', async () => {
     const client = makeClient();
     const { registry } = makeRegistry(makeRegistryContext(client));
-    const daoSourceRepo = makeDaoSourceRepo();
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as { rpcClient: typeof client };
@@ -177,26 +165,24 @@ describe('EvmEventPollerDriver', () => {
     const registry = {
       getOrCreate: vi.fn().mockRejectedValue(new Error('rpc fail')),
     } as unknown as ChainContextRegistry;
-    const daoSourceRepo = makeDaoSourceRepo();
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
+    const driver = new EvmEventPollerDriver(registry);
     await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
   });
 
-  it('#7 — wires onBlockComplete to dao_source live head updates', async () => {
+  it('#7 — forwards onFirstTickComplete', async () => {
     const { registry } = makeRegistry();
-    const daoSourceRepo = makeDaoSourceRepo();
     setupMockPoller();
+    const onFirstTickComplete = vi.fn();
 
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
-    await driver.start(SPEC, CTX, CHAIN_CFG);
+    const driver = new EvmEventPollerDriver(registry);
+    await driver.start(SPEC, CTX, CHAIN_CFG, { onFirstTickComplete });
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as {
-      onBlockComplete: (head: bigint) => Promise<void>;
+      onFirstTickComplete: (head: bigint) => void;
     };
-    await pollerOpts.onBlockComplete(123n);
-
-    expect(daoSourceRepo.updateLiveHead).toHaveBeenCalledWith('src-1', 123n);
+    pollerOpts.onFirstTickComplete(123n);
+    expect(onFirstTickComplete).toHaveBeenCalledWith(123n);
   });
 });

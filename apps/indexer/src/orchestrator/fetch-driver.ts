@@ -11,5 +11,8 @@ export interface FetchDriver<K extends IngestSpec['kind'] = IngestSpec['kind']> 
     spec: Extract<IngestSpec, { kind: K }>,
     ctx: SourceContext,
     chainCfg: ChainConfig,
+    opts?: {
+      onFirstTickComplete?: (head: bigint) => void;
+    },
   ): Promise<FetchDriverHandle>;
 }

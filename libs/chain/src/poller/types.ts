@@ -51,6 +51,8 @@ export interface EventPollerOptions {
   /** Hard cap on stop() drain time in ms. Default = 5_000. Also passed as deadlineMs
    *  to rpcClient.send during shutdown so in-flight requests honor the same budget. */
   stopTimeoutMs?: number;
+  /** Fires once after the first tick where RPC succeeds and listeners resolve. */
+  onFirstTickComplete?: (headBlock: bigint) => void;
   logger?: Logger;
 }
 

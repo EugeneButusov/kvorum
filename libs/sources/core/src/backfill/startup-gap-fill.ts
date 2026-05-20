@@ -19,6 +19,7 @@ export interface StartupGapFillInput {
   runtime: BackfillRuntime;
   logger: Logger;
   signal?: AbortSignal;
+  toBlock?: bigint;
 }
 
 export class StartupGapFillShutdownError extends Error {
@@ -33,20 +34,36 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
   const row = await daoSourceRepo.findByIdWithChain(daoSourceId);
   if (!row) throw new Error(`dao_source ${daoSourceId} not found`);
 
-  const headHex = await rpcClient.send<string>('eth_blockNumber', []);
-  const headBlock = BigInt(headHex);
+  const gap =
+    input.toBlock !== undefined
+      ? (() => {
+          const activeFrom = row.active_from_block === null ? null : BigInt(row.active_from_block);
+          const backfillHead =
+            row.backfill_head_block === null ? null : BigInt(row.backfill_head_block);
+          if (activeFrom === null && backfillHead === null) {
+            return { kind: 'skip', reason: 'no_active_from_block' } as const;
+          }
+          const fromBlock = (backfillHead ?? (activeFrom as bigint) - 1n) + 1n;
+          if (fromBlock > input.toBlock) return { kind: 'none' } as const;
+          return { kind: 'gap', gapStart: fromBlock, gapEnd: input.toBlock } as const;
+        })()
+      : (() => {
+          const headHex = rpcClient.send<string>('eth_blockNumber', []);
+          return headHex.then((hex) =>
+            computeGap({
+              row: {
+                active_from_block: row.active_from_block,
+                backfill_head_block: row.backfill_head_block,
+              },
+              headBlock: BigInt(hex),
+              reorgHorizon: chainConfig.reorgHorizon,
+            }),
+          );
+        })();
+  const resolvedGap = await gap;
 
-  const gap = computeGap({
-    row: {
-      active_from_block: row.active_from_block,
-      backfill_head_block: row.backfill_head_block,
-    },
-    headBlock,
-    reorgHorizon: chainConfig.reorgHorizon,
-  });
-
-  if (gap.kind === 'skip') return { status: 'skipped', reason: gap.reason };
-  if (gap.kind === 'none') return { status: 'no_gap' };
+  if (resolvedGap.kind === 'skip') return { status: 'skipped', reason: resolvedGap.reason };
+  if (resolvedGap.kind === 'none') return { status: 'no_gap' };
 
   const driver = new BackfillDriver({
     rpcClient,
@@ -59,8 +76,8 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
 
   const outcome = await driver.run({
     daoSourceId,
-    fromBlock: gap.gapStart,
-    toBlock: gap.gapEnd,
+    fromBlock: resolvedGap.gapStart,
+    toBlock: resolvedGap.gapEnd,
     mode: 'catch-up',
     signal,
   });
