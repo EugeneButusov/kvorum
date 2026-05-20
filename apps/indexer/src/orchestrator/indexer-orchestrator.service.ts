@@ -96,50 +96,8 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           sourceLabel: entry.sourceType,
         };
         const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
-        const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
-        const lockResult = await withDaoSourceAdvisoryLock({
-          db: pgDb,
-          daoSourceId: entry.src.id,
-          run: async () =>
-            runStartupGapFill({
-              daoSourceId: entry.src.id,
-              chainConfig: entry.chainCfg,
-              rpcClient: chainCtx.client,
-              daoSourceRepo: this.daoSourceRepo,
-              runtime,
-              logger: silentLogger,
-              signal: this.shutdownController.signal,
-            }),
-        });
-
-        if (lockResult.status === 'contended') {
-          chainMetrics.ingestionGapFillSkipped.add(1, {
-            chain: entry.chainCfg.name,
-            dao_source: entry.src.id,
-            reason: 'lock_contended',
-          });
-        } else if (lockResult.value.status === 'skipped') {
-          chainMetrics.ingestionGapFillSkipped.add(1, {
-            chain: entry.chainCfg.name,
-            dao_source: entry.src.id,
-            reason: lockResult.value.reason,
-          });
-        } else if (lockResult.value.status === 'error') {
-          chainMetrics.ingestionGapFillFailed.add(1, {
-            chain: entry.chainCfg.name,
-            dao_source: entry.src.id,
-            reason: 'error',
-          });
-        } else if (lockResult.value.status === 'cancelled') {
-          chainMetrics.ingestionGapFillFailed.add(1, {
-            chain: entry.chainCfg.name,
-            dao_source: entry.src.id,
-            reason: 'shutdown',
-          });
-          if (this.shutdownController.signal.aborted) {
-            break;
-          }
-        }
+        const gapFillShouldContinue = await this.runStartupGapFillWithMetrics(entry, runtime);
+        if (!gapFillShouldContinue) break;
 
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
         const driver = driversByKind.get(spec.kind);
@@ -213,6 +171,68 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     this.gaugeInterval = setInterval(() => {
       void update();
     }, 10_000);
+  }
+
+  private async runStartupGapFillWithMetrics(
+    entry: {
+      chainCfg: ChainConfig;
+      src: { id: string };
+    },
+    runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
+  ): Promise<boolean> {
+    const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
+    const lockResult = await withDaoSourceAdvisoryLock({
+      db: pgDb,
+      daoSourceId: entry.src.id,
+      run: async () =>
+        runStartupGapFill({
+          daoSourceId: entry.src.id,
+          chainConfig: entry.chainCfg,
+          rpcClient: chainCtx.client,
+          daoSourceRepo: this.daoSourceRepo,
+          runtime,
+          logger: silentLogger,
+          signal: this.shutdownController.signal,
+        }),
+    });
+
+    if (lockResult.status === 'contended') {
+      chainMetrics.ingestionGapFillSkipped.add(1, {
+        chain: entry.chainCfg.name,
+        dao_source: entry.src.id,
+        reason: 'lock_contended',
+      });
+      return true;
+    }
+
+    if (lockResult.value.status === 'skipped') {
+      chainMetrics.ingestionGapFillSkipped.add(1, {
+        chain: entry.chainCfg.name,
+        dao_source: entry.src.id,
+        reason: lockResult.value.reason,
+      });
+      return true;
+    }
+
+    if (lockResult.value.status === 'error') {
+      chainMetrics.ingestionGapFillFailed.add(1, {
+        chain: entry.chainCfg.name,
+        dao_source: entry.src.id,
+        reason: 'error',
+      });
+      return true;
+    }
+
+    if (lockResult.value.status === 'cancelled') {
+      chainMetrics.ingestionGapFillFailed.add(1, {
+        chain: entry.chainCfg.name,
+        dao_source: entry.src.id,
+        reason: 'shutdown',
+      });
+      return !this.shutdownController.signal.aborted;
+    }
+
+    return true;
   }
 }
 
