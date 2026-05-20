@@ -204,7 +204,7 @@ export function registerBackfill(program: Command): void {
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { runStartupGapFill, computeGap } = core;
+        const { runBootCatchUp, computeGap } = core;
         const { daoSourceRepository } = buildContainer();
 
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -260,7 +260,7 @@ export function registerBackfill(program: Command): void {
           }
 
           await withAudit('backfill catch-up', { sourceType, ...opts }, async () => {
-            const result = await runStartupGapFill({
+            const result = await runBootCatchUp({
               daoSourceId: row.id,
               chainConfig,
               rpcClient,

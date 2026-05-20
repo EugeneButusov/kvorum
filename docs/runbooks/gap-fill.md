@@ -1,21 +1,23 @@
-# Startup gap-fill and catch-up runbook
+# Startup catch-up runbook (ADR-051 parallel handoff)
 
-This runbook covers ADR-051 operation for startup gap detection and manual catch-up.
+This runbook covers boot-time catch-up and manual catch-up/backfill operations.
 
 ## What happens automatically
 
-- On indexer startup, each `dao_source` computes a gap against `head - 2*reorgHorizon`.
-- If a gap exists, the indexer runs a sequential gap fill before live poller start.
-- Gap fill uses the existing backfill driver with `mode=fresh` and `force=true`.
+- On indexer startup, live pollers start immediately for enabled sources.
+- For each EVM event source, the orchestrator waits for the first successful live tick head `L`.
+- Boot catch-up then runs in background over `[backfill_head_block + 1, L - 2H]` (`H = reorgHorizon`).
+- Catch-up advances `backfill_head_block` per chunk and does not clear it on completion.
+- Catch-up failure does not stop live polling; it is surfaced through logs/metrics.
 
-## Critical operational caveat
+## Manual operation (current stage)
 
-- `force=true` resets `backfill_*` checkpoints for that source.
-- Do not restart the indexer while a manual `backfill start` for the same source is in flight.
+Locking is intentionally not enabled yet. Operationally, avoid overlapping manual and boot-time catch-up on the same `dao_source`.
+
+- Do not run `backfill catch-up` while indexer boot catch-up is active for that source.
+- Do not run `backfill start` while boot catch-up is active for that source.
 
 ## Manual catch-up command
-
-Use when source lag is known and you want explicit operator control:
 
 ```bash
 admin-cli backfill catch-up <source_type> --dry-run
@@ -24,23 +26,32 @@ admin-cli backfill catch-up <source_type> --confirm
 
 Behavior:
 
-- `--dry-run` shows computed gap (or no gap/skip reason) and does not write.
-- `--confirm` executes gap fill with the same logic as startup path.
+- `--dry-run` prints computed gap (or no-gap / skip reason).
+- `--confirm` executes boot-style catch-up in the foreground.
 
-## Troubleshooting
-
-1. Gap fill skipped (`reason=no_active_from_block`):
-   Seed history explicitly:
+## Manual backfill start command
 
 ```bash
-admin-cli backfill start <source_type> --from-block <N> --confirm
+admin-cli backfill start <source_type> --from-block <N> [--to-block <M>]
 ```
 
-2. Gap fill failed (`ingestion_gap_fill_failed`):
-   Review indexer logs for source/range, then run manual catch-up.
+Validation rule:
+
+- `--from-block` must be `>= max(active_from_block, backfill_head_block + 1)`.
+- Skipping ahead is allowed.
+- Going below that floor is rejected.
 
 ## Metrics to watch
 
-- `ingestion_gap_fill_failed{reason=error|shutdown}`
-- `ingestion_gap_fill_skipped{reason=no_active_from_block}`
-- `ingestion_live_watermark_skipped{reason=listener_failed}`
+- `ingestion_gap_fill_failed{reason="error"|"shutdown"}`
+- `ingestion_gap_fill_skipped{reason="no_active_from_block"|"above_floor"}`
+- `ingestion_log_poll_lag_seconds`
+
+## Troubleshooting
+
+1. Catch-up skipped with `no_active_from_block`:
+   set a valid starting history via `backfill start --from-block <N>`.
+2. Catch-up failed:
+   inspect indexer logs for source/range and rerun `backfill catch-up --confirm`.
+3. Live polling healthy but floor not moving:
+   verify no concurrent manual backfill/catch-up is running for the same source.

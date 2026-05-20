@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { BackfillAlreadyStartedError, runStartupGapFill } from '@sources/core';
+import { BackfillAlreadyStartedError, runBootCatchUp } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -38,11 +38,11 @@ vi.mock('@libs/db', () => ({
 
 vi.mock('@sources/core', () => ({
   SOURCE_PLUGINS: 'SOURCE_PLUGINS',
-  runStartupGapFill: vi.fn(),
-  StartupGapFillShutdownError: class StartupGapFillShutdownError extends Error {
+  runBootCatchUp: vi.fn(),
+  BootCatchUpShutdownError: class BootCatchUpShutdownError extends Error {
     constructor() {
       super('startup gap fill cancelled by shutdown');
-      this.name = 'StartupGapFillShutdownError';
+      this.name = 'BootCatchUpShutdownError';
     }
   },
   BackfillAlreadyStartedError: class BackfillAlreadyStartedError extends Error {
@@ -165,7 +165,7 @@ beforeEach(() => {
   });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
-  vi.mocked(runStartupGapFill).mockResolvedValue({ status: 'no_gap' });
+  vi.mocked(runBootCatchUp).mockResolvedValue({ status: 'no_gap' });
 });
 
 describe('IndexerOrchestratorService', () => {
@@ -204,7 +204,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(runStartupGapFill).mockRejectedValueOnce(
+    vi.mocked(runBootCatchUp).mockRejectedValueOnce(
       new BackfillAlreadyStartedError('src-1', '100'),
     );
 
@@ -489,7 +489,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(runStartupGapFill).mockRejectedValueOnce(
+    vi.mocked(runBootCatchUp).mockRejectedValueOnce(
       new BackfillAlreadyStartedError('src-1', '100'),
     );
 
@@ -507,7 +507,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(runStartupGapFill).mockResolvedValueOnce({ status: 'no_gap' });
+    vi.mocked(runBootCatchUp).mockResolvedValueOnce({ status: 'no_gap' });
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);

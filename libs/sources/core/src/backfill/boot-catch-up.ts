@@ -4,14 +4,14 @@ import { BackfillDriver } from './backfill-driver';
 import { computeGap } from './gap-detector';
 import type { BackfillRuntime } from './types';
 
-export type StartupGapFillResult =
+export type BootCatchUpResult =
   | { status: 'filled'; fromBlock: bigint; toBlock: bigint }
   | { status: 'no_gap' }
   | { status: 'skipped'; reason: 'no_active_from_block' }
   | { status: 'cancelled' }
   | { status: 'error'; error: unknown };
 
-export interface StartupGapFillInput {
+export interface BootCatchUpInput {
   daoSourceId: string;
   chainConfig: ChainConfig;
   rpcClient: RpcClient;
@@ -22,13 +22,13 @@ export interface StartupGapFillInput {
   toBlock?: bigint;
 }
 
-export class StartupGapFillShutdownError extends Error {
+export class BootCatchUpShutdownError extends Error {
   constructor() {
-    super('startup gap fill cancelled by shutdown');
+    super('boot catch-up cancelled by shutdown');
   }
 }
 
-export async function runStartupGapFill(input: StartupGapFillInput): Promise<StartupGapFillResult> {
+export async function runBootCatchUp(input: BootCatchUpInput): Promise<BootCatchUpResult> {
   const { daoSourceId, chainConfig, rpcClient, daoSourceRepo, runtime, logger, signal } = input;
 
   const row = await daoSourceRepo.findByIdWithChain(daoSourceId);
@@ -91,8 +91,8 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
   return { status: 'error', error: outcome.error };
 }
 
-export async function processStartupGapFill(input: StartupGapFillInput): Promise<void> {
-  const gapFillResult = await runStartupGapFill(input);
+export async function processBootCatchUp(input: BootCatchUpInput): Promise<void> {
+  const gapFillResult = await runBootCatchUp(input);
   const chain = input.chainConfig.name;
   const daoSource = input.daoSourceId;
 
@@ -120,6 +120,6 @@ export async function processStartupGapFill(input: StartupGapFillInput): Promise
       dao_source: daoSource,
       reason: 'shutdown',
     });
-    if (input.signal?.aborted) throw new StartupGapFillShutdownError();
+    if (input.signal?.aborted) throw new BootCatchUpShutdownError();
   }
 }

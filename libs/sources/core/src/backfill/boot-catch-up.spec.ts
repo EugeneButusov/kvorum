@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BackfillDriver } from './backfill-driver';
-import { runStartupGapFill } from './startup-gap-fill';
+import { runBootCatchUp } from './boot-catch-up';
 
 vi.mock('./backfill-driver', () => ({
   BackfillDriver: vi.fn(),
 }));
 
-describe('runStartupGapFill', () => {
+describe('runBootCatchUp', () => {
   function makeBase() {
     const repo = {
       findByIdWithChain: vi.fn().mockResolvedValue({
@@ -34,7 +34,7 @@ describe('runStartupGapFill', () => {
 
   it('#1 - returns no_gap when computed range is empty', async () => {
     const { input } = makeBase();
-    const out = await runStartupGapFill(input);
+    const out = await runBootCatchUp(input);
     expect(out).toEqual({ status: 'no_gap' });
   });
 
@@ -47,7 +47,7 @@ describe('runStartupGapFill', () => {
       backfill_head_block: null,
     });
 
-    const out = await runStartupGapFill(input);
+    const out = await runBootCatchUp(input);
     expect(out).toEqual({ status: 'skipped', reason: 'no_active_from_block' });
   });
 
@@ -69,7 +69,7 @@ describe('runStartupGapFill', () => {
       } as never;
     });
 
-    const out = await runStartupGapFill(input);
+    const out = await runBootCatchUp(input);
     expect(out).toEqual({ status: 'filled', fromBlock: 101n, toBlock: 200n });
   });
 });

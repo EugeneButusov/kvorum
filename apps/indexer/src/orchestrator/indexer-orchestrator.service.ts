@@ -12,8 +12,8 @@ import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import { raceWithAbort, AbortError } from '@libs/utils';
 import {
   BackfillAlreadyStartedError,
-  runStartupGapFill,
-  StartupGapFillShutdownError,
+  runBootCatchUp,
+  BootCatchUpShutdownError,
   type SourcePlugin,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
@@ -154,6 +154,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   }
 
   async drain(): Promise<void> {
+    this.shutdownController.abort('drain');
     if (this.gaugeInterval !== null) {
       clearInterval(this.gaugeInterval);
       this.gaugeInterval = null;
@@ -205,7 +206,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     try {
       const firstTickHead = await raceWithAbort(firstTickPromise, this.shutdownController.signal);
       const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
-      const result = await runStartupGapFill({
+      const result = await runBootCatchUp({
         daoSourceId: entry.src.id,
         chainConfig: entry.chainCfg,
         rpcClient: chainCtx.client,
@@ -216,7 +217,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         toBlock: reorgCutoff(firstTickHead, entry.chainCfg),
       });
       if (result.status === 'cancelled' && this.shutdownController.signal.aborted) {
-        throw new StartupGapFillShutdownError();
+        throw new BootCatchUpShutdownError();
       }
       if (result.status === 'error') {
         throw result.error;
@@ -229,7 +230,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         });
       }
     } catch (error) {
-      if (error instanceof AbortError || error instanceof StartupGapFillShutdownError) return;
+      if (error instanceof AbortError || error instanceof BootCatchUpShutdownError) return;
       if (error instanceof BackfillAlreadyStartedError) {
         this.logger.warn('startup_gap_fill_already_started_skip', {
           dao_source: entry.src.id,

@@ -28,11 +28,11 @@ export type {
 export { computeGap } from './backfill/gap-detector';
 export type { GapComputationResult, GapRangeInput } from './backfill/gap-detector';
 export {
-  runStartupGapFill,
-  processStartupGapFill,
-  StartupGapFillShutdownError,
-} from './backfill/startup-gap-fill';
-export type { StartupGapFillInput, StartupGapFillResult } from './backfill/startup-gap-fill';
+  runBootCatchUp,
+  processBootCatchUp,
+  BootCatchUpShutdownError,
+} from './backfill/boot-catch-up';
+export type { BootCatchUpInput, BootCatchUpResult } from './backfill/boot-catch-up';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 
