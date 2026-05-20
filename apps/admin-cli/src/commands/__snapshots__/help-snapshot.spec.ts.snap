@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`admin-cli help snapshots > actor --help 1`] = `
-"Usage: admin-cli actor [options] [command]
+exports[`admin-cli help snapshots > actors --help 1`] = `
+"Usage: admin-cli actors [options] [command]
 
 Actor management
 
@@ -32,8 +32,8 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > audit --help 1`] = `
-"Usage: admin-cli audit [options] [command]
+exports[`admin-cli help snapshots > audits --help 1`] = `
+"Usage: admin-cli audits [options] [command]
 
 Audit log access
 
@@ -46,8 +46,8 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > audit list --help 1`] = `
-"Usage: admin-cli audit list [options]
+exports[`admin-cli help snapshots > audits list --help 1`] = `
+"Usage: admin-cli audits list [options]
 
 List audit log entries
 
@@ -73,8 +73,8 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > dao --help 1`] = `
-"Usage: admin-cli dao [options] [command]
+exports[`admin-cli help snapshots > daos --help 1`] = `
+"Usage: admin-cli daos [options] [command]
 
 DAO management
 
@@ -88,8 +88,8 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > dao source --help 1`] = `
-"Usage: admin-cli dao source [options] [command]
+exports[`admin-cli help snapshots > daos source --help 1`] = `
+"Usage: admin-cli daos source [options] [command]
 
 DAO source management
 
@@ -167,8 +167,8 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > reorg --help 1`] = `
-"Usage: admin-cli reorg [options] [command]
+exports[`admin-cli help snapshots > reorgs --help 1`] = `
+"Usage: admin-cli reorgs [options] [command]
 
 Chain reorg management
 
@@ -203,24 +203,24 @@ Options:
   -h, --help             display help for command
 
 Commands:
-  actor                  Actor management
+  actors                 Actor management
   ai                     AI feature management
-  audit                  Audit log access
+  audits                 Audit log access
   backfill               Backfill management
-  dao                    DAO management
+  daos                   DAO management
   derive                 Derived data management
   dlq                    Dead-letter queue management
   keys                   API key management
   maintenance            Maintenance mode management
-  reorg                  Chain reorg management
+  reorgs                 Chain reorg management
   status [options]       Show system status
-  user                   User management
+  users                  User management
   help [command]         display help for command
 "
 `;
 
-exports[`admin-cli help snapshots > user --help 1`] = `
-"Usage: admin-cli user [options] [command]
+exports[`admin-cli help snapshots > users --help 1`] = `
+"Usage: admin-cli users [options] [command]
 
 User management
 

@@ -38,12 +38,12 @@ describe('admin-cli help snapshots', () => {
     expect(program.helpInformation()).toMatchSnapshot();
   });
 
-  it('dao --help', () => {
-    expect(domainHelp(program, 'dao')).toMatchSnapshot();
+  it('daos --help', () => {
+    expect(domainHelp(program, 'daos')).toMatchSnapshot();
   });
 
-  it('dao source --help', () => {
-    expect(subHelp(program, 'dao', 'source')).toMatchSnapshot();
+  it('daos source --help', () => {
+    expect(subHelp(program, 'daos', 'source')).toMatchSnapshot();
   });
 
   it('backfill --help', () => {
@@ -54,8 +54,8 @@ describe('admin-cli help snapshots', () => {
     expect(domainHelp(program, 'derive')).toMatchSnapshot();
   });
 
-  it('actor --help', () => {
-    expect(domainHelp(program, 'actor')).toMatchSnapshot();
+  it('actors --help', () => {
+    expect(domainHelp(program, 'actors')).toMatchSnapshot();
   });
 
   it('dlq --help', () => {
@@ -66,31 +66,31 @@ describe('admin-cli help snapshots', () => {
     expect(domainHelp(program, 'ai')).toMatchSnapshot();
   });
 
-  it('user --help', () => {
-    expect(domainHelp(program, 'user')).toMatchSnapshot();
+  it('users --help', () => {
+    expect(domainHelp(program, 'users')).toMatchSnapshot();
   });
 
   it('keys --help', () => {
     expect(domainHelp(program, 'keys')).toMatchSnapshot();
   });
 
-  it('reorg --help', () => {
-    expect(domainHelp(program, 'reorg')).toMatchSnapshot();
+  it('reorgs --help', () => {
+    expect(domainHelp(program, 'reorgs')).toMatchSnapshot();
   });
 
   it('status --help', () => {
     expect(domainHelp(program, 'status')).toMatchSnapshot();
   });
 
-  it('audit --help', () => {
-    expect(domainHelp(program, 'audit')).toMatchSnapshot();
+  it('audits --help', () => {
+    expect(domainHelp(program, 'audits')).toMatchSnapshot();
   });
 
-  it('audit list --help', () => {
-    const audit = program.commands.find((c) => c.name() === 'audit');
-    if (!audit) throw new Error('audit command not found');
-    const list = audit.commands.find((c) => c.name() === 'list');
-    if (!list) throw new Error('audit list command not found');
+  it('audits list --help', () => {
+    const audits = program.commands.find((c) => c.name() === 'audits');
+    if (!audits) throw new Error('audits command not found');
+    const list = audits.commands.find((c) => c.name() === 'list');
+    if (!list) throw new Error('audits list command not found');
     expect(list.helpInformation()).toMatchSnapshot();
   });
 

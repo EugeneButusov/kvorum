@@ -14,14 +14,14 @@ import {
 type UserCreateOptions = { email: string; name: string; role: string; format?: string };
 
 export function registerUser(program: Command): void {
-  const user = program.command('user').description('User management');
+  const user = program.command('users').description('User management');
 
   user
     .command('list')
     .description('List users')
     .option('--filter <expr>', 'filter expression')
     .option('--format <format>', 'output format: human or json')
-    .action((opts) => emitNotImplemented('user list', opts));
+    .action((opts) => emitNotImplemented('users list', opts));
 
   user
     .command('ban <user_id>')
@@ -31,7 +31,7 @@ export function registerUser(program: Command): void {
     .option('--production', 'acknowledge production environment')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
-    .action((_id, opts) => emitNotImplemented('user ban', opts));
+    .action((_id, opts) => emitNotImplemented('users ban', opts));
 
   user
     .command('delete <user_id>')
@@ -40,7 +40,7 @@ export function registerUser(program: Command): void {
     .option('--production', 'acknowledge production environment')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
-    .action((_id, opts) => emitNotImplemented('user delete', opts));
+    .action((_id, opts) => emitNotImplemented('users delete', opts));
 
   user
     .command('create')
@@ -61,7 +61,7 @@ export function registerUser(program: Command): void {
           fail(format, ExitCode.ValidationFailure, `--role must be 'user' or 'admin'`);
         }
         const { userRepository } = buildContainer();
-        await withAudit('user create', { email: opts.email, role: opts.role }, async () => {
+        await withAudit('users create', { email: opts.email, role: opts.role }, async () => {
           const created = await userRepository.create({
             email: opts.email,
             displayName: opts.name,
@@ -80,7 +80,7 @@ export function registerUser(program: Command): void {
         if (message.startsWith('invalid --format value:')) {
           fail(opts.format === 'json' ? 'json' : 'human', ExitCode.ValidationFailure, message);
         }
-        fail(format, ExitCode.RuntimeFailure, 'user create failed', { message });
+        fail(format, ExitCode.RuntimeFailure, 'users create failed', { message });
       }
     });
 
@@ -91,5 +91,5 @@ export function registerUser(program: Command): void {
     .option('--name <name>', 'new display name')
     .option('--role <role>', 'new account role: user or admin')
     .option('--format <format>', 'output format: human or json')
-    .action((_id, opts) => emitNotImplemented('user update', opts));
+    .action((_id, opts) => emitNotImplemented('users update', opts));
 }

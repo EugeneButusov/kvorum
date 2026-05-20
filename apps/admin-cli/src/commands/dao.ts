@@ -16,7 +16,7 @@ type DaoSourceAddOpts = DaoCommon & { type: string; config: string };
 type DaoSourceUpdateOpts = DaoCommon & { config: string };
 
 export function registerDao(program: Command): void {
-  const dao = program.command('dao').description('DAO management');
+  const dao = program.command('daos').description('DAO management');
 
   dao
     .command('add <slug>')
@@ -28,7 +28,7 @@ export function registerDao(program: Command): void {
     .action(async function action(slug: string, opts: DaoAddOpts) {
       await withDaoFormat(this, opts, async (format) => {
         const { daoAdminRepository } = buildContainer();
-        await withAudit('dao add', { slug, ...opts }, async () => {
+        await withAudit('daos add', { slug, ...opts }, async () => {
           const { normalizeChainId } = await import('@libs/chain');
           const row = await daoAdminRepository.createDao({
             slug,
@@ -56,7 +56,7 @@ export function registerDao(program: Command): void {
     .action(async function action(daoSlug: string, opts: DaoSourceAddOpts) {
       await withDaoFormat(this, opts, async (format) => {
         const { daoAdminRepository } = buildContainer();
-        await withAudit('dao source add', { daoSlug, ...opts }, async () => {
+        await withAudit('daos source add', { daoSlug, ...opts }, async () => {
           const dao = await daoAdminRepository.findDaoBySlug(daoSlug);
           if (dao == null) {
             fail(format, ExitCode.NotFound, `dao not found: ${daoSlug}`);
@@ -86,7 +86,7 @@ export function registerDao(program: Command): void {
     .action(async function action(daoSourceId: string, opts: DaoSourceUpdateOpts) {
       await withDaoFormat(this, opts, async (format) => {
         const { daoAdminRepository } = buildContainer();
-        await withAudit('dao source update', { daoSourceId, ...opts }, async () => {
+        await withAudit('daos source update', { daoSourceId, ...opts }, async () => {
           const existing = await daoAdminRepository.findSourceById(daoSourceId);
           if (existing == null) {
             fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
@@ -109,7 +109,7 @@ export function registerDao(program: Command): void {
     .option('--production', 'acknowledge production environment')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
-    .action((_id, opts) => emitNotImplemented('dao source delete', opts));
+    .action((_id, opts) => emitNotImplemented('daos source delete', opts));
 }
 
 function parseJson(raw: string, optionName: string): unknown {
@@ -150,6 +150,6 @@ async function withDaoFormat(
     if (message.startsWith('invalid --format value:') || message.includes('must be valid JSON')) {
       fail(opts.format === 'json' ? 'json' : 'human', ExitCode.ValidationFailure, message);
     }
-    fail(format, ExitCode.RuntimeFailure, 'dao command failed', { message });
+    fail(format, ExitCode.RuntimeFailure, 'daos command failed', { message });
   }
 }
