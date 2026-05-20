@@ -1,10 +1,10 @@
 import { Command } from 'commander';
+import { chainMetrics, silentLogger } from '@libs/chain';
+import { pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
-import { chainMetrics, silentLogger } from '@libs/chain';
-import { pgDb } from '@libs/db';
 
 type BackfillCommonOptions = {
   format?: string;
