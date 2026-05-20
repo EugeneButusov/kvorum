@@ -25,7 +25,7 @@ Two startup/downtime gap classes exist under sliding-window polling:
 Per source at boot:
 
 1. Start live `EventPoller` immediately.
-2. Wait for first **successful** tick head `L` (`onFirstTickComplete`).
+2. Wait for first **successful** tick head `L` (`onFirstHeadComplete`).
 3. Run boot catch-up in background over `[floor + 1, L - 2H]`.
 
 `H = reorgHorizon` and `L - 2H` is below reorg-sensitive range by construction.

@@ -116,7 +116,7 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
     kind: 'evm-event-poller',
     _handles: handles,
     start: vi.fn().mockImplementation(async (_spec, _ctx, _chainCfg, opts) => {
-      opts?.onFirstTickComplete?.(16n);
+      opts?.onFirstHeadComplete?.(16n);
       const h = makeFakeHandle();
       handles.push(h);
       return h;

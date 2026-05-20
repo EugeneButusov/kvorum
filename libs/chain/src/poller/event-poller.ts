@@ -153,10 +153,10 @@ export class EventPoller extends AbstractPoller {
     if (!this.firstTickFired) {
       this.firstTickFired = true;
       try {
-        this.opts.onFirstTickComplete?.(headBn);
+        this.opts.onFirstHeadComplete?.(headBn);
       } catch (err) {
         this.logger.warn(
-          `[chain:${chain}][source:${src}] EventPoller onFirstTickComplete threw: ${String(err)}`,
+          `[chain:${chain}][source:${src}] EventPoller onFirstHeadComplete threw: ${String(err)}`,
         );
       }
     }

@@ -22,7 +22,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     ctx: SourceContext,
     chainCfg: Parameters<ChainContextRegistry['getOrCreate']>[0],
     opts?: {
-      onFirstTickComplete?: (head: bigint) => void;
+      onFirstHeadComplete?: (head: bigint) => void;
     },
   ): Promise<FetchDriverHandle> {
     const chainCtx = await this.registry.getOrCreate(chainCfg);
@@ -39,7 +39,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,
       pollIntervalMs,
-      onFirstTickComplete: opts?.onFirstTickComplete,
+      onFirstHeadComplete: opts?.onFirstHeadComplete,
       logger: this.chainLogger,
     });
 

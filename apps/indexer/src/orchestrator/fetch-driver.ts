@@ -12,7 +12,7 @@ export interface FetchDriver<K extends IngestSpec['kind'] = IngestSpec['kind']> 
     ctx: SourceContext,
     chainCfg: ChainConfig,
     opts?: {
-      onFirstTickComplete?: (head: bigint) => void;
+      onFirstHeadComplete?: (head: bigint) => void;
     },
   ): Promise<FetchDriverHandle>;
 }

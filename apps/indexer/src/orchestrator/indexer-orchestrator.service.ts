@@ -116,7 +116,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           spec as never,
           ctx,
           entry.chainCfg,
-          spec.kind === 'evm-event-poller' ? { onFirstTickComplete: resolveFirstTick } : undefined,
+          spec.kind === 'evm-event-poller' ? { onFirstHeadComplete: resolveFirstTick } : undefined,
         );
         this.handles.push(handle);
         this.activeSourceTypes.add(entry.sourceType);

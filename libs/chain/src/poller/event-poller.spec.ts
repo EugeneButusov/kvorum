@@ -254,29 +254,29 @@ describe('EventPoller', () => {
     });
   });
 
-  describe('onFirstTickComplete', () => {
+  describe('onFirstHeadComplete', () => {
     it('fires once after first successful tick', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
       fake.returnSuccess('0x11').returnSuccess([]);
 
-      const onFirstTickComplete = vi.fn();
-      const poller = new EventPoller(baseOpts(client, { onFirstTickComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(() => {});
       await poller.start();
       await new Promise<void>((r) => setTimeout(r, 80));
       await poller.stop();
 
-      expect(onFirstTickComplete).toHaveBeenCalledTimes(1);
-      expect(onFirstTickComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledTimes(1);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
     });
 
     it('does not fire when any listener rejects', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
 
-      const onFirstTickComplete = vi.fn();
-      const poller = new EventPoller(baseOpts(client, { onFirstTickComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(async () => {
         throw new Error('listener failed');
       });
@@ -284,20 +284,20 @@ describe('EventPoller', () => {
       await poller.start();
       await poller.stop();
 
-      expect(onFirstTickComplete).not.toHaveBeenCalled();
+      expect(onFirstHeadComplete).not.toHaveBeenCalled();
     });
 
     it('fires when no events are returned', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([]);
       fake.returnSuccess([]);
 
-      const onFirstTickComplete = vi.fn();
-      const poller = new EventPoller(baseOpts(client, { onFirstTickComplete }));
+      const onFirstHeadComplete = vi.fn();
+      const poller = new EventPoller(baseOpts(client, { onFirstHeadComplete }));
       poller.onEvents(() => {});
       await poller.start();
       await poller.stop();
 
-      expect(onFirstTickComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
     });
   });
 

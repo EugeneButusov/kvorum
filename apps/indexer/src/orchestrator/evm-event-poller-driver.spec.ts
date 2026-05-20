@@ -171,18 +171,18 @@ describe('EvmEventPollerDriver', () => {
     await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
   });
 
-  it('#7 — forwards onFirstTickComplete', async () => {
+  it('#7 — forwards onFirstHeadComplete', async () => {
     const { registry } = makeRegistry();
     setupMockPoller();
-    const onFirstTickComplete = vi.fn();
+    const onFirstHeadComplete = vi.fn();
 
     const driver = new EvmEventPollerDriver(registry);
-    await driver.start(SPEC, CTX, CHAIN_CFG, { onFirstTickComplete });
+    await driver.start(SPEC, CTX, CHAIN_CFG, { onFirstHeadComplete });
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as {
-      onFirstTickComplete: (head: bigint) => void;
+      onFirstHeadComplete: (head: bigint) => void;
     };
-    pollerOpts.onFirstTickComplete(123n);
-    expect(onFirstTickComplete).toHaveBeenCalledWith(123n);
+    pollerOpts.onFirstHeadComplete(123n);
+    expect(onFirstHeadComplete).toHaveBeenCalledWith(123n);
   });
 });

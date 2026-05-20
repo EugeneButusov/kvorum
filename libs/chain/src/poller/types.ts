@@ -52,7 +52,7 @@ export interface EventPollerOptions {
    *  to rpcClient.send during shutdown so in-flight requests honor the same budget. */
   stopTimeoutMs?: number;
   /** Fires once after the first tick where RPC succeeds and listeners resolve. */
-  onFirstTickComplete?: (headBlock: bigint) => void;
+  onFirstHeadComplete?: (headBlock: bigint) => void;
   logger?: Logger;
 }
 
