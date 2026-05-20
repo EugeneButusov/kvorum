@@ -4,7 +4,6 @@ import type { RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
 import type { BackfillDriverDeps } from './backfill-driver';
-import { BackfillAlreadyStartedError } from './errors/backfill-already-started.error';
 import { BackfillNotResumableError } from './errors/backfill-not-resumable.error';
 
 // ---- Fixtures ----
@@ -115,16 +114,20 @@ describe('BackfillDriver', () => {
       expect(updateBackfillHead).toHaveBeenCalledTimes(1);
     });
 
-    it('#2 — throws BackfillAlreadyStartedError when checkpoint exists and no force', async () => {
+    it('#2 — existing checkpoint is cleared and a new head is captured', async () => {
       const { repo } = makeRepo(makeDaoSourceRow({ backfill_started_at_block: '19000000' }));
       const driver = new BackfillDriver(makeDeps(makeRpcClient(), repo));
 
-      await expect(
-        driver.run({ daoSourceId: DAO_SOURCE_ID, mode: 'fresh', fromBlock: 0n }),
-      ).rejects.toThrow(BackfillAlreadyStartedError);
+      const result = await driver.run({
+        daoSourceId: DAO_SOURCE_ID,
+        mode: 'fresh',
+        fromBlock: 0n,
+        chunkSize: 100_000_000,
+      });
+      expect(result.status).toBe('completed');
     });
 
-    it('#3 — force=true: clears existing checkpoint and re-captures', async () => {
+    it('#3 — fresh mode clears existing checkpoint and re-captures', async () => {
       const { repo, clearBackfillState, captureBackfillStart } = makeRepo(
         makeDaoSourceRow({ backfill_started_at_block: '19000000' }),
       );
@@ -135,7 +138,6 @@ describe('BackfillDriver', () => {
         daoSourceId: DAO_SOURCE_ID,
         mode: 'fresh',
         fromBlock: 0n,
-        force: true,
         chunkSize: 100_000_000,
       });
 

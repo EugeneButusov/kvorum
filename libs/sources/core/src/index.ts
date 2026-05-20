@@ -35,7 +35,6 @@ export {
 } from './backfill/startup-gap-fill';
 export type { StartupGapFillInput, StartupGapFillResult } from './backfill/startup-gap-fill';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
-export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';

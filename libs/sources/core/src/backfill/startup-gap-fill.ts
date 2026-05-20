@@ -63,7 +63,6 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
     fromBlock: gap.gapStart,
     toBlock: gap.gapEnd,
     mode: 'fresh',
-    force: true,
     signal,
   });
 
