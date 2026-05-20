@@ -136,7 +136,7 @@ export class EventPoller extends AbstractPoller {
     let allListenersFulfilled = true;
     if (events.length > 0) {
       const listenerResults = await Promise.allSettled(
-        [...this.listeners].map((listener) => listener(events)),
+        [...this.listeners].map(async (listener) => listener(events)),
       );
       for (const result of listenerResults) {
         if (result.status === 'rejected') {
