@@ -80,25 +80,23 @@ export function registerBackfill(program: Command): void {
         await rpcClient.start();
 
         const status = await daoSourceRepository.readBackfillStatus(row.id);
-        const mode =
-          fromBlock != null
-            ? 'fresh'
-            : status?.backfill_started_at_block != null
-              ? 'resume'
-              : 'fresh';
+        let mode: 'fresh' | 'resume' = 'fresh';
+        if (fromBlock == null && status?.backfill_started_at_block != null) {
+          mode = 'resume';
+        }
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
         if (fromBlock != null) {
           const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
           const backfillFloor =
             row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
-          const minFrom =
-            activeFloor === null
-              ? (backfillFloor ?? 0n)
-              : backfillFloor === null
-                ? activeFloor
-                : activeFloor > backfillFloor
-                  ? activeFloor
-                  : backfillFloor;
+          let minFrom = 0n;
+          if (activeFloor === null) {
+            minFrom = backfillFloor ?? 0n;
+          } else if (backfillFloor === null) {
+            minFrom = activeFloor;
+          } else {
+            minFrom = activeFloor > backfillFloor ? activeFloor : backfillFloor;
+          }
           if (fromBlock < minFrom) {
             fail(
               format,
