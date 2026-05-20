@@ -121,8 +121,8 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         this.handles.push(handle);
         this.activeSourceTypes.add(entry.sourceType);
 
-        const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
         if (spec.kind === 'evm-event-poller') {
+          const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
           const task = this.runParallelCatchUp(entry, runtime, firstTickPromise);
           this.catchUpTasks.push(task);
         }
