@@ -9,6 +9,7 @@ import {
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import {
+  BackfillAlreadyStartedError,
   processStartupGapFill,
   StartupGapFillShutdownError,
   type SourcePlugin,
@@ -104,7 +105,15 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           await this.runStartupGapFill(entry, runtime);
         } catch (error) {
           if (error instanceof StartupGapFillShutdownError) break;
-          throw error;
+          if (error instanceof BackfillAlreadyStartedError) {
+            this.logger.warn('startup_gap_fill_already_started_skip', {
+              dao_source: entry.src.id,
+              chain_id: entry.src.primary_chain_id,
+              error: error.message,
+            });
+          } else {
+            throw error;
+          }
         }
 
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);

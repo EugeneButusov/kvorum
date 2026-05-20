@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { processStartupGapFill } from '@sources/core';
+import { BackfillAlreadyStartedError, processStartupGapFill } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -36,6 +36,22 @@ vi.mock('@libs/db', () => ({
 vi.mock('@sources/core', () => ({
   SOURCE_PLUGINS: 'SOURCE_PLUGINS',
   processStartupGapFill: vi.fn(),
+  StartupGapFillShutdownError: class StartupGapFillShutdownError extends Error {
+    constructor() {
+      super('startup gap fill cancelled by shutdown');
+      this.name = 'StartupGapFillShutdownError';
+    }
+  },
+  BackfillAlreadyStartedError: class BackfillAlreadyStartedError extends Error {
+    constructor(daoSourceId: string, startedAtBlock: string) {
+      super(
+        `Cannot start a fresh backfill for dao_source ${daoSourceId}: ` +
+          `a backfill is already in progress (started at block ${startedAtBlock}). ` +
+          `Pass force=true to clear state and re-capture, or use mode='resume' to continue.`,
+      );
+      this.name = 'BackfillAlreadyStartedError';
+    }
+  },
 }));
 
 vi.mock('./reorg-watcher.service', () => ({
@@ -177,6 +193,23 @@ describe('IndexerOrchestratorService', () => {
     await svc.onApplicationBootstrap();
 
     expect(driver.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('#2b — BackfillAlreadyStartedError from startup gap-fill is skipped and driver still starts', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
+    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+      new BackfillAlreadyStartedError('src-1', '100'),
+    );
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
   it('#3 — unknown source_type: throws BEFORE any driver.start()', async () => {
