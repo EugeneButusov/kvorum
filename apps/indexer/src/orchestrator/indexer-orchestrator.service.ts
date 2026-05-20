@@ -232,7 +232,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     } catch (error) {
       if (error instanceof AbortError || error instanceof BootCatchUpShutdownError) return;
       if (error instanceof BackfillAlreadyStartedError) {
-        this.logger.warn('startup_gap_fill_already_started_skip', {
+        this.logger.warn('boot_catch_up_already_started_skip', {
           dao_source: entry.src.id,
           chain_id: entry.chainCfg.chainId,
           error: error.message,
@@ -244,7 +244,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         dao_source: entry.src.id,
         reason: 'error',
       });
-      this.logger.error('startup_gap_fill_failed', {
+      this.logger.error('boot_catch_up_failed', {
         source: entry.sourceType,
         dao_source: entry.src.id,
         error: String(error),
