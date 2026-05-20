@@ -29,14 +29,14 @@ export function computeGap(input: {
   const liveHead = row.live_head_block === null ? null : BigInt(row.live_head_block);
 
   const backfillBase = backfillHead ?? (activeFrom !== null ? activeFrom - 1n : null);
-  const lastBlock =
-    backfillBase === null
-      ? (liveHead ?? 0n)
-      : liveHead === null
-        ? backfillBase
-        : backfillBase > liveHead
-          ? backfillBase
-          : liveHead;
+  let lastBlock: bigint;
+  if (backfillBase === null) {
+    lastBlock = liveHead ?? 0n;
+  } else if (liveHead === null) {
+    lastBlock = backfillBase;
+  } else {
+    lastBlock = backfillBase > liveHead ? backfillBase : liveHead;
+  }
 
   const gapStart = lastBlock + 1n;
   const gapEnd = headBlock - BigInt(reorgHorizon) * 2n;
