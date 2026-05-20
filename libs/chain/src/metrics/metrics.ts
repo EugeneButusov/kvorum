@@ -36,6 +36,10 @@ export const chainMetrics = {
     name: 'ingestion_logs_with_removed_flag',
     description: 'Count of logs ethers v6 marks removed:true',
   }),
+  ingestionLiveWatermarkSkipped: defineCounter({
+    name: 'ingestion_live_watermark_skipped',
+    description: 'Count of live watermark writes skipped because one or more listeners failed.',
+  }),
   reorgSignals: defineCounter({
     name: 'ingestion_reorg_signals',
     description:

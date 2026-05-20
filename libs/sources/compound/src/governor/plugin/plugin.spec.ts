@@ -9,6 +9,7 @@ import {
   createCompoundPlugins,
 } from './plugin';
 import { ArchiveWriter } from '../ingestion/archive-writer';
+import * as ingesterListener from '../ingestion/ingester-listener';
 
 const CTX: SourceContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
@@ -113,6 +114,17 @@ describe('createCompoundGovernorBravoPlugin', () => {
       });
       const spec = plugin.buildIngestSpec(CTX, cfg);
       expect(typeof spec.listener).toBe('function');
+    });
+
+    it('#8.1 — listener is built with onWriteFailure=throw', () => {
+      const spy = vi.spyOn(ingesterListener, 'makeIngesterListener');
+      const plugin = makePlugin();
+      const cfg = plugin.parseConfig({
+        governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',
+      });
+      plugin.buildIngestSpec(CTX, cfg);
+
+      expect(spy).toHaveBeenCalledWith(expect.any(Object), { onWriteFailure: 'throw' });
     });
   });
 });

@@ -133,18 +133,38 @@ export class EventPoller extends AbstractPoller {
 
     chainMetrics.logsFetched.add(events.length, { chain, dao_source: src });
 
+    let allListenersFulfilled = true;
     if (events.length > 0) {
-      await Promise.allSettled(
-        [...this.listeners].map(async (listener) => {
-          try {
-            await listener(events);
-          } catch (err) {
-            this.logger.error(
-              `[chain:${chain}][source:${src}] EventPoller listener threw: ${String(err)}`,
-            );
-          }
-        }),
+      const listenerResults = await Promise.allSettled(
+        [...this.listeners].map(async (listener) => listener(events)),
       );
+      for (const result of listenerResults) {
+        if (result.status === 'rejected') {
+          allListenersFulfilled = false;
+          this.logger.error(
+            `[chain:${chain}][source:${src}] EventPoller listener rejected: ${String(result.reason)}`,
+          );
+        }
+      }
+    }
+
+    if (!allListenersFulfilled) {
+      chainMetrics.ingestionLiveWatermarkSkipped.add(1, {
+        chain,
+        dao_source: src,
+        reason: 'listener_failed',
+      });
+      return;
+    }
+
+    if (this.opts.onBlockComplete) {
+      try {
+        await this.opts.onBlockComplete(headBn);
+      } catch (err) {
+        this.logger.warn(
+          `[chain:${chain}][source:${src}] EventPoller onBlockComplete threw: ${String(err)}`,
+        );
+      }
     }
   }
 }
