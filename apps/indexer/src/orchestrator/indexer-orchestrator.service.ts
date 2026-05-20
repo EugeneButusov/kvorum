@@ -8,7 +8,7 @@ import {
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository, pgDb } from '@libs/db';
-import { withDaoSourceAdvisoryLock, runStartupGapFill, type SourcePlugin } from '@sources/core';
+import { runStartupGapFillWithLock, type SourcePlugin } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
@@ -181,19 +181,15 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
   ): Promise<boolean> {
     const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
-    const lockResult = await withDaoSourceAdvisoryLock({
+    const lockResult = await runStartupGapFillWithLock({
       db: pgDb,
       daoSourceId: entry.src.id,
-      run: async () =>
-        runStartupGapFill({
-          daoSourceId: entry.src.id,
-          chainConfig: entry.chainCfg,
-          rpcClient: chainCtx.client,
-          daoSourceRepo: this.daoSourceRepo,
-          runtime,
-          logger: silentLogger,
-          signal: this.shutdownController.signal,
-        }),
+      chainConfig: entry.chainCfg,
+      rpcClient: chainCtx.client,
+      daoSourceRepo: this.daoSourceRepo,
+      runtime,
+      logger: silentLogger,
+      signal: this.shutdownController.signal,
     });
 
     if (lockResult.status === 'contended') {

@@ -28,8 +28,13 @@ export type {
 export { computeGap } from './backfill/gap-detector';
 export type { GapComputationResult, GapRangeInput } from './backfill/gap-detector';
 export { withDaoSourceAdvisoryLock } from './backfill/dao-source-lock';
-export { runStartupGapFill } from './backfill/startup-gap-fill';
-export type { StartupGapFillInput, StartupGapFillResult } from './backfill/startup-gap-fill';
+export { runStartupGapFill, runStartupGapFillWithLock } from './backfill/startup-gap-fill';
+export type {
+  StartupGapFillInput,
+  StartupGapFillResult,
+  StartupGapFillWithLockInput,
+  StartupGapFillWithLockResult,
+} from './backfill/startup-gap-fill';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 

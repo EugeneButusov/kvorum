@@ -4,7 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
-import { withDaoSourceAdvisoryLock, runStartupGapFill } from '@sources/core';
+import { runStartupGapFillWithLock } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -18,11 +18,13 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
   ChainContextRegistry: vi.fn(),
+  silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
+    ingestionGapFillSkipped: { add: vi.fn() },
+    ingestionGapFillFailed: { add: vi.fn() },
   },
-  ChainContextRegistry: vi.fn(),
 }));
 
 vi.mock('@libs/db', () => ({
@@ -33,8 +35,7 @@ vi.mock('@libs/db', () => ({
 
 vi.mock('@sources/core', () => ({
   SOURCE_PLUGINS: 'SOURCE_PLUGINS',
-  withDaoSourceAdvisoryLock: vi.fn(),
-  runStartupGapFill: vi.fn(),
+  runStartupGapFillWithLock: vi.fn(),
 }));
 
 vi.mock('./reorg-watcher.service', () => ({
@@ -144,11 +145,10 @@ beforeEach(() => {
   });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
-  vi.mocked(withDaoSourceAdvisoryLock).mockResolvedValue({
+  vi.mocked(runStartupGapFillWithLock).mockResolvedValue({
     status: 'executed',
     value: { status: 'no_gap' },
   } as never);
-  vi.mocked(runStartupGapFill).mockResolvedValue({ status: 'no_gap' } as never);
 });
 
 describe('IndexerOrchestratorService', () => {
