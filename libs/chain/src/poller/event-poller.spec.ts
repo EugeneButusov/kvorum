@@ -345,46 +345,6 @@ describe('EventPoller', () => {
     });
   });
 
-  describe('bootstrapFromBlock handoff', () => {
-    it('uses bootstrapFromBlock for first successful tick, then reverts to rolling window', async () => {
-      const queries: Array<{ fromBlock: string; toBlock: string }> = [];
-      let headCalls = 0;
-      const mockRpc = {
-        send: vi.fn(async (method: string, params?: unknown[]) => {
-          if (method === 'eth_blockNumber') {
-            headCalls += 1;
-            return headCalls === 1 ? '0x64' : '0x65'; // 100 then 101
-          }
-          if (method === 'eth_getLogs') {
-            const filter = (params?.[0] ?? {}) as { fromBlock: string; toBlock: string };
-            queries.push({ fromBlock: filter.fromBlock, toBlock: filter.toBlock });
-            return [];
-          }
-          return null;
-        }),
-        getHealth: () => ({ chainId: CHAIN_ID, providers: [] }),
-        start: async () => {},
-        stop: async () => {},
-      };
-
-      const poller = new EventPoller({
-        ...baseOpts(client),
-        rpcClient: mockRpc,
-        pollIntervalMs: 20,
-        bootstrapFromBlock: 90n,
-      });
-      poller.onEvents(() => {});
-
-      await poller.start();
-      await new Promise<void>((r) => setTimeout(r, 70));
-      await poller.stop();
-
-      expect(queries.length).toBeGreaterThanOrEqual(2);
-      expect(queries[0]).toEqual({ fromBlock: '0x5a', toBlock: '0x64' }); // 90..100 bootstrap
-      expect(queries[1]).toEqual({ fromBlock: '0x4d', toBlock: '0x65' }); // 77..101 rolling
-    });
-  });
-
   describe('stop() deadline', () => {
     it('resolves within stopTimeoutMs even if listener never settles', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);

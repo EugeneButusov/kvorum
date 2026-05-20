@@ -46,9 +46,6 @@ export interface EventPollerOptions {
   sourceType: string;
   /** Opaque metric label — F1 supplies dao_source.id (UUID string). */
   daoSourceLabel: string;
-  /** Optional one-time lower bound for the first successful tick's fromBlock.
-   *  Used to bridge startup backfill -> live poller handoff without a hole. */
-  bootstrapFromBlock?: bigint;
   /** Polling cadence in ms. Default = 12_000 (ADR-037). */
   pollIntervalMs?: number;
   /** Hard cap on stop() drain time in ms. Default = 5_000. Also passed as deadlineMs

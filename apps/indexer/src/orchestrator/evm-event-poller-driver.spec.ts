@@ -81,10 +81,6 @@ function setupMockPoller() {
 function makeDaoSourceRepo(): DaoSourceRepository {
   return {
     updateLiveHead: vi.fn().mockResolvedValue(undefined),
-    findByIdWithChain: vi.fn().mockResolvedValue({
-      id: 'src-1',
-      live_head_block: null,
-    }),
   } as unknown as DaoSourceRepository;
 }
 
@@ -202,23 +198,5 @@ describe('EvmEventPollerDriver', () => {
     await pollerOpts.onBlockComplete(123n);
 
     expect(daoSourceRepo.updateLiveHead).toHaveBeenCalledWith('src-1', 123n);
-  });
-
-  it('#8 — passes bootstrapFromBlock = live_head_block + 1 when available', async () => {
-    const { registry } = makeRegistry();
-    const daoSourceRepo = {
-      updateLiveHead: vi.fn().mockResolvedValue(undefined),
-      findByIdWithChain: vi.fn().mockResolvedValue({
-        id: 'src-1',
-        live_head_block: '200',
-      }),
-    } as unknown as DaoSourceRepository;
-    setupMockPoller();
-
-    const driver = new EvmEventPollerDriver(registry, daoSourceRepo);
-    await driver.start(SPEC, CTX, CHAIN_CFG);
-
-    const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as { bootstrapFromBlock?: bigint };
-    expect(pollerOpts.bootstrapFromBlock).toBe(201n);
   });
 });

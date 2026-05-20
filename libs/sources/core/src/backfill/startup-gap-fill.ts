@@ -68,7 +68,6 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
   });
 
   if (outcome.status === 'completed') {
-    await daoSourceRepo.updateLiveHead(daoSourceId, outcome.toBlock);
     await daoSourceRepo.clearBackfillState(daoSourceId);
     return { status: 'filled', fromBlock: outcome.fromBlock, toBlock: outcome.toBlock };
   }

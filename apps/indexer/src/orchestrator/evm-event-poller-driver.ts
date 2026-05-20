@@ -27,11 +27,6 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     chainCfg: Parameters<ChainContextRegistry['getOrCreate']>[0],
   ): Promise<FetchDriverHandle> {
     const chainCtx = await this.registry.getOrCreate(chainCfg);
-    const row = await this.daoSourceRepo.findByIdWithChain(ctx.daoSourceId);
-    const bootstrapFromBlock =
-      row?.live_head_block !== null && row?.live_head_block !== undefined
-        ? BigInt(row.live_head_block) + 1n
-        : undefined;
 
     const pollIntervalMs =
       chainCfg.eventPollIntervalMs ?? Number(process.env['EVENT_POLL_INTERVAL_MS'] ?? 12_000);
@@ -43,7 +38,6 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       reorgHorizon: chainCfg.reorgHorizon,
       sourceType: ctx.sourceType,
       daoSourceLabel: ctx.daoSourceId,
-      bootstrapFromBlock,
       filter: spec.filter,
       pollIntervalMs,
       onBlockComplete: (head) => this.daoSourceRepo.updateLiveHead(ctx.daoSourceId, head),
