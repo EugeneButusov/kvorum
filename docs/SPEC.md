@@ -3410,7 +3410,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 
 - `VoteCast` event ingestion → `vote` core entity
 - `DelegateVotesChanged` event ingestion → `delegation` event log
-- Voting power snapshot job per Section 2.4.6 (computes `voting_power_snapshot` rows at proposal `start_block`)
+- Voting power snapshot job per Section 2.4.10 (computes `voting_power_snapshot` rows at proposal `voting_power_block`)
 - API endpoints: `GET /v1/daos/{slug}/proposals/{type}/{id}/votes`, `GET /v1/daos/{slug}/delegates/{address}`
 - `actor` entity merging logic (per Section 2.4.3)
 - ENS resolution for actor display names (cached, periodic refresh)
@@ -3427,7 +3427,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 
 **Risks:**
 
-- Voting power snapshot correctness — historical voting power must reproduce on-chain truth at each block. Test against a known proposal where the result is publicly verifiable (e.g., Compound's UNI distribution proposal).
+- Voting power snapshot correctness — historical voting power must reproduce on-chain truth at each block. Test against a known proposal where the result is publicly verifiable on-chain.
 - ENS resolution rate-limiting from upstream providers. Mitigation: cache aggressively, accept slow first-load for new addresses.
 
 **The "would I ship this?" test.** Yes, narrowly. A Compound-only governance analytics tool is a real product. Not the v1 vision, but a defensible interim release.
