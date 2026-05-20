@@ -42,7 +42,6 @@ describe('runStartupGapFillWithLock', () => {
     } as never);
 
     const out = await runStartupGapFillWithLock({
-      db: {} as never,
       daoSourceId: 'src-1',
       chainConfig: { reorgHorizon: 5 } as never,
       rpcClient: { send: vi.fn() } as never,
@@ -61,7 +60,6 @@ describe('runStartupGapFillWithLock', () => {
     } as never);
 
     const out = await runStartupGapFillWithLock({
-      db: {} as never,
       daoSourceId: 'src-1',
       chainConfig: { reorgHorizon: 5 } as never,
       rpcClient: { send: vi.fn() } as never,

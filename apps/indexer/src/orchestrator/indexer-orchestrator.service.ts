@@ -7,7 +7,7 @@ import {
   silentLogger,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository, pgDb } from '@libs/db';
+import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import { runStartupGapFillWithLock, type SourcePlugin } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -182,7 +182,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   ): Promise<boolean> {
     const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
     const lockResult = await runStartupGapFillWithLock({
-      db: pgDb,
       daoSourceId: entry.src.id,
       chainConfig: entry.chainCfg,
       rpcClient: chainCtx.client,

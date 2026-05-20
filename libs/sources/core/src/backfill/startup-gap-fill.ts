@@ -1,6 +1,5 @@
 import type { ChainConfig, Logger, RpcClient } from '@libs/chain';
-import type { DaoSourceRepository, PgDatabase } from '@libs/db';
-import type { Kysely } from 'kysely';
+import { pgDb, type DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
 import { withDaoSourceAdvisoryLock } from './dao-source-lock';
 import { computeGap } from './gap-detector';
@@ -27,9 +26,7 @@ export type StartupGapFillWithLockResult =
   | { status: 'contended' }
   | { status: 'executed'; value: StartupGapFillResult };
 
-export interface StartupGapFillWithLockInput extends StartupGapFillInput {
-  db: Kysely<PgDatabase>;
-}
+export type StartupGapFillWithLockInput = StartupGapFillInput;
 
 export async function runStartupGapFill(input: StartupGapFillInput): Promise<StartupGapFillResult> {
   const { daoSourceId, chainConfig, rpcClient, daoSourceRepo, runtime, logger, signal } = input;
@@ -84,9 +81,9 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
 export async function runStartupGapFillWithLock(
   input: StartupGapFillWithLockInput,
 ): Promise<StartupGapFillWithLockResult> {
-  const { db, daoSourceId, ...gapFillInput } = input;
+  const { daoSourceId, ...gapFillInput } = input;
   const lockResult = await withDaoSourceAdvisoryLock({
-    db,
+    db: pgDb,
     daoSourceId,
     run: async () => runStartupGapFill({ daoSourceId, ...gapFillInput }),
   });
