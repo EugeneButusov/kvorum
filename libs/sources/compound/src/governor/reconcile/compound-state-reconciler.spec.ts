@@ -59,4 +59,56 @@ describe('CompoundStateReconciler', () => {
       stateUpdatedAt: new Date(100_000),
     });
   });
+
+  it('reconciles pending row to active when startBlock has been confirmed', async () => {
+    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposals = {
+      markReconcileChecked: vi.fn().mockResolvedValue(undefined),
+      reconcileState: vi.fn().mockResolvedValue(1),
+    };
+
+    const send = vi.fn(async (method: string, params: unknown[]) => {
+      if (method === 'eth_call') {
+        const request = params[0] as { to: string };
+        if (request.to.toLowerCase() === '0x309a862bbc1a00e45506cb8a802d1ff10004c8c0') {
+          return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('state', [1n]); // active
+        }
+      }
+      if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' }; // 100
+      throw new Error(`unexpected rpc call: ${method}`);
+    });
+
+    const result = await reconciler.reconcileRow({
+      row: {
+        id: 'proposal-oz-2',
+        source_id: '584',
+        source_type: 'compound_governor_oz',
+        chain_id: '0x1',
+        governor_address: '0x309a862bbC1A00e45506cB8A802D1ff10004c8C0',
+        state: 'pending',
+        voting_starts_block: '21700000',
+        voting_ends_block: '21740000',
+        queued_at_block: null,
+      },
+      confirmedThreshold: 21710000n,
+      confirmedThresholdTag: '0x14b2f10',
+      proposals: proposals as never,
+      chainCtx: {
+        client: { send },
+        chainCfg: { chainId: '0x1' },
+      },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'active' });
+    expect(proposals.markReconcileChecked).toHaveBeenCalledWith('proposal-oz-2', '21710000');
+    expect(proposals.reconcileState).toHaveBeenCalledWith({
+      proposalId: 'proposal-oz-2',
+      expectedStates: ['pending', 'active', 'succeeded', 'queued'],
+      targetState: 'active',
+      stateUpdatedAt: new Date(100_000),
+    });
+    const blockFetches = send.mock.calls.filter(([m]) => m === 'eth_getBlockByNumber');
+    expect(blockFetches).toHaveLength(1);
+    expect(blockFetches[0]![1]).toEqual([`0x${BigInt('21700000').toString(16)}`, false]);
+  });
 });
