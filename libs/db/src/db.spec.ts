@@ -1,4 +1,5 @@
 import { pgDb } from './client';
+import { sql } from 'kysely';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
 class RollbackSignal extends Error {}
@@ -483,6 +484,221 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             })
             .execute(),
         ).rejects.toMatchObject({ code: '23505' });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('supports actor merge pointer and archive_confirmation derivation marker updates', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const [actorA] = await tx
+          .insertInto('actor')
+          .values({ primary_address: `0x${'c'.repeat(40)}`, updated_at: now })
+          .returning(['id'])
+          .execute();
+        const [actorB] = await tx
+          .insertInto('actor')
+          .values({ primary_address: `0x${'d'.repeat(40)}`, updated_at: now })
+          .returning(['id'])
+          .execute();
+
+        await tx
+          .updateTable('actor')
+          .set({ merged_into_actor_id: actorA!.id })
+          .where('id', '=', actorB!.id)
+          .execute();
+
+        const mergedActor = await tx
+          .selectFrom('actor')
+          .select(['merged_into_actor_id'])
+          .where('id', '=', actorB!.id)
+          .executeTakeFirstOrThrow();
+        expect(mergedActor.merged_into_actor_id).toBe(actorA!.id);
+
+        await expect(
+          tx
+            .updateTable('actor')
+            .set({ merged_into_actor_id: '00000000-0000-0000-0000-000000000001' })
+            .where('id', '=', actorB!.id)
+            .execute(),
+        ).rejects.toMatchObject({ code: '23503' });
+
+        const [dao] = await tx
+          .insertInto('dao')
+          .values({
+            slug: `j1-ac-dao-${Date.now()}`,
+            name: 'J1 AC DAO',
+            primary_token_address: `0x${'e'.repeat(40)}`,
+            primary_chain_id: '1',
+            description: 'smoke',
+            website_url: 'https://example.com',
+            forum_url: 'https://example.com',
+            updated_at: now,
+          })
+          .returning(['id'])
+          .execute();
+        const [daoSource] = await tx
+          .insertInto('dao_source')
+          .values({
+            dao_id: dao!.id,
+            source_type: 'compound_governor_bravo',
+            source_config: { governor_address: `0x${'f'.repeat(40)}` },
+          })
+          .returning(['id'])
+          .execute();
+
+        const [confirmation] = await tx
+          .insertInto('archive_confirmation')
+          .values({
+            source_type: 'compound_governor_bravo',
+            dao_source_id: daoSource!.id,
+            chain_id: '1',
+            block_number: '100',
+            block_hash: `0x${'1'.repeat(64)}`,
+            tx_hash: `0x${'2'.repeat(64)}`,
+            log_index: 7,
+            event_type: 'VoteCast',
+            received_at: now,
+            confirmation_status: 'confirmed',
+          })
+          .returning(['id', 'derivation_actor_resolved_at'])
+          .execute();
+        expect(confirmation!.derivation_actor_resolved_at).toBeNull();
+
+        const resolvedAt = new Date(now.getTime() + 10_000);
+        await tx
+          .updateTable('archive_confirmation')
+          .set({ derivation_actor_resolved_at: resolvedAt })
+          .where('id', '=', confirmation!.id)
+          .execute();
+        const updated = await tx
+          .selectFrom('archive_confirmation')
+          .select(['derivation_actor_resolved_at'])
+          .where('id', '=', confirmation!.id)
+          .executeTakeFirstOrThrow();
+        expect(updated.derivation_actor_resolved_at?.toISOString()).toBe(resolvedAt.toISOString());
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('enforces actor_address check and source FK constraints', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const [actor] = await tx
+          .insertInto('actor')
+          .values({ primary_address: `0x${'a'.repeat(40)}`, updated_at: now })
+          .returning(['id'])
+          .execute();
+
+        await expect(
+          tx
+            .insertInto('actor_address')
+            .values({
+              actor_id: actor!.id,
+              address: `0x${'A'.repeat(40)}`,
+              is_primary: false,
+              source: 'manual',
+            })
+            .execute(),
+        ).rejects.toMatchObject({ code: '23514' });
+
+        await expect(
+          tx
+            .insertInto('actor_address')
+            .values({
+              actor_id: actor!.id,
+              address: `0x${'b'.repeat(40)}`,
+              is_primary: false,
+              source: 'not_a_value',
+            })
+            .execute(),
+        ).rejects.toMatchObject({ code: '23503' });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('keeps actor_address backfill idempotent and ships expected indexes', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const addresses = [`0x${'1'.repeat(40)}`, `0x${'2'.repeat(40)}`, `0x${'3'.repeat(40)}`];
+        for (const address of addresses) {
+          await tx
+            .insertInto('actor')
+            .values({
+              primary_address: address,
+              updated_at: now,
+            })
+            .execute();
+        }
+
+        await tx.executeQuery(
+          sql`
+          INSERT INTO actor_address (actor_id, address, is_primary, source)
+          SELECT id, primary_address, true, 'm1_backfill'
+          FROM actor
+          ON CONFLICT DO NOTHING
+        `.compile(tx),
+        );
+        await tx.executeQuery(
+          sql`
+          INSERT INTO actor_address (actor_id, address, is_primary, source)
+          SELECT id, primary_address, true, 'm1_backfill'
+          FROM actor
+          ON CONFLICT DO NOTHING
+        `.compile(tx),
+        );
+
+        const actorAddressCount = await tx
+          .selectFrom('actor_address')
+          .select((eb) => eb.fn.countAll<number>().as('count'))
+          .executeTakeFirstOrThrow();
+        expect(actorAddressCount.count).toBeGreaterThanOrEqual(addresses.length);
+
+        const indexes = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname', 'indexdef'])
+          .where('tablename', 'in', [
+            'vote',
+            'delegation',
+            'voting_power_snapshot',
+            'actor_address',
+            'actor',
+            'archive_confirmation',
+          ])
+          .execute();
+
+        const indexNames = new Set(indexes.map((row) => row.indexname));
+        for (const expected of [
+          'vote_proposal_id_cast_at_idx',
+          'vote_voter_actor_id_cast_at_idx',
+          'vote_proposal_voter_current_uidx',
+          'vote_event_idempotency_uidx',
+          'delegation_delegator_actor_block_idx',
+          'delegation_delegate_actor_block_idx',
+          'delegation_dao_block_idx',
+          'voting_power_snapshot_proposal_idx',
+          'actor_address_primary_uidx',
+          'idx_actor_merged_into',
+          'idx_archive_confirmation_l0_pending',
+        ]) {
+          expect(indexNames.has(expected)).toBe(true);
+        }
+
+        const voteCurrent = indexes.find(
+          (row) => row.indexname === 'vote_proposal_voter_current_uidx',
+        );
+        expect(voteCurrent).toBeDefined();
+        const canonicalized = voteCurrent!.indexdef.replace(/\s+/g, ' ').trim();
+        expect(canonicalized).toContain('WHERE (superseded_by_vote_id IS NULL)');
 
         throw new RollbackSignal();
       }),
