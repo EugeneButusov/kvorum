@@ -40,7 +40,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,
       pollIntervalMs,
-      onTickComplete: (head) => this.daoSourceRepo.updateLiveHead(ctx.daoSourceId, head),
+      onBlockComplete: (head) => this.daoSourceRepo.updateLiveHead(ctx.daoSourceId, head),
       logger: this.chainLogger,
     });
 

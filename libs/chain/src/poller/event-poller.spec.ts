@@ -254,26 +254,26 @@ describe('EventPoller', () => {
     });
   });
 
-  describe('onTickComplete', () => {
+  describe('onBlockComplete', () => {
     it('fires after a successful tick with head block', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
 
-      const onTickComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
       poller.onEvents(() => {});
       await poller.start();
       await poller.stop();
 
-      expect(onTickComplete).toHaveBeenCalledWith(16n);
+      expect(onBlockComplete).toHaveBeenCalledWith(16n);
     });
 
     it('does not fire when any listener rejects', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([makeLog()]);
       fake.returnSuccess([]);
 
-      const onTickComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
       poller.onEvents(async () => {
         throw new Error('listener failed');
       });
@@ -281,20 +281,20 @@ describe('EventPoller', () => {
       await poller.start();
       await poller.stop();
 
-      expect(onTickComplete).not.toHaveBeenCalled();
+      expect(onBlockComplete).not.toHaveBeenCalled();
     });
 
     it('fires when no events are returned', async () => {
       fake.enqueueSuccess('0x10').enqueueSuccess([]);
       fake.returnSuccess([]);
 
-      const onTickComplete = vi.fn().mockResolvedValue(undefined);
-      const poller = new EventPoller(baseOpts(client, { onTickComplete }));
+      const onBlockComplete = vi.fn().mockResolvedValue(undefined);
+      const poller = new EventPoller(baseOpts(client, { onBlockComplete }));
       poller.onEvents(() => {});
       await poller.start();
       await poller.stop();
 
-      expect(onTickComplete).toHaveBeenCalledWith(16n);
+      expect(onBlockComplete).toHaveBeenCalledWith(16n);
     });
   });
 

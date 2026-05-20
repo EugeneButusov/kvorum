@@ -157,12 +157,12 @@ export class EventPoller extends AbstractPoller {
       return;
     }
 
-    if (this.opts.onTickComplete) {
+    if (this.opts.onBlockComplete) {
       try {
-        await this.opts.onTickComplete(headBn);
+        await this.opts.onBlockComplete(headBn);
       } catch (err) {
         this.logger.warn(
-          `[chain:${chain}][source:${src}] EventPoller onTickComplete threw: ${String(err)}`,
+          `[chain:${chain}][source:${src}] EventPoller onBlockComplete threw: ${String(err)}`,
         );
       }
     }

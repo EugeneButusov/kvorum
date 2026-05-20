@@ -184,7 +184,7 @@ describe('EvmEventPollerDriver', () => {
     await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
   });
 
-  it('#7 — wires onTickComplete to dao_source live head updates', async () => {
+  it('#7 — wires onBlockComplete to dao_source live head updates', async () => {
     const { registry } = makeRegistry();
     const daoSourceRepo = makeDaoSourceRepo();
     setupMockPoller();
@@ -193,9 +193,9 @@ describe('EvmEventPollerDriver', () => {
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as {
-      onTickComplete: (head: bigint) => Promise<void>;
+      onBlockComplete: (head: bigint) => Promise<void>;
     };
-    await pollerOpts.onTickComplete(123n);
+    await pollerOpts.onBlockComplete(123n);
 
     expect(daoSourceRepo.updateLiveHead).toHaveBeenCalledWith('src-1', 123n);
   });
