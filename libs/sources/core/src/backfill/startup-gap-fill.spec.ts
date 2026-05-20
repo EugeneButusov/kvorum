@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runStartupGapFill } from './startup-gap-fill';
 import { BackfillDriver } from './backfill-driver';
+import { runStartupGapFill } from './startup-gap-fill';
 
 vi.mock('./backfill-driver', () => ({
   BackfillDriver: vi.fn(),

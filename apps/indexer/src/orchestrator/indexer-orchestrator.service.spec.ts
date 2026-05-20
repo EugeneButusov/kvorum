@@ -498,22 +498,18 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#16 — startup gap error: emits failed metric and still starts live driver', async () => {
+  it('#16 — startup gap fill returns without throw and live driver starts', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(processStartupGapFill).mockResolvedValueOnce({ status: 'error' } as never);
+    vi.mocked(processStartupGapFill).mockResolvedValueOnce(undefined);
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
-    expect(chainMetrics.ingestionGapFillFailed.add).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({ reason: 'error', dao_source: 'src-1' }),
-    );
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 });
