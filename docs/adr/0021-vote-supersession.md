@@ -1,6 +1,6 @@
 # ADR-021 — Vote supersession model for Snapshot vote changes
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-08
 - **Spec sections affected**: 2.4.7, 2.8 (invariant 2), 4.2, 4.6.1
 - **Related**: DR-006

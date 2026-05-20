@@ -25,6 +25,7 @@ export interface ArchiveConfirmationTable {
   orphaned_at: Date | null;
   orphaned_by_reorg_event_id: string | null;
   derived_at: Date | null;
+  derivation_actor_resolved_at: Date | null;
   derivation_attempt_count: Generated<number>;
 }
 

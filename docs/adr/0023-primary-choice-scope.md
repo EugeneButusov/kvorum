@@ -1,6 +1,6 @@
 # ADR-023 — `primary_choice` scoped to single-choice voting types
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-08
 - **Spec sections affected**: 2.4.7
 
