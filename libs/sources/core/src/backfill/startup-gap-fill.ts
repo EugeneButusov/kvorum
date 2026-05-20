@@ -1,7 +1,6 @@
 import { chainMetrics, type ChainConfig, type Logger, type RpcClient } from '@libs/chain';
-import { pgDb, type DaoSourceRepository } from '@libs/db';
+import type { DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
-import { withDaoSourceAdvisoryLock } from './dao-source-lock';
 import { computeGap } from './gap-detector';
 import type { BackfillRuntime } from './types';
 
@@ -21,12 +20,6 @@ export interface StartupGapFillInput {
   logger: Logger;
   signal?: AbortSignal;
 }
-
-export type StartupGapFillWithLockResult =
-  | { status: 'contended' }
-  | { status: 'executed'; value: StartupGapFillResult };
-
-export type StartupGapFillWithLockInput = StartupGapFillInput;
 
 export class StartupGapFillShutdownError extends Error {
   constructor() {
@@ -84,43 +77,21 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
   return { status: 'error', error: outcome.error };
 }
 
-export async function runStartupGapFillWithLock(
-  input: StartupGapFillWithLockInput,
-): Promise<StartupGapFillWithLockResult> {
-  const { daoSourceId, ...gapFillInput } = input;
-  const lockResult = await withDaoSourceAdvisoryLock({
-    db: pgDb,
-    daoSourceId,
-    run: async () => runStartupGapFill({ daoSourceId, ...gapFillInput }),
-  });
-  if (lockResult.status === 'contended') return { status: 'contended' };
-  return { status: 'executed', value: lockResult.value };
-}
-
-export async function processStartupGapFill(input: StartupGapFillWithLockInput): Promise<void> {
-  const lockResult = await runStartupGapFillWithLock(input);
+export async function processStartupGapFill(input: StartupGapFillInput): Promise<void> {
+  const gapFillResult = await runStartupGapFill(input);
   const chain = input.chainConfig.name;
   const daoSource = input.daoSourceId;
 
-  if (lockResult.status === 'contended') {
+  if (gapFillResult.status === 'skipped') {
     chainMetrics.ingestionGapFillSkipped.add(1, {
       chain,
       dao_source: daoSource,
-      reason: 'lock_contended',
+      reason: gapFillResult.reason,
     });
     return;
   }
 
-  if (lockResult.value.status === 'skipped') {
-    chainMetrics.ingestionGapFillSkipped.add(1, {
-      chain,
-      dao_source: daoSource,
-      reason: lockResult.value.reason,
-    });
-    return;
-  }
-
-  if (lockResult.value.status === 'error') {
+  if (gapFillResult.status === 'error') {
     chainMetrics.ingestionGapFillFailed.add(1, {
       chain,
       dao_source: daoSource,
@@ -129,7 +100,7 @@ export async function processStartupGapFill(input: StartupGapFillWithLockInput):
     return;
   }
 
-  if (lockResult.value.status === 'cancelled') {
+  if (gapFillResult.status === 'cancelled') {
     chainMetrics.ingestionGapFillFailed.add(1, {
       chain,
       dao_source: daoSource,
