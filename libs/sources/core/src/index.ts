@@ -27,14 +27,12 @@ export type {
 } from './backfill/types';
 export { computeGap } from './backfill/gap-detector';
 export type { GapComputationResult, GapRangeInput } from './backfill/gap-detector';
-export {
-  runBootCatchUp,
-  processBootCatchUp,
-  BootCatchUpShutdownError,
-} from './backfill/boot-catch-up';
+export { runBootCatchUp, processBootCatchUp } from './backfill/boot-catch-up';
 export type { BootCatchUpInput, BootCatchUpResult } from './backfill/boot-catch-up';
+export { BootCatchUpShutdownError } from './backfill/errors/boot-catch-up-shutdown.error';
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
+export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.error';
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';

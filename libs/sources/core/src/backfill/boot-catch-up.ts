@@ -1,6 +1,8 @@
 import { chainMetrics, type ChainConfig, type Logger, type RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
+import { BootCatchUpShutdownError } from './errors/boot-catch-up-shutdown.error';
+import { DaoSourceNotFoundError } from './errors/dao-source-not-found.error';
 import { computeGap } from './gap-detector';
 import type { BackfillRuntime } from './types';
 
@@ -22,17 +24,11 @@ export interface BootCatchUpInput {
   toBlock?: bigint;
 }
 
-export class BootCatchUpShutdownError extends Error {
-  constructor() {
-    super('boot catch-up cancelled by shutdown');
-  }
-}
-
 export async function runBootCatchUp(input: BootCatchUpInput): Promise<BootCatchUpResult> {
   const { daoSourceId, chainConfig, rpcClient, daoSourceRepo, runtime, logger, signal } = input;
 
   const row = await daoSourceRepo.findByIdWithChain(daoSourceId);
-  if (!row) throw new Error(`dao_source ${daoSourceId} not found`);
+  if (!row) throw new DaoSourceNotFoundError(daoSourceId);
 
   const gap =
     input.toBlock !== undefined
