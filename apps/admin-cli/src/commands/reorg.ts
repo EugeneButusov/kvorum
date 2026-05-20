@@ -9,7 +9,7 @@ type ReorgListOptions = {
 };
 
 export function registerReorg(program: Command): void {
-  const reorg = program.command('reorg').description('Chain reorg management');
+  const reorg = program.command('reorgs').description('Chain reorg management');
 
   reorg
     .command('list')
@@ -86,6 +86,6 @@ async function withReorgFormat(
     if (message.startsWith('invalid --format value:')) {
       fail(opts.format === 'json' ? 'json' : 'human', ExitCode.ValidationFailure, message);
     }
-    fail(format, ExitCode.RuntimeFailure, 'reorg command failed', { message });
+    fail(format, ExitCode.RuntimeFailure, 'reorgs command failed', { message });
   }
 }

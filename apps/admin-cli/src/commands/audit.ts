@@ -5,7 +5,7 @@ import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../outpu
 type AuditListOptions = { format?: string };
 
 export function registerAudit(program: Command): void {
-  const audit = program.command('audit').description('Audit log access');
+  const audit = program.command('audits').description('Audit log access');
 
   audit
     .command('list')
@@ -63,6 +63,6 @@ async function withAuditFormat(
     if (message.startsWith('invalid --format value:')) {
       fail(opts.format === 'json' ? 'json' : 'human', ExitCode.ValidationFailure, message);
     }
-    fail(format, ExitCode.RuntimeFailure, 'audit command failed', { message });
+    fail(format, ExitCode.RuntimeFailure, 'audits command failed', { message });
   }
 }
