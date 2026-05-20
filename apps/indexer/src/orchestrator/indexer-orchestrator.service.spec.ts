@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
+import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, processStartupGapFill } from '@sources/core';
@@ -22,8 +22,8 @@ vi.mock('@libs/chain', () => ({
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
-    ingestionGapFillSkipped: { add: vi.fn() },
     ingestionGapFillFailed: { add: vi.fn() },
+    ingestionGapFillSkipped: { add: vi.fn() },
   },
 }));
 
@@ -478,5 +478,38 @@ describe('IndexerOrchestratorService', () => {
 
     await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No FetchDriver registered/);
     expect(driver.start).not.toHaveBeenCalled();
+  });
+
+  it('#15 — BackfillAlreadyStartedError during startup gap-fill is skipped and live driver starts', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
+    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+      new BackfillAlreadyStartedError('src-1', '100'),
+    );
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    expect(chainMetrics.ingestionGapFillSkipped.add).not.toHaveBeenCalled();
+    expect(driver.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('#16 — startup gap fill returns without throw and live driver starts', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
+    vi.mocked(processStartupGapFill).mockResolvedValueOnce(undefined);
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    expect(driver.start).toHaveBeenCalledTimes(1);
   });
 });
