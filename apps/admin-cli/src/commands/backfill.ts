@@ -1,6 +1,5 @@
 import { Command } from 'commander';
-import { chainMetrics, silentLogger } from '@libs/chain';
-import { pgDb } from '@libs/db';
+import { silentLogger } from '@libs/chain';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -37,7 +36,7 @@ export function registerBackfill(program: Command): void {
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { BackfillDriver, BackfillNotResumableError, withDaoSourceAdvisoryLock } = core;
+        const { BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -137,33 +136,13 @@ export function registerBackfill(program: Command): void {
                 logger: progressLogger,
               });
 
-              const lockResult = await withDaoSourceAdvisoryLock({
-                db: pgDb,
+              const outcome = await driver.run({
                 daoSourceId: row.id,
-                run: async () =>
-                  driver.run({
-                    daoSourceId: row.id,
-                    fromBlock: resolvedFromBlock,
-                    toBlock: toBlock ?? undefined,
-                    mode,
-                    signal: controller.signal,
-                  }),
+                fromBlock: resolvedFromBlock,
+                toBlock: toBlock ?? undefined,
+                mode,
+                signal: controller.signal,
               });
-
-              if (lockResult.status === 'contended') {
-                chainMetrics.ingestionGapFillSkipped.add(1, {
-                  reason: 'lock_contended',
-                  dao_source: row.id,
-                  chain: chainConfig.name,
-                });
-                fail(
-                  format,
-                  ExitCode.RuntimeFailure,
-                  `backfill lock is contended for dao_source ${row.id}`,
-                );
-              }
-
-              const outcome = lockResult.value;
 
               if (outcome.status === 'completed') {
                 await daoSourceRepository.clearBackfillState(row.id);
@@ -202,7 +181,7 @@ export function registerBackfill(program: Command): void {
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { withDaoSourceAdvisoryLock, runStartupGapFill, computeGap } = core;
+        const { runStartupGapFill, computeGap } = core;
         const { daoSourceRepository } = buildContainer();
 
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -259,37 +238,19 @@ export function registerBackfill(program: Command): void {
           }
 
           await withAudit('backfill catch-up', { sourceType, ...opts }, async () => {
-            const lockResult = await withDaoSourceAdvisoryLock({
-              db: pgDb,
+            const result = await runStartupGapFill({
               daoSourceId: row.id,
-              run: async () =>
-                runStartupGapFill({
-                  daoSourceId: row.id,
-                  chainConfig,
-                  rpcClient,
-                  daoSourceRepo: daoSourceRepository,
-                  runtime,
-                  logger: consoleLogger,
-                }),
+              chainConfig,
+              rpcClient,
+              daoSourceRepo: daoSourceRepository,
+              runtime,
+              logger: consoleLogger,
             });
 
-            if (lockResult.status === 'contended') {
-              chainMetrics.ingestionGapFillSkipped.add(1, {
-                reason: 'lock_contended',
-                dao_source: row.id,
-                chain: chainConfig.name,
-              });
-              fail(
-                format,
-                ExitCode.RuntimeFailure,
-                `backfill lock is contended for dao_source ${row.id}`,
-              );
-            }
-
-            emit(format, () => `Catch-up ${lockResult.value.status} for ${sourceType}`, {
+            emit(format, () => `Catch-up ${result.status} for ${sourceType}`, {
               source_type: sourceType,
               dao_source_id: row.id,
-              ...lockResult.value,
+              ...result,
             });
           });
         } finally {

@@ -27,7 +27,6 @@ export type {
 } from './backfill/types';
 export { computeGap } from './backfill/gap-detector';
 export type { GapComputationResult, GapRangeInput } from './backfill/gap-detector';
-export { withDaoSourceAdvisoryLock } from './backfill/dao-source-lock';
 export {
   runStartupGapFill,
   processStartupGapFill,
