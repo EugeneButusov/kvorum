@@ -3,6 +3,7 @@ import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { makeCutoffClassifier } from './cutoff-classifier';
+import { BackfillAlreadyStartedError } from './errors/backfill-already-started.error';
 import { BackfillNotResumableError } from './errors/backfill-not-resumable.error';
 import type { BackfillOutcome, BackfillRunInput } from './types';
 
@@ -35,6 +36,9 @@ export class BackfillDriver {
 
     // Step 2 — resolve chain head (fresh captures new head; resume rehydrates from DB)
     if (input.mode === 'fresh') {
+      if (row.backfill_started_at_block !== null && !input.force) {
+        throw new BackfillAlreadyStartedError(input.daoSourceId);
+      }
       await daoSourceRepo.clearBackfillState(input.daoSourceId);
       const headHex = await rpcClient.send<string>('eth_blockNumber', []);
       head = BigInt(headHex);

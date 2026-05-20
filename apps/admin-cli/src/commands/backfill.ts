@@ -36,7 +36,7 @@ export function registerBackfill(program: Command): void {
           { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { BackfillDriver, BackfillNotResumableError } = core;
+        const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
         const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
@@ -154,6 +154,9 @@ export function registerBackfill(program: Command): void {
                 ...serializeOutcome(outcome),
               });
             } catch (error) {
+              if (error instanceof BackfillAlreadyStartedError) {
+                fail(format, ExitCode.ValidationFailure, error.message);
+              }
               if (error instanceof BackfillNotResumableError) {
                 fail(format, ExitCode.ValidationFailure, error.message);
               }

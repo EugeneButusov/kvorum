@@ -33,6 +33,7 @@ export {
   StartupGapFillShutdownError,
 } from './backfill/startup-gap-fill';
 export type { StartupGapFillInput, StartupGapFillResult } from './backfill/startup-gap-fill';
+export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';

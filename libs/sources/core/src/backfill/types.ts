@@ -5,6 +5,7 @@ export interface BackfillRunInput {
   fromBlock: bigint;
   toBlock?: bigint;
   mode: BackfillMode;
+  force?: boolean;
   /** When provided, the driver aborts at the next chunk boundary. */
   signal?: AbortSignal;
   /** Override the default chunk size (10_000). Exposed for tests. */
