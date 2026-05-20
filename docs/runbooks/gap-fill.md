@@ -7,7 +7,6 @@ This runbook covers ADR-051 operation for startup gap detection and manual catch
 - On indexer startup, each `dao_source` computes a gap against `head - 2*reorgHorizon`.
 - If a gap exists, the indexer runs a sequential gap fill before live poller start.
 - Gap fill uses the existing backfill driver with `mode=fresh` and `force=true`.
-- Locking uses per-source PG advisory lock; lock contention skips fill and starts live polling.
 
 ## Critical operational caveat
 
@@ -27,25 +26,21 @@ Behavior:
 
 - `--dry-run` shows computed gap (or no gap/skip reason) and does not write.
 - `--confirm` executes gap fill with the same logic as startup path.
-- Lock contention exits with an error and does not run fill.
 
 ## Troubleshooting
 
-1. Gap fill skipped (`reason=lock_contended`):
-   Run the command again after concurrent task finishes.
-
-2. Gap fill skipped (`reason=no_active_from_block`):
+1. Gap fill skipped (`reason=no_active_from_block`):
    Seed history explicitly:
 
 ```bash
 admin-cli backfill start <source_type> --from-block <N> --confirm
 ```
 
-3. Gap fill failed (`ingestion_gap_fill_failed`):
+2. Gap fill failed (`ingestion_gap_fill_failed`):
    Review indexer logs for source/range, then run manual catch-up.
 
 ## Metrics to watch
 
 - `ingestion_gap_fill_failed{reason=error|shutdown}`
-- `ingestion_gap_fill_skipped{reason=lock_contended|no_active_from_block}`
+- `ingestion_gap_fill_skipped{reason=no_active_from_block}`
 - `ingestion_live_watermark_skipped{reason=listener_failed}`

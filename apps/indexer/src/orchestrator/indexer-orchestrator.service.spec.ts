@@ -480,22 +480,21 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
-  it('#15 — lock contention: emits skipped metric and still starts live driver', async () => {
+  it('#15 — BackfillAlreadyStartedError during startup gap-fill is skipped and live driver starts', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(withDaoSourceAdvisoryLock).mockResolvedValue({ status: 'contended' } as never);
+    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+      new BackfillAlreadyStartedError('src-1', '100'),
+    );
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
     await svc.onApplicationBootstrap();
 
-    expect(chainMetrics.ingestionGapFillSkipped.add).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({ reason: 'lock_contended', dao_source: 'src-1' }),
-    );
+    expect(chainMetrics.ingestionGapFillSkipped.add).not.toHaveBeenCalled();
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
@@ -504,10 +503,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    vi.mocked(withDaoSourceAdvisoryLock).mockResolvedValue({
-      status: 'executed',
-      value: { status: 'error', error: new Error('boom') },
-    } as never);
+    vi.mocked(processStartupGapFill).mockResolvedValueOnce({ status: 'error' } as never);
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);

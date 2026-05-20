@@ -64,7 +64,7 @@ describe('chainMetrics counters', () => {
     chainMetrics.ingestionGapFillSkipped.add(1, {
       chain: 'ethereum',
       dao_source: 'src-1',
-      reason: 'lock_contended',
+      reason: 'no_active_from_block',
     });
     const text = await renderMetrics();
     expect(text).toContain('test_ingestion_gap_fill_failed_total');
