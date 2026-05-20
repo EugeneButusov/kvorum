@@ -87,6 +87,26 @@ export function registerBackfill(program: Command): void {
               ? 'resume'
               : 'fresh';
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
+        if (fromBlock != null) {
+          const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
+          const backfillFloor =
+            row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
+          const minFrom =
+            activeFloor === null
+              ? (backfillFloor ?? 0n)
+              : backfillFloor === null
+                ? activeFloor
+                : activeFloor > backfillFloor
+                  ? activeFloor
+                  : backfillFloor;
+          if (fromBlock < minFrom) {
+            fail(
+              format,
+              ExitCode.ValidationFailure,
+              `--from-block (${fromBlock.toString()}) must be >= ${minFrom.toString()} (= max(active_from_block=${row.active_from_block ?? 'NULL'}, backfill_head_block+1=${backfillFloor?.toString() ?? 'NULL'}))`,
+            );
+          }
+        }
 
         try {
           const headHex = await rpcClient.send<string>('eth_blockNumber', []);
@@ -221,7 +241,6 @@ export function registerBackfill(program: Command): void {
             row: {
               active_from_block: row.active_from_block,
               backfill_head_block: row.backfill_head_block,
-              live_head_block: row.live_head_block,
             },
             headBlock,
             reorgHorizon: chainConfig.reorgHorizon,

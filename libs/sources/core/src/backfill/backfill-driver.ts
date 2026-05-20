@@ -1,4 +1,4 @@
-import { BackfillRangeFetcher } from '@libs/chain';
+import { BackfillRangeFetcher, chainMetrics, reorgCutoff } from '@libs/chain';
 import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
@@ -33,6 +33,8 @@ export class BackfillDriver {
     }
 
     let head: bigint;
+    let startBlock: bigint;
+    let toBlock: bigint;
 
     // Step 2 — resolve chain head (fresh captures new head; resume rehydrates from DB)
     if (input.mode === 'fresh') {
@@ -44,28 +46,61 @@ export class BackfillDriver {
       head = BigInt(headHex);
       // captureBackfillStart is idempotent (IS NULL guard) — fine after clearBackfillState
       await daoSourceRepo.captureBackfillStart(input.daoSourceId, head);
+      startBlock = input.fromBlock;
+      toBlock = input.toBlock ?? head;
     } else {
-      if (row.backfill_started_at_block === null) {
-        throw new BackfillNotResumableError(input.daoSourceId);
+      if (input.mode === 'resume') {
+        if (row.backfill_started_at_block === null) {
+          throw new BackfillNotResumableError(input.daoSourceId);
+        }
+        // Rehydrate the original head — never refresh (ADR-027 determinism)
+        head = BigInt(row.backfill_started_at_block);
+        startBlock =
+          row.backfill_head_block !== null ? BigInt(row.backfill_head_block) + 1n : input.fromBlock;
+        toBlock = input.toBlock ?? head;
+      } else {
+        const floor =
+          row.backfill_head_block !== null
+            ? BigInt(row.backfill_head_block)
+            : row.active_from_block !== null
+              ? BigInt(row.active_from_block) - 1n
+              : null;
+        if (floor === null) {
+          throw new Error(
+            `dao_source ${input.daoSourceId} has no active_from_block and no backfill_head_block`,
+          );
+        }
+        startBlock = floor + 1n;
+        if (input.toBlock !== undefined) {
+          toBlock = input.toBlock;
+          head = toBlock;
+        } else {
+          const headHex = await rpcClient.send<string>('eth_blockNumber', []);
+          head = BigInt(headHex);
+          toBlock = reorgCutoff(head, chainConfig);
+        }
+        if (row.backfill_started_at_block === null) {
+          await daoSourceRepo.captureBackfillStart(input.daoSourceId, startBlock);
+        }
+        if (startBlock > toBlock) {
+          chainMetrics.ingestionGapFillSkipped.add(1, {
+            chain: chainConfig.name,
+            dao_source: row.id,
+            reason: 'above_floor',
+          });
+          return { status: 'completed', fromBlock: startBlock, toBlock };
+        }
       }
-      // Rehydrate the original head — never refresh (ADR-027 determinism)
-      head = BigInt(row.backfill_started_at_block);
     }
 
     // Step 3 — cutoff = head − 2×reorgHorizon (ADR-027 + ADR-046)
-    const cutoffBlock = head - BigInt(chainConfig.reorgHorizon) * 2n;
+    const cutoffBlock = reorgCutoff(head, chainConfig);
 
     // Step 4 — build per-event classifier and listener
     const classifier = makeCutoffClassifier(cutoffBlock);
     const listener = listenerFactory(classifier);
 
     // Step 5 — resolve range
-    const startBlock =
-      input.mode === 'resume' && row.backfill_head_block !== null
-        ? BigInt(row.backfill_head_block) + 1n
-        : input.fromBlock;
-    const toBlock = input.toBlock ?? head;
-
     logger.info('backfill_run_start', {
       daoSourceId: input.daoSourceId,
       mode: input.mode,

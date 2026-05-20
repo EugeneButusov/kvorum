@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Logger as ChainLogger } from '@libs/chain';
 import { EventPoller, ChainContextRegistry } from '@libs/chain';
-import { DaoSourceRepository } from '@libs/db';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 
@@ -16,10 +15,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     error: (msg, ...args) => this.logger.error(msg, ...args),
   };
 
-  constructor(
-    private readonly registry: ChainContextRegistry,
-    private readonly daoSourceRepo: DaoSourceRepository,
-  ) {}
+  constructor(private readonly registry: ChainContextRegistry) {}
 
   async start(
     spec: Extract<IngestSpec, { kind: 'evm-event-poller' }>,
@@ -40,7 +36,6 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,
       pollIntervalMs,
-      onBlockComplete: (head) => this.daoSourceRepo.updateLiveHead(ctx.daoSourceId, head),
       logger: this.chainLogger,
     });
 

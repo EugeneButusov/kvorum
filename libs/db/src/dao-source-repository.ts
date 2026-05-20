@@ -5,7 +5,6 @@ export interface BackfillStatusRow {
   id: string;
   backfill_started_at_block: string | null;
   backfill_head_block: string | null;
-  live_head_block: string | null;
 }
 
 export class DaoSourceRepository {
@@ -62,7 +61,6 @@ export class DaoSourceRepository {
         'dao_source.active_from_block',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao_source.live_head_block',
         'dao.primary_chain_id',
       ])
       .where(column, '=', value)
@@ -84,15 +82,6 @@ export class DaoSourceRepository {
     await this.db
       .updateTable('dao_source')
       .set({ backfill_head_block: block.toString() })
-      .where('dao_source.id', '=', id)
-      .execute();
-  }
-
-  /** Best-effort high-water mark for the live poller. Last-write-wins. */
-  async updateLiveHead(id: string, block: bigint): Promise<void> {
-    await this.db
-      .updateTable('dao_source')
-      .set({ live_head_block: block.toString() })
       .where('dao_source.id', '=', id)
       .execute();
   }
@@ -120,7 +109,6 @@ export class DaoSourceRepository {
         'dao_source.id',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao_source.live_head_block',
       ])
       .where(column, '=', value)
       .executeTakeFirst();

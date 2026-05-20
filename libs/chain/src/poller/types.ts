@@ -51,9 +51,6 @@ export interface EventPollerOptions {
   /** Hard cap on stop() drain time in ms. Default = 5_000. Also passed as deadlineMs
    *  to rpcClient.send during shutdown so in-flight requests honor the same budget. */
   stopTimeoutMs?: number;
-  /** Invoked after a block window poll where RPC calls succeeded and all listeners resolved.
-   *  Fires even when events.length === 0. */
-  onBlockComplete?: (headBlock: bigint) => void | Promise<void>;
   logger?: Logger;
 }
 

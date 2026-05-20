@@ -40,7 +40,6 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
     row: {
       active_from_block: row.active_from_block,
       backfill_head_block: row.backfill_head_block,
-      live_head_block: row.live_head_block,
     },
     headBlock,
     reorgHorizon: chainConfig.reorgHorizon,
@@ -62,13 +61,11 @@ export async function runStartupGapFill(input: StartupGapFillInput): Promise<Sta
     daoSourceId,
     fromBlock: gap.gapStart,
     toBlock: gap.gapEnd,
-    mode: 'fresh',
-    force: true,
+    mode: 'catch-up',
     signal,
   });
 
   if (outcome.status === 'completed') {
-    await daoSourceRepo.clearBackfillState(daoSourceId);
     return { status: 'filled', fromBlock: outcome.fromBlock, toBlock: outcome.toBlock };
   }
   if (outcome.status === 'cancelled') {
