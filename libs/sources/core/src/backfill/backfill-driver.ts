@@ -23,7 +23,7 @@ export interface BackfillDriverDeps {
 export class BackfillDriver {
   constructor(private readonly deps: BackfillDriverDeps) {}
 
-  async run(input: BackfillRunInput & { force?: boolean }): Promise<BackfillOutcome> {
+  async run(input: BackfillRunInput): Promise<BackfillOutcome> {
     const { rpcClient, daoSourceRepo, chainConfig, filter, listenerFactory, logger } = this.deps;
 
     // Step 1 — load source row with chain info
@@ -37,7 +37,7 @@ export class BackfillDriver {
     // Step 2 — resolve chain head (fresh captures new head; resume rehydrates from DB)
     if (input.mode === 'fresh') {
       if (row.backfill_started_at_block !== null && !input.force) {
-        throw new BackfillAlreadyStartedError(input.daoSourceId, row.backfill_started_at_block);
+        throw new BackfillAlreadyStartedError(input.daoSourceId);
       }
       await daoSourceRepo.clearBackfillState(input.daoSourceId);
       const headHex = await rpcClient.send<string>('eth_blockNumber', []);

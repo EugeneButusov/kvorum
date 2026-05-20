@@ -1,9 +1,8 @@
 export class BackfillAlreadyStartedError extends Error {
-  constructor(daoSourceId: string, startedAtBlock: string) {
+  constructor(daoSourceId: string) {
     super(
-      `Cannot start a fresh backfill for dao_source ${daoSourceId}: ` +
-        `a backfill is already in progress (started at block ${startedAtBlock}). ` +
-        `Pass force=true to clear state and re-capture, or use mode='resume' to continue.`,
+      `Backfill already started for dao_source ${daoSourceId}. ` +
+        `Use resume mode or clear checkpoint columns first.`,
     );
     this.name = 'BackfillAlreadyStartedError';
   }

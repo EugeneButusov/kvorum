@@ -120,11 +120,16 @@ describe('BackfillDriver', () => {
       const driver = new BackfillDriver(makeDeps(makeRpcClient(), repo));
 
       await expect(
-        driver.run({ daoSourceId: DAO_SOURCE_ID, mode: 'fresh', fromBlock: 0n }),
+        driver.run({
+          daoSourceId: DAO_SOURCE_ID,
+          mode: 'fresh',
+          fromBlock: 0n,
+          chunkSize: 100_000_000,
+        }),
       ).rejects.toThrow(BackfillAlreadyStartedError);
     });
 
-    it('#3 — force=true: clears existing checkpoint and re-captures', async () => {
+    it('#3 — fresh mode with force clears existing checkpoint and re-captures', async () => {
       const { repo, clearBackfillState, captureBackfillStart } = makeRepo(
         makeDaoSourceRow({ backfill_started_at_block: '19000000' }),
       );
@@ -134,8 +139,8 @@ describe('BackfillDriver', () => {
       const result = await driver.run({
         daoSourceId: DAO_SOURCE_ID,
         mode: 'fresh',
-        fromBlock: 0n,
         force: true,
+        fromBlock: 0n,
         chunkSize: 100_000_000,
       });
 

@@ -19,6 +19,13 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
             sourceType: 'evm_test_emitter',
             supportedChainIds: ['0x7a69'],
             parseConfig: (raw) => raw as { governor_address: string },
+            buildBackfillRuntime: (ctx, cfg) => ({
+              filter: {
+                address: (cfg as { governor_address: string }).governor_address.toLowerCase(),
+                topics: [[PROPOSAL_CREATED_TOPIC]],
+              },
+              listenerFactory: () => makeTestListener(ctx, confirmationRepo, dlqRepo),
+            }),
             buildIngestSpec: (ctx, cfg) => ({
               kind: 'evm-event-poller' as const,
               filter: {

@@ -44,6 +44,9 @@ function createReconcilePlugin(
         ]);
       },
     }),
+    buildBackfillRuntime: () => {
+      throw new Error(`source_type "${sourceType}" does not support backfill runtime`);
+    },
   };
 }
 

@@ -4,6 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
 import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
+import { BackfillAlreadyStartedError, processStartupGapFill } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
@@ -17,16 +18,40 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
   ChainContextRegistry: vi.fn(),
+  silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
     pendingEventCount: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
+    ingestionGapFillSkipped: { add: vi.fn() },
+    ingestionGapFillFailed: { add: vi.fn() },
   },
-  ChainContextRegistry: vi.fn(),
 }));
 
 vi.mock('@libs/db', () => ({
   DaoSourceRepository: vi.fn(),
   ConfirmationRepository: vi.fn(),
+  pgDb: {},
+}));
+
+vi.mock('@sources/core', () => ({
+  SOURCE_PLUGINS: 'SOURCE_PLUGINS',
+  processStartupGapFill: vi.fn(),
+  StartupGapFillShutdownError: class StartupGapFillShutdownError extends Error {
+    constructor() {
+      super('startup gap fill cancelled by shutdown');
+      this.name = 'StartupGapFillShutdownError';
+    }
+  },
+  BackfillAlreadyStartedError: class BackfillAlreadyStartedError extends Error {
+    constructor(daoSourceId: string, startedAtBlock: string) {
+      super(
+        `Cannot start a fresh backfill for dao_source ${daoSourceId}: ` +
+          `a backfill is already in progress (started at block ${startedAtBlock}). ` +
+          `Pass force=true to clear state and re-capture, or use mode='resume' to continue.`,
+      );
+      this.name = 'BackfillAlreadyStartedError';
+    }
+  },
 }));
 
 vi.mock('./reorg-watcher.service', () => ({
@@ -60,6 +85,10 @@ function makeFakePlugin(sourceType: string, parseOk = true): SourcePlugin {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
     },
+    buildBackfillRuntime: () => ({
+      filter: { address: '0xabc', topics: [] },
+      listenerFactory: () => vi.fn(),
+    }),
     buildIngestSpec: (_ctx: SourceContext, _cfg: unknown): IngestSpec => ({
       kind: 'evm-event-poller',
       filter: { address: '0xabc', topics: [] },
@@ -94,6 +123,7 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 const mockDaoSourceRepo = { findAll: vi.fn() };
 const mockConfirmationRepo = { countPendingBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
+  getOrCreate: vi.fn().mockResolvedValue({ client: { send: vi.fn() } }),
   allActive: vi.fn().mockReturnValue([]),
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
@@ -126,8 +156,12 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
 beforeEach(() => {
   vi.clearAllMocks();
   mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
+  mockRegistry.getOrCreate.mockResolvedValue({
+    client: { send: vi.fn().mockResolvedValue('0x10') },
+  });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
+  vi.mocked(processStartupGapFill).mockResolvedValue(undefined);
 });
 
 describe('IndexerOrchestratorService', () => {
@@ -159,6 +193,23 @@ describe('IndexerOrchestratorService', () => {
     await svc.onApplicationBootstrap();
 
     expect(driver.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('#2b — BackfillAlreadyStartedError from startup gap-fill is skipped and driver still starts', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+    ]);
+    vi.mocked(processStartupGapFill).mockRejectedValueOnce(
+      new BackfillAlreadyStartedError('src-1', '100'),
+    );
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
   it('#3 — unknown source_type: throws BEFORE any driver.start()', async () => {
@@ -356,6 +407,10 @@ describe('IndexerOrchestratorService', () => {
       sourceType: 'compound_governor_bravo_reconcile',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
+      buildBackfillRuntime: () => ({
+        filter: { address: '0xabc', topics: [] },
+        listenerFactory: () => vi.fn(),
+      }),
       buildIngestSpec: (): IngestSpec => ({
         kind: 'evm-block-head-poller',
         listener: vi.fn(),
@@ -404,6 +459,10 @@ describe('IndexerOrchestratorService', () => {
       sourceType: 'compound_governor_bravo',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
+      buildBackfillRuntime: () => ({
+        filter: { address: '0xabc', topics: [] },
+        listenerFactory: () => vi.fn(),
+      }),
       buildIngestSpec: (): IngestSpec => ({
         kind: 'evm-event-poller',
         filter: { address: '0x0', topics: [] },

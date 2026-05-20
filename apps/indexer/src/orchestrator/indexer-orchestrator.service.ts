@@ -1,9 +1,19 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { ChainContextRegistry, parseChainConfigFromEnv, chainMetrics } from '@libs/chain';
+import {
+  ChainContextRegistry,
+  parseChainConfigFromEnv,
+  chainMetrics,
+  silentLogger,
+} from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
-import type { SourcePlugin } from '@sources/core';
+import {
+  BackfillAlreadyStartedError,
+  processStartupGapFill,
+  StartupGapFillShutdownError,
+  type SourcePlugin,
+} from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
 import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
@@ -14,6 +24,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private readonly handles: FetchDriverHandle[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
   private activeSourceTypes: Set<string> = new Set();
+  private shutdownController = new AbortController();
 
   constructor(
     @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
@@ -89,6 +100,22 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           chainId: entry.src.primary_chain_id,
           sourceLabel: entry.sourceType,
         };
+        const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
+        try {
+          await this.runStartupGapFill(entry, runtime);
+        } catch (error) {
+          if (error instanceof StartupGapFillShutdownError) break;
+          if (error instanceof BackfillAlreadyStartedError) {
+            this.logger.warn('startup_gap_fill_already_started_skip', {
+              dao_source: entry.src.id,
+              chain_id: entry.src.primary_chain_id,
+              error: error.message,
+            });
+          } else {
+            throw error;
+          }
+        }
+
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
         const driver = driversByKind.get(spec.kind);
         if (!driver) {
@@ -137,6 +164,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.shutdownController.abort('shutdown');
     await this.drain();
   }
 
@@ -160,6 +188,25 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     this.gaugeInterval = setInterval(() => {
       void update();
     }, 10_000);
+  }
+
+  private async runStartupGapFill(
+    entry: {
+      chainCfg: ChainConfig;
+      src: { id: string };
+    },
+    runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
+  ): Promise<void> {
+    const chainCtx = await this.registry.getOrCreate(entry.chainCfg);
+    await processStartupGapFill({
+      daoSourceId: entry.src.id,
+      chainConfig: entry.chainCfg,
+      rpcClient: chainCtx.client,
+      daoSourceRepo: this.daoSourceRepo,
+      runtime,
+      logger: silentLogger,
+      signal: this.shutdownController.signal,
+    });
   }
 }
 
