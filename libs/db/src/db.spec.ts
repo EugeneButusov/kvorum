@@ -1,8 +1,10 @@
-import { pgDb } from './client';
 import { sql } from 'kysely';
+import { pgDb } from './client';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
 class RollbackSignal extends Error {}
+const uniqueAddress = (seed: string): string =>
+  `0x${seed}${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.slice(0, 42);
 
 // These tests require a running Postgres instance (DATABASE_URL env var).
 // They are skipped when DATABASE_URL is not set so the suite passes in
@@ -389,7 +391,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('enforces vote current-row and idempotency uniqueness', async () => {
+  it('enforces vote current-row uniqueness (ADR-021)', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         const now = new Date();
@@ -410,11 +412,6 @@ describeWithDb('J1 vote/delegation/address schema', () => {
         const [actor] = await tx
           .insertInto('actor')
           .values({ primary_address: `0x${'9'.repeat(40)}`, updated_at: now })
-          .returning(['id'])
-          .execute();
-        const [actor2] = await tx
-          .insertInto('actor')
-          .values({ primary_address: `0x${'b'.repeat(40)}`, updated_at: now })
           .returning(['id'])
           .execute();
         const [proposal] = await tx
@@ -459,6 +456,61 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             })
             .execute(),
         ).rejects.toMatchObject({ code: '23505' });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('enforces vote event idempotency uniqueness', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const [dao] = await tx
+          .insertInto('dao')
+          .values({
+            slug: `j1-idempotency-dao-${Date.now()}`,
+            name: 'J1 Idempotency DAO',
+            primary_token_address: `0x${'8'.repeat(40)}`,
+            primary_chain_id: '1',
+            description: 'smoke',
+            website_url: 'https://example.com',
+            forum_url: 'https://example.com',
+            updated_at: now,
+          })
+          .returning(['id'])
+          .execute();
+        const [actor] = await tx
+          .insertInto('actor')
+          .values({ primary_address: uniqueAddress('9'), updated_at: now })
+          .returning(['id'])
+          .execute();
+        const [actor2] = await tx
+          .insertInto('actor')
+          .values({ primary_address: uniqueAddress('b'), updated_at: now })
+          .returning(['id'])
+          .execute();
+        const [proposal] = await tx
+          .insertInto('proposal')
+          .values({
+            dao_id: dao!.id,
+            source_type: 'compound_governor_bravo',
+            source_id: `j1-idempotency-proposal-${Date.now()}`,
+            proposer_actor_id: actor!.id,
+            description: 'smoke proposal',
+            description_hash: 'c'.repeat(64),
+            binding: true,
+            voting_starts_at: null,
+            voting_ends_at: null,
+            voting_starts_block: '5',
+            voting_ends_block: '6',
+            voting_power_block: '5',
+            state: 'active',
+            state_updated_at: now,
+            updated_at: now,
+          })
+          .returning(['id'])
+          .execute();
 
         await tx
           .insertInto('vote')
@@ -517,14 +569,6 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .where('id', '=', actorB!.id)
           .executeTakeFirstOrThrow();
         expect(mergedActor.merged_into_actor_id).toBe(actorA!.id);
-
-        await expect(
-          tx
-            .updateTable('actor')
-            .set({ merged_into_actor_id: '00000000-0000-0000-0000-000000000001' })
-            .where('id', '=', actorB!.id)
-            .execute(),
-        ).rejects.toMatchObject({ code: '23503' });
 
         const [dao] = await tx
           .insertInto('dao')
@@ -586,13 +630,36 @@ describeWithDb('J1 vote/delegation/address schema', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('enforces actor_address check and source FK constraints', async () => {
+  it('enforces actor.merged_into_actor_id FK constraint', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         const now = new Date();
         const [actor] = await tx
           .insertInto('actor')
-          .values({ primary_address: `0x${'a'.repeat(40)}`, updated_at: now })
+          .values({ primary_address: `0x${'f'.repeat(40)}`, updated_at: now })
+          .returning(['id'])
+          .execute();
+
+        await expect(
+          tx
+            .updateTable('actor')
+            .set({ merged_into_actor_id: '00000000-0000-0000-0000-000000000001' })
+            .where('id', '=', actor!.id)
+            .execute(),
+        ).rejects.toMatchObject({ code: '23503' });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('enforces actor_address lowercase address check', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const [actor] = await tx
+          .insertInto('actor')
+          .values({ primary_address: uniqueAddress('a'), updated_at: now })
           .returning(['id'])
           .execute();
 
@@ -607,6 +674,21 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             })
             .execute(),
         ).rejects.toMatchObject({ code: '23514' });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('enforces actor_address source FK constraint', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        const now = new Date();
+        const [actor] = await tx
+          .insertInto('actor')
+          .values({ primary_address: uniqueAddress('a'), updated_at: now })
+          .returning(['id'])
+          .execute();
 
         await expect(
           tx
@@ -661,7 +743,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .selectFrom('actor_address')
           .select((eb) => eb.fn.countAll<number>().as('count'))
           .executeTakeFirstOrThrow();
-        expect(actorAddressCount.count).toBeGreaterThanOrEqual(addresses.length);
+        expect(Number(actorAddressCount.count)).toBeGreaterThanOrEqual(addresses.length);
 
         const indexes = await tx
           .selectFrom('pg_indexes')

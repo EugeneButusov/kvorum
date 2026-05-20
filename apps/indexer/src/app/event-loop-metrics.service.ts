@@ -1,7 +1,7 @@
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { Injectable } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { defineGauge } from '@libs/observability';
-import { monitorEventLoopDelay } from 'node:perf_hooks';
 
 const eventLoopLagSecondsMax = defineGauge({
   name: 'event_loop_lag_seconds_max',
