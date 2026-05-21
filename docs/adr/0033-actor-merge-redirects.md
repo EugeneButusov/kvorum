@@ -1,6 +1,6 @@
 # ADR-033 — Actor merge produces HTTP 301 redirects on canonical URLs
 
-- **Status**: Proposed (Accepted flip scheduled for M2 Epic J3)
+- **Status**: Accepted
 - **Date**: 2026-05-08; rider 2026-05-20 (M2 review)
 - **Spec sections affected**: 2.4.3, 4.2, 6.10, 6.20.1 (rider), 2.8 invariant 4 (rider)
 - **Related**: invariant 2.8.4
@@ -111,4 +111,4 @@ The API redirect routing (Decision steps 1–4 above) gains a `WHERE merged_into
 - `admin-cli actors merge` interface: `actors merge <primary_address> <secondary_address> [--dry-run] [--confirm] [--production]`.
 - The redirect lookup remains O(1) regardless of merge history depth.
 - §2.8 invariant 4 honoured: no actor row is ever DELETEd.
-- This rider does not change ADR-033's status; the Proposed → Accepted flip lands in M2's Epic J3 PR-stack alongside the M2 schema migration.
+- The status flip is completed in M2/J1 alongside the core schema migration because the schema is the irreversible artifact that ratifies this ADR.

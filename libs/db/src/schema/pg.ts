@@ -1,5 +1,11 @@
 import type { AbiCacheTable, SelectorIndexTable } from './abi';
+import type {
+  ActorAddressRedirectTable,
+  ActorAddressSourceTable,
+  ActorAddressTable,
+} from './actor-address';
 import type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
+import type { DelegationTable } from './delegation';
 import type {
   ActorTable,
   DaoSourceTable,
@@ -15,6 +21,7 @@ import type {
   IngestionDlqResolvedTable,
   IngestionDlqTable,
 } from './ingestion';
+import type { VoteChoiceTable, VoteTable, VotingPowerSnapshotTable } from './vote';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 export type {
@@ -85,15 +92,38 @@ export type {
   NewIngestionDlq,
   NewIngestionDlqResolved,
 } from './ingestion';
+export type { Delegation, DelegationEventType, DelegationTable, NewDelegation } from './delegation';
+export type {
+  ActorAddress,
+  ActorAddressRedirect,
+  ActorAddressRedirectTable,
+  ActorAddressRedirectUpdate,
+  ActorAddressSource,
+  ActorAddressSourceTable,
+  ActorAddressTable,
+  ActorAddressUpdate,
+  NewActorAddress,
+  NewActorAddressRedirect,
+  NewActorAddressSource,
+} from './actor-address';
+export type {
+  NewVote,
+  NewVoteChoice,
+  NewVotingPowerSnapshot,
+  Vote,
+  VoteChoice,
+  VoteChoiceTable,
+  VoteTable,
+  VoteUpdate,
+  VotingPowerSnapshot,
+  VotingPowerSnapshotTable,
+} from './vote';
 
 export interface PgDatabase {
-  // auth / admin
   users: UsersTable;
   api_key: ApiKeyTable;
   admin_audit: AdminAuditTable;
-  // reference tables
   source_type: SourceTypeTable;
-  // core domain
   dao: DaoTable;
   dao_source: DaoSourceTable;
   actor: ActorTable;
@@ -101,10 +131,16 @@ export interface PgDatabase {
   proposal_action: ProposalActionTable;
   proposal_choice: ProposalChoiceTable;
   reorg_event: ReorgEventTable;
-  // ingestion
   archive_confirmation: ArchiveConfirmationTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
+  vote: VoteTable;
+  vote_choice: VoteChoiceTable;
+  voting_power_snapshot: VotingPowerSnapshotTable;
+  delegation: DelegationTable;
+  actor_address: ActorAddressTable;
+  actor_address_redirect: ActorAddressRedirectTable;
+  actor_address_source: ActorAddressSourceTable;
 }

@@ -67,6 +67,7 @@ export interface ActorTable {
   display_name: string | null;
   bio: string | null;
   profile_data: unknown | null;
+  merged_into_actor_id: string | null;
   created_at: Generated<Date>;
   updated_at: Date;
 }
