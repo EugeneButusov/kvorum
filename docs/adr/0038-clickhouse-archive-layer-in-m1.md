@@ -152,3 +152,17 @@ The original ADR text (lines 64–68) sketches the failure modes but does not sp
 ### 2026-05-10 — `received_at` semantic clarification
 
 `ReplacingMergeTree(received_at)` keeps the row with the largest `received_at` per `ORDER BY` tuple. Under SPEC §3.3 polling fallback, F1 may legitimately re-observe the same canonical event multiple times, and each observation advances `received_at`. The kept value is therefore **most-recent observation timestamp**, not first-observation. This is documented in ADR-041's read-side semantics and in the M1 runbook. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
+
+### 2026-05-21 — M2 analytical mirror activation
+
+The original ADR's "Activation criteria" for the analytical mirror layer (KNOWN-026, deferred from M1) are **overridden by milestone decision** in M2. `vote_events_flat` and `delegation_flow_flat` ship in M2 (Epic Q) against Compound only. KNOWN-026's registry entry is closed by this amendment; its "deferred until activation triggers fire" status is superseded by the staged rollout below.
+
+Activation is **staged**, not atomic:
+
+- **Schema-active** — M2 / J3 (#166) creates the empty tables under `libs/sources/core/migrations-clickhouse/core_001_analytical_mirror.sql`. From this point onward, typed `chDb` access compiles against the augmented `ClickHouseDatabase`.
+- **Data-active** — M2 / Q1 (issue TBD) builds the daily ETL job at `apps/indexer/src/mirror-etl/` that populates both tables from PG `vote` + `delegation` on a 04:00-UTC cron with a `created_at`-based watermark and a 6h overlap window. The mirror is considered **operationally activated** when Q1's first scheduled run completes with `mirror_etl_exact_count_match = true` against the seeded test fixture and the row-count drift alarm is wired to alerts.
+- **Read-active** — M2 / O3 (issue TBD) consumes the tables via the five §4.6.2 analytical endpoints (`concentration`, `delegation-flow`, `delegate-alignment`, `proposal-pass-rate`, cross-DAO actor).
+
+Until data-active fires, the J3 tables exist but are empty; analytical endpoints must not be exposed publicly. The M2 acceptance checklist gates public exposure on data-active + read-active both being true.
+
+All other activation conditions (data-plane operational triggers, cost envelope, backup integration) remain as documented in the original ADR. M3+ source onboarding flows into the same tables without further ADR amendment. The "issue TBD" placeholders for Q1 / O3 are filled in by amendment riders when those epics open issues; the J3 issue (#166) is inlined above to anchor the audit trail.
