@@ -6,30 +6,20 @@ import type {
   NewArchiveConfirmation,
   NewIngestionDlq,
 } from '@libs/db';
-import type {
-  ArchiveWriteContext,
-  ArchiveWriterDeps,
-  ArchiveWriteOutcome,
-} from './archive-writer.types';
-import type { CompoundGovernorEvent } from '../domain/types';
-import type { EventRepository } from '../persistence/event-repository';
+import type { ArchiveWriteContext, ArchiveWriteOutcome } from '../../shared';
+import { serializeError } from '../../shared';
+import type { CompTokenEvent } from '../domain/types';
+import type { CompTokenEventRepository } from '../persistence/event-repository';
+import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
 
-function serializeError(err: unknown): Record<string, unknown> {
-  if (err instanceof Error) {
-    const e = err as Error & { code?: unknown };
-    return { name: e.name, message: e.message, stack: e.stack, code: e.code };
-  }
-  return { name: 'UnknownError', message: String(err) };
-}
-
-export class ArchiveWriter {
-  private readonly eventRepo: EventRepository;
+export class CompTokenArchiveWriter {
+  private readonly eventRepo: CompTokenEventRepository;
   private readonly confirmationRepo: ConfirmationRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
-  constructor(deps: ArchiveWriterDeps) {
+  constructor(deps: CompTokenArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
     this.confirmationRepo = deps.confirmationRepo;
     this.dlqRepo = deps.dlqRepo;
@@ -39,10 +29,9 @@ export class ArchiveWriter {
 
   async write(
     ctx: ArchiveWriteContext,
-    decoded: CompoundGovernorEvent,
+    decoded: CompTokenEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    // Step 1 — existence check (5-tuple, status-agnostic)
     const existing = await this.confirmationRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
@@ -53,18 +42,12 @@ export class ArchiveWriter {
 
     if (existing) {
       chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
-      this.logger.debug('archive_check_skip', {
-        ...logRef,
-        blockNumber: logRef.blockNumber.toString(),
-        existing_id: existing.id,
-      });
       return { result: 'skipped_existing' };
     }
 
     const receivedAt = this.now();
     const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
-    // Step 2 — event archive insert (idempotent; errors propagate to listener)
     await this.eventRepo.insert({
       daoSourceId: ctx.daoSourceId,
       chainId: ctx.chainId,
@@ -76,7 +59,6 @@ export class ArchiveWriter {
       payload: JSON.stringify(decoded.payload),
     });
 
-    // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
     const row: NewArchiveConfirmation = {
       source_type: ctx.sourceType,
       dao_source_id: ctx.daoSourceId,
@@ -103,23 +85,13 @@ export class ArchiveWriter {
           event_type: decoded.type,
           result: 'inserted',
         });
-        this.logger.debug('confirmation_inserted', {
-          ...logRef,
-          blockNumber: logRef.blockNumber.toString(),
-          archive_id: result.id,
-        });
         return { result: 'inserted' };
       }
 
-      // ON CONFLICT fired — concurrent writer beat us; idempotent
       chainMetrics.archiveWrites.add(1, {
         source: ctx.sourceLabel,
         event_type: decoded.type,
         result: 'skipped_conflict',
-      });
-      this.logger.debug('confirmation_conflict_skip', {
-        ...logRef,
-        blockNumber: logRef.blockNumber.toString(),
       });
       return { result: 'skipped_conflict' };
     } catch (err) {
@@ -130,12 +102,12 @@ export class ArchiveWriter {
   private async routeToDlq(
     err: unknown,
     ctx: ArchiveWriteContext,
-    decoded: CompoundGovernorEvent,
+    decoded: CompTokenEvent,
     logRef: LogEvent,
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'archive_confirmation_write',
+      stage: 'delegation_archive_write',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },
@@ -159,11 +131,7 @@ export class ArchiveWriter {
         event_type: decoded.type,
         result: 'dlq_routed',
       });
-      this.logger.error('dlq_routed', {
-        ...logRef,
-        blockNumber: logRef.blockNumber.toString(),
-        error: String(err),
-      });
+      this.logger.error('dlq_routed', { txHash: logRef.txHash, error: String(err) });
       return { result: 'dlq_routed' };
     } catch (dlqErr) {
       chainMetrics.dualWritePgUnreachable.add(1, { source: ctx.sourceLabel });

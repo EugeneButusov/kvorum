@@ -3,7 +3,7 @@ import type { LogEvent } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import { interfaceForSource, type CompoundGovernorVariant } from './events';
 import type { CompoundGovernorEvent } from '../domain/types';
-import { DecodeError } from '../domain/types';
+import { DecodeError } from '../../shared';
 
 export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGovernorEvent {
   const topic0 = log.topics[0]?.toLowerCase();

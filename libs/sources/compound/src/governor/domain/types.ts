@@ -40,14 +40,3 @@ export type CompoundGovernorEvent =
   | { type: 'ProposalExecuted'; payload: ProposalExecutedPayload }
   | { type: 'ProposalCanceled'; payload: ProposalCanceledPayload }
   | { type: 'VoteCast'; payload: VoteCastPayload };
-
-export class DecodeError extends Error {
-  constructor(
-    public readonly reason: 'unknown_topic' | 'parse_failed' | 'wrong_address' | 'wrong_variant',
-    public readonly decodeSource: unknown,
-    public readonly logRef: { txHash: string; logIndex: number; blockHash: string },
-  ) {
-    super(`decode failed: ${reason}`);
-    this.name = 'DecodeError';
-  }
-}
