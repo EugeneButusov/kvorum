@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
 import type { BackfillRuntime, SourcePlugin } from '@sources/core';
-import { COMPOUND_EVENT_TOPICS } from '../abi/events';
+import { interfaceForSource } from '../abi/events';
 import { ArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
 
@@ -12,7 +12,6 @@ export const DaoSourceConfigSchema = z.object({
 
 export type CompoundGovernorConfig = z.infer<typeof DaoSourceConfigSchema>;
 
-// Ethereum mainnet — the only chain where Compound Governor contracts are deployed.
 export const SUPPORTED_CHAIN_IDS = ['0x1'] as const;
 
 export interface CompoundGovernorPluginDeps {
@@ -28,22 +27,32 @@ function createPlugin(
   const buildBackfillRuntime = (
     ctx: Parameters<SourcePlugin<CompoundGovernorConfig>['buildIngestSpec']>[0],
     cfg: CompoundGovernorConfig,
-  ): BackfillRuntime => ({
-    filter: {
-      address: cfg.governor_address.toLowerCase(),
-      topics: [Object.values(COMPOUND_EVENT_TOPICS)],
-    },
-    listenerFactory: (classifier) =>
-      makeIngesterListener(
-        {
-          archiveWriter: deps.archiveWriter,
-          context: { ...ctx, confirmationClassifier: classifier },
-          logger: deps.logger,
-          dlqRepo: deps.dlqRepo,
-        },
-        { onWriteFailure: 'throw' },
-      ),
-  });
+  ): BackfillRuntime => {
+    const topics = interfaceForSource(sourceType).topics;
+    const proposalTopics = [
+      topics.ProposalCreated,
+      topics.ProposalQueued,
+      topics.ProposalExecuted,
+      topics.ProposalCanceled,
+    ];
+
+    return {
+      filter: {
+        address: cfg.governor_address.toLowerCase(),
+        topics: [proposalTopics],
+      },
+      listenerFactory: (classifier) =>
+        makeIngesterListener(
+          {
+            archiveWriter: deps.archiveWriter,
+            context: { ...ctx, confirmationClassifier: classifier },
+            logger: deps.logger,
+            dlqRepo: deps.dlqRepo,
+          },
+          { onWriteFailure: 'throw' },
+        ),
+    };
+  };
 
   return {
     sourceType,
