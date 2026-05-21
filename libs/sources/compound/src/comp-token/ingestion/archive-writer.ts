@@ -6,11 +6,11 @@ import type {
   NewArchiveConfirmation,
   NewIngestionDlq,
 } from '@libs/db';
+import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
 import type { ArchiveWriteContext, ArchiveWriteOutcome } from '../../shared';
 import { serializeError } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 import type { CompTokenEventRepository } from '../persistence/event-repository';
-import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
 
 export class CompTokenArchiveWriter {
   private readonly eventRepo: CompTokenEventRepository;

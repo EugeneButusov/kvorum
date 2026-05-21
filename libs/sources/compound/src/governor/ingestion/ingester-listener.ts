@@ -3,8 +3,8 @@ import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
 import { ArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import { decodeCompoundLog } from '../abi/decoder';
 import { DecodeError } from '../../shared';
+import { decodeCompoundLog } from '../abi/decoder';
 
 export interface IngesterListenerDeps {
   archiveWriter: ArchiveWriter;

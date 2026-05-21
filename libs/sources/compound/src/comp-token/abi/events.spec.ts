@@ -1,7 +1,7 @@
 import { Interface } from 'ethers';
 import { describe, expect, it } from 'vitest';
-import fixture from '../../../tests/fixtures/abis/comp.json';
 import { COMPOUND_COMP_TOKEN_TOPICS } from './events';
+import fixture from '../../../tests/fixtures/abis/comp.json';
 
 describe('comp-token topics', () => {
   it('matches vendored ABI fixture topic0 hashes', () => {

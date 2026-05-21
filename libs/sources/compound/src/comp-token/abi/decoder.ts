@@ -1,7 +1,7 @@
 import type { LogEvent } from '@libs/chain';
 import { COMPOUND_COMP_TOKEN_INTERFACE, COMPOUND_COMP_TOKEN_TOPICS } from './events';
-import type { CompTokenEvent } from '../domain/types';
 import { DecodeError } from '../../shared';
+import type { CompTokenEvent } from '../domain/types';
 
 export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
   const topic0 = log.topics[0]?.toLowerCase();

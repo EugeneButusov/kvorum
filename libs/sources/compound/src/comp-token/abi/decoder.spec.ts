@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { LogEvent } from '@libs/chain';
-import { DecodeError } from '../../shared';
 import { decodeCompTokenLog } from './decoder';
 import { COMPOUND_COMP_TOKEN_INTERFACE } from './events';
+import { DecodeError } from '../../shared';
 
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {

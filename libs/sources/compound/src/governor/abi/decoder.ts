@@ -2,8 +2,8 @@ import type { Interface } from 'ethers';
 import type { LogEvent } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import { interfaceForSource, type CompoundGovernorVariant } from './events';
-import type { CompoundGovernorEvent } from '../domain/types';
 import { DecodeError } from '../../shared';
+import type { CompoundGovernorEvent } from '../domain/types';
 
 export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGovernorEvent {
   const topic0 = log.topics[0]?.toLowerCase();
