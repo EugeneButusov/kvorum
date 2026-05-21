@@ -97,14 +97,14 @@ describe('createCompoundGovernorBravoPlugin', () => {
       expect(spec.filter.address).toBe('0xc0da02939e1441f497fd74f78ce7decb17b66529');
     });
 
-    it('#7 — filter.topics is single nested array with 4 topics', () => {
+    it('#7 — filter.topics is single nested array with 5 topics', () => {
       const plugin = makePlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',
       });
       const spec = plugin.buildIngestSpec(CTX, cfg);
       expect(spec.filter.topics).toHaveLength(1);
-      expect(spec.filter.topics![0]).toHaveLength(4);
+      expect(spec.filter.topics![0]).toHaveLength(5);
     });
 
     it('#8 — listener is a function', () => {
@@ -180,14 +180,14 @@ describe('createCompoundGovernorAlphaPlugin', () => {
       expect(spec.filter.address).toBe('0xc0da01a04c3f3e0be433606045bb7017a7323e38');
     });
 
-    it('#15 — filter.topics is single nested array with 4 topics', () => {
+    it('#15 — filter.topics is single nested array with 5 topics', () => {
       const plugin = makeAlphaPlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0dA01a04C3f3E0be433606045bB7017A7323E38',
       });
       const spec = plugin.buildIngestSpec(ALPHA_CTX, cfg);
       expect(spec.filter.topics).toHaveLength(1);
-      expect(spec.filter.topics![0]).toHaveLength(4);
+      expect(spec.filter.topics![0]).toHaveLength(5);
     });
 
     it('#16 — listener is a function', () => {

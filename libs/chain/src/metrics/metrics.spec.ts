@@ -122,10 +122,26 @@ describe('chainMetrics histograms', () => {
 
 describe('F1 archive metrics', () => {
   it('archiveWrites counter emits series', async () => {
-    chainMetrics.archiveWrites.add(1, { source: 'compound_governor', result: 'inserted' });
-    chainMetrics.archiveWrites.add(1, { source: 'compound_governor', result: 'skipped_existing' });
-    chainMetrics.archiveWrites.add(1, { source: 'compound_governor', result: 'skipped_conflict' });
-    chainMetrics.archiveWrites.add(1, { source: 'compound_governor', result: 'dlq_routed' });
+    chainMetrics.archiveWrites.add(1, {
+      source: 'compound_governor',
+      event_type: 'ProposalCreated',
+      result: 'inserted',
+    });
+    chainMetrics.archiveWrites.add(1, {
+      source: 'compound_governor',
+      event_type: 'ProposalCreated',
+      result: 'skipped_existing',
+    });
+    chainMetrics.archiveWrites.add(1, {
+      source: 'compound_governor',
+      event_type: 'ProposalCreated',
+      result: 'skipped_conflict',
+    });
+    chainMetrics.archiveWrites.add(1, {
+      source: 'compound_governor',
+      event_type: 'ProposalCreated',
+      result: 'dlq_routed',
+    });
     const text = await renderMetrics();
     expect(text).toContain('test_ingestion_archive_writes_total');
   });
@@ -151,6 +167,15 @@ describe('F1 archive metrics', () => {
     expect(text).toContain('test_archive_decode_errors_total');
   });
 
+  it('archiveDecodeWarnings counter emits series with reason labels', async () => {
+    chainMetrics.archiveDecodeWarnings.add(1, {
+      source: 'compound_governor',
+      reason: 'unexpected_support',
+    });
+    const text = await renderMetrics();
+    expect(text).toContain('test_archive_decode_warnings_total');
+  });
+
   it('dualWritePgUnreachable counter emits series', async () => {
     chainMetrics.dualWritePgUnreachable.add(1, { source: 'compound_governor' });
     const text = await renderMetrics();
@@ -158,7 +183,11 @@ describe('F1 archive metrics', () => {
   });
 
   it('guard: archiveWrites never receives unreachable result label', async () => {
-    chainMetrics.archiveWrites.add(1, { source: 'compound_governor', result: 'inserted' });
+    chainMetrics.archiveWrites.add(1, {
+      source: 'compound_governor',
+      event_type: 'ProposalCreated',
+      result: 'inserted',
+    });
     const text = await renderMetrics();
     expect(text).not.toContain('result="unreachable"');
     expect(text).not.toContain('result="ch_dlq_routed"');

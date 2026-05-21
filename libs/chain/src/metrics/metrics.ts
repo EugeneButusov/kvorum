@@ -57,7 +57,7 @@ export const chainMetrics = {
   archiveWrites: defineCounter({
     name: 'ingestion_archive_writes',
     description:
-      'Archive write outcomes by source. result=inserted|skipped_existing|skipped_conflict|dlq_routed',
+      'Archive write outcomes by source and event_type. result=inserted|skipped_existing|skipped_conflict|dlq_routed',
   }),
   archiveSkippedExistence: defineCounter({
     name: 'archive_skipped_existence',
@@ -70,7 +70,11 @@ export const chainMetrics = {
   archiveDecodeErrors: defineCounter({
     name: 'archive_decode_errors',
     description:
-      'DecodeError occurrences per source. reason=unknown_topic|parse_failed|wrong_address',
+      'DecodeError occurrences per source. reason=unknown_topic|parse_failed|wrong_address|wrong_variant',
+  }),
+  archiveDecodeWarnings: defineCounter({
+    name: 'archive_decode_warnings',
+    description: 'Soft decoder warnings per source. reason=unexpected_support',
   }),
   dualWritePgUnreachable: defineCounter({
     name: 'dual_write_pg_unreachable',
