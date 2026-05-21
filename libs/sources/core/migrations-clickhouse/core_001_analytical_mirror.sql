@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS vote_events_flat
     source_type              LowCardinality(String),
     primary_choice           Int8,
     primary_choice_nullable  Int8 ALIAS if(primary_choice = -1, NULL, primary_choice),
-    voting_power             UInt256 CODEC(T64, ZSTD(1)),
+    voting_power             UInt256 CODEC(ZSTD(1)),
     cast_at                  DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
     created_at               DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
     block_number             UInt64 CODEC(Delta(8), ZSTD(1)),
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS vote_events_flat
     INDEX bf_voter_address voter_address TYPE bloom_filter(0.01) GRANULARITY 4
 )
 ENGINE = ReplacingMergeTree(cast_at)
-PARTITION BY toYYYY(cast_at)
+PARTITION BY toYear(cast_at)
 ORDER BY (dao_id, proposal_id, voter_actor_id, vote_id);
 
 -- ── delegation_flow_flat ────────────────────────────────────────────────────
@@ -112,12 +112,12 @@ CREATE TABLE IF NOT EXISTS delegation_flow_flat
     delegate_actor_id    UUID,
     dao_id               UUID,
     dao_slug             LowCardinality(String),
-    voting_power         UInt256 CODEC(T64, ZSTD(1)),
+    voting_power         UInt256 CODEC(ZSTD(1)),
     block_number         UInt64 CODEC(Delta(8), ZSTD(1)),
     event_type           LowCardinality(String),
     created_at           DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
     INDEX bf_delegate_actor delegate_actor_id TYPE bloom_filter(0.01) GRANULARITY 4
 )
 ENGINE = ReplacingMergeTree(created_at)
-PARTITION BY toYYYY(created_at)
+PARTITION BY toYear(created_at)
 ORDER BY (dao_id, delegator_actor_id, block_number, delegation_id);

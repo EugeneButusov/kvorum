@@ -1,4 +1,3 @@
-import { sql } from 'kysely';
 import { chDb } from '@libs/db';
 
 const describeWithCh = process.env['CLICKHOUSE_URL'] != null ? describe : describe.skip;
@@ -9,18 +8,20 @@ afterAll(async () => {
 
 type ColumnRow = { table: string; name: string; type: string; default_kind: string };
 type TableRow = { name: string; engine_full: string; sorting_key: string; partition_key: string };
+const clickhouseDbName = process.env['CLICKHOUSE_DATABASE'] ?? 'default';
 
 async function fetchColumns(): Promise<Map<string, ColumnRow[]>> {
-  const result = await sql<ColumnRow>`
-    SELECT table, name, type, default_kind
-    FROM system.columns
-    WHERE database = currentDatabase()
-      AND table IN ('vote_events_flat', 'delegation_flow_flat')
-    ORDER BY table, position
-  `.execute(chDb);
+  const result = await chDb
+    .selectFrom('system.columns' as never)
+    .select(['table' as never, 'name' as never, 'type' as never, 'default_kind' as never])
+    .where('database' as never, '=', clickhouseDbName)
+    .where('table' as never, 'in', ['vote_events_flat', 'delegation_flow_flat'])
+    .orderBy('table' as never)
+    .orderBy('position' as never)
+    .execute();
 
   const byTable = new Map<string, ColumnRow[]>();
-  for (const row of result.rows) {
+  for (const row of result as ColumnRow[]) {
     const list = byTable.get(row.table) ?? [];
     list.push(row);
     byTable.set(row.table, list);
@@ -30,14 +31,19 @@ async function fetchColumns(): Promise<Map<string, ColumnRow[]>> {
 }
 
 async function fetchTables(): Promise<Map<string, TableRow>> {
-  const result = await sql<TableRow>`
-    SELECT name, engine_full, sorting_key, partition_key
-    FROM system.tables
-    WHERE database = currentDatabase()
-      AND name IN ('vote_events_flat', 'delegation_flow_flat')
-  `.execute(chDb);
+  const result = await chDb
+    .selectFrom('system.tables' as never)
+    .select([
+      'name' as never,
+      'engine_full' as never,
+      'sorting_key' as never,
+      'partition_key' as never,
+    ])
+    .where('database' as never, '=', clickhouseDbName)
+    .where('name' as never, 'in', ['vote_events_flat', 'delegation_flow_flat'])
+    .execute();
 
-  return new Map(result.rows.map((r) => [r.name, r]));
+  return new Map((result as TableRow[]).map((r) => [r.name, r]));
 }
 
 describeWithCh('core_001_analytical_mirror migration', () => {
@@ -100,12 +106,12 @@ describeWithCh('core_001_analytical_mirror migration', () => {
 
     expect(votes?.engine_full).toMatch(/^ReplacingMergeTree\(cast_at\)/);
     expect(votes?.sorting_key).toBe('dao_id, proposal_id, voter_actor_id, vote_id');
-    expect(votes?.partition_key).toBe('toYYYY(cast_at)');
+    expect(votes?.partition_key).toBe('toYear(cast_at)');
 
     expect(delegations?.engine_full).toMatch(/^ReplacingMergeTree\(created_at\)/);
     expect(delegations?.sorting_key).toBe(
       'dao_id, delegator_actor_id, block_number, delegation_id',
     );
-    expect(delegations?.partition_key).toBe('toYYYY(created_at)');
+    expect(delegations?.partition_key).toBe('toYear(created_at)');
   });
 });
