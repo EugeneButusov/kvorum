@@ -1,8 +1,8 @@
+import { getAddress } from 'ethers';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { SourceContext } from '@sources/core';
-import { getAddress } from 'ethers';
 import {
   COMP_TOKEN_SUPPORTED_CHAIN_IDS,
   createCompTokenPlugin,
