@@ -1,6 +1,7 @@
 import { keccak256, toUtf8Bytes } from 'ethers';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
+import { chainMetrics } from '@libs/chain';
 import { decodeCompoundLog } from './decoder';
 import {
   COMPOUND_ALPHA_TOPICS,
@@ -107,6 +108,25 @@ describe('decodeCompoundLog', () => {
         votingPowerReported: '77',
         compound: { supportRaw: 0, reason: '' },
       },
+    });
+  });
+
+  it('emits decode warning for out-of-range bravo support values', () => {
+    const spy = vi.spyOn(chainMetrics.archiveDecodeWarnings, 'add');
+    const encoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
+      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('VoteCast')!,
+      ['0x1111111111111111111111111111111111111111', 10n, 4n, 77n, ''],
+    );
+
+    const result = decodeCompoundLog(
+      makeLog({ topics: encoded.topics as string[], data: encoded.data }),
+      'compound_governor_bravo',
+    );
+
+    expect(result.type).toBe('VoteCast');
+    expect(spy).toHaveBeenCalledWith(1, {
+      source: 'compound_governor_bravo',
+      reason: 'unexpected_support',
     });
   });
 

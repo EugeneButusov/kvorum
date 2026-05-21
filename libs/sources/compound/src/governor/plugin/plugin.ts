@@ -39,7 +39,7 @@ function createPlugin(
     return {
       filter: {
         address: cfg.governor_address.toLowerCase(),
-        topics: [proposalTopics],
+        topics: [[...proposalTopics, topics.VoteCast]],
       },
       listenerFactory: (classifier) =>
         makeIngesterListener(

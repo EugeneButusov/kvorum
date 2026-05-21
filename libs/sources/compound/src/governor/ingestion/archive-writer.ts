@@ -98,7 +98,11 @@ export class ArchiveWriter {
       const result = await this.confirmationRepo.insert(row);
 
       if (result?.id) {
-        chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'inserted' });
+        chainMetrics.archiveWrites.add(1, {
+          source: ctx.sourceLabel,
+          event_type: decoded.type,
+          result: 'inserted',
+        });
         this.logger.debug('confirmation_inserted', {
           ...logRef,
           blockNumber: logRef.blockNumber.toString(),
@@ -108,7 +112,11 @@ export class ArchiveWriter {
       }
 
       // ON CONFLICT fired — concurrent writer beat us; idempotent
-      chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'skipped_conflict' });
+      chainMetrics.archiveWrites.add(1, {
+        source: ctx.sourceLabel,
+        event_type: decoded.type,
+        result: 'skipped_conflict',
+      });
       this.logger.debug('confirmation_conflict_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -145,7 +153,11 @@ export class ArchiveWriter {
 
     try {
       await this.dlqRepo.insert(dlqRow);
-      chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'dlq_routed' });
+      chainMetrics.archiveWrites.add(1, {
+        source: ctx.sourceLabel,
+        event_type: 'unknown',
+        result: 'dlq_routed',
+      });
       this.logger.error('dlq_routed', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),

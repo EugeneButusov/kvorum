@@ -89,7 +89,11 @@ function makeTestListener(
         confirmation_status: 'pending',
       };
       await confirmationRepo.insert(row);
-      chainMetrics.archiveWrites.add(1, { source: ctx.sourceLabel, result: 'inserted' });
+      chainMetrics.archiveWrites.add(1, {
+        source: ctx.sourceLabel,
+        event_type: 'ProposalCreated',
+        result: 'inserted',
+      });
     }
   };
 }

@@ -1,5 +1,6 @@
 import type { Interface } from 'ethers';
 import type { LogEvent } from '@libs/chain';
+import { chainMetrics } from '@libs/chain';
 import { interfaceForSource, type CompoundGovernorVariant } from './events';
 import type { CompoundGovernorEvent } from '../domain/types';
 import { DecodeError } from '../domain/types';
@@ -120,6 +121,9 @@ function decodeVoteCast(
 
   const support = Number(args['support']);
   const votingPowerArg = (args['votes'] ?? args['weight']) as bigint;
+  if (support < 0 || support > 2) {
+    chainMetrics.archiveDecodeWarnings.add(1, { source: variant, reason: 'unexpected_support' });
+  }
   return {
     type: 'VoteCast',
     payload: {
