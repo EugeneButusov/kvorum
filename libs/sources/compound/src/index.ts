@@ -74,6 +74,16 @@ export {
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
 } from './governor/index';
+export {
+  COMP_TOKEN_DEPLOY_BLOCK,
+  COMP_TOKEN_ADDRESS,
+  COMPOUND_COMP_TOKEN_INTERFACE,
+  COMPOUND_COMP_TOKEN_TOPICS,
+  decodeCompTokenLog,
+  CompTokenEventRepository,
+  CompTokenArchiveWriter,
+  makeCompTokenIngesterListener,
+} from './comp-token/index';
 
 export type {
   CompoundEventType,
@@ -107,3 +117,13 @@ export type {
   ReconcileDriverMetrics,
   CompoundReconcilePluginDeps,
 } from './governor/index';
+export type {
+  CompTokenEventType,
+  CompTokenEvent,
+  DelegateChangedPayload,
+  DelegateVotesChangedPayload,
+  CompTokenEventData,
+  CompTokenEventRepositoryDeps,
+  CompTokenArchiveWriterDeps,
+  CompTokenIngesterListenerDeps,
+} from './comp-token/index';

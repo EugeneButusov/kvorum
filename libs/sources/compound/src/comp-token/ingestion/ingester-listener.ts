@@ -1,36 +1,29 @@
-import type { LogEvent, EventsListener, Logger } from '@libs/chain';
+import type { EventsListener, LogEvent, Logger } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
-import { ArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext } from './archive-writer.types';
+import type { CompTokenArchiveWriter } from './archive-writer';
+import type { ArchiveWriteContext, IngesterListenerOptions } from '../../shared';
 import { DecodeError } from '../../shared';
-import { decodeCompoundLog } from '../abi/decoder';
+import { decodeCompTokenLog } from '../abi/decoder';
 
-export interface IngesterListenerDeps {
-  archiveWriter: ArchiveWriter;
+export interface CompTokenIngesterListenerDeps {
+  archiveWriter: CompTokenArchiveWriter;
   context: ArchiveWriteContext;
   logger: Logger;
   dlqRepo: DlqRepository;
 }
 
-export interface IngesterListenerOptions {
-  /** 'throw' aborts the batch on a CH-write failure; used by the backfill driver (decision #9).
-   *  Defaults to 'swallow' so live callers are byte-identical. */
-  onWriteFailure?: 'swallow' | 'throw';
-}
-
-/** Returns an EventsListener that decodes and archives Compound Governor log events. */
-export function makeIngesterListener(
-  deps: IngesterListenerDeps,
+export function makeCompTokenIngesterListener(
+  deps: CompTokenIngesterListenerDeps,
   options: IngesterListenerOptions = {},
 ): EventsListener {
   return async (events: LogEvent[]) => {
     const batchStartMs = Date.now();
     try {
       for (const log of events) {
-        let decoded: ReturnType<typeof decodeCompoundLog>;
+        let decoded: ReturnType<typeof decodeCompTokenLog>;
         try {
-          decoded = decodeCompoundLog(log, deps.context.sourceType);
+          decoded = decodeCompTokenLog(log);
         } catch (err) {
           await routeDecodeErrorToDlq(deps, log, err);
           chainMetrics.archiveDecodeErrors.add(1, {
@@ -62,7 +55,7 @@ export function makeIngesterListener(
 }
 
 async function routeDecodeErrorToDlq(
-  deps: IngesterListenerDeps,
+  deps: CompTokenIngesterListenerDeps,
   log: LogEvent,
   err: unknown,
 ): Promise<void> {

@@ -11,7 +11,7 @@ import {
   COMPOUND_GOVERNOR_BRAVO_INTERFACE,
   COMPOUND_GOVERNOR_OZ_INTERFACE,
 } from './events';
-import { DecodeError } from '../domain/types';
+import { DecodeError } from '../../shared';
 
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {
