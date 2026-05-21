@@ -22,3 +22,10 @@ export { CompTokenArchiveWriter } from './ingestion/archive-writer';
 
 export type { CompTokenIngesterListenerDeps } from './ingestion/ingester-listener';
 export { makeCompTokenIngesterListener } from './ingestion/ingester-listener';
+
+export {
+  createCompTokenPlugin,
+  CompTokenSourceConfigSchema,
+  COMP_TOKEN_SUPPORTED_CHAIN_IDS,
+} from './plugin/plugin';
+export type { CompTokenSourceConfig, CompTokenPluginDeps } from './plugin/plugin';

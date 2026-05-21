@@ -83,6 +83,9 @@ export {
   CompTokenEventRepository,
   CompTokenArchiveWriter,
   makeCompTokenIngesterListener,
+  createCompTokenPlugin,
+  CompTokenSourceConfigSchema,
+  COMP_TOKEN_SUPPORTED_CHAIN_IDS,
 } from './comp-token/index';
 
 export type {
@@ -126,4 +129,6 @@ export type {
   CompTokenEventRepositoryDeps,
   CompTokenArchiveWriterDeps,
   CompTokenIngesterListenerDeps,
+  CompTokenSourceConfig,
+  CompTokenPluginDeps,
 } from './comp-token/index';

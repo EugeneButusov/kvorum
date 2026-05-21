@@ -1,2 +1,6 @@
 bd6e69bf9c818aa1aebff9dd85e65115f317e344:libs/sources/compound/src/seed.ts:generic-api-key:10
 5f89e8edbf8ceaacf3fd11439bc945469a546c4c:libs/sources/compound/src/comp-token/constants.ts:generic-api-key:6
+fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/plugin/plugin.spec.ts:generic-api-key:42
+fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/plugin/plugin.spec.ts:generic-api-key:44
+fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/plugin/plugin.spec.ts:generic-api-key:69
+fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/plugin/plugin.spec.ts:generic-api-key:135

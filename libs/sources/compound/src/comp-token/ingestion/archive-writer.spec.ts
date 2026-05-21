@@ -126,15 +126,36 @@ describe('CompTokenArchiveWriter', () => {
     expect(outcome.result).toBe('unreachable');
   });
 
-  it('propagates CH archive insert failure', async () => {
+  it('routes CH archive insert failure to delegation_archive_write DLQ', async () => {
     const eventRepo = makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) });
     const confirmationRepo = makeConfirmationRepo();
     const dlqRepo = makeDlqRepo();
 
-    await expect(
-      buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF),
-    ).rejects.toThrow('ch down');
+    const outcome = await buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(
+      CTX,
+      DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('dlq_routed');
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
-    expect(dlqRepo.insert).not.toHaveBeenCalled();
+    expect(dlqRepo.insert).toHaveBeenCalledOnce();
+    expect(dlqRepo.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ stage: 'delegation_archive_write' }),
+    );
+  });
+
+  it('returns unreachable when CH archive insert and DLQ write both fail', async () => {
+    const eventRepo = makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) });
+    const confirmationRepo = makeConfirmationRepo();
+    const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('dlq down')) });
+
+    const outcome = await buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(
+      CTX,
+      DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('unreachable');
+    expect(confirmationRepo.insert).not.toHaveBeenCalled();
+    expect(dlqRepo.insert).toHaveBeenCalledOnce();
   });
 });
