@@ -77,6 +77,8 @@ export function projectCompoundProposalEvent(
       return projectStateTransition(event.payload.proposalId, 'executed', archiveRow, confirmedAt);
     case 'ProposalCanceled':
       return projectStateTransition(event.payload.proposalId, 'canceled', archiveRow, confirmedAt);
+    case 'VoteCast':
+      throw new Error('projectCompoundProposalEvent: VoteCast is not a proposal lifecycle event');
   }
 }
 

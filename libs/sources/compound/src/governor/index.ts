@@ -5,11 +5,15 @@ export type {
 } from './persistence/schema';
 
 export {
-  COMPOUND_GOVERNOR_EVENTS,
-  COMPOUND_GOVERNOR_INTERFACE,
-  COMPOUND_EVENT_TOPICS,
+  COMPOUND_GOVERNOR_ALPHA_INTERFACE,
+  COMPOUND_GOVERNOR_BRAVO_INTERFACE,
+  COMPOUND_GOVERNOR_OZ_INTERFACE,
+  COMPOUND_ALPHA_TOPICS,
+  COMPOUND_BRAVO_TOPICS,
+  COMPOUND_OZ_TOPICS,
+  interfaceForSource,
 } from './abi/events';
-export type { CompoundEventType } from './abi/events';
+export type { CompoundEventType, CompoundGovernorVariant } from './abi/events';
 
 export type {
   CompoundGovernorEvent,
@@ -17,6 +21,7 @@ export type {
   ProposalQueuedPayload,
   ProposalExecutedPayload,
   ProposalCanceledPayload,
+  VoteCastPayload,
 } from './domain/types';
 export { DecodeError } from './domain/types';
 
@@ -92,3 +97,25 @@ export {
   createCompoundGovernorOzPlugin,
   createCompoundPlugins,
 } from './plugin/plugin';
+export { COMPOUND_PROPOSAL_CHOICES } from '../proposal-choices';
+export { loadAbiLibrary } from '../calldata/abi-library';
+export type { LoadedAbiLibrary, AbiEntry } from '../calldata/abi-library';
+export { decodeByHeuristic } from '../calldata/heuristics';
+export type { HeuristicResult } from '../calldata/heuristics';
+
+export {
+  CalldataDecoder,
+  EtherscanClient,
+  readCalldataDecoderConfig,
+  ChainNotReadyError,
+} from '@sources/core';
+export type {
+  DecodeInput,
+  DecodeResult,
+  DecodeSource,
+  DecoderDependencies,
+  EtherscanClientLike,
+  EtherscanClientConfig,
+  CalldataDecoderConfig,
+  EtherscanConfig,
+} from '@sources/core';

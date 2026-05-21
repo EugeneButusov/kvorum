@@ -30,7 +30,7 @@ export function makeIngesterListener(
       for (const log of events) {
         let decoded: ReturnType<typeof decodeCompoundLog>;
         try {
-          decoded = decodeCompoundLog(log);
+          decoded = decodeCompoundLog(log, deps.context.sourceType);
         } catch (err) {
           await routeDecodeErrorToDlq(deps, log, err);
           chainMetrics.archiveDecodeErrors.add(1, {

@@ -23,16 +23,27 @@ export interface ProposalCanceledPayload {
   proposalId: string;
 }
 
+export interface VoteCastPayload {
+  voter: string;
+  proposalId: string;
+  primaryChoice: number;
+  votingPowerReported: string;
+  compound: {
+    supportRaw: boolean | number;
+    reason: string | null;
+  };
+}
+
 export type CompoundGovernorEvent =
   | { type: 'ProposalCreated'; payload: ProposalCreatedPayload }
   | { type: 'ProposalQueued'; payload: ProposalQueuedPayload }
   | { type: 'ProposalExecuted'; payload: ProposalExecutedPayload }
-  | { type: 'ProposalCanceled'; payload: ProposalCanceledPayload };
+  | { type: 'ProposalCanceled'; payload: ProposalCanceledPayload }
+  | { type: 'VoteCast'; payload: VoteCastPayload };
 
 export class DecodeError extends Error {
   constructor(
-    public readonly reason: 'unknown_topic' | 'parse_failed' | 'wrong_address',
-    // cause is a built-in property on Error in ES2022; use a different name to avoid override conflict
+    public readonly reason: 'unknown_topic' | 'parse_failed' | 'wrong_address' | 'wrong_variant',
     public readonly decodeSource: unknown,
     public readonly logRef: { txHash: string; logIndex: number; blockHash: string },
   ) {

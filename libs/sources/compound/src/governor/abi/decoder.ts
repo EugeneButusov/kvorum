@@ -1,22 +1,30 @@
+import type { Interface } from 'ethers';
 import type { LogEvent } from '@libs/chain';
-import { COMPOUND_EVENT_TOPICS, COMPOUND_GOVERNOR_INTERFACE } from './events';
+import { interfaceForSource, type CompoundGovernorVariant } from './events';
 import type { CompoundGovernorEvent } from '../domain/types';
 import { DecodeError } from '../domain/types';
 
-/** Decodes a normalised LogEvent from EventPoller into a typed CompoundGovernorEvent.
- *  Throws DecodeError on unknown topic0 or malformed args. */
-export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
+export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGovernorEvent {
   const topic0 = log.topics[0]?.toLowerCase();
   const logRef = { txHash: log.txHash, logIndex: log.logIndex, blockHash: log.blockHash };
 
-  const knownTopics: string[] = Object.values(COMPOUND_EVENT_TOPICS);
+  let iface: ReturnType<typeof interfaceForSource>['iface'];
+  let topics: ReturnType<typeof interfaceForSource>['topics'];
+  let variant: CompoundGovernorVariant;
+  try {
+    ({ iface, topics, variant } = interfaceForSource(sourceType));
+  } catch (err) {
+    throw new DecodeError('wrong_variant', err, logRef);
+  }
+
+  const knownTopics = Object.values(topics) as string[];
   if (!topic0 || !knownTopics.includes(topic0)) {
     throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  let parsed: ReturnType<typeof COMPOUND_GOVERNOR_INTERFACE.parseLog>;
+  let parsed: ReturnType<typeof iface.parseLog>;
   try {
-    parsed = COMPOUND_GOVERNOR_INTERFACE.parseLog({ topics: log.topics, data: log.data });
+    parsed = iface.parseLog({ topics: log.topics, data: log.data });
   } catch (err) {
     throw new DecodeError('parse_failed', err, logRef);
   }
@@ -26,9 +34,8 @@ export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
   }
 
   switch (topic0) {
-    case COMPOUND_EVENT_TOPICS.ProposalCreated: {
+    case topics.ProposalCreated: {
       const args = parsed.args;
-      // Use positional index for 'values' (index 3) to avoid conflict with Array.prototype.values
       const abiValues = args[3] as unknown as bigint[];
       return {
         type: 'ProposalCreated',
@@ -46,7 +53,7 @@ export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
       };
     }
 
-    case COMPOUND_EVENT_TOPICS.ProposalQueued: {
+    case topics.ProposalQueued: {
       const args = parsed.args;
       return {
         type: 'ProposalQueued',
@@ -57,7 +64,7 @@ export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
       };
     }
 
-    case COMPOUND_EVENT_TOPICS.ProposalExecuted: {
+    case topics.ProposalExecuted: {
       const args = parsed.args;
       return {
         type: 'ProposalExecuted',
@@ -67,7 +74,7 @@ export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
       };
     }
 
-    case COMPOUND_EVENT_TOPICS.ProposalCanceled: {
+    case topics.ProposalCanceled: {
       const args = parsed.args;
       return {
         type: 'ProposalCanceled',
@@ -77,7 +84,53 @@ export function decodeCompoundLog(log: LogEvent): CompoundGovernorEvent {
       };
     }
 
+    case topics.VoteCast:
+      return decodeVoteCast(parsed, variant);
+
     default:
       throw new DecodeError('unknown_topic', undefined, logRef);
   }
+}
+
+function decodeVoteCast(
+  parsed: ReturnType<Interface['parseLog']>,
+  variant: CompoundGovernorVariant,
+): CompoundGovernorEvent {
+  const args = parsed!.args;
+  const voter = (args['voter'] as string).toLowerCase();
+  const proposalId = (args['proposalId'] as bigint).toString();
+
+  if (variant === 'compound_governor_alpha') {
+    const support = args['support'] as boolean;
+    const votingPower = (args['votes'] as bigint).toString();
+    return {
+      type: 'VoteCast',
+      payload: {
+        voter,
+        proposalId,
+        primaryChoice: support ? 1 : 0,
+        votingPowerReported: votingPower,
+        compound: {
+          supportRaw: support,
+          reason: null,
+        },
+      },
+    };
+  }
+
+  const support = Number(args['support']);
+  const votingPowerArg = (args['votes'] ?? args['weight']) as bigint;
+  return {
+    type: 'VoteCast',
+    payload: {
+      voter,
+      proposalId,
+      primaryChoice: support,
+      votingPowerReported: votingPowerArg.toString(),
+      compound: {
+        supportRaw: support,
+        reason: ((args['reason'] as string | undefined) ?? null) as string | null,
+      },
+    },
+  };
 }

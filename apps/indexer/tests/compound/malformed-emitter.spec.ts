@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decodeCompoundLog } from '@sources/compound';
-import { COMPOUND_EVENT_TOPICS } from '@sources/compound';
+import { COMPOUND_BRAVO_TOPICS } from '@sources/compound';
 import { DecodeError } from '@sources/compound';
 
 /**
@@ -17,7 +17,7 @@ describe('malformed-emitter skew guard', () => {
     const fakeLog = {
       sourceType: 'compound_governor_bravo',
       chainId: '0x7a69',
-      topics: [COMPOUND_EVENT_TOPICS.ProposalCreated],
+      topics: [COMPOUND_BRAVO_TOPICS.ProposalCreated],
       data: '0x0000000000000000', // 8 bytes — emitMalformed() emits exactly these
       txHash: '0x' + 'aa'.repeat(32),
       txIndex: 0,
@@ -27,11 +27,11 @@ describe('malformed-emitter skew guard', () => {
       address: '0x' + '00'.repeat(20),
     };
 
-    expect(() => decodeCompoundLog(fakeLog)).toThrow(DecodeError);
+    expect(() => decodeCompoundLog(fakeLog, 'compound_governor_bravo')).toThrow(DecodeError);
 
     let caught: unknown;
     try {
-      decodeCompoundLog(fakeLog);
+      decodeCompoundLog(fakeLog, 'compound_governor_bravo');
     } catch (e) {
       caught = e;
     }
