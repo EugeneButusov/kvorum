@@ -26,6 +26,12 @@ export type {
   EventArchiveCompoundGovernorBravoTable,
   NewEventArchiveCompoundGovernorBravo,
 } from './governor/index';
+// Re-export the COMP token CH table type so @sources/compound is the canonical import point.
+export type {
+  EventArchiveCompoundCompToken,
+  EventArchiveCompoundCompTokenTable,
+  NewEventArchiveCompoundCompToken,
+} from './comp-token/persistence/schema';
 
 export {
   COMPOUND_GOVERNOR_EVENTS,
