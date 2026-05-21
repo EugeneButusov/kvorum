@@ -22,7 +22,7 @@ Guidance for Claude Code working in this repo.
 | Admin CLI           | commander 14 (Node ESM)      | `apps/admin-cli` — operator tooling, single-file bundle                                   |
 | Chain client        | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
-ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_flat`, `delegation_flow_flat`) is **schema-active from M2 / J3** (empty tables under `libs/sources/core/migrations-clickhouse/`); data-active when Q1's daily ETL job lands; read-active when O3's analytical endpoints land. See ADR-038's 2026-05-21 amendment for the staged-activation contract.
+ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_events_analytics`, `delegation_flow_analytics`) is **schema-active from M2 / J3** (empty tables under `libs/sources/core/migrations-clickhouse/`); data-active when Q1's daily ETL job lands; read-active when O3's analytical endpoints land. See ADR-038's 2026-05-21 amendment for the staged-activation contract.
 
 ## Module boundaries
 

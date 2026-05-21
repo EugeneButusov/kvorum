@@ -63,11 +63,11 @@ export type NewDelegationFlowFlat = DelegationFlowFlatTable;
 // Any compilation that transitively imports this file gets type-safe db access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    vote_events_flat: VoteEventsFlatTable;
-    delegation_flow_flat: DelegationFlowFlatTable;
+    vote_events_analytics: VoteEventsFlatTable;
+    delegation_flow_analytics: DelegationFlowFlatTable;
   }
 }
 
 // Gate the declaration-merging activation in J3's own typecheck.
-type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_flat'];
-type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_flat'];
+type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_analytics'];
+type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_analytics'];

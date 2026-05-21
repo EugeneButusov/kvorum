@@ -52,10 +52,10 @@
 --
 -- No TTL on either table — both are derived (rebuildable from PG `vote` /
 -- `delegation` via Q's ETL on demand). Future TTL must NOT key on:
---   * `vote_events_flat.cast_at` — collapses ADR-021 supersession state
+--   * `vote_events_analytics.cast_at` — collapses ADR-021 supersession state
 --     (an old superseded vote and its replacement share `cast_at` range
 --     but differ on `vote_id`; TTL'ing on cast_at could drop active rows).
---   * `delegation_flow_flat.created_at` — collapses event-arrival
+--   * `delegation_flow_analytics.created_at` — collapses event-arrival
 --     order under reorg + re-derive (a re-derived delegation row gets
 --     a fresh `created_at`; TTL would drop pre-reorg history).
 -- Any future TTL must key on `block_number` (monotonic in either table) or
@@ -69,7 +69,7 @@
 -- "Database access convention" — application code must not call OPTIMIZE).
 -- ============================================================================
 
--- ── vote_events_flat ────────────────────────────────────────────────────────
+-- ── vote_events_analytics ───────────────────────────────────────────────────
 -- Denormalised vote rows for analytical queries (concentration, alignment,
 -- cross-DAO actor). One physical row per PG `vote.id`. ReplacingMergeTree
 -- deduplicates on the ORDER BY tuple; the trailing `vote_id` makes the
@@ -77,7 +77,7 @@
 -- supersession (the superseded row and its replacement have distinct
 -- vote_ids; both rows persist in CH, the API filters via the `superseded`
 -- column at query time).
-CREATE TABLE IF NOT EXISTS vote_events_flat
+CREATE TABLE IF NOT EXISTS vote_events_analytics
 (
     vote_id                  UUID,
     proposal_id              UUID,
@@ -99,13 +99,13 @@ ENGINE = ReplacingMergeTree(cast_at)
 PARTITION BY toYear(cast_at)
 ORDER BY (dao_id, proposal_id, voter_actor_id, vote_id);
 
--- ── delegation_flow_flat ────────────────────────────────────────────────────
+-- ── delegation_flow_analytics ───────────────────────────────────────────────
 -- Directed edges of the delegation graph (delegator → delegate at a block).
 -- One physical row per PG `delegation.id`. ReplacingMergeTree's `created_at`
 -- version column is monotonic (PG-insertion time); re-running Q's ETL for
 -- the same logical row produces a duplicate physical row that the next
 -- background merge collapses.
-CREATE TABLE IF NOT EXISTS delegation_flow_flat
+CREATE TABLE IF NOT EXISTS delegation_flow_analytics
 (
     delegation_id        UUID,
     delegator_actor_id   UUID,

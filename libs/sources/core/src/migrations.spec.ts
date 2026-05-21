@@ -15,7 +15,7 @@ async function fetchColumns(): Promise<Map<string, ColumnRow[]>> {
     .selectFrom('system.columns' as never)
     .select(['table' as never, 'name' as never, 'type' as never, 'default_kind' as never])
     .where('database' as never, '=', clickhouseDbName)
-    .where('table' as never, 'in', ['vote_events_flat', 'delegation_flow_flat'])
+    .where('table' as never, 'in', ['vote_events_analytics', 'delegation_flow_analytics'])
     .orderBy('table' as never)
     .orderBy('position' as never)
     .execute();
@@ -40,16 +40,16 @@ async function fetchTables(): Promise<Map<string, TableRow>> {
       'partition_key' as never,
     ])
     .where('database' as never, '=', clickhouseDbName)
-    .where('name' as never, 'in', ['vote_events_flat', 'delegation_flow_flat'])
+    .where('name' as never, 'in', ['vote_events_analytics', 'delegation_flow_analytics'])
     .execute();
 
   return new Map((result as TableRow[]).map((r) => [r.name, r]));
 }
 
 describeWithCh('core_001_analytical_mirror migration', () => {
-  it('creates vote_events_flat with the locked 14-column shape (incl. ALIAS)', async () => {
+  it('creates vote_events_analytics with the locked 14-column shape (incl. ALIAS)', async () => {
     const byTable = await fetchColumns();
-    const cols = byTable.get('vote_events_flat') ?? [];
+    const cols = byTable.get('vote_events_analytics') ?? [];
 
     expect(cols.map((c) => c.name)).toEqual([
       'vote_id',
@@ -78,9 +78,9 @@ describeWithCh('core_001_analytical_mirror migration', () => {
     expect(kindByName.get('primary_choice')).toBe('');
   });
 
-  it('creates delegation_flow_flat with the locked 9-column shape', async () => {
+  it('creates delegation_flow_analytics with the locked 9-column shape', async () => {
     const byTable = await fetchColumns();
-    const cols = byTable.get('delegation_flow_flat') ?? [];
+    const cols = byTable.get('delegation_flow_analytics') ?? [];
 
     expect(cols.map((c) => c.name)).toEqual([
       'delegation_id',
@@ -101,8 +101,8 @@ describeWithCh('core_001_analytical_mirror migration', () => {
 
   it('locks engine, sorting_key, and partition_key on both tables', async () => {
     const tables = await fetchTables();
-    const votes = tables.get('vote_events_flat');
-    const delegations = tables.get('delegation_flow_flat');
+    const votes = tables.get('vote_events_analytics');
+    const delegations = tables.get('delegation_flow_analytics');
 
     expect(votes?.engine_full).toMatch(/^ReplacingMergeTree\(cast_at\)/);
     expect(votes?.sorting_key).toBe('dao_id, proposal_id, voter_actor_id, vote_id');
