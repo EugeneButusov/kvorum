@@ -66,10 +66,10 @@ export interface SourceContext {
 // ./persistence/schema activates whenever @sources/core (or any module
 // that transitively imports it) is compiled.
 export type {
-  VoteEventsFlat,
-  VoteEventsFlatTable,
-  NewVoteEventsFlat,
-  DelegationFlowFlat,
-  DelegationFlowFlatTable,
-  NewDelegationFlowFlat,
+  VoteEventsAnalytics,
+  VoteEventsAnalyticsTable,
+  NewVoteEventsAnalytics,
+  DelegationFlowAnalytics,
+  DelegationFlowAnalyticsTable,
+  NewDelegationFlowAnalytics,
 } from './persistence/schema';

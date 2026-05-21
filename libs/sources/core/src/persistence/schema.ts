@@ -11,7 +11,7 @@ import type { ClickHouseDatabase } from '@libs/db';
 // For NULL-safe analytical aggregates, prefer the ALIAS column
 // `primary_choice_nullable` (auto-skips the sentinel in SUM/AVG).
 
-export interface VoteEventsFlatTable {
+export interface VoteEventsAnalyticsTable {
   vote_id: string;
   proposal_id: string;
   voter_actor_id: string;
@@ -35,11 +35,11 @@ export interface VoteEventsFlatTable {
   superseded: number;
 }
 
-export type VoteEventsFlat = VoteEventsFlatTable;
+export type VoteEventsAnalytics = VoteEventsAnalyticsTable;
 /** ETL row shape — omits the ALIAS column (CH rejects writes to ALIAS). */
-export type NewVoteEventsFlat = Omit<VoteEventsFlatTable, 'primary_choice_nullable'>;
+export type NewVoteEventsAnalytics = Omit<VoteEventsAnalyticsTable, 'primary_choice_nullable'>;
 
-export interface DelegationFlowFlatTable {
+export interface DelegationFlowAnalyticsTable {
   delegation_id: string;
   delegator_actor_id: string;
   /** Zero UUID '00000000-0000-0000-0000-000000000000' = NULL in PG (delegated-to-no-one). */
@@ -56,18 +56,19 @@ export interface DelegationFlowFlatTable {
   created_at: Date;
 }
 
-export type DelegationFlowFlat = DelegationFlowFlatTable;
-export type NewDelegationFlowFlat = DelegationFlowFlatTable;
+export type DelegationFlowAnalytics = DelegationFlowAnalyticsTable;
+export type NewDelegationFlowAnalytics = DelegationFlowAnalyticsTable;
 
 // Extend @libs/db's ClickHouseDatabase via declaration merging.
 // Any compilation that transitively imports this file gets type-safe db access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    vote_events_analytics: VoteEventsFlatTable;
-    delegation_flow_analytics: DelegationFlowFlatTable;
+    vote_events_analytics: VoteEventsAnalyticsTable;
+    delegation_flow_analytics: DelegationFlowAnalyticsTable;
   }
 }
 
 // Gate the declaration-merging activation in J3's own typecheck.
-type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_analytics'];
-type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_analytics'];
+type _VoteEventsAnalyticsAugmentationActiveCheck = ClickHouseDatabase['vote_events_analytics'];
+type _DelegationFlowAnalyticsAugmentationActiveCheck =
+  ClickHouseDatabase['delegation_flow_analytics'];
