@@ -17,3 +17,10 @@ regexTarget = "line"
 regexes = [
   '''KNOWN-\d{3}''',
 ]
+
+[[allowlists]]
+description = "Public COMP token contract address (not a secret)"
+regexTarget = "line"
+regexes = [
+  '''0xc00e94cb662c3520282e6f5717214004a7f26888''',
+]
