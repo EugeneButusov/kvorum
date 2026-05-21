@@ -60,3 +60,16 @@ export interface SourceContext {
   chainId: string;
   sourceLabel: SourceType;
 }
+
+// Re-export the analytical mirror CH table types so @sources/core is the
+// canonical import point. The `declare module '@libs/db'` side-effect in
+// ./persistence/schema activates whenever @sources/core (or any module
+// that transitively imports it) is compiled.
+export type {
+  VoteEventsAnalytics,
+  VoteEventsAnalyticsTable,
+  NewVoteEventsAnalytics,
+  DelegationFlowAnalytics,
+  DelegationFlowAnalyticsTable,
+  NewDelegationFlowAnalytics,
+} from './persistence/schema';

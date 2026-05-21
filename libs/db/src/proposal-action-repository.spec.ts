@@ -8,6 +8,17 @@ const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe
 
 class RollbackSignal extends Error {}
 
+let uniqueSeq = 0;
+function uniqueHexId(): string {
+  uniqueSeq += 1;
+  const n = (BigInt(Date.now()) << 20n) + BigInt(uniqueSeq);
+  return n.toString(16);
+}
+
+function uniqueAddress(): string {
+  return `0x${uniqueHexId().padStart(40, '0').slice(-40)}`;
+}
+
 // ── Test-data helpers ─────────────────────────────────────────────────────────
 
 /**
@@ -20,7 +31,7 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
     .values({
       slug: `repo-spec-dao-${Date.now()}`,
       name: 'Repo Spec DAO',
-      primary_token_address: '0x' + 'a'.repeat(40),
+      primary_token_address: uniqueAddress(),
       primary_chain_id: '1',
       description: 'test',
       website_url: 'https://example.com',
@@ -32,7 +43,7 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
 
   const [actor] = await trx
     .insertInto('actor')
-    .values({ primary_address: '0x' + 'b'.repeat(40), updated_at: new Date() })
+    .values({ primary_address: uniqueAddress(), updated_at: new Date() })
     .returning(['id'])
     .execute();
 
@@ -42,7 +53,7 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
     .values({
       dao_id: dao!.id,
       source_type: 'compound_governor_bravo',
-      source_id: `spec-${Date.now()}`,
+      source_id: `spec-${uniqueHexId()}`,
       proposer_actor_id: actor!.id,
       description: 'test proposal',
       description_hash: 'a'.repeat(64),
