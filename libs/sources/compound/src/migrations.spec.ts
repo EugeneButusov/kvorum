@@ -142,6 +142,7 @@ describeWithDb('compound_003_comp_token migration', () => {
   it('up inserts source_type and dao_source with expected token config and deploy block', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
+        await upCompoundSeed(tx);
         await upCompToken(tx);
 
         const sourceTypeRows = await tx
@@ -173,6 +174,7 @@ describeWithDb('compound_003_comp_token migration', () => {
   it('up is idempotent when executed twice', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
+        await upCompoundSeed(tx);
         await upCompToken(tx);
         await upCompToken(tx);
 
@@ -200,6 +202,7 @@ describeWithDb('compound_003_comp_token migration', () => {
   it('down after up removes dao_source row and source_type row', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
+        await upCompoundSeed(tx);
         await upCompToken(tx);
         await downCompToken(tx);
 
