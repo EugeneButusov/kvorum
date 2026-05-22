@@ -43,6 +43,16 @@ function makeUpdateChain() {
   return { updateTable, set, where, execute };
 }
 
+function makeUpdateReturningChain(returnValue: unknown) {
+  const executeTakeFirstOrThrow = vi.fn().mockResolvedValue(returnValue);
+  const returning = vi.fn().mockReturnValue({ executeTakeFirstOrThrow });
+  const where = vi.fn().mockReturnValue({ returning });
+  const set = vi.fn().mockReturnValue({ where });
+  const updateTable = vi.fn().mockReturnValue({ set });
+
+  return { updateTable, set, where, returning, executeTakeFirstOrThrow };
+}
+
 function makeCountSelectChain(returnValue: unknown) {
   const executeTakeFirstOrThrow = vi.fn().mockResolvedValue(returnValue);
   const chain = {
@@ -86,6 +96,31 @@ describe('ArchiveDerivationRepository', () => {
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
 
+  it('selects confirmed unresolved actor rows by L0 contract', async () => {
+    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
+
+    await expect(repo.findConfirmedUnresolvedActors(25)).resolves.toEqual([ARCHIVE_ROW]);
+
+    expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is', null);
+    expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', [
+      'VoteCast',
+      'DelegateChanged',
+      'DelegateVotesChanged',
+    ]);
+    expect(pgSelect.where).toHaveBeenCalledWith('actor_resolution_attempt_count', '<', 5);
+  });
+
+  it('marks a row actor-resolved', async () => {
+    const update = makeUpdateChain();
+    const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
+
+    await repo.markActorResolved('row-1');
+
+    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
+  });
+
   it('increments derivation attempt count', async () => {
     const update = makeUpdateChain();
     const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
@@ -94,6 +129,35 @@ describe('ArchiveDerivationRepository', () => {
 
     expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
+  });
+
+  it('increments actor-resolution attempt count and returns the next value', async () => {
+    const update = makeUpdateReturningChain({ actor_resolution_attempt_count: 3 });
+    const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
+
+    await expect(repo.incrementActorResolutionAttemptCount('row-1')).resolves.toBe(3);
+
+    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
+    expect(update.returning).toHaveBeenCalledWith('actor_resolution_attempt_count');
+  });
+
+  it('finds derivable rows only when actor watermark is set', async () => {
+    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
+
+    await expect(repo.findConfirmedDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
+
+    expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is not', null);
+    expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', ['VoteCast']);
+  });
+
+  it('short-circuits derivable lookup for empty event type list', async () => {
+    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
+
+    await expect(repo.findConfirmedDerivableBy([], 10)).resolves.toEqual([]);
+    expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
   it('counts confirmed underived rows without a starting block', async () => {

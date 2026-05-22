@@ -8,6 +8,12 @@ import { derivationMetrics } from './derivation-metrics';
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
+const OWNED_EVENT_TYPES = [
+  'ProposalCreated',
+  'ProposalQueued',
+  'ProposalExecuted',
+  'ProposalCanceled',
+] as const;
 
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
@@ -39,7 +45,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const batchSize = Number(
         process.env['DERIVATION_BATCH_SIZE'] ?? DEFAULT_DERIVATION_BATCH_SIZE,
       );
-      const watermark = await this.archive.findConfirmedUndderived(batchSize);
+      const watermark = await this.archive.findConfirmedDerivableBy(OWNED_EVENT_TYPES, batchSize);
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0);
         return;

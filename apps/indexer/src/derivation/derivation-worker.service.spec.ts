@@ -19,20 +19,23 @@ const ROW: ArchiveDerivationRow = {
 describe('DerivationWorkerService', () => {
   it('increments attempt count when source has no projection applier', async () => {
     const archive = {
-      findConfirmedUndderived: vi.fn().mockResolvedValue([ROW]),
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
     const worker = new DerivationWorkerService(archive as never, []);
 
     await worker.tick();
 
-    expect(archive.findConfirmedUndderived).toHaveBeenCalledWith(50);
+    expect(archive.findConfirmedDerivableBy).toHaveBeenCalledWith(
+      ['ProposalCreated', 'ProposalQueued', 'ProposalExecuted', 'ProposalCanceled'],
+      50,
+    );
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
   });
 
   it('applies projection with the matching source applier', async () => {
     const archive = {
-      findConfirmedUndderived: vi.fn().mockResolvedValue([ROW]),
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
@@ -52,7 +55,7 @@ describe('DerivationWorkerService', () => {
   it('routes alpha rows to an applier that supports compound_governor_alpha', async () => {
     const alphaRow = { ...ROW, source_type: 'compound_governor_alpha' };
     const archive = {
-      findConfirmedUndderived: vi.fn().mockResolvedValue([alphaRow]),
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([alphaRow]),
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
