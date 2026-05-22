@@ -11,6 +11,7 @@ import {
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
+import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 import { ActorSweepService } from './actor-sweep.service';
 
 const DB_URL = process.env['DATABASE_URL'];
@@ -40,6 +41,7 @@ describeIf('actor sweep integration', () => {
       dlq,
       new GovernorArchivePayloadRepository(chDb),
       new CompTokenArchivePayloadRepository(chDb),
+      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
     );
 
     await pgDb

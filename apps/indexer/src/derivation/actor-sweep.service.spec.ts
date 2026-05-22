@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
+import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 import { ActorSweepService } from './actor-sweep.service';
 
 const ROW: ArchiveDerivationRow = {
@@ -47,6 +48,7 @@ describe('ActorSweepService', () => {
       dlq as never,
       governorPayloads as never,
       compTokenPayloads as never,
+      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
     );
 
     await service.tick();
@@ -94,6 +96,7 @@ describe('ActorSweepService', () => {
       dlq as never,
       governorPayloads as never,
       compTokenPayloads as never,
+      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
     );
 
     await service.tick();
@@ -139,6 +142,7 @@ describe('ActorSweepService', () => {
       dlq as never,
       governorPayloads as never,
       compTokenPayloads as never,
+      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
     );
 
     await service.tick();

@@ -12,25 +12,20 @@ import type {
   GovernorArchivePayloadRepository,
   GovernorArchivePayloadRow,
 } from '@sources/compound';
+import type { ActorSweepExtractor } from './actor-sweep-extractor';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
 const ACTOR_SWEEP_DLQ_THRESHOLD = Number(process.env['ACTOR_SWEEP_DLQ_THRESHOLD'] ?? '5');
-const ACTOR_SWEEP_EVENT_TYPES = ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'] as const;
 const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`;
-
-type ActorAddressSource = 'voter_event' | 'delegator_event' | 'delegate_event';
-
-interface AddressCandidate {
-  address: string;
-  source: ActorAddressSource;
-}
 
 @Injectable()
 export class ActorSweepService {
   private readonly logger = new Logger('ActorSweep');
   private inFlight = false;
+  private readonly eventTypes: readonly string[];
+  private readonly extractorBySourceType: ReadonlyMap<string, ActorSweepExtractor>;
 
   constructor(
     private readonly actorResolution: ArchiveActorResolutionRepository,
@@ -38,7 +33,15 @@ export class ActorSweepService {
     private readonly dlq: DlqRepository,
     private readonly governorPayloads: GovernorArchivePayloadRepository,
     private readonly compTokenPayloads: CompTokenArchivePayloadRepository,
-  ) {}
+    extractors: readonly ActorSweepExtractor[],
+  ) {
+    this.eventTypes = [...new Set(extractors.flatMap((extractor) => extractor.eventTypes))];
+    this.extractorBySourceType = new Map(
+      extractors.flatMap((extractor) =>
+        extractor.sourceTypes.map((sourceType) => [sourceType, extractor] as const),
+      ),
+    );
+  }
 
   @Interval(ACTOR_SWEEP_INTERVAL_MS)
   async tick(): Promise<void> {
@@ -50,7 +53,7 @@ export class ActorSweepService {
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
       const rows = await this.actorResolution.findConfirmedUnresolvedActors(
-        ACTOR_SWEEP_EVENT_TYPES,
+        this.eventTypes,
         ACTOR_SWEEP_DLQ_THRESHOLD,
         batchSize,
       );
@@ -83,7 +86,11 @@ export class ActorSweepService {
         }
 
         try {
-          const candidates = extractAddresses(row.event_type, payload.payload);
+          const extractor = this.extractorBySourceType.get(row.source_type);
+          if (extractor === undefined) {
+            throw new Error(`no actor sweep extractor for source_type ${row.source_type}`);
+          }
+          const candidates = extractor.extractAddresses(row.event_type, payload.payload);
           for (const candidate of candidates) {
             const normalized = candidate.address.toLowerCase();
             if (normalized === ZERO_ADDRESS) continue;
@@ -161,31 +168,6 @@ function isGovernorSource(sourceType: string): boolean {
     sourceType === 'compound_governor_bravo' ||
     sourceType === 'compound_governor_oz'
   );
-}
-
-function extractAddresses(eventType: string, payloadJson: string): AddressCandidate[] {
-  const payload = JSON.parse(payloadJson) as Record<string, unknown>;
-  switch (eventType) {
-    case 'VoteCast':
-      return [asAddress(payload['voter'], 'voter_event')];
-    case 'DelegateChanged':
-      return [
-        asAddress(payload['delegator'], 'delegator_event'),
-        asAddress(payload['fromDelegate'], 'delegate_event'),
-        asAddress(payload['toDelegate'], 'delegate_event'),
-      ];
-    case 'DelegateVotesChanged':
-      return [asAddress(payload['delegate'], 'delegate_event')];
-    default:
-      throw new Error(`unsupported event_type for actor sweep: ${eventType}`);
-  }
-}
-
-function asAddress(raw: unknown, source: ActorAddressSource): AddressCandidate {
-  if (typeof raw !== 'string' || !raw.startsWith('0x') || raw.length !== 42) {
-    throw new Error(`invalid address payload field for source ${source}`);
-  }
-  return { address: raw, source };
 }
 
 function groupBySourceType(
