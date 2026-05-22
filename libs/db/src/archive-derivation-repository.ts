@@ -22,43 +22,9 @@ export class ArchiveDerivationRepository {
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
-    return this.findConfirmedUnderivedInternal(eventTypes, limit, false);
-  }
-
-  /**
-   * Read helper for downstream derivation paths that require actor-resolution gating.
-   */
-  async findConfirmedDerivableBy(
-    eventTypes: readonly string[],
-    limit: number,
-  ): Promise<ArchiveDerivationRow[]> {
-    return this.findConfirmedUnderivedInternal(eventTypes, limit, true);
-  }
-
-  async markDerived(id: string): Promise<void> {
-    await this.pgDb
-      .updateTable('archive_confirmation')
-      .set({ derived_at: sql`now()` })
-      .where('id', '=', id)
-      .execute();
-  }
-
-  async incrementAttemptCount(id: string): Promise<void> {
-    await this.pgDb
-      .updateTable('archive_confirmation')
-      .set({ derivation_attempt_count: sql`derivation_attempt_count + 1` })
-      .where('id', '=', id)
-      .execute();
-  }
-
-  private async findConfirmedUnderivedInternal(
-    eventTypes: readonly string[],
-    limit: number,
-    requireActorResolved: boolean,
-  ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
-    let query = this.pgDb
+    return this.pgDb
       .selectFrom('archive_confirmation')
       .select([
         'id',
@@ -75,18 +41,28 @@ export class ArchiveDerivationRepository {
       ])
       .where('confirmation_status', '=', 'confirmed')
       .where('derived_at', 'is', null)
-      .where('event_type', 'in', eventTypes);
-
-    if (requireActorResolved) {
-      query = query.where('derivation_actor_resolved_at', 'is not', null);
-    }
-
-    return query
+      .where('event_type', 'in', eventTypes)
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
       .orderBy('id', 'asc')
       .limit(limit)
+      .execute();
+  }
+
+  async markDerived(id: string): Promise<void> {
+    await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derived_at: sql`now()` })
+      .where('id', '=', id)
+      .execute();
+  }
+
+  async incrementAttemptCount(id: string): Promise<void> {
+    await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derivation_attempt_count: sql`derivation_attempt_count + 1` })
+      .where('id', '=', id)
       .execute();
   }
 }

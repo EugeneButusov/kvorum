@@ -25,21 +25,27 @@ describe('DerivationWorkerService', () => {
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
     const archive = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, [bundleWith(applier)]);
+    const actorResolution = {
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
+    };
+    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
+      bundleWith(applier),
+    ]);
 
     await worker.tick();
 
-    expect(archive.findConfirmedDerivableBy).toHaveBeenCalledWith(['ProposalCreated'], 50);
+    expect(actorResolution.findConfirmedDerivableBy).toHaveBeenCalledWith(['ProposalCreated'], 50);
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
   });
 
   it('applies projection with the matching source applier', async () => {
     const archive = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
       incrementAttemptCount: vi.fn(),
+    };
+    const actorResolution = {
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
     };
     const applier = {
       kind: 'projection' as const,
@@ -47,7 +53,9 @@ describe('DerivationWorkerService', () => {
       eventTypes: ['ProposalCreated'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, [bundleWith(applier)]);
+    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
+      bundleWith(applier),
+    ]);
 
     await worker.tick();
 
@@ -58,8 +66,10 @@ describe('DerivationWorkerService', () => {
   it('routes alpha rows to an applier that supports compound_governor_alpha', async () => {
     const alphaRow = { ...ROW, source_type: 'compound_governor_alpha' };
     const archive = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([alphaRow]),
       incrementAttemptCount: vi.fn(),
+    };
+    const actorResolution = {
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([alphaRow]),
     };
     const applier = {
       kind: 'projection' as const,
@@ -67,7 +77,9 @@ describe('DerivationWorkerService', () => {
       eventTypes: ['ProposalCreated'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, [bundleWith(applier)]);
+    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
+      bundleWith(applier),
+    ]);
 
     await worker.tick();
 

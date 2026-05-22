@@ -94,22 +94,4 @@ describe('ArchiveDerivationRepository', () => {
     expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
-
-  it('finds derivable rows only when actor watermark is set', async () => {
-    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
-    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
-
-    await expect(repo.findConfirmedDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
-
-    expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is not', null);
-    expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', ['VoteCast']);
-  });
-
-  it('short-circuits derivable lookup for empty event type list', async () => {
-    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
-    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
-
-    await expect(repo.findConfirmedDerivableBy([], 10)).resolves.toEqual([]);
-    expect(pgSelect.selectFrom).not.toHaveBeenCalled();
-  });
 });

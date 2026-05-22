@@ -1,7 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import { ArchiveDerivationRepository, type ArchiveDerivationRow } from '@libs/db';
+import {
+  ArchiveActorResolutionRepository,
+  ArchiveDerivationRepository,
+  type ArchiveDerivationRow,
+} from '@libs/db';
 import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
 
@@ -18,7 +22,8 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly eventTypes: readonly string[];
 
   constructor(
-    private readonly archive: ArchiveDerivationRepository,
+    private readonly archiveDerivation: ArchiveDerivationRepository,
+    private readonly actorResolution: ArchiveActorResolutionRepository,
     @Inject(SOURCE_PLUGINS) plugins: readonly SourcePlugin[],
   ) {
     this.appliers = plugins
@@ -41,7 +46,10 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const batchSize = Number(
         process.env['DERIVATION_BATCH_SIZE'] ?? DEFAULT_DERIVATION_BATCH_SIZE,
       );
-      const watermark = await this.archive.findConfirmedDerivableBy(this.eventTypes, batchSize);
+      const watermark = await this.actorResolution.findConfirmedDerivableBy(
+        this.eventTypes,
+        batchSize,
+      );
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0);
         return;
@@ -88,7 +96,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         outcome: 'failed',
         reason: 'unsupported_source',
       });
-      await this.archive.incrementAttemptCount(row.id);
+      await this.archiveDerivation.incrementAttemptCount(row.id);
       this.logger.error('derivation_applier_missing', {
         row_id: row.id,
         source_type: row.source_type,
