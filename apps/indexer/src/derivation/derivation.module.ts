@@ -9,12 +9,7 @@ import {
   chDb,
   pgDb,
 } from '@libs/db';
-import {
-  COMPOUND_ACTOR_SWEEP_EXTRACTOR,
-  CompTokenArchivePayloadRepository,
-  GovernorArchivePayloadRepository,
-} from '@sources/compound';
-import type { ActorSweepAdapter } from '@sources/core';
+import { SOURCE_PLUGINS, type ActorSweepAdapter, type SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { ActorSweepService } from './actor-sweep.service';
@@ -52,35 +47,26 @@ import { TimestampFillerService } from './timestamp-filler.service';
         actorResolution: ArchiveActorResolutionRepository,
         actors: ActorRepository,
         dlq: DlqRepository,
+        plugins: readonly SourcePlugin[],
       ) => {
-        const governorPayloads = new GovernorArchivePayloadRepository(chDb);
-        const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
-        const adapters: ActorSweepAdapter[] = [
-          {
-            sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
-            eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
-            extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
-            fetchPayloads: async (rows) => {
-              if (rows.length === 0) return [];
-              const sourceType = rows[0]!.source_type;
-              if (
-                sourceType === 'compound_governor_alpha' ||
-                sourceType === 'compound_governor_bravo' ||
-                sourceType === 'compound_governor_oz'
-              ) {
-                return governorPayloads.fetchPayloads(rows);
-              }
-              if (sourceType === 'compound_comp_token') {
-                return compTokenPayloads.fetchPayloads(rows);
-              }
-              throw new Error(`unsupported source_type for actor sweep: ${sourceType}`);
-            },
-          },
-        ];
+        const adapters: ActorSweepAdapter[] = plugins
+          .flatMap((plugin) => plugin.derivers)
+          .filter((deriver) => deriver.kind === 'actor-address')
+          .map((deriver) => ({
+            sourceTypes: deriver.sourceTypes,
+            eventTypes: deriver.eventTypes,
+            fetchPayloads: deriver.fetchPayloads,
+            extractAddresses: (eventType, payload) =>
+              deriver.extractAddresses(eventType, payload).map((candidate) => ({
+                address: candidate.address,
+                source:
+                  (candidate as { source?: string }).source ?? candidate.role ?? 'unknown_event',
+              })),
+          }));
 
         return new ActorSweepService(actorResolution, actors, dlq, adapters);
       },
-      inject: [ArchiveActorResolutionRepository, ActorRepository, DlqRepository],
+      inject: [ArchiveActorResolutionRepository, ActorRepository, DlqRepository, SOURCE_PLUGINS],
     },
     TimestampFillerService,
   ],
