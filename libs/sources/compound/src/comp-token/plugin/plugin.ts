@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Logger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
-import type { BackfillRuntime, SourcePlugin } from '@sources/core';
+import type { BackfillRuntime, SourceIngester } from '@sources/core';
 import { COMPOUND_COMP_TOKEN_TOPICS } from '../abi/events';
 import { COMP_TOKEN_ADDRESS } from '../constants';
 import type { CompTokenArchiveWriter } from '../ingestion/archive-writer';
@@ -28,9 +28,9 @@ export interface CompTokenPluginDeps {
 
 export function createCompTokenPlugin(
   deps: CompTokenPluginDeps,
-): SourcePlugin<CompTokenSourceConfig> {
+): SourceIngester<CompTokenSourceConfig> {
   const buildRuntime = (
-    ctx: Parameters<SourcePlugin<CompTokenSourceConfig>['buildIngestSpec']>[0],
+    ctx: Parameters<SourceIngester<CompTokenSourceConfig>['buildIngestSpec']>[0],
     cfg: CompTokenSourceConfig,
   ): BackfillRuntime => ({
     filter: {

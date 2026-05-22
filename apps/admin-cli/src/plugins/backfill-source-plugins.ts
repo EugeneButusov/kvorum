@@ -12,11 +12,11 @@ import {
   type CompTokenPluginDeps,
   type CompTokenSourceConfig,
 } from '@sources/compound';
-import type { BackfillRuntime, SourcePlugin } from '@sources/core';
+import type { BackfillRuntime, SourceIngester } from '@sources/core';
 
 export type BackfillSourcePlugin =
-  | SourcePlugin<CompoundGovernorConfig>
-  | SourcePlugin<CompTokenSourceConfig>;
+  | SourceIngester<CompoundGovernorConfig>
+  | SourceIngester<CompTokenSourceConfig>;
 
 export function buildBackfillSourcePlugins(deps: {
   governor: CompoundGovernorPluginDeps;
@@ -80,12 +80,12 @@ export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): B
 type ResolvedPlugin =
   | {
       kind: 'governor';
-      plugin: SourcePlugin<CompoundGovernorConfig>;
+      plugin: SourceIngester<CompoundGovernorConfig>;
       parsedConfig: CompoundGovernorConfig;
     }
   | {
       kind: 'comp_token';
-      plugin: SourcePlugin<CompTokenSourceConfig>;
+      plugin: SourceIngester<CompTokenSourceConfig>;
       parsedConfig: CompTokenSourceConfig;
     };
 
@@ -97,14 +97,14 @@ function resolvePluginAndConfig(
   for (const plugin of plugins) {
     if (plugin.sourceType === sourceType) {
       if (plugin.sourceType === 'compound_comp_token') {
-        const compTokenPlugin = plugin as SourcePlugin<CompTokenSourceConfig>;
+        const compTokenPlugin = plugin as SourceIngester<CompTokenSourceConfig>;
         return {
           kind: 'comp_token',
           plugin: compTokenPlugin,
           parsedConfig: compTokenPlugin.parseConfig(raw),
         };
       }
-      const governorPlugin = plugin as SourcePlugin<CompoundGovernorConfig>;
+      const governorPlugin = plugin as SourceIngester<CompoundGovernorConfig>;
       return {
         kind: 'governor',
         plugin: governorPlugin,

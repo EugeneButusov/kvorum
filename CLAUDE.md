@@ -40,7 +40,7 @@ ClickHouse archive layer ships in M1 (ADR-038). Analytical mirror layer (`vote_e
 
 These boundaries are not enforced by a linter rule (nx removed). Respect them manually — cross-lib deps beyond what's listed above require a clear architectural reason.
 
-`libs/sources/*` packages stay framework-agnostic: do NOT add `@nestjs/common` or other framework deps. NestJS DI is applied at the apps/indexer composition root, which registers the lib's plain classes via `useFactory` providers. This keeps the source primitives reusable from the backfill driver (Epic I) and any future non-Nest consumer.
+`libs/sources/*` packages stay framework-agnostic: do NOT add `@nestjs/common` or other framework deps. NestJS DI is applied at the apps/indexer composition root, which registers the lib's plain classes via `useFactory` providers. This keeps the source primitives reusable from the backfill driver (Epic I) and any future non-Nest consumer. Unified source bundle contract is defined in ADR-0057.
 
 ## Database access convention
 

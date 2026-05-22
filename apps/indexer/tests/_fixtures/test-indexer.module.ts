@@ -1,4 +1,10 @@
 import { Module } from '@nestjs/common';
+import {
+  SOURCE_INGESTERS,
+  SOURCE_PLUGINS,
+  type SourceIngester,
+  type SourcePlugin,
+} from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { TestEvmSourceModule } from './test-source.module';
 import { IndexerInfraModule } from '../../src/infra/indexer-infra.module';
@@ -12,6 +18,12 @@ import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, TestEvmSourceModule],
   providers: [
+    {
+      provide: SOURCE_INGESTERS,
+      useFactory: (plugins: SourcePlugin[]): SourceIngester[] =>
+        plugins.flatMap((p) => p.ingesters),
+      inject: [SOURCE_PLUGINS],
+    },
     EvmEventPollerDriver,
     {
       provide: FETCH_DRIVERS,

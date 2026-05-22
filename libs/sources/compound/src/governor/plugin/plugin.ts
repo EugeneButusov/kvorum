@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
-import type { BackfillRuntime, SourcePlugin } from '@sources/core';
+import type { BackfillRuntime, SourceIngester } from '@sources/core';
 import { interfaceForSource } from '../abi/events';
 import { GovernorArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
@@ -23,9 +23,9 @@ export interface CompoundGovernorPluginDeps {
 function createPlugin(
   sourceType: SourceType,
   deps: CompoundGovernorPluginDeps,
-): SourcePlugin<CompoundGovernorConfig> {
+): SourceIngester<CompoundGovernorConfig> {
   const buildBackfillRuntime = (
-    ctx: Parameters<SourcePlugin<CompoundGovernorConfig>['buildIngestSpec']>[0],
+    ctx: Parameters<SourceIngester<CompoundGovernorConfig>['buildIngestSpec']>[0],
     cfg: CompoundGovernorConfig,
   ): BackfillRuntime => {
     const topics = interfaceForSource(sourceType).topics;
@@ -72,25 +72,25 @@ function createPlugin(
 
 export function createCompoundGovernorBravoPlugin(
   deps: CompoundGovernorPluginDeps,
-): SourcePlugin<CompoundGovernorConfig> {
+): SourceIngester<CompoundGovernorConfig> {
   return createPlugin('compound_governor_bravo', deps);
 }
 
 export function createCompoundGovernorAlphaPlugin(
   deps: CompoundGovernorPluginDeps,
-): SourcePlugin<CompoundGovernorConfig> {
+): SourceIngester<CompoundGovernorConfig> {
   return createPlugin('compound_governor_alpha', deps);
 }
 
 export function createCompoundGovernorOzPlugin(
   deps: CompoundGovernorPluginDeps,
-): SourcePlugin<CompoundGovernorConfig> {
+): SourceIngester<CompoundGovernorConfig> {
   return createPlugin('compound_governor_oz', deps);
 }
 
 export function createCompoundPlugins(
   deps: CompoundGovernorPluginDeps,
-): readonly SourcePlugin<CompoundGovernorConfig>[] {
+): readonly SourceIngester<CompoundGovernorConfig>[] {
   return [
     createCompoundGovernorBravoPlugin(deps),
     createCompoundGovernorAlphaPlugin(deps),

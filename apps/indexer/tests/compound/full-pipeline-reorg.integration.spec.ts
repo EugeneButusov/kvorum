@@ -4,6 +4,12 @@ import { NestFactory } from '@nestjs/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChainContextRegistry } from '@libs/chain';
 import { pgDb } from '@libs/db';
+import {
+  SOURCE_INGESTERS,
+  SOURCE_PLUGINS,
+  type SourceIngester,
+  type SourcePlugin,
+} from '@sources/core';
 import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import {
   EVM_TEST_EMITTER_DEPLOY_BYTECODE,
@@ -26,12 +32,19 @@ const DB_URL = process.env['DATABASE_URL'];
 
 const describeIf = ANVIL_URL && DB_URL ? describe : describe.skip;
 
-// IndexerOrchestratorService is provided here (not in TestEvmIndexerModule) so that
-// NestJS can inject SOURCE_PLUGINS from TestEvmSourceModule alongside the infra
-// exports from TestEvmIndexerModule — sibling imports are only visible at this level.
+// IndexerOrchestratorService is provided here (not in TestEvmIndexerModule). The test
+// module also adapts SOURCE_PLUGINS bundles into SOURCE_INGESTERS for orchestrator DI.
 @Module({
   imports: [TestEvmIndexerModule, TestEvmSourceModule],
-  providers: [IndexerOrchestratorService],
+  providers: [
+    {
+      provide: SOURCE_INGESTERS,
+      useFactory: (plugins: SourcePlugin[]): SourceIngester[] =>
+        plugins.flatMap((p) => p.ingesters),
+      inject: [SOURCE_PLUGINS],
+    },
+    IndexerOrchestratorService,
+  ],
 })
 class FullPipelineReorgTestModule {}
 

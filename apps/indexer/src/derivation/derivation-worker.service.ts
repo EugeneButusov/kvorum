@@ -2,8 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ArchiveDerivationRepository, type ArchiveDerivationRow } from '@libs/db';
+import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
-import { PROJECTION_APPLIERS, type ProjectionApplier } from './projection-applier';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
@@ -12,14 +12,18 @@ const PROGRESS_LOG_INTERVAL_MS = 30_000;
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger('DerivationWorker');
+  private readonly appliers: readonly ProjectionDeriver[];
   private inFlight = false;
   private lastProgressLogAt = 0;
 
   constructor(
     private readonly archive: ArchiveDerivationRepository,
-    @Inject(PROJECTION_APPLIERS)
-    private readonly appliers: readonly ProjectionApplier[],
-  ) {}
+    @Inject(SOURCE_PLUGINS) plugins: readonly SourcePlugin[],
+  ) {
+    this.appliers = plugins
+      .flatMap((plugin) => plugin.derivers)
+      .filter((deriver): deriver is ProjectionDeriver => deriver.kind === 'projection');
+  }
 
   async onApplicationBootstrap(): Promise<void> {
     void this.tick();

@@ -1,10 +1,13 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
+import { ArchiveDerivationRepository } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
 import {
   CompTokenArchiveWriter,
   CompTokenEventRepository,
+  CompoundArchivePayloadRepository,
   CompoundProposalRepository,
+  CompoundProjectionApplier,
   GovernorArchiveWriter,
   GovernorEventRepository,
   createCompTokenPlugin,
@@ -16,7 +19,7 @@ import type { SourcePlugin } from '@sources/core';
 import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
-export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
+export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
 
 @Module({
   providers: [
@@ -27,6 +30,10 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
     {
       provide: DlqRepository,
       useFactory: () => new DlqRepository(pgDb),
+    },
+    {
+      provide: ArchiveDerivationRepository,
+      useFactory: () => new ArchiveDerivationRepository(pgDb),
     },
     {
       provide: GovernorArchiveWriter,
@@ -66,48 +73,71 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       inject: [CompTokenEventRepository, ConfirmationRepository, DlqRepository],
     },
     {
-      provide: COMPOUND_PLUGINS,
+      provide: CompoundProjectionApplier,
+      useFactory: (archive: ArchiveDerivationRepository) =>
+        new CompoundProjectionApplier({
+          pgDb,
+          chDb,
+          archive,
+          payloads: new CompoundArchivePayloadRepository(chDb),
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            processed: () => undefined,
+          },
+          logger: toChainLogger(new Logger('CompoundProjectionApplier')),
+        }),
+      inject: [ArchiveDerivationRepository],
+    },
+    {
+      provide: COMPOUND_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: GovernorArchiveWriter,
         dlqRepo: DlqRepository,
         proposalRepo: CompoundProposalRepository,
         compTokenArchiveWriter: CompTokenArchiveWriter,
-      ): SourcePlugin[] => {
+        projectionApplier: CompoundProjectionApplier,
+      ): SourcePlugin => {
         const reconcileLogger = toChainLogger(new Logger('CompoundReconcile'));
         const metrics = buildDriverMetrics();
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
-        return [
-          ...createCompoundPlugins({
-            archiveWriter,
-            dlqRepo,
-            logger: toChainLogger(new Logger('CompoundGovernor')),
-          }),
-          createCompTokenPlugin({
-            archiveWriter: compTokenArchiveWriter,
-            dlqRepo,
-            logger: toChainLogger(new Logger('CompTokenIngester')),
-          }),
-          createCompoundGovernorBravoReconcilePlugin({
-            proposals: proposalRepo,
-            metrics,
-            logger: reconcileLogger,
-          }),
-          createCompoundGovernorOzReconcilePlugin({
-            proposals: proposalRepo,
-            metrics,
-            logger: reconcileLogger,
-          }),
-        ];
+
+        return {
+          name: 'compound',
+          ingesters: [
+            ...createCompoundPlugins({
+              archiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('CompoundGovernor')),
+            }),
+            createCompTokenPlugin({
+              archiveWriter: compTokenArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('CompTokenIngester')),
+            }),
+            createCompoundGovernorBravoReconcilePlugin({
+              proposals: proposalRepo,
+              metrics,
+              logger: reconcileLogger,
+            }),
+            createCompoundGovernorOzReconcilePlugin({
+              proposals: proposalRepo,
+              metrics,
+              logger: reconcileLogger,
+            }),
+          ],
+          derivers: [projectionApplier],
+        };
       },
       inject: [
         GovernorArchiveWriter,
         DlqRepository,
         CompoundProposalRepository,
         CompTokenArchiveWriter,
+        CompoundProjectionApplier,
       ],
     },
   ],
-  exports: [COMPOUND_PLUGINS],
+  exports: [COMPOUND_SOURCE_PLUGIN],
 })
 export class CompoundSourceModule {}

@@ -36,18 +36,58 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
+import type { ArchiveDerivationRow } from '@libs/db';
 import type { BackfillRuntime } from './backfill/types';
 
-/** Nest injection token for the multi-provider array of registered SourcePlugins. */
+/** Nest injection token for the multi-provider array of registered source plugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
+/** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
+export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
-export interface SourcePlugin<TConfig = unknown> {
+export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
   /** Orchestrator skips any dao_source whose chain is not in this list. */
   readonly supportedChainIds: readonly string[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
+}
+
+export interface ProjectionDeriver {
+  readonly kind: 'projection';
+  readonly sourceTypes: readonly string[];
+  readonly eventTypes: readonly string[];
+  applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void>;
+}
+
+export interface ActorAddressPayloadRow {
+  chain_id: string;
+  tx_hash: string;
+  log_index: number;
+  block_hash: string;
+  event_type: string;
+  payload: string;
+}
+
+export interface ActorAddressCandidate {
+  address: string;
+  role?: string;
+}
+
+export interface ActorAddressDeriver {
+  readonly kind: 'actor-address';
+  readonly sourceTypes: readonly string[];
+  readonly eventTypes: readonly string[];
+  fetchPayloads(rows: readonly ArchiveDerivationRow[]): Promise<readonly ActorAddressPayloadRow[]>;
+  extractAddresses(eventType: string, payload: string): readonly ActorAddressCandidate[];
+}
+
+export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
+
+export interface SourcePlugin {
+  readonly name: string;
+  readonly ingesters: readonly SourceIngester[];
+  readonly derivers: readonly SourceDeriver[];
 }
 
 export type IngestSpec =
