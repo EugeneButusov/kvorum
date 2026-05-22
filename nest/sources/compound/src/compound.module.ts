@@ -1,5 +1,6 @@
 import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
+import { ArchiveDerivationRepository } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
 import {
   CompTokenArchiveWriter,
@@ -15,7 +16,6 @@ import {
   createCompoundGovernorOzReconcilePlugin,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
-import { ArchiveDerivationRepository } from '@libs/db';
 import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
