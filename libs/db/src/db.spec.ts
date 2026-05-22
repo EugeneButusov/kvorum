@@ -770,7 +770,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           'voting_power_snapshot_proposal_idx',
           'actor_address_primary_uidx',
           'idx_actor_merged_into',
-          'idx_archive_confirmation_l0_pending',
+          'idx_archive_confirmation_actor_resolution_pending',
         ]) {
           expect(indexNames.has(expected)).toBe(true);
         }

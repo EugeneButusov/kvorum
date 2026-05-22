@@ -28,7 +28,7 @@ The fire-on-condition contract committed above leaves the implementation shape o
 
 - Event polling (the hot-path loop whose lag triggers the split).
 - Archive write path (F1's PG-first-then-CH-then-PG protocol per ADR-041).
-- Derivation workers L0 (pre-derivation actor sweep — single-threaded, critical path) and L1 + L2 (vote / delegation derivation).
+- Derivation workers (pre-derivation actor sweep + vote/delegation derivation).
 - Reorg detector + Epic P's `reorg-signal-recovery-sweep` (must stay co-located with event polling for tight reorg-response semantics).
 - DLQ retry worker (M1 carry-over) — colocated with archive write path for retry latency.
 - Governor state reconciler (ADR-049) — chain-state-driven; tightly coupled to event polling.

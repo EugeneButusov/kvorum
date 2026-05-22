@@ -96,7 +96,7 @@ describe('ArchiveDerivationRepository', () => {
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
 
-  it('selects confirmed unresolved actor rows by L0 contract', async () => {
+  it('selects confirmed unresolved actor rows by actor-sweep contract', async () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 

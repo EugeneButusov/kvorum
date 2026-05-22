@@ -191,7 +191,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
-    CREATE INDEX idx_archive_confirmation_l0_pending
+    CREATE INDEX idx_archive_confirmation_actor_resolution_pending
     ON archive_confirmation (dao_source_id)
     WHERE confirmation_status = 'confirmed' AND derivation_actor_resolved_at IS NULL
   `.execute(db);
@@ -205,7 +205,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await db.schema.dropIndex('idx_archive_confirmation_l0_pending').execute();
+  await db.schema.dropIndex('idx_archive_confirmation_actor_resolution_pending').execute();
   await db.schema.dropIndex('idx_actor_merged_into').execute();
 
   await db.schema.alterTable('actor').dropColumn('merged_into_actor_id').execute();
