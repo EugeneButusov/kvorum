@@ -1,6 +1,12 @@
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { ActorRepository, ArchiveDerivationRepository, DlqRepository, chDb, pgDb } from '@libs/db';
+import {
+  ActorRepository,
+  ArchiveActorResolutionRepository,
+  DlqRepository,
+  chDb,
+  pgDb,
+} from '@libs/db';
 import {
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
@@ -18,18 +24,18 @@ function numberedHash(n: number): string {
 }
 
 describeIf('actor sweep integration', () => {
-  let archive: ArchiveDerivationRepository;
+  let actorResolution: ArchiveActorResolutionRepository;
   let actors: ActorRepository;
   let dlq: DlqRepository;
   let service: ActorSweepService;
   let daoSourceId = '';
 
   beforeAll(async () => {
-    archive = new ArchiveDerivationRepository(pgDb);
+    actorResolution = new ArchiveActorResolutionRepository(pgDb);
     actors = new ActorRepository(pgDb);
     dlq = new DlqRepository(pgDb);
     service = new ActorSweepService(
-      archive,
+      actorResolution,
       actors,
       dlq,
       new GovernorArchivePayloadRepository(chDb),

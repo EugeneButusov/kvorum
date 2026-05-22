@@ -2,6 +2,7 @@ import type { Kysely } from 'kysely';
 import { silentLogger, type Logger } from '@libs/chain';
 import {
   ActorRepository,
+  ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
   type ClickHouseDatabase,
   type ArchiveDerivationRow,
@@ -54,6 +55,7 @@ interface CompoundProjectionRepositories {
   proposals: ProposalRepository;
   compoundProposals: CompoundProposalRepository;
   archive: ArchiveDerivationRepository;
+  actorResolution: ArchiveActorResolutionRepository;
 }
 
 export class GovernorProjectionApplier {
@@ -149,52 +151,54 @@ export class GovernorProjectionApplier {
         confirmed_at: row.confirmed_at,
       });
 
-      await this.transaction(async ({ actors, proposals, compoundProposals, archive }) => {
-        const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
-        if (daoId === undefined) {
-          throw new Error(`unknown dao_source ${projection.daoSourceId}`);
-        }
-
-        if (projection.kind === 'proposal_created') {
-          const proposer = await actors.findOrCreateActorAddress(
-            projection.proposerAddress,
-            'proposer_event',
-          );
-          const result = await proposals.insertProposal({
-            ...projection.proposal,
-            dao_id: daoId,
-            proposer_actor_id: proposer.id,
-          });
-
-          if (result.inserted) {
-            await proposals.insertActions(result.proposalId!, projection.actions);
-            await proposals.ensureChoices(result.proposalId!, projection.choices);
-            this.record(row, 'derived', null);
-          } else {
-            this.record(row, 'skipped_idempotent', null);
+      await this.transaction(
+        async ({ actors, proposals, compoundProposals, archive, actorResolution }) => {
+          const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
+          if (daoId === undefined) {
+            throw new Error(`unknown dao_source ${projection.daoSourceId}`);
           }
-        } else {
-          const advanced = await proposals.advanceState({
-            daoId,
-            sourceType: projection.sourceType,
-            sourceId: projection.sourceId,
-            targetState: projection.targetState,
-            stateUpdatedAt: projection.stateUpdatedAt,
-          });
-          if (advanced > 0 && projection.queuedAtBlock !== undefined) {
-            await compoundProposals.upsertQueuedAtBlock(
-              daoId,
-              projection.sourceType,
-              projection.sourceId,
-              projection.queuedAtBlock,
+
+          if (projection.kind === 'proposal_created') {
+            const proposer = await actors.findOrCreateActorAddress(
+              projection.proposerAddress,
+              'proposer_event',
             );
-          }
-          this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
-        }
+            const result = await proposals.insertProposal({
+              ...projection.proposal,
+              dao_id: daoId,
+              proposer_actor_id: proposer.id,
+            });
 
-        await archive.markDerived(row.id);
-        await archive.markActorResolved(row.id);
-      });
+            if (result.inserted) {
+              await proposals.insertActions(result.proposalId!, projection.actions);
+              await proposals.ensureChoices(result.proposalId!, projection.choices);
+              this.record(row, 'derived', null);
+            } else {
+              this.record(row, 'skipped_idempotent', null);
+            }
+          } else {
+            const advanced = await proposals.advanceState({
+              daoId,
+              sourceType: projection.sourceType,
+              sourceId: projection.sourceId,
+              targetState: projection.targetState,
+              stateUpdatedAt: projection.stateUpdatedAt,
+            });
+            if (advanced > 0 && projection.queuedAtBlock !== undefined) {
+              await compoundProposals.upsertQueuedAtBlock(
+                daoId,
+                projection.sourceType,
+                projection.sourceId,
+                projection.queuedAtBlock,
+              );
+            }
+            this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
+          }
+
+          await archive.markDerived(row.id);
+          await actorResolution.markActorResolved(row.id);
+        },
+      );
     } catch (err) {
       this.record(row, 'failed', 'pg_tx_error');
       await this.archive.incrementAttemptCount(row.id);
@@ -220,6 +224,7 @@ export class GovernorProjectionApplier {
         proposals: new ProposalRepository(tx),
         compoundProposals: new CompoundProposalRepository(tx),
         archive: new ArchiveDerivationRepository(tx),
+        actorResolution: new ArchiveActorResolutionRepository(tx),
       }),
     );
   }

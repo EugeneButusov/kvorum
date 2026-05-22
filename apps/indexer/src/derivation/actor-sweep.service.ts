@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
   ActorRepository,
-  ArchiveDerivationRepository,
+  ArchiveActorResolutionRepository,
   DlqRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
@@ -33,7 +33,7 @@ export class ActorSweepService {
   private inFlight = false;
 
   constructor(
-    private readonly archive: ArchiveDerivationRepository,
+    private readonly actorResolution: ArchiveActorResolutionRepository,
     private readonly actors: ActorRepository,
     private readonly dlq: DlqRepository,
     private readonly governorPayloads: GovernorArchivePayloadRepository,
@@ -49,7 +49,7 @@ export class ActorSweepService {
       const batchSize = Number(
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
-      const rows = await this.archive.findConfirmedUnresolvedActors(
+      const rows = await this.actorResolution.findConfirmedUnresolvedActors(
         ACTOR_SWEEP_EVENT_TYPES,
         ACTOR_SWEEP_DLQ_THRESHOLD,
         batchSize,
@@ -89,7 +89,7 @@ export class ActorSweepService {
             if (normalized === ZERO_ADDRESS) continue;
             await this.actors.findOrCreateActorAddress(normalized, candidate.source);
           }
-          await this.archive.markActorResolved(row.id);
+          await this.actorResolution.markActorResolved(row.id);
         } catch (err) {
           await this.handleFailure(row, err);
         }
@@ -115,7 +115,7 @@ export class ActorSweepService {
   }
 
   private async handleFailure(row: ArchiveDerivationRow, err: unknown): Promise<void> {
-    const attempt = await this.archive.incrementActorResolutionAttemptCount(row.id);
+    const attempt = await this.actorResolution.incrementActorResolutionAttemptCount(row.id);
     this.logger.warn('actor_sweep_row_failed', {
       row_id: row.id,
       source_type: row.source_type,

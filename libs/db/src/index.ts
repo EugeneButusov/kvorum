@@ -6,6 +6,7 @@ export type { ActiveApiKeyResult, SafeApiKey } from './api-key-repository';
 export { ApiKeyRepository } from './api-key-repository';
 export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
+export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
 export type { ConfirmationKey } from './confirmation-repository';
 export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';

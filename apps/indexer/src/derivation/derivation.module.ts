@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import {
   ActorRepository,
+  ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
   chDb,
   DlqRepository,
@@ -32,21 +33,29 @@ import { TimestampFillerService } from './timestamp-filler.service';
       useFactory: () => new ArchiveDerivationRepository(pgDb),
     },
     {
+      provide: ArchiveActorResolutionRepository,
+      useFactory: () => new ArchiveActorResolutionRepository(pgDb),
+    },
+    {
       provide: DlqRepository,
       useFactory: () => new DlqRepository(pgDb),
     },
     DerivationWorkerService,
     {
       provide: ActorSweepService,
-      useFactory: (archive: ArchiveDerivationRepository, actors: ActorRepository, dlq: DlqRepository) =>
+      useFactory: (
+        actorResolution: ArchiveActorResolutionRepository,
+        actors: ActorRepository,
+        dlq: DlqRepository,
+      ) =>
         new ActorSweepService(
-          archive,
+          actorResolution,
           actors,
           dlq,
           new GovernorArchivePayloadRepository(chDb),
           new CompTokenArchivePayloadRepository(chDb),
         ),
-      inject: [ArchiveDerivationRepository, ActorRepository, DlqRepository],
+      inject: [ArchiveActorResolutionRepository, ActorRepository, DlqRepository],
     },
     TimestampFillerService,
   ],
