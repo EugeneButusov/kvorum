@@ -16,11 +16,11 @@ import type {
   ProposalExecutedPayload,
   ProposalQueuedPayload,
 } from './types';
+import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 import {
   GovernorArchivePayloadRepository,
   type GovernorArchivePayloadRow,
 } from '../persistence/governor-archive-payload-repository';
-import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 
 export type CompoundDerivationOutcome =
   | 'derived'
