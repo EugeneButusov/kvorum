@@ -25,7 +25,7 @@ const CREATED_PAYLOAD: GovernorArchivePayloadRow = {
   event_type: 'ProposalCreated',
   payload: JSON.stringify({
     proposalId: '42',
-    proposer: '0xabcdef',
+    proposer: '0x' + 'ab'.repeat(20),
     targets: ['0x1111111111111111111111111111111111111111'],
     values: ['0'],
     signatures: ['_setPendingAdmin(address)'],
@@ -87,6 +87,9 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
   }
 
   const tx = {
+    transaction: vi.fn(() => ({
+      execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) => fn(tx)),
+    })),
     selectFrom: vi.fn((table: string) => {
       if (table === 'dao_source') {
         return chain({
