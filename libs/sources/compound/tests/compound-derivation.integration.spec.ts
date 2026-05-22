@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ArchiveDerivationRepository, chDb, pgDb } from '@libs/db';
-import { GovernorArchivePayloadRepository, CompoundProjectionApplier } from '@sources/compound';
+import { GovernorArchivePayloadRepository, GovernorProjectionApplier } from '@sources/compound';
 
 const DB_URL = process.env['DATABASE_URL'];
 const describeIf = DB_URL ? describe : describe.skip;
@@ -14,13 +14,13 @@ function numberedHash(n: number): string {
 }
 
 describeIf('compound governor derivation', () => {
-  let applier: CompoundProjectionApplier;
+  let applier: GovernorProjectionApplier;
   let archive: ArchiveDerivationRepository;
   let daoSourceId: string;
 
   beforeAll(async () => {
     archive = new ArchiveDerivationRepository(pgDb);
-    applier = new CompoundProjectionApplier({
+    applier = new GovernorProjectionApplier({
       pgDb,
       chDb,
       archive,

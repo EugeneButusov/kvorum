@@ -53,10 +53,10 @@ export { ProposalProjectionError, projectCompoundProposalEvent } from './domain/
 export type {
   CompoundDerivationFailureReason,
   CompoundDerivationOutcome,
-  CompoundProjectionApplierDeps,
-  CompoundProjectionMetrics,
-} from './domain/compound-projection-applier';
-export { CompoundProjectionApplier } from './domain/compound-projection-applier';
+  GovernorProjectionApplierDeps,
+  GovernorProjectionMetrics,
+} from './domain/governor-projection-applier';
+export { GovernorProjectionApplier } from './domain/governor-projection-applier';
 
 export type { GovernorArchivePayloadRow } from './persistence/governor-archive-payload-repository';
 export { GovernorArchivePayloadRepository } from './persistence/governor-archive-payload-repository';

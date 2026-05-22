@@ -30,7 +30,7 @@ export type CompoundDerivationOutcome =
 
 export type CompoundDerivationFailureReason = 'ch_missing' | 'decode_error' | 'pg_tx_error';
 
-export interface CompoundProjectionMetrics {
+export interface GovernorProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
@@ -40,12 +40,12 @@ export interface CompoundProjectionMetrics {
   }): void;
 }
 
-export interface CompoundProjectionApplierDeps {
+export interface GovernorProjectionApplierDeps {
   pgDb: Kysely<PgDatabase>;
   chDb: Kysely<ClickHouseDatabase>;
   archive: ArchiveDerivationRepository;
   payloads: GovernorArchivePayloadRepository;
-  metrics: CompoundProjectionMetrics;
+  metrics: GovernorProjectionMetrics;
   logger?: Logger;
 }
 
@@ -56,7 +56,7 @@ interface CompoundProjectionRepositories {
   archive: ArchiveDerivationRepository;
 }
 
-export class CompoundProjectionApplier {
+export class GovernorProjectionApplier {
   readonly kind = 'projection' as const;
   readonly sourceTypes = [
     'compound_governor_bravo',
@@ -74,10 +74,10 @@ export class CompoundProjectionApplier {
   private readonly chDb: Kysely<ClickHouseDatabase>;
   private readonly archive: ArchiveDerivationRepository;
   private readonly payloads: GovernorArchivePayloadRepository;
-  private readonly metrics: CompoundProjectionMetrics;
+  private readonly metrics: GovernorProjectionMetrics;
   private readonly logger: Logger;
 
-  constructor(deps: CompoundProjectionApplierDeps) {
+  constructor(deps: GovernorProjectionApplierDeps) {
     this.pgDb = deps.pgDb;
     this.chDb = deps.chDb;
     this.archive = deps.archive;

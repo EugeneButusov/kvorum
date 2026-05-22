@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { CompoundProjectionApplier } from './compound-projection-applier';
+import { GovernorProjectionApplier } from './governor-projection-applier';
 import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
 const ROW: ArchiveDerivationRow = {
@@ -184,9 +184,9 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
   return { pgDb, tx, calls };
 }
 
-describe('CompoundProjectionApplier', () => {
+describe('GovernorProjectionApplier', () => {
   it('supports both compound governor source types', () => {
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: {} as never,
       chDb: {} as never,
       archive: {} as never,
@@ -211,7 +211,7 @@ describe('CompoundProjectionApplier', () => {
     };
     const metrics = makeMetrics();
 
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
@@ -248,7 +248,7 @@ describe('CompoundProjectionApplier', () => {
 
   it('does not write children when ProposalCreated is idempotent', async () => {
     const { pgDb, calls } = makeProjectionTx({ proposalInserted: false });
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -268,7 +268,7 @@ describe('CompoundProjectionApplier', () => {
   it('advances state and upserts queued_at_block on ProposalQueued', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -292,7 +292,7 @@ describe('CompoundProjectionApplier', () => {
   it('advances state without touching compound_proposal_meta on ProposalExecuted', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -316,7 +316,7 @@ describe('CompoundProjectionApplier', () => {
   it('records skipped_state_guard and skips queued_at_block upsert when state guard blocks', async () => {
     const { pgDb, calls } = makeProjectionTx({ advanceStateRows: 0 });
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -340,7 +340,7 @@ describe('CompoundProjectionApplier', () => {
     const archive = {
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: makeProjectionTx().pgDb as never,
       chDb: {} as never,
       archive: archive as never,
@@ -361,7 +361,7 @@ describe('CompoundProjectionApplier', () => {
     };
     const metrics = makeMetrics();
     const { pgDb, calls } = makeProjectionTx();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
