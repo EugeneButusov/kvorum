@@ -134,7 +134,7 @@ export class ArchiveWriter {
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'archive_confirmation_write',
+      stage: 'confirmation_archive_stage',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

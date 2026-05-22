@@ -107,7 +107,7 @@ export class CompTokenArchiveWriter {
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'delegation_archive_write',
+      stage: 'delegation_archive_stage',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

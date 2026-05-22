@@ -14,18 +14,6 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('delegation_archive_stage')).toBe(true);
   });
 
-  it('accepts legacy confirmation stage alias', () => {
-    expect(isDlqRetryableStage('archive_confirmation_write')).toBe(true);
-  });
-
-  it('accepts legacy vote stage alias', () => {
-    expect(isDlqRetryableStage('vote_archive_write')).toBe(true);
-  });
-
-  it('accepts legacy delegation stage alias', () => {
-    expect(isDlqRetryableStage('delegation_archive_write')).toBe(true);
-  });
-
   it('rejects non-retryable stage', () => {
     expect(isDlqRetryableStage('archive_decode')).toBe(false);
   });

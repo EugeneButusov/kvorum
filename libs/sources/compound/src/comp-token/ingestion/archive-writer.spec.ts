@@ -99,7 +99,7 @@ describe('CompTokenArchiveWriter', () => {
     expect(outcome.result).toBe('skipped_conflict');
   });
 
-  it('routes persistent PG confirmation failure to delegation_archive_write DLQ', async () => {
+  it('routes persistent PG confirmation failure to delegation_archive_stage DLQ', async () => {
     let capturedDlq: unknown;
     const confirmationRepo = makeConfirmationRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg')),
@@ -113,7 +113,7 @@ describe('CompTokenArchiveWriter', () => {
 
     const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlq as Record<string, unknown>)['stage']).toBe('delegation_archive_write');
+    expect((capturedDlq as Record<string, unknown>)['stage']).toBe('delegation_archive_stage');
   });
 
   it('returns unreachable when DLQ write fails', async () => {
@@ -126,7 +126,7 @@ describe('CompTokenArchiveWriter', () => {
     expect(outcome.result).toBe('unreachable');
   });
 
-  it('routes CH archive insert failure to delegation_archive_write DLQ', async () => {
+  it('routes CH archive insert failure to delegation_archive_stage DLQ', async () => {
     const eventRepo = makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) });
     const confirmationRepo = makeConfirmationRepo();
     const dlqRepo = makeDlqRepo();
@@ -140,7 +140,7 @@ describe('CompTokenArchiveWriter', () => {
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
     expect(dlqRepo.insert).toHaveBeenCalledOnce();
     expect(dlqRepo.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ stage: 'delegation_archive_write' }),
+      expect.objectContaining({ stage: 'delegation_archive_stage' }),
     );
   });
 
