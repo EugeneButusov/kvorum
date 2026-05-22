@@ -141,6 +141,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute();
 
   await db.schema
+    .alterTable('archive_confirmation')
+    .addColumn('actor_resolution_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
+    .execute();
+
+  await db.schema
     .createIndex('vote_proposal_id_cast_at_idx')
     .on('vote')
     .columns(['proposal_id', 'cast_at desc'])
@@ -214,6 +219,10 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_actor_merged_into').execute();
 
   await db.schema.alterTable('actor').dropColumn('merged_into_actor_id').execute();
+  await db.schema
+    .alterTable('archive_confirmation')
+    .dropColumn('actor_resolution_attempt_count')
+    .execute();
   await db.schema
     .alterTable('archive_confirmation')
     .dropColumn('derivation_actor_resolved_at')
