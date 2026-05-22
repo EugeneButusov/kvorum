@@ -6,7 +6,6 @@ import {
   ArchiveDerivationRepository,
   DlqRepository,
   ProposalRepository,
-  chDb,
   pgDb,
 } from '@libs/db';
 import { SOURCE_PLUGINS, type ActorSweepAdapter, type SourcePlugin } from '@sources/core';
