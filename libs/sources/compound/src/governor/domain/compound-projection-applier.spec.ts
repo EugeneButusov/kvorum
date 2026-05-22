@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
 import { CompoundProjectionApplier } from './compound-projection-applier';
-import type { CompoundArchivePayloadRow } from '../persistence/compound-archive-payload-repository';
+import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
@@ -17,7 +17,7 @@ const ROW: ArchiveDerivationRow = {
   derivation_attempt_count: 0,
 };
 
-const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
+const CREATED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,
@@ -37,7 +37,7 @@ const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
-const QUEUED_PAYLOAD: CompoundArchivePayloadRow = {
+const QUEUED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,
@@ -47,7 +47,7 @@ const QUEUED_PAYLOAD: CompoundArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
-const EXECUTED_PAYLOAD: CompoundArchivePayloadRow = {
+const EXECUTED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,

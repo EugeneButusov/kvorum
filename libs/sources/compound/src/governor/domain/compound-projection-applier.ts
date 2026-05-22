@@ -17,9 +17,9 @@ import type {
   ProposalQueuedPayload,
 } from './types';
 import {
-  CompoundArchivePayloadRepository,
-  type CompoundArchivePayloadRow,
-} from '../persistence/compound-archive-payload-repository';
+  GovernorArchivePayloadRepository,
+  type GovernorArchivePayloadRow,
+} from '../persistence/governor-archive-payload-repository';
 import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 
 export type CompoundDerivationOutcome =
@@ -44,7 +44,7 @@ export interface CompoundProjectionApplierDeps {
   pgDb: Kysely<PgDatabase>;
   chDb: Kysely<ClickHouseDatabase>;
   archive: ArchiveDerivationRepository;
-  payloads: CompoundArchivePayloadRepository;
+  payloads: GovernorArchivePayloadRepository;
   metrics: CompoundProjectionMetrics;
   logger?: Logger;
 }
@@ -73,7 +73,7 @@ export class CompoundProjectionApplier {
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;
   private readonly archive: ArchiveDerivationRepository;
-  private readonly payloads: CompoundArchivePayloadRepository;
+  private readonly payloads: GovernorArchivePayloadRepository;
   private readonly metrics: CompoundProjectionMetrics;
   private readonly logger: Logger;
 
@@ -118,7 +118,7 @@ export class CompoundProjectionApplier {
 
   private async apply(
     row: ArchiveDerivationRow,
-    payload: CompoundArchivePayloadRow,
+    payload: GovernorArchivePayloadRow,
   ): Promise<void> {
     let event: CompoundGovernorEvent;
     try {
@@ -250,6 +250,6 @@ function parseArchiveEvent(eventType: string, payloadJson: string): CompoundGove
   }
 }
 
-function tupleKey(row: ArchiveDerivationRow | CompoundArchivePayloadRow): string {
+function tupleKey(row: ArchiveDerivationRow | GovernorArchivePayloadRow): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

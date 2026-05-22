@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { CompoundArchivePayloadRepository } from './compound-archive-payload-repository';
+import { GovernorArchivePayloadRepository } from './governor-archive-payload-repository';
 
 const ARCHIVE_ROW: ArchiveDerivationRow = {
   id: 'row-1',
@@ -32,10 +32,10 @@ function makeSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
-describe('CompoundArchivePayloadRepository', () => {
+describe('GovernorArchivePayloadRepository', () => {
   it('skips ClickHouse lookup for an empty batch', async () => {
     const chSelect = makeSelectChain([]);
-    const repo = new CompoundArchivePayloadRepository({
+    const repo = new GovernorArchivePayloadRepository({
       selectFrom: chSelect.selectFrom,
     } as never);
 
@@ -55,7 +55,7 @@ describe('CompoundArchivePayloadRepository', () => {
       received_at: new Date('2026-01-01T00:00:00Z'),
     };
     const chSelect = makeSelectChain([payload]);
-    const repo = new CompoundArchivePayloadRepository({
+    const repo = new GovernorArchivePayloadRepository({
       selectFrom: chSelect.selectFrom,
     } as never);
 
@@ -76,7 +76,7 @@ describe('CompoundArchivePayloadRepository', () => {
       received_at: new Date('2026-01-01T00:00:00Z'),
     };
     const chSelect = makeSelectChain([payload]);
-    const repo = new CompoundArchivePayloadRepository({
+    const repo = new GovernorArchivePayloadRepository({
       selectFrom: chSelect.selectFrom,
     } as never);
 

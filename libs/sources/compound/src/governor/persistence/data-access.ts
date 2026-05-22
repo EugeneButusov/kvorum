@@ -1,2 +1,2 @@
-export type { CompoundArchivePayloadRow } from './compound-archive-payload-repository';
-export { CompoundArchivePayloadRepository } from './compound-archive-payload-repository';
+export type { GovernorArchivePayloadRow } from './governor-archive-payload-repository';
+export { GovernorArchivePayloadRepository } from './governor-archive-payload-repository';

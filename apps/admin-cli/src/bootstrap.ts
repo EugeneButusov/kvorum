@@ -13,7 +13,7 @@ import {
   chDb,
   pgDb,
 } from '@libs/db';
-import { CompoundArchivePayloadRepository } from '@sources/compound/governor/data-access';
+import { GovernorArchivePayloadRepository } from '@sources/compound/governor/data-access';
 
 export interface AdminCliContainer {
   daoSourceRepository: DaoSourceRepository;
@@ -21,7 +21,7 @@ export interface AdminCliContainer {
   daoAdminRepository: DaoAdminRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
-  compoundArchivePayloadRepository: CompoundArchivePayloadRepository;
+  compoundArchivePayloadRepository: GovernorArchivePayloadRepository;
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
@@ -37,7 +37,7 @@ export function buildContainer(): AdminCliContainer {
     daoAdminRepository: new DaoAdminRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
-    compoundArchivePayloadRepository: new CompoundArchivePayloadRepository(chDb),
+    compoundArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),

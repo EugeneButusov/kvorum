@@ -58,8 +58,8 @@ export type {
 } from './domain/compound-projection-applier';
 export { CompoundProjectionApplier } from './domain/compound-projection-applier';
 
-export type { CompoundArchivePayloadRow } from './persistence/compound-archive-payload-repository';
-export { CompoundArchivePayloadRepository } from './persistence/compound-archive-payload-repository';
+export type { GovernorArchivePayloadRow } from './persistence/governor-archive-payload-repository';
+export { GovernorArchivePayloadRepository } from './persistence/governor-archive-payload-repository';
 
 export type {
   ReconcilePerChainBound,
