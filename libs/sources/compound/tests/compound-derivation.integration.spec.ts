@@ -14,7 +14,6 @@ const GOVERNOR_DERIVATION_EVENT_TYPES = [
   'ProposalExecuted',
   'ProposalCanceled',
 ] as const;
-const DERIVATION_ATTEMPT_THRESHOLD = 5;
 
 function numberedHash(n: number): string {
   return '0x' + n.toString(16).padStart(64, '0');
@@ -154,11 +153,7 @@ describeIf('compound governor derivation', () => {
       },
     });
 
-    const rows1 = await archive.findConfirmedUndderived(
-      GOVERNOR_DERIVATION_EVENT_TYPES,
-      DERIVATION_ATTEMPT_THRESHOLD,
-      10,
-    );
+    const rows1 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows1);
 
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -203,11 +198,7 @@ describeIf('compound governor derivation', () => {
       .where('tx_hash', '=', numberedHash(1))
       .execute();
 
-    const rows2 = await archive.findConfirmedUndderived(
-      GOVERNOR_DERIVATION_EVENT_TYPES,
-      DERIVATION_ATTEMPT_THRESHOLD,
-      10,
-    );
+    const rows2 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows2);
 
     const proposalsAfterReplay = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -226,11 +217,7 @@ describeIf('compound governor derivation', () => {
     });
 
     await applier.applyBatch(
-      await archive.findConfirmedUndderived(
-        GOVERNOR_DERIVATION_EVENT_TYPES,
-        DERIVATION_ATTEMPT_THRESHOLD,
-        10,
-      ),
+      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
     );
 
     const executed = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
@@ -246,11 +233,7 @@ describeIf('compound governor derivation', () => {
     });
 
     await applier.applyBatch(
-      await archive.findConfirmedUndderived(
-        GOVERNOR_DERIVATION_EVENT_TYPES,
-        DERIVATION_ATTEMPT_THRESHOLD,
-        10,
-      ),
+      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
     );
 
     const afterLateQueued = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
