@@ -13,7 +13,7 @@ import {
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
 import type { ActorSweepAdapter } from '@sources/core';
-import { ActorSweepService } from './actor-sweep.service';
+import { ActorSweepService } from '../../src/derivation/actor-sweep.service';
 
 const DB_URL = process.env['DATABASE_URL'];
 const CH_URL = process.env['CLICKHOUSE_URL'];
