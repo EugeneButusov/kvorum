@@ -2,15 +2,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildBackfillSourcePlugins } from './backfill-source-plugins.js';
 
 describe('buildBackfillSourcePlugins', () => {
-  it('bootstraps compound bravo, alpha, and oz plugins transparently', () => {
+  it('bootstraps governor and comp-token plugins transparently', () => {
     const plugins = buildBackfillSourcePlugins({
-      archiveWriter: {} as never,
-      dlqRepo: {} as never,
-      logger: {
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
+      governor: {
+        archiveWriter: {} as never,
+        dlqRepo: {} as never,
+        logger: {
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        },
+      },
+      compToken: {
+        archiveWriter: {} as never,
+        dlqRepo: {} as never,
+        logger: {
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        },
       },
     });
 
@@ -18,6 +30,7 @@ describe('buildBackfillSourcePlugins', () => {
       'compound_governor_bravo',
       'compound_governor_alpha',
       'compound_governor_oz',
+      'compound_comp_token',
     ]);
   });
 });

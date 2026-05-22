@@ -13,6 +13,7 @@ type BackfillStartOptions = BackfillCommonOptions & {
   fromBlock?: string;
   toBlock?: string;
   dryRun?: boolean;
+  confirmReplay?: boolean;
 };
 
 type BackfillCatchUpOptions = BackfillCommonOptions & {
@@ -28,6 +29,7 @@ export function registerBackfill(program: Command): void {
     .description('Start a backfill for a DAO source')
     .option('--from-block <N>', 'starting block number')
     .option('--to-block <N>', 'ending block number')
+    .option('--confirm-replay', 'confirm re-running blocks below current backfill head')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
@@ -87,21 +89,25 @@ export function registerBackfill(program: Command): void {
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
         if (fromBlock != null) {
           const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
-          const backfillFloor =
+          const replayFloor =
             row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
-          let minFrom = 0n;
-          if (activeFloor === null) {
-            minFrom = backfillFloor ?? 0n;
-          } else if (backfillFloor === null) {
-            minFrom = activeFloor;
-          } else {
-            minFrom = activeFloor > backfillFloor ? activeFloor : backfillFloor;
-          }
-          if (fromBlock < minFrom) {
+
+          if (activeFloor !== null && fromBlock < activeFloor) {
             fail(
               format,
               ExitCode.ValidationFailure,
-              `--from-block (${fromBlock.toString()}) must be >= ${minFrom.toString()} (= max(active_from_block=${row.active_from_block ?? 'NULL'}, backfill_head_block+1=${backfillFloor?.toString() ?? 'NULL'}))`,
+              `--from-block (${fromBlock.toString()}) must be >= active_from_block (${row.active_from_block ?? 'NULL'})`,
+            );
+          }
+
+          if (replayFloor !== null && fromBlock < replayFloor && opts.confirmReplay !== true) {
+            const blockDelta = (replayFloor - fromBlock).toString();
+            fail(
+              format,
+              ExitCode.ValidationFailure,
+              `--from-block (${fromBlock.toString()}) is below the current backfill_head_block (${row.backfill_head_block ?? 'NULL'}). ` +
+                `Re-running will re-process ${blockDelta} blocks already archived (idempotent per ADR-041's 5-tuple existence check). ` +
+                'Pass --confirm-replay to proceed. See docs/runbooks/m2-backfill.md.',
             );
           }
         }

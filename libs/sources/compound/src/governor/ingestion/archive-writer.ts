@@ -64,37 +64,36 @@ export class ArchiveWriter {
     const receivedAt = this.now();
     const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
-    // Step 2 — event archive insert (idempotent; errors propagate to listener)
-    await this.eventRepo.insert({
-      daoSourceId: ctx.daoSourceId,
-      chainId: ctx.chainId,
-      blockNumber: logRef.blockNumber.toString(),
-      blockHash: logRef.blockHash,
-      txHash: logRef.txHash,
-      logIndex: logRef.logIndex,
-      eventType: decoded.type,
-      payload: JSON.stringify(decoded.payload),
-    });
-
-    // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
-    const row: NewArchiveConfirmation = {
-      source_type: ctx.sourceType,
-      dao_source_id: ctx.daoSourceId,
-      chain_id: ctx.chainId,
-      block_number: logRef.blockNumber.toString(),
-      block_hash: logRef.blockHash,
-      tx_hash: logRef.txHash,
-      log_index: logRef.logIndex,
-      event_type: decoded.type,
-      received_at: receivedAt,
-      confirmation_status: confirmationStatus,
-      confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
-      orphaned_at: null,
-      orphaned_by_reorg_event_id: null,
-      derived_at: null,
-    };
-
     try {
+      // Step 2 — event archive insert (idempotent; CH failures route to DLQ via catch below)
+      await this.eventRepo.insert({
+        daoSourceId: ctx.daoSourceId,
+        chainId: ctx.chainId,
+        blockNumber: logRef.blockNumber.toString(),
+        blockHash: logRef.blockHash,
+        txHash: logRef.txHash,
+        logIndex: logRef.logIndex,
+        eventType: decoded.type,
+        payload: JSON.stringify(decoded.payload),
+      });
+
+      // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
+      const row: NewArchiveConfirmation = {
+        source_type: ctx.sourceType,
+        dao_source_id: ctx.daoSourceId,
+        chain_id: ctx.chainId,
+        block_number: logRef.blockNumber.toString(),
+        block_hash: logRef.blockHash,
+        tx_hash: logRef.txHash,
+        log_index: logRef.logIndex,
+        event_type: decoded.type,
+        received_at: receivedAt,
+        confirmation_status: confirmationStatus,
+        confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
+        orphaned_at: null,
+        orphaned_by_reorg_event_id: null,
+        derived_at: null,
+      };
       const result = await this.confirmationRepo.insert(row);
 
       if (result?.id) {
@@ -134,8 +133,10 @@ export class ArchiveWriter {
     logRef: LogEvent,
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
+    const dlqStage: NewIngestionDlq['stage'] =
+      decoded.type === 'VoteCast' ? 'vote_archive_write' : 'archive_confirmation_write';
     const dlqRow: NewIngestionDlq = {
-      stage: 'archive_confirmation_write',
+      stage: dlqStage,
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

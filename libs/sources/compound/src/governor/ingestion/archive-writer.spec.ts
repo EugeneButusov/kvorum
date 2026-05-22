@@ -30,6 +30,16 @@ const DECODED: CompoundGovernorEvent = {
     description: 'test',
   },
 };
+const VOTECAST_DECODED: CompoundGovernorEvent = {
+  type: 'VoteCast',
+  payload: {
+    voter: '0xabcdef1234567890abcdef1234567890abcdef12',
+    proposalId: '123',
+    primaryChoice: 1,
+    votingPowerReported: '100',
+    compound: { supportRaw: 1, reason: null },
+  },
+};
 
 const LOG_REF: LogEvent = {
   sourceType: 'compound_governor_bravo',
@@ -146,18 +156,21 @@ describe('ArchiveWriter', () => {
     expect(outcome.result).toBe('unreachable');
   });
 
-  it('#6 — eventRepo.insert failure propagates as exception; confirmation/DLQ NOT attempted', async () => {
+  it('#6 — eventRepo.insert failure routes to DLQ and returns dlq_routed', async () => {
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('connection refused')),
     });
     const confirmationRepo = makeConfirmationRepo();
     const dlqRepo = makeDlqRepo();
 
-    await expect(
-      buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF),
-    ).rejects.toThrow('connection refused');
+    const outcome = await buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(
+      CTX,
+      DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('dlq_routed');
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
-    expect(dlqRepo.insert).not.toHaveBeenCalled();
+    expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#7 — uint256 boundary in payload survives JSON.stringify round-trip', async () => {
@@ -304,5 +317,60 @@ describe('ArchiveWriter', () => {
     const row = capturedRow as Record<string, unknown>;
     expect(row['confirmation_status']).toBe('pending');
     expect(row['confirmed_at']).toBeNull();
+  });
+
+  it('#15 — VoteCast routes to vote_archive_write on confirmation insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const confirmationRepo = makeConfirmationRepo({
+      insert: vi.fn().mockRejectedValue(new Error('pg')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(
+      CTX,
+      VOTECAST_DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('vote_archive_write');
+  });
+
+  it('#16 — proposal events route to archive_confirmation_write on CH insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const eventRepo = makeEventRepo({
+      insert: vi.fn().mockRejectedValue(new Error('ch down')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_confirmation_write');
+  });
+
+  it('#17 — VoteCast routes to vote_archive_write on CH insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const eventRepo = makeEventRepo({
+      insert: vi.fn().mockRejectedValue(new Error('ch down')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, VOTECAST_DECODED, LOG_REF);
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('vote_archive_write');
   });
 });
