@@ -70,11 +70,7 @@ export class GovernorProjectionApplier {
     'ProposalQueued',
     'ProposalExecuted',
     'ProposalCanceled',
-<<<<<<< HEAD
-  ];
-=======
   ] as const;
->>>>>>> d9a52c0 (refactor(indexer): derive appliers/adapters via source plugin tokens)
 
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;

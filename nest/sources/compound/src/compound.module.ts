@@ -1,16 +1,23 @@
 import { Module, Logger } from '@nestjs/common';
-import { ArchiveDerivationRepository, ConfirmationRepository, DlqRepository, chDb, pgDb } from '@libs/db';
+import {
+  ArchiveDerivationRepository,
+  ConfirmationRepository,
+  DlqRepository,
+  chDb,
+  pgDb,
+} from '@libs/db';
 import {
   CompTokenArchiveWriter,
   CompTokenEventRepository,
   CompoundProposalRepository,
+  GovernorArchivePayloadRepository,
   GovernorArchiveWriter,
-  GovernorProjectionApplier,
   GovernorEventRepository,
+  GovernorProjectionApplier,
   createCompTokenPlugin,
-  createCompoundPlugins,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
+  createCompoundPlugins,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { buildDriverMetrics } from './state-reconciler-metrics';
@@ -76,7 +83,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           pgDb,
           chDb,
           archive: new ArchiveDerivationRepository(pgDb),
-          payloads: new (require('@sources/compound').GovernorArchivePayloadRepository)(chDb),
+          payloads: new GovernorArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
             processed: () => undefined,

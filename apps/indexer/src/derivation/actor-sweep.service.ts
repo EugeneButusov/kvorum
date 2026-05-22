@@ -13,6 +13,7 @@ const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
 const ACTOR_SWEEP_DLQ_THRESHOLD = Number(process.env['ACTOR_SWEEP_DLQ_THRESHOLD'] ?? '5');
 const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`;
+type ActorAddressSource = Parameters<ActorRepository['findOrCreateActorAddress']>[1];
 
 @Injectable()
 export class ActorSweepService {
@@ -86,7 +87,10 @@ export class ActorSweepService {
           for (const candidate of candidates) {
             const normalized = candidate.address.toLowerCase();
             if (normalized === ZERO_ADDRESS) continue;
-            await this.actors.findOrCreateActorAddress(normalized, candidate.source);
+            await this.actors.findOrCreateActorAddress(
+              normalized,
+              candidate.source as ActorAddressSource,
+            );
           }
           await this.actorResolution.markActorResolved(row.id);
         } catch (err) {
