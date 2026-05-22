@@ -8,10 +8,10 @@ import {
   pgDb,
 } from '@libs/db';
 import {
+  COMPOUND_ACTOR_SWEEP_EXTRACTOR,
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
-import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 import { ActorSweepService } from './actor-sweep.service';
 
 const DB_URL = process.env['DATABASE_URL'];

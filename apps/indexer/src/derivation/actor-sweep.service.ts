@@ -7,12 +7,12 @@ import {
   type ArchiveDerivationRow,
 } from '@libs/db';
 import type {
+  ActorSweepExtractor,
   CompTokenArchivePayloadRepository,
   CompTokenArchivePayloadRow,
   GovernorArchivePayloadRepository,
   GovernorArchivePayloadRow,
 } from '@sources/compound';
-import type { ActorSweepExtractor } from './actor-sweep-extractor';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;

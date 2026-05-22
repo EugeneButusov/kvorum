@@ -88,6 +88,7 @@ export {
   CompTokenSourceConfigSchema,
   COMP_TOKEN_SUPPORTED_CHAIN_IDS,
 } from './comp-token/index';
+export { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 
 export type {
   CompoundEventType,
@@ -134,3 +135,8 @@ export type {
   CompTokenSourceConfig,
   CompTokenPluginDeps,
 } from './comp-token/index';
+export type {
+  ActorAddressSource,
+  AddressCandidate,
+  ActorSweepExtractor,
+} from './actor-sweep-extractor';

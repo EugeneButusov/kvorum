@@ -9,11 +9,14 @@ import {
   ProposalRepository,
   pgDb,
 } from '@libs/db';
-import { CompTokenArchivePayloadRepository, GovernorArchivePayloadRepository } from '@sources/compound';
+import {
+  COMPOUND_ACTOR_SWEEP_EXTRACTOR,
+  CompTokenArchivePayloadRepository,
+  GovernorArchivePayloadRepository,
+} from '@sources/compound';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { ActorSweepService } from './actor-sweep.service';
-import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 import { CalldataDecoderModule } from './calldata-decoder.module';
 import { DerivationWorkerService } from './derivation-worker.service';
 import { TimestampFillerService } from './timestamp-filler.service';
