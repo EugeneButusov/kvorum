@@ -319,7 +319,7 @@ describe('ArchiveWriter', () => {
     expect(row['confirmed_at']).toBeNull();
   });
 
-  it('#15 — VoteCast routes to vote_archive_write on confirmation insert failure', async () => {
+  it('#15 — VoteCast routes to archive_confirmation_write on confirmation insert failure', async () => {
     let capturedDlqRow: unknown;
     const confirmationRepo = makeConfirmationRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg')),
@@ -337,7 +337,7 @@ describe('ArchiveWriter', () => {
       LOG_REF,
     );
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlqRow as { stage: string }).stage).toBe('vote_archive_write');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_confirmation_write');
   });
 
   it('#16 — proposal events route to archive_confirmation_write on CH insert failure', async () => {
@@ -357,7 +357,7 @@ describe('ArchiveWriter', () => {
     expect((capturedDlqRow as { stage: string }).stage).toBe('archive_confirmation_write');
   });
 
-  it('#17 — VoteCast routes to vote_archive_write on CH insert failure', async () => {
+  it('#17 — VoteCast routes to archive_confirmation_write on CH insert failure', async () => {
     let capturedDlqRow: unknown;
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('ch down')),
@@ -371,6 +371,6 @@ describe('ArchiveWriter', () => {
 
     const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, VOTECAST_DECODED, LOG_REF);
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlqRow as { stage: string }).stage).toBe('vote_archive_write');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_confirmation_write');
   });
 });

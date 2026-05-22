@@ -133,10 +133,8 @@ export class ArchiveWriter {
     logRef: LogEvent,
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
-    const dlqStage: NewIngestionDlq['stage'] =
-      decoded.type === 'VoteCast' ? 'vote_archive_write' : 'archive_confirmation_write';
     const dlqRow: NewIngestionDlq = {
-      stage: dlqStage,
+      stage: 'archive_confirmation_write',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },
