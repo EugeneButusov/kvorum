@@ -1,6 +1,6 @@
 import { sql, type Kysely } from 'kysely';
-import type { ArchiveDerivationRow } from './archive-derivation-repository';
 import type { PgDatabase } from './schema/pg';
+import type { ArchiveDerivationRow } from './archive-derivation-repository';
 
 export class ArchiveActorResolutionRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}

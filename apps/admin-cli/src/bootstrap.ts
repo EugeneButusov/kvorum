@@ -1,6 +1,7 @@
 import {
   AdminAuditRepository,
   ApiKeyRepository,
+  ArchiveDerivationAdminRepository,
   ArchiveDerivationRepository,
   DaoAdminRepository,
   DaoReadRepository,
@@ -26,7 +27,7 @@ export interface AdminCliContainer {
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
   adminAuditRepository: AdminAuditRepository;
-  archiveDerivationRepository: ArchiveDerivationRepository;
+  archiveDerivationRepository: ArchiveDerivationAdminRepository;
   systemStatusRepository: SystemStatusRepository;
 }
 
@@ -42,7 +43,7 @@ export function buildContainer(): AdminCliContainer {
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
     adminAuditRepository: new AdminAuditRepository(pgDb),
-    archiveDerivationRepository: new ArchiveDerivationRepository(pgDb),
+    archiveDerivationRepository: new ArchiveDerivationAdminRepository(pgDb),
     systemStatusRepository: new SystemStatusRepository(pgDb),
   };
 }

@@ -18,34 +18,11 @@ export interface ArchiveDerivationRow {
 export class ArchiveDerivationRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
-  async countConfirmedUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
-    let query = this.pgDb
-      .selectFrom('archive_confirmation')
-      .select((eb) => eb.fn.countAll<string>().as('count'))
-      .where('dao_source_id', '=', daoSourceId)
-      .where('confirmation_status', '=', 'confirmed');
-
-    if (fromBlock != null) {
-      query = query.where('block_number', '>=', fromBlock.toString());
-    }
-
-    const row = await query.executeTakeFirstOrThrow();
-    return Number(row.count);
-  }
-
   async findConfirmedUndderived(
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     return this.findConfirmedUnderivedInternal(eventTypes, limit, false);
-  }
-
-  async markDerived(id: string): Promise<void> {
-    await this.pgDb
-      .updateTable('archive_confirmation')
-      .set({ derived_at: sql`now()` })
-      .where('id', '=', id)
-      .execute();
   }
 
   /**
@@ -58,6 +35,22 @@ export class ArchiveDerivationRepository {
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     return this.findConfirmedUnderivedInternal(eventTypes, limit, true);
+  }
+
+  async markDerived(id: string): Promise<void> {
+    await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derived_at: sql`now()` })
+      .where('id', '=', id)
+      .execute();
+  }
+
+  async incrementAttemptCount(id: string): Promise<void> {
+    await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derivation_attempt_count: sql`derivation_attempt_count + 1` })
+      .where('id', '=', id)
+      .execute();
   }
 
   private async findConfirmedUnderivedInternal(
@@ -97,28 +90,5 @@ export class ArchiveDerivationRepository {
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
-  }
-
-  async incrementAttemptCount(id: string): Promise<void> {
-    await this.pgDb
-      .updateTable('archive_confirmation')
-      .set({ derivation_attempt_count: sql`derivation_attempt_count + 1` })
-      .where('id', '=', id)
-      .execute();
-  }
-
-  async resetWatermarkForSource(daoSourceId: string, fromBlock?: bigint): Promise<number> {
-    let query = this.pgDb
-      .updateTable('archive_confirmation')
-      .set({ derived_at: null, derivation_attempt_count: 0 })
-      .where('dao_source_id', '=', daoSourceId)
-      .where('confirmation_status', '=', 'confirmed');
-
-    if (fromBlock != null) {
-      query = query.where('block_number', '>=', fromBlock.toString());
-    }
-
-    const result = await query.executeTakeFirst();
-    return Number(result?.numUpdatedRows ?? 0n);
   }
 }
