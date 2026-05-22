@@ -1,11 +1,11 @@
 import type { Logger } from '@libs/chain';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
-  ArchiveWriter,
+  ArchiveWriter as GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
   createCompTokenPlugin,
-  EventRepository,
+  EventRepository as GovernorEventRepository,
   createCompoundPlugins,
   type CompoundGovernorConfig,
   type CompoundGovernorPluginDeps,
@@ -34,8 +34,8 @@ export interface BackfillSourceRuntimeInput {
 }
 
 export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): BackfillRuntime {
-  const archiveWriter = new ArchiveWriter({
-    eventRepo: new EventRepository({ chDb }),
+  const governorArchiveWriter = new GovernorArchiveWriter({
+    eventRepo: new GovernorEventRepository({ chDb }),
     confirmationRepo: new ConfirmationRepository(pgDb),
     dlqRepo: new DlqRepository(pgDb),
     logger: input.logger,
@@ -48,7 +48,7 @@ export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): B
   });
   const dlqRepo = new DlqRepository(pgDb);
   const plugins = buildBackfillSourcePlugins({
-    governor: { archiveWriter, dlqRepo, logger: input.logger },
+    governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger: input.logger },
     compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger: input.logger },
   });
   const resolved = resolvePluginAndConfig(input.sourceType, input.sourceConfig, plugins);

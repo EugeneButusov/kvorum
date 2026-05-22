@@ -13,10 +13,10 @@ export async function makeDlqRetryListener(
   input: DlqRetryListenerFactoryInput,
 ): Promise<EventsListener> {
   const {
-    ArchiveWriter,
+    ArchiveWriter: GovernorArchiveWriter,
     CompTokenArchiveWriter,
     CompTokenEventRepository,
-    EventRepository,
+    EventRepository: GovernorEventRepository,
     makeCompTokenIngesterListener,
     makeIngesterListener,
   } = await import('@sources/compound');
@@ -49,8 +49,8 @@ export async function makeDlqRetryListener(
 
   return makeIngesterListener(
     {
-      archiveWriter: new ArchiveWriter({
-        eventRepo: new EventRepository({ chDb }),
+      archiveWriter: new GovernorArchiveWriter({
+        eventRepo: new GovernorEventRepository({ chDb }),
         confirmationRepo: new ConfirmationRepository(pgDb),
         dlqRepo,
         logger,
