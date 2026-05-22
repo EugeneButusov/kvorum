@@ -7,8 +7,9 @@ import { derivationMetrics } from './derivation-metrics';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
+const DERIVATION_ATTEMPT_THRESHOLD = readPositiveInt('DERIVATION_ATTEMPT_THRESHOLD', 5);
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
-const OWNED_EVENT_TYPES = [
+const DERIVATION_EVENT_TYPES = [
   'ProposalCreated',
   'ProposalQueued',
   'ProposalExecuted',
@@ -45,7 +46,11 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const batchSize = Number(
         process.env['DERIVATION_BATCH_SIZE'] ?? DEFAULT_DERIVATION_BATCH_SIZE,
       );
-      const watermark = await this.archive.findConfirmedDerivableBy(OWNED_EVENT_TYPES, batchSize);
+      const watermark = await this.archive.findConfirmedDerivableBy(
+        DERIVATION_EVENT_TYPES,
+        DERIVATION_ATTEMPT_THRESHOLD,
+        batchSize,
+      );
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0);
         return;
@@ -131,5 +136,12 @@ function readIntervalMs(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;
   const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readPositiveInt(envName: string, fallback: number): number {
+  const raw = process.env[envName];
+  if (raw === undefined) return fallback;
+  const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

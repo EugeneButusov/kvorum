@@ -129,6 +129,7 @@ export class ArchiveDerivationRepository {
    */
   async findConfirmedDerivableBy(
     eventTypes: readonly string[],
+    attemptThreshold: number,
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
@@ -152,6 +153,7 @@ export class ArchiveDerivationRepository {
       .where('derived_at', 'is', null)
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
+      .where('derivation_attempt_count', '<', attemptThreshold)
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')

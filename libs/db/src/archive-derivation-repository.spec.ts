@@ -160,17 +160,20 @@ describe('ArchiveDerivationRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
+    await expect(repo.findConfirmedDerivableBy(['VoteCast'], 5, 10)).resolves.toEqual([
+      ARCHIVE_ROW,
+    ]);
 
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is not', null);
     expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', ['VoteCast']);
+    expect(pgSelect.where).toHaveBeenCalledWith('derivation_attempt_count', '<', 5);
   });
 
   it('short-circuits derivable lookup for empty event type list', async () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedDerivableBy([], 10)).resolves.toEqual([]);
+    await expect(repo.findConfirmedDerivableBy([], 5, 10)).resolves.toEqual([]);
     expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 

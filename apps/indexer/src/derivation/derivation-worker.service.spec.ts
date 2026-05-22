@@ -28,6 +28,7 @@ describe('DerivationWorkerService', () => {
 
     expect(archive.findConfirmedDerivableBy).toHaveBeenCalledWith(
       ['ProposalCreated', 'ProposalQueued', 'ProposalExecuted', 'ProposalCanceled'],
+      5,
       50,
     );
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
