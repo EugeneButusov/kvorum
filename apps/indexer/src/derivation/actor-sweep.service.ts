@@ -16,6 +16,7 @@ import type {
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
 const ACTOR_SWEEP_DLQ_THRESHOLD = Number(process.env['ACTOR_SWEEP_DLQ_THRESHOLD'] ?? '5');
+const ACTOR_SWEEP_EVENT_TYPES = ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'] as const;
 const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`;
 
@@ -48,7 +49,11 @@ export class ActorSweepService {
       const batchSize = Number(
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
-      const rows = await this.archive.findConfirmedUnresolvedActors(batchSize);
+      const rows = await this.archive.findConfirmedUnresolvedActors(
+        ACTOR_SWEEP_EVENT_TYPES,
+        ACTOR_SWEEP_DLQ_THRESHOLD,
+        batchSize,
+      );
       if (rows.length === 0) return;
 
       const bySourceType = groupBySourceType(rows);

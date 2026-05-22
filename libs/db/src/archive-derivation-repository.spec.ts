@@ -100,7 +100,13 @@ describe('ArchiveDerivationRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedUnresolvedActors(25)).resolves.toEqual([ARCHIVE_ROW]);
+    await expect(
+      repo.findConfirmedUnresolvedActors(
+        ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'],
+        5,
+        25,
+      ),
+    ).resolves.toEqual([ARCHIVE_ROW]);
 
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', [
@@ -109,6 +115,14 @@ describe('ArchiveDerivationRepository', () => {
       'DelegateVotesChanged',
     ]);
     expect(pgSelect.where).toHaveBeenCalledWith('actor_resolution_attempt_count', '<', 5);
+  });
+
+  it('short-circuits unresolved actor lookup for empty event type list', async () => {
+    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
+
+    await expect(repo.findConfirmedUnresolvedActors([], 5, 10)).resolves.toEqual([]);
+    expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
   it('marks a row actor-resolved', async () => {

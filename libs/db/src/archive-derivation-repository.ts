@@ -1,9 +1,6 @@
 import { sql, type Kysely } from 'kysely';
 import type { PgDatabase } from './schema/pg';
 
-const L0_ATTEMPT_THRESHOLD = 5;
-const L0_EVENT_TYPES = ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'] as const;
-
 export interface ArchiveDerivationRow {
   id: string;
   source_type: string;
@@ -70,7 +67,13 @@ export class ArchiveDerivationRepository {
       .execute();
   }
 
-  async findConfirmedUnresolvedActors(limit: number): Promise<ArchiveDerivationRow[]> {
+  async findConfirmedUnresolvedActors(
+    eventTypes: readonly string[],
+    attemptThreshold: number,
+    limit: number,
+  ): Promise<ArchiveDerivationRow[]> {
+    if (eventTypes.length === 0) return [];
+
     return this.pgDb
       .selectFrom('archive_confirmation')
       .select([
@@ -88,8 +91,8 @@ export class ArchiveDerivationRepository {
       ])
       .where('confirmation_status', '=', 'confirmed')
       .where('derivation_actor_resolved_at', 'is', null)
-      .where('event_type', 'in', L0_EVENT_TYPES)
-      .where('actor_resolution_attempt_count', '<', L0_ATTEMPT_THRESHOLD)
+      .where('event_type', 'in', eventTypes)
+      .where('actor_resolution_attempt_count', '<', attemptThreshold)
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
