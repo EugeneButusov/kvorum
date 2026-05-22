@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
   ActorRepository,
@@ -28,7 +27,7 @@ interface AddressCandidate {
 }
 
 @Injectable()
-export class ActorSweepService implements OnApplicationBootstrap {
+export class ActorSweepService {
   private readonly logger = new Logger('ActorSweep');
   private inFlight = false;
 
@@ -39,10 +38,6 @@ export class ActorSweepService implements OnApplicationBootstrap {
     private readonly governorPayloads: GovernorArchivePayloadRepository,
     private readonly compTokenPayloads: CompTokenArchivePayloadRepository,
   ) {}
-
-  async onApplicationBootstrap(): Promise<void> {
-    void this.tick();
-  }
 
   @Interval(ACTOR_SWEEP_INTERVAL_MS)
   async tick(): Promise<void> {
