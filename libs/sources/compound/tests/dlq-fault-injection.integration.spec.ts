@@ -5,14 +5,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter } from '../src/governor/ingestion/archive-writer';
-import { makeIngesterListener } from '../src/governor/ingestion/ingester-listener';
 import { CompTokenArchiveWriter } from '../src/comp-token/ingestion/archive-writer';
 import { makeCompTokenIngesterListener } from '../src/comp-token/ingestion/ingester-listener';
-import type { ArchiveWriteContext } from '../src/governor/ingestion/archive-writer.types';
-import type { CompoundGovernorEvent } from '../src/governor/domain/types';
-import type { EventRepository } from '../src/governor/persistence/event-repository';
 import type { CompTokenEventRepository } from '../src/comp-token/persistence/event-repository';
+import type { CompoundGovernorEvent } from '../src/governor/domain/types';
+import { ArchiveWriter } from '../src/governor/ingestion/archive-writer';
+import type { ArchiveWriteContext } from '../src/governor/ingestion/archive-writer.types';
+import { makeIngesterListener } from '../src/governor/ingestion/ingester-listener';
+import type { EventRepository } from '../src/governor/persistence/event-repository';
 
 type FixtureLog = {
   variant: 'compound_governor_alpha' | 'compound_governor_bravo' | 'compound_governor_oz';
