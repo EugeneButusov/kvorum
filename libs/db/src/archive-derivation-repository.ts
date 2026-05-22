@@ -37,32 +37,7 @@ export class ArchiveDerivationRepository {
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
-    if (eventTypes.length === 0) return [];
-
-    return this.pgDb
-      .selectFrom('archive_confirmation')
-      .select([
-        'id',
-        'source_type',
-        'dao_source_id',
-        'chain_id',
-        'block_number',
-        'block_hash',
-        'tx_hash',
-        'log_index',
-        'event_type',
-        'confirmed_at',
-        'derivation_attempt_count',
-      ])
-      .where('confirmation_status', '=', 'confirmed')
-      .where('derived_at', 'is', null)
-      .where('event_type', 'in', eventTypes)
-      .orderBy('chain_id', 'asc')
-      .orderBy('block_number', 'asc')
-      .orderBy('log_index', 'asc')
-      .orderBy('id', 'asc')
-      .limit(limit)
-      .execute();
+    return this.findConfirmedUnderivedInternal(eventTypes, limit, false);
   }
 
   async markDerived(id: string): Promise<void> {
@@ -82,9 +57,17 @@ export class ArchiveDerivationRepository {
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
+    return this.findConfirmedUnderivedInternal(eventTypes, limit, true);
+  }
+
+  private async findConfirmedUnderivedInternal(
+    eventTypes: readonly string[],
+    limit: number,
+    requireActorResolved: boolean,
+  ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
-    return this.pgDb
+    let query = this.pgDb
       .selectFrom('archive_confirmation')
       .select([
         'id',
@@ -101,8 +84,13 @@ export class ArchiveDerivationRepository {
       ])
       .where('confirmation_status', '=', 'confirmed')
       .where('derived_at', 'is', null)
-      .where('derivation_actor_resolved_at', 'is not', null)
-      .where('event_type', 'in', eventTypes)
+      .where('event_type', 'in', eventTypes);
+
+    if (requireActorResolved) {
+      query = query.where('derivation_actor_resolved_at', 'is not', null);
+    }
+
+    return query
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
