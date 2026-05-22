@@ -10,16 +10,16 @@ const SOURCE_TYPES = [
   'test_source_token',
 ] as const;
 
-const EVENT_TYPES = ['VoteCast', 'DelegateChanged'] as const;
+const EVENT_TYPES = ['test_vote_event', 'test_delegation_event'] as const;
 
 function extractAddresses(eventType: string, payloadJson: string) {
   const payload = JSON.parse(payloadJson) as Record<string, string>;
 
-  if (eventType === 'VoteCast') {
+  if (eventType === 'test_vote_event') {
     return [{ address: payload['voter'] ?? '', source: 'voter_event' }];
   }
 
-  if (eventType === 'DelegateChanged') {
+  if (eventType === 'test_delegation_event') {
     return [
       { address: payload['delegator'] ?? '', source: 'delegator_event' },
       { address: payload['toDelegate'] ?? '', source: 'delegate_event' },
@@ -39,7 +39,7 @@ const ROW: ArchiveDerivationRow = {
   block_hash: '0xblock',
   tx_hash: '0xtx',
   log_index: 1,
-  event_type: 'VoteCast',
+  event_type: 'test_vote_event',
   confirmed_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 0,
 };
@@ -89,7 +89,7 @@ describe('ActorSweepService', () => {
   });
 
   it('skips zero-address delegate without creating actor', async () => {
-    const row = { ...ROW, event_type: 'DelegateChanged', source_type: 'test_source_token' };
+    const row = { ...ROW, event_type: 'test_delegation_event', source_type: 'test_source_token' };
     const archive = {
       findConfirmedUnresolvedActors: vi.fn().mockResolvedValue([row]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
