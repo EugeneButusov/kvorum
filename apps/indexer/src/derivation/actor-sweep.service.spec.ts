@@ -4,10 +4,10 @@ import type { ActorSweepAdapter } from '@sources/core';
 import { ActorSweepService } from './actor-sweep.service';
 
 const SOURCE_TYPES = [
-  'compound_governor_alpha',
-  'compound_governor_bravo',
-  'compound_governor_oz',
-  'compound_comp_token',
+  'test_source_alpha',
+  'test_source_bravo',
+  'test_source_oz',
+  'test_source_token',
 ] as const;
 
 const EVENT_TYPES = ['VoteCast', 'DelegateChanged'] as const;
@@ -32,7 +32,7 @@ function extractAddresses(eventType: string, payloadJson: string) {
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
-  source_type: 'compound_governor_bravo',
+  source_type: 'test_source_bravo',
   dao_source_id: 'source-1',
   chain_id: '0x1',
   block_number: '100',
@@ -55,7 +55,7 @@ describe('ActorSweepService', () => {
       findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
     };
     const dlq = { insert: vi.fn() };
-    const governorPayloads = {
+    const sourcePayloads = {
       fetchPayloads: vi.fn().mockResolvedValue([
         {
           chain_id: ROW.chain_id,
@@ -72,7 +72,7 @@ describe('ActorSweepService', () => {
       sourceTypes: SOURCE_TYPES,
       eventTypes: EVENT_TYPES,
       extractAddresses,
-      fetchPayloads: governorPayloads.fetchPayloads,
+      fetchPayloads: sourcePayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
       adapter,
@@ -89,7 +89,7 @@ describe('ActorSweepService', () => {
   });
 
   it('skips zero-address delegate without creating actor', async () => {
-    const row = { ...ROW, event_type: 'DelegateChanged', source_type: 'compound_comp_token' };
+    const row = { ...ROW, event_type: 'DelegateChanged', source_type: 'test_source_token' };
     const archive = {
       findConfirmedUnresolvedActors: vi.fn().mockResolvedValue([row]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
@@ -99,7 +99,7 @@ describe('ActorSweepService', () => {
       findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
     };
     const dlq = { insert: vi.fn() };
-    const compTokenPayloads = {
+    const sourceTokenPayloads = {
       fetchPayloads: vi.fn().mockResolvedValue([
         {
           chain_id: ROW.chain_id,
@@ -120,7 +120,7 @@ describe('ActorSweepService', () => {
       sourceTypes: SOURCE_TYPES,
       eventTypes: EVENT_TYPES,
       extractAddresses,
-      fetchPayloads: compTokenPayloads.fetchPayloads,
+      fetchPayloads: sourceTokenPayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
       adapter,
@@ -149,7 +149,7 @@ describe('ActorSweepService', () => {
       findOrCreateActorAddress: vi.fn(),
     };
     const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
-    const governorPayloads = {
+    const sourcePayloads = {
       fetchPayloads: vi.fn().mockResolvedValue([
         {
           chain_id: ROW.chain_id,
@@ -166,7 +166,7 @@ describe('ActorSweepService', () => {
       sourceTypes: SOURCE_TYPES,
       eventTypes: EVENT_TYPES,
       extractAddresses,
-      fetchPayloads: governorPayloads.fetchPayloads,
+      fetchPayloads: sourcePayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
       adapter,
@@ -179,7 +179,7 @@ describe('ActorSweepService', () => {
       expect.objectContaining({
         stage: 'actor_resolution_stage',
         source: 'indexer.actor_sweep',
-        archive_source_type: 'compound_governor_bravo',
+        archive_source_type: 'test_source_bravo',
       }),
     );
     expect(archive.markActorResolved).not.toHaveBeenCalled();
