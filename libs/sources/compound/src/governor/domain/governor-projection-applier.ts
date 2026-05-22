@@ -2,6 +2,7 @@ import type { Kysely } from 'kysely';
 import { silentLogger, type Logger } from '@libs/chain';
 import {
   ActorRepository,
+  ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
   type ClickHouseDatabase,
   type ArchiveDerivationRow,
@@ -16,11 +17,11 @@ import type {
   ProposalExecutedPayload,
   ProposalQueuedPayload,
 } from './types';
-import {
-  CompoundArchivePayloadRepository,
-  type CompoundArchivePayloadRow,
-} from '../persistence/compound-archive-payload-repository';
 import { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
+import {
+  GovernorArchivePayloadRepository,
+  type GovernorArchivePayloadRow,
+} from '../persistence/governor-archive-payload-repository';
 
 export type CompoundDerivationOutcome =
   | 'derived'
@@ -30,7 +31,7 @@ export type CompoundDerivationOutcome =
 
 export type CompoundDerivationFailureReason = 'ch_missing' | 'decode_error' | 'pg_tx_error';
 
-export interface CompoundProjectionMetrics {
+export interface GovernorProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
@@ -40,12 +41,12 @@ export interface CompoundProjectionMetrics {
   }): void;
 }
 
-export interface CompoundProjectionApplierDeps {
+export interface GovernorProjectionApplierDeps {
   pgDb: Kysely<PgDatabase>;
   chDb: Kysely<ClickHouseDatabase>;
   archive: ArchiveDerivationRepository;
-  payloads: CompoundArchivePayloadRepository;
-  metrics: CompoundProjectionMetrics;
+  payloads: GovernorArchivePayloadRepository;
+  metrics: GovernorProjectionMetrics;
   logger?: Logger;
 }
 
@@ -54,9 +55,10 @@ interface CompoundProjectionRepositories {
   proposals: ProposalRepository;
   compoundProposals: CompoundProposalRepository;
   archive: ArchiveDerivationRepository;
+  actorResolution: ArchiveActorResolutionRepository;
 }
 
-export class CompoundProjectionApplier {
+export class GovernorProjectionApplier {
   readonly kind = 'projection' as const;
   readonly sourceTypes = [
     'compound_governor_bravo',
@@ -68,16 +70,16 @@ export class CompoundProjectionApplier {
     'ProposalQueued',
     'ProposalExecuted',
     'ProposalCanceled',
-  ];
+  ] as const;
 
   private readonly pgDb: Kysely<PgDatabase>;
   private readonly chDb: Kysely<ClickHouseDatabase>;
   private readonly archive: ArchiveDerivationRepository;
-  private readonly payloads: CompoundArchivePayloadRepository;
-  private readonly metrics: CompoundProjectionMetrics;
+  private readonly payloads: GovernorArchivePayloadRepository;
+  private readonly metrics: GovernorProjectionMetrics;
   private readonly logger: Logger;
 
-  constructor(deps: CompoundProjectionApplierDeps) {
+  constructor(deps: GovernorProjectionApplierDeps) {
     this.pgDb = deps.pgDb;
     this.chDb = deps.chDb;
     this.archive = deps.archive;
@@ -118,7 +120,7 @@ export class CompoundProjectionApplier {
 
   private async apply(
     row: ArchiveDerivationRow,
-    payload: CompoundArchivePayloadRow,
+    payload: GovernorArchivePayloadRow,
   ): Promise<void> {
     let event: CompoundGovernorEvent;
     try {
@@ -149,48 +151,54 @@ export class CompoundProjectionApplier {
         confirmed_at: row.confirmed_at,
       });
 
-      await this.transaction(async ({ actors, proposals, compoundProposals, archive }) => {
-        const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
-        if (daoId === undefined) {
-          throw new Error(`unknown dao_source ${projection.daoSourceId}`);
-        }
-
-        if (projection.kind === 'proposal_created') {
-          const proposer = await actors.findOrCreateByAddress(projection.proposerAddress);
-          const result = await proposals.insertProposal({
-            ...projection.proposal,
-            dao_id: daoId,
-            proposer_actor_id: proposer.id,
-          });
-
-          if (result.inserted) {
-            await proposals.insertActions(result.proposalId!, projection.actions);
-            await proposals.ensureChoices(result.proposalId!, projection.choices);
-            this.record(row, 'derived', null);
-          } else {
-            this.record(row, 'skipped_idempotent', null);
+      await this.transaction(
+        async ({ actors, proposals, compoundProposals, archive, actorResolution }) => {
+          const daoId = await proposals.findDaoIdForSource(projection.daoSourceId);
+          if (daoId === undefined) {
+            throw new Error(`unknown dao_source ${projection.daoSourceId}`);
           }
-        } else {
-          const advanced = await proposals.advanceState({
-            daoId,
-            sourceType: projection.sourceType,
-            sourceId: projection.sourceId,
-            targetState: projection.targetState,
-            stateUpdatedAt: projection.stateUpdatedAt,
-          });
-          if (advanced > 0 && projection.queuedAtBlock !== undefined) {
-            await compoundProposals.upsertQueuedAtBlock(
-              daoId,
-              projection.sourceType,
-              projection.sourceId,
-              projection.queuedAtBlock,
+
+          if (projection.kind === 'proposal_created') {
+            const proposer = await actors.findOrCreateActorAddress(
+              projection.proposerAddress,
+              'proposer_event',
             );
-          }
-          this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
-        }
+            const result = await proposals.insertProposal({
+              ...projection.proposal,
+              dao_id: daoId,
+              proposer_actor_id: proposer.id,
+            });
 
-        await archive.markDerived(row.id);
-      });
+            if (result.inserted) {
+              await proposals.insertActions(result.proposalId!, projection.actions);
+              await proposals.ensureChoices(result.proposalId!, projection.choices);
+              this.record(row, 'derived', null);
+            } else {
+              this.record(row, 'skipped_idempotent', null);
+            }
+          } else {
+            const advanced = await proposals.advanceState({
+              daoId,
+              sourceType: projection.sourceType,
+              sourceId: projection.sourceId,
+              targetState: projection.targetState,
+              stateUpdatedAt: projection.stateUpdatedAt,
+            });
+            if (advanced > 0 && projection.queuedAtBlock !== undefined) {
+              await compoundProposals.upsertQueuedAtBlock(
+                daoId,
+                projection.sourceType,
+                projection.sourceId,
+                projection.queuedAtBlock,
+              );
+            }
+            this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
+          }
+
+          await archive.markDerived(row.id);
+          await actorResolution.markActorResolved(row.id);
+        },
+      );
     } catch (err) {
       this.record(row, 'failed', 'pg_tx_error');
       await this.archive.incrementAttemptCount(row.id);
@@ -216,6 +224,7 @@ export class CompoundProjectionApplier {
         proposals: new ProposalRepository(tx),
         compoundProposals: new CompoundProposalRepository(tx),
         archive: new ArchiveDerivationRepository(tx),
+        actorResolution: new ArchiveActorResolutionRepository(tx),
       }),
     );
   }
@@ -250,6 +259,6 @@ function parseArchiveEvent(eventType: string, payloadJson: string): CompoundGove
   }
 }
 
-function tupleKey(row: ArchiveDerivationRow | CompoundArchivePayloadRow): string {
+function tupleKey(row: ArchiveDerivationRow | GovernorArchivePayloadRow): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

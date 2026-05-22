@@ -1,30 +1,36 @@
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ArchiveDerivationRepository, chDb, pgDb } from '@libs/db';
-import { CompoundArchivePayloadRepository, CompoundProjectionApplier } from '@sources/compound';
+import { GovernorArchivePayloadRepository, GovernorProjectionApplier } from '@sources/compound';
 
 const DB_URL = process.env['DATABASE_URL'];
 const describeIf = DB_URL ? describe : describe.skip;
 
 const CHAIN_ID = '0x7a69';
 const PROPOSER = '0x' + 'aa'.repeat(20);
+const GOVERNOR_DERIVATION_EVENT_TYPES = [
+  'ProposalCreated',
+  'ProposalQueued',
+  'ProposalExecuted',
+  'ProposalCanceled',
+] as const;
 
 function numberedHash(n: number): string {
   return '0x' + n.toString(16).padStart(64, '0');
 }
 
 describeIf('compound governor derivation', () => {
-  let applier: CompoundProjectionApplier;
+  let applier: GovernorProjectionApplier;
   let archive: ArchiveDerivationRepository;
   let daoSourceId: string;
 
   beforeAll(async () => {
     archive = new ArchiveDerivationRepository(pgDb);
-    applier = new CompoundProjectionApplier({
+    applier = new GovernorProjectionApplier({
       pgDb,
       chDb,
       archive,
-      payloads: new CompoundArchivePayloadRepository(chDb),
+      payloads: new GovernorArchivePayloadRepository(chDb),
       metrics: { batchLookupSeconds: () => {}, processed: () => {} },
     });
 
@@ -147,7 +153,7 @@ describeIf('compound governor derivation', () => {
       },
     });
 
-    const rows1 = await archive.findConfirmedUndderived(10);
+    const rows1 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows1);
 
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -192,7 +198,7 @@ describeIf('compound governor derivation', () => {
       .where('tx_hash', '=', numberedHash(1))
       .execute();
 
-    const rows2 = await archive.findConfirmedUndderived(10);
+    const rows2 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows2);
 
     const proposalsAfterReplay = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -210,7 +216,9 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1' },
     });
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(10));
+    await applier.applyBatch(
+      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
+    );
 
     const executed = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(executed!.state).toBe('executed');
@@ -224,7 +232,9 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1', eta: '123' },
     });
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(10));
+    await applier.applyBatch(
+      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
+    );
 
     const afterLateQueued = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(afterLateQueued!.state).toBe('executed');

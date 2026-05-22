@@ -1,19 +1,25 @@
 import { Module, Logger } from '@nestjs/common';
-import { pgDb, chDb } from '@libs/db';
-import { ArchiveDerivationRepository } from '@libs/db';
-import { ConfirmationRepository, DlqRepository } from '@libs/db';
 import {
+  ArchiveDerivationRepository,
+  ConfirmationRepository,
+  DlqRepository,
+  chDb,
+  pgDb,
+} from '@libs/db';
+import {
+  COMPOUND_ACTOR_SWEEP_EXTRACTOR,
   CompTokenArchiveWriter,
+  CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
-  CompoundArchivePayloadRepository,
   CompoundProposalRepository,
-  CompoundProjectionApplier,
+  GovernorArchivePayloadRepository,
   GovernorArchiveWriter,
   GovernorEventRepository,
+  GovernorProjectionApplier,
   createCompTokenPlugin,
-  createCompoundPlugins,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
+  createCompoundPlugins,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { buildDriverMetrics } from './state-reconciler-metrics';
@@ -73,20 +79,19 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       inject: [CompTokenEventRepository, ConfirmationRepository, DlqRepository],
     },
     {
-      provide: CompoundProjectionApplier,
-      useFactory: (archive: ArchiveDerivationRepository) =>
-        new CompoundProjectionApplier({
+      provide: GovernorProjectionApplier,
+      useFactory: () =>
+        new GovernorProjectionApplier({
           pgDb,
           chDb,
-          archive,
-          payloads: new CompoundArchivePayloadRepository(chDb),
+          archive: new ArchiveDerivationRepository(pgDb),
+          payloads: new GovernorArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
             processed: () => undefined,
           },
-          logger: toChainLogger(new Logger('CompoundProjectionApplier')),
+          logger: toChainLogger(new Logger('GovernorProjectionApplier')),
         }),
-      inject: [ArchiveDerivationRepository],
     },
     {
       provide: COMPOUND_SOURCE_PLUGIN,
@@ -95,8 +100,10 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         dlqRepo: DlqRepository,
         proposalRepo: CompoundProposalRepository,
         compTokenArchiveWriter: CompTokenArchiveWriter,
-        projectionApplier: CompoundProjectionApplier,
+        projectionApplier: GovernorProjectionApplier,
       ): SourcePlugin => {
+        const governorPayloads = new GovernorArchivePayloadRepository(chDb);
+        const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
         const reconcileLogger = toChainLogger(new Logger('CompoundReconcile'));
         const metrics = buildDriverMetrics();
         const logger = new Logger('CompoundSourceModule');
@@ -126,7 +133,30 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
               logger: reconcileLogger,
             }),
           ],
-          derivers: [projectionApplier],
+          derivers: [
+            projectionApplier,
+            {
+              kind: 'actor-address',
+              sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
+              eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
+              fetchPayloads: async (rows) => {
+                if (rows.length === 0) return [];
+                const sourceType = rows[0]!.source_type;
+                if (
+                  sourceType === 'compound_governor_alpha' ||
+                  sourceType === 'compound_governor_bravo' ||
+                  sourceType === 'compound_governor_oz'
+                ) {
+                  return governorPayloads.fetchPayloads(rows);
+                }
+                if (sourceType === 'compound_comp_token') {
+                  return compTokenPayloads.fetchPayloads(rows);
+                }
+                throw new Error(`unsupported source_type for actor sweep: ${sourceType}`);
+              },
+              extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+            },
+          ],
         };
       },
       inject: [
@@ -134,7 +164,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         DlqRepository,
         CompoundProposalRepository,
         CompTokenArchiveWriter,
-        CompoundProjectionApplier,
+        GovernorProjectionApplier,
       ],
     },
   ],

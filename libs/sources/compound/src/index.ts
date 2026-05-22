@@ -61,8 +61,8 @@ export {
   GovernorEventRepository,
   extractCompoundTitle,
   ProposalProjectionError,
-  CompoundArchivePayloadRepository,
-  CompoundProjectionApplier,
+  GovernorArchivePayloadRepository,
+  GovernorProjectionApplier,
   projectCompoundProposalEvent,
   GovernorArchiveWriter,
   makeIngesterListener,
@@ -81,12 +81,14 @@ export {
   COMPOUND_COMP_TOKEN_TOPICS,
   decodeCompTokenLog,
   CompTokenEventRepository,
+  CompTokenArchivePayloadRepository,
   CompTokenArchiveWriter,
   makeCompTokenIngesterListener,
   createCompTokenPlugin,
   CompTokenSourceConfigSchema,
   COMP_TOKEN_SUPPORTED_CHAIN_IDS,
 } from './comp-token/index';
+export { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from './actor-sweep-extractor';
 
 export type {
   CompoundEventType,
@@ -100,11 +102,11 @@ export type {
   ProposalCreatedProjection,
   ProposalStateTransitionProjection,
   ProposalWithoutResolvedRefs,
-  CompoundArchivePayloadRow,
+  GovernorArchivePayloadRow,
   CompoundDerivationFailureReason,
   CompoundDerivationOutcome,
-  CompoundProjectionApplierDeps,
-  CompoundProjectionMetrics,
+  GovernorProjectionApplierDeps,
+  GovernorProjectionMetrics,
   GovernorArchiveWriterDeps,
   ArchiveWriteContext,
   ArchiveWriteOutcome,
@@ -127,8 +129,14 @@ export type {
   DelegateVotesChangedPayload,
   CompTokenEventData,
   CompTokenEventRepositoryDeps,
+  CompTokenArchivePayloadRow,
   CompTokenArchiveWriterDeps,
   CompTokenIngesterListenerDeps,
   CompTokenSourceConfig,
   CompTokenPluginDeps,
 } from './comp-token/index';
+export type {
+  ActorAddressSource,
+  AddressCandidate,
+  ActorSweepExtractor,
+} from './actor-sweep-extractor';

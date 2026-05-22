@@ -225,7 +225,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.references('reorg_event.id').onDelete('set null'),
     )
     .addColumn('derived_at', 'timestamptz')
+    .addColumn('derivation_actor_resolved_at', 'timestamptz')
     .addColumn('derivation_attempt_count', 'smallint', (col) => col.notNull().defaultTo(0))
+    .addColumn('actor_resolution_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
     .addUniqueConstraint('archive_confirmation_idempotency_key', [
       'source_type',
       'chain_id',

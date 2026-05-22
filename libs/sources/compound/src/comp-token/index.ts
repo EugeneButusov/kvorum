@@ -16,6 +16,8 @@ export type {
   CompTokenEventRepositoryDeps,
 } from './persistence/event-repository.types';
 export { CompTokenEventRepository } from './persistence/event-repository';
+export type { CompTokenArchivePayloadRow } from './persistence/comp-token-archive-payload-repository';
+export { CompTokenArchivePayloadRepository } from './persistence/comp-token-archive-payload-repository';
 
 export type { CompTokenArchiveWriterDeps } from './ingestion/archive-writer.types';
 export { CompTokenArchiveWriter } from './ingestion/archive-writer';

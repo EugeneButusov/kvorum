@@ -14,6 +14,10 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('delegation_archive_stage')).toBe(true);
   });
 
+  it('accepts actor resolution stage', () => {
+    expect(isDlqRetryableStage('actor_resolution_stage')).toBe(true);
+  });
+
   it('rejects non-retryable stage', () => {
     expect(isDlqRetryableStage('archive_decode')).toBe(false);
   });

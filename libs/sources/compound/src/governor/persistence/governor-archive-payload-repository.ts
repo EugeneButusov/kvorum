@@ -2,15 +2,15 @@ import { sql, type Kysely } from 'kysely';
 import type { ArchiveDerivationRow, ClickHouseDatabase } from '@libs/db';
 import type { EventArchiveCompoundGovernorBravoTable } from './schema';
 
-export type CompoundArchivePayloadRow = Pick<
+export type GovernorArchivePayloadRow = Pick<
   EventArchiveCompoundGovernorBravoTable,
   'chain_id' | 'tx_hash' | 'log_index' | 'block_hash' | 'event_type' | 'payload' | 'received_at'
 >;
 
-export class CompoundArchivePayloadRepository {
+export class GovernorArchivePayloadRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
-  async fetchPayloads(rows: readonly ArchiveDerivationRow[]): Promise<CompoundArchivePayloadRow[]> {
+  async fetchPayloads(rows: readonly ArchiveDerivationRow[]): Promise<GovernorArchivePayloadRow[]> {
     if (rows.length === 0) return [];
 
     const tuples = rows.map(
@@ -35,7 +35,7 @@ export class CompoundArchivePayloadRepository {
   async findByProposalId(
     daoSourceId: string,
     proposalId: string,
-  ): Promise<CompoundArchivePayloadRow[]> {
+  ): Promise<GovernorArchivePayloadRow[]> {
     return this.chDb
       .selectFrom('event_archive_compound_governor_bravo')
       .select([

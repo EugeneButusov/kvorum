@@ -1,7 +1,7 @@
 import {
   AdminAuditRepository,
   ApiKeyRepository,
-  ArchiveDerivationRepository,
+  ArchiveDerivationAdminRepository,
   DaoAdminRepository,
   DaoReadRepository,
   DaoSourceRepository,
@@ -13,7 +13,7 @@ import {
   chDb,
   pgDb,
 } from '@libs/db';
-import { CompoundArchivePayloadRepository } from '@sources/compound/governor/data-access';
+import { GovernorArchivePayloadRepository } from '@sources/compound/governor/data-access';
 
 export interface AdminCliContainer {
   daoSourceRepository: DaoSourceRepository;
@@ -21,12 +21,12 @@ export interface AdminCliContainer {
   daoAdminRepository: DaoAdminRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
-  compoundArchivePayloadRepository: CompoundArchivePayloadRepository;
+  compoundGovernorArchivePayloadRepository: GovernorArchivePayloadRepository;
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
   adminAuditRepository: AdminAuditRepository;
-  archiveDerivationRepository: ArchiveDerivationRepository;
+  archiveDerivationRepository: ArchiveDerivationAdminRepository;
   systemStatusRepository: SystemStatusRepository;
 }
 
@@ -37,12 +37,12 @@ export function buildContainer(): AdminCliContainer {
     daoAdminRepository: new DaoAdminRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
-    compoundArchivePayloadRepository: new CompoundArchivePayloadRepository(chDb),
+    compoundGovernorArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
     adminAuditRepository: new AdminAuditRepository(pgDb),
-    archiveDerivationRepository: new ArchiveDerivationRepository(pgDb),
+    archiveDerivationRepository: new ArchiveDerivationAdminRepository(pgDb),
     systemStatusRepository: new SystemStatusRepository(pgDb),
   };
 }

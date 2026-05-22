@@ -136,11 +136,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute();
 
   await db.schema
-    .alterTable('archive_confirmation')
-    .addColumn('derivation_actor_resolved_at', 'timestamptz')
-    .execute();
-
-  await db.schema
     .createIndex('vote_proposal_id_cast_at_idx')
     .on('vote')
     .columns(['proposal_id', 'cast_at desc'])
@@ -196,7 +191,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
-    CREATE INDEX idx_archive_confirmation_l0_pending
+    CREATE INDEX idx_archive_confirmation_actor_resolution_pending
     ON archive_confirmation (dao_source_id)
     WHERE confirmation_status = 'confirmed' AND derivation_actor_resolved_at IS NULL
   `.execute(db);
@@ -210,15 +205,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await db.schema.dropIndex('idx_archive_confirmation_l0_pending').execute();
+  await db.schema.dropIndex('idx_archive_confirmation_actor_resolution_pending').execute();
   await db.schema.dropIndex('idx_actor_merged_into').execute();
 
   await db.schema.alterTable('actor').dropColumn('merged_into_actor_id').execute();
-  await db.schema
-    .alterTable('archive_confirmation')
-    .dropColumn('derivation_actor_resolved_at')
-    .execute();
-
   await db.schema.dropTable('actor_address_redirect').execute();
   await db.schema.dropTable('actor_address').execute();
   await db.schema.dropTable('voting_power_snapshot').execute();

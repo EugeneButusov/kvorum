@@ -27,6 +27,7 @@ export interface ArchiveConfirmationTable {
   derived_at: Date | null;
   derivation_actor_resolved_at: Date | null;
   derivation_attempt_count: Generated<number>;
+  actor_resolution_attempt_count: Generated<number>;
 }
 
 export type ArchiveConfirmation = Selectable<ArchiveConfirmationTable>;

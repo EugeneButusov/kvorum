@@ -75,7 +75,7 @@ SPEC §6.20.1 specifies the command as `actor merge <primary_actor_id> <secondar
 
 - Operators do not memorise internal UUIDs; they identify actors by on-chain address.
 - Every other operator-facing reference to actors (URL paths, `admin-cli dlq` payloads, structured logs) uses addresses.
-- The internal resolution `address → actor.id` is a single query against `actor_address` (the multi-address lookup table from §2.4.3) — the same query L0 uses for derivation.
+- The internal resolution `address → actor.id` is a single query against `actor_address` (the multi-address lookup table from §2.4.3) — the same query the actor-sweep path uses for derivation.
 
 **Decision.** The command accepts addresses: `admin-cli actors merge <primary_address> <secondary_address>`. The CLI resolves both addresses to actor IDs in a single transaction before rewriting FKs. SPEC §6.20.1's actor-ID argument shape is superseded by this ADR for the `actors merge` command specifically; other CLI commands referenced in §6.20.1 are unaffected.
 

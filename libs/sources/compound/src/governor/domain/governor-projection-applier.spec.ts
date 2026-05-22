@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { CompoundProjectionApplier } from './compound-projection-applier';
-import type { CompoundArchivePayloadRow } from '../persistence/compound-archive-payload-repository';
+import { GovernorProjectionApplier } from './governor-projection-applier';
+import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
@@ -17,7 +17,7 @@ const ROW: ArchiveDerivationRow = {
   derivation_attempt_count: 0,
 };
 
-const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
+const CREATED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,
@@ -25,7 +25,7 @@ const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
   event_type: 'ProposalCreated',
   payload: JSON.stringify({
     proposalId: '42',
-    proposer: '0xabcdef',
+    proposer: '0x' + 'ab'.repeat(20),
     targets: ['0x1111111111111111111111111111111111111111'],
     values: ['0'],
     signatures: ['_setPendingAdmin(address)'],
@@ -37,7 +37,7 @@ const CREATED_PAYLOAD: CompoundArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
-const QUEUED_PAYLOAD: CompoundArchivePayloadRow = {
+const QUEUED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,
@@ -47,7 +47,7 @@ const QUEUED_PAYLOAD: CompoundArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
-const EXECUTED_PAYLOAD: CompoundArchivePayloadRow = {
+const EXECUTED_PAYLOAD: GovernorArchivePayloadRow = {
   chain_id: '0x1',
   tx_hash: '0xtx',
   log_index: 1,
@@ -75,6 +75,7 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
     insertedActions: undefined as unknown,
     insertedChoices: undefined as unknown,
     markedDerivedId: undefined as string | undefined,
+    markedActorResolvedId: undefined as string | undefined,
     upsertedCompoundMeta: false,
     transactionCount: 0,
   };
@@ -86,13 +87,33 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
   }
 
   const tx = {
-    selectFrom: vi.fn(() =>
-      chain({
-        select: vi.fn().mockReturnThis(),
+    transaction: vi.fn(() => ({
+      execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) => fn(tx)),
+    })),
+    selectFrom: vi.fn((table: string) => {
+      if (table === 'dao_source') {
+        return chain({
+          select: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          executeTakeFirst: vi.fn().mockResolvedValue({ dao_id: 'dao-1' }),
+        });
+      }
+
+      if (table === 'actor as a') {
+        return chain({
+          innerJoin: vi.fn().mockReturnThis(),
+          selectAll: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          executeTakeFirst: vi.fn().mockResolvedValue(undefined),
+        });
+      }
+
+      return chain({
+        selectAll: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
-        executeTakeFirst: vi.fn().mockResolvedValue({ dao_id: 'dao-1' }),
-      }),
-    ),
+        executeTakeFirst: vi.fn().mockResolvedValue(undefined),
+      });
+    }),
     insertInto: vi.fn((table: string) => {
       if (table === 'compound_proposal_meta') {
         const metaChain = {
@@ -124,22 +145,31 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
         execute: vi.fn().mockResolvedValue(undefined),
       });
     }),
-    updateTable: vi.fn((table: string) =>
-      chain({
-        set: vi.fn().mockReturnThis(),
-        where: vi.fn(function (this: unknown, column: string, _operator: string, value: unknown) {
-          if (table === 'archive_confirmation' && column === 'id') {
-            calls.markedDerivedId = String(value);
+    updateTable: vi.fn((table: string) => {
+      let lastArchiveSet: 'derived' | 'actor_resolved' | undefined;
+      const updateChain = chain({
+        set: vi.fn((values: Record<string, unknown>) => {
+          if (table === 'archive_confirmation') {
+            if ('derivation_actor_resolved_at' in values) lastArchiveSet = 'actor_resolved';
+            if ('derived_at' in values) lastArchiveSet = 'derived';
           }
-          return this;
+          return updateChain;
+        }),
+        where: vi.fn((_column: string, _operator: string, value: unknown) => {
+          if (table === 'archive_confirmation') {
+            if (lastArchiveSet === 'actor_resolved') calls.markedActorResolvedId = String(value);
+            if (lastArchiveSet === 'derived') calls.markedDerivedId = String(value);
+          }
+          return updateChain;
         }),
         execute: vi.fn().mockResolvedValue(undefined),
         executeTakeFirst: vi.fn(async () => {
           if (table === 'proposal') return { numUpdatedRows: BigInt(advanceStateRows) };
           return undefined;
         }),
-      }),
-    ),
+      });
+      return updateChain;
+    }),
   };
 
   const pgDb = {
@@ -154,9 +184,9 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
   return { pgDb, tx, calls };
 }
 
-describe('CompoundProjectionApplier', () => {
+describe('GovernorProjectionApplier', () => {
   it('supports both compound governor source types', () => {
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: {} as never,
       chDb: {} as never,
       archive: {} as never,
@@ -171,7 +201,7 @@ describe('CompoundProjectionApplier', () => {
     ]);
   });
 
-  it('projects ProposalCreated inside one transaction and marks archive row derived', async () => {
+  it('projects ProposalCreated inside one transaction and marks archive row derived/resolved', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const archive = {
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
@@ -181,7 +211,7 @@ describe('CompoundProjectionApplier', () => {
     };
     const metrics = makeMetrics();
 
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
@@ -209,6 +239,7 @@ describe('CompoundProjectionApplier', () => {
     expect(calls.insertedActions).toEqual(expect.any(Array));
     expect(calls.insertedChoices).toEqual(expect.any(Array));
     expect(calls.markedDerivedId).toBe('archive-1');
+    expect(calls.markedActorResolvedId).toBe('archive-1');
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
@@ -217,7 +248,7 @@ describe('CompoundProjectionApplier', () => {
 
   it('does not write children when ProposalCreated is idempotent', async () => {
     const { pgDb, calls } = makeProjectionTx({ proposalInserted: false });
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -237,7 +268,7 @@ describe('CompoundProjectionApplier', () => {
   it('advances state and upserts queued_at_block on ProposalQueued', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -252,6 +283,7 @@ describe('CompoundProjectionApplier', () => {
     expect(tx.updateTable).toHaveBeenCalledWith('proposal');
     expect(calls.upsertedCompoundMeta).toBe(true);
     expect(calls.markedDerivedId).toBe('archive-1');
+    expect(calls.markedActorResolvedId).toBe('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
     );
@@ -260,7 +292,7 @@ describe('CompoundProjectionApplier', () => {
   it('advances state without touching compound_proposal_meta on ProposalExecuted', async () => {
     const { pgDb, tx, calls } = makeProjectionTx();
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -275,6 +307,7 @@ describe('CompoundProjectionApplier', () => {
     expect(tx.updateTable).toHaveBeenCalledWith('proposal');
     expect(calls.upsertedCompoundMeta).toBe(false);
     expect(calls.markedDerivedId).toBe('archive-1');
+    expect(calls.markedActorResolvedId).toBe('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
     );
@@ -283,7 +316,7 @@ describe('CompoundProjectionApplier', () => {
   it('records skipped_state_guard and skips queued_at_block upsert when state guard blocks', async () => {
     const { pgDb, calls } = makeProjectionTx({ advanceStateRows: 0 });
     const metrics = makeMetrics();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -297,6 +330,7 @@ describe('CompoundProjectionApplier', () => {
 
     expect(calls.upsertedCompoundMeta).toBe(false);
     expect(calls.markedDerivedId).toBe('archive-1');
+    expect(calls.markedActorResolvedId).toBe('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'skipped_state_guard', reason: null }),
     );
@@ -306,7 +340,7 @@ describe('CompoundProjectionApplier', () => {
     const archive = {
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: makeProjectionTx().pgDb as never,
       chDb: {} as never,
       archive: archive as never,
@@ -327,7 +361,7 @@ describe('CompoundProjectionApplier', () => {
     };
     const metrics = makeMetrics();
     const { pgDb, calls } = makeProjectionTx();
-    const applier = new CompoundProjectionApplier({
+    const applier = new GovernorProjectionApplier({
       pgDb: pgDb as never,
       chDb: {} as never,
       archive: archive as never,
