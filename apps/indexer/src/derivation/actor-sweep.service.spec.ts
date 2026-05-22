@@ -1,8 +1,34 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from '@sources/compound';
 import type { ActorSweepAdapter } from '@sources/core';
 import { ActorSweepService } from './actor-sweep.service';
+
+const SOURCE_TYPES = [
+  'compound_governor_alpha',
+  'compound_governor_bravo',
+  'compound_governor_oz',
+  'compound_comp_token',
+] as const;
+
+const EVENT_TYPES = ['VoteCast', 'DelegateChanged'] as const;
+
+function extractAddresses(eventType: string, payloadJson: string) {
+  const payload = JSON.parse(payloadJson) as Record<string, string>;
+
+  if (eventType === 'VoteCast') {
+    return [{ address: payload['voter'] ?? '', source: 'voter_event' }];
+  }
+
+  if (eventType === 'DelegateChanged') {
+    return [
+      { address: payload['delegator'] ?? '', source: 'delegator_event' },
+      { address: payload['toDelegate'] ?? '', source: 'delegate_event' },
+      { address: payload['fromDelegate'] ?? '', source: 'delegate_event' },
+    ];
+  }
+
+  return [];
+}
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
@@ -43,9 +69,9 @@ describe('ActorSweepService', () => {
       ]),
     };
     const adapter: ActorSweepAdapter = {
-      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
-      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
-      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
       fetchPayloads: governorPayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
@@ -91,9 +117,9 @@ describe('ActorSweepService', () => {
       ]),
     };
     const adapter: ActorSweepAdapter = {
-      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
-      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
-      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
       fetchPayloads: compTokenPayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
@@ -131,15 +157,15 @@ describe('ActorSweepService', () => {
           log_index: ROW.log_index,
           block_hash: ROW.block_hash,
           event_type: ROW.event_type,
-          payload: JSON.stringify({ voter: 'not-an-address' }),
+          payload: '{invalid-json',
           received_at: new Date(),
         },
       ]),
     };
     const adapter: ActorSweepAdapter = {
-      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
-      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
-      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
       fetchPayloads: governorPayloads.fetchPayloads,
     };
     const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
