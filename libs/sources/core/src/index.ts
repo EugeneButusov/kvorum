@@ -41,6 +41,8 @@ import type { BackfillRuntime } from './backfill/types';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
+/** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
+export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;

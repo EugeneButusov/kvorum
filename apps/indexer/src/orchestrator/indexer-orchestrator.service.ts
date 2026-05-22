@@ -14,11 +14,12 @@ import {
   BackfillAlreadyStartedError,
   runBootCatchUp,
   BootCatchUpShutdownError,
+  SOURCE_INGESTERS,
   type SourceIngester,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
-import { SOURCE_INGESTERS, FETCH_DRIVERS } from './tokens';
+import { FETCH_DRIVERS } from './tokens';
 
 @Injectable()
 export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApplicationShutdown {
