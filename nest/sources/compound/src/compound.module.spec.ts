@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { COMP_TOKEN_ADDRESS } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
-import { COMPOUND_PLUGINS, CompoundSourceModule } from './compound.module';
+import { COMPOUND_SOURCE_PLUGIN, CompoundSourceModule } from './compound.module';
 
 vi.mock('@libs/db', () => ({
   pgDb: {},
@@ -15,6 +15,9 @@ vi.mock('@libs/db', () => ({
   },
   DlqRepository: class {
     public insert = vi.fn();
+    constructor(_db: unknown) {}
+  },
+  ArchiveDerivationRepository: class {
     constructor(_db: unknown) {}
   },
 }));
@@ -35,10 +38,10 @@ describe('CompoundSourceModule', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [CompoundSourceModule],
     }).compile();
-    const plugins = moduleRef.get<SourcePlugin[]>(COMPOUND_PLUGINS);
+    const plugin = moduleRef.get<SourcePlugin>(COMPOUND_SOURCE_PLUGIN);
 
-    expect(plugins).toHaveLength(6);
-    expect(plugins.map((p) => p.sourceType).sort()).toEqual([
+    expect(plugin.ingesters).toHaveLength(6);
+    expect(plugin.ingesters.map((p) => p.sourceType).sort()).toEqual([
       'compound_comp_token',
       'compound_governor_alpha',
       'compound_governor_bravo',
@@ -47,13 +50,14 @@ describe('CompoundSourceModule', () => {
       'compound_governor_oz_reconcile',
     ]);
 
-    const compTokenPlugins = plugins.filter((p) => p.sourceType === 'compound_comp_token');
+    const compTokenPlugins = plugin.ingesters.filter((p) => p.sourceType === 'compound_comp_token');
     expect(compTokenPlugins).toHaveLength(1);
     expect(compTokenPlugins[0]!.supportedChainIds).toEqual(['0x1']);
     expect(() =>
       compTokenPlugins[0]!.parseConfig({ token_address: COMP_TOKEN_ADDRESS }),
     ).not.toThrow();
     expect(() => compTokenPlugins[0]!.parseConfig({ token_address: 'not-an-address' })).toThrow();
+    expect(plugin.derivers.map((d) => d.kind)).toEqual(['projection']);
   });
 
   it('M5 logs comp-token registration exactly once', async () => {
@@ -75,8 +79,8 @@ describe('CompoundSourceModule', () => {
     await Test.createTestingModule({
       imports: [CompoundSourceModule],
     })
-      .overrideProvider(COMPOUND_PLUGINS)
-      .useValue([])
+      .overrideProvider(COMPOUND_SOURCE_PLUGIN)
+      .useValue({ name: 'noop', ingesters: [], derivers: [] })
       .compile();
 
     const count = spy.mock.calls.filter(

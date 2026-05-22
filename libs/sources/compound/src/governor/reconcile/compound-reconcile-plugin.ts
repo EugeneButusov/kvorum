@@ -1,5 +1,5 @@
 import type { Logger } from '@libs/chain';
-import type { SourcePlugin } from '@sources/core';
+import type { SourceIngester } from '@sources/core';
 import type { ReconcileDriverMetrics } from './compound-reconcile-driver';
 import { CompoundReconcileDriver } from './compound-reconcile-driver';
 import { CompoundStateReconciler } from './compound-state-reconciler';
@@ -16,7 +16,7 @@ function createReconcilePlugin(
   sourceType: string,
   targetSourceType: string,
   deps: CompoundReconcilePluginDeps,
-): SourcePlugin {
+): SourceIngester {
   const reconciler = new CompoundStateReconciler(deps.logger, [targetSourceType]);
   const driver = new CompoundReconcileDriver(reconciler, deps.proposals, deps.metrics, deps.logger);
 
@@ -52,7 +52,7 @@ function createReconcilePlugin(
 
 export function createCompoundGovernorBravoReconcilePlugin(
   deps: CompoundReconcilePluginDeps,
-): SourcePlugin {
+): SourceIngester {
   return createReconcilePlugin(
     'compound_governor_bravo_reconcile',
     'compound_governor_bravo',
@@ -62,6 +62,6 @@ export function createCompoundGovernorBravoReconcilePlugin(
 
 export function createCompoundGovernorOzReconcilePlugin(
   deps: CompoundReconcilePluginDeps,
-): SourcePlugin {
+): SourceIngester {
   return createReconcilePlugin('compound_governor_oz_reconcile', 'compound_governor_oz', deps);
 }

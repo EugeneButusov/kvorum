@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import type { SourcePlugin } from '@sources/core';
+import type { SourceIngester, SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
-import { COMPOUND_PLUGINS, CompoundSourceModule } from '@nest/compound';
+import { SourcesModule } from '@nest/sources';
+import { SOURCE_PLUGINS as SOURCE_PLUGIN_BUNDLES } from '@sources/core';
 import { DerivationModule } from '../derivation';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-driver';
@@ -10,15 +11,16 @@ import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from '../orchestrator/tokens';
+import { SOURCE_INGESTERS, FETCH_DRIVERS } from '../orchestrator/tokens';
 
 @Module({
-  imports: [IndexerInfraModule, ChainContextModule, DerivationModule, CompoundSourceModule],
+  imports: [IndexerInfraModule, ChainContextModule, DerivationModule, SourcesModule],
   providers: [
     {
-      provide: SOURCE_PLUGINS,
-      useFactory: (compoundPlugins: SourcePlugin[]) => compoundPlugins,
-      inject: [COMPOUND_PLUGINS],
+      provide: SOURCE_INGESTERS,
+      useFactory: (plugins: SourcePlugin[]): SourceIngester[] =>
+        plugins.flatMap((p) => p.ingesters),
+      inject: [SOURCE_PLUGIN_BUNDLES],
     },
     EvmEventPollerDriver,
     EvmBlockHeadPollerDriver,

@@ -1,2 +1,2 @@
 export { toChainLogger } from './utils/nest-logger-adapter';
-export { CompoundSourceModule, COMPOUND_PLUGINS } from './compound.module';
+export { CompoundSourceModule, COMPOUND_SOURCE_PLUGIN } from './compound.module';

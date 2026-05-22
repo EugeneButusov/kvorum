@@ -36,10 +36,12 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
+      kind: 'projection' as const,
       sourceTypes: ['compound_governor_bravo'],
+      eventTypes: ['ProposalCreated'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, [applier]);
+    const worker = new DerivationWorkerService(archive as never, [bundleWith(applier)]);
 
     await worker.tick();
 
@@ -54,10 +56,12 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const applier = {
+      kind: 'projection' as const,
       sourceTypes: ['compound_governor_bravo', 'compound_governor_alpha'],
+      eventTypes: ['ProposalCreated'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, [applier]);
+    const worker = new DerivationWorkerService(archive as never, [bundleWith(applier)]);
 
     await worker.tick();
 
@@ -65,3 +69,12 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 });
+
+function bundleWith(applier: {
+  kind: 'projection';
+  sourceTypes: string[];
+  eventTypes: string[];
+  applyBatch: (rows: readonly ArchiveDerivationRow[]) => Promise<void>;
+}) {
+  return { name: 'test', ingesters: [], derivers: [applier] };
+}

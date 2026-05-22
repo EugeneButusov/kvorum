@@ -14,11 +14,11 @@ import {
   BackfillAlreadyStartedError,
   runBootCatchUp,
   BootCatchUpShutdownError,
-  type SourcePlugin,
+  type SourceIngester,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { ReorgWatcherService } from './reorg-watcher.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
+import { SOURCE_INGESTERS, FETCH_DRIVERS } from './tokens';
 
 @Injectable()
 export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -30,7 +30,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private catchUpTasks: Promise<void>[] = [];
 
   constructor(
-    @Inject(SOURCE_PLUGINS) private readonly plugins: ReadonlyArray<SourcePlugin>,
+    @Inject(SOURCE_INGESTERS) private readonly plugins: ReadonlyArray<SourceIngester>,
     @Inject(FETCH_DRIVERS) private readonly drivers: readonly FetchDriver[],
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
@@ -69,7 +69,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     const validated: Array<{
       sourceType: string;
       config: unknown;
-      plugin: SourcePlugin;
+      plugin: SourceIngester;
       chainCfg: ChainConfig;
       src: (typeof sources)[number];
     }> = [];
@@ -200,7 +200,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       src: { id: string };
       sourceType: string;
     },
-    runtime: ReturnType<SourcePlugin['buildBackfillRuntime']>,
+    runtime: ReturnType<SourceIngester['buildBackfillRuntime']>,
     firstTickPromise: Promise<bigint>,
   ): Promise<void> {
     try {

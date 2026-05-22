@@ -30,6 +30,7 @@
       ],
       "@nest/chain": ["./nest/chain/src/index.ts"],
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
+      "@nest/sources": ["./nest/sources/index.ts"],
       "@nest/observability": ["./nest/observability/src/index.ts"],
       "@nest/logging": ["./nest/logging/src/index.ts"]
     }

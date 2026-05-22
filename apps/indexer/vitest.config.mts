@@ -15,6 +15,7 @@ const alias = {
   '@sources/compound': resolve(root, 'libs/sources/compound/src/index.ts'),
   '@nest/chain': resolve(root, 'nest/chain/src/index.ts'),
   '@nest/compound': resolve(root, 'nest/sources/compound/src/index.ts'),
+  '@nest/sources': resolve(root, 'nest/sources/index.ts'),
   '@nest/observability': resolve(root, 'nest/observability/src/index.ts'),
 };
 

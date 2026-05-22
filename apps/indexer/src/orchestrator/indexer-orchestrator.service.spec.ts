@@ -3,12 +3,12 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
 import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
-import type { SourcePlugin, SourceContext, IngestSpec } from '@sources/core';
+import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
 import { ReorgWatcherService } from './reorg-watcher.service';
-import { SOURCE_PLUGINS, FETCH_DRIVERS } from './tokens';
+import { SOURCE_INGESTERS, FETCH_DRIVERS } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -37,7 +37,7 @@ vi.mock('@libs/db', () => ({
 }));
 
 vi.mock('@sources/core', () => ({
-  SOURCE_PLUGINS: 'SOURCE_PLUGINS',
+  SOURCE_INGESTERS: 'SOURCE_INGESTERS',
   runBootCatchUp: vi.fn(),
   BootCatchUpShutdownError: class BootCatchUpShutdownError extends Error {
     constructor() {
@@ -80,7 +80,7 @@ function makeSource(id: string, sourceType: string, primaryChainId: string, sour
   };
 }
 
-function makeFakePlugin(sourceType: string, parseOk = true): SourcePlugin {
+function makeFakePlugin(sourceType: string, parseOk = true): SourceIngester {
   return {
     sourceType,
     supportedChainIds: ['0x1', '0x89', '0x999'],
@@ -136,7 +136,7 @@ const mockReorgWatcher = {
   watch: vi.fn(),
 };
 
-async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promise<TestingModule> {
+async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
   } as never);
@@ -147,7 +147,7 @@ async function buildModule(plugins: SourcePlugin[], driver: FetchDriver): Promis
   return Test.createTestingModule({
     providers: [
       IndexerOrchestratorService,
-      { provide: SOURCE_PLUGINS, useValue: plugins },
+      { provide: SOURCE_INGESTERS, useValue: plugins },
       { provide: FETCH_DRIVERS, useValue: [driver] },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
@@ -263,7 +263,7 @@ describe('IndexerOrchestratorService', () => {
     ]);
 
     const driver = makeFakeDriver();
-    const plugin: SourcePlugin = {
+    const plugin: SourceIngester = {
       ...makeFakePlugin('compound_governor_bravo'),
       supportedChainIds: ['0x1'],
     };
@@ -407,7 +407,7 @@ describe('IndexerOrchestratorService', () => {
       makeSource('src-1', 'compound_governor_bravo_reconcile', '0x1'),
     ]);
 
-    const blockHeadPlugin: SourcePlugin = {
+    const blockHeadPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo_reconcile',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
@@ -437,7 +437,7 @@ describe('IndexerOrchestratorService', () => {
     const module = await Test.createTestingModule({
       providers: [
         IndexerOrchestratorService,
-        { provide: SOURCE_PLUGINS, useValue: [blockHeadPlugin] },
+        { provide: SOURCE_INGESTERS, useValue: [blockHeadPlugin] },
         { provide: FETCH_DRIVERS, useValue: [eventDriver, blockHeadDriver] },
         { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
         { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
@@ -459,7 +459,7 @@ describe('IndexerOrchestratorService', () => {
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
 
-    const unknownKindPlugin: SourcePlugin = {
+    const unknownKindPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo',
       supportedChainIds: ['0x1'],
       parseConfig: (raw: unknown) => raw,
