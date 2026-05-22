@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SOURCE_INGESTERS, SOURCE_PLUGINS as SOURCE_PLUGIN_BUNDLES } from '@sources/core';
+import { SOURCE_INGESTERS, SOURCE_PLUGINS } from '@sources/core';
 import type { SourceIngester, SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
@@ -20,7 +20,7 @@ import { FETCH_DRIVERS } from '../orchestrator/tokens';
       provide: SOURCE_INGESTERS,
       useFactory: (plugins: SourcePlugin[]): SourceIngester[] =>
         plugins.flatMap((p) => p.ingesters),
-      inject: [SOURCE_PLUGIN_BUNDLES],
+      inject: [SOURCE_PLUGINS],
     },
     EvmEventPollerDriver,
     EvmBlockHeadPollerDriver,
