@@ -3,6 +3,7 @@ import { silentLogger } from '@libs/chain';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
+import { validateFromBlockGate } from './backfill-gate.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
 
 type BackfillCommonOptions = {
@@ -13,6 +14,7 @@ type BackfillStartOptions = BackfillCommonOptions & {
   fromBlock?: string;
   toBlock?: string;
   dryRun?: boolean;
+  confirmReplay?: boolean;
 };
 
 type BackfillCatchUpOptions = BackfillCommonOptions & {
@@ -28,6 +30,7 @@ export function registerBackfill(program: Command): void {
     .description('Start a backfill for a DAO source')
     .option('--from-block <N>', 'starting block number')
     .option('--to-block <N>', 'ending block number')
+    .option('--confirm-replay', 'confirm re-running blocks below current backfill head')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
@@ -86,23 +89,14 @@ export function registerBackfill(program: Command): void {
         }
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
         if (fromBlock != null) {
-          const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
-          const backfillFloor =
-            row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
-          let minFrom = 0n;
-          if (activeFloor === null) {
-            minFrom = backfillFloor ?? 0n;
-          } else if (backfillFloor === null) {
-            minFrom = activeFloor;
-          } else {
-            minFrom = activeFloor > backfillFloor ? activeFloor : backfillFloor;
-          }
-          if (fromBlock < minFrom) {
-            fail(
-              format,
-              ExitCode.ValidationFailure,
-              `--from-block (${fromBlock.toString()}) must be >= ${minFrom.toString()} (= max(active_from_block=${row.active_from_block ?? 'NULL'}, backfill_head_block+1=${backfillFloor?.toString() ?? 'NULL'}))`,
-            );
+          const violation = validateFromBlockGate({
+            fromBlock,
+            activeFromBlock: row.active_from_block,
+            backfillHeadBlock: row.backfill_head_block,
+            confirmReplay: opts.confirmReplay === true,
+          });
+          if (violation != null) {
+            fail(format, ExitCode.ValidationFailure, violation.message);
           }
         }
 

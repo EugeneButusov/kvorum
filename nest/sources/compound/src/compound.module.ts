@@ -2,11 +2,11 @@ import { Module, Logger } from '@nestjs/common';
 import { pgDb, chDb } from '@libs/db';
 import { ConfirmationRepository, DlqRepository } from '@libs/db';
 import {
-  ArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
   CompoundProposalRepository,
-  EventRepository,
+  GovernorArchiveWriter,
+  GovernorEventRepository,
   createCompTokenPlugin,
   createCompoundPlugins,
   createCompoundGovernorBravoReconcilePlugin,
@@ -29,16 +29,16 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
       useFactory: () => new DlqRepository(pgDb),
     },
     {
-      provide: ArchiveWriter,
+      provide: GovernorArchiveWriter,
       useFactory: () => {
-        const eventRepo = new EventRepository({ chDb });
+        const eventRepo = new GovernorEventRepository({ chDb });
         const confirmationRepo = new ConfirmationRepository(pgDb);
         const dlqRepo = new DlqRepository(pgDb);
-        return new ArchiveWriter({
+        return new GovernorArchiveWriter({
           eventRepo,
           confirmationRepo,
           dlqRepo,
-          logger: toChainLogger(new Logger('ArchiveWriter')),
+          logger: toChainLogger(new Logger('GovernorArchiveWriter')),
         });
       },
     },
@@ -68,7 +68,7 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
     {
       provide: COMPOUND_PLUGINS,
       useFactory: (
-        archiveWriter: ArchiveWriter,
+        archiveWriter: GovernorArchiveWriter,
         dlqRepo: DlqRepository,
         proposalRepo: CompoundProposalRepository,
         compTokenArchiveWriter: CompTokenArchiveWriter,
@@ -100,7 +100,12 @@ export const COMPOUND_PLUGINS = 'COMPOUND_PLUGINS';
           }),
         ];
       },
-      inject: [ArchiveWriter, DlqRepository, CompoundProposalRepository, CompTokenArchiveWriter],
+      inject: [
+        GovernorArchiveWriter,
+        DlqRepository,
+        CompoundProposalRepository,
+        CompTokenArchiveWriter,
+      ],
     },
   ],
   exports: [COMPOUND_PLUGINS],

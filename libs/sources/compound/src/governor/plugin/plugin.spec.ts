@@ -8,7 +8,7 @@ import {
   createCompoundGovernorOzPlugin,
   createCompoundPlugins,
 } from './plugin';
-import { ArchiveWriter } from '../ingestion/archive-writer';
+import { GovernorArchiveWriter } from '../ingestion/archive-writer';
 import * as ingesterListener from '../ingestion/ingester-listener';
 
 const CTX: SourceContext = {
@@ -30,7 +30,7 @@ const OZ_CTX: SourceContext = {
   sourceLabel: 'compound_governor_oz',
 };
 
-const mockArchiveWriter = {} as ArchiveWriter;
+const mockArchiveWriter = {} as GovernorArchiveWriter;
 const mockDlqRepo = { insert: vi.fn() } as unknown as DlqRepository;
 
 function makePlugin() {

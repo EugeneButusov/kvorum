@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
-import { ArchiveWriter } from './archive-writer';
+import { GovernorArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
@@ -35,10 +35,12 @@ function makeDlqRepo(): DlqRepository {
   return { insert: vi.fn().mockResolvedValue(undefined) } as unknown as DlqRepository;
 }
 
-function makeDeps(writeImpl?: () => ReturnType<ArchiveWriter['write']>): IngesterListenerDeps {
+function makeDeps(
+  writeImpl?: () => ReturnType<GovernorArchiveWriter['write']>,
+): IngesterListenerDeps {
   const archiveWriter = {
     write: vi.fn().mockImplementation(writeImpl ?? (() => Promise.resolve({ result: 'inserted' }))),
-  } as unknown as ArchiveWriter;
+  } as unknown as GovernorArchiveWriter;
 
   return {
     archiveWriter,

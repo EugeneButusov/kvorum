@@ -1,13 +1,13 @@
 import type { LogEvent, EventsListener, Logger } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
-import { ArchiveWriter } from './archive-writer';
+import { GovernorArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import { DecodeError } from '../../shared';
 import { decodeCompoundLog } from '../abi/decoder';
 
 export interface IngesterListenerDeps {
-  archiveWriter: ArchiveWriter;
+  archiveWriter: GovernorArchiveWriter;
   context: ArchiveWriteContext;
   logger: Logger;
   dlqRepo: DlqRepository;

@@ -68,15 +68,18 @@ export type {
 } from './persistence/compound-proposal-repository';
 export { CompoundProposalRepository } from './persistence/compound-proposal-repository';
 
-export type { EventData, EventRepositoryDeps } from './persistence/event-repository.types';
-export { EventRepository } from './persistence/event-repository';
+export type {
+  GovernorEventData,
+  GovernorEventRepositoryDeps,
+} from './persistence/event-repository.types';
+export { GovernorEventRepository } from './persistence/event-repository';
 
 export type {
-  ArchiveWriterDeps,
+  GovernorArchiveWriterDeps,
   ArchiveWriteContext,
   ArchiveWriteOutcome,
 } from './ingestion/archive-writer.types';
-export { ArchiveWriter } from './ingestion/archive-writer';
+export { GovernorArchiveWriter } from './ingestion/archive-writer';
 
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';
 export { makeIngesterListener } from './ingestion/ingester-listener';

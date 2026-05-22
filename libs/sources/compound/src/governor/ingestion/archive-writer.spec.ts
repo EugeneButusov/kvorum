@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter } from './archive-writer';
+import { GovernorArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import type { CompoundGovernorEvent } from '../domain/types';
-import type { EventRepository } from '../persistence/event-repository';
+import type { GovernorEventRepository } from '../persistence/event-repository';
 
 // ---- Shared test fixtures ----
 
@@ -30,6 +30,16 @@ const DECODED: CompoundGovernorEvent = {
     description: 'test',
   },
 };
+const VOTECAST_DECODED: CompoundGovernorEvent = {
+  type: 'VoteCast',
+  payload: {
+    voter: '0xabcdef1234567890abcdef1234567890abcdef12',
+    proposalId: '123',
+    primaryChoice: 1,
+    votingPowerReported: '100',
+    compound: { supportRaw: 1, reason: null },
+  },
+};
 
 const LOG_REF: LogEvent = {
   sourceType: 'compound_governor_bravo',
@@ -48,11 +58,11 @@ const LOG_REF: LogEvent = {
 
 function makeEventRepo(
   overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {},
-): EventRepository {
+): GovernorEventRepository {
   return {
     insert: vi.fn().mockResolvedValue(undefined),
     ...overrides,
-  } as unknown as EventRepository;
+  } as unknown as GovernorEventRepository;
 }
 
 function makeConfirmationRepo(
@@ -77,12 +87,12 @@ function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = 
 
 function buildWriter(
   overrides: {
-    eventRepo?: EventRepository;
+    eventRepo?: GovernorEventRepository;
     confirmationRepo?: ConfirmationRepository;
     dlqRepo?: DlqRepository;
   } = {},
-): ArchiveWriter {
-  return new ArchiveWriter({
+): GovernorArchiveWriter {
+  return new GovernorArchiveWriter({
     eventRepo: overrides.eventRepo ?? makeEventRepo(),
     confirmationRepo: overrides.confirmationRepo ?? makeConfirmationRepo(),
     dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
@@ -93,7 +103,7 @@ function buildWriter(
 
 // ---- Tests ----
 
-describe('ArchiveWriter', () => {
+describe('GovernorArchiveWriter', () => {
   it('#1 — happy path: existence check empty → archive insert → confirmation insert → outcome inserted', async () => {
     const eventRepo = makeEventRepo();
     const confirmationRepo = makeConfirmationRepo();
@@ -146,18 +156,21 @@ describe('ArchiveWriter', () => {
     expect(outcome.result).toBe('unreachable');
   });
 
-  it('#6 — eventRepo.insert failure propagates as exception; confirmation/DLQ NOT attempted', async () => {
+  it('#6 — eventRepo.insert failure routes to DLQ and returns dlq_routed', async () => {
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('connection refused')),
     });
     const confirmationRepo = makeConfirmationRepo();
     const dlqRepo = makeDlqRepo();
 
-    await expect(
-      buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF),
-    ).rejects.toThrow('connection refused');
+    const outcome = await buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(
+      CTX,
+      DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('dlq_routed');
     expect(confirmationRepo.insert).not.toHaveBeenCalled();
-    expect(dlqRepo.insert).not.toHaveBeenCalled();
+    expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#7 — uint256 boundary in payload survives JSON.stringify round-trip', async () => {
@@ -257,7 +270,7 @@ describe('ArchiveWriter', () => {
       ...CTX,
       confirmationClassifier: () => 'confirmed',
     };
-    const writer = new ArchiveWriter({
+    const writer = new GovernorArchiveWriter({
       eventRepo: makeEventRepo(),
       confirmationRepo,
       dlqRepo: makeDlqRepo(),
@@ -304,5 +317,60 @@ describe('ArchiveWriter', () => {
     const row = capturedRow as Record<string, unknown>;
     expect(row['confirmation_status']).toBe('pending');
     expect(row['confirmed_at']).toBeNull();
+  });
+
+  it('#15 — VoteCast routes to confirmation_archive_stage on confirmation insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const confirmationRepo = makeConfirmationRepo({
+      insert: vi.fn().mockRejectedValue(new Error('pg')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(
+      CTX,
+      VOTECAST_DECODED,
+      LOG_REF,
+    );
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
+  });
+
+  it('#16 — proposal events route to confirmation_archive_stage on CH insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const eventRepo = makeEventRepo({
+      insert: vi.fn().mockRejectedValue(new Error('ch down')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
+  });
+
+  it('#17 — VoteCast routes to confirmation_archive_stage on CH insert failure', async () => {
+    let capturedDlqRow: unknown;
+    const eventRepo = makeEventRepo({
+      insert: vi.fn().mockRejectedValue(new Error('ch down')),
+    });
+    const dlqRepo = makeDlqRepo({
+      insert: vi.fn().mockImplementation((row: unknown) => {
+        capturedDlqRow = row;
+        return Promise.resolve();
+      }),
+    });
+
+    const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, VOTECAST_DECODED, LOG_REF);
+    expect(outcome.result).toBe('dlq_routed');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
   });
 });

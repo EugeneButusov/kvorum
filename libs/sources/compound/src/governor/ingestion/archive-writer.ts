@@ -8,11 +8,11 @@ import type {
 } from '@libs/db';
 import type {
   ArchiveWriteContext,
-  ArchiveWriterDeps,
+  GovernorArchiveWriterDeps,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
 import type { CompoundGovernorEvent } from '../domain/types';
-import type { EventRepository } from '../persistence/event-repository';
+import type { GovernorEventRepository } from '../persistence/event-repository';
 
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
@@ -22,14 +22,14 @@ function serializeError(err: unknown): Record<string, unknown> {
   return { name: 'UnknownError', message: String(err) };
 }
 
-export class ArchiveWriter {
-  private readonly eventRepo: EventRepository;
+export class GovernorArchiveWriter {
+  private readonly eventRepo: GovernorEventRepository;
   private readonly confirmationRepo: ConfirmationRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
-  constructor(deps: ArchiveWriterDeps) {
+  constructor(deps: GovernorArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
     this.confirmationRepo = deps.confirmationRepo;
     this.dlqRepo = deps.dlqRepo;
@@ -64,37 +64,36 @@ export class ArchiveWriter {
     const receivedAt = this.now();
     const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
-    // Step 2 — event archive insert (idempotent; errors propagate to listener)
-    await this.eventRepo.insert({
-      daoSourceId: ctx.daoSourceId,
-      chainId: ctx.chainId,
-      blockNumber: logRef.blockNumber.toString(),
-      blockHash: logRef.blockHash,
-      txHash: logRef.txHash,
-      logIndex: logRef.logIndex,
-      eventType: decoded.type,
-      payload: JSON.stringify(decoded.payload),
-    });
-
-    // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
-    const row: NewArchiveConfirmation = {
-      source_type: ctx.sourceType,
-      dao_source_id: ctx.daoSourceId,
-      chain_id: ctx.chainId,
-      block_number: logRef.blockNumber.toString(),
-      block_hash: logRef.blockHash,
-      tx_hash: logRef.txHash,
-      log_index: logRef.logIndex,
-      event_type: decoded.type,
-      received_at: receivedAt,
-      confirmation_status: confirmationStatus,
-      confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
-      orphaned_at: null,
-      orphaned_by_reorg_event_id: null,
-      derived_at: null,
-    };
-
     try {
+      // Step 2 — event archive insert (idempotent; CH failures route to DLQ via catch below)
+      await this.eventRepo.insert({
+        daoSourceId: ctx.daoSourceId,
+        chainId: ctx.chainId,
+        blockNumber: logRef.blockNumber.toString(),
+        blockHash: logRef.blockHash,
+        txHash: logRef.txHash,
+        logIndex: logRef.logIndex,
+        eventType: decoded.type,
+        payload: JSON.stringify(decoded.payload),
+      });
+
+      // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
+      const row: NewArchiveConfirmation = {
+        source_type: ctx.sourceType,
+        dao_source_id: ctx.daoSourceId,
+        chain_id: ctx.chainId,
+        block_number: logRef.blockNumber.toString(),
+        block_hash: logRef.blockHash,
+        tx_hash: logRef.txHash,
+        log_index: logRef.logIndex,
+        event_type: decoded.type,
+        received_at: receivedAt,
+        confirmation_status: confirmationStatus,
+        confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
+        orphaned_at: null,
+        orphaned_by_reorg_event_id: null,
+        derived_at: null,
+      };
       const result = await this.confirmationRepo.insert(row);
 
       if (result?.id) {
@@ -135,7 +134,7 @@ export class ArchiveWriter {
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'archive_confirmation_write',
+      stage: 'confirmation_archive_stage',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

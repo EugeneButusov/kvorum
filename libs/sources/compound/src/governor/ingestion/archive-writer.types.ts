@@ -1,9 +1,9 @@
 import type { Logger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
-import type { EventRepository } from '../persistence/event-repository';
+import type { GovernorEventRepository } from '../persistence/event-repository';
 
-export interface ArchiveWriterDeps {
-  eventRepo: EventRepository;
+export interface GovernorArchiveWriterDeps {
+  eventRepo: GovernorEventRepository;
   confirmationRepo: ConfirmationRepository;
   dlqRepo: DlqRepository;
   logger: Logger;
