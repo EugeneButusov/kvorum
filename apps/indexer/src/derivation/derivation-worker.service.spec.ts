@@ -18,18 +18,20 @@ const ROW: ArchiveDerivationRow = {
 
 describe('DerivationWorkerService', () => {
   it('increments attempt count when source has no projection applier', async () => {
+    const applier = {
+      sourceTypes: ['compound_governor_alpha'],
+      eventTypes: ['ProposalCreated'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
     const archive = {
       findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, []);
+    const worker = new DerivationWorkerService(archive as never, [applier]);
 
     await worker.tick();
 
-    expect(archive.findConfirmedDerivableBy).toHaveBeenCalledWith(
-      ['ProposalCreated', 'ProposalQueued', 'ProposalExecuted', 'ProposalCanceled'],
-      50,
-    );
+    expect(archive.findConfirmedDerivableBy).toHaveBeenCalledWith(['ProposalCreated'], 50);
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
   });
 

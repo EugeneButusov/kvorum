@@ -101,6 +101,14 @@ export interface SourceContext {
   sourceLabel: SourceType;
 }
 
+export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
+export type {
+  DerivationProjectionApplier,
+  ActorSweepPayloadRow,
+  ActorSweepAddressCandidate,
+  ActorSweepAdapter,
+} from './derivation';
+
 // Re-export the analytical mirror CH table types so @sources/core is the
 // canonical import point. The `declare module '@libs/db'` side-effect in
 // ./persistence/schema activates whenever @sources/core (or any module

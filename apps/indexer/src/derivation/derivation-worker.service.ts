@@ -8,12 +8,6 @@ import { derivationMetrics } from './derivation-metrics';
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
-const DERIVATION_EVENT_TYPES = [
-  'ProposalCreated',
-  'ProposalQueued',
-  'ProposalExecuted',
-  'ProposalCanceled',
-] as const;
 
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
@@ -21,6 +15,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly appliers: readonly ProjectionDeriver[];
   private inFlight = false;
   private lastProgressLogAt = 0;
+  private readonly eventTypes: readonly string[];
 
   constructor(
     private readonly archive: ArchiveDerivationRepository,
@@ -29,6 +24,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
     this.appliers = plugins
       .flatMap((plugin) => plugin.derivers)
       .filter((deriver): deriver is ProjectionDeriver => deriver.kind === 'projection');
+    this.eventTypes = [...new Set(this.appliers.flatMap((applier) => applier.eventTypes))];
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -45,10 +41,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const batchSize = Number(
         process.env['DERIVATION_BATCH_SIZE'] ?? DEFAULT_DERIVATION_BATCH_SIZE,
       );
-      const watermark = await this.archive.findConfirmedDerivableBy(
-        DERIVATION_EVENT_TYPES,
-        batchSize,
-      );
+      const watermark = await this.archive.findConfirmedDerivableBy(this.eventTypes, batchSize);
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0);
         return;

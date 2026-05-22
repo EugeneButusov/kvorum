@@ -1,14 +1,11 @@
 import { Module, Logger } from '@nestjs/common';
-import { pgDb, chDb } from '@libs/db';
-import { ArchiveDerivationRepository } from '@libs/db';
-import { ConfirmationRepository, DlqRepository } from '@libs/db';
+import { ArchiveDerivationRepository, ConfirmationRepository, DlqRepository, chDb, pgDb } from '@libs/db';
 import {
   CompTokenArchiveWriter,
   CompTokenEventRepository,
-  CompoundArchivePayloadRepository,
   CompoundProposalRepository,
-  CompoundProjectionApplier,
   GovernorArchiveWriter,
+  GovernorProjectionApplier,
   GovernorEventRepository,
   createCompTokenPlugin,
   createCompoundPlugins,
@@ -73,20 +70,19 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       inject: [CompTokenEventRepository, ConfirmationRepository, DlqRepository],
     },
     {
-      provide: CompoundProjectionApplier,
-      useFactory: (archive: ArchiveDerivationRepository) =>
-        new CompoundProjectionApplier({
+      provide: GovernorProjectionApplier,
+      useFactory: () =>
+        new GovernorProjectionApplier({
           pgDb,
           chDb,
-          archive,
-          payloads: new CompoundArchivePayloadRepository(chDb),
+          archive: new ArchiveDerivationRepository(pgDb),
+          payloads: new (require('@sources/compound').GovernorArchivePayloadRepository)(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
             processed: () => undefined,
           },
-          logger: toChainLogger(new Logger('CompoundProjectionApplier')),
+          logger: toChainLogger(new Logger('GovernorProjectionApplier')),
         }),
-      inject: [ArchiveDerivationRepository],
     },
     {
       provide: COMPOUND_SOURCE_PLUGIN,
@@ -95,7 +91,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         dlqRepo: DlqRepository,
         proposalRepo: CompoundProposalRepository,
         compTokenArchiveWriter: CompTokenArchiveWriter,
-        projectionApplier: CompoundProjectionApplier,
+        projectionApplier: GovernorProjectionApplier,
       ): SourcePlugin => {
         const reconcileLogger = toChainLogger(new Logger('CompoundReconcile'));
         const metrics = buildDriverMetrics();
@@ -134,7 +130,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         DlqRepository,
         CompoundProposalRepository,
         CompTokenArchiveWriter,
-        CompoundProjectionApplier,
+        GovernorProjectionApplier,
       ],
     },
   ],
