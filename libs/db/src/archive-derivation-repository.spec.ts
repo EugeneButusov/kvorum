@@ -70,12 +70,16 @@ describe('ArchiveDerivationRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedUndderived(50)).resolves.toEqual([ARCHIVE_ROW]);
+    await expect(repo.findConfirmedUndderived(['ProposalCreated'], 5, 50)).resolves.toEqual([
+      ARCHIVE_ROW,
+    ]);
 
     expect(pgSelect.selectFrom).toHaveBeenCalledWith('archive_confirmation');
     expect(pgSelect.where.mock.calls).toEqual([
       ['confirmation_status', '=', 'confirmed'],
       ['derived_at', 'is', null],
+      ['event_type', 'in', ['ProposalCreated']],
+      ['derivation_attempt_count', '<', 5],
     ]);
     expect(pgSelect.orderBy.mock.calls).toEqual([
       ['chain_id', 'asc'],
@@ -84,6 +88,14 @@ describe('ArchiveDerivationRepository', () => {
       ['id', 'asc'],
     ]);
     expect(pgSelect.limit).toHaveBeenCalledWith(50);
+  });
+
+  it('short-circuits underived lookup for empty event type list', async () => {
+    const pgSelect = makeSelectChain([ARCHIVE_ROW]);
+    const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
+
+    await expect(repo.findConfirmedUndderived([], 5, 10)).resolves.toEqual([]);
+    expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
   it('marks a row derived', async () => {

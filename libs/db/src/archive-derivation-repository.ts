@@ -33,7 +33,13 @@ export class ArchiveDerivationRepository {
     return Number(row.count);
   }
 
-  async findConfirmedUndderived(limit: number): Promise<ArchiveDerivationRow[]> {
+  async findConfirmedUndderived(
+    eventTypes: readonly string[],
+    attemptThreshold: number,
+    limit: number,
+  ): Promise<ArchiveDerivationRow[]> {
+    if (eventTypes.length === 0) return [];
+
     return this.pgDb
       .selectFrom('archive_confirmation')
       .select([
@@ -51,6 +57,8 @@ export class ArchiveDerivationRepository {
       ])
       .where('confirmation_status', '=', 'confirmed')
       .where('derived_at', 'is', null)
+      .where('event_type', 'in', eventTypes)
+      .where('derivation_attempt_count', '<', attemptThreshold)
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
