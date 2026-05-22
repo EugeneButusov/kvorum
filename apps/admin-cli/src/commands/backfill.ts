@@ -4,6 +4,7 @@ import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
+import { validateFromBlockGate } from './backfill-gate.js';
 
 type BackfillCommonOptions = {
   format?: string;
@@ -88,27 +89,14 @@ export function registerBackfill(program: Command): void {
         }
         const resolvedFromBlock = fromBlock ?? parseBigintOrZero(row.active_from_block);
         if (fromBlock != null) {
-          const activeFloor = row.active_from_block === null ? null : BigInt(row.active_from_block);
-          const replayFloor =
-            row.backfill_head_block === null ? null : BigInt(row.backfill_head_block) + 1n;
-
-          if (activeFloor !== null && fromBlock < activeFloor) {
-            fail(
-              format,
-              ExitCode.ValidationFailure,
-              `--from-block (${fromBlock.toString()}) must be >= active_from_block (${row.active_from_block ?? 'NULL'})`,
-            );
-          }
-
-          if (replayFloor !== null && fromBlock < replayFloor && opts.confirmReplay !== true) {
-            const blockDelta = (replayFloor - fromBlock).toString();
-            fail(
-              format,
-              ExitCode.ValidationFailure,
-              `--from-block (${fromBlock.toString()}) is below the current backfill_head_block (${row.backfill_head_block ?? 'NULL'}). ` +
-                `Re-running will re-process ${blockDelta} blocks already archived (idempotent per ADR-041's 5-tuple existence check). ` +
-                'Pass --confirm-replay to proceed. See docs/runbooks/m2-backfill.md.',
-            );
+          const violation = validateFromBlockGate({
+            fromBlock,
+            activeFromBlock: row.active_from_block,
+            backfillHeadBlock: row.backfill_head_block,
+            confirmReplay: opts.confirmReplay === true,
+          });
+          if (violation != null) {
+            fail(format, ExitCode.ValidationFailure, violation.message);
           }
         }
 

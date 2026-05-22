@@ -3,16 +3,12 @@ import { chDb, ConfirmationRepository, DaoSourceRepository, DlqRepository, pgDb 
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
+import { isDlqRetryableStage } from './dlq-retry-stage.js';
 
 type DlqCommon = { format?: string };
 type DlqListOptions = DlqCommon & { feature?: string; limit?: string };
 type DlqRetryOptions = DlqCommon & { dryRun?: boolean };
 type DlqAcceptOptions = DlqCommon & { reason: string };
-const RETRYABLE_STAGES = new Set([
-  'archive_confirmation_write',
-  'vote_archive_write',
-  'delegation_archive_write',
-]);
 
 export function registerDlq(program: Command): void {
   const dlq = program.command('dlq').description('Dead-letter queue management');
@@ -52,7 +48,7 @@ export function registerDlq(program: Command): void {
           fail(format, ExitCode.NotFound, `dlq row not found: ${dlqId}`);
         }
 
-        if (!RETRYABLE_STAGES.has(row.stage)) {
+        if (!isDlqRetryableStage(row.stage)) {
           emit(
             format,
             () =>
