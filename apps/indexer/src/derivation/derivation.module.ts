@@ -14,9 +14,9 @@ import {
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
+import type { ActorSweepAdapter } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
-import type { ActorSweepAdapter } from './actor-sweep-adapter';
 import { ActorSweepService } from './actor-sweep.service';
 import { CalldataDecoderModule } from './calldata-decoder.module';
 import { DerivationWorkerService } from './derivation-worker.service';

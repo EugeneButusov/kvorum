@@ -12,7 +12,7 @@ import {
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
-import type { ActorSweepAdapter } from './actor-sweep-adapter';
+import type { ActorSweepAdapter } from '@sources/core';
 import { ActorSweepService } from './actor-sweep.service';
 
 const DB_URL = process.env['DATABASE_URL'];

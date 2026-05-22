@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
 import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from '@sources/compound';
-import type { ActorSweepAdapter } from './actor-sweep-adapter';
+import type { ActorSweepAdapter } from '@sources/core';
 import { ActorSweepService } from './actor-sweep.service';
 
 const ROW: ArchiveDerivationRow = {

@@ -6,7 +6,7 @@ import {
   DlqRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
-import type { ActorSweepAdapter } from './actor-sweep-adapter';
+import type { ActorSweepAdapter } from '@sources/core';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
