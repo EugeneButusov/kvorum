@@ -3,7 +3,7 @@ import { chDb, ConfirmationRepository, DaoSourceRepository, DlqRepository, pgDb 
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
-import { isDlqRetryableStage } from './dlq-retry-stage.js';
+import { isCompTokenArchiveStage, isDlqRetryableStage } from './dlq-retry-stage.js';
 
 type DlqCommon = { format?: string };
 type DlqListOptions = DlqCommon & { feature?: string; limit?: string };
@@ -110,36 +110,35 @@ export function registerDlq(program: Command): void {
             sourceLabel: row.archive_source_type,
           };
           const dlqRepo = new DlqRepository(pgDb);
-          const listener =
-            row.stage === 'delegation_archive_write'
-              ? makeCompTokenIngesterListener(
-                  {
-                    archiveWriter: new CompTokenArchiveWriter({
-                      eventRepo: new CompTokenEventRepository({ chDb }),
-                      confirmationRepo: new ConfirmationRepository(pgDb),
-                      dlqRepo,
-                      logger,
-                    }),
-                    context,
-                    logger,
+          const listener = isCompTokenArchiveStage(row.stage)
+            ? makeCompTokenIngesterListener(
+                {
+                  archiveWriter: new CompTokenArchiveWriter({
+                    eventRepo: new CompTokenEventRepository({ chDb }),
+                    confirmationRepo: new ConfirmationRepository(pgDb),
                     dlqRepo,
-                  },
-                  { onWriteFailure: 'throw' },
-                )
-              : makeIngesterListener(
-                  {
-                    archiveWriter: new ArchiveWriter({
-                      eventRepo: new EventRepository({ chDb }),
-                      confirmationRepo: new ConfirmationRepository(pgDb),
-                      dlqRepo,
-                      logger,
-                    }),
-                    context,
                     logger,
+                  }),
+                  context,
+                  logger,
+                  dlqRepo,
+                },
+                { onWriteFailure: 'throw' },
+              )
+            : makeIngesterListener(
+                {
+                  archiveWriter: new ArchiveWriter({
+                    eventRepo: new EventRepository({ chDb }),
+                    confirmationRepo: new ConfirmationRepository(pgDb),
                     dlqRepo,
-                  },
-                  { onWriteFailure: 'throw' },
-                );
+                    logger,
+                  }),
+                  context,
+                  logger,
+                  dlqRepo,
+                },
+                { onWriteFailure: 'throw' },
+              );
 
           await listener([
             {
