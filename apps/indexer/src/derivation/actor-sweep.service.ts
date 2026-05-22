@@ -6,13 +6,7 @@ import {
   DlqRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
-import type {
-  ActorSweepExtractor,
-  CompTokenArchivePayloadRepository,
-  CompTokenArchivePayloadRow,
-  GovernorArchivePayloadRepository,
-  GovernorArchivePayloadRow,
-} from '@sources/compound';
+import type { ActorSweepAdapter } from './actor-sweep-adapter';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
@@ -25,20 +19,18 @@ export class ActorSweepService {
   private readonly logger = new Logger('ActorSweep');
   private inFlight = false;
   private readonly eventTypes: readonly string[];
-  private readonly extractorBySourceType: ReadonlyMap<string, ActorSweepExtractor>;
+  private readonly adapterBySourceType: ReadonlyMap<string, ActorSweepAdapter>;
 
   constructor(
     private readonly actorResolution: ArchiveActorResolutionRepository,
     private readonly actors: ActorRepository,
     private readonly dlq: DlqRepository,
-    private readonly governorPayloads: GovernorArchivePayloadRepository,
-    private readonly compTokenPayloads: CompTokenArchivePayloadRepository,
-    extractors: readonly ActorSweepExtractor[],
+    adapters: readonly ActorSweepAdapter[],
   ) {
-    this.eventTypes = [...new Set(extractors.flatMap((extractor) => extractor.eventTypes))];
-    this.extractorBySourceType = new Map(
-      extractors.flatMap((extractor) =>
-        extractor.sourceTypes.map((sourceType) => [sourceType, extractor] as const),
+    this.eventTypes = [...new Set(adapters.flatMap((adapter) => adapter.eventTypes))];
+    this.adapterBySourceType = new Map(
+      adapters.flatMap((adapter) =>
+        adapter.sourceTypes.map((sourceType) => [sourceType, adapter] as const),
       ),
     );
   }
@@ -75,7 +67,11 @@ export class ActorSweepService {
     rows: readonly ArchiveDerivationRow[],
   ): Promise<void> {
     try {
-      const payloads = await this.fetchPayloadsBySource(sourceType, rows);
+      const adapter = this.adapterBySourceType.get(sourceType);
+      if (adapter === undefined) {
+        throw new Error(`no actor sweep adapter for source_type ${sourceType}`);
+      }
+      const payloads = await adapter.fetchPayloads(rows);
       const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
       for (const row of rows) {
@@ -86,11 +82,7 @@ export class ActorSweepService {
         }
 
         try {
-          const extractor = this.extractorBySourceType.get(row.source_type);
-          if (extractor === undefined) {
-            throw new Error(`no actor sweep extractor for source_type ${row.source_type}`);
-          }
-          const candidates = extractor.extractAddresses(row.event_type, payload.payload);
+          const candidates = adapter.extractAddresses(row.event_type, payload.payload);
           for (const candidate of candidates) {
             const normalized = candidate.address.toLowerCase();
             if (normalized === ZERO_ADDRESS) continue;
@@ -106,19 +98,6 @@ export class ActorSweepService {
         await this.handleFailure(row, err);
       }
     }
-  }
-
-  private async fetchPayloadsBySource(
-    sourceType: string,
-    rows: readonly ArchiveDerivationRow[],
-  ): Promise<readonly (GovernorArchivePayloadRow | CompTokenArchivePayloadRow)[]> {
-    if (isGovernorSource(sourceType)) {
-      return this.governorPayloads.fetchPayloads(rows);
-    }
-    if (sourceType === 'compound_comp_token') {
-      return this.compTokenPayloads.fetchPayloads(rows);
-    }
-    throw new Error(`unsupported source_type for actor sweep: ${sourceType}`);
   }
 
   private async handleFailure(row: ArchiveDerivationRow, err: unknown): Promise<void> {
@@ -160,14 +139,6 @@ export class ActorSweepService {
       archive_block_hash: row.block_hash,
     });
   }
-}
-
-function isGovernorSource(sourceType: string): boolean {
-  return (
-    sourceType === 'compound_governor_alpha' ||
-    sourceType === 'compound_governor_bravo' ||
-    sourceType === 'compound_governor_oz'
-  );
 }
 
 function groupBySourceType(

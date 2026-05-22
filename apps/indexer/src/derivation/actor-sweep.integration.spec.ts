@@ -12,6 +12,7 @@ import {
   CompTokenArchivePayloadRepository,
   GovernorArchivePayloadRepository,
 } from '@sources/compound';
+import type { ActorSweepAdapter } from './actor-sweep-adapter';
 import { ActorSweepService } from './actor-sweep.service';
 
 const DB_URL = process.env['DATABASE_URL'];
@@ -35,14 +36,29 @@ describeIf('actor sweep integration', () => {
     actorResolution = new ArchiveActorResolutionRepository(pgDb);
     actors = new ActorRepository(pgDb);
     dlq = new DlqRepository(pgDb);
-    service = new ActorSweepService(
-      actorResolution,
-      actors,
-      dlq,
-      new GovernorArchivePayloadRepository(chDb),
-      new CompTokenArchivePayloadRepository(chDb),
-      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
-    );
+    const governorPayloads = new GovernorArchivePayloadRepository(chDb);
+    const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
+      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
+      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      fetchPayloads: async (rows) => {
+        if (rows.length === 0) return [];
+        const sourceType = rows[0]!.source_type;
+        if (
+          sourceType === 'compound_governor_alpha' ||
+          sourceType === 'compound_governor_bravo' ||
+          sourceType === 'compound_governor_oz'
+        ) {
+          return governorPayloads.fetchPayloads(rows);
+        }
+        if (sourceType === 'compound_comp_token') {
+          return compTokenPayloads.fetchPayloads(rows);
+        }
+        throw new Error(`unsupported source_type for test adapter: ${sourceType}`);
+      },
+    };
+    service = new ActorSweepService(actorResolution, actors, dlq, [adapter]);
 
     await pgDb
       .insertInto('source_type')

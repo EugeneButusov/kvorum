@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
 import { COMPOUND_ACTOR_SWEEP_EXTRACTOR } from '@sources/compound';
+import type { ActorSweepAdapter } from './actor-sweep-adapter';
 import { ActorSweepService } from './actor-sweep.service';
 
 const ROW: ArchiveDerivationRow = {
@@ -41,15 +42,15 @@ describe('ActorSweepService', () => {
         },
       ]),
     };
-    const compTokenPayloads = { fetchPayloads: vi.fn() };
-    const service = new ActorSweepService(
-      archive as never,
-      actors as never,
-      dlq as never,
-      governorPayloads as never,
-      compTokenPayloads as never,
-      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
-    );
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
+      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
+      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      fetchPayloads: governorPayloads.fetchPayloads,
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
 
     await service.tick();
 
@@ -72,7 +73,6 @@ describe('ActorSweepService', () => {
       findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
     };
     const dlq = { insert: vi.fn() };
-    const governorPayloads = { fetchPayloads: vi.fn() };
     const compTokenPayloads = {
       fetchPayloads: vi.fn().mockResolvedValue([
         {
@@ -90,14 +90,15 @@ describe('ActorSweepService', () => {
         },
       ]),
     };
-    const service = new ActorSweepService(
-      archive as never,
-      actors as never,
-      dlq as never,
-      governorPayloads as never,
-      compTokenPayloads as never,
-      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
-    );
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
+      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
+      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      fetchPayloads: compTokenPayloads.fetchPayloads,
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
 
     await service.tick();
 
@@ -135,15 +136,15 @@ describe('ActorSweepService', () => {
         },
       ]),
     };
-    const compTokenPayloads = { fetchPayloads: vi.fn() };
-    const service = new ActorSweepService(
-      archive as never,
-      actors as never,
-      dlq as never,
-      governorPayloads as never,
-      compTokenPayloads as never,
-      [COMPOUND_ACTOR_SWEEP_EXTRACTOR],
-    );
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
+      eventTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.eventTypes,
+      extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
+      fetchPayloads: governorPayloads.fetchPayloads,
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
 
     await service.tick();
 
