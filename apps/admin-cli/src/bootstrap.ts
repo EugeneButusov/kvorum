@@ -21,7 +21,7 @@ export interface AdminCliContainer {
   daoAdminRepository: DaoAdminRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
-  compoundArchivePayloadRepository: GovernorArchivePayloadRepository;
+  compoundGovernorArchivePayloadRepository: GovernorArchivePayloadRepository;
   reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
@@ -37,7 +37,7 @@ export function buildContainer(): AdminCliContainer {
     daoAdminRepository: new DaoAdminRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
-    compoundArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
+    compoundGovernorArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
     reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
