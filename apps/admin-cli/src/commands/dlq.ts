@@ -1,9 +1,10 @@
 import { Command } from 'commander';
-import { chDb, ConfirmationRepository, DaoSourceRepository, DlqRepository, pgDb } from '@libs/db';
+import { DaoSourceRepository, DlqRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
-import { isCompTokenArchiveStage, isDlqRetryableStage } from './dlq-retry-stage.js';
+import { isDlqRetryableStage } from './dlq-retry-stage.js';
+import { makeDlqRetryListener } from './dlq-retry-listener-factory.js';
 
 type DlqCommon = { format?: string };
 type DlqListOptions = DlqCommon & { feature?: string; limit?: string };
@@ -68,14 +69,6 @@ export function registerDlq(program: Command): void {
         }
 
         await withAudit('dlq retry', { dlqId }, async () => {
-          const {
-            ArchiveWriter,
-            CompTokenArchiveWriter,
-            CompTokenEventRepository,
-            EventRepository,
-            makeCompTokenIngesterListener,
-            makeIngesterListener,
-          } = await import('@sources/compound');
           const daoSourceId = await resolveDaoSourceId(
             row.archive_source_type,
             row.archive_chain_id,
@@ -102,43 +95,12 @@ export function registerDlq(program: Command): void {
             fail(format, ExitCode.RuntimeFailure, 'DLQ row is missing archive tuple fields');
           }
 
-          const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
-          const context = {
+          const listener = await makeDlqRetryListener({
+            stage: row.stage,
+            archiveSourceType: row.archive_source_type,
+            archiveChainId: row.archive_chain_id,
             daoSourceId,
-            sourceType: row.archive_source_type,
-            chainId: row.archive_chain_id,
-            sourceLabel: row.archive_source_type,
-          };
-          const dlqRepo = new DlqRepository(pgDb);
-          const listener = isCompTokenArchiveStage(row.stage)
-            ? makeCompTokenIngesterListener(
-                {
-                  archiveWriter: new CompTokenArchiveWriter({
-                    eventRepo: new CompTokenEventRepository({ chDb }),
-                    confirmationRepo: new ConfirmationRepository(pgDb),
-                    dlqRepo,
-                    logger,
-                  }),
-                  context,
-                  logger,
-                  dlqRepo,
-                },
-                { onWriteFailure: 'throw' },
-              )
-            : makeIngesterListener(
-                {
-                  archiveWriter: new ArchiveWriter({
-                    eventRepo: new EventRepository({ chDb }),
-                    confirmationRepo: new ConfirmationRepository(pgDb),
-                    dlqRepo,
-                    logger,
-                  }),
-                  context,
-                  logger,
-                  dlqRepo,
-                },
-                { onWriteFailure: 'throw' },
-              );
+          });
 
           await listener([
             {
