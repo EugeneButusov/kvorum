@@ -1,11 +1,11 @@
 import type { Logger } from '@libs/chain';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
-  ArchiveWriter as GovernorArchiveWriter,
+  GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
   createCompTokenPlugin,
-  EventRepository as GovernorEventRepository,
+  GovernorEventRepository,
   createCompoundPlugins,
   type CompoundGovernorConfig,
   type CompoundGovernorPluginDeps,

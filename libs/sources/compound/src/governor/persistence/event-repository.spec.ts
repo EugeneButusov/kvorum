@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { EventRepository } from './event-repository';
-import type { EventData } from './event-repository.types';
+import { GovernorEventRepository } from './event-repository';
+import type { GovernorEventData } from './event-repository.types';
 
-const EVENT_DATA: EventData = {
+const EVENT_DATA: GovernorEventData = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
   chainId: 1,
   blockNumber: '20000000',
@@ -31,10 +31,10 @@ function makeInsertChain(opts: { throws?: unknown } = {}) {
   };
 }
 
-describe('EventRepository', () => {
-  it('#1 — maps EventData fields to snake_case columns', async () => {
+describe('GovernorEventRepository', () => {
+  it('#1 — maps GovernorEventData fields to snake_case columns', async () => {
     const chain = makeInsertChain();
-    const repo = new EventRepository({ chDb: { insertInto: chain.insertInto } } as never);
+    const repo = new GovernorEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(EVENT_DATA);
 
     expect(chain.insertInto).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
@@ -51,7 +51,7 @@ describe('EventRepository', () => {
 
   it('#2 — does not include received_at in inserted values', async () => {
     const chain = makeInsertChain();
-    const repo = new EventRepository({ chDb: { insertInto: chain.insertInto } } as never);
+    const repo = new GovernorEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(EVENT_DATA);
 
     expect((chain.capturedValues as Record<string, unknown>)['received_at']).toBeUndefined();
@@ -59,7 +59,7 @@ describe('EventRepository', () => {
 
   it('#3 — propagates insert errors', async () => {
     const chain = makeInsertChain({ throws: new Error('connection refused') });
-    const repo = new EventRepository({ chDb: { insertInto: chain.insertInto } } as never);
+    const repo = new GovernorEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
 
     await expect(repo.insert(EVENT_DATA)).rejects.toThrow('connection refused');
   });

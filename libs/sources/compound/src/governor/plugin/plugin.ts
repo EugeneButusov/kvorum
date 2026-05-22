@@ -3,7 +3,7 @@ import type { Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
 import type { BackfillRuntime, SourcePlugin } from '@sources/core';
 import { interfaceForSource } from '../abi/events';
-import { ArchiveWriter } from '../ingestion/archive-writer';
+import { GovernorArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
 
 export const DaoSourceConfigSchema = z.object({
@@ -15,7 +15,7 @@ export type CompoundGovernorConfig = z.infer<typeof DaoSourceConfigSchema>;
 export const SUPPORTED_CHAIN_IDS = ['0x1'] as const;
 
 export interface CompoundGovernorPluginDeps {
-  archiveWriter: ArchiveWriter;
+  archiveWriter: GovernorArchiveWriter;
   dlqRepo: DlqRepository;
   logger: Logger;
 }

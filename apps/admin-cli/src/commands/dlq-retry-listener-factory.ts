@@ -13,10 +13,10 @@ export async function makeDlqRetryListener(
   input: DlqRetryListenerFactoryInput,
 ): Promise<EventsListener> {
   const {
-    ArchiveWriter: GovernorArchiveWriter,
+    GovernorArchiveWriter,
     CompTokenArchiveWriter,
     CompTokenEventRepository,
-    EventRepository: GovernorEventRepository,
+    GovernorEventRepository,
     makeCompTokenIngesterListener,
     makeIngesterListener,
   } = await import('@sources/compound');

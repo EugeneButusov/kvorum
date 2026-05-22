@@ -8,11 +8,11 @@ import type {
 } from '@libs/db';
 import type {
   ArchiveWriteContext,
-  ArchiveWriterDeps,
+  GovernorArchiveWriterDeps,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
 import type { CompoundGovernorEvent } from '../domain/types';
-import type { EventRepository } from '../persistence/event-repository';
+import type { GovernorEventRepository } from '../persistence/event-repository';
 
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
@@ -22,14 +22,14 @@ function serializeError(err: unknown): Record<string, unknown> {
   return { name: 'UnknownError', message: String(err) };
 }
 
-export class ArchiveWriter {
-  private readonly eventRepo: EventRepository;
+export class GovernorArchiveWriter {
+  private readonly eventRepo: GovernorEventRepository;
   private readonly confirmationRepo: ConfirmationRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
-  constructor(deps: ArchiveWriterDeps) {
+  constructor(deps: GovernorArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
     this.confirmationRepo = deps.confirmationRepo;
     this.dlqRepo = deps.dlqRepo;

@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ConfirmationRepository, DlqRepository } from '@libs/db';
-import { ArchiveWriter } from './archive-writer';
+import { GovernorArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
 import type { CompoundGovernorEvent } from '../domain/types';
-import type { EventRepository } from '../persistence/event-repository';
+import type { GovernorEventRepository } from '../persistence/event-repository';
 
 // ---- Shared test fixtures ----
 
@@ -58,11 +58,11 @@ const LOG_REF: LogEvent = {
 
 function makeEventRepo(
   overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {},
-): EventRepository {
+): GovernorEventRepository {
   return {
     insert: vi.fn().mockResolvedValue(undefined),
     ...overrides,
-  } as unknown as EventRepository;
+  } as unknown as GovernorEventRepository;
 }
 
 function makeConfirmationRepo(
@@ -87,12 +87,12 @@ function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = 
 
 function buildWriter(
   overrides: {
-    eventRepo?: EventRepository;
+    eventRepo?: GovernorEventRepository;
     confirmationRepo?: ConfirmationRepository;
     dlqRepo?: DlqRepository;
   } = {},
-): ArchiveWriter {
-  return new ArchiveWriter({
+): GovernorArchiveWriter {
+  return new GovernorArchiveWriter({
     eventRepo: overrides.eventRepo ?? makeEventRepo(),
     confirmationRepo: overrides.confirmationRepo ?? makeConfirmationRepo(),
     dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
@@ -103,7 +103,7 @@ function buildWriter(
 
 // ---- Tests ----
 
-describe('ArchiveWriter', () => {
+describe('GovernorArchiveWriter', () => {
   it('#1 — happy path: existence check empty → archive insert → confirmation insert → outcome inserted', async () => {
     const eventRepo = makeEventRepo();
     const confirmationRepo = makeConfirmationRepo();
@@ -270,7 +270,7 @@ describe('ArchiveWriter', () => {
       ...CTX,
       confirmationClassifier: () => 'confirmed',
     };
-    const writer = new ArchiveWriter({
+    const writer = new GovernorArchiveWriter({
       eventRepo: makeEventRepo(),
       confirmationRepo,
       dlqRepo: makeDlqRepo(),
