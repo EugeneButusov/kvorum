@@ -26,9 +26,7 @@ export class ArchiveDerivationRepository {
   }
 
   /**
-   * Read helper for downstream derivation paths.
-   * Must be used by vote/delegation derivation so rows are processed only after
-   * actor sweep materialises actor + actor_address and sets derivation_actor_resolved_at.
+   * Read helper for downstream derivation paths that require actor-resolution gating.
    */
   async findConfirmedDerivableBy(
     eventTypes: readonly string[],
