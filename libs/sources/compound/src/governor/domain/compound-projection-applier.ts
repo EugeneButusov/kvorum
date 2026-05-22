@@ -156,7 +156,10 @@ export class CompoundProjectionApplier {
         }
 
         if (projection.kind === 'proposal_created') {
-          const proposer = await actors.findOrCreateByAddress(projection.proposerAddress);
+          const proposer = await actors.findOrCreateActorAddress(
+            projection.proposerAddress,
+            'proposer_event',
+          );
           const result = await proposals.insertProposal({
             ...projection.proposal,
             dao_id: daoId,
@@ -190,6 +193,7 @@ export class CompoundProjectionApplier {
         }
 
         await archive.markDerived(row.id);
+        await archive.markActorResolved(row.id);
       });
     } catch (err) {
       this.record(row, 'failed', 'pg_tx_error');

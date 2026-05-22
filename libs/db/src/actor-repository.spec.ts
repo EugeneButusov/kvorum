@@ -49,11 +49,56 @@ function makeSelectChain(returnValue: unknown) {
   const selectAll = vi.fn().mockReturnValue({ where });
   const selectFrom = vi.fn().mockReturnValue({ selectAll });
 
-  return { selectFrom, where, executeTakeFirst };
+  return { selectFrom, selectAll, where, executeTakeFirst };
+}
+
+function makeJoinSelectChain(returnValue: unknown) {
+  const executeTakeFirst = vi.fn().mockResolvedValue(returnValue);
+  const where = vi.fn().mockReturnValue({ executeTakeFirst });
+  const selectAll = vi.fn().mockReturnValue({ where });
+  const innerJoin = vi.fn().mockReturnValue({ selectAll });
+  const selectFrom = vi.fn().mockReturnValue({ innerJoin });
+
+  return { selectFrom, innerJoin, selectAll, where, executeTakeFirst };
+}
+
+function makeInsertAddressChain() {
+  let capturedValues: unknown;
+  let capturedConflictColumns: string[] | undefined;
+  const execute = vi.fn().mockResolvedValue(undefined);
+  const onConflict = vi.fn().mockImplementation((fn: (oc: ConflictColumnsBuilder) => unknown) => {
+    fn({
+      columns: (columns) => {
+        capturedConflictColumns = columns;
+        return { doNothing: () => ({ execute }) };
+      },
+    });
+    return { execute };
+  });
+  const values = vi.fn().mockImplementation((value: unknown) => {
+    capturedValues = value;
+    return { onConflict };
+  });
+  const insertInto = vi.fn().mockReturnValue({ values });
+
+  return {
+    insertInto,
+    execute,
+    get capturedValues() {
+      return capturedValues;
+    },
+    get capturedConflictColumns() {
+      return capturedConflictColumns;
+    },
+  };
 }
 
 interface ConflictBuilder {
   column(name: string): { doNothing(): unknown };
+}
+
+interface ConflictColumnsBuilder {
+  columns(columns: string[]): { doNothing(): unknown };
 }
 
 describe('ActorRepository', () => {
@@ -93,5 +138,55 @@ describe('ActorRepository', () => {
     await expect(repo.findOrCreateByAddress('0xABCDEF')).rejects.toThrow(
       'actor insert conflicted but row was not found: 0xabcdef',
     );
+  });
+
+  it('returns existing actor when address is already present in actor_address', async () => {
+    const joinSelect = makeJoinSelectChain(ACTOR_ROW);
+    const repo = new ActorRepository({
+      transaction: vi.fn(() => ({
+        execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) =>
+          fn({
+            selectFrom: joinSelect.selectFrom,
+          }),
+        ),
+      })),
+    } as never);
+
+    await expect(repo.findOrCreateActorAddress('0xABCDEF', 'voter_event')).resolves.toEqual(
+      ACTOR_ROW,
+    );
+    expect(joinSelect.selectFrom).toHaveBeenCalledWith('actor as a');
+    expect(joinSelect.where).toHaveBeenCalledWith('aa.address', '=', '0xabcdef');
+  });
+
+  it('creates actor and actor_address when address does not exist', async () => {
+    const joinSelect = makeJoinSelectChain(undefined);
+    const actorInsert = makeInsertChain(ACTOR_ROW);
+    const actorSelect = makeSelectChain(ACTOR_ROW);
+    const actorAddressInsert = makeInsertAddressChain();
+    const selectFrom = vi.fn((table: string) => {
+      if (table === 'actor as a') return { innerJoin: joinSelect.innerJoin };
+      return { selectAll: actorSelect.selectAll };
+    });
+    const insertInto = vi.fn((table: string) => {
+      if (table === 'actor') return { values: actorInsert.insertInto().values };
+      return { values: actorAddressInsert.insertInto().values };
+    });
+    const repo = new ActorRepository({
+      transaction: vi.fn(() => ({
+        execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) => fn({ selectFrom, insertInto })),
+      })),
+    } as never);
+
+    await expect(repo.findOrCreateActorAddress('0xABCDEF', 'delegate_event')).resolves.toEqual(
+      ACTOR_ROW,
+    );
+    expect(actorAddressInsert.capturedValues).toEqual({
+      actor_id: 'actor-1',
+      address: '0xabcdef',
+      is_primary: true,
+      source: 'delegate_event',
+    });
+    expect(actorAddressInsert.capturedConflictColumns).toEqual(['actor_id', 'address']);
   });
 });
