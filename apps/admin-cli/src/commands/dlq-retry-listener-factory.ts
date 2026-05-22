@@ -1,5 +1,5 @@
-import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
 import type { EventsListener } from '@libs/chain';
+import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
 import { isCompTokenArchiveStage } from './dlq-retry-stage.js';
 
 export interface DlqRetryListenerFactoryInput {

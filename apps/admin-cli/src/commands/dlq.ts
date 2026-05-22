@@ -3,8 +3,8 @@ import { DaoSourceRepository, DlqRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
-import { isDlqRetryableStage } from './dlq-retry-stage.js';
 import { makeDlqRetryListener } from './dlq-retry-listener-factory.js';
+import { isDlqRetryableStage } from './dlq-retry-stage.js';
 
 type DlqCommon = { format?: string };
 type DlqListOptions = DlqCommon & { feature?: string; limit?: string };
