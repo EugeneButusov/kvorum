@@ -1,11 +1,12 @@
 import { Command } from 'commander';
-import type { Kysely } from 'kysely';
 import { ChainContextRegistry, parseChainConfigFromEnv } from '@libs/chain';
 import {
+  AdvisoryLockRepository,
   DlqRepository,
   pgDb,
-  type PgDatabase,
+  ProposalRepository,
   type ProposalState,
+  type SnapshotCandidate,
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
@@ -30,13 +31,6 @@ const ELIGIBLE_STATES: ProposalState[] = [
   'vetoed',
 ];
 
-interface SnapshotCandidate {
-  id: string;
-  dao_id: string;
-  source_type: string;
-  voting_power_block: string;
-}
-
 type TickOutcomeType =
   | 'idle'
   | 'verified'
@@ -53,7 +47,7 @@ interface TickOutcome {
 
 class SnapshotDrainRunner {
   constructor(
-    private readonly pg: Kysely<PgDatabase>,
+    private readonly proposals: ProposalRepository,
     private readonly snapshots: VotingPowerSnapshotRepository,
     private readonly runs: VotingPowerSnapshotRunRepository,
     private readonly dlq: DlqRepository,
@@ -168,13 +162,7 @@ class SnapshotDrainRunner {
     block: bigint,
     strategy: VotingPowerStrategy,
   ): Promise<void> {
-    const rows = await this.pg
-      .selectFrom('voting_power_snapshot as vps')
-      .innerJoin('actor_address as aa', 'aa.actor_id', 'vps.actor_id')
-      .select(['vps.actor_id as actorId', 'aa.address as address'])
-      .where('vps.proposal_id', '=', proposalId)
-      .where('aa.is_primary', '=', true)
-      .execute();
+    const rows = await this.snapshots.listPrimaryAddressesForProposal(proposalId);
 
     for (let i = 0; i < rows.length; i += 25) {
       const chunk = rows.slice(i, i + 25);
@@ -189,27 +177,11 @@ class SnapshotDrainRunner {
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
     const supportedSourceTypes = [...this.strategies.keys()];
-    if (supportedSourceTypes.length === 0) return undefined;
-
-    return this.pg
-      .selectFrom('proposal as p')
-      .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
-      .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
-      .where('p.source_type', 'in', supportedSourceTypes)
-      .where('p.state', 'in', ELIGIBLE_STATES)
-      .where((eb) =>
-        eb.or([
-          eb('vpsr.status', 'is', null),
-          eb.and([
-            eb('vpsr.status', '=', 'in_progress'),
-            eb('vpsr.snapshot_attempt_count', '<', SNAPSHOT_DLQ_THRESHOLD),
-          ]),
-        ]),
-      )
-      .orderBy('p.voting_power_block', 'asc')
-      .orderBy('p.id', 'asc')
-      .limit(1)
-      .executeTakeFirst();
+    return this.proposals.findNextSnapshotCandidate(
+      supportedSourceTypes,
+      ELIGIBLE_STATES,
+      SNAPSHOT_DLQ_THRESHOLD,
+    );
   }
 
   private async ensureNoStrategyFailure(
@@ -245,8 +217,9 @@ export function registerSnapshot(program: Command): void {
         const chainCtx = await registry.getOrCreate(chainConfig);
 
         const strategies = await resolveSnapshotStrategies(registry, chainCtx.chainCfg.chainId);
+        const lockRepo = new AdvisoryLockRepository(pgDb);
         const runner = new SnapshotDrainRunner(
-          pgDb,
+          new ProposalRepository(pgDb),
           new VotingPowerSnapshotRepository(pgDb),
           new VotingPowerSnapshotRunRepository(pgDb),
           new DlqRepository(pgDb),
@@ -257,70 +230,47 @@ export function registerSnapshot(program: Command): void {
         let sawDlq = false;
 
         try {
-          await pgDb.connection().execute(async (conn) => {
-            const lock = await conn
-              .selectNoFrom((eb) =>
-                eb
-                  .fn<boolean>('pg_try_advisory_lock', [
-                    eb.fn('hashtext', [eb.val(SNAPSHOT_DRAIN_LOCK_KEY)]),
-                  ])
-                  .as('acquired'),
-              )
-              .executeTakeFirstOrThrow();
-
-            if (!lock.acquired) {
-              fail(
-                format,
-                ExitCode.ValidationFailure,
-                'another snapshot drain or indexer tick holds the lock',
-              );
-            }
-
-            try {
-              while (true) {
-                const result = await runner.tickOnce();
-                if (result.outcome === 'idle') {
-                  emit(
-                    format,
-                    () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`,
-                    {
-                      status: 'completed',
-                      processed,
-                      dlq: sawDlq,
-                    },
-                  );
-                  break;
-                }
-
-                if (result.outcome === 'dlq') sawDlq = true;
-
-                if (result.outcome !== 'retry' && result.outcome !== 'no_strategy') {
-                  processed += 1;
-                }
-
+          const result = await lockRepo.withLock(SNAPSHOT_DRAIN_LOCK_KEY, async () => {
+            while (true) {
+              const tick = await runner.tickOnce();
+              if (tick.outcome === 'idle') {
                 emit(
                   format,
-                  () =>
-                    `processed ${processed} proposals so far, current=${result.proposalId ?? 'n/a'}, outcome=${result.outcome}`,
+                  () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`,
                   {
+                    status: 'completed',
                     processed,
-                    proposal_id: result.proposalId ?? null,
-                    outcome: result.outcome,
+                    dlq: sawDlq,
                   },
                 );
+                break;
               }
-            } finally {
-              await conn
-                .selectNoFrom((eb) =>
-                  eb
-                    .fn('pg_advisory_unlock', [
-                      eb.fn('hashtext', [eb.val(SNAPSHOT_DRAIN_LOCK_KEY)]),
-                    ])
-                    .as('released'),
-                )
-                .executeTakeFirst();
+
+              if (tick.outcome === 'dlq') sawDlq = true;
+
+              if (tick.outcome !== 'retry' && tick.outcome !== 'no_strategy') {
+                processed += 1;
+              }
+
+              emit(
+                format,
+                () =>
+                  `processed ${processed} proposals so far, current=${tick.proposalId ?? 'n/a'}, outcome=${tick.outcome}`,
+                {
+                  processed,
+                  proposal_id: tick.proposalId ?? null,
+                  outcome: tick.outcome,
+                },
+              );
             }
           });
+          if (result === undefined) {
+            fail(
+              format,
+              ExitCode.ValidationFailure,
+              'another snapshot drain or indexer tick holds the lock',
+            );
+          }
         } finally {
           await registry.drainAll();
         }
