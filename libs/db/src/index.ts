@@ -1,6 +1,5 @@
 export { pgDb, chDb } from './client';
 export { AdminAuditRepository } from './admin-audit-repository';
-export { AdvisoryLockRepository } from './advisory-lock-repository';
 export { AbiCacheRepository } from './abi-cache-repository';
 export { ActorRepository } from './actor-repository';
 export type { ActiveApiKeyResult, SafeApiKey } from './api-key-repository';
