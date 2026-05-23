@@ -12,6 +12,7 @@ import {
   CompTokenArchiveWriter,
   CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
+  CompTokenDelegationProjectionApplier,
   CompoundProposalRepository,
   GovernorArchivePayloadRepository,
   GovernorArchiveWriter,
@@ -116,6 +117,22 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       inject: [ChainContextRegistry],
     },
     {
+      provide: CompTokenDelegationProjectionApplier,
+      useFactory: () =>
+        new CompTokenDelegationProjectionApplier({
+          pgDb,
+          chDb,
+          archive: new ArchiveDerivationRepository(pgDb),
+          dlq: new DlqRepository(pgDb),
+          payloads: new CompTokenArchivePayloadRepository(chDb),
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            processed: () => undefined,
+          },
+          logger: toChainLogger(new Logger('CompTokenDelegationProjectionApplier')),
+        }),
+    },
+    {
       provide: COMPOUND_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: GovernorArchiveWriter,
@@ -124,6 +141,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         compTokenArchiveWriter: CompTokenArchiveWriter,
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
+        delegationProjectionApplier: CompTokenDelegationProjectionApplier,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -159,6 +177,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           derivers: [
             projectionApplier,
             voteProjectionApplier,
+            delegationProjectionApplier,
             {
               kind: 'actor-address',
               sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
@@ -190,6 +209,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         CompTokenArchiveWriter,
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
+        CompTokenDelegationProjectionApplier,
       ],
     },
   ],

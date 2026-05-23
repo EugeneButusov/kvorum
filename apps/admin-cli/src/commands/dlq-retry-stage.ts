@@ -3,6 +3,7 @@ export const VOTE_ARCHIVE_STAGE = 'vote_archive_stage';
 export const DELEGATION_ARCHIVE_STAGE = 'delegation_archive_stage';
 export const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 export const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
+export const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 
 const RETRYABLE_STAGES = new Set([
   CONFIRMATION_ARCHIVE_STAGE,
@@ -10,6 +11,7 @@ const RETRYABLE_STAGES = new Set([
   DELEGATION_ARCHIVE_STAGE,
   ACTOR_RESOLUTION_STAGE,
   VOTE_PROJECTION_STAGE,
+  DELEGATION_PROJECTION_STAGE,
 ]);
 
 export function isDlqRetryableStage(stage: string): boolean {

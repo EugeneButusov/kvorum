@@ -8,7 +8,10 @@ export type DerivationFailureReason =
   | 'pg_tx_error'
   | 'no_proposal'
   | 'no_voter'
-  | 'block_timestamp_unavailable';
+  | 'block_timestamp_unavailable'
+  | 'no_delegator'
+  | 'no_delegate'
+  | 'unknown_event_type';
 
 export const derivationMetrics = {
   lagSeconds: defineGauge({

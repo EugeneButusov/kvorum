@@ -10,6 +10,18 @@ export type {
   DelegateChangedPayload,
   DelegateVotesChangedPayload,
 } from './domain/types';
+export { CompTokenDelegationProjectionApplier } from './domain/comp-token-delegation-projection-applier';
+export type {
+  CompTokenDelegationDerivationFailureReason,
+  CompTokenDelegationDerivationOutcome,
+  CompTokenDelegationProjectionApplierDeps,
+  CompTokenDelegationProjectionMetrics,
+} from './domain/comp-token-delegation-projection-applier';
+export {
+  projectDelegateChanged,
+  projectDelegateVotesChanged,
+  ZERO_ADDRESS,
+} from './domain/delegation-projector';
 
 export type {
   CompTokenEventData,

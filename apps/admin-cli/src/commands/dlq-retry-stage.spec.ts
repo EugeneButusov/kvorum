@@ -22,6 +22,10 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('vote_projection_stage')).toBe(true);
   });
 
+  it('accepts delegation projection stage', () => {
+    expect(isDlqRetryableStage('delegation_projection_stage')).toBe(true);
+  });
+
   it('rejects non-retryable stage', () => {
     expect(isDlqRetryableStage('archive_decode')).toBe(false);
   });

@@ -61,6 +61,7 @@ describe('CompoundSourceModule', () => {
       'actor-address',
       'projection',
       'projection',
+      'projection',
     ]);
   });
 
