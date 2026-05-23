@@ -1,7 +1,6 @@
-import type { EventsListener } from '@libs/chain';
 import { pgDb, type IngestionDlq } from '@libs/db';
-import { DELEGATION_ARCHIVE_STAGE, type DlqRetryStage } from '../dlq-retry-stage.js';
 import { makeDlqRetryListener } from '../dlq-retry-listener-factory.js';
+import { DELEGATION_ARCHIVE_STAGE, type DlqRetryStage } from '../dlq-retry-stage.js';
 import type { DlqRetryAdapter, RetryOutcome } from './dlq-retry-adapter.js';
 
 interface ArchiveTuple {

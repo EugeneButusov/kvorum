@@ -10,8 +10,8 @@ import {
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
-import { buildSnapshotStrategyMap } from '../plugins/backfill-source-plugins.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
+import { buildSnapshotStrategyMap } from '../plugins/backfill-source-plugins.js';
 
 type SnapshotCommon = { format?: string };
 
