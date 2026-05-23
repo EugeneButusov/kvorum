@@ -11,12 +11,12 @@ import {
   type PgDatabase,
   ProposalRepository,
 } from '@libs/db';
-import type { DelegateChangedPayload, DelegateVotesChangedPayload } from './types';
 import {
   projectDelegateChanged,
   projectDelegateVotesChanged,
   ZERO_ADDRESS,
 } from './delegation-projector';
+import type { DelegateChangedPayload, DelegateVotesChangedPayload } from './types';
 import {
   CompTokenArchivePayloadRepository,
   type CompTokenArchivePayloadRow,
