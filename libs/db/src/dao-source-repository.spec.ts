@@ -142,9 +142,7 @@ describe('DaoSourceRepository', () => {
 
   describe('findTokenAddressByDaoAndSourceType', () => {
     it('#1 — returns token_address string when present', async () => {
-      const executeTakeFirst = vi
-        .fn()
-        .mockResolvedValue({ token_address: '0x1234567890abcdef1234567890abcdef12345678' });
+      const executeTakeFirst = vi.fn().mockResolvedValue({ token_address: 'mock-token-address' });
       const chain = {
         select: vi.fn(),
         where: vi.fn(),
@@ -157,7 +155,7 @@ describe('DaoSourceRepository', () => {
 
       const result = await repo.findTokenAddressByDaoAndSourceType('dao-1', 'compound_comp_token');
 
-      expect(result).toBe('0x1234567890abcdef1234567890abcdef12345678');
+      expect(result).toBe('mock-token-address');
       expect(selectFrom).toHaveBeenCalledWith('dao_source');
       expect(chain.where).toHaveBeenCalledWith('dao_id', '=', 'dao-1');
       expect(chain.where).toHaveBeenCalledWith('source_type', '=', 'compound_comp_token');
