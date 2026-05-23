@@ -1,17 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { makeCutoffClassifier } from '@libs/chain';
 import {
   ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
-import {
-  makeCutoffClassifier,
-  SOURCE_PLUGINS,
-  type ProjectionDeriver,
-  type SourcePlugin,
-} from '@sources/core';
+import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);

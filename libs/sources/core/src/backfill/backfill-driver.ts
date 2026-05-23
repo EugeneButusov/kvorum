@@ -1,8 +1,7 @@
-import { BackfillRangeFetcher, chainMetrics, reorgCutoff } from '@libs/chain';
+import { BackfillRangeFetcher, chainMetrics, makeCutoffClassifier, reorgCutoff } from '@libs/chain';
 import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
-import { makeCutoffClassifier } from './cutoff-classifier';
 import { BackfillAlreadyStartedError } from './errors/backfill-already-started.error';
 import { BackfillNotResumableError } from './errors/backfill-not-resumable.error';
 import type { BackfillOutcome, BackfillRunInput } from './types';
