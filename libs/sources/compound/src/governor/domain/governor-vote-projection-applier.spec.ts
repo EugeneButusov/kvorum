@@ -284,4 +284,16 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
   });
+
+  it('skips rows that are below configured confirmed-age threshold', async () => {
+    vi.stubEnv('VOTE_PROJECTION_MIN_CONFIRMED_AGE_SECONDS', '60');
+    const { applier, payloads, metrics } = buildApplier();
+    const freshRow = { ...BASE_ROW, confirmed_at: new Date(Date.now() - 10_000) };
+
+    await applier.applyBatch([freshRow]);
+
+    expect(payloads.fetchPayloads).not.toHaveBeenCalled();
+    expect(metrics.processed).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
 });

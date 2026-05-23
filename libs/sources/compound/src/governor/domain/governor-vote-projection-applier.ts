@@ -96,7 +96,15 @@ export class GovernorVoteProjectionApplier {
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     if (rows.length === 0) return;
-    const cappedRows = rows.slice(
+    const now = Date.now();
+    const minConfirmedAgeMs =
+      Math.max(0, Number(process.env['VOTE_PROJECTION_MIN_CONFIRMED_AGE_SECONDS'] ?? '0')) * 1000;
+    const eligibleRows = rows.filter((row) =>
+      row.confirmed_at === null ? false : now - row.confirmed_at.getTime() >= minConfirmedAgeMs,
+    );
+    if (eligibleRows.length === 0) return;
+
+    const cappedRows = eligibleRows.slice(
       0,
       Number(process.env['VOTE_DERIVATION_BATCH_SIZE'] ?? DEFAULT_BATCH_SIZE),
     );
