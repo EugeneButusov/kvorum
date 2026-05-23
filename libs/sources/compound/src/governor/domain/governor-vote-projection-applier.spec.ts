@@ -90,8 +90,8 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
 
 function makeChainContext() {
   return {
-    client: { send: vi.fn() },
-    chainCfg: { chainId: '0x1' },
+    client: { send: vi.fn().mockResolvedValue('0x1000') },
+    chainCfg: { chainId: '0x1', reorgHorizon: 12 },
   };
 }
 
@@ -285,15 +285,18 @@ describe('GovernorVoteProjectionApplier', () => {
     expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
   });
 
-  it('skips rows that are below configured confirmed-age threshold', async () => {
-    vi.stubEnv('VOTE_PROJECTION_MIN_CONFIRMED_AGE_SECONDS', '60');
-    const { applier, payloads, metrics } = buildApplier();
-    const freshRow = { ...BASE_ROW, confirmed_at: new Date(Date.now() - 10_000) };
+  it('skips rows that are above the settled cutoff block', async () => {
+    const { applier, payloads, metrics } = buildApplier({
+      chainCtx: {
+        client: { send: vi.fn().mockResolvedValue('0x120') },
+        chainCfg: { chainId: '0x1', reorgHorizon: 12 },
+      },
+    });
+    const pendingRow = { ...BASE_ROW, block_number: '300' };
 
-    await applier.applyBatch([freshRow]);
+    await applier.applyBatch([pendingRow]);
 
     expect(payloads.fetchPayloads).not.toHaveBeenCalled();
     expect(metrics.processed).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
   });
 });

@@ -1,5 +1,10 @@
 import type { Kysely } from 'kysely';
-import type { ChainContextRegistry, Logger } from '@libs/chain';
+import {
+  makeCutoffClassifier,
+  reorgCutoff,
+  type ChainContextRegistry,
+  type Logger,
+} from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import {
   ActorRepository,
@@ -96,15 +101,7 @@ export class GovernorVoteProjectionApplier {
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     if (rows.length === 0) return;
-    const now = Date.now();
-    const minConfirmedAgeMs =
-      Math.max(0, Number(process.env['VOTE_PROJECTION_MIN_CONFIRMED_AGE_SECONDS'] ?? '0')) * 1000;
-    const eligibleRows = rows.filter((row) =>
-      row.confirmed_at === null ? false : now - row.confirmed_at.getTime() >= minConfirmedAgeMs,
-    );
-    if (eligibleRows.length === 0) return;
-
-    const cappedRows = eligibleRows.slice(
+    const cappedRows = rows.slice(
       0,
       Number(process.env['VOTE_DERIVATION_BATCH_SIZE'] ?? DEFAULT_BATCH_SIZE),
     );
@@ -114,11 +111,6 @@ export class GovernorVoteProjectionApplier {
         throw new Error(`vote applier received mixed-chain batch: ${chainId} vs ${row.chain_id}`);
       }
     }
-
-    const lookupStartedAt = Date.now();
-    const payloads = await this.payloads.fetchPayloads(cappedRows);
-    this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
-    const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
     const chainCtx = this.registry.peek(chainId);
     if (chainCtx === undefined) {
@@ -132,12 +124,25 @@ export class GovernorVoteProjectionApplier {
       return;
     }
 
+    const headHex = await chainCtx.client.send<string>('eth_blockNumber', []);
+    const settledCutoff = reorgCutoff(BigInt(headHex), chainCtx.chainCfg);
+    const isSettled = makeCutoffClassifier(settledCutoff);
+    const settledRows = cappedRows.filter(
+      (row) => isSettled(BigInt(row.block_number)) === 'confirmed',
+    );
+    if (settledRows.length === 0) return;
+
+    const lookupStartedAt = Date.now();
+    const payloads = await this.payloads.fetchPayloads(settledRows);
+    this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
+    const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
+
     const timestamps = await this.blockTimestamps.fetchBatch(
       chainCtx,
-      cappedRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
+      settledRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
     );
 
-    for (const row of cappedRows) {
+    for (const row of settledRows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
         await this.failAndMaybeDlq(row, 'ch_missing', new Error('archive payload missing'));
