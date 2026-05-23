@@ -161,6 +161,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on('delegation')
     .columns(['delegator_actor_id', 'block_number desc'])
     .execute();
+  await sql`
+    CREATE INDEX delegation_delegator_actor_block_delegate_changed_idx
+    ON delegation (delegator_actor_id, block_number DESC)
+    WHERE event_type = 'delegate_changed'
+  `.execute(db);
   await db.schema
     .createIndex('delegation_delegate_actor_block_idx')
     .on('delegation')
@@ -207,6 +212,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_archive_confirmation_actor_resolution_pending').execute();
   await db.schema.dropIndex('idx_actor_merged_into').execute();
+  await db.schema.dropIndex('delegation_delegator_actor_block_delegate_changed_idx').execute();
 
   await db.schema.alterTable('actor').dropColumn('merged_into_actor_id').execute();
   await db.schema.dropTable('actor_address_redirect').execute();

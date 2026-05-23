@@ -13,6 +13,7 @@ export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
+export { DelegationRepository } from './delegation-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
@@ -65,6 +66,7 @@ export type {
   NewActor,
   NewDao,
   NewDaoSource,
+  NewDelegation,
   NewProposal,
   NewProposalAction,
   NewProposalChoice,
@@ -99,4 +101,5 @@ export type {
   NewSelectorIndex,
   SelectorIndex,
   SelectorIndexTable,
+  Delegation,
 } from './schema/pg';
