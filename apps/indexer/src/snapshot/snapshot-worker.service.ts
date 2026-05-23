@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import type { Kysely } from 'kysely';
 import {
   DlqRepository,
-  type PgDatabase,
+  ProposalRepository,
   type ProposalState,
+  type SnapshotCandidate,
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
@@ -25,13 +25,6 @@ const ELIGIBLE_STATES: ProposalState[] = [
   'expired',
   'vetoed',
 ];
-
-interface SnapshotCandidate {
-  id: string;
-  dao_id: string;
-  source_type: string;
-  voting_power_block: string;
-}
 
 type TickOutcomeType =
   | 'idle'
@@ -55,7 +48,7 @@ export class SnapshotWorkerService {
   private inFlight = false;
 
   constructor(
-    @Inject('PG_DB') private readonly pgDb: Kysely<PgDatabase>,
+    private readonly proposalRepo: ProposalRepository,
     private readonly snapshotRepo: VotingPowerSnapshotRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,
@@ -205,13 +198,7 @@ export class SnapshotWorkerService {
     block: bigint,
     strategy: VotingPowerStrategy,
   ): Promise<void> {
-    const rows = await this.pgDb
-      .selectFrom('voting_power_snapshot as vps')
-      .innerJoin('actor_address as aa', 'aa.actor_id', 'vps.actor_id')
-      .select(['vps.actor_id as actorId', 'aa.address as address'])
-      .where('vps.proposal_id', '=', proposalId)
-      .where('aa.is_primary', '=', true)
-      .execute();
+    const rows = await this.snapshotRepo.listPrimaryAddressesForProposal(proposalId);
 
     for (let i = 0; i < rows.length; i += 25) {
       const chunk = rows.slice(i, i + 25);
@@ -226,29 +213,12 @@ export class SnapshotWorkerService {
   }
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
-    return this.pgDb
-      .selectFrom('proposal as p')
-      .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
-      .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
-      .where('p.source_type', 'in', [
-        'compound_governor_alpha',
-        'compound_governor_bravo',
-        'compound_governor_oz',
-      ])
-      .where('p.state', 'in', ELIGIBLE_STATES)
-      .where((eb) =>
-        eb.or([
-          eb('vpsr.status', 'is', null),
-          eb.and([
-            eb('vpsr.status', '=', 'in_progress'),
-            eb('vpsr.snapshot_attempt_count', '<', SNAPSHOT_DLQ_THRESHOLD),
-          ]),
-        ]),
-      )
-      .orderBy('p.voting_power_block', 'asc')
-      .orderBy('p.id', 'asc')
-      .limit(1)
-      .executeTakeFirst();
+    const supportedSourceTypes = [...this.strategies.keys()];
+    return this.proposalRepo.findNextSnapshotCandidate(
+      supportedSourceTypes,
+      ELIGIBLE_STATES,
+      SNAPSHOT_DLQ_THRESHOLD,
+    );
   }
 
   private async ensureNoStrategyFailure(

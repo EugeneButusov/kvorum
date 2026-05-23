@@ -4,6 +4,7 @@ import { ChainContextRegistry } from '@libs/chain';
 import {
   DlqRepository,
   pgDb,
+  ProposalRepository,
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
@@ -15,10 +16,13 @@ import { SNAPSHOT_STRATEGIES, SnapshotWorkerService } from './snapshot-worker.se
 @Module({
   imports: [ScheduleModule.forRoot(), ChainContextModule],
   providers: [
-    { provide: 'PG_DB', useValue: pgDb },
     {
       provide: VotingPowerSnapshotRepository,
       useFactory: () => new VotingPowerSnapshotRepository(pgDb),
+    },
+    {
+      provide: ProposalRepository,
+      useFactory: () => new ProposalRepository(pgDb),
     },
     {
       provide: VotingPowerSnapshotRunRepository,
