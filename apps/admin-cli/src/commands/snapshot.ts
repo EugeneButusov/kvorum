@@ -10,7 +10,7 @@ import {
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
-import { CompoundCompTokenVotingPowerStrategy } from '@sources/compound';
+import { buildSnapshotStrategyProviders } from '../plugins/snapshot-strategy-providers.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 
 type SnapshotCommon = { format?: string };
@@ -244,12 +244,7 @@ export function registerSnapshot(program: Command): void {
         const registry = new ChainContextRegistry();
         const chainCtx = await registry.getOrCreate(chainConfig);
 
-        const strategy = new CompoundCompTokenVotingPowerStrategy(
-          pgDb,
-          registry,
-          chainCtx.chainCfg.chainId,
-        );
-        const strategies = buildSnapshotStrategies(strategy);
+        const strategies = await resolveSnapshotStrategies(registry, chainCtx.chainCfg.chainId);
         const runner = new SnapshotDrainRunner(
           pgDb,
           new VotingPowerSnapshotRepository(pgDb),
@@ -337,14 +332,18 @@ export function registerSnapshot(program: Command): void {
     });
 }
 
-function buildSnapshotStrategies(
-  compoundStrategy: CompoundCompTokenVotingPowerStrategy,
-): Map<string, VotingPowerStrategy> {
-  return new Map([
-    ['compound_governor_alpha', compoundStrategy],
-    ['compound_governor_bravo', compoundStrategy],
-    ['compound_governor_oz', compoundStrategy],
-  ]);
+async function resolveSnapshotStrategies(
+  registry: ChainContextRegistry,
+  chainId: string,
+): Promise<Map<string, VotingPowerStrategy>> {
+  const strategies = new Map<string, VotingPowerStrategy>();
+  for (const provider of buildSnapshotStrategyProviders()) {
+    const provided = await provider.make({ registry, chainId });
+    for (const [sourceType, strategy] of provided) {
+      strategies.set(sourceType, strategy);
+    }
+  }
+  return strategies;
 }
 
 function resolveMainnetChainConfig(format: OutputFormat) {
