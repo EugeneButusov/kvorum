@@ -52,4 +52,16 @@ export class VotingPowerSnapshotRepository {
       .limit(limit)
       .execute();
   }
+
+  async listPrimaryAddressesForProposal(
+    proposalId: string,
+  ): Promise<Array<{ actorId: string; address: string }>> {
+    return this.db
+      .selectFrom('voting_power_snapshot as vps')
+      .innerJoin('actor_address as aa', 'aa.actor_id', 'vps.actor_id')
+      .select(['vps.actor_id as actorId', 'aa.address as address'])
+      .where('vps.proposal_id', '=', proposalId)
+      .where('aa.is_primary', '=', true)
+      .execute();
+  }
 }

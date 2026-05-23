@@ -7,6 +7,7 @@ export interface InsertEventVoteRow {
   voting_power_reported: string;
   cast_at: Date;
   block_number: string;
+  tx_index: number;
   tx_hash: string;
   log_index: number;
   primary_choice: number;

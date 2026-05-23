@@ -12,9 +12,16 @@ import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator
 import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
+import { SnapshotModule } from '../snapshot';
 
 @Module({
-  imports: [IndexerInfraModule, ChainContextModule, DerivationModule, SourcesModule],
+  imports: [
+    IndexerInfraModule,
+    ChainContextModule,
+    DerivationModule,
+    SnapshotModule,
+    SourcesModule,
+  ],
   providers: [
     {
       provide: SOURCE_INGESTERS,

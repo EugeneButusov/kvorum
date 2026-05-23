@@ -26,6 +26,10 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('delegation_projection_stage')).toBe(true);
   });
 
+  it('accepts snapshot compute stage', () => {
+    expect(isDlqRetryableStage('snapshot_compute_stage')).toBe(true);
+  });
+
   it('rejects non-retryable stage', () => {
     expect(isDlqRetryableStage('archive_decode')).toBe(false);
   });

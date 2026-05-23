@@ -1,6 +1,17 @@
-import type { Logger } from '@libs/chain';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
+import type { ChainContextRegistry, Logger } from '@libs/chain';
 import {
+  ActorRepository,
+  chDb,
+  ConfirmationRepository,
+  DaoSourceRepository,
+  DelegationRepository,
+  DlqRepository,
+  pgDb,
+  type SourceType,
+} from '@libs/db';
+import type { VotingPowerStrategy } from '@libs/domain';
+import {
+  CompoundCompTokenVotingPowerStrategy,
   GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
@@ -25,6 +36,45 @@ export function buildBackfillSourcePlugins(deps: {
   return [...createCompoundPlugins(deps.governor), createCompTokenPlugin(deps.compToken)];
 }
 
+export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly BackfillSourcePlugin[] {
+  const governorArchiveWriter = new GovernorArchiveWriter({
+    eventRepo: new GovernorEventRepository({ chDb }),
+    confirmationRepo: new ConfirmationRepository(pgDb),
+    dlqRepo: new DlqRepository(pgDb),
+    logger,
+  });
+  const compTokenArchiveWriter = new CompTokenArchiveWriter({
+    eventRepo: new CompTokenEventRepository({ chDb }),
+    confirmationRepo: new ConfirmationRepository(pgDb),
+    dlqRepo: new DlqRepository(pgDb),
+    logger,
+  });
+  const dlqRepo = new DlqRepository(pgDb);
+
+  return buildBackfillSourcePlugins({
+    governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
+    compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
+  });
+}
+
+export function buildSnapshotStrategyMap(input: {
+  registry: ChainContextRegistry;
+  chainId: string;
+}): Map<string, VotingPowerStrategy> {
+  const strategy = new CompoundCompTokenVotingPowerStrategy(
+    new DelegationRepository(pgDb),
+    new ActorRepository(pgDb),
+    new DaoSourceRepository(pgDb),
+    input.registry,
+    input.chainId,
+  );
+  return new Map<string, VotingPowerStrategy>([
+    ['compound_governor_alpha', strategy],
+    ['compound_governor_bravo', strategy],
+    ['compound_governor_oz', strategy],
+  ]);
+}
+
 export interface BackfillSourceRuntimeInput {
   daoSourceId: string;
   sourceType: SourceType;
@@ -34,23 +84,7 @@ export interface BackfillSourceRuntimeInput {
 }
 
 export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): BackfillRuntime {
-  const governorArchiveWriter = new GovernorArchiveWriter({
-    eventRepo: new GovernorEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
-    dlqRepo: new DlqRepository(pgDb),
-    logger: input.logger,
-  });
-  const compTokenArchiveWriter = new CompTokenArchiveWriter({
-    eventRepo: new CompTokenEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
-    dlqRepo: new DlqRepository(pgDb),
-    logger: input.logger,
-  });
-  const dlqRepo = new DlqRepository(pgDb);
-  const plugins = buildBackfillSourcePlugins({
-    governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger: input.logger },
-    compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger: input.logger },
-  });
+  const plugins = buildDefaultBackfillSourcePlugins(input.logger);
   const resolved = resolvePluginAndConfig(input.sourceType, input.sourceConfig, plugins);
   if (resolved == null) {
     throw new Error(`unsupported source_type: ${input.sourceType}`);

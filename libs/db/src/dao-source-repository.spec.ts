@@ -140,6 +140,45 @@ describe('DaoSourceRepository', () => {
     });
   });
 
+  describe('findTokenAddressByDaoAndSourceType', () => {
+    it('#1 — returns token_address string when present', async () => {
+      const executeTakeFirst = vi.fn().mockResolvedValue({ token_address: 'mock-token-address' });
+      const chain = {
+        select: vi.fn(),
+        where: vi.fn(),
+        executeTakeFirst,
+      };
+      chain.select.mockReturnValue(chain);
+      chain.where.mockReturnValue(chain);
+      const selectFrom = vi.fn().mockReturnValue(chain);
+      const repo = new DaoSourceRepository({ selectFrom } as never);
+
+      const result = await repo.findTokenAddressByDaoAndSourceType('dao-1', 'compound_comp_token');
+
+      expect(result).toBe('mock-token-address');
+      expect(selectFrom).toHaveBeenCalledWith('dao_source');
+      expect(chain.where).toHaveBeenCalledWith('dao_id', '=', 'dao-1');
+      expect(chain.where).toHaveBeenCalledWith('source_type', '=', 'compound_comp_token');
+    });
+
+    it('#2 — returns undefined when token_address is absent', async () => {
+      const executeTakeFirst = vi.fn().mockResolvedValue(undefined);
+      const chain = {
+        select: vi.fn(),
+        where: vi.fn(),
+        executeTakeFirst,
+      };
+      chain.select.mockReturnValue(chain);
+      chain.where.mockReturnValue(chain);
+      const selectFrom = vi.fn().mockReturnValue(chain);
+      const repo = new DaoSourceRepository({ selectFrom } as never);
+
+      await expect(
+        repo.findTokenAddressByDaoAndSourceType('dao-1', 'compound_comp_token'),
+      ).resolves.toBeUndefined();
+    });
+  });
+
   // ---- Backfill checkpoint methods ----
 
   function makeSelectTakeFirst(returnValue: unknown) {

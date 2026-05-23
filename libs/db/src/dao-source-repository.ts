@@ -1,4 +1,4 @@
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { PgDatabase } from './schema/pg';
 
 export interface BackfillStatusRow {
@@ -22,6 +22,20 @@ export class DaoSourceRepository {
       ])
       .where('dao_source.source_type', '=', sourceType)
       .execute();
+  }
+
+  async findTokenAddressByDaoAndSourceType(
+    daoId: string,
+    sourceType: string,
+  ): Promise<string | undefined> {
+    const row = await this.db
+      .selectFrom('dao_source')
+      .select(sql<string>`source_config ->> 'token_address'`.as('token_address'))
+      .where('dao_id', '=', daoId)
+      .where('source_type', '=', sourceType)
+      .executeTakeFirst();
+
+    return row?.token_address ?? undefined;
   }
 
   async findAll() {

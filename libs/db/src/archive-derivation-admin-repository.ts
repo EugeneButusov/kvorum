@@ -34,4 +34,14 @@ export class ArchiveDerivationAdminRepository {
     const result = await query.executeTakeFirst();
     return Number(result?.numUpdatedRows ?? 0n);
   }
+
+  async resetWatermarkByConfirmationId(archiveConfirmationId: string): Promise<number> {
+    const result = await this.pgDb
+      .updateTable('archive_confirmation')
+      .set({ derived_at: null, derivation_attempt_count: 0 })
+      .where('id', '=', archiveConfirmationId)
+      .executeTakeFirst();
+
+    return Number(result?.numUpdatedRows ?? 0n);
+  }
 }

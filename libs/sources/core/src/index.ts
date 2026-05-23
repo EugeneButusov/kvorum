@@ -36,6 +36,7 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
+import type { VotingPowerStrategy } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */
@@ -83,10 +84,16 @@ export interface ActorAddressDeriver {
 
 export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
 
+export interface SourceSnapshotStrategy {
+  readonly sourceTypes: readonly string[];
+  readonly strategy: VotingPowerStrategy;
+}
+
 export interface SourcePlugin {
   readonly name: string;
   readonly ingesters: readonly SourceIngester[];
   readonly derivers: readonly SourceDeriver[];
+  readonly snapshotStrategies: readonly SourceSnapshotStrategy[];
 }
 
 export type IngestSpec =

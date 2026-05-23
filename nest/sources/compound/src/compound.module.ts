@@ -1,14 +1,18 @@
 import { Module, Logger } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
+  ActorRepository,
   ArchiveDerivationRepository,
   ConfirmationRepository,
+  DaoSourceRepository,
+  DelegationRepository,
   DlqRepository,
   chDb,
   pgDb,
 } from '@libs/db';
 import {
   COMPOUND_ACTOR_SWEEP_EXTRACTOR,
+  CompoundCompTokenVotingPowerStrategy,
   CompTokenArchiveWriter,
   CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
@@ -142,6 +146,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
+        registry: ChainContextRegistry,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -149,6 +154,13 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const metrics = buildDriverMetrics();
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
+        const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
+          new DelegationRepository(pgDb),
+          new ActorRepository(pgDb),
+          new DaoSourceRepository(pgDb),
+          registry,
+          '0x1',
+        );
 
         return {
           name: 'compound',
@@ -200,6 +212,16 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
               extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
             },
           ],
+          snapshotStrategies: [
+            {
+              sourceTypes: [
+                'compound_governor_alpha',
+                'compound_governor_bravo',
+                'compound_governor_oz',
+              ],
+              strategy: snapshotStrategy,
+            },
+          ],
         };
       },
       inject: [
@@ -210,6 +232,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
         CompTokenDelegationProjectionApplier,
+        ChainContextRegistry,
       ],
     },
   ],

@@ -17,6 +17,8 @@ export type {
   CompTokenDelegationProjectionApplierDeps,
   CompTokenDelegationProjectionMetrics,
 } from './domain/comp-token-delegation-projection-applier';
+export { CompoundCompTokenVotingPowerStrategy } from './strategy/compound-comp-token-voting-power-strategy';
+export { COMP_TOKEN_VOTING_POWER_ABI } from './strategy/comp-token-abi';
 export {
   projectDelegateChanged,
   projectDelegateVotesChanged,

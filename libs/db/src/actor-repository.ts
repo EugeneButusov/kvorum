@@ -56,6 +56,19 @@ export class ActorRepository {
     });
   }
 
+  async findPrimaryAddressesByActorIds(
+    actorIds: readonly string[],
+  ): Promise<Array<{ actor_id: string; address: string }>> {
+    if (actorIds.length === 0) return [];
+
+    return this.db
+      .selectFrom('actor_address')
+      .select(['actor_id', 'address'])
+      .where('actor_id', 'in', [...actorIds])
+      .where('is_primary', '=', true)
+      .execute();
+  }
+
   private async findOrCreateByAddressTx(
     db: Kysely<PgDatabase> | Transaction<PgDatabase>,
     normalized: string,

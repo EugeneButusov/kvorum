@@ -29,6 +29,7 @@ export type {
   PendingTimestampFillRow,
   ProposalActionInput,
   TimestampFillInput,
+  SnapshotCandidate,
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';

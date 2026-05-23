@@ -38,6 +38,8 @@ describe('delegation-projector', () => {
       delegate_actor_id: 'actor-2',
       voting_power: '0',
       block_number: '100',
+      tx_index: 0,
+      log_index: 3,
       tx_hash: '0xtx',
       event_type: 'delegate_changed',
     });
@@ -60,6 +62,8 @@ describe('delegation-projector', () => {
       delegate_actor_id: 'actor-2',
       voting_power: '15',
       block_number: '100',
+      tx_index: 0,
+      log_index: 3,
       tx_hash: '0xtx',
       event_type: 'votes_changed',
     });

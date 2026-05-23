@@ -1,9 +1,9 @@
 import { Command } from 'commander';
-import { DaoSourceRepository, DlqRepository, pgDb } from '@libs/db';
+import { DlqRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
-import { makeDlqRetryListener } from './dlq-retry-listener-factory.js';
+import { DLQ_RETRY_ADAPTERS } from './dlq-retry/registry.js';
 import { isDlqRetryableStage } from './dlq-retry-stage.js';
 
 type DlqCommon = { format?: string };
@@ -69,62 +69,20 @@ export function registerDlq(program: Command): void {
         }
 
         await withAudit('dlq retry', { dlqId }, async () => {
-          const daoSourceId = await resolveDaoSourceId(
-            row.archive_source_type,
-            row.archive_chain_id,
-          );
-          if (daoSourceId == null) {
-            fail(format, ExitCode.RuntimeFailure, 'unable to resolve dao_source_id for DLQ row');
+          const adapter = DLQ_RETRY_ADAPTERS.get(row.stage);
+          if (adapter == null) {
+            fail(
+              format,
+              ExitCode.RuntimeFailure,
+              `no retry adapter registered for stage ${row.stage}`,
+            );
           }
 
-          const payload = row.payload as {
-            raw?: { topics?: string[]; data?: string };
-            block_number?: string;
-          };
-          const raw = payload.raw;
-          if (raw?.topics == null || raw.data == null || payload.block_number == null) {
-            fail(format, ExitCode.RuntimeFailure, 'DLQ payload is missing raw log fields');
-          }
-          if (
-            row.archive_tx_hash == null ||
-            row.archive_log_index == null ||
-            row.archive_block_hash == null ||
-            row.archive_chain_id == null ||
-            row.archive_source_type == null
-          ) {
-            fail(format, ExitCode.RuntimeFailure, 'DLQ row is missing archive tuple fields');
-          }
-
-          const listener = await makeDlqRetryListener({
-            stage: row.stage,
-            archiveSourceType: row.archive_source_type,
-            archiveChainId: row.archive_chain_id,
-            daoSourceId,
-          });
-
-          await listener([
-            {
-              sourceType: row.archive_source_type,
-              chainId: row.archive_chain_id,
-              blockNumber: BigInt(payload.block_number),
-              blockHash: row.archive_block_hash,
-              txHash: row.archive_tx_hash,
-              txIndex: 0,
-              logIndex: row.archive_log_index,
-              address: '0x0000000000000000000000000000000000000000',
-              topics: raw.topics,
-              data: raw.data,
-            },
-          ]);
-
+          const outcome = await adapter.retry(row);
           const resolved = await pgDb
             .transaction()
             .execute((trx) =>
-              new DlqRepository(trx).markRetrySucceeded(
-                dlqId,
-                'archive_write replay succeeded',
-                executorFromEnv(),
-              ),
+              new DlqRepository(trx).markRetrySucceeded(dlqId, outcome.reason, executorFromEnv()),
             );
           emit(format, () => `DLQ retry completed for ${dlqId}`, {
             dlq_id: dlqId,
@@ -178,22 +136,6 @@ function parseLimit(value: string | undefined): number {
 
 function executorFromEnv(): string {
   return process.env['SUDO_USER'] ?? process.env['USER'] ?? process.env['LOGNAME'] ?? 'unknown';
-}
-
-async function resolveDaoSourceId(
-  sourceType: string | null,
-  chainId: string | null,
-): Promise<string | null> {
-  if (sourceType == null || chainId == null) {
-    return null;
-  }
-  const repo = new DaoSourceRepository(pgDb);
-  const rows = await repo.findBySourceType(sourceType);
-  const matching = rows.filter((row) => row.primary_chain_id === chainId);
-  if (matching.length !== 1 || matching[0] == null) {
-    return null;
-  }
-  return matching[0].id;
 }
 
 async function withDlqFormat(

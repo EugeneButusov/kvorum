@@ -8,9 +8,18 @@ import { COMPOUND_SOURCE_PLUGIN, CompoundSourceModule } from './compound.module'
 vi.mock('@libs/db', () => ({
   pgDb: {},
   chDb: {},
+  ActorRepository: class {
+    constructor(_db: unknown) {}
+  },
   ConfirmationRepository: class {
     public find = vi.fn();
     public insert = vi.fn();
+    constructor(_db: unknown) {}
+  },
+  DaoSourceRepository: class {
+    constructor(_db: unknown) {}
+  },
+  DelegationRepository: class {
     constructor(_db: unknown) {}
   },
   DlqRepository: class {

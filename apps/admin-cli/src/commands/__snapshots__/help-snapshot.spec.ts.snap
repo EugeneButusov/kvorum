@@ -214,6 +214,7 @@ Commands:
   maintenance            Maintenance mode management
   reorgs                 Chain reorg management
   status [options]       Show system status
+  snapshot               Voting power snapshot operations
   users                  User management
   help [command]         display help for command
 "
