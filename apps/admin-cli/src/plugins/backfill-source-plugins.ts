@@ -1,5 +1,14 @@
 import type { ChainContextRegistry, Logger } from '@libs/chain';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
+import {
+  ActorRepository,
+  chDb,
+  ConfirmationRepository,
+  DaoSourceRepository,
+  DelegationRepository,
+  DlqRepository,
+  pgDb,
+  type SourceType,
+} from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
 import {
   CompoundCompTokenVotingPowerStrategy,
@@ -52,7 +61,13 @@ export function buildSnapshotStrategyMap(input: {
   registry: ChainContextRegistry;
   chainId: string;
 }): Map<string, VotingPowerStrategy> {
-  const strategy = new CompoundCompTokenVotingPowerStrategy(pgDb, input.registry, input.chainId);
+  const strategy = new CompoundCompTokenVotingPowerStrategy(
+    new DelegationRepository(pgDb),
+    new ActorRepository(pgDb),
+    new DaoSourceRepository(pgDb),
+    input.registry,
+    input.chainId,
+  );
   return new Map<string, VotingPowerStrategy>([
     ['compound_governor_alpha', strategy],
     ['compound_governor_bravo', strategy],

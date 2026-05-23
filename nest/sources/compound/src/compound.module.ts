@@ -1,8 +1,11 @@
 import { Module, Logger } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
+  ActorRepository,
   ArchiveDerivationRepository,
   ConfirmationRepository,
+  DaoSourceRepository,
+  DelegationRepository,
   DlqRepository,
   chDb,
   pgDb,
@@ -151,7 +154,13 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const metrics = buildDriverMetrics();
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
-        const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(pgDb, registry, '0x1');
+        const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
+          new DelegationRepository(pgDb),
+          new ActorRepository(pgDb),
+          new DaoSourceRepository(pgDb),
+          registry,
+          '0x1',
+        );
 
         return {
           name: 'compound',
