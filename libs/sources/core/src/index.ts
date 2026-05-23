@@ -43,10 +43,6 @@ import type { BackfillRuntime } from './backfill/types';
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 /** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
-/** Nest injection token for source-registered voting-power snapshot strategies by source_type. */
-export const SOURCE_SNAPSHOT_STRATEGIES = 'SOURCE_SNAPSHOT_STRATEGIES';
-
-export type SourceSnapshotStrategies = Map<string, VotingPowerStrategy>;
 
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
@@ -88,10 +84,16 @@ export interface ActorAddressDeriver {
 
 export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
 
+export interface SourceSnapshotStrategy {
+  readonly sourceTypes: readonly string[];
+  readonly strategy: VotingPowerStrategy;
+}
+
 export interface SourcePlugin {
   readonly name: string;
   readonly ingesters: readonly SourceIngester[];
   readonly derivers: readonly SourceDeriver[];
+  readonly snapshotStrategies: readonly SourceSnapshotStrategy[];
 }
 
 export type IngestSpec =

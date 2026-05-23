@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
   DlqRepository,
@@ -8,8 +8,8 @@ import {
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
-import { SOURCE_SNAPSHOT_STRATEGIES, type SourceSnapshotStrategies } from '@sources/core';
 import type { VotingPowerStrategy } from '@libs/domain';
+import type { SourcePlugin } from '@sources/core';
 import { snapshotMetrics } from './snapshot-metrics';
 
 const SNAPSHOT_INTERVAL_MS = readIntervalMs('SNAPSHOT_INTERVAL_MS', 30_000);
@@ -41,6 +41,8 @@ export interface TickOutcome {
   proposalId?: string;
 }
 
+type SnapshotStrategies = Map<string, VotingPowerStrategy>;
+
 @Injectable()
 export class SnapshotWorkerService {
   private readonly logger = new Logger('SnapshotWorker');
@@ -51,8 +53,20 @@ export class SnapshotWorkerService {
     private readonly snapshotRepo: VotingPowerSnapshotRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,
-    @Inject(SOURCE_SNAPSHOT_STRATEGIES) private readonly strategies: SourceSnapshotStrategies,
+    private readonly strategies: SnapshotStrategies,
   ) {}
+
+  static buildStrategies(plugins: readonly SourcePlugin[]): SnapshotStrategies {
+    const strategies = new Map<string, VotingPowerStrategy>();
+    for (const plugin of plugins) {
+      for (const entry of plugin.snapshotStrategies) {
+        for (const sourceType of entry.sourceTypes) {
+          strategies.set(sourceType, entry.strategy);
+        }
+      }
+    }
+    return strategies;
+  }
 
   @Interval(SNAPSHOT_INTERVAL_MS)
   async tick(): Promise<void> {

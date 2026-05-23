@@ -7,6 +7,7 @@ import {
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
+import { SOURCE_PLUGINS, type SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { SnapshotWorkerService } from './snapshot-worker.service';
@@ -30,7 +31,30 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
       provide: DlqRepository,
       useFactory: () => new DlqRepository(pgDb),
     },
-    SnapshotWorkerService,
+    {
+      provide: SnapshotWorkerService,
+      useFactory: (
+        proposals: ProposalRepository,
+        snapshots: VotingPowerSnapshotRepository,
+        runs: VotingPowerSnapshotRunRepository,
+        dlq: DlqRepository,
+        plugins: readonly SourcePlugin[],
+      ) =>
+        new SnapshotWorkerService(
+          proposals,
+          snapshots,
+          runs,
+          dlq,
+          SnapshotWorkerService.buildStrategies(plugins),
+        ),
+      inject: [
+        ProposalRepository,
+        VotingPowerSnapshotRepository,
+        VotingPowerSnapshotRunRepository,
+        DlqRepository,
+        SOURCE_PLUGINS,
+      ],
+    },
   ],
   exports: [SnapshotWorkerService],
 })
