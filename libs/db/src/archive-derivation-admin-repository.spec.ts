@@ -13,6 +13,18 @@ function makeCountSelectChain(returnValue: unknown) {
   return { selectFrom: vi.fn().mockReturnValue(chain), chain };
 }
 
+function makeUpdateChain(returnValue: unknown) {
+  const executeTakeFirst = vi.fn().mockResolvedValue(returnValue);
+  const chain = {
+    set: vi.fn(),
+    where: vi.fn(),
+    executeTakeFirst,
+  };
+  chain.set.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  return { updateTable: vi.fn().mockReturnValue(chain), chain };
+}
+
 describe('ArchiveDerivationAdminRepository', () => {
   it('counts confirmed underived rows without a starting block', async () => {
     const select = makeCountSelectChain({ count: '7' });
@@ -33,5 +45,19 @@ describe('ArchiveDerivationAdminRepository', () => {
     await expect(repo.countConfirmedUnderived('source-1', 123n)).resolves.toBe(3);
 
     expect(select.chain.where).toHaveBeenCalledWith('block_number', '>=', '123');
+  });
+
+  it('resets derivation watermark by archive confirmation id', async () => {
+    const update = makeUpdateChain({ numUpdatedRows: 1n });
+    const repo = new ArchiveDerivationAdminRepository({ updateTable: update.updateTable } as never);
+
+    await expect(repo.resetWatermarkByConfirmationId('ac-1')).resolves.toBe(1);
+
+    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.chain.set).toHaveBeenCalledWith({
+      derived_at: null,
+      derivation_attempt_count: 0,
+    });
+    expect(update.chain.where).toHaveBeenCalledWith('id', '=', 'ac-1');
   });
 });
