@@ -37,6 +37,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('voting_power_discrepancy', sql`numeric(78,0)`)
     .addColumn('cast_at', 'timestamptz', (col) => col.notNull())
     .addColumn('block_number', 'bigint')
+    .addColumn('tx_index', 'integer', (col) => col.notNull().defaultTo(0))
     .addColumn('tx_hash', 'text')
     .addColumn('log_index', 'integer')
     .addColumn('source_id', 'text')
@@ -69,6 +70,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
     .addColumn('voting_power', sql`numeric(78,0)`, (col) => col.notNull())
     .addColumn('block_number', 'bigint', (col) => col.notNull())
+    .addColumn('tx_index', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('log_index', 'integer', (col) => col.notNull().defaultTo(0))
     .addColumn('tx_hash', 'text', (col) => col.notNull())
     .addColumn('event_type', sql`delegation_event_type`, (col) => col.notNull())
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
@@ -175,6 +178,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createIndex('delegation_dao_block_idx')
     .on('delegation')
     .columns(['dao_id', 'block_number desc'])
+    .execute();
+  await db.schema
+    .createIndex('idx_delegation_dao_block_ordering')
+    .on('delegation')
+    .columns(['dao_id', 'block_number', 'tx_index', 'log_index'])
     .execute();
 
   await db.schema
