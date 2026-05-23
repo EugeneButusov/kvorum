@@ -174,14 +174,14 @@ export class GovernorVoteProjectionApplier {
           throw new ProjectionError('no_proposal');
         }
 
-        const voterActorId = await actors.findIdByAddress(event.voter);
-        if (voterActorId === undefined) {
+        const voterActor = await actors.findByAddress(event.voter);
+        if (voterActor === undefined) {
           throw new ProjectionError('no_voter');
         }
 
         const projection = projectVoteCast(event, row, {
           castAt,
-          voterActorId,
+          voterActorId: voterActor.id,
           proposalId,
         });
 

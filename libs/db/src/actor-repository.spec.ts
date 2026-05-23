@@ -102,18 +102,27 @@ interface ConflictColumnsBuilder {
 }
 
 describe('ActorRepository', () => {
-  it('finds actor id by actor_address', async () => {
-    const executeTakeFirst = vi.fn().mockResolvedValue({ actor_id: 'actor-1' });
+  it('finds actor by actor_address', async () => {
+    const executeTakeFirst = vi.fn().mockResolvedValue(ACTOR_ROW);
     const where = vi.fn().mockReturnValue({ executeTakeFirst });
-    const select = vi.fn().mockReturnValue({ where });
-    const selectFrom = vi.fn().mockReturnValue({ select });
+    const selectAll = vi.fn().mockReturnValue({ where });
+    const innerJoin = vi.fn().mockReturnValue({ selectAll });
+    const selectFrom = vi.fn().mockReturnValue({ innerJoin });
     const repo = new ActorRepository({ selectFrom } as never);
 
-    await expect(repo.findIdByAddress('0xABCDEF')).resolves.toBe('actor-1');
+    await expect(repo.findByAddress('0xABCDEF')).resolves.toEqual(ACTOR_ROW);
 
-    expect(selectFrom).toHaveBeenCalledWith('actor_address');
-    expect(select).toHaveBeenCalledWith('actor_id');
-    expect(where).toHaveBeenCalledWith('address', '=', '0xabcdef');
+    expect(selectFrom).toHaveBeenCalledWith('actor as a');
+    expect(innerJoin).toHaveBeenCalledWith('actor_address as aa', 'aa.actor_id', 'a.id');
+    expect(selectAll).toHaveBeenCalledWith('a');
+    expect(where).toHaveBeenCalledWith('aa.address', '=', '0xabcdef');
+  });
+
+  it('finds actor id by actor_address', async () => {
+    const joinSelect = makeJoinSelectChain(ACTOR_ROW);
+    const repo = new ActorRepository({ selectFrom: joinSelect.selectFrom } as never);
+
+    await expect(repo.findIdByAddress('0xABCDEF')).resolves.toBe('actor-1');
   });
 
   it('normalizes address and returns the inserted actor', async () => {

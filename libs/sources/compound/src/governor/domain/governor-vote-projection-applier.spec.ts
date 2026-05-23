@@ -39,7 +39,7 @@ interface TestRepositories {
     findIdBySource: ReturnType<typeof vi.fn>;
   };
   actors: {
-    findIdByAddress: ReturnType<typeof vi.fn>;
+    findByAddress: ReturnType<typeof vi.fn>;
   };
   votes: {
     insertVote: ReturnType<typeof vi.fn>;
@@ -118,7 +118,7 @@ describe('GovernorVoteProjectionApplier', () => {
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
       },
       actors: {
-        findIdByAddress: vi.fn().mockResolvedValue('actor-1'),
+        findByAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
       },
       votes: {
         insertVote: vi.fn().mockResolvedValue({ inserted: true, voteId: 'vote-1' }),
@@ -160,7 +160,7 @@ describe('GovernorVoteProjectionApplier', () => {
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
       },
       actors: {
-        findIdByAddress: vi.fn().mockResolvedValue('actor-1'),
+        findByAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
       },
       votes: {
         insertVote: vi.fn().mockResolvedValue({ inserted: false }),
@@ -189,7 +189,7 @@ describe('GovernorVoteProjectionApplier', () => {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue(undefined),
       },
-      actors: { findIdByAddress: vi.fn() },
+      actors: { findByAddress: vi.fn() },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
@@ -212,7 +212,7 @@ describe('GovernorVoteProjectionApplier', () => {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
       },
-      actors: { findIdByAddress: vi.fn().mockResolvedValue(undefined) },
+      actors: { findByAddress: vi.fn().mockResolvedValue(undefined) },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
@@ -235,7 +235,7 @@ describe('GovernorVoteProjectionApplier', () => {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue(undefined),
       },
-      actors: { findIdByAddress: vi.fn() },
+      actors: { findByAddress: vi.fn() },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
