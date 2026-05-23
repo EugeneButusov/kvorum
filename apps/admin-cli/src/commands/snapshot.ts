@@ -188,15 +188,14 @@ class SnapshotDrainRunner {
   }
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
+    const supportedSourceTypes = [...this.strategies.keys()];
+    if (supportedSourceTypes.length === 0) return undefined;
+
     return this.pg
       .selectFrom('proposal as p')
       .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
       .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
-      .where('p.source_type', 'in', [
-        'compound_governor_alpha',
-        'compound_governor_bravo',
-        'compound_governor_oz',
-      ])
+      .where('p.source_type', 'in', supportedSourceTypes)
       .where('p.state', 'in', ELIGIBLE_STATES)
       .where((eb) =>
         eb.or([
@@ -250,16 +249,13 @@ export function registerSnapshot(program: Command): void {
           registry,
           chainCtx.chainCfg.chainId,
         );
+        const strategies = buildSnapshotStrategies(strategy);
         const runner = new SnapshotDrainRunner(
           pgDb,
           new VotingPowerSnapshotRepository(pgDb),
           new VotingPowerSnapshotRunRepository(pgDb),
           new DlqRepository(pgDb),
-          new Map([
-            ['compound_governor_alpha', strategy],
-            ['compound_governor_bravo', strategy],
-            ['compound_governor_oz', strategy],
-          ]),
+          strategies,
         );
 
         let processed = 0;
@@ -339,6 +335,16 @@ export function registerSnapshot(program: Command): void {
         }
       });
     });
+}
+
+function buildSnapshotStrategies(
+  compoundStrategy: CompoundCompTokenVotingPowerStrategy,
+): Map<string, VotingPowerStrategy> {
+  return new Map([
+    ['compound_governor_alpha', compoundStrategy],
+    ['compound_governor_bravo', compoundStrategy],
+    ['compound_governor_oz', compoundStrategy],
+  ]);
 }
 
 function resolveMainnetChainConfig(format: OutputFormat) {
