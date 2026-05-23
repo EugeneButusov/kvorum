@@ -102,6 +102,32 @@ interface ConflictColumnsBuilder {
 }
 
 describe('ActorRepository', () => {
+  it('returns empty list when findPrimaryAddressesByActorIds receives no actor ids', async () => {
+    const selectFrom = vi.fn();
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findPrimaryAddressesByActorIds([])).resolves.toEqual([]);
+    expect(selectFrom).not.toHaveBeenCalled();
+  });
+
+  it('lists primary addresses for provided actor ids', async () => {
+    const execute = vi.fn().mockResolvedValue([{ actor_id: 'actor-1', address: '0xabc' }]);
+    const wherePrimary = vi.fn().mockReturnValue({ execute });
+    const whereActorIds = vi.fn().mockReturnValue({ where: wherePrimary });
+    const select = vi.fn().mockReturnValue({ where: whereActorIds });
+    const selectFrom = vi.fn().mockReturnValue({ select });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findPrimaryAddressesByActorIds(['actor-1', 'actor-2'])).resolves.toEqual([
+      { actor_id: 'actor-1', address: '0xabc' },
+    ]);
+
+    expect(selectFrom).toHaveBeenCalledWith('actor_address');
+    expect(select).toHaveBeenCalledWith(['actor_id', 'address']);
+    expect(whereActorIds).toHaveBeenCalledWith('actor_id', 'in', ['actor-1', 'actor-2']);
+    expect(wherePrimary).toHaveBeenCalledWith('is_primary', '=', true);
+  });
+
   it('finds actor by actor_address', async () => {
     const executeTakeFirst = vi.fn().mockResolvedValue(ACTOR_ROW);
     const where = vi.fn().mockReturnValue({ executeTakeFirst });
