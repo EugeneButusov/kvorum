@@ -169,8 +169,12 @@ export class GovernorVoteProjectionApplier {
           throw new Error(`unknown dao_source ${row.dao_source_id}`);
         }
 
-        const proposalId = await proposals.findIdBySource(daoId, row.source_type, event.proposalId);
-        if (proposalId === undefined) {
+        const proposal = await proposals.findBySource({
+          daoId,
+          sourceType: row.source_type,
+          sourceId: event.proposalId,
+        });
+        if (proposal === undefined) {
           throw new ProjectionError('no_proposal');
         }
 
@@ -182,7 +186,7 @@ export class GovernorVoteProjectionApplier {
         const projection = projectVoteCast(event, row, {
           castAt,
           voterActorId: voterActor.id,
-          proposalId,
+          proposalId: proposal.id,
         });
 
         const { inserted, voteId } = await votes.insertVote(projection.vote);

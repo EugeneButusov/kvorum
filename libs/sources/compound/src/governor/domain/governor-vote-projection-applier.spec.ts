@@ -36,7 +36,7 @@ const BASE_PAYLOAD: GovernorArchivePayloadRow = {
 interface TestRepositories {
   proposals: {
     findDaoIdForSource: ReturnType<typeof vi.fn>;
-    findIdBySource: ReturnType<typeof vi.fn>;
+    findBySource: ReturnType<typeof vi.fn>;
   };
   actors: {
     findByAddress: ReturnType<typeof vi.fn>;
@@ -115,7 +115,7 @@ describe('GovernorVoteProjectionApplier', () => {
     const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
-        findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
+        findBySource: vi.fn().mockResolvedValue({ id: 'proposal-1' }),
       },
       actors: {
         findByAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
@@ -157,7 +157,7 @@ describe('GovernorVoteProjectionApplier', () => {
     const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
-        findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
+        findBySource: vi.fn().mockResolvedValue({ id: 'proposal-1' }),
       },
       actors: {
         findByAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
@@ -187,7 +187,7 @@ describe('GovernorVoteProjectionApplier', () => {
     const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
-        findIdBySource: vi.fn().mockResolvedValue(undefined),
+        findBySource: vi.fn().mockResolvedValue(undefined),
       },
       actors: { findByAddress: vi.fn() },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
@@ -210,7 +210,7 @@ describe('GovernorVoteProjectionApplier', () => {
     const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
-        findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
+        findBySource: vi.fn().mockResolvedValue({ id: 'proposal-1' }),
       },
       actors: { findByAddress: vi.fn().mockResolvedValue(undefined) },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
@@ -233,7 +233,7 @@ describe('GovernorVoteProjectionApplier', () => {
     const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
-        findIdBySource: vi.fn().mockResolvedValue(undefined),
+        findBySource: vi.fn().mockResolvedValue(undefined),
       },
       actors: { findByAddress: vi.fn() },
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
