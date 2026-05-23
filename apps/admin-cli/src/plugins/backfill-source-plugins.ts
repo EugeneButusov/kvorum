@@ -1,6 +1,8 @@
-import type { Logger } from '@libs/chain';
+import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { chDb, ConfirmationRepository, DlqRepository, pgDb, type SourceType } from '@libs/db';
+import type { VotingPowerStrategy } from '@libs/domain';
 import {
+  CompoundCompTokenVotingPowerStrategy,
   GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
@@ -44,6 +46,18 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
     compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
   });
+}
+
+export function buildSnapshotStrategyMap(input: {
+  registry: ChainContextRegistry;
+  chainId: string;
+}): Map<string, VotingPowerStrategy> {
+  const strategy = new CompoundCompTokenVotingPowerStrategy(pgDb, input.registry, input.chainId);
+  return new Map<string, VotingPowerStrategy>([
+    ['compound_governor_alpha', strategy],
+    ['compound_governor_bravo', strategy],
+    ['compound_governor_oz', strategy],
+  ]);
 }
 
 export interface BackfillSourceRuntimeInput {

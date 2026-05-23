@@ -11,7 +11,7 @@ import {
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
-import { buildSnapshotStrategyProviders } from '../plugins/snapshot-strategy-providers.js';
+import { buildSnapshotStrategyMap } from '../plugins/backfill-source-plugins.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 
 type SnapshotCommon = { format?: string };
@@ -216,7 +216,10 @@ export function registerSnapshot(program: Command): void {
         const registry = new ChainContextRegistry();
         const chainCtx = await registry.getOrCreate(chainConfig);
 
-        const strategies = await resolveSnapshotStrategies(registry, chainCtx.chainCfg.chainId);
+        const strategies = buildSnapshotStrategyMap({
+          registry,
+          chainId: chainCtx.chainCfg.chainId,
+        });
         const lockRepo = new AdvisoryLockRepository(pgDb);
         const runner = new SnapshotDrainRunner(
           new ProposalRepository(pgDb),
@@ -280,20 +283,6 @@ export function registerSnapshot(program: Command): void {
         }
       });
     });
-}
-
-async function resolveSnapshotStrategies(
-  registry: ChainContextRegistry,
-  chainId: string,
-): Promise<Map<string, VotingPowerStrategy>> {
-  const strategies = new Map<string, VotingPowerStrategy>();
-  for (const provider of buildSnapshotStrategyProviders()) {
-    const provided = await provider.make({ registry, chainId });
-    for (const [sourceType, strategy] of provided) {
-      strategies.set(sourceType, strategy);
-    }
-  }
-  return strategies;
 }
 
 function resolveMainnetChainConfig(format: OutputFormat) {
