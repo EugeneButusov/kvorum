@@ -73,15 +73,6 @@ export class ProposalRepository {
       .executeTakeFirst();
   }
 
-  async findIdBySource(
-    daoId: string,
-    sourceType: string,
-    sourceId: string,
-  ): Promise<string | undefined> {
-    const proposal = await this.findBySource({ daoId, sourceType, sourceId });
-    return proposal?.id;
-  }
-
   async insertProposal(row: NewProposal): Promise<InsertProposalResult> {
     const inserted = await this.db
       .insertInto('proposal')

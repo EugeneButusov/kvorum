@@ -146,22 +146,6 @@ describe('ProposalRepository', () => {
     ]);
   });
 
-  it('finds proposal id by dao/source tuple', async () => {
-    const repo = new ProposalRepository({} as never);
-    const findBySource = vi
-      .spyOn(repo, 'findBySource')
-      .mockResolvedValue({ id: 'proposal-1' } as never);
-
-    await expect(repo.findIdBySource('dao-1', 'compound_governor_bravo', '42')).resolves.toBe(
-      'proposal-1',
-    );
-    expect(findBySource).toHaveBeenCalledWith({
-      daoId: 'dao-1',
-      sourceType: 'compound_governor_bravo',
-      sourceId: '42',
-    });
-  });
-
   it('inserts proposal with idempotency conflict handling', async () => {
     const insert = makeInsertChain({ id: 'proposal-1' });
     const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
