@@ -51,7 +51,10 @@ interface TestRepositories {
 }
 
 interface MutableVoteApplier {
-  blockTimestamps: { fetchBatch: ReturnType<typeof vi.fn> };
+  blockTimestamps: {
+    fetchBatch: ReturnType<typeof vi.fn>;
+    resultKey: (n: string, h: string) => string;
+  };
   registry: { peek: ReturnType<typeof vi.fn> };
   transaction: ReturnType<typeof vi.fn>;
 }
@@ -77,7 +80,10 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
     metrics,
   });
   mutable(applier).blockTimestamps = {
-    fetchBatch: vi.fn().mockResolvedValue(new Map([['100', new Date('2026-01-01T00:01:40Z')]])),
+    fetchBatch: vi
+      .fn()
+      .mockResolvedValue(new Map([['100:0xblock', new Date('2026-01-01T00:01:40Z')]])),
+    resultKey: (blockNumber: string, blockHash: string) => `${blockNumber}:${blockHash}`,
   };
   return { applier, archive, dlq, payloads, metrics };
 }

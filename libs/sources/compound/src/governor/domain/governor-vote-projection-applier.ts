@@ -124,9 +124,10 @@ export class GovernorVoteProjectionApplier {
       return;
     }
 
-    const timestamps = await this.blockTimestamps.fetchBatch(chainCtx, [
-      ...new Set(cappedRows.map((row) => row.block_number)),
-    ]);
+    const timestamps = await this.blockTimestamps.fetchBatch(
+      chainCtx,
+      cappedRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
+    );
 
     for (const row of cappedRows) {
       const payload = payloadByKey.get(tupleKey(row));
@@ -135,7 +136,9 @@ export class GovernorVoteProjectionApplier {
         continue;
       }
 
-      const castAt = timestamps.get(row.block_number);
+      const castAt = timestamps.get(
+        this.blockTimestamps.resultKey(row.block_number, row.block_hash),
+      );
       if (castAt === undefined) {
         await this.failAndMaybeDlq(
           row,
