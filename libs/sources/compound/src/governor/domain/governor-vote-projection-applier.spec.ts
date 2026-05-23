@@ -33,6 +33,33 @@ const BASE_PAYLOAD: GovernorArchivePayloadRow = {
   received_at: new Date('2026-01-01T00:00:00Z'),
 };
 
+interface TestRepositories {
+  proposals: {
+    findDaoIdForSource: ReturnType<typeof vi.fn>;
+    findIdBySource: ReturnType<typeof vi.fn>;
+  };
+  actors: {
+    findIdByAddress: ReturnType<typeof vi.fn>;
+  };
+  votes: {
+    insertVote: ReturnType<typeof vi.fn>;
+    insertVoteChoice: ReturnType<typeof vi.fn>;
+  };
+  archive: {
+    markDerived: ReturnType<typeof vi.fn>;
+  };
+}
+
+interface MutableVoteApplier {
+  blockTimestamps: { fetchBatch: ReturnType<typeof vi.fn> };
+  registry: { peek: ReturnType<typeof vi.fn> };
+  transaction: ReturnType<typeof vi.fn>;
+}
+
+function mutable(applier: GovernorVoteProjectionApplier): MutableVoteApplier {
+  return applier as unknown as MutableVoteApplier;
+}
+
 function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainCtx?: unknown }) {
   const archive = { incrementAttemptCount: vi.fn().mockResolvedValue(undefined) };
   const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
@@ -49,7 +76,7 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
     registry: { peek: vi.fn().mockReturnValue(options?.chainCtx ?? makeChainContext()) } as never,
     metrics,
   });
-  (applier as any).blockTimestamps = {
+  mutable(applier).blockTimestamps = {
     fetchBatch: vi.fn().mockResolvedValue(new Map([['100', new Date('2026-01-01T00:01:40Z')]])),
   };
   return { applier, archive, dlq, payloads, metrics };
@@ -70,7 +97,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('marks row failed when chain context is missing', async () => {
     const { applier, archive, metrics } = buildApplier();
-    (applier as any).registry = { peek: vi.fn().mockReturnValue(undefined) };
+    mutable(applier).registry = { peek: vi.fn().mockReturnValue(undefined) };
 
     await applier.applyBatch([BASE_ROW]);
 
@@ -85,7 +112,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('projects vote + choice and marks row derived', async () => {
     const { applier, archive, metrics } = buildApplier();
-    const repositories = {
+    const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
@@ -101,7 +128,7 @@ describe('GovernorVoteProjectionApplier', () => {
         markDerived: vi.fn().mockResolvedValue(undefined),
       },
     };
-    (applier as any).transaction = vi.fn(async (fn: (repos: unknown) => Promise<void>) =>
+    mutable(applier).transaction = vi.fn(async (fn: (repos: TestRepositories) => Promise<void>) =>
       fn(repositories),
     );
 
@@ -127,7 +154,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('marks skipped_idempotent when vote insert is idempotent', async () => {
     const { applier, metrics } = buildApplier();
-    const repositories = {
+    const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
@@ -143,7 +170,7 @@ describe('GovernorVoteProjectionApplier', () => {
         markDerived: vi.fn().mockResolvedValue(undefined),
       },
     };
-    (applier as any).transaction = vi.fn(async (fn: (repos: unknown) => Promise<void>) =>
+    mutable(applier).transaction = vi.fn(async (fn: (repos: TestRepositories) => Promise<void>) =>
       fn(repositories),
     );
 
@@ -157,7 +184,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('fails with no_proposal and increments attempts', async () => {
     const { applier, archive, metrics } = buildApplier();
-    const repositories = {
+    const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue(undefined),
@@ -166,7 +193,7 @@ describe('GovernorVoteProjectionApplier', () => {
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
-    (applier as any).transaction = vi.fn(async (fn: (repos: unknown) => Promise<void>) =>
+    mutable(applier).transaction = vi.fn(async (fn: (repos: TestRepositories) => Promise<void>) =>
       fn(repositories),
     );
 
@@ -180,7 +207,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('fails with no_voter and increments attempts', async () => {
     const { applier, archive, metrics } = buildApplier();
-    const repositories = {
+    const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue('proposal-1'),
@@ -189,7 +216,7 @@ describe('GovernorVoteProjectionApplier', () => {
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
-    (applier as any).transaction = vi.fn(async (fn: (repos: unknown) => Promise<void>) =>
+    mutable(applier).transaction = vi.fn(async (fn: (repos: TestRepositories) => Promise<void>) =>
       fn(repositories),
     );
 
@@ -203,7 +230,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
   it('routes to vote_projection_stage when threshold is reached', async () => {
     const { applier, dlq } = buildApplier();
-    const repositories = {
+    const repositories: TestRepositories = {
       proposals: {
         findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
         findIdBySource: vi.fn().mockResolvedValue(undefined),
@@ -212,7 +239,7 @@ describe('GovernorVoteProjectionApplier', () => {
       votes: { insertVote: vi.fn(), insertVoteChoice: vi.fn() },
       archive: { markDerived: vi.fn() },
     };
-    (applier as any).transaction = vi.fn(async (fn: (repos: unknown) => Promise<void>) =>
+    mutable(applier).transaction = vi.fn(async (fn: (repos: TestRepositories) => Promise<void>) =>
       fn(repositories),
     );
 
@@ -245,7 +272,7 @@ describe('GovernorVoteProjectionApplier', () => {
       log_index: row.log_index,
     }));
     const built = buildApplier({ payloads });
-    (built.applier as any).transaction = vi.fn().mockResolvedValue(undefined);
+    mutable(built.applier).transaction = vi.fn().mockResolvedValue(undefined);
 
     await built.applier.applyBatch(rows);
 

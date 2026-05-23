@@ -1,6 +1,6 @@
+import type { Kysely } from 'kysely';
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import type { Kysely } from 'kysely';
 import {
   ActorRepository,
   ArchiveDerivationRepository,
@@ -11,9 +11,9 @@ import {
   type PgDatabase,
   VoteRepository,
 } from '@libs/db';
-import { projectVoteCast } from './vote-projector';
 import type { VoteCastPayload } from './types';
 import { VoteBlockTimestampFetcher } from './vote-block-timestamp';
+import { projectVoteCast } from './vote-projector';
 import {
   GovernorArchivePayloadRepository,
   type GovernorArchivePayloadRow,

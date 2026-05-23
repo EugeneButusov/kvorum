@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { projectVoteCast } from './vote-projector';
 import type { VoteCastPayload } from './types';
+import { projectVoteCast } from './vote-projector';
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',

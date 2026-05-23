@@ -1,5 +1,4 @@
 import { Module, Logger } from '@nestjs/common';
-import { ChainContextModule } from '@nest/chain';
 import { ChainContextRegistry } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
@@ -25,6 +24,7 @@ import {
   createCompoundPlugins,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
+import { ChainContextModule } from '@nest/chain';
 import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
