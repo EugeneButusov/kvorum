@@ -10,7 +10,8 @@ import {
 import { SOURCE_SNAPSHOT_STRATEGIES, type SourceSnapshotStrategies } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
-import { SNAPSHOT_STRATEGIES, SnapshotWorkerService } from './snapshot-worker.service';
+import { SnapshotWorkerService } from './snapshot-worker.service';
+import { SNAPSHOT_STRATEGIES } from './snapshot.tokens';
 
 @Module({
   imports: [ScheduleModule.forRoot(), ChainContextModule, SourcesModule],
@@ -33,8 +34,8 @@ import { SNAPSHOT_STRATEGIES, SnapshotWorkerService } from './snapshot-worker.se
     },
     {
       provide: SNAPSHOT_STRATEGIES,
-      useFactory: (strategies: SourceSnapshotStrategies): SourceSnapshotStrategies =>
-        new Map(strategies),
+      useFactory: (sourceStrategies: SourceSnapshotStrategies): SourceSnapshotStrategies =>
+        new Map(sourceStrategies),
       inject: [SOURCE_SNAPSHOT_STRATEGIES],
     },
     SnapshotWorkerService,

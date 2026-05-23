@@ -10,6 +10,7 @@ import {
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
 import { snapshotMetrics } from './snapshot-metrics';
+import { SNAPSHOT_STRATEGIES, type SnapshotStrategies } from './snapshot.tokens';
 
 const SNAPSHOT_INTERVAL_MS = readIntervalMs('SNAPSHOT_INTERVAL_MS', 30_000);
 const SNAPSHOT_SAMPLE_SIZE = Number(process.env['SNAPSHOT_SAMPLE_SIZE'] ?? '20');
@@ -40,8 +41,6 @@ export interface TickOutcome {
   proposalId?: string;
 }
 
-export const SNAPSHOT_STRATEGIES = Symbol('SNAPSHOT_STRATEGIES');
-
 @Injectable()
 export class SnapshotWorkerService {
   private readonly logger = new Logger('SnapshotWorker');
@@ -52,7 +51,7 @@ export class SnapshotWorkerService {
     private readonly snapshotRepo: VotingPowerSnapshotRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,
-    @Inject(SNAPSHOT_STRATEGIES) private readonly strategies: Map<string, VotingPowerStrategy>,
+    @Inject(SNAPSHOT_STRATEGIES) private readonly strategies: SnapshotStrategies,
   ) {}
 
   @Interval(SNAPSHOT_INTERVAL_MS)

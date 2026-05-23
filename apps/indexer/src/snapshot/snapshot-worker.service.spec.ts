@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VotingPowerStrategy } from '@libs/domain';
-import { SNAPSHOT_STRATEGIES, SnapshotWorkerService } from './snapshot-worker.service';
+import { SnapshotWorkerService } from './snapshot-worker.service';
 
 vi.mock('./snapshot-metrics', () => ({
   snapshotMetrics: {
