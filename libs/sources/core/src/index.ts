@@ -36,12 +36,17 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
+import type { VotingPowerStrategy } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 /** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
+/** Nest injection token for source-registered voting-power snapshot strategies by source_type. */
+export const SOURCE_SNAPSHOT_STRATEGIES = 'SOURCE_SNAPSHOT_STRATEGIES';
+
+export type SourceSnapshotStrategies = Map<string, VotingPowerStrategy>;
 
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;

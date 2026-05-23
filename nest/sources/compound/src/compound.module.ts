@@ -9,6 +9,7 @@ import {
 } from '@libs/db';
 import {
   COMPOUND_ACTOR_SWEEP_EXTRACTOR,
+  CompoundCompTokenVotingPowerStrategy,
   CompTokenArchiveWriter,
   CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
@@ -24,12 +25,13 @@ import {
   createCompoundGovernorOzReconcilePlugin,
   createCompoundPlugins,
 } from '@sources/compound';
-import type { SourcePlugin } from '@sources/core';
+import type { SourcePlugin, SourceSnapshotStrategies } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
+export const COMPOUND_SNAPSHOT_STRATEGIES = 'COMPOUND_SNAPSHOT_STRATEGIES';
 
 @Module({
   imports: [ChainContextModule],
@@ -212,7 +214,19 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         CompTokenDelegationProjectionApplier,
       ],
     },
+    {
+      provide: COMPOUND_SNAPSHOT_STRATEGIES,
+      useFactory: (registry: ChainContextRegistry): SourceSnapshotStrategies => {
+        const strategy = new CompoundCompTokenVotingPowerStrategy(pgDb, registry, '0x1');
+        return new Map([
+          ['compound_governor_alpha', strategy],
+          ['compound_governor_bravo', strategy],
+          ['compound_governor_oz', strategy],
+        ]);
+      },
+      inject: [ChainContextRegistry],
+    },
   ],
-  exports: [COMPOUND_SOURCE_PLUGIN],
+  exports: [COMPOUND_SOURCE_PLUGIN, COMPOUND_SNAPSHOT_STRATEGIES],
 })
 export class CompoundSourceModule {}
