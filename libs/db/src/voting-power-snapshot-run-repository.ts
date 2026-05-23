@@ -111,4 +111,16 @@ export class VotingPowerSnapshotRunRepository {
       .where('status', '=', 'in_progress')
       .executeTakeFirst();
   }
+
+  async resetAttemptForRetry(proposalId: string): Promise<void> {
+    await this.db
+      .updateTable('voting_power_snapshot_run')
+      .set({
+        snapshot_attempt_count: 0,
+        status: 'in_progress',
+        last_error: null,
+      })
+      .where('proposal_id', '=', proposalId)
+      .executeTakeFirst();
+  }
 }

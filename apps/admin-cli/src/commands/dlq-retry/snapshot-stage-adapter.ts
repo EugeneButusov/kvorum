@@ -1,4 +1,4 @@
-import { pgDb, type IngestionDlq } from '@libs/db';
+import { pgDb, type IngestionDlq, VotingPowerSnapshotRunRepository } from '@libs/db';
 import type { DlqRetryAdapter, RetryOutcome } from './dlq-retry-adapter.js';
 
 function proposalIdFromPayload(payload: unknown): string {
@@ -15,19 +15,11 @@ function proposalIdFromPayload(payload: unknown): string {
 
 export class SnapshotStageAdapter implements DlqRetryAdapter {
   readonly stage = 'snapshot_compute_stage';
+  private readonly snapshotRuns = new VotingPowerSnapshotRunRepository(pgDb);
 
-  async retry(row: IngestionDlq): Promise<RetryOutcome> {
-    const proposalId = proposalIdFromPayload(row.payload);
-
-    await pgDb
-      .updateTable('voting_power_snapshot_run')
-      .set({
-        snapshot_attempt_count: 0,
-        status: 'in_progress',
-        last_error: null,
-      })
-      .where('proposal_id', '=', proposalId)
-      .executeTakeFirst();
+  async retry(dlqEntry: IngestionDlq): Promise<RetryOutcome> {
+    const proposalId = proposalIdFromPayload(dlqEntry.payload);
+    await this.snapshotRuns.resetAttemptForRetry(proposalId);
 
     return { status: 'resolved', reason: 'snapshot retry reset run state' };
   }
