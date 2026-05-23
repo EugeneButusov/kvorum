@@ -56,6 +56,22 @@ export class ProposalRepository {
     return row?.dao_id;
   }
 
+  async findIdBySource(
+    daoId: string,
+    sourceType: string,
+    sourceId: string,
+  ): Promise<string | undefined> {
+    const row = await this.db
+      .selectFrom('proposal')
+      .select('id')
+      .where('dao_id', '=', daoId)
+      .where('source_type', '=', sourceType)
+      .where('source_id', '=', sourceId)
+      .executeTakeFirst();
+
+    return row?.id;
+  }
+
   async insertProposal(row: NewProposal): Promise<InsertProposalResult> {
     const inserted = await this.db
       .insertInto('proposal')

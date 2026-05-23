@@ -102,6 +102,20 @@ interface ConflictColumnsBuilder {
 }
 
 describe('ActorRepository', () => {
+  it('finds actor id by actor_address', async () => {
+    const executeTakeFirst = vi.fn().mockResolvedValue({ actor_id: 'actor-1' });
+    const where = vi.fn().mockReturnValue({ executeTakeFirst });
+    const select = vi.fn().mockReturnValue({ where });
+    const selectFrom = vi.fn().mockReturnValue({ select });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findIdByAddress('0xABCDEF')).resolves.toBe('actor-1');
+
+    expect(selectFrom).toHaveBeenCalledWith('actor_address');
+    expect(select).toHaveBeenCalledWith('actor_id');
+    expect(where).toHaveBeenCalledWith('address', '=', '0xabcdef');
+  });
+
   it('normalizes address and returns the inserted actor', async () => {
     const insert = makeInsertChain(ACTOR_ROW);
     const repo = new ActorRepository({ insertInto: insert.insertInto } as never);

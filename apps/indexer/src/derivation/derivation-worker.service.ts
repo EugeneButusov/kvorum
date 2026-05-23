@@ -58,13 +58,15 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const oldest = watermark[0]!;
       const lagSeconds = computeLagSeconds(oldest.confirmed_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
-      const bySourceType = groupBySourceType(watermark);
-      for (const [sourceType, rows] of bySourceType) {
-        const applier = this.appliers.find((candidate) =>
-          candidate.sourceTypes.includes(sourceType),
+      const byDispatchKey = groupByDispatchKey(watermark);
+      for (const [dispatchKey, rows] of byDispatchKey) {
+        const [sourceType, eventType] = parseDispatchKey(dispatchKey);
+        const applier = this.appliers.find(
+          (candidate) =>
+            candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
         );
         if (applier === undefined) {
-          await this.markUnsupportedSource(rows);
+          await this.markUnsupportedDispatch(rows);
           continue;
         }
 
@@ -76,7 +78,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         this.logger.log('derivation_progress', {
           batch: watermark.length,
           lag_s: Math.round(lagSeconds),
-          source_types: [...bySourceType.keys()],
+          dispatches: [...byDispatchKey.keys()],
         });
         this.lastProgressLogAt = now;
       }
@@ -88,13 +90,13 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
     }
   }
 
-  private async markUnsupportedSource(rows: readonly ArchiveDerivationRow[]): Promise<void> {
+  private async markUnsupportedDispatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     for (const row of rows) {
       derivationMetrics.processed.add(1, {
         source_type: row.source_type,
         event_type: row.event_type,
         outcome: 'failed',
-        reason: 'unsupported_source',
+        reason: 'unsupported_dispatch',
       });
       await this.archiveDerivation.incrementAttemptCount(row.id);
       this.logger.error('derivation_applier_missing', {
@@ -116,19 +118,28 @@ function computeLagSeconds(confirmedAt: Date | null): number {
   return Math.max(0, (Date.now() - confirmedAt.getTime()) / 1000);
 }
 
-function groupBySourceType(
+function groupByDispatchKey(
   rows: readonly ArchiveDerivationRow[],
 ): Map<string, ArchiveDerivationRow[]> {
   const grouped = new Map<string, ArchiveDerivationRow[]>();
   for (const row of rows) {
-    const rowsForSource = grouped.get(row.source_type);
-    if (rowsForSource === undefined) {
-      grouped.set(row.source_type, [row]);
+    const key = `${row.source_type}:${row.event_type}`;
+    const rowsForDispatch = grouped.get(key);
+    if (rowsForDispatch === undefined) {
+      grouped.set(key, [row]);
     } else {
-      rowsForSource.push(row);
+      rowsForDispatch.push(row);
     }
   }
   return grouped;
+}
+
+function parseDispatchKey(dispatchKey: string): [string, string] {
+  const separator = dispatchKey.lastIndexOf(':');
+  if (separator <= 0 || separator >= dispatchKey.length - 1) {
+    throw new Error(`invalid derivation dispatch key: ${dispatchKey}`);
+  }
+  return [dispatchKey.slice(0, separator), dispatchKey.slice(separator + 1)];
 }
 
 function readIntervalMs(envName: string, fallback: number): number {

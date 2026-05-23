@@ -66,6 +66,29 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
+  it('does not apply when event_type does not match applier', async () => {
+    const archive = {
+      incrementAttemptCount: vi.fn(),
+    };
+    const actorResolution = {
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
+    };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['different_event'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
+      bundleWith(applier),
+    ]);
+
+    await worker.tick();
+
+    expect(applier.applyBatch).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+  });
+
   it('routes alpha rows to an applier that supports test_source_alpha', async () => {
     const alphaRow = { ...ROW, source_type: 'test_source_alpha' };
     const archive = {

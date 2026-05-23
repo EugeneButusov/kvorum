@@ -31,6 +31,8 @@ export type {
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
+export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
+export { VoteRepository } from './vote-repository';
 export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
 export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';

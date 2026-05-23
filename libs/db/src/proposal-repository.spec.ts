@@ -120,6 +120,32 @@ describe('ProposalRepository', () => {
     expect(select.where).toHaveBeenCalledWith('id', '=', 'source-1');
   });
 
+  it('finds proposal id by dao/source tuple', async () => {
+    const executeTakeFirst = vi.fn().mockResolvedValue({ id: 'proposal-1' });
+    const where = vi.fn();
+    const chain = {
+      select: vi.fn(),
+      where,
+      executeTakeFirst,
+    };
+    chain.select.mockReturnValue(chain);
+    where.mockReturnValue(chain);
+    const selectFrom = vi.fn().mockReturnValue(chain);
+    const repo = new ProposalRepository({ selectFrom } as never);
+
+    await expect(repo.findIdBySource('dao-1', 'compound_governor_bravo', '42')).resolves.toBe(
+      'proposal-1',
+    );
+
+    expect(selectFrom).toHaveBeenCalledWith('proposal');
+    expect(chain.select).toHaveBeenCalledWith('id');
+    expect(where.mock.calls).toEqual([
+      ['dao_id', '=', 'dao-1'],
+      ['source_type', '=', 'compound_governor_bravo'],
+      ['source_id', '=', '42'],
+    ]);
+  });
+
   it('inserts proposal with idempotency conflict handling', async () => {
     const insert = makeInsertChain({ id: 'proposal-1' });
     const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
