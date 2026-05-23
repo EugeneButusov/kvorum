@@ -57,6 +57,16 @@ export type {
   GovernorProjectionMetrics,
 } from './domain/governor-projection-applier';
 export { GovernorProjectionApplier } from './domain/governor-projection-applier';
+export type {
+  CompoundVoteDerivationFailureReason,
+  CompoundVoteDerivationOutcome,
+  GovernorVoteProjectionApplierDeps,
+  GovernorVoteProjectionMetrics,
+} from './domain/governor-vote-projection-applier';
+export { GovernorVoteProjectionApplier } from './domain/governor-vote-projection-applier';
+export type { VoteProjectionContext, VoteProjectionResult } from './domain/vote-projector';
+export { projectVoteCast } from './domain/vote-projector';
+export { VoteBlockTimestampFetcher } from './domain/vote-block-timestamp';
 
 export type { GovernorArchivePayloadRow } from './persistence/governor-archive-payload-repository';
 export { GovernorArchivePayloadRepository } from './persistence/governor-archive-payload-repository';

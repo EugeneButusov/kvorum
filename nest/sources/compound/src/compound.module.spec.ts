@@ -57,7 +57,11 @@ describe('CompoundSourceModule', () => {
       compTokenPlugins[0]!.parseConfig({ token_address: COMP_TOKEN_ADDRESS }),
     ).not.toThrow();
     expect(() => compTokenPlugins[0]!.parseConfig({ token_address: 'not-an-address' })).toThrow();
-    expect(plugin.derivers.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection']);
+    expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
+      'actor-address',
+      'projection',
+      'projection',
+    ]);
   });
 
   it('M5 logs comp-token registration exactly once', async () => {

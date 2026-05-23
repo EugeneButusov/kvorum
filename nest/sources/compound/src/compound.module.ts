@@ -1,4 +1,6 @@
 import { Module, Logger } from '@nestjs/common';
+import { ChainContextModule } from '@nest/chain';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   ConfirmationRepository,
@@ -16,6 +18,7 @@ import {
   GovernorArchiveWriter,
   GovernorEventRepository,
   GovernorProjectionApplier,
+  GovernorVoteProjectionApplier,
   createCompTokenPlugin,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
@@ -28,6 +31,7 @@ import { toChainLogger } from './utils/nest-logger-adapter';
 export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
 
 @Module({
+  imports: [ChainContextModule],
   providers: [
     {
       provide: ConfirmationRepository,
@@ -94,6 +98,24 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         }),
     },
     {
+      provide: GovernorVoteProjectionApplier,
+      useFactory: (registry: ChainContextRegistry) =>
+        new GovernorVoteProjectionApplier({
+          pgDb,
+          chDb,
+          archive: new ArchiveDerivationRepository(pgDb),
+          dlq: new DlqRepository(pgDb),
+          payloads: new GovernorArchivePayloadRepository(chDb),
+          registry,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            processed: () => undefined,
+          },
+          logger: toChainLogger(new Logger('GovernorVoteProjectionApplier')),
+        }),
+      inject: [ChainContextRegistry],
+    },
+    {
       provide: COMPOUND_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: GovernorArchiveWriter,
@@ -101,6 +123,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         proposalRepo: CompoundProposalRepository,
         compTokenArchiveWriter: CompTokenArchiveWriter,
         projectionApplier: GovernorProjectionApplier,
+        voteProjectionApplier: GovernorVoteProjectionApplier,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -135,6 +158,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           ],
           derivers: [
             projectionApplier,
+            voteProjectionApplier,
             {
               kind: 'actor-address',
               sourceTypes: COMPOUND_ACTOR_SWEEP_EXTRACTOR.sourceTypes,
@@ -165,6 +189,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         CompoundProposalRepository,
         CompTokenArchiveWriter,
         GovernorProjectionApplier,
+        GovernorVoteProjectionApplier,
       ],
     },
   ],
