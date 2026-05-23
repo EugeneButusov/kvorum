@@ -21,7 +21,12 @@ import type {
   IngestionDlqResolvedTable,
   IngestionDlqTable,
 } from './ingestion';
-import type { VoteChoiceTable, VoteTable, VotingPowerSnapshotTable } from './vote';
+import type {
+  VoteChoiceTable,
+  VoteTable,
+  VotingPowerSnapshotRunTable,
+  VotingPowerSnapshotTable,
+} from './vote';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 export type {
@@ -116,7 +121,11 @@ export type {
   VoteTable,
   VoteUpdate,
   VotingPowerSnapshot,
+  VotingPowerSnapshotRun,
+  VotingPowerSnapshotRunStatus,
+  VotingPowerSnapshotRunTable,
   VotingPowerSnapshotTable,
+  NewVotingPowerSnapshotRun,
 } from './vote';
 
 export interface PgDatabase {
@@ -139,6 +148,7 @@ export interface PgDatabase {
   vote: VoteTable;
   vote_choice: VoteChoiceTable;
   voting_power_snapshot: VotingPowerSnapshotTable;
+  voting_power_snapshot_run: VotingPowerSnapshotRunTable;
   delegation: DelegationTable;
   actor_address: ActorAddressTable;
   actor_address_redirect: ActorAddressRedirectTable;
