@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { ChainContextRegistry, parseChainConfigFromEnv } from '@libs/chain';
 import {
-  AdvisoryLockRepository,
   DlqRepository,
   pgDb,
   ProposalRepository,
@@ -16,7 +15,6 @@ import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../outpu
 
 type SnapshotCommon = { format?: string };
 
-const SNAPSHOT_DRAIN_LOCK_KEY = 'snapshot_drain';
 const SNAPSHOT_SAMPLE_SIZE = Number(process.env['SNAPSHOT_SAMPLE_SIZE'] ?? '20');
 const SNAPSHOT_DLQ_THRESHOLD = 5;
 const SNAPSHOT_DLQ_STAGE = 'snapshot_compute_stage';
@@ -220,7 +218,6 @@ export function registerSnapshot(program: Command): void {
           registry,
           chainId: chainCtx.chainCfg.chainId,
         });
-        const lockRepo = new AdvisoryLockRepository(pgDb);
         const runner = new SnapshotDrainRunner(
           new ProposalRepository(pgDb),
           new VotingPowerSnapshotRepository(pgDb),
@@ -233,45 +230,36 @@ export function registerSnapshot(program: Command): void {
         let sawDlq = false;
 
         try {
-          const result = await lockRepo.withLock(SNAPSHOT_DRAIN_LOCK_KEY, async () => {
-            while (true) {
-              const tick = await runner.tickOnce();
-              if (tick.outcome === 'idle') {
-                emit(
-                  format,
-                  () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`,
-                  {
-                    status: 'completed',
-                    processed,
-                    dlq: sawDlq,
-                  },
-                );
-                break;
-              }
-
-              if (tick.outcome === 'dlq') sawDlq = true;
-
-              if (tick.outcome !== 'retry' && tick.outcome !== 'no_strategy') {
-                processed += 1;
-              }
-
+          while (true) {
+            const tick = await runner.tickOnce();
+            if (tick.outcome === 'idle') {
               emit(
                 format,
-                () =>
-                  `processed ${processed} proposals so far, current=${tick.proposalId ?? 'n/a'}, outcome=${tick.outcome}`,
+                () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`,
                 {
+                  status: 'completed',
                   processed,
-                  proposal_id: tick.proposalId ?? null,
-                  outcome: tick.outcome,
+                  dlq: sawDlq,
                 },
               );
+              break;
             }
-          });
-          if (result === undefined) {
-            fail(
+
+            if (tick.outcome === 'dlq') sawDlq = true;
+
+            if (tick.outcome !== 'retry' && tick.outcome !== 'no_strategy') {
+              processed += 1;
+            }
+
+            emit(
               format,
-              ExitCode.ValidationFailure,
-              'another snapshot drain or indexer tick holds the lock',
+              () =>
+                `processed ${processed} proposals so far, current=${tick.proposalId ?? 'n/a'}, outcome=${tick.outcome}`,
+              {
+                processed,
+                proposal_id: tick.proposalId ?? null,
+                outcome: tick.outcome,
+              },
             );
           }
         } finally {
