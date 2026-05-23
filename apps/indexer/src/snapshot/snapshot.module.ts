@@ -7,11 +7,9 @@ import {
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
-import { SOURCE_SNAPSHOT_STRATEGIES, type SourceSnapshotStrategies } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { SnapshotWorkerService } from './snapshot-worker.service';
-import { SNAPSHOT_STRATEGIES } from './snapshot.tokens';
 
 @Module({
   imports: [ScheduleModule.forRoot(), ChainContextModule, SourcesModule],
@@ -31,12 +29,6 @@ import { SNAPSHOT_STRATEGIES } from './snapshot.tokens';
     {
       provide: DlqRepository,
       useFactory: () => new DlqRepository(pgDb),
-    },
-    {
-      provide: SNAPSHOT_STRATEGIES,
-      useFactory: (sourceStrategies: SourceSnapshotStrategies): SourceSnapshotStrategies =>
-        new Map(sourceStrategies),
-      inject: [SOURCE_SNAPSHOT_STRATEGIES],
     },
     SnapshotWorkerService,
   ],

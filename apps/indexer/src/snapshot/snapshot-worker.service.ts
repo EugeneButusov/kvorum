@@ -8,9 +8,9 @@ import {
   VotingPowerSnapshotRepository,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
+import { SOURCE_SNAPSHOT_STRATEGIES, type SourceSnapshotStrategies } from '@sources/core';
 import type { VotingPowerStrategy } from '@libs/domain';
 import { snapshotMetrics } from './snapshot-metrics';
-import { SNAPSHOT_STRATEGIES, type SnapshotStrategies } from './snapshot.tokens';
 
 const SNAPSHOT_INTERVAL_MS = readIntervalMs('SNAPSHOT_INTERVAL_MS', 30_000);
 const SNAPSHOT_SAMPLE_SIZE = Number(process.env['SNAPSHOT_SAMPLE_SIZE'] ?? '20');
@@ -51,7 +51,7 @@ export class SnapshotWorkerService {
     private readonly snapshotRepo: VotingPowerSnapshotRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,
-    @Inject(SNAPSHOT_STRATEGIES) private readonly strategies: SnapshotStrategies,
+    @Inject(SOURCE_SNAPSHOT_STRATEGIES) private readonly strategies: SourceSnapshotStrategies,
   ) {}
 
   @Interval(SNAPSHOT_INTERVAL_MS)
