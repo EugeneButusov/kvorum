@@ -25,6 +25,27 @@ export function buildBackfillSourcePlugins(deps: {
   return [...createCompoundPlugins(deps.governor), createCompTokenPlugin(deps.compToken)];
 }
 
+export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly BackfillSourcePlugin[] {
+  const governorArchiveWriter = new GovernorArchiveWriter({
+    eventRepo: new GovernorEventRepository({ chDb }),
+    confirmationRepo: new ConfirmationRepository(pgDb),
+    dlqRepo: new DlqRepository(pgDb),
+    logger,
+  });
+  const compTokenArchiveWriter = new CompTokenArchiveWriter({
+    eventRepo: new CompTokenEventRepository({ chDb }),
+    confirmationRepo: new ConfirmationRepository(pgDb),
+    dlqRepo: new DlqRepository(pgDb),
+    logger,
+  });
+  const dlqRepo = new DlqRepository(pgDb);
+
+  return buildBackfillSourcePlugins({
+    governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
+    compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
+  });
+}
+
 export interface BackfillSourceRuntimeInput {
   daoSourceId: string;
   sourceType: SourceType;
@@ -34,23 +55,7 @@ export interface BackfillSourceRuntimeInput {
 }
 
 export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): BackfillRuntime {
-  const governorArchiveWriter = new GovernorArchiveWriter({
-    eventRepo: new GovernorEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
-    dlqRepo: new DlqRepository(pgDb),
-    logger: input.logger,
-  });
-  const compTokenArchiveWriter = new CompTokenArchiveWriter({
-    eventRepo: new CompTokenEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
-    dlqRepo: new DlqRepository(pgDb),
-    logger: input.logger,
-  });
-  const dlqRepo = new DlqRepository(pgDb);
-  const plugins = buildBackfillSourcePlugins({
-    governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger: input.logger },
-    compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger: input.logger },
-  });
+  const plugins = buildDefaultBackfillSourcePlugins(input.logger);
   const resolved = resolvePluginAndConfig(input.sourceType, input.sourceConfig, plugins);
   if (resolved == null) {
     throw new Error(`unsupported source_type: ${input.sourceType}`);

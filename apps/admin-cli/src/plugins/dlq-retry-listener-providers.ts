@@ -1,79 +1,54 @@
-import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
+import type { Logger } from '@libs/chain';
+import type { SourceIngester } from '@sources/core';
+import type { SourceType } from '@libs/db';
 import type {
   DlqRetryListenerFactoryInput,
   DlqRetryListenerProvider,
 } from '../commands/dlq-retry-listener-factory.js';
-import { isCompTokenArchiveStage } from '../commands/dlq-retry-stage.js';
+import { buildDefaultBackfillSourcePlugins } from './backfill-source-plugins.js';
+
+const NOOP_LOGGER: Logger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
 
 export function buildDlqRetryListenerProviders(): readonly DlqRetryListenerProvider[] {
-  return [buildCompoundCompTokenProvider(), buildCompoundGovernorProvider()];
+  return [buildGenericSourceListenerProvider()];
 }
 
-function buildCompoundCompTokenProvider(): DlqRetryListenerProvider {
+function buildGenericSourceListenerProvider(): DlqRetryListenerProvider {
   return {
-    supports: (input) => isCompTokenArchiveStage(input.stage),
+    supports: () => true,
     make: async (input) => {
-      const { CompTokenArchiveWriter, CompTokenEventRepository, makeCompTokenIngesterListener } =
-        await import('@sources/compound');
+      const plugins = buildDefaultBackfillSourcePlugins(NOOP_LOGGER);
+      const plugin = plugins.find(
+        (candidate) => candidate.sourceType === input.archiveSourceType,
+      ) as SourceIngester<unknown> | undefined;
 
-      const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
-      const context = {
-        daoSourceId: input.daoSourceId,
-        sourceType: input.archiveSourceType,
-        chainId: input.archiveChainId,
-        sourceLabel: input.archiveSourceType,
-      };
-      const dlqRepo = new DlqRepository(pgDb);
+      if (plugin == null) {
+        throw new Error(`unsupported source_type: ${input.archiveSourceType}`);
+      }
 
-      return makeCompTokenIngesterListener(
+      const parsedConfig = plugin.parseConfig(input.sourceConfig);
+      const spec = plugin.buildIngestSpec(
         {
-          archiveWriter: new CompTokenArchiveWriter({
-            eventRepo: new CompTokenEventRepository({ chDb }),
-            confirmationRepo: new ConfirmationRepository(pgDb),
-            dlqRepo,
-            logger,
-          }),
-          context,
-          logger,
-          dlqRepo,
+          daoSourceId: input.daoSourceId,
+          sourceType: input.archiveSourceType as SourceType,
+          chainId: input.archiveChainId,
+          sourceLabel: input.archiveSourceType as SourceType,
         },
-        { onWriteFailure: 'throw' },
-      );
-    },
-  };
-}
-
-function buildCompoundGovernorProvider(): DlqRetryListenerProvider {
-  return {
-    supports: (_input: DlqRetryListenerFactoryInput) => true,
-    make: async (input) => {
-      const { GovernorArchiveWriter, GovernorEventRepository, makeIngesterListener } = await import(
-        '@sources/compound'
+        parsedConfig,
       );
 
-      const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
-      const context = {
-        daoSourceId: input.daoSourceId,
-        sourceType: input.archiveSourceType,
-        chainId: input.archiveChainId,
-        sourceLabel: input.archiveSourceType,
-      };
-      const dlqRepo = new DlqRepository(pgDb);
+      if (spec.kind !== 'evm-event-poller') {
+        throw new Error(
+          `dlq retry expects evm-event-poller ingest spec for source_type=${input.archiveSourceType}`,
+        );
+      }
 
-      return makeIngesterListener(
-        {
-          archiveWriter: new GovernorArchiveWriter({
-            eventRepo: new GovernorEventRepository({ chDb }),
-            confirmationRepo: new ConfirmationRepository(pgDb),
-            dlqRepo,
-            logger,
-          }),
-          context,
-          logger,
-          dlqRepo,
-        },
-        { onWriteFailure: 'throw' },
-      );
+      return spec.listener;
     },
   };
 }

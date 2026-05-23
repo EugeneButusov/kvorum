@@ -6,6 +6,7 @@ export interface DlqRetryListenerFactoryInput {
   archiveSourceType: string;
   archiveChainId: string;
   daoSourceId: string;
+  sourceConfig: unknown;
 }
 
 export interface DlqRetryListenerProvider {

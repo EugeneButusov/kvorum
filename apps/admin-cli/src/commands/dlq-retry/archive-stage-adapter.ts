@@ -67,11 +67,11 @@ export class ArchiveStageAdapter implements DlqRetryAdapter {
     }
 
     const tuple = parseArchiveTuple(dlqEntry);
-    const daoSourceId = await resolveDaoSourceId(
+    const daoSource = await resolveDaoSource(
       dlqEntry.archive_source_type,
       dlqEntry.archive_chain_id,
     );
-    if (daoSourceId == null) {
+    if (daoSource == null) {
       throw new Error('unable to resolve dao_source_id for DLQ entry');
     }
 
@@ -79,7 +79,8 @@ export class ArchiveStageAdapter implements DlqRetryAdapter {
       stage: dlqEntry.stage,
       archiveSourceType: dlqEntry.archive_source_type,
       archiveChainId: dlqEntry.archive_chain_id,
-      daoSourceId,
+      daoSourceId: daoSource.id,
+      sourceConfig: daoSource.sourceConfig,
     });
 
     await listener([
@@ -101,7 +102,13 @@ export class ArchiveStageAdapter implements DlqRetryAdapter {
   }
 }
 
-async function resolveDaoSourceId(sourceType: string, chainId: string): Promise<string | null> {
+async function resolveDaoSource(
+  sourceType: string,
+  chainId: string,
+): Promise<{
+  id: string;
+  sourceConfig: unknown;
+} | null> {
   const { DaoSourceRepository } = await import('@libs/db');
   const repo = new DaoSourceRepository(pgDb);
   const rows = await repo.findBySourceType(sourceType);
@@ -109,7 +116,10 @@ async function resolveDaoSourceId(sourceType: string, chainId: string): Promise<
   if (matching.length !== 1 || matching[0] == null) {
     return null;
   }
-  return matching[0].id;
+  return {
+    id: matching[0].id,
+    sourceConfig: matching[0].source_config,
+  };
 }
 
 export const ARCHIVE_STAGES: readonly DlqRetryStage[] = [
