@@ -1,10 +1,5 @@
 import type { Kysely } from 'kysely';
-import {
-  makeCutoffClassifier,
-  reorgCutoff,
-  type ChainContextRegistry,
-  type Logger,
-} from '@libs/chain';
+import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import {
   ActorRepository,
@@ -124,25 +119,17 @@ export class GovernorVoteProjectionApplier {
       return;
     }
 
-    const headHex = await chainCtx.client.send<string>('eth_blockNumber', []);
-    const settledCutoff = reorgCutoff(BigInt(headHex), chainCtx.chainCfg);
-    const isSettled = makeCutoffClassifier(settledCutoff);
-    const settledRows = cappedRows.filter(
-      (row) => isSettled(BigInt(row.block_number)) === 'confirmed',
-    );
-    if (settledRows.length === 0) return;
-
     const lookupStartedAt = Date.now();
-    const payloads = await this.payloads.fetchPayloads(settledRows);
+    const payloads = await this.payloads.fetchPayloads(cappedRows);
     this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
     const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
     const timestamps = await this.blockTimestamps.fetchBatch(
       chainCtx,
-      settledRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
+      cappedRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
     );
 
-    for (const row of settledRows) {
+    for (const row of cappedRows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
         await this.failAndMaybeDlq(row, 'ch_missing', new Error('archive payload missing'));

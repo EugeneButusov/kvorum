@@ -30,9 +30,12 @@ describe('DerivationWorkerService', () => {
     const actorResolution = {
       findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
     };
-    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
-      bundleWith(applier),
-    ]);
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
 
     await worker.tick();
 
@@ -56,9 +59,12 @@ describe('DerivationWorkerService', () => {
       eventTypes: ['test_event_created'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
-      bundleWith(applier),
-    ]);
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
 
     await worker.tick();
 
@@ -79,9 +85,12 @@ describe('DerivationWorkerService', () => {
       eventTypes: ['different_event'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
-      bundleWith(applier),
-    ]);
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
 
     await worker.tick();
 
@@ -103,16 +112,53 @@ describe('DerivationWorkerService', () => {
       eventTypes: ['test_event_created'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
-    const worker = new DerivationWorkerService(archive as never, actorResolution as never, [
-      bundleWith(applier),
-    ]);
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
 
     await worker.tick();
 
     expect(applier.applyBatch).toHaveBeenCalledWith([alphaRow]);
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
+
+  it('skips rows above settled cutoff before dispatching to appliers', async () => {
+    const highRow = { ...ROW, block_number: '300' };
+    const archive = { incrementAttemptCount: vi.fn() };
+    const actorResolution = {
+      findConfirmedDerivableBy: vi.fn().mockResolvedValue([highRow]),
+    };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['test_event_created'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry('0x120') as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    expect(applier.applyBatch).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
 });
+
+function makeRegistry(headHex = '0x1000') {
+  return {
+    peek: vi.fn().mockReturnValue({
+      client: { send: vi.fn().mockResolvedValue(headHex) },
+      chainCfg: { chainId: '0x1', reorgHorizon: 12 },
+    }),
+  };
+}
 
 function bundleWith(applier: {
   kind: 'projection';

@@ -284,19 +284,4 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
   });
-
-  it('skips rows that are above the settled cutoff block', async () => {
-    const { applier, payloads, metrics } = buildApplier({
-      chainCtx: {
-        client: { send: vi.fn().mockResolvedValue('0x120') },
-        chainCfg: { chainId: '0x1', reorgHorizon: 12 },
-      },
-    });
-    const pendingRow = { ...BASE_ROW, block_number: '300' };
-
-    await applier.applyBatch([pendingRow]);
-
-    expect(payloads.fetchPayloads).not.toHaveBeenCalled();
-    expect(metrics.processed).not.toHaveBeenCalled();
-  });
 });

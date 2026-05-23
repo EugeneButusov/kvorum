@@ -6,12 +6,26 @@ import {
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
-import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
+import {
+  makeCutoffClassifier,
+  SOURCE_PLUGINS,
+  type ProjectionDeriver,
+  type SourcePlugin,
+} from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
+
+interface ChainContextRegistryLike {
+  peek(chainId: string):
+    | {
+        client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
+        chainCfg: { reorgHorizon: number };
+      }
+    | undefined;
+}
 
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
@@ -24,6 +38,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   constructor(
     private readonly archiveDerivation: ArchiveDerivationRepository,
     private readonly actorResolution: ArchiveActorResolutionRepository,
+    private readonly registry: ChainContextRegistryLike,
     @Inject(SOURCE_PLUGINS) plugins: readonly SourcePlugin[],
   ) {
     this.appliers = plugins
@@ -58,7 +73,10 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const oldest = watermark[0]!;
       const lagSeconds = computeLagSeconds(oldest.confirmed_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
-      const byDispatchKey = groupByDispatchKey(watermark);
+      const settledRows = await this.filterSettledRows(watermark);
+      if (settledRows.length === 0) return;
+
+      const byDispatchKey = groupByDispatchKey(settledRows);
       for (const [dispatchKey, rows] of byDispatchKey) {
         const [sourceType, eventType] = parseDispatchKey(dispatchKey);
         const applier = this.appliers.find(
@@ -88,6 +106,39 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       derivationMetrics.tickDurationSeconds.record((Date.now() - startedAt) / 1000);
       this.inFlight = false;
     }
+  }
+
+  private async filterSettledRows(
+    rows: readonly ArchiveDerivationRow[],
+  ): Promise<ArchiveDerivationRow[]> {
+    const settled: ArchiveDerivationRow[] = [];
+    const byChain = groupByChainId(rows);
+
+    for (const [chainId, chainRows] of byChain) {
+      const chainCtx = this.registry.peek(chainId);
+      if (chainCtx === undefined) {
+        this.logger.warn('derivation_settled_gate_chain_context_missing', { chain_id: chainId });
+        continue;
+      }
+
+      try {
+        const headHex = await chainCtx.client.send<string>('eth_blockNumber', []);
+        const cutoff = BigInt(headHex) - BigInt(chainCtx.chainCfg.reorgHorizon) * 2n;
+        const classify = makeCutoffClassifier(cutoff);
+        for (const row of chainRows) {
+          if (classify(BigInt(row.block_number)) === 'confirmed') {
+            settled.push(row);
+          }
+        }
+      } catch (error) {
+        this.logger.warn('derivation_settled_gate_head_fetch_failed', {
+          chain_id: chainId,
+          error: String(error),
+        });
+      }
+    }
+
+    return settled;
   }
 
   private async markUnsupportedDispatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -129,6 +180,21 @@ function groupByDispatchKey(
       grouped.set(key, [row]);
     } else {
       rowsForDispatch.push(row);
+    }
+  }
+  return grouped;
+}
+
+function groupByChainId(
+  rows: readonly ArchiveDerivationRow[],
+): Map<string, ArchiveDerivationRow[]> {
+  const grouped = new Map<string, ArchiveDerivationRow[]>();
+  for (const row of rows) {
+    const rowsForChain = grouped.get(row.chain_id);
+    if (rowsForChain === undefined) {
+      grouped.set(row.chain_id, [row]);
+    } else {
+      rowsForChain.push(row);
     }
   }
   return grouped;

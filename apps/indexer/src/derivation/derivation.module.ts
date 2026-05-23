@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   ActorRepository,
   ArchiveActorResolutionRepository,
@@ -39,7 +40,21 @@ import { TimestampFillerService } from './timestamp-filler.service';
       provide: DlqRepository,
       useFactory: () => new DlqRepository(pgDb),
     },
-    DerivationWorkerService,
+    {
+      provide: DerivationWorkerService,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        actorResolution: ArchiveActorResolutionRepository,
+        registry: ChainContextRegistry,
+        plugins: readonly SourcePlugin[],
+      ) => new DerivationWorkerService(archive, actorResolution, registry, plugins),
+      inject: [
+        ArchiveDerivationRepository,
+        ArchiveActorResolutionRepository,
+        ChainContextRegistry,
+        SOURCE_PLUGINS,
+      ],
+    },
     {
       provide: ActorSweepService,
       useFactory: (
