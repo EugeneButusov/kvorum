@@ -1,10 +1,7 @@
 import type { EventsListener } from '@libs/chain';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb, type IngestionDlq } from '@libs/db';
-import {
-  DELEGATION_ARCHIVE_STAGE,
-  type DlqRetryStage,
-  isCompTokenArchiveStage,
-} from '../dlq-retry-stage.js';
+import { pgDb, type IngestionDlq } from '@libs/db';
+import { DELEGATION_ARCHIVE_STAGE, type DlqRetryStage } from '../dlq-retry-stage.js';
+import { makeDlqRetryListener } from '../dlq-retry-listener-factory.js';
 import type { DlqRetryAdapter, RetryOutcome } from './dlq-retry-adapter.js';
 
 interface ArchiveTuple {
@@ -15,72 +12,6 @@ interface ArchiveTuple {
   txHash: string;
   logIndex: number;
   raw: { topics: string[]; data: string };
-}
-
-async function makeListener(row: IngestionDlq): Promise<EventsListener> {
-  const {
-    GovernorArchiveWriter,
-    CompTokenArchiveWriter,
-    CompTokenEventRepository,
-    GovernorEventRepository,
-    makeCompTokenIngesterListener,
-    makeIngesterListener,
-  } = await import('@sources/compound');
-
-  if (
-    row.archive_source_type == null ||
-    row.archive_chain_id == null ||
-    row.archive_source_type.length === 0 ||
-    row.archive_chain_id.length === 0
-  ) {
-    throw new Error('DLQ row is missing archive source tuple fields');
-  }
-
-  const daoSourceId = await resolveDaoSourceId(row.archive_source_type, row.archive_chain_id);
-  if (daoSourceId == null) {
-    throw new Error('unable to resolve dao_source_id for DLQ row');
-  }
-
-  const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
-  const context = {
-    daoSourceId,
-    sourceType: row.archive_source_type,
-    chainId: row.archive_chain_id,
-    sourceLabel: row.archive_source_type,
-  };
-  const dlqRepo = new DlqRepository(pgDb);
-
-  if (isCompTokenArchiveStage(row.stage)) {
-    return makeCompTokenIngesterListener(
-      {
-        archiveWriter: new CompTokenArchiveWriter({
-          eventRepo: new CompTokenEventRepository({ chDb }),
-          confirmationRepo: new ConfirmationRepository(pgDb),
-          dlqRepo,
-          logger,
-        }),
-        context,
-        logger,
-        dlqRepo,
-      },
-      { onWriteFailure: 'throw' },
-    );
-  }
-
-  return makeIngesterListener(
-    {
-      archiveWriter: new GovernorArchiveWriter({
-        eventRepo: new GovernorEventRepository({ chDb }),
-        confirmationRepo: new ConfirmationRepository(pgDb),
-        dlqRepo,
-        logger,
-      }),
-      context,
-      logger,
-      dlqRepo,
-    },
-    { onWriteFailure: 'throw' },
-  );
 }
 
 function parseArchiveTuple(row: IngestionDlq): ArchiveTuple {
@@ -122,8 +53,31 @@ export class ArchiveStageAdapter implements DlqRetryAdapter {
   }
 
   async retry(row: IngestionDlq): Promise<RetryOutcome> {
+    if (row.stage !== this.stageName) {
+      throw new Error(`stage mismatch: adapter=${this.stageName}, row=${row.stage}`);
+    }
+
+    if (
+      row.archive_source_type == null ||
+      row.archive_chain_id == null ||
+      row.archive_source_type.length === 0 ||
+      row.archive_chain_id.length === 0
+    ) {
+      throw new Error('DLQ row is missing archive source tuple fields');
+    }
+
     const tuple = parseArchiveTuple(row);
-    const listener = await makeListener(row);
+    const daoSourceId = await resolveDaoSourceId(row.archive_source_type, row.archive_chain_id);
+    if (daoSourceId == null) {
+      throw new Error('unable to resolve dao_source_id for DLQ row');
+    }
+
+    const listener = await makeDlqRetryListener({
+      stage: row.stage,
+      archiveSourceType: row.archive_source_type,
+      archiveChainId: row.archive_chain_id,
+      daoSourceId,
+    });
 
     await listener([
       {
