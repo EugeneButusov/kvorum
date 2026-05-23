@@ -4,6 +4,7 @@ import type {
   NewProposalAction,
   NewProposalChoice,
   PgDatabase,
+  Proposal,
   ProposalState,
 } from './schema/pg';
 
@@ -43,6 +44,12 @@ export interface TimestampFillInput {
   voting_ends_at: Date | null;
 }
 
+export interface ProposalSourceLookupInput {
+  daoId: string;
+  sourceType: string;
+  sourceId: string;
+}
+
 export class ProposalRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -54,6 +61,16 @@ export class ProposalRepository {
       .executeTakeFirst();
 
     return row?.dao_id;
+  }
+
+  async findBySource(input: ProposalSourceLookupInput): Promise<Proposal | undefined> {
+    return this.db
+      .selectFrom('proposal')
+      .selectAll()
+      .where('dao_id', '=', input.daoId)
+      .where('source_type', '=', input.sourceType)
+      .where('source_id', '=', input.sourceId)
+      .executeTakeFirst();
   }
 
   async insertProposal(row: NewProposal): Promise<InsertProposalResult> {

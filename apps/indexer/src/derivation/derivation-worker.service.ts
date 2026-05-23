@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { makeCutoffClassifier } from '@libs/chain';
 import {
   ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
@@ -13,6 +14,15 @@ const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
 
+interface ChainContextRegistryLike {
+  peek(chainId: string):
+    | {
+        client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
+        chainCfg: { reorgHorizon: number };
+      }
+    | undefined;
+}
+
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger('DerivationWorker');
@@ -24,6 +34,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   constructor(
     private readonly archiveDerivation: ArchiveDerivationRepository,
     private readonly actorResolution: ArchiveActorResolutionRepository,
+    private readonly registry: ChainContextRegistryLike,
     @Inject(SOURCE_PLUGINS) plugins: readonly SourcePlugin[],
   ) {
     this.appliers = plugins
@@ -58,13 +69,18 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const oldest = watermark[0]!;
       const lagSeconds = computeLagSeconds(oldest.confirmed_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
-      const bySourceType = groupBySourceType(watermark);
-      for (const [sourceType, rows] of bySourceType) {
-        const applier = this.appliers.find((candidate) =>
-          candidate.sourceTypes.includes(sourceType),
+      const settledRows = await this.filterSettledRows(watermark);
+      if (settledRows.length === 0) return;
+
+      const byDispatchKey = groupByDispatchKey(settledRows);
+      for (const [dispatchKey, rows] of byDispatchKey) {
+        const [sourceType, eventType] = parseDispatchKey(dispatchKey);
+        const applier = this.appliers.find(
+          (candidate) =>
+            candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
         );
         if (applier === undefined) {
-          await this.markUnsupportedSource(rows);
+          await this.markUnsupportedDispatch(rows);
           continue;
         }
 
@@ -76,7 +92,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         this.logger.log('derivation_progress', {
           batch: watermark.length,
           lag_s: Math.round(lagSeconds),
-          source_types: [...bySourceType.keys()],
+          dispatches: [...byDispatchKey.keys()],
         });
         this.lastProgressLogAt = now;
       }
@@ -88,13 +104,46 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
     }
   }
 
-  private async markUnsupportedSource(rows: readonly ArchiveDerivationRow[]): Promise<void> {
+  private async filterSettledRows(
+    rows: readonly ArchiveDerivationRow[],
+  ): Promise<ArchiveDerivationRow[]> {
+    const settled: ArchiveDerivationRow[] = [];
+    const byChain = groupByChainId(rows);
+
+    for (const [chainId, chainRows] of byChain) {
+      const chainCtx = this.registry.peek(chainId);
+      if (chainCtx === undefined) {
+        this.logger.warn('derivation_settled_gate_chain_context_missing', { chain_id: chainId });
+        continue;
+      }
+
+      try {
+        const headHex = await chainCtx.client.send<string>('eth_blockNumber', []);
+        const cutoff = BigInt(headHex) - BigInt(chainCtx.chainCfg.reorgHorizon) * 2n;
+        const classify = makeCutoffClassifier(cutoff);
+        for (const row of chainRows) {
+          if (classify(BigInt(row.block_number)) === 'confirmed') {
+            settled.push(row);
+          }
+        }
+      } catch (error) {
+        this.logger.warn('derivation_settled_gate_head_fetch_failed', {
+          chain_id: chainId,
+          error: String(error),
+        });
+      }
+    }
+
+    return settled;
+  }
+
+  private async markUnsupportedDispatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     for (const row of rows) {
       derivationMetrics.processed.add(1, {
         source_type: row.source_type,
         event_type: row.event_type,
         outcome: 'failed',
-        reason: 'unsupported_source',
+        reason: 'unsupported_dispatch',
       });
       await this.archiveDerivation.incrementAttemptCount(row.id);
       this.logger.error('derivation_applier_missing', {
@@ -116,19 +165,43 @@ function computeLagSeconds(confirmedAt: Date | null): number {
   return Math.max(0, (Date.now() - confirmedAt.getTime()) / 1000);
 }
 
-function groupBySourceType(
+function groupByDispatchKey(
   rows: readonly ArchiveDerivationRow[],
 ): Map<string, ArchiveDerivationRow[]> {
   const grouped = new Map<string, ArchiveDerivationRow[]>();
   for (const row of rows) {
-    const rowsForSource = grouped.get(row.source_type);
-    if (rowsForSource === undefined) {
-      grouped.set(row.source_type, [row]);
+    const key = `${row.source_type}:${row.event_type}`;
+    const rowsForDispatch = grouped.get(key);
+    if (rowsForDispatch === undefined) {
+      grouped.set(key, [row]);
     } else {
-      rowsForSource.push(row);
+      rowsForDispatch.push(row);
     }
   }
   return grouped;
+}
+
+function groupByChainId(
+  rows: readonly ArchiveDerivationRow[],
+): Map<string, ArchiveDerivationRow[]> {
+  const grouped = new Map<string, ArchiveDerivationRow[]>();
+  for (const row of rows) {
+    const rowsForChain = grouped.get(row.chain_id);
+    if (rowsForChain === undefined) {
+      grouped.set(row.chain_id, [row]);
+    } else {
+      rowsForChain.push(row);
+    }
+  }
+  return grouped;
+}
+
+function parseDispatchKey(dispatchKey: string): [string, string] {
+  const separator = dispatchKey.lastIndexOf(':');
+  if (separator <= 0 || separator >= dispatchKey.length - 1) {
+    throw new Error(`invalid derivation dispatch key: ${dispatchKey}`);
+  }
+  return [dispatchKey.slice(0, separator), dispatchKey.slice(separator + 1)];
 }
 
 function readIntervalMs(envName: string, fallback: number): number {

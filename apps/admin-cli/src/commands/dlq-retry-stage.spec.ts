@@ -18,6 +18,10 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('actor_resolution_stage')).toBe(true);
   });
 
+  it('accepts vote projection stage', () => {
+    expect(isDlqRetryableStage('vote_projection_stage')).toBe(true);
+  });
+
   it('rejects non-retryable stage', () => {
     expect(isDlqRetryableStage('archive_decode')).toBe(false);
   });

@@ -63,6 +63,7 @@ describe('GovernorArchivePayloadRepository', () => {
 
     expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
     expect(chSelect.where).toHaveBeenCalledOnce();
+    expect(chSelect.orderBy).toHaveBeenCalledWith('received_at', 'asc');
   });
 
   it('findByProposalId queries by dao source and proposal id', async () => {

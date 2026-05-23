@@ -6,6 +6,21 @@ type ActorAddressSource = 'proposer_event' | 'voter_event' | 'delegator_event' |
 export class ActorRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
+  async findByAddress(address: string): Promise<Actor | undefined> {
+    const normalized = address.toLowerCase();
+    return this.db
+      .selectFrom('actor as a')
+      .innerJoin('actor_address as aa', 'aa.actor_id', 'a.id')
+      .selectAll('a')
+      .where('aa.address', '=', normalized)
+      .executeTakeFirst();
+  }
+
+  async findIdByAddress(address: string): Promise<string | undefined> {
+    const actor = await this.findByAddress(address);
+    return actor?.id;
+  }
+
   async findOrCreateByAddress(address: string): Promise<Actor> {
     const normalized = address.toLowerCase();
     return this.findOrCreateByAddressTx(this.db, normalized);

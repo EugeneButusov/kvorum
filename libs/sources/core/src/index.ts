@@ -16,7 +16,6 @@ export type {
 } from './calldata/types';
 export { ChainNotReadyError } from './calldata/types';
 
-export { makeCutoffClassifier } from './backfill/cutoff-classifier';
 export { BackfillDriver } from './backfill/backfill-driver';
 export type { BackfillDriverDeps } from './backfill/backfill-driver';
 export type {

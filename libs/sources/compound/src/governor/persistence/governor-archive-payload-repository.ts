@@ -29,6 +29,7 @@ export class GovernorArchivePayloadRepository {
         'received_at',
       ])
       .where(sql<boolean>`(chain_id, tx_hash, log_index, block_hash) IN (${sql.join(tuples)})`)
+      .orderBy('received_at', 'asc')
       .execute();
   }
 

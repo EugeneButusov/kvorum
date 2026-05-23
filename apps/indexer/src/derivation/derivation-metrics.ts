@@ -1,5 +1,15 @@
 import { defineCounter, defineGauge, defineHistogram } from '@libs/observability';
 
+// Keep reason labels centralized for projection appliers.
+export type DerivationFailureReason =
+  | 'unsupported_dispatch'
+  | 'ch_missing'
+  | 'decode_error'
+  | 'pg_tx_error'
+  | 'no_proposal'
+  | 'no_voter'
+  | 'block_timestamp_unavailable';
+
 export const derivationMetrics = {
   lagSeconds: defineGauge({
     name: 'derivation_lag_seconds',
