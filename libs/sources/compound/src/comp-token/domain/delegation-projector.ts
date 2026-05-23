@@ -18,6 +18,8 @@ export function projectDelegateChanged(
     delegate_actor_id: ctx.delegateActorId,
     voting_power: '0',
     block_number: archiveRow.block_number,
+    tx_index: 0,
+    log_index: archiveRow.log_index,
     tx_hash: archiveRow.tx_hash,
     event_type: 'delegate_changed',
   };
@@ -34,6 +36,8 @@ export function projectDelegateVotesChanged(
     delegate_actor_id: ctx.delegateActorId,
     voting_power: payload.newVotes,
     block_number: archiveRow.block_number,
+    tx_index: 0,
+    log_index: archiveRow.log_index,
     tx_hash: archiveRow.tx_hash,
     event_type: 'votes_changed',
   };

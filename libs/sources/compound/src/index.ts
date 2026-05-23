@@ -87,6 +87,8 @@ export {
   CompTokenArchivePayloadRepository,
   CompTokenArchiveWriter,
   CompTokenDelegationProjectionApplier,
+  CompoundCompTokenVotingPowerStrategy,
+  COMP_TOKEN_VOTING_POWER_ABI,
   makeCompTokenIngesterListener,
   createCompTokenPlugin,
   CompTokenSourceConfigSchema,

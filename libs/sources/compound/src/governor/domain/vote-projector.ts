@@ -28,6 +28,7 @@ export function projectVoteCast(
       voting_power_reported: payload.votingPowerReported,
       cast_at: ctx.castAt,
       block_number: archiveRow.block_number,
+      tx_index: 0,
       tx_hash: archiveRow.tx_hash,
       log_index: archiveRow.log_index,
       primary_choice: payload.primaryChoice,

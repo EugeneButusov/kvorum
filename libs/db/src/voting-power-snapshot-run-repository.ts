@@ -15,6 +15,11 @@ interface CompletionInput {
   completed_at: Date;
 }
 
+interface FailedInput {
+  last_error: string;
+  last_attempt_at: Date;
+}
+
 export class VotingPowerSnapshotRunRepository {
   constructor(private readonly db: Kysely<PgDatabase> | Transaction<PgDatabase>) {}
 
@@ -66,6 +71,26 @@ export class VotingPowerSnapshotRunRepository {
         completed_at: completion.completed_at,
         last_error: null,
       })
+      .where('proposal_id', '=', proposalId)
+      .executeTakeFirst();
+  }
+
+  async markFailed(proposalId: string, failed: FailedInput): Promise<void> {
+    await this.db
+      .updateTable('voting_power_snapshot_run')
+      .set({
+        status: 'failed',
+        last_error: failed.last_error,
+        last_attempt_at: failed.last_attempt_at,
+      })
+      .where('proposal_id', '=', proposalId)
+      .executeTakeFirst();
+  }
+
+  async touchAttempt(proposalId: string, lastAttemptAt: Date): Promise<void> {
+    await this.db
+      .updateTable('voting_power_snapshot_run')
+      .set({ last_attempt_at: lastAttemptAt })
       .where('proposal_id', '=', proposalId)
       .executeTakeFirst();
   }

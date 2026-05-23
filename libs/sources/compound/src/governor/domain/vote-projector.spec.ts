@@ -43,6 +43,7 @@ describe('projectVoteCast', () => {
       voting_power_reported: '123456',
       cast_at: castAt,
       block_number: '100',
+      tx_index: 0,
       tx_hash: '0xtx',
       log_index: 3,
       primary_choice: 2,
