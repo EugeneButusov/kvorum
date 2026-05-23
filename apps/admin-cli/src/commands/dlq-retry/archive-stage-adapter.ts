@@ -14,8 +14,8 @@ interface ArchiveTuple {
   raw: { topics: string[]; data: string };
 }
 
-function parseArchiveTuple(row: IngestionDlq): ArchiveTuple {
-  const payload = row.payload as {
+function parseArchiveTuple(dlqEntry: IngestionDlq): ArchiveTuple {
+  const payload = dlqEntry.payload as {
     raw?: { topics?: string[]; data?: string };
     block_number?: string;
   };
@@ -25,22 +25,22 @@ function parseArchiveTuple(row: IngestionDlq): ArchiveTuple {
     raw?.topics == null ||
     raw.data == null ||
     payload.block_number == null ||
-    row.archive_tx_hash == null ||
-    row.archive_log_index == null ||
-    row.archive_block_hash == null ||
-    row.archive_chain_id == null ||
-    row.archive_source_type == null
+    dlqEntry.archive_tx_hash == null ||
+    dlqEntry.archive_log_index == null ||
+    dlqEntry.archive_block_hash == null ||
+    dlqEntry.archive_chain_id == null ||
+    dlqEntry.archive_source_type == null
   ) {
     throw new Error('DLQ payload is missing archive log fields');
   }
 
   return {
-    sourceType: row.archive_source_type,
-    chainId: row.archive_chain_id,
+    sourceType: dlqEntry.archive_source_type,
+    chainId: dlqEntry.archive_chain_id,
     blockNumber: BigInt(payload.block_number),
-    blockHash: row.archive_block_hash,
-    txHash: row.archive_tx_hash,
-    logIndex: row.archive_log_index,
+    blockHash: dlqEntry.archive_block_hash,
+    txHash: dlqEntry.archive_tx_hash,
+    logIndex: dlqEntry.archive_log_index,
     raw: { topics: raw.topics, data: raw.data },
   };
 }
@@ -52,30 +52,33 @@ export class ArchiveStageAdapter implements DlqRetryAdapter {
     return this.stageName;
   }
 
-  async retry(row: IngestionDlq): Promise<RetryOutcome> {
-    if (row.stage !== this.stageName) {
-      throw new Error(`stage mismatch: adapter=${this.stageName}, row=${row.stage}`);
+  async retry(dlqEntry: IngestionDlq): Promise<RetryOutcome> {
+    if (dlqEntry.stage !== this.stageName) {
+      throw new Error(`stage mismatch: adapter=${this.stageName}, entry=${dlqEntry.stage}`);
     }
 
     if (
-      row.archive_source_type == null ||
-      row.archive_chain_id == null ||
-      row.archive_source_type.length === 0 ||
-      row.archive_chain_id.length === 0
+      dlqEntry.archive_source_type == null ||
+      dlqEntry.archive_chain_id == null ||
+      dlqEntry.archive_source_type.length === 0 ||
+      dlqEntry.archive_chain_id.length === 0
     ) {
-      throw new Error('DLQ row is missing archive source tuple fields');
+      throw new Error('DLQ entry is missing archive source tuple fields');
     }
 
-    const tuple = parseArchiveTuple(row);
-    const daoSourceId = await resolveDaoSourceId(row.archive_source_type, row.archive_chain_id);
+    const tuple = parseArchiveTuple(dlqEntry);
+    const daoSourceId = await resolveDaoSourceId(
+      dlqEntry.archive_source_type,
+      dlqEntry.archive_chain_id,
+    );
     if (daoSourceId == null) {
-      throw new Error('unable to resolve dao_source_id for DLQ row');
+      throw new Error('unable to resolve dao_source_id for DLQ entry');
     }
 
     const listener = await makeDlqRetryListener({
-      stage: row.stage,
-      archiveSourceType: row.archive_source_type,
-      archiveChainId: row.archive_chain_id,
+      stage: dlqEntry.stage,
+      archiveSourceType: dlqEntry.archive_source_type,
+      archiveChainId: dlqEntry.archive_chain_id,
       daoSourceId,
     });
 
