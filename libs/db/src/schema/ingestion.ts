@@ -3,12 +3,11 @@ import type { SourceType } from './domain';
 
 // ── Enum string-literal unions ────────────────────────────────────────────────
 
-export type ConfirmationStatus = 'pending' | 'confirmed' | 'orphaned';
 export type DlqResolutionKind = 'accepted' | 'retry_succeeded';
 
 // ── Table row types ───────────────────────────────────────────────────────────
 
-export interface ArchiveConfirmationTable {
+export interface ArchiveEventTable {
   id: Generated<string>;
   source_type: SourceType;
   dao_source_id: string;
@@ -20,19 +19,26 @@ export interface ArchiveConfirmationTable {
   log_index: number;
   event_type: string;
   received_at: Date;
-  confirmation_status: ConfirmationStatus;
-  confirmed_at: Date | null;
-  orphaned_at: Date | null;
-  orphaned_by_reorg_event_id: string | null;
   derived_at: Date | null;
   derivation_actor_resolved_at: Date | null;
   derivation_attempt_count: Generated<number>;
   actor_resolution_attempt_count: Generated<number>;
+  // Transitional legacy fields while migration/test fixtures are being cut over.
+  confirmation_status?: 'pending' | 'confirmed' | 'orphaned';
+  confirmed_at?: Date | null;
+  orphaned_at?: Date | null;
+  orphaned_by_reorg_event_id?: string | null;
 }
 
-export type ArchiveConfirmation = Selectable<ArchiveConfirmationTable>;
-export type NewArchiveConfirmation = Insertable<ArchiveConfirmationTable>;
-export type ArchiveConfirmationUpdate = Updateable<ArchiveConfirmationTable>;
+export type ArchiveEvent = Selectable<ArchiveEventTable>;
+export type NewArchiveEvent = Insertable<ArchiveEventTable>;
+export type ArchiveEventUpdate = Updateable<ArchiveEventTable>;
+
+// Transitional aliases during repository/source/plugin migration.
+export type ArchiveConfirmationTable = ArchiveEventTable;
+export type ArchiveConfirmation = ArchiveEvent;
+export type NewArchiveConfirmation = NewArchiveEvent;
+export type ArchiveConfirmationUpdate = ArchiveEventUpdate;
 
 export interface IngestionDlqTable {
   id: Generated<string>;
