@@ -95,4 +95,43 @@ describe('ProposalReadRepository', () => {
     expect(chain.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
     expect(chain.orderBy).toHaveBeenCalledWith('choice_index', 'asc');
   });
+
+  it('findOneWithDao returns combined dao and proposal objects', async () => {
+    const row = {
+      dao_id: 'dao-1',
+      dao_slug: 'compound',
+      dao_name: 'Compound',
+      dao_primary_token_address: '0xabc',
+      dao_primary_chain_id: '1',
+      dao_description: 'desc',
+      dao_website_url: 'https://example.com',
+      dao_forum_url: 'https://forum.example.com',
+      dao_created_at: new Date('2026-01-01T00:00:00Z'),
+      dao_updated_at: new Date('2026-01-01T00:00:00Z'),
+      proposal_id: 'proposal-1',
+      proposal_dao_id: 'dao-1',
+      proposal_source_type: 'compound_governor_bravo',
+      proposal_source_id: '42',
+      proposal_proposer_actor_id: 'actor-1',
+      proposal_title: 'Title',
+      proposal_description: 'Description',
+      proposal_description_hash: 'a'.repeat(64),
+      proposal_binding: true,
+      proposal_voting_starts_at: null,
+      proposal_voting_ends_at: null,
+      proposal_voting_starts_block: '10',
+      proposal_voting_ends_block: '20',
+      proposal_voting_power_block: '10',
+      proposal_state: 'active',
+      proposal_state_updated_at: new Date('2026-01-01T00:00:00Z'),
+      proposal_created_at: new Date('2026-01-01T00:00:00Z'),
+      proposal_updated_at: new Date('2026-01-01T00:00:00Z'),
+    };
+    const { selectFrom } = makeSelectChain(row);
+    const repo = new ProposalReadRepository({ selectFrom } as never);
+
+    const out = await repo.findOneWithDao('compound', 'compound_governor_bravo', '42');
+    expect(out?.dao.slug).toBe('compound');
+    expect(out?.proposal.source_id).toBe('42');
+  });
 });

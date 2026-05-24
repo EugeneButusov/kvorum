@@ -46,6 +46,8 @@ export type {
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
+export { VoteReadRepository } from './vote-read-repository';
+export { DelegationReadRepository } from './delegation-read-repository';
 export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
