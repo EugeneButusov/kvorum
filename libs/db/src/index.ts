@@ -1,7 +1,19 @@
 export { pgDb, chDb } from './client';
 export { AdminAuditRepository } from './admin-audit-repository';
 export { AbiCacheRepository } from './abi-cache-repository';
+export {
+  ActorAddressCollisionError,
+  ActorAlreadyMergedError,
+  ActorMergeRepository,
+  ActorNotFoundForAddressError,
+  SameActorMergeError,
+} from './actor-merge-repository';
 export { ActorRepository } from './actor-repository';
+export type {
+  ActorOverview,
+  ActorOverviewAddress,
+  ActorOverviewRedirect,
+} from './actor-repository';
 export type { ActiveApiKeyResult, SafeApiKey } from './api-key-repository';
 export { ApiKeyRepository } from './api-key-repository';
 export type { ArchiveDerivationRow } from './archive-derivation-repository';

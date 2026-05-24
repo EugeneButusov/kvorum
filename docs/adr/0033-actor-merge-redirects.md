@@ -112,3 +112,25 @@ The API redirect routing (Decision steps 1–4 above) gains a `WHERE merged_into
 - The redirect lookup remains O(1) regardless of merge history depth.
 - §2.8 invariant 4 honoured: no actor row is ever DELETEd.
 - The status flip is completed in M2/J1 alongside the core schema migration because the schema is the irreversible artifact that ratifies this ADR.
+
+---
+
+## Rider amendment — 2026-05-24 (`--reason` required on `admin-cli actors merge`)
+
+M2's `admin-cli actors merge` implementation adds a required `--reason <text>` flag. This amendment ratifies that operator-interface choice for the redirect contract.
+
+### Decision
+
+`admin-cli actors merge <primary_address> <secondary_address>` now requires `--reason <text>`.
+
+### Rationale
+
+- `actor_address_redirect.merge_reason` is `NOT NULL`, so the merge transaction needs operator-provided rationale.
+- The reason is written into `admin_audit.args` as part of the merge audit trail.
+- A free-form reason makes later forensic review possible without out-of-band notes.
+
+### Constraints
+
+- The CLI rejects empty or whitespace-only reasons.
+- The CLI caps `--reason` at 4 KiB to avoid bloating audit rows with pasted forum posts.
+- This amendment only changes the operator interface for `actors merge`; the redirect routing contract above is unchanged.
