@@ -11,6 +11,7 @@ import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
 import { SnapshotModule } from '../snapshot';
+import { EnsResolverModule } from '../ens';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SnapshotModule } from '../snapshot';
     ChainContextModule,
     DerivationModule,
     SnapshotModule,
+    EnsResolverModule,
     SourcesModule,
   ],
   providers: [
