@@ -7,7 +7,6 @@ import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
-import { ReorgWatcherService } from './reorg-watcher.service';
 import { FETCH_DRIVERS } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -52,10 +51,6 @@ vi.mock('@sources/core', () => ({
       this.name = 'BackfillAlreadyStartedError';
     }
   },
-}));
-
-vi.mock('./reorg-watcher.service', () => ({
-  ReorgWatcherService: vi.fn(),
 }));
 
 const CHAIN_CFG = {
@@ -129,16 +124,9 @@ const mockRegistry = {
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
-const mockReorgWatcher = {
-  watch: vi.fn(),
-};
-
 async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
-  } as never);
-  vi.mocked(ReorgWatcherService).mockImplementation(function () {
-    return mockReorgWatcher;
   } as never);
 
   return Test.createTestingModule({
@@ -149,7 +137,6 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
-      { provide: ReorgWatcherService, useValue: mockReorgWatcher },
     ],
   }).compile();
 }
@@ -427,9 +414,6 @@ describe('IndexerOrchestratorService', () => {
     vi.mocked(ChainContextRegistry).mockImplementation(function () {
       return mockRegistry;
     } as never);
-    vi.mocked(ReorgWatcherService).mockImplementation(function () {
-      return mockReorgWatcher;
-    } as never);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -439,7 +423,6 @@ describe('IndexerOrchestratorService', () => {
         { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
         { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
         { provide: ChainContextRegistry, useValue: mockRegistry },
-        { provide: ReorgWatcherService, useValue: mockReorgWatcher },
       ],
     }).compile();
 

@@ -17,7 +17,6 @@ import {
   type SourceIngester,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
-import { ReorgWatcherService } from './reorg-watcher.service';
 import { FETCH_DRIVERS } from './tokens';
 
 @Injectable()
@@ -35,7 +34,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     private readonly daoSourceRepo: DaoSourceRepository,
     private readonly confirmationRepo: ConfirmationRepository,
     private readonly registry: ChainContextRegistry,
-    private readonly reorgWatcher: ReorgWatcherService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -137,10 +135,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       this.activeSourceTypes.clear();
       await this.registry.drainAll();
       throw err;
-    }
-
-    for (const chainCtx of this.registry.allActive()) {
-      this.reorgWatcher.watch(chainCtx);
     }
 
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
