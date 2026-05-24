@@ -11,7 +11,6 @@ import {
 import { COMPOUND_COMP_TOKEN_TOPICS } from '../abi/events';
 import { COMP_TOKEN_ADDRESS } from '../constants';
 import type { CompTokenArchiveWriter } from '../ingestion/archive-writer';
-import * as ingesterListener from '../ingestion/ingester-listener';
 
 const CTX: SourceContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
