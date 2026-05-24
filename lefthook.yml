@@ -4,6 +4,9 @@ pre-commit:
     prettier:
       glob: '*.{ts,tsx,js,jsx,json,md,yaml,yml,css}'
       run: pnpm exec prettier --write {staged_files} && git add {staged_files}
+    eslint:
+      glob: '*.{ts,tsx,js,jsx}'
+      run: pnpm exec eslint --fix {staged_files} && git add {staged_files}
     # No sqlfluff: Kysely TS migrations contain sql`...` template tags that
     # sqlfluff cannot parse; ClickHouse *.sql migrations are reviewed by hand.
     typecheck:
