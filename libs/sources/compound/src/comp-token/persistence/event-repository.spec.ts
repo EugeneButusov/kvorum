@@ -37,7 +37,7 @@ describe('CompTokenEventRepository', () => {
     const repo = new CompTokenEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(EVENT_DATA);
 
-    expect(chain.insertInto).toHaveBeenCalledWith('event_archive_compound_comp_token');
+    expect(chain.insertInto).toHaveBeenCalledWith('archive_event_compound_comp_token');
     const vals = chain.capturedValues as Record<string, unknown>;
     expect(vals['dao_source_id']).toBe(EVENT_DATA.daoSourceId);
     expect(vals['chain_id']).toBe(EVENT_DATA.chainId);

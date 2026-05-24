@@ -21,8 +21,8 @@ export class CompTokenArchivePayloadRepository {
 
     return this.chDb
       .selectFrom(
-        sql<EventArchiveCompoundCompTokenTable>`event_archive_compound_comp_token FINAL`.as(
-          'event_archive_compound_comp_token',
+        sql<EventArchiveCompoundCompTokenTable>`archive_event_compound_comp_token FINAL`.as(
+          'archive_event_compound_comp_token',
         ),
       )
       .select([

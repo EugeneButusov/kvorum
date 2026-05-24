@@ -4,7 +4,7 @@ import { EvmBlockHeadPollerDriver } from './evm-block-head-poller-driver';
 const CHAIN_CFG = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   providers: [],
 };
 

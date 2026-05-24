@@ -57,7 +57,7 @@ describeIf('DLQ fault injection', () => {
         {
           chainId: '0x7a69',
           name: 'anvil',
-          reorgHorizon: 12,
+          headLag: 12,
           headPollIntervalMs: 200,
           sweepIntervalMs: 500,
           eventPollIntervalMs: 200,
@@ -74,7 +74,7 @@ describeIf('DLQ fault injection', () => {
         new FailoverRpcClient({
           chainId: '0x7a69',
           name: 'anvil',
-          reorgHorizon: 12,
+          headLag: 12,
           providers: [
             { name: 'anvil', url: ANVIL_URL!, kind: 'http', priority: 1, timeoutMs: 4_000 },
           ],
@@ -147,8 +147,8 @@ describeIf('DLQ fault injection', () => {
     // guard that the DLQ row captures the envelope for the retry path.
     expect(dlqRows[0]!.archive_tx_hash).not.toBeNull();
 
-    // No archive_confirmation row: decode check failed, never reached the archive writer
-    const archiveRows = await pgDb.selectFrom('archive_confirmation').selectAll().execute();
+    // No archive_event row: decode check failed, never reached the archive writer
+    const archiveRows = await pgDb.selectFrom('archive_event').selectAll().execute();
     expect(archiveRows).toHaveLength(0);
 
     // archive_writes{result=inserted} must NOT increment for this malformed event

@@ -35,7 +35,7 @@ async function makeClient(fake: FakeProvider): Promise<FailoverRpcClient> {
     {
       chainId: CHAIN_ID,
       name: 'test',
-      reorgHorizon: 12,
+      headLag: 12,
       providers: [{ name: 'fake', url: fake.url, kind: 'http', priority: 1, timeoutMs: 4_000 }],
     },
     { logger: silentLogger },

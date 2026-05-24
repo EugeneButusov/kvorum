@@ -9,7 +9,7 @@ describe('computeGap', () => {
         backfill_head_block: null,
       },
       headBlock: 1000n,
-      reorgHorizon: 10,
+      headLag: 10,
     });
 
     expect(out).toEqual({ kind: 'skip', reason: 'no_active_from_block' });
@@ -22,7 +22,7 @@ describe('computeGap', () => {
         backfill_head_block: null,
       },
       headBlock: 30n,
-      reorgHorizon: 10,
+      headLag: 10,
     });
 
     expect(out).toEqual({ kind: 'gap', gapStart: 0n, gapEnd: 10n });
@@ -35,7 +35,7 @@ describe('computeGap', () => {
         backfill_head_block: '120',
       },
       headBlock: 130n,
-      reorgHorizon: 5,
+      headLag: 5,
     });
 
     expect(out).toEqual({ kind: 'none' });
@@ -48,7 +48,7 @@ describe('computeGap', () => {
         backfill_head_block: '140',
       },
       headBlock: 180n,
-      reorgHorizon: 10,
+      headLag: 10,
     });
 
     expect(out).toEqual({ kind: 'gap', gapStart: 141n, gapEnd: 160n });

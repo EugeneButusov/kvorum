@@ -23,7 +23,7 @@ describe('runBootCatchUp', () => {
       repo,
       input: {
         daoSourceId: 'src-1',
-        chainConfig: { reorgHorizon: 5 } as never,
+        chainConfig: { headLag: 5 } as never,
         rpcClient: rpc as never,
         daoSourceRepo: repo as never,
         runtime: { filter: { address: '0xabc' }, listenerFactory: vi.fn() } as never,

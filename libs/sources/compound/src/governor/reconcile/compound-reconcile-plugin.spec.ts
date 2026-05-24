@@ -23,11 +23,11 @@ function makeDeps() {
   return { proposals, metrics, logger };
 }
 
-function makeChainCfg(overrides: Partial<{ reorgHorizon: number; blocksPerMinute: number }> = {}) {
+function makeChainCfg(overrides: Partial<{ headLag: number; blocksPerMinute: number }> = {}) {
   return {
     chainId: '0x1',
     name: 'ethereum',
-    reorgHorizon: overrides.reorgHorizon ?? 12,
+    headLag: overrides.headLag ?? 12,
     blocksPerMinute: overrides.blocksPerMinute,
     providers: [],
   };
@@ -84,7 +84,7 @@ describe('reconcile plugin listener', () => {
     delete process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'];
   });
 
-  it('does nothing when headBlock < reorgHorizon', async () => {
+  it('does nothing when headBlock < headLag', async () => {
     const deps = makeDeps();
     const plugin = createCompoundGovernorBravoReconcilePlugin(deps as never);
     const spec = plugin.buildIngestSpec({} as never, {} as never);
@@ -92,7 +92,7 @@ describe('reconcile plugin listener', () => {
 
     spec.listener({
       head: FAKE_HEAD,
-      chainCfg: makeChainCfg({ reorgHorizon: 12 }) as never,
+      chainCfg: makeChainCfg({ headLag: 12 }) as never,
       headBlock: 5n,
       client: FAKE_CLIENT as never,
     });
@@ -101,7 +101,7 @@ describe('reconcile plugin listener', () => {
     expect(deps.proposals.findStaleForReconciliation).not.toHaveBeenCalled();
   });
 
-  it('calls findStaleForReconciliation with confirmedThresholdBlock = headBlock - reorgHorizon', async () => {
+  it('calls findStaleForReconciliation with confirmedThresholdBlock = headBlock - headLag', async () => {
     const deps = makeDeps();
     const plugin = createCompoundGovernorBravoReconcilePlugin(deps as never);
     const spec = plugin.buildIngestSpec({} as never, {} as never);
@@ -109,7 +109,7 @@ describe('reconcile plugin listener', () => {
 
     spec.listener({
       head: FAKE_HEAD,
-      chainCfg: makeChainCfg({ reorgHorizon: 12 }) as never,
+      chainCfg: makeChainCfg({ headLag: 12 }) as never,
       headBlock: 1000n,
       client: FAKE_CLIENT as never,
     });

@@ -160,7 +160,6 @@ describeWithDb('ingestion domain smoke test', () => {
             log_index: 0,
             event_type: 'ProposalCreated',
             received_at: now,
-            confirmation_status: 'pending',
           })
           .execute();
 
@@ -606,7 +605,6 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             log_index: 7,
             event_type: 'VoteCast',
             received_at: now,
-            confirmation_status: 'confirmed',
           })
           .returning(['id', 'derivation_actor_resolved_at'])
           .execute();

@@ -9,7 +9,7 @@ import { FakeProvider } from '../test-utils/fake-provider.js';
 const baseConfig: ChainConfig = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   providers: [
     { name: 'b', url: 'http://127.0.0.1:9', kind: 'http', priority: 2 },
     { name: 'a', url: 'http://127.0.0.1:9', kind: 'http', priority: 1 },
@@ -118,7 +118,7 @@ async function makeClient(
   const config: ChainConfig = {
     chainId: '0x1',
     name: 'ethereum',
-    reorgHorizon: 12,
+    headLag: 12,
     overallTimeoutMs: 3000,
     providers: providers.map((fp, i) => ({
       name: `p${i + 1}`,

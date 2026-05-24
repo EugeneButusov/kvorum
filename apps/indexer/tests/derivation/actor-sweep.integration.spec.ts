@@ -98,19 +98,17 @@ describeIf('actor sweep integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_confirmation, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, archive_event, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_confirmation, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-      pgDb,
-    );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`TRUNCATE archive_event, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
@@ -121,7 +119,7 @@ describeIf('actor sweep integration', () => {
     const voter = '0x' + 'ab'.repeat(20);
 
     await chDb
-      .insertInto('event_archive_compound_governor_bravo')
+      .insertInto('archive_event_compound_governor_bravo')
       .values({
         dao_source_id: daoSourceId,
         chain_id: CHAIN_ID,
@@ -138,12 +136,12 @@ describeIf('actor sweep integration', () => {
           compound: { supportRaw: true, reason: null },
         }),
       } as Parameters<
-        ReturnType<typeof chDb.insertInto<'event_archive_compound_governor_bravo'>>['values']
+        ReturnType<typeof chDb.insertInto<'archive_event_compound_governor_bravo'>>['values']
       >[0])
       .execute();
 
     await pgDb
-      .insertInto('archive_confirmation')
+      .insertInto('archive_event')
       .values({
         source_type: 'compound_governor_bravo',
         dao_source_id: daoSourceId,
@@ -154,10 +152,6 @@ describeIf('actor sweep integration', () => {
         log_index: 0,
         event_type: 'VoteCast',
         received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       })
       .execute();
@@ -167,7 +161,7 @@ describeIf('actor sweep integration', () => {
     const actorRows = await pgDb.selectFrom('actor').selectAll().execute();
     const addressRows = await pgDb.selectFrom('actor_address').selectAll().execute();
     const confirmation = await pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select(['derivation_actor_resolved_at'])
       .where('tx_hash', '=', txHash)
       .executeTakeFirstOrThrow();
@@ -185,7 +179,7 @@ describeIf('actor sweep integration', () => {
     const blockHash = numberedHash(1002);
 
     await chDb
-      .insertInto('event_archive_compound_governor_bravo')
+      .insertInto('archive_event_compound_governor_bravo')
       .values({
         dao_source_id: daoSourceId,
         chain_id: CHAIN_ID,
@@ -196,12 +190,12 @@ describeIf('actor sweep integration', () => {
         event_type: 'VoteCast',
         payload: JSON.stringify({ voter: 'bad-address' }),
       } as Parameters<
-        ReturnType<typeof chDb.insertInto<'event_archive_compound_governor_bravo'>>['values']
+        ReturnType<typeof chDb.insertInto<'archive_event_compound_governor_bravo'>>['values']
       >[0])
       .execute();
 
     await pgDb
-      .insertInto('archive_confirmation')
+      .insertInto('archive_event')
       .values({
         source_type: 'compound_governor_bravo',
         dao_source_id: daoSourceId,
@@ -212,10 +206,6 @@ describeIf('actor sweep integration', () => {
         log_index: 0,
         event_type: 'VoteCast',
         received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       })
       .execute();
@@ -230,7 +220,7 @@ describeIf('actor sweep integration', () => {
       .where('archive_tx_hash', '=', txHash)
       .execute();
     const row = await pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select(['actor_resolution_attempt_count', 'derivation_actor_resolved_at'])
       .where('tx_hash', '=', txHash)
       .executeTakeFirstOrThrow();

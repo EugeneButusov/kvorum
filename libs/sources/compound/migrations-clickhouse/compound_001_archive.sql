@@ -1,6 +1,6 @@
 -- block_hash is part of ORDER BY: a reorg of the same (chain_id, tx_hash, log_index)
 -- emits a second row, not a dedup. G1 supplies the canonical block_hash from
--- archive_confirmation in its IN-tuple filter (ADR-041 §Reorg semantics).
+-- archive_event in its IN-tuple filter (ADR-041 §Reorg semantics).
 
 -- received_at is server-stamped (DEFAULT now()); writers MUST NOT supply it.
 -- ReplacingMergeTree(received_at) keeps the row with the greatest received_at;
@@ -24,7 +24,7 @@
 -- UUID CODEC(ZSTD(1)) on dao_source_id is a no-op (UUIDs are incompressible random
 -- bytes); kept for per-column codec-spec consistency.
 
-CREATE TABLE IF NOT EXISTS event_archive_compound_governor_bravo
+CREATE TABLE IF NOT EXISTS archive_event_compound_governor_bravo
 (
     dao_source_id   UUID CODEC(ZSTD(1)),
     chain_id        LowCardinality(String) CODEC(ZSTD(1)),

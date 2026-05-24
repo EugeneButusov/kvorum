@@ -92,7 +92,6 @@ function makeTestListener(
         log_index: log.logIndex,
         event_type: 'ProposalCreated',
         received_at: new Date(),
-        confirmation_status: 'pending',
       };
       await archiveEventRepo.insert(row);
       chainMetrics.archiveWrites.add(1, {

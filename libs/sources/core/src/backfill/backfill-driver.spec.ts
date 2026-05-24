@@ -16,7 +16,7 @@ const HEAD_BLOCK = 20_000_000n;
 const BASE_CHAIN_CONFIG = {
   chainId: CHAIN_ID,
   name: 'mainnet',
-  reorgHorizon: 100,
+  headLag: 100,
   providers: [{ name: 'p', url: 'http://rpc', kind: 'http' as const, priority: 1 }],
 };
 
@@ -205,17 +205,17 @@ describe('BackfillDriver', () => {
   });
 
   describe('classifier correctness (ADR-027 + ADR-046)', () => {
-    it('#7 — classifier uses head − 2×reorgHorizon cutoff', async () => {
+    it('#7 — classifier uses head − 2×headLag cutoff', async () => {
       const head = 20_000_000n;
-      const reorgHorizon = 100;
-      const expectedCutoff = head - BigInt(reorgHorizon) * 2n; // 19_999_800
+      const headLag = 100;
+      const expectedCutoff = head - BigInt(headLag) * 2n; // 19_999_800
 
       const capturedClassifiers: Array<(bn: bigint) => string> = [];
       const { repo } = makeRepo(makeDaoSourceRow({ backfill_started_at_block: head.toString() }));
 
       const driver = new BackfillDriver(
         makeDeps(makeRpcClient({ headBlock: head }), repo, {
-          chainConfig: { ...BASE_CHAIN_CONFIG, reorgHorizon },
+          chainConfig: { ...BASE_CHAIN_CONFIG, headLag },
           listenerFactory: (classifier) => {
             capturedClassifiers.push(classifier);
             return vi.fn().mockResolvedValue(undefined);

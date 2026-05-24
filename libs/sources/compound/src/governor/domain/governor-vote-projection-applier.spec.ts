@@ -91,7 +91,7 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
 function makeChainContext() {
   return {
     client: { send: vi.fn().mockResolvedValue('0x1000') },
-    chainCfg: { chainId: '0x1', reorgHorizon: 12 },
+    chainCfg: { chainId: '0x1', headLag: 12 },
   };
 }
 

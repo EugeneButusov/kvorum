@@ -25,8 +25,8 @@ export type NewEventArchiveCompoundCompToken = Omit<
 // Any compilation that transitively imports this file gets type-safe db access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    event_archive_compound_comp_token: EventArchiveCompoundCompTokenTable;
+    archive_event_compound_comp_token: EventArchiveCompoundCompTokenTable;
   }
 }
 
-type _AugmentationActiveCheck = ClickHouseDatabase['event_archive_compound_comp_token'];
+type _AugmentationActiveCheck = ClickHouseDatabase['archive_event_compound_comp_token'];

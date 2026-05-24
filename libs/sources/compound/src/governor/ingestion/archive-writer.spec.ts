@@ -256,7 +256,7 @@ describe('GovernorArchiveWriter', () => {
 
   // ---- Classifier (backfill path, decision #2 + S3) ----
 
-  it('#12 — classifier returning confirmed: confirmation_status=confirmed, confirmed_at=receivedAt', async () => {
+  it('#12 — classifier returning confirmed: =confirmed, confirmed_at=receivedAt', async () => {
     const fixedNow = new Date('2026-03-01T12:00:00Z');
     let capturedRow: unknown;
     const confirmationRepo = makeConfirmationRepo({
@@ -281,7 +281,7 @@ describe('GovernorArchiveWriter', () => {
     const outcome = await writer.write(ctx, DECODED, LOG_REF);
     expect(outcome.result).toBe('inserted');
     const row = capturedRow as Record<string, unknown>;
-    expect(row['confirmation_status']).toBe('confirmed');
+    expect(row['']).toBe('confirmed');
     expect(row['confirmed_at']).toEqual(fixedNow);
   });
 
@@ -301,10 +301,10 @@ describe('GovernorArchiveWriter', () => {
     };
 
     await buildWriter({ confirmationRepo }).write(ctx, DECODED, LOG_REF);
-    expect((capturedRow as Record<string, unknown>)['confirmation_status']).toBe('confirmed');
+    expect((capturedRow as Record<string, unknown>)['']).toBe('confirmed');
   });
 
-  it('#14 — no classifier (live path): confirmation_status=pending, confirmed_at=null', async () => {
+  it('#14 — no classifier (live path): =pending, confirmed_at=null', async () => {
     let capturedRow: unknown;
     const confirmationRepo = makeConfirmationRepo({
       insert: vi.fn().mockImplementation((row: unknown) => {
@@ -315,7 +315,7 @@ describe('GovernorArchiveWriter', () => {
 
     await buildWriter({ confirmationRepo }).write(CTX, DECODED, LOG_REF);
     const row = capturedRow as Record<string, unknown>;
-    expect(row['confirmation_status']).toBe('pending');
+    expect(row['']).toBe('pending');
     expect(row['confirmed_at']).toBeNull();
   });
 

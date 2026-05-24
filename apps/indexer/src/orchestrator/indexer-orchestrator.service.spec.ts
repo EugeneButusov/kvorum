@@ -56,7 +56,7 @@ vi.mock('@sources/core', () => ({
 const CHAIN_CFG = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   lagThresholdBlocks: 5,
   overallTimeoutMs: 12_000,
   providers: [],

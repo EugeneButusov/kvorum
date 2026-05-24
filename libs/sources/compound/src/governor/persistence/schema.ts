@@ -29,7 +29,7 @@ export interface CompoundProposalMetaTable {
 // Any compilation that transitively imports this file gets type-safe db access.
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    event_archive_compound_governor_bravo: EventArchiveCompoundGovernorBravoTable;
+    archive_event_compound_governor_bravo: EventArchiveCompoundGovernorBravoTable;
   }
 
   interface PgDatabase {
