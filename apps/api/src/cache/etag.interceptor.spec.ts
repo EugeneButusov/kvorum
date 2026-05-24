@@ -86,13 +86,20 @@ describe('EtagInterceptor', () => {
 
   it('returns 304 with empty body on token match', async () => {
     const reflector = new Reflector();
+    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+      if (key === CACHE_CONTROL_KEY) {
+        return { visibility: 'public', maxAgeSecs: 60 };
+      }
+      return undefined;
+    });
     const interceptor = new EtagInterceptor(reflector, { normalize: (value) => value });
     const etag = etagTesting.computeStrongEtag({ ok: true });
 
     const req = { method: 'GET', header: () => `W/${etag}, \"other\"` };
+    const headers = new Map<string, string>();
     const res = {
       statusCode: 200,
-      setHeader: vi.fn(),
+      setHeader: (k: string, v: string) => headers.set(k, v),
       status: vi.fn(),
       end: vi.fn(),
     };
@@ -105,6 +112,7 @@ describe('EtagInterceptor', () => {
     expect(out).toEqual([]);
     expect(res.status).toHaveBeenCalledWith(304);
     expect(res.end).toHaveBeenCalledTimes(1);
+    expect(headers.get('Cache-Control')).toBe('public, max-age=60');
   });
 
   it('skips non-GET requests and non-2xx responses', async () => {
@@ -132,5 +140,34 @@ describe('EtagInterceptor', () => {
     );
     expect(errOut).toEqual([{ ok: false }]);
     expect(errRes.setHeader).not.toHaveBeenCalled();
+  });
+
+  it('sets cache-control on 3xx responses for cache-decorated routes without etag', async () => {
+    const reflector = new Reflector();
+    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
+      if (key === CACHE_CONTROL_KEY) {
+        return { visibility: 'public', maxAgeSecs: 60 };
+      }
+      return undefined;
+    });
+    const interceptor = new EtagInterceptor(reflector, { normalize: (value) => value });
+
+    const req = { method: 'GET', header: () => undefined };
+    const headers = new Map<string, string>();
+    const res = {
+      statusCode: 301,
+      setHeader: (k: string, v: string) => headers.set(k, v),
+      status: vi.fn(),
+      end: vi.fn(),
+    };
+
+    const ctx = createExecutionContext(req, res);
+    const out = await lastValueFrom(
+      interceptor.intercept(ctx, { handle: () => of({ ok: true }) } as CallHandler).pipe(toArray()),
+    );
+
+    expect(out).toEqual([{ ok: true }]);
+    expect(headers.get('Cache-Control')).toBe('public, max-age=60');
+    expect(headers.has('ETag')).toBe(false);
   });
 });

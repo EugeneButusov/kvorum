@@ -99,10 +99,12 @@ export class EtagInterceptor implements NestInterceptor {
       [context.getHandler(), context.getClass()],
     );
 
-    const cacheControlValue = serializeCacheControl(cacheControl);
-
     return next.handle().pipe(
       mergeMap((body) => {
+        if (cacheControl !== undefined) {
+          res.setHeader('Cache-Control', serializeCacheControl(cacheControl));
+        }
+
         if (!is2xx(res.statusCode) || body === undefined || body === null) {
           return of(body);
         }
@@ -115,7 +117,6 @@ export class EtagInterceptor implements NestInterceptor {
         );
         const etag = override?.(normalized) ?? computeStrongEtag(normalized);
 
-        res.setHeader('Cache-Control', cacheControlValue);
         res.setHeader('ETag', etag);
 
         if (hasTokenMatch(req.header('if-none-match'), etag)) {
