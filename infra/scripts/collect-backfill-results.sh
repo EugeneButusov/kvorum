@@ -140,7 +140,7 @@ DUPES_OK=$([[ "$DUPE_ROWS" == "0" ]] && echo "yes — 0 duplicate rows" || echo 
 
 # ── 6. ClickHouse count ───────────────────────────────────────────────────────
 
-CH_COUNT=$(ch_val "SELECT count() FROM event_archive_compound_governor_bravo FINAL")
+CH_COUNT=$(ch_val "SELECT count() FROM archive_event_compound_governor_bravo FINAL")
 CH_COUNT=$(echo "$CH_COUNT" | tr -d '[:space:]')
 
 if [[ "$CH_COUNT" =~ ^[0-9]+$ && "$ARCHIVED" =~ ^[0-9]+$ && "$DLQ_SIZE" =~ ^[0-9]+$ ]]; then
@@ -156,9 +156,8 @@ fi
 
 # ── 7. system status (direct SQL — admin-cli may not be on PATH) ─────────────
 
-LAST_ARCHIVED=$(psql_val "SELECT max(confirmed_at) FROM archive_confirmation WHERE source_type='compound_governor_bravo'")
-LAST_REORG=$(psql_val    "SELECT max(detected_at)  FROM reorg_event")
-IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(confirmed_at)))::int FROM archive_confirmation WHERE source_type='compound_governor_bravo'")
+LAST_ARCHIVED=$(psql_val "SELECT max(received_at) FROM archive_event WHERE source_type='compound_governor_bravo'")
+IDLE_SECS=$(psql_val     "SELECT extract(epoch FROM (now() - max(received_at)))::int FROM archive_event WHERE source_type='compound_governor_bravo'")
 
 # ── 8. API spot-checks ───────────────────────────────────────────────────────
 # Requires API_KEY env var (Bearer token). Authenticated checks are skipped if unset.
