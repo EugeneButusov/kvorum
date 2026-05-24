@@ -6,12 +6,39 @@ exports[`admin-cli help snapshots > actors --help 1`] = `
 Actor management
 
 Options:
-  -h, --help                                               display help for command
+  -h, --help                                             display help for command
 
 Commands:
-  merge [options] <primary_actor_id> <secondary_actor_id>  Merge two actor identities (destructive)
-  address                                                  Actor address management
-  help [command]                                           display help for command
+  merge [options] <primary_address> <secondary_address>  Merge two actor identities (destructive)
+  show [options] <address>                               Show actor identity, addresses, merge state, and inbound redirects
+  address                                                Actor address management
+  help [command]                                         display help for command
+"
+`;
+
+exports[`admin-cli help snapshots > actors merge --help 1`] = `
+"Usage: admin-cli actors merge [options] <primary_address> <secondary_address>
+
+Merge two actor identities (destructive)
+
+Options:
+  --reason <text>    human-readable rationale for the merge (required, max 4KB)
+  --confirm          confirm destructive operation
+  --production       acknowledge production environment
+  --dry-run          show what would happen without making changes
+  --format <format>  output format: human or json
+  -h, --help         display help for command
+"
+`;
+
+exports[`admin-cli help snapshots > actors show --help 1`] = `
+"Usage: admin-cli actors show [options] <address>
+
+Show actor identity, addresses, merge state, and inbound redirects
+
+Options:
+  --format <format>  output format: human or json
+  -h, --help         display help for command
 "
 `;
 
