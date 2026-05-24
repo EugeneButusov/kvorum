@@ -1,7 +1,7 @@
-import { withAudit } from '../../../apps/admin-cli/src/audit.js';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ActorMergeRepository } from './actor-merge-repository';
 import { pgDb } from './client';
+import { withAudit } from '../../../apps/admin-cli/src/audit.js';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 
@@ -259,7 +259,7 @@ describeWithDb('ActorMergeRepository (integration)', () => {
     expect(flattened.to_actor_id).toBe(fixture.survivorActorId);
   });
 
-  it('rejects re-merging the same secondary actor', async () => {
+  it('rejects re-merging after the secondary address is absorbed by the survivor', async () => {
     const fixture = await seedMergeFixture(pgDb as never, 'c');
     const repo = new ActorMergeRepository(pgDb);
 
@@ -277,7 +277,7 @@ describeWithDb('ActorMergeRepository (integration)', () => {
         mergeReason: 'same delegate',
         createdBy: 'alice',
       }),
-    ).rejects.toThrow('already merged');
+    ).rejects.toThrow('resolve to the same actor');
   });
 
   it('writes an admin_audit row when wrapped with withAudit', async () => {

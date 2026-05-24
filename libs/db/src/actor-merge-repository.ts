@@ -71,11 +71,6 @@ interface AddressLookupRow {
   mergedIntoActorId: string | null;
 }
 
-interface RedirectRow {
-  from_address: string;
-  current_to_actor_id: string;
-}
-
 function normalizeAddress(address: string): string {
   return address.toLowerCase();
 }

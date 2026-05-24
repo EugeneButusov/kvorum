@@ -1,6 +1,6 @@
 import { CommanderError, Command } from 'commander';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ActorAlreadyMergedError, ActorNotFoundForAddressError } from '@libs/db';
+import { ActorNotFoundForAddressError } from '@libs/db';
 import { registerActor } from './actor.js';
 
 const container = {
@@ -42,14 +42,18 @@ function buildProgram(): Command {
 function captureOutput() {
   let stdout = '';
   let stderr = '';
-  const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: any) => {
-    stdout += String(chunk);
-    return true;
-  });
-  const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk: any) => {
-    stderr += String(chunk);
-    return true;
-  });
+  const stdoutSpy = vi
+    .spyOn(process.stdout, 'write')
+    .mockImplementation((chunk: string | Uint8Array) => {
+      stdout += String(chunk);
+      return true;
+    });
+  const stderrSpy = vi
+    .spyOn(process.stderr, 'write')
+    .mockImplementation((chunk: string | Uint8Array) => {
+      stderr += String(chunk);
+      return true;
+    });
   const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
     throw new ExitSignal(Number(code ?? 0));
   }) as never);

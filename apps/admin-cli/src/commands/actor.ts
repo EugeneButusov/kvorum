@@ -1,6 +1,4 @@
 import { Command } from 'commander';
-import { withAudit } from '../audit.js';
-import { buildContainer } from '../bootstrap.js';
 import {
   emit,
   emitNotImplemented,
@@ -9,12 +7,6 @@ import {
   type OutputFormat,
   resolveFormat,
 } from '../output.js';
-import {
-  ActorAddressCollisionError,
-  ActorAlreadyMergedError,
-  ActorNotFoundForAddressError,
-  SameActorMergeError,
-} from '@libs/db';
 
 const REASON_MAX_BYTES = 4096;
 const ADDRESS_PATTERN = /^0x[a-f0-9]{40}$/;
@@ -73,6 +65,10 @@ export function registerActor(program: Command): void {
           fail(format, ExitCode.ValidationFailure, '--production is required in production');
         }
 
+        const [{ withAudit }, { buildContainer }] = await Promise.all([
+          import('../audit.js'),
+          import('../bootstrap.js'),
+        ]);
         const { actorMergeRepository } = buildContainer();
         const auditArgs = {
           primary_address: primaryAddress,
@@ -115,6 +111,7 @@ export function registerActor(program: Command): void {
       await withActorFormat(this, opts, async (format) => {
         validateAddressShape(address, '<address>', format);
         const normalized = address.toLowerCase();
+        const { buildContainer } = await import('../bootstrap.js');
         const { actorRepository } = buildContainer();
         const overview = await actorRepository.findActorOverview(normalized);
         if (overview == null) {
@@ -167,23 +164,23 @@ async function withActorFormat(
 }
 
 function handleMergeError(error: unknown, format: OutputFormat): never {
-  if (error instanceof ActorNotFoundForAddressError) {
+  if (isActorNotFoundForAddressError(error)) {
     fail(format, ExitCode.NotFound, error.message, { address: error.address });
   }
-  if (error instanceof ActorAlreadyMergedError) {
+  if (isActorAlreadyMergedError(error)) {
     fail(format, ExitCode.ValidationFailure, error.message, {
       address: error.address,
       merged_into_actor_id: error.mergedIntoActorId,
     });
   }
-  if (error instanceof SameActorMergeError) {
+  if (isSameActorMergeError(error)) {
     fail(format, ExitCode.ValidationFailure, error.message, {
       primary_address: error.primaryAddress,
       secondary_address: error.secondaryAddress,
       actor_id: error.actorId,
     });
   }
-  if (error instanceof ActorAddressCollisionError) {
+  if (isActorAddressCollisionError(error)) {
     fail(format, ExitCode.ValidationFailure, error.message, {
       address: error.address,
       survivor_actor_id: error.survivorActorId,
@@ -192,6 +189,52 @@ function handleMergeError(error: unknown, format: OutputFormat): never {
 
   const message = error instanceof Error ? error.message : 'unknown error';
   fail(format, ExitCode.RuntimeFailure, 'actors merge failed', { message });
+}
+
+function isErrorLike(error: unknown): error is Error {
+  return error instanceof Error;
+}
+
+function isActorNotFoundForAddressError(error: unknown): error is Error & { address: string } {
+  return (
+    isErrorLike(error) &&
+    error.message.startsWith('actor not found for address:') &&
+    typeof (error as { address?: unknown }).address === 'string'
+  );
+}
+
+function isActorAlreadyMergedError(
+  error: unknown,
+): error is Error & { address: string; mergedIntoActorId: string } {
+  return (
+    isErrorLike(error) &&
+    error.message.includes('already merged') &&
+    typeof (error as { address?: unknown }).address === 'string' &&
+    typeof (error as { mergedIntoActorId?: unknown }).mergedIntoActorId === 'string'
+  );
+}
+
+function isSameActorMergeError(
+  error: unknown,
+): error is Error & { primaryAddress: string; secondaryAddress: string; actorId: string } {
+  return (
+    isErrorLike(error) &&
+    error.message.includes('resolve to the same actor') &&
+    typeof (error as { primaryAddress?: unknown }).primaryAddress === 'string' &&
+    typeof (error as { secondaryAddress?: unknown }).secondaryAddress === 'string' &&
+    typeof (error as { actorId?: unknown }).actorId === 'string'
+  );
+}
+
+function isActorAddressCollisionError(
+  error: unknown,
+): error is Error & { address: string; survivorActorId: string } {
+  return (
+    isErrorLike(error) &&
+    error.message.includes('actor_address_pkey') &&
+    typeof (error as { address?: unknown }).address === 'string' &&
+    typeof (error as { survivorActorId?: unknown }).survivorActorId === 'string'
+  );
 }
 
 function resolveCreatedBy(): string {
