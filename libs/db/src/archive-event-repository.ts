@@ -24,7 +24,7 @@ export class ArchiveEventRepository {
 
   async find(key: ArchiveEventKey): Promise<{ id: string } | undefined> {
     let query = this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select('id')
       .where('source_type', '=', key.sourceType)
       .where('chain_id', '=', key.chainId)
@@ -38,7 +38,7 @@ export class ArchiveEventRepository {
 
   async countUnderivedBySourceType(sourceType: string) {
     return this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select(({ fn }) => ['chain_id', 'source_type', fn.count<number>('id').as('count')])
       .where('derived_at', 'is', null)
       .where('source_type', '=', sourceType)
@@ -50,9 +50,9 @@ export class ArchiveEventRepository {
     for (let attempt = 0; attempt <= this.retryBackoffMs.length; attempt++) {
       try {
         return await this.pgDb
-          .insertInto('archive_confirmation')
+          .insertInto('archive_event')
           .values(row)
-          .onConflict((oc) => oc.constraint('archive_confirmation_idempotency_key').doNothing())
+          .onConflict((oc) => oc.constraint('archive_event_idempotency_key').doNothing())
           .returning('id')
           .executeTakeFirst();
       } catch (err) {
@@ -70,7 +70,7 @@ export class ArchiveEventRepository {
   // Transitional alias while PromotionSweepService still exists.
   async promotePending(chainId: string, thresholdBlockNumber: bigint): Promise<number> {
     const result = await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({
         confirmation_status: 'confirmed',
         confirmed_at: sql`now()`,

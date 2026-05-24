@@ -17,7 +17,7 @@ export class SystemStatusRepository {
         .select((eb) => eb.fn.countAll<string>().as('count'))
         .executeTakeFirstOrThrow(),
       this.db
-        .selectFrom('archive_confirmation')
+        .selectFrom('archive_event')
         .select((eb) => eb.fn.max('received_at').as('last_received_at'))
         .executeTakeFirstOrThrow(),
       this.db
