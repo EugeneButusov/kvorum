@@ -5,12 +5,11 @@ export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export class ArchiveDerivationAdminRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
-  async countConfirmedUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
+  async countUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
     let query = this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select((eb) => eb.fn.countAll<string>().as('count'))
-      .where('dao_source_id', '=', daoSourceId)
-      .where('confirmation_status', '=', 'confirmed');
+      .where('dao_source_id', '=', daoSourceId);
 
     if (fromBlock != null) {
       query = query.where('block_number', '>=', fromBlock.toString());
@@ -20,12 +19,16 @@ export class ArchiveDerivationAdminRepository {
     return Number(row.count);
   }
 
+  // Transitional alias for in-flight callers.
+  async countConfirmedUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
+    return this.countUnderived(daoSourceId, fromBlock);
+  }
+
   async resetWatermarkForSource(daoSourceId: string, fromBlock?: bigint): Promise<number> {
     let query = this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derived_at: null, derivation_attempt_count: 0 })
-      .where('dao_source_id', '=', daoSourceId)
-      .where('confirmation_status', '=', 'confirmed');
+      .where('dao_source_id', '=', daoSourceId);
 
     if (fromBlock != null) {
       query = query.where('block_number', '>=', fromBlock.toString());
@@ -37,7 +40,7 @@ export class ArchiveDerivationAdminRepository {
 
   async resetWatermarkByConfirmationId(archiveConfirmationId: string): Promise<number> {
     const result = await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derived_at: null, derivation_attempt_count: 0 })
       .where('id', '=', archiveConfirmationId)
       .executeTakeFirst();

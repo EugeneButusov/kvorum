@@ -12,7 +12,7 @@ const ROW: ArchiveDerivationRow = {
   tx_hash: '0xtx',
   log_index: 1,
   event_type: 'test_event_created',
-  confirmed_at: new Date('2026-01-01T00:00:00Z'),
+  received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 2,
 };
 

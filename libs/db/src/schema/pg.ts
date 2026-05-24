@@ -140,6 +140,7 @@ export interface PgDatabase {
   proposal_action: ProposalActionTable;
   proposal_choice: ProposalChoiceTable;
   reorg_event: ReorgEventTable;
+  archive_event: ArchiveConfirmationTable;
   archive_confirmation: ArchiveConfirmationTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;

@@ -59,7 +59,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       }
 
       const oldest = watermark[0]!;
-      const lagSeconds = computeLagSeconds(oldest.confirmed_at);
+      const lagSeconds = computeLagSeconds(oldest.received_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
       const byDispatchKey = groupByDispatchKey(watermark);
       for (const [dispatchKey, rows] of byDispatchKey) {
@@ -116,9 +116,8 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   }
 }
 
-function computeLagSeconds(confirmedAt: Date | null): number {
-  if (confirmedAt === null) return 0;
-  return Math.max(0, (Date.now() - confirmedAt.getTime()) / 1000);
+function computeLagSeconds(receivedAt: Date): number {
+  return Math.max(0, (Date.now() - receivedAt.getTime()) / 1000);
 }
 
 function groupByDispatchKey(

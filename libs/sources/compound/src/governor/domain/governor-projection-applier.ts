@@ -148,7 +148,7 @@ export class GovernorProjectionApplier {
         source_type: row.source_type,
         chain_id: row.chain_id,
         block_number: row.block_number,
-        confirmed_at: row.confirmed_at,
+        confirmed_at: row.received_at,
       });
 
       await this.transaction(
