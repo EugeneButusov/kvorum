@@ -91,39 +91,7 @@ describe('createCompTokenPlugin', () => {
     expect(typeof spec.listener).toBe('function');
   });
 
-  it('P9 buildBackfillRuntime listenerFactory passes classifier and throw mode', () => {
-    const spy = vi.spyOn(ingesterListener, 'makeCompTokenIngesterListener');
-    const plugin = makePlugin();
-    const runtime = plugin.buildBackfillRuntime(CTX, { token_address: COMP_TOKEN_ADDRESS });
-    const classifier = vi.fn(() => 'confirmed' as const);
-
-    runtime.listenerFactory(classifier);
-
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith(
-      {
-        archiveWriter: mockArchiveWriter,
-        context: { ...CTX, confirmationClassifier: classifier },
-        logger: silentLogger,
-        dlqRepo: mockDlqRepo,
-      },
-      { onWriteFailure: 'throw' },
-    );
-  });
-
-  it('P10 buildIngestSpec uses pending classifier and throw mode', () => {
-    const spy = vi.spyOn(ingesterListener, 'makeCompTokenIngesterListener');
-    const plugin = makePlugin();
-
-    plugin.buildIngestSpec(CTX, { token_address: COMP_TOKEN_ADDRESS });
-
-    expect(spy).toHaveBeenCalledTimes(1);
-    const args = spy.mock.calls[0];
-    expect(args[1]).toEqual({ onWriteFailure: 'throw' });
-    expect(args[0].context.confirmationClassifier?.(1n)).toBe('pending');
-  });
-
-  it('P11 parseConfig strips unknown fields', () => {
+  it('P9 parseConfig strips unknown fields', () => {
     const plugin = makePlugin();
     const parsed = plugin.parseConfig({
       token_address: COMP_TOKEN_ADDRESS,
@@ -133,7 +101,7 @@ describe('createCompTokenPlugin', () => {
     expect((parsed as Record<string, unknown>).extra).toBeUndefined();
   });
 
-  it('P12 buildIngestSpec lowercases filter.address', () => {
+  it('P10 buildIngestSpec lowercases filter.address', () => {
     const plugin = makePlugin();
     const spec = plugin.buildIngestSpec(CTX, {
       token_address: UPPERCASE_COMP_TOKEN,
@@ -141,18 +109,18 @@ describe('createCompTokenPlugin', () => {
     expect(spec.filter.address).toBe(COMP_TOKEN_ADDRESS);
   });
 
-  it('P13 parseConfig rejects non-COMP valid address with token_address refinement path', () => {
+  it('P11 parseConfig rejects non-COMP valid address with token_address refinement path', () => {
     expect(() => makePlugin().parseConfig({ token_address: `0x${'a'.repeat(40)}` })).toThrowError(
       /token_address must equal canonical COMP token/i,
     );
   });
 
-  it('P14 buildBackfillRuntime returns stable runtime shape', () => {
+  it('P12 buildBackfillRuntime returns stable runtime shape', () => {
     const plugin = makePlugin();
     const runtime = plugin.buildBackfillRuntime(CTX, { token_address: COMP_TOKEN_ADDRESS });
 
     expect(Object.keys(runtime).sort()).toEqual(['filter', 'listenerFactory']);
-    expect(runtime.listenerFactory).toHaveLength(1);
+    expect(runtime.listenerFactory).toHaveLength(0);
     expect(runtime.filter).toEqual(
       expect.objectContaining({
         address: COMP_TOKEN_ADDRESS,

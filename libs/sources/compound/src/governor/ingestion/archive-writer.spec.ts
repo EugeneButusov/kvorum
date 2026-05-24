@@ -65,7 +65,7 @@ function makeEventRepo(
   } as unknown as GovernorEventRepository;
 }
 
-function makeConfirmationRepo(
+function makeArchiveEventRepo(
   overrides: Partial<{
     find: ReturnType<typeof vi.fn>;
     insert: ReturnType<typeof vi.fn>;
@@ -88,13 +88,13 @@ function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = 
 function buildWriter(
   overrides: {
     eventRepo?: GovernorEventRepository;
-    confirmationRepo?: ArchiveEventRepository;
+    archiveEventRepo?: ArchiveEventRepository;
     dlqRepo?: DlqRepository;
   } = {},
 ): GovernorArchiveWriter {
   return new GovernorArchiveWriter({
     eventRepo: overrides.eventRepo ?? makeEventRepo(),
-    confirmationRepo: overrides.confirmationRepo ?? makeConfirmationRepo(),
+    archiveEventRepo: overrides.archiveEventRepo ?? makeArchiveEventRepo(),
     dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
     logger: silentLogger,
     now: () => new Date('2026-01-01T00:00:00Z'),
@@ -106,53 +106,53 @@ function buildWriter(
 describe('GovernorArchiveWriter', () => {
   it('#1 — happy path: existence check empty → archive insert → confirmation insert → outcome inserted', async () => {
     const eventRepo = makeEventRepo();
-    const confirmationRepo = makeConfirmationRepo();
-    const outcome = await buildWriter({ eventRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
+    const archiveEventRepo = makeArchiveEventRepo();
+    const outcome = await buildWriter({ eventRepo, archiveEventRepo }).write(CTX, DECODED, LOG_REF);
 
     expect(outcome.result).toBe('inserted');
     expect(eventRepo.insert).toHaveBeenCalledTimes(1);
-    expect(confirmationRepo.insert).toHaveBeenCalledTimes(1);
+    expect(archiveEventRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#2 — existence-skip: existing row found → archive + confirmation NOT called, outcome skipped_existing', async () => {
     const eventRepo = makeEventRepo();
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       find: vi.fn().mockResolvedValue({ id: 'existing' }),
     });
-    const outcome = await buildWriter({ eventRepo, confirmationRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ eventRepo, archiveEventRepo }).write(CTX, DECODED, LOG_REF);
 
     expect(outcome.result).toBe('skipped_existing');
     expect(eventRepo.insert).not.toHaveBeenCalled();
-    expect(confirmationRepo.insert).not.toHaveBeenCalled();
+    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
   });
 
   it('#3 — conflict: existence empty → archive insert → confirmation returns undefined → skipped_conflict', async () => {
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockResolvedValue(undefined),
     });
-    const outcome = await buildWriter({ confirmationRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF);
 
     expect(outcome.result).toBe('skipped_conflict');
   });
 
-  it('#4 — confirmationRepo.insert throws → DLQ routed, outcome pg_dlq_routed', async () => {
-    const confirmationRepo = makeConfirmationRepo({
+  it('#4 — archiveEventRepo.insert throws → DLQ routed, outcome pg_dlq_routed', async () => {
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg error')),
     });
     const dlqRepo = makeDlqRepo();
 
-    const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('dlq_routed');
     expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
   it('#5 — DLQ insert itself fails → outcome pg_unreachable', async () => {
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg error')),
     });
     const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('dlq down')) });
 
-    const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    const outcome = await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('unreachable');
   });
 
@@ -160,16 +160,16 @@ describe('GovernorArchiveWriter', () => {
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('connection refused')),
     });
-    const confirmationRepo = makeConfirmationRepo();
+    const archiveEventRepo = makeArchiveEventRepo();
     const dlqRepo = makeDlqRepo();
 
-    const outcome = await buildWriter({ eventRepo, confirmationRepo, dlqRepo }).write(
+    const outcome = await buildWriter({ eventRepo, archiveEventRepo, dlqRepo }).write(
       CTX,
       DECODED,
       LOG_REF,
     );
     expect(outcome.result).toBe('dlq_routed');
-    expect(confirmationRepo.insert).not.toHaveBeenCalled();
+    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
     expect(dlqRepo.insert).toHaveBeenCalledTimes(1);
   });
 
@@ -198,7 +198,7 @@ describe('GovernorArchiveWriter', () => {
 
   it('#9 — DLQ payload is raw-only: { raw: { topics, data }, block_number }', async () => {
     let capturedDlqRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg')),
     });
     const dlqRepo = makeDlqRepo({
@@ -208,7 +208,7 @@ describe('GovernorArchiveWriter', () => {
       }),
     });
 
-    await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     const payload = (capturedDlqRow as Record<string, unknown>)['payload'] as Record<
       string,
       unknown
@@ -224,7 +224,7 @@ describe('GovernorArchiveWriter', () => {
   it('#10 — DLQ error field is shaped { name, message, code, stack }', async () => {
     const cause = Object.assign(new Error('FK violation'), { code: '23503', stack: 'stack...' });
     let capturedDlqRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({ insert: vi.fn().mockRejectedValue(cause) });
+    const archiveEventRepo = makeArchiveEventRepo({ insert: vi.fn().mockRejectedValue(cause) });
     const dlqRepo = makeDlqRepo({
       insert: vi.fn().mockImplementation((row: unknown) => {
         capturedDlqRow = row;
@@ -232,7 +232,7 @@ describe('GovernorArchiveWriter', () => {
       }),
     });
 
-    await buildWriter({ confirmationRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
+    await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     const error = (capturedDlqRow as Record<string, unknown>)['error'];
     expect(error).toMatchObject({ name: 'Error', message: 'FK violation', code: '23503' });
     expect((error as Record<string, unknown>)['stack']).toBeDefined();
@@ -240,7 +240,7 @@ describe('GovernorArchiveWriter', () => {
 
   it('#11 — two concurrent writes for same 5-tuple: one inserted, one skipped_conflict', async () => {
     let callCount = 0;
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockImplementation(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? { id: 'uuid-1' } : undefined);
@@ -248,80 +248,15 @@ describe('GovernorArchiveWriter', () => {
     });
 
     const [r1, r2] = await Promise.all([
-      buildWriter({ confirmationRepo }).write(CTX, DECODED, LOG_REF),
-      buildWriter({ confirmationRepo }).write(CTX, DECODED, LOG_REF),
+      buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF),
+      buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF),
     ]);
     expect([r1.result, r2.result].sort()).toEqual(['inserted', 'skipped_conflict']);
   });
 
-  // ---- Classifier (backfill path, decision #2 + S3) ----
-
-  it('#12 — classifier returning confirmed: =confirmed, confirmed_at=receivedAt', async () => {
-    const fixedNow = new Date('2026-03-01T12:00:00Z');
-    let capturedRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({
-      insert: vi.fn().mockImplementation((row: unknown) => {
-        capturedRow = row;
-        return Promise.resolve({ id: 'uuid-c' });
-      }),
-    });
-
-    const ctx: ArchiveWriteContext = {
-      ...CTX,
-      confirmationClassifier: () => 'confirmed',
-    };
-    const writer = new GovernorArchiveWriter({
-      eventRepo: makeEventRepo(),
-      confirmationRepo,
-      dlqRepo: makeDlqRepo(),
-      logger: silentLogger,
-      now: () => fixedNow,
-    });
-
-    const outcome = await writer.write(ctx, DECODED, LOG_REF);
-    expect(outcome.result).toBe('inserted');
-    const row = capturedRow as Record<string, unknown>;
-    expect(row['']).toBe('confirmed');
-    expect(row['confirmed_at']).toEqual(fixedNow);
-  });
-
-  it('#13 — classifier boundary: blockNumber === cutoffBlock ⇒ confirmed (<=)', async () => {
-    const cutoff = LOG_REF.blockNumber;
-    let capturedRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({
-      insert: vi.fn().mockImplementation((row: unknown) => {
-        capturedRow = row;
-        return Promise.resolve({ id: 'uuid-d' });
-      }),
-    });
-
-    const ctx: ArchiveWriteContext = {
-      ...CTX,
-      confirmationClassifier: (bn) => (bn <= cutoff ? 'confirmed' : 'pending'),
-    };
-
-    await buildWriter({ confirmationRepo }).write(ctx, DECODED, LOG_REF);
-    expect((capturedRow as Record<string, unknown>)['']).toBe('confirmed');
-  });
-
-  it('#14 — no classifier (live path): =pending, confirmed_at=null', async () => {
-    let capturedRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({
-      insert: vi.fn().mockImplementation((row: unknown) => {
-        capturedRow = row;
-        return Promise.resolve({ id: 'uuid-e' });
-      }),
-    });
-
-    await buildWriter({ confirmationRepo }).write(CTX, DECODED, LOG_REF);
-    const row = capturedRow as Record<string, unknown>;
-    expect(row['']).toBe('pending');
-    expect(row['confirmed_at']).toBeNull();
-  });
-
-  it('#15 — VoteCast routes to archive_event_stage on confirmation insert failure', async () => {
+  it('#12 — VoteCast routes to archive_event_stage on confirmation insert failure', async () => {
     let capturedDlqRow: unknown;
-    const confirmationRepo = makeConfirmationRepo({
+    const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg')),
     });
     const dlqRepo = makeDlqRepo({
@@ -331,7 +266,7 @@ describe('GovernorArchiveWriter', () => {
       }),
     });
 
-    const outcome = await buildWriter({ confirmationRepo, dlqRepo }).write(
+    const outcome = await buildWriter({ archiveEventRepo, dlqRepo }).write(
       CTX,
       VOTECAST_DECODED,
       LOG_REF,
@@ -340,7 +275,7 @@ describe('GovernorArchiveWriter', () => {
     expect((capturedDlqRow as { stage: string }).stage).toBe('archive_event_stage');
   });
 
-  it('#16 — proposal events route to archive_event_stage on CH insert failure', async () => {
+  it('#13 — proposal events route to archive_event_stage on CH insert failure', async () => {
     let capturedDlqRow: unknown;
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('ch down')),
@@ -357,7 +292,7 @@ describe('GovernorArchiveWriter', () => {
     expect((capturedDlqRow as { stage: string }).stage).toBe('archive_event_stage');
   });
 
-  it('#17 — VoteCast routes to archive_event_stage on CH insert failure', async () => {
+  it('#14 — VoteCast routes to archive_event_stage on CH insert failure', async () => {
     let capturedDlqRow: unknown;
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('ch down')),

@@ -13,7 +13,7 @@ describe('runBootCatchUp', () => {
         id: 'src-1',
         source_type: 'compound_governor_bravo',
         active_from_block: '100',
-        backfill_head_block: '200',
+        backfill_head_block: '205',
       }),
     };
 
