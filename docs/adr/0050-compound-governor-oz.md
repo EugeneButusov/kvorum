@@ -18,7 +18,7 @@ Add a new source type `compound_governor_oz` and reuse existing Compound M1 prim
 - `source_type.value = 'compound_governor_oz'`
 - `dao_source` row for `compound` with `governor_address=0x309a...c8C0` and `active_from_block=21688680`
 
-2. Keep ClickHouse archive table unchanged (shared `event_archive_compound_governor_bravo` remains valid).
+2. Keep ClickHouse archive table unchanged (shared `archive_event_compound_governor_bravo` remains valid).
 3. Add `createCompoundGovernorOzPlugin` and include it in `createCompoundPlugins`.
 4. Extend `CompoundProjectionApplier.sourceTypes` to include `compound_governor_oz`.
 5. Extend reconciler coverage by changing `CompoundStateReconciler.sourceType` to `sourceTypes = ['compound_governor_bravo', 'compound_governor_oz']`.

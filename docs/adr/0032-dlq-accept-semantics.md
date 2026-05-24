@@ -28,7 +28,7 @@ Each is a different operation. Without a definition, an operator running `accept
 Behavior:
 
 1. The DLQ entry is moved from `ingestion_dlq` to `ingestion_dlq_resolved`, an archive table with the same shape plus `resolved_at`, `resolved_by` (operator identity from SSH/sudo context per §6.20.1), `resolution_kind` (`accepted` here; `retry_succeeded` for entries cleared by `dlq retry`), and `reason` (free text, required).
-2. The original event in the event archive (`event_archive_*`) is _not_ modified — its `confirmation_status` remains whatever it was.
+2. The original event in the event archive (`archive_event_*` in ClickHouse and `archive_event` in Postgres) is _not_ modified.
 3. The audit log records the command per §6.20.1's audit policy.
 
 If the operator has corrected the underlying state via direct DB intervention (a separate, more dangerous act), that correction is its own audit-log entry and is not implied by `dlq accept`. The runbook for manual data correction explicitly states: _"After making the correction, run `dlq accept` with `--reason "manually corrected: <details>"` to clear the DLQ entry."_

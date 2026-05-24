@@ -28,7 +28,7 @@ Per source at boot:
 2. Wait for first **successful** tick head `L` (`onFirstHeadComplete`).
 3. Run boot catch-up in background over `[floor + 1, L - 2H]`.
 
-`H = reorgHorizon` and `L - 2H` is below reorg-sensitive range by construction.
+`H = headLag` and `L - 2H` is below reorg-sensitive range by construction.
 
 ### 3. Catch-up mode in `BackfillDriver`
 

@@ -114,7 +114,7 @@ curl http://localhost:9091/metrics | head -3
 admin-cli backfill start compound_governor_bravo --dry-run --format json
 
 # Snapshot state before crash-resume test (mid-run)
-# S_pre_count = archive_confirmation row count
+# S_pre_count = archive_event row count
 # S_pre_hash  = sha256 of sorted (source_type, chain_id, tx_hash, log_index, block_hash) 5-tuples
 
 # Start the actual run (~30 min wall-clock)
@@ -158,9 +158,9 @@ psql -c "SELECT backfill_started_at_block, backfill_head_block FROM dao_source W
 # (b) derivation backlog = 0
 psql -c "
   SELECT
-    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo') AS archived,
+    (SELECT count(*) FROM archive_event WHERE source_type='compound_governor_bravo') AS archived,
     (SELECT count(*) FROM proposal           WHERE source_type='compound_governor_bravo') AS derived,
-    (SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo')
+    (SELECT count(*) FROM archive_event WHERE source_type='compound_governor_bravo')
       - (SELECT count(*) FROM proposal       WHERE source_type='compound_governor_bravo') AS backlog
 "
 
@@ -315,10 +315,10 @@ psql -c "
 
 ```bash
 # CH count (FINAL for ReplacingMergeTree dedup)
-chsql --query "SELECT count() FROM event_archive_compound_governor_bravo FINAL"
+chsql --query "SELECT count() FROM archive_event_compound_governor_bravo FINAL"
 
 # PG count
-psql -c "SELECT count(*) FROM archive_confirmation WHERE source_type='compound_governor_bravo'"
+psql -c "SELECT count(*) FROM archive_event WHERE source_type='compound_governor_bravo'"
 
 # DLQ size
 psql -c "SELECT count(*) FROM dlq WHERE source_type='compound_governor_bravo'"

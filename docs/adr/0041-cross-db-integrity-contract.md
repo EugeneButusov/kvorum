@@ -7,7 +7,7 @@
 
 ## Context
 
-ADR-038 splits the event archive into a ClickHouse data plane (immutable raw events) and a Postgres `archive_confirmation` control plane (mutable status). The ADR enumerates failure modes briefly (lines 64–68) but does not specify the **write protocol** F1 must follow, the **idempotency-check pattern**, the **retry semantics**, or what the deferred-to-M2 reconciliation job actually does. Three review concerns surfaced these as gaps:
+ADR-038 splits the event archive into a ClickHouse data plane (immutable raw events) and a Postgres `archive_event` control plane (mutable status). The ADR enumerates failure modes briefly (lines 64–68) but does not specify the **write protocol** F1 must follow, the **idempotency-check pattern**, the **retry semantics**, or what the deferred-to-M2 reconciliation job actually does. Three review concerns surfaced these as gaps:
 
 1. F1 author has no committed contract for "have I already written event X?" — leaving the choice to runtime invention risks inconsistency between the two writers (real-time path + backfill).
 2. The ADR-038 framing "DLQ catches the PG retry" is misleading because the DLQ table lives in Postgres — if PG is unreachable, the DLQ row cannot be written either.
@@ -21,11 +21,11 @@ This ADR fixes the contract.
 
 Every archive write — whether real-time (F1 from polling) or backfill (I1) — follows this sequence:
 
-1. **PG-first existence check.** Read `archive_confirmation` by the 5-tuple `(source_type, chain_id, tx_hash, log_index, block_hash)`. If a row exists with `confirmation_status IN ('pending', 'confirmed')`, the event is already persisted — return success without writing.
+1. **PG-first existence check.** Read `archive_event` by the 5-tuple `(source_type, chain_id, tx_hash, log_index, block_hash)`. If a row exists with `confirmation_status IN ('pending', 'confirmed')`, the event is already persisted — return success without writing.
 2. **CH insert.** `INSERT INTO event_archive_<source> VALUES (...)`. ClickHouse's `ReplacingMergeTree(received_at)` absorbs duplicates from concurrent or retried writes idempotently (eventually); the insert is safe to repeat.
-3. **PG insert.** `INSERT INTO archive_confirmation (...) VALUES (...) ON CONFLICT DO NOTHING` on the 5-tuple unique index. The `confirmation_status` written depends on the writer: F1 writes `'pending'`; I1 writes `'confirmed'` directly per ADR-027.
+3. **PG insert.** `INSERT INTO archive_event (...) VALUES (...) ON CONFLICT DO NOTHING` on the 5-tuple unique index. The `confirmation_status` written depends on the writer: F1 writes `'pending'`; I1 writes `'confirmed'` directly per ADR-027.
 4. **Bounded in-process retry.** Wrap step 3 in 3 attempts × exponential backoff (200ms, 600ms, 1.8s). On exhaustion, route to DLQ via step 5.
-5. **DLQ on persistent PG failure.** If step 3 exhausts retries, write `ingestion_dlq` with `stage='archive_confirmation_write'`, `event_archive_key` carrying the 5-tuple as typed columns. If PG is itself unreachable for the DLQ insert, increment Prometheus counter `kvorum_dual_write_pg_unreachable_total` and abort the worker poll cycle — the next poll re-runs step 1 and finds the CH row already present.
+5. **DLQ on persistent PG failure.** If step 3 exhausts retries, write `ingestion_dlq` with `stage='archive_event_write'`, `event_archive_key` carrying the 5-tuple as typed columns. If PG is itself unreachable for the DLQ insert, increment Prometheus counter `kvorum_dual_write_pg_unreachable_total` and abort the worker poll cycle — the next poll re-runs step 1 and finds the CH row already present.
 
 The PG-first check is the load-bearing primitive: it makes step 1 the source-of-truth for "did this event get persisted," removes the dependency on CH eventual-merge timing, and lets the worker be stateless.
 
@@ -33,7 +33,7 @@ The PG-first check is the load-bearing primitive: it makes step 1 the source-of-
 
 Readers that need the raw payload follow this sequence:
 
-1. **PG selects** canonical-confirmed `archive_confirmation` rows for the source (using the `derived_at` watermark).
+1. **PG selects** canonical-confirmed `archive_event` rows for the source (using the `derived_at` watermark).
 2. **CH lookup** by the 5-tuple, with `SELECT ... FINAL` modifier to force at-read deduplication. This handles the merge-window window where two physical rows exist for one logical idempotency key.
 
 `SELECT ... FINAL` carries a query-cost penalty (per-granule dedup) but is correct under all merge states. For batched lookups (G1's typical pattern: 100 confirmed PG rows → 1 CH lookup), the cost is amortized across the batch.
@@ -44,7 +44,7 @@ G1 batches its CH lookups: select up to 500 confirmed PG rows ordered by `(dao_s
 
 ```sql
 SELECT chain_id, tx_hash, log_index, block_hash, payload
-FROM event_archive_compound_governor_bravo FINAL
+FROM archive_event_compound_governor_bravo FINAL
 WHERE (chain_id, tx_hash, log_index, block_hash) IN (
   (1, '0xabc...', 0, '0xdef...'),
   ...
@@ -57,14 +57,14 @@ The 500-row batch size is the tuned default; revisit if `kvorum_derivation_batch
 
 A periodic reconciliation job (M2 deliverable) catches the small inconsistency window where step 2 (CH insert) succeeds but step 3 (PG insert) fails before any DLQ write:
 
-- **CH-orphan sweep.** Hourly, query CH for rows with `received_at < now() - INTERVAL 1 HOUR` (older than the F1 retry budget) and check whether `archive_confirmation` has the matching tuple. If not, insert a `pending` row in PG; the normal F2 promotion sweep then handles confirmation.
-- **PG-orphan sweep.** Symmetrically, query PG for `archive_confirmation` rows whose CH counterparts are missing (per `SELECT 1 FROM event_archive_<source> FINAL WHERE ...`). If found, route to DLQ with `stage='reconciliation_pg_orphan'` for operator inspection — this case should not happen under the write protocol above and indicates a bug.
+- **CH-orphan sweep.** Hourly, query CH for rows with `received_at < now() - INTERVAL 1 HOUR` (older than the F1 retry budget) and check whether `archive_event` has the matching tuple. If not, insert a `pending` row in PG; the normal F2 promotion sweep then handles confirmation.
+- **PG-orphan sweep.** Symmetrically, query PG for `archive_event` rows whose CH counterparts are missing (per `SELECT 1 FROM event_archive_<source> FINAL WHERE ...`). If found, route to DLQ with `stage='reconciliation_pg_orphan'` for operator inspection — this case should not happen under the write protocol above and indicates a bug.
 
 Reconciliation does **not** run in M1. The risk window is the few minutes between an F1 worker crash and the next worker startup, with PG unreachable as the failure mode. M1 accepts this window; M2 closes it.
 
 ### Reorg semantics
 
-F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows in Postgres only. ClickHouse archive rows are never updated — the canonical-vs-orphaned distinction lives entirely in `archive_confirmation.confirmation_status` and the partial unique index on canonical rows. Two CH rows with different `block_hash` for the same `(chain_id, tx_hash, log_index)` is the expected representation of a reorg trace; G1's read protocol filters via the PG canonical-row selection, so orphaned-block payloads never reach derivation.
+F2 reorg detection writes `reorg_event` and updates `archive_event` rows in Postgres only. ClickHouse archive rows are never updated — the canonical-vs-orphaned distinction lives entirely in `archive_event.confirmation_status` and the partial unique index on canonical rows. Two CH rows with different `block_hash` for the same `(chain_id, tx_hash, log_index)` is the expected representation of a reorg trace; G1's read protocol filters via the PG canonical-row selection, so orphaned-block payloads never reach derivation.
 
 ## Alternatives considered
 
@@ -79,7 +79,7 @@ F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows 
 - **F1 contract is fully specified.** The PG-first check, CH-then-PG write order, retry budget, and DLQ fallback are all part of F1's PR review surface.
 - **G1 contract is fully specified.** Read protocol with `FINAL` modifier and 500-row batch size are committed defaults.
 - **M2 inherits the reconciliation job** as a tracked deliverable (CH-orphan sweep, hourly cadence).
-- **DLQ schema gains `stage` values** `'archive_confirmation_write'` and `'reconciliation_pg_orphan'` (defined as text values, not enum, per existing DLQ design).
+- **DLQ schema gains `stage` values** `'archive_event_write'` and `'reconciliation_pg_orphan'` (defined as text values, not enum, per existing DLQ design).
 - **`ReplacingMergeTree(received_at)` semantic** is now documented: `received_at` is the **most-recent observation timestamp**, not first-observation. F1 may legitimately re-observe the same canonical event via polling fallback (per SPEC §3.3), and the kept value advances with each observation. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
 - **Smoke tests** use `SELECT ... FINAL` rather than `OPTIMIZE TABLE FINAL`. The latter is reserved for manual operator intervention only and is documented as such in the runbook.
 - **Prometheus metrics** introduced (M1 scope, surfaced through F1's existing instrumentation):
@@ -89,7 +89,7 @@ F2 reorg detection writes `reorg_event` and updates `archive_confirmation` rows 
 
 ## Implementation notes
 
-- The PG-first existence check uses the `archive_confirmation` 5-tuple unique index — index-only scan, no heap access in the common case.
+- The PG-first existence check uses the `archive_event` 5-tuple unique index — index-only scan, no heap access in the common case.
 - ClickHouse's `OPTIMIZE TABLE event_archive_<source> FINAL` is **never** issued by application code or scheduled jobs. It rewrites entire parts and is reserved for manual operator intervention (e.g., post-bulk-backfill compaction). Documented in the M1 runbook.
 - F1's write path emits structured logs at each step transition (`archive_check_skip`, `ch_inserted`, `pg_inserted`, `dlq_routed`) keyed by the 5-tuple, supporting per-event forensics without enabling debug-level logging.
 
@@ -124,7 +124,7 @@ F1 implementation review surfaced a stale-tombstone hazard in the §2 `archive_c
 - The listener (F1c's `makeIngesterListener`) wraps each per-event `archiveWriter.write()` call in its own try/catch. On a CH-insert exception it increments a dedicated counter `kvorum_archive_ch_write_errors_total{source}`, logs the failure with the 5-tuple, and **continues the batch** to the next event.
 - The next 12-s EventPoller tick re-fetches the window and re-runs step 1 → finds no PG row → retries CH insert (ReplacingMergeTree absorbs the duplicate if both eventually land).
 
-This preserves the original §2 motivation ("a single CH glitch must not drop the rest of the batch") via per-event isolation at the listener rather than at the writer. It also removes the `archive_ch_write` value from the DLQ `stage` enum — the supported stages in M1 are `archive_confirmation_write` (step 3 exhaustion or permanent error), `archive_decode` (DecodeError on a filtered log), and `reconciliation_pg_orphan` (M2 reconciliation, deferred).
+This preserves the original §2 motivation ("a single CH glitch must not drop the rest of the batch") via per-event isolation at the listener rather than at the writer. It also removes the `archive_ch_write` value from the DLQ `stage` enum — the supported stages in M1 are `archive_event_write` (step 3 exhaustion or permanent error), `archive_decode` (DecodeError on a filtered log), and `reconciliation_pg_orphan` (M2 reconciliation, deferred).
 
 §1 (transient PG error classification), §3 (server-stamped `received_at`), and §4 (raw-only DLQ payload) of the 2026-05-11 rider are unaffected and stand as written.
 
@@ -139,10 +139,18 @@ The 2026-05-11 rider's "DLQ schema gains stage value `archive_ch_write`" line is
 
 ---
 
-## Rider — 2026-05-12 (race-window narrow 23505)
+## Rider — 2026-05-12 (race-window narrow 23505) — **RETRACTED 2026-05-24**
+
+> **Retracted by ADR-058 (2026-05-24).** This rider's rationale was specific to the pending/orphaned
+> status plane and the reorg window. With confirmed-head-only ingestion every insert is canonical
+> at write time; the `idx_archive_event_canonical` partial unique no longer exists; and the
+> ReorgWatcherService that created the race condition has been deleted. The 4-tuple
+> `archive_event_idempotency_key` is a true unique (not partial), so 23505 on conflict is handled
+> entirely by `ON CONFLICT DO NOTHING` and never triggers the retry path described here.
+> Riders 1 and 2 survive verbatim.
 
 Refines the 2026-05-11 rider §1 ("23xxx → DLQ on first failure"). Carve out one
-narrow exception: 23505 raised by `idx_archive_confirmation_canonical` (the
+narrow exception: 23505 raised by `idx_archive_event_canonical` (the
 4-tuple partial unique) is retriable transient.
 
 Rationale: the EventPoller can observe a new-branch event before
@@ -166,14 +174,19 @@ unchanged. On exhaustion the row still DLQs.
 Known M1 limitation: the retry budget (2.6 s cumulative) may exhaust before the
 watcher transaction commits under severe PG pool saturation. On exhaustion the
 row routes to `ingestion_dlq` and is NOT recovered by the orphan-state
-reconciliation sweep (that sweep walks `archive_confirmation`, not DLQ rows).
+reconciliation sweep (that sweep walks `archive_event`, not DLQ rows).
 Operator `admin-cli dlq retry` is required in that case. M2 may add a longer
 backoff class for the canonical-partial-unique constraint if the DLQ-on-race-window
 rate is non-trivial in production.
 
 ---
 
-## Rider — 2026-05-12 (orphan-state reconciliation sweep, narrow coverage)
+## Rider — 2026-05-12 (orphan-state reconciliation sweep, narrow coverage) — **RETRACTED 2026-05-24**
+
+> **Retracted by ADR-058 (2026-05-24).** This rider described a sweep to catch archive rows that
+> remained `pending` after a reorg transaction race. With confirmed-head-only ingestion there is no
+> `pending` status, no `reorg_event` table, and no orphan-state transition. The sweep, its metrics,
+> and the M2 "reorg signal WAL" sub-task it referenced are all dissolved.
 
 Extends the M2 reconciliation contract (Decision §Reconciliation job) with a
 third sweep covering a narrow orphan-state inconsistency window.
@@ -205,7 +218,7 @@ Sweep design — narrow orphan-state reconciliation (M2):
 - Hourly, for each chain, build the union U of all
   reorg_event.orphaned_block_hashes for detected_at > now() - INTERVAL 7 DAY
   (or since last reconciliation watermark).
-- Query archive_confirmation WHERE block_hash IN U AND
+- Query archive_event WHERE block_hash IN U AND
   confirmation_status <> 'orphaned'.
 - For each such row, transition to orphaned with orphaned_at = now() and
   orphaned_by_reorg_event_id set to the reorg event that lists the block hash.

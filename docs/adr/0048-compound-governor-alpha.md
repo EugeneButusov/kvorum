@@ -77,8 +77,8 @@ Unnecessary; `ProposalCreated` and all three lifecycle events are ABI-compatible
 
 ### Data correctness (archive, confirmation, projection)
 
-- **Archive (ClickHouse) — safe.** `event_archive_compound_governor_bravo` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Cross-source dedup safety relies on log-coordinate global uniqueness (`tx_hash`+`log_index`+`block_hash` identifies one emitted log globally), so Alpha and Bravo rows are disjoint in the dedup key space.
-- **Confirmation (Postgres) — safe.** The `archive_confirmation` idempotency and canonical uniqueness keys both lead with `source_type`, so Alpha and Bravo confirmations occupy distinct key spaces.
+- **Archive (ClickHouse) — safe.** `archive_event_compound_governor_bravo` is `ReplacingMergeTree(received_at)` ordered by `(chain_id, block_number, tx_hash, log_index, block_hash)`; it has no `source_type` column. Cross-source dedup safety relies on log-coordinate global uniqueness (`tx_hash`+`log_index`+`block_hash` identifies one emitted log globally), so Alpha and Bravo rows are disjoint in the dedup key space.
+- **Confirmation (Postgres) — safe.** The `archive_event` idempotency and canonical uniqueness keys both lead with `source_type`, so Alpha and Bravo confirmations occupy distinct key spaces.
 - **Projection — no corruption, but a semantic split.** The derived `proposal` natural key is `(dao_id, source_type, source_id)`. Compound's proposal-id counter is _continuous_ across the two contracts (Alpha 1–~64, Bravo ~65–present), but indexing Alpha under a distinct `source_type` partitions that single id space into two namespaces under one DAO. There is **no collision, no duplication, no mis-attribution** (Alpha and Bravo id ranges are disjoint anyway, and `source_type` further separates them). State transitions (`advanceState`, keyed on `source_type`+`source_id`) resolve correctly because each contract emits its own proposals' lifecycle events. Dispatch for the new source type is explicitly covered by the `sourceTypes[]` applier contract above.
 
 ### Read model / API surface

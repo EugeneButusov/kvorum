@@ -20,7 +20,7 @@ Store block-anchored voting windows as block numbers first:
 - Add nullable `proposal.voting_starts_block` and `proposal.voting_ends_block`.
 - Make `proposal.voting_starts_at` and `proposal.voting_ends_at` nullable derived caches.
 - For Compound Governor, write `startBlock` and `endBlock` verbatim into the block columns during proposal derivation.
-- Fill timestamp columns lazily after the corresponding block is mined and beyond the configured reorg horizon.
+- Fill timestamp columns lazily after the corresponding block is mined and beyond the configured head lag.
 - For timestamp-anchored sources such as Snapshot, leave block columns NULL and write timestamp columns directly.
 
 This ADR amends SPEC 2.4.4, 4.5, and 4.7. API filters and sorting on `voting_starts_at` must tolerate NULL values, and proposal responses may contain NULL voting timestamps before the lazy fill has resolved them.

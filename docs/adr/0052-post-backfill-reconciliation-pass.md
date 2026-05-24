@@ -80,7 +80,7 @@ still watermarked via `markReconcileChecked` so the live reconciler skips them o
 ### 3. Confirmed threshold equals backfill cutoff
 
 The reconciler needs a `confirmedThresholdBlock` to gate eligibility (`voting_ends_block <
-confirmedThresholdBlock`). The backfill cutoff (`head − 2 × reorgHorizon`) is the correct value:
+confirmedThresholdBlock`). The backfill cutoff (`head − 2 × headLag`) is the correct value:
 events at or below that block are confirmed, and any proposal whose voting window closed before it
 is eligible. Using the same block keeps the two subsystems' definitions of "confirmed" consistent
 (ADR-046).
