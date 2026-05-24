@@ -11,6 +11,8 @@ type ProposalTable = {
   created_at: string;
   voting_starts_at: string | null;
   score: number;
+  voting_power_reported: string;
+  block_number: string;
 };
 
 type TestDb = {
@@ -40,7 +42,9 @@ const descriptor: EndpointQuery = {
   sortable: {
     created_at: { column: 'proposal.created_at', kind: 'time' },
     voting_starts_at: { column: 'proposal.voting_starts_at', nullable: true, kind: 'time' },
-    score: { column: 'proposal.score' },
+    score: { column: 'proposal.score', kind: 'numeric' },
+    voting_power_reported: { column: 'proposal.voting_power_reported', kind: 'numeric' },
+    block_number: { column: 'proposal.block_number', kind: 'bigint' },
   },
   defaultSort: [{ field: 'created_at', dir: 'asc' }],
   tiebreakColumn: 'proposal.id',
@@ -144,6 +148,28 @@ describe('applyQuery', () => {
 
     expect(compiled.sql).toContain('order by proposal.score asc');
     expect(compiled.sql).not.toContain("date_trunc('milliseconds', proposal.score)");
+  });
+
+  it('supports numeric and bigint sort kinds with direct column ordering', () => {
+    const numeric = parseQuery({ sort: '-voting_power_reported' }, descriptor);
+    const numericSql = applyQuery(
+      db.selectFrom('proposal').selectAll(),
+      numeric,
+      descriptor,
+      10,
+    ).compile().sql;
+    expect(numericSql).toContain('order by proposal.voting_power_reported desc');
+    expect(numericSql).not.toContain("date_trunc('milliseconds', proposal.voting_power_reported)");
+
+    const bigint = parseQuery({ sort: 'block_number' }, descriptor);
+    const bigintSql = applyQuery(
+      db.selectFrom('proposal').selectAll(),
+      bigint,
+      descriptor,
+      10,
+    ).compile().sql;
+    expect(bigintSql).toContain('order by proposal.block_number asc');
+    expect(bigintSql).not.toContain("date_trunc('milliseconds', proposal.block_number)");
   });
 
   it('rejects injection-shaped sort/filter names during parsing', () => {

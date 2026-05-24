@@ -66,6 +66,7 @@ export class ProposalController {
 
     const sort = parsed.sort[0] ?? PER_DAO_PROPOSAL_QUERY.defaultSort[0];
     const page = buildPagination(rows, limit, (row) => ({
+      type: 'time',
       value: primarySortValue(row, sort?.field ?? 'created_at', sort?.dir ?? 'desc'),
       tiebreak: row.id,
       dir: sort?.dir ?? 'desc',
@@ -129,6 +130,7 @@ export class ProposalController {
 
     const sort = parsed.sort[0] ?? CROSS_DAO_PROPOSAL_QUERY.defaultSort[0];
     const page = buildPagination(rows, limit, (row) => ({
+      type: 'time',
       value: primarySortValue(row, sort?.field ?? 'created_at', sort?.dir ?? 'desc'),
       tiebreak: row.id,
       dir: sort?.dir ?? 'desc',

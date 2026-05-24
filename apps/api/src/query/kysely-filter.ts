@@ -72,10 +72,18 @@ function toComparator(op: 'eq' | 'gte' | 'lte'): '=' | '>=' | '<=' {
   }
 }
 
-function sortExpression(column: string, dir: 'asc' | 'desc', nullable: boolean, kind?: 'time') {
+function sortExpression(
+  column: string,
+  dir: 'asc' | 'desc',
+  nullable: boolean,
+  kind?: 'time' | 'numeric' | 'bigint',
+) {
   if (!nullable) {
     if (kind === 'time') {
       return sql`date_trunc('milliseconds', ${sql.raw(column)})`;
+    }
+    if (kind === 'numeric' || kind === 'bigint') {
+      return sql.raw(column);
     }
     return sql.raw(column);
   }

@@ -49,13 +49,14 @@ async function run() {
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kvorum-ch-migrations-'));
   try {
-    for (const file of files) {
-      // clickhouse-migrations requires filenames to start with a number.
-      // Source files use <source>_NNN_<name>.sql; strip the source prefix
-      // so compound_001_archive.sql → 001_compound_archive.sql.
+    for (const [index, file] of files.entries()) {
+      // clickhouse-migrations requires filenames to start with a number and
+      // tracks applied state by that numeric prefix. We assign a global,
+      // monotonic prefix in sorted order to avoid collisions across sources
+      // (e.g. compound_001_*.sql and core_001_*.sql).
       const base = path.basename(file);
-      const reordered = base.replace(/^([a-z_]+)_(\d+)_(.+)$/, '$2_$1_$3');
-      await fs.copyFile(file, path.join(tmpDir, reordered));
+      const seq = String(index + 1).padStart(4, '0');
+      await fs.copyFile(file, path.join(tmpDir, `${seq}_${base}`));
     }
     console.log(`[ch-migrate] Applying ${files.length} migration(s) from ${tmpDir}`);
 

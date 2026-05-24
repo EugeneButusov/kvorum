@@ -70,6 +70,7 @@ class QueryController {
     const rows = paged.slice(0, limit + 1);
 
     return buildPagination(rows, limit, (row) => ({
+      type: 'time',
       value: coalescedValue(row, parsed.sort[0]?.dir ?? 'desc'),
       tiebreak: row.id,
       dir: parsed.sort[0]?.dir ?? 'desc',

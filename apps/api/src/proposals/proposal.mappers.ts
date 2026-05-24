@@ -1,5 +1,6 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
 import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
+import { isoSeconds } from '../http/iso';
 
 type ProposalListRow = {
   id: string;
@@ -19,11 +20,6 @@ type ProposalListRow = {
 };
 
 type ProposalDetailRow = ProposalListRow & { description: string };
-
-export function isoSeconds(value: Date | null): string | null {
-  if (value === null) return null;
-  return `${value.toISOString().slice(0, 19)}Z`;
-}
 
 function proposalMeta(row: ProposalListRow) {
   const base = `/v1/daos/${row.dao_slug}/proposals/${row.source_type}/${row.source_id}`;

@@ -14,7 +14,7 @@ export type EndpointFilter = {
 export type EndpointSortable = {
   column: string;
   nullable?: boolean;
-  kind?: 'time';
+  kind?: 'time' | 'numeric' | 'bigint';
 };
 
 export type EndpointQuery = {
@@ -39,7 +39,7 @@ export type ParsedSort = {
   column: string;
   dir: SortDirection;
   nullable: boolean;
-  kind?: 'time';
+  kind?: 'time' | 'numeric' | 'bigint';
 };
 
 export type ParsedQuery = {

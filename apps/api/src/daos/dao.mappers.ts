@@ -1,5 +1,6 @@
 import type { Dao, DaoSource } from '@libs/db';
 import { DaoDetailDto, DaoListItemDto, DaoSourceDto } from './dao.dto';
+import { isoSeconds } from '../http/iso';
 
 type CuratedSourceConfig = {
   contract_address?: string;
@@ -36,14 +37,6 @@ export function toDaoSourceDto(
     source_type: row.source_type,
     ...curateSourceConfig(row.source_config),
   });
-}
-
-export function isoSeconds(value: Date | null): string | null {
-  if (value === null) {
-    return null;
-  }
-
-  return `${value.toISOString().slice(0, 19)}Z`;
 }
 
 export function toDaoListItemDto(dao: Dao): DaoListItemDto {
