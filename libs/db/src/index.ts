@@ -9,6 +9,7 @@ export {
 } from './errors/actor-merge-errors';
 export { ActorMergeRepository } from './actor-merge-repository';
 export { ActorRepository } from './actor-repository';
+export { ActorRoutingReadRepository } from './actor-routing-repository';
 export type {
   ActorOverview,
   ActorOverviewAddress,

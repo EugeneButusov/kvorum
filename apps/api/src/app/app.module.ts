@@ -3,6 +3,7 @@ import { OpsServer } from '@nest/observability';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
+import { ActorsModule } from '../actors/actors.module';
 import { AuthModule } from '../auth/auth.module';
 import { CacheModule } from '../cache/cache.module';
 import { DaoModule } from '../daos/dao.module';
@@ -14,6 +15,7 @@ import { RateLimitModule } from '../rate-limit/rate-limit.module';
 @Module({
   imports: [
     AuthModule,
+    ActorsModule,
     CacheModule,
     DaoModule,
     HttpModule,

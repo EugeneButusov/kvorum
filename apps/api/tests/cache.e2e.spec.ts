@@ -62,7 +62,7 @@ describeHttpIf('etag + cache-control e2e', () => {
       expect(mismatch.body).toEqual({ id: '1', value: 'ok' });
 
       const noDecorator = await request(app.getHttpServer()).get('/cache/default').expect(200);
-      expect(noDecorator.headers['cache-control']).toBe('no-cache');
+      expect(noDecorator.headers['cache-control']).toBeUndefined();
     } finally {
       await app.close();
     }

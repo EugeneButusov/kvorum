@@ -25,6 +25,72 @@
         "tags": ["Health"]
       }
     },
+    "/v1/actors/{address}": {
+      "get": {
+        "operationId": "ActorsController_getByAddress",
+        "parameters": [
+          {
+            "name": "address",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical primary address"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["actors"]
+      }
+    },
     "/v1/daos": {
       "get": {
         "operationId": "DaoController_list",
@@ -597,6 +663,58 @@
       }
     },
     "schemas": {
+      "ActorDto": {
+        "type": "object",
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "primary_address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["actor_id", "primary_address"]
+      },
+      "ActorResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ActorDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "ProblemDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "number"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": ["type", "title", "status", "detail", "instance"]
+      },
       "DaoLinksDto": {
         "type": "object",
         "properties": {
@@ -687,33 +805,6 @@
           }
         },
         "required": ["data", "pagination"]
-      },
-      "ProblemDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "status": {
-            "type": "number"
-          },
-          "detail": {
-            "type": "string"
-          },
-          "instance": {
-            "type": "string"
-          },
-          "violations": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          }
-        },
-        "required": ["type", "title", "status", "detail", "instance"]
       },
       "DaoSourceDto": {
         "type": "object",
