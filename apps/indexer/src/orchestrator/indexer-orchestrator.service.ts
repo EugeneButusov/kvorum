@@ -4,7 +4,6 @@ import {
   ChainContextRegistry,
   parseChainConfigFromEnv,
   chainMetrics,
-  reorgCutoff,
   silentLogger,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
@@ -215,7 +214,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         runtime,
         logger: silentLogger,
         signal: this.shutdownController.signal,
-        toBlock: reorgCutoff(firstTickHead, entry.chainCfg),
+        toBlock: firstTickHead,
       });
       if (result.status === 'cancelled' && this.shutdownController.signal.aborted) {
         throw new BootCatchUpShutdownError();

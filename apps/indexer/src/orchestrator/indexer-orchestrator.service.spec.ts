@@ -17,9 +17,6 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
-  reorgCutoff: vi.fn(
-    (head: bigint, cfg: { reorgHorizon: number }) => head - BigInt(cfg.reorgHorizon) * 2n,
-  ),
   ChainContextRegistry: vi.fn(),
   silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
