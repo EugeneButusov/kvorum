@@ -268,7 +268,7 @@ describe('EventPoller', () => {
       await poller.stop();
 
       expect(onFirstHeadComplete).toHaveBeenCalledTimes(1);
-      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(4n);
     });
 
     it('does not fire when any listener rejects', async () => {
@@ -297,7 +297,7 @@ describe('EventPoller', () => {
       await poller.start();
       await poller.stop();
 
-      expect(onFirstHeadComplete).toHaveBeenCalledWith(16n);
+      expect(onFirstHeadComplete).toHaveBeenCalledWith(4n);
     });
   });
 

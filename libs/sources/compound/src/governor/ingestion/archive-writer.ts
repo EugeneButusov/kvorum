@@ -3,7 +3,7 @@ import type { LogEvent, Logger } from '@libs/chain';
 import type {
   ArchiveEventRepository,
   DlqRepository,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
 import type {
@@ -52,7 +52,7 @@ export class GovernorArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, { source: ctx.sourceLabel });
       this.logger.debug('archive_check_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -77,7 +77,7 @@ export class GovernorArchiveWriter {
       });
 
       // Step 3 — confirmation insert with retry (retries managed by ArchiveEventRepository)
-      const row: NewArchiveConfirmation = {
+      const row: NewArchiveEvent = {
         source_type: ctx.sourceType,
         dao_source_id: ctx.daoSourceId,
         chain_id: ctx.chainId,

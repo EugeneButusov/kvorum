@@ -19,7 +19,7 @@ vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
   silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
-    pendingEventCount: { record: vi.fn() },
+    underivedDepth: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
     ingestionGapFillFailed: { add: vi.fn() },
     ingestionGapFillSkipped: { add: vi.fn() },

@@ -11,7 +11,7 @@ vi.mock('@libs/db', () => ({
   ActorRepository: class {
     constructor(_db: unknown) {}
   },
-  ConfirmationRepository: class {
+  ArchiveEventRepository: class {
     public find = vi.fn();
     public insert = vi.fn();
     constructor(_db: unknown) {}

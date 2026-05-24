@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
 import type { EventsListener, LogEvent } from '@libs/chain';
 import { ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
-import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
+import type { NewArchiveEvent, NewIngestionDlq } from '@libs/db';
 import type { SourceContext, SourcePlugin } from '@sources/core';
 import { SOURCE_PLUGINS } from '@sources/core';
 import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
@@ -82,7 +82,7 @@ function makeTestListener(
         });
         continue;
       }
-      const row: NewArchiveConfirmation = {
+      const row: NewArchiveEvent = {
         source_type: ctx.sourceType,
         dao_source_id: ctx.daoSourceId,
         chain_id: ctx.chainId,

@@ -45,7 +45,7 @@ export class ActorSweepService {
       const batchSize = Number(
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
-      const rows = await this.actorResolution.findConfirmedUnresolvedActors(
+      const rows = await this.actorResolution.findUnresolvedActors(
         this.eventTypes,
         ACTOR_SWEEP_DLQ_THRESHOLD,
         batchSize,

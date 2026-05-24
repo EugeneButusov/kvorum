@@ -19,11 +19,6 @@ export class ArchiveDerivationAdminRepository {
     return Number(row.count);
   }
 
-  // Transitional alias for in-flight callers.
-  async countConfirmedUnderived(daoSourceId: string, fromBlock?: bigint): Promise<number> {
-    return this.countUnderived(daoSourceId, fromBlock);
-  }
-
   async resetWatermarkForSource(daoSourceId: string, fromBlock?: bigint): Promise<number> {
     let query = this.pgDb
       .updateTable('archive_event')

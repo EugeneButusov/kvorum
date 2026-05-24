@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { silentLogger } from '@libs/chain';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
+import { chDb, ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
 import {
   ArchiveWriter,
   EventRepository,
@@ -106,7 +106,7 @@ describeIf('VoteCast ingestion integration', () => {
 
       const writer = new ArchiveWriter({
         eventRepo: new EventRepository({ chDb }),
-        confirmationRepo: new ConfirmationRepository(pgDb),
+        confirmationRepo: new ArchiveEventRepository(pgDb),
         dlqRepo: new DlqRepository(pgDb),
         logger: silentLogger,
       });

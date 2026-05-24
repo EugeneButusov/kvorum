@@ -2,7 +2,7 @@ import { normalizeEvenLengthHex } from './hex.utils.js';
 
 /** Canonicalizes case and returns `${sourceType}:${chainId}:${txHash}:${logIndex}:${blockHash}`.
  *
- *  The 5-tuple matches the PG `archive_confirmation_idempotency_key` unique constraint.
+ *  The 4-tuple matches the PG `archive_event_idempotency_key` unique constraint.
  *  Hex inputs are validated (0x prefix, even length, hex chars); throws on malformed input. */
 export function buildIdempotencyKey(parts: {
   sourceType: string;

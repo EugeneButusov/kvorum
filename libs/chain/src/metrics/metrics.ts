@@ -44,11 +44,6 @@ export const chainMetrics = {
     name: 'ingestion_gap_fill_skipped',
     description: 'Count of startup/manual gap fills skipped by reason.',
   }),
-  reorgSignals: defineCounter({
-    name: 'ingestion_reorg_signals',
-    description:
-      'Reorg signals emitted by the in-process detector. Each signal corresponds to one parent-hash mismatch, head drop, or chain-shrink event.',
-  }),
   proxyResolutions: defineCounter({
     name: 'ingestion_proxy_resolutions',
     description:
@@ -59,9 +54,10 @@ export const chainMetrics = {
     description:
       'Archive write outcomes by source and event_type. result=inserted|skipped_existing|skipped_conflict|dlq_routed',
   }),
-  archiveSkippedExistence: defineCounter({
-    name: 'archive_skipped_existence',
-    description: 'PG-first existence check hits (ADR-041 step 1)',
+  archiveDuplicateSkip: defineCounter({
+    name: 'archive_duplicate_skip',
+    description:
+      'Archive row dedupe skips. reason=rescan_window for expected overlap, reason=true_duplicate for unexpected duplicate.',
   }),
   archiveChWriteErrors: defineCounter({
     name: 'archive_ch_write_errors',
@@ -115,37 +111,24 @@ export const chainMetrics = {
   }),
   logPollWindowBlocks: defineGauge({
     name: 'ingestion_log_poll_window_blocks',
-    description: 'Current window size in blocks. Diagnostic; constant in v1 (2 × reorgHorizon).',
+    description: 'Current polling window size in blocks.',
   }),
   headLagApplied: defineGauge({
     name: 'ingestion_head_lag_applied_blocks',
     description: 'Configured head lag applied to derive confirmed head for polling.',
   }),
-  pendingEventCount: defineGauge({
-    name: 'ingestion_pending_event_count',
-    description:
-      'Count of archive_confirmation rows in pending state per chain × source_type. Updated by periodic recalculation, not per-write.',
+  underivedDepth: defineGauge({
+    name: 'ingestion_underived_depth',
+    description: 'Count of archive_event rows pending derivation per chain × source_type.',
+  }),
+  archiveWriteLag: defineGauge({
+    name: 'ingestion_archive_write_lag_blocks',
+    description: 'Difference between confirmed head and latest archived block per dao_source.',
   }),
   indexerActiveSources: defineGauge({
     name: 'indexer_active_sources',
     description:
       'Count of dao_source rows the indexer booted with per source_type. Zero is a deployable-but-actionable signal (misconfigured table).',
-  }),
-
-  reorgEvent: defineCounter({
-    name: 'ingestion_reorg_event',
-    description:
-      'Reorg events persisted to PG (one per ReorgDetector signal that successfully wrote a reorg_event row). chain label.',
-  }),
-  orphanedEvents: defineCounter({
-    name: 'ingestion_orphaned_events',
-    description:
-      'Count of archive_confirmation rows transitioned to orphaned by a reorg handler. Summed across all reorgs per chain.',
-  }),
-  reorgTruncated: defineCounter({
-    name: 'ingestion_reorg_truncated',
-    description:
-      'Reorg signals flagged as truncated (divergence extends past oldest buffered block). Operator alert — divergence root is approximate.',
   }),
 
   dlqDepth: defineGauge({
@@ -160,13 +143,6 @@ export const chainMetrics = {
   }),
 
   // ---- histograms ----
-  promotionSweepDuration: defineHistogram({
-    name: 'ingestion_promotion_sweep_duration_seconds',
-    description:
-      'Wall-clock duration of one promotion sweep per chain. One observation per chain per 30-s tick.',
-    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
-  }),
-
   rpcRequestDuration: defineHistogram({
     name: 'ingestion_rpc_request_duration_seconds',
     description: 'Latency of individual JSON-RPC requests',

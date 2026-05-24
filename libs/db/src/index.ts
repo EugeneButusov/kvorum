@@ -10,8 +10,6 @@ export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-rep
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
 export type { ArchiveEventKey } from './archive-event-repository';
 export { ArchiveEventRepository } from './archive-event-repository';
-export type { ConfirmationKey } from './confirmation-repository';
-export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
@@ -73,7 +71,6 @@ export type {
   NewProposal,
   NewProposalAction,
   NewProposalChoice,
-  NewReorgEvent,
   Proposal,
   ProposalAction,
   ProposalActionTable,
@@ -82,15 +79,10 @@ export type {
   ProposalState,
   ProposalTable,
   ProposalUpdate,
-  ReorgEvent,
-  ReorgEventTable,
   SourceType,
   SourceTypeTable,
   AbiCache,
   AbiCacheTable,
-  ArchiveConfirmation,
-  ArchiveConfirmationTable,
-  ArchiveConfirmationUpdate,
   ArchiveEvent,
   ArchiveEventTable,
   ArchiveEventUpdate,
@@ -100,7 +92,6 @@ export type {
   IngestionDlqResolvedTable,
   IngestionDlqTable,
   NewAbiCache,
-  NewArchiveConfirmation,
   NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,

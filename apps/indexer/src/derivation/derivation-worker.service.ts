@@ -49,10 +49,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const batchSize = Number(
         process.env['DERIVATION_BATCH_SIZE'] ?? DEFAULT_DERIVATION_BATCH_SIZE,
       );
-      const watermark = await this.actorResolution.findConfirmedDerivableBy(
-        this.eventTypes,
-        batchSize,
-      );
+      const watermark = await this.actorResolution.findDerivableBy(this.eventTypes, batchSize);
       if (watermark.length === 0) {
         derivationMetrics.lagSeconds.record(0);
         return;

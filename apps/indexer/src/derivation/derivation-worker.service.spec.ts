@@ -28,7 +28,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     };
     const actorResolution = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
+      findDerivableBy: vi.fn().mockResolvedValue([ROW]),
     };
     const worker = new DerivationWorkerService(
       archive as never,
@@ -39,10 +39,7 @@ describe('DerivationWorkerService', () => {
 
     await worker.tick();
 
-    expect(actorResolution.findConfirmedDerivableBy).toHaveBeenCalledWith(
-      ['test_event_created'],
-      50,
-    );
+    expect(actorResolution.findDerivableBy).toHaveBeenCalledWith(['test_event_created'], 50);
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
   });
 
@@ -51,7 +48,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const actorResolution = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
+      findDerivableBy: vi.fn().mockResolvedValue([ROW]),
     };
     const applier = {
       kind: 'projection' as const,
@@ -77,7 +74,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const actorResolution = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([ROW]),
+      findDerivableBy: vi.fn().mockResolvedValue([ROW]),
     };
     const applier = {
       kind: 'projection' as const,
@@ -104,7 +101,7 @@ describe('DerivationWorkerService', () => {
       incrementAttemptCount: vi.fn(),
     };
     const actorResolution = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([alphaRow]),
+      findDerivableBy: vi.fn().mockResolvedValue([alphaRow]),
     };
     const applier = {
       kind: 'projection' as const,
@@ -129,7 +126,7 @@ describe('DerivationWorkerService', () => {
     const highRow = { ...ROW, block_number: '300' };
     const archive = { incrementAttemptCount: vi.fn() };
     const actorResolution = {
-      findConfirmedDerivableBy: vi.fn().mockResolvedValue([highRow]),
+      findDerivableBy: vi.fn().mockResolvedValue([highRow]),
     };
     const applier = {
       kind: 'projection' as const,

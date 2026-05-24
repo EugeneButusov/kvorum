@@ -172,7 +172,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         for (const sourceType of this.activeSourceTypes) {
           const rows = await this.archiveEventRepo.countUnderivedBySourceType(sourceType);
           for (const row of rows) {
-            chainMetrics.pendingEventCount.record(Number(row.count), {
+            chainMetrics.underivedDepth.record(Number(row.count), {
               chain_id: row.chain_id,
               source_type: row.source_type,
             });

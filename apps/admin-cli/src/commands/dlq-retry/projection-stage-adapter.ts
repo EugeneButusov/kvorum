@@ -6,7 +6,7 @@ function archiveConfirmationIdFromPayload(payload: unknown): string {
     throw new Error('projection DLQ payload is not an object');
   }
   const rec = payload as Record<string, unknown>;
-  const id = rec['archive_event_id'] ?? rec['archive_confirmation_id'] ?? rec['id'];
+  const id = rec['archive_event_id'] ?? rec['id'];
   if (typeof id !== 'string' || id.length === 0) {
     throw new Error('projection DLQ payload is missing archive_event_id');
   }

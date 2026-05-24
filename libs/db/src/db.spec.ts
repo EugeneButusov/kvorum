@@ -67,7 +67,7 @@ describeWithDb('auth schema smoke test', () => {
 });
 
 describeWithDb('ingestion domain smoke test', () => {
-  it('inserts dao, dao_source, actor, proposal, proposal_action, proposal_choice, archive_confirmation and rolls back', async () => {
+  it('inserts dao, dao_source, actor, proposal, proposal_action, proposal_choice, archive_event and rolls back', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         const [dao] = await tx
@@ -149,7 +149,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .execute();
 
         await tx
-          .insertInto('archive_confirmation')
+          .insertInto('archive_event')
           .values({
             source_type: 'compound_governor_bravo',
             dao_source_id: daoSource!.id,
@@ -542,7 +542,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('supports actor merge pointer and archive_confirmation derivation marker updates', async () => {
+  it('supports actor merge pointer and archive_event derivation marker updates', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         const now = new Date();
@@ -595,7 +595,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .execute();
 
         const [confirmation] = await tx
-          .insertInto('archive_confirmation')
+          .insertInto('archive_event')
           .values({
             source_type: 'compound_governor_bravo',
             dao_source_id: daoSource!.id,
@@ -614,12 +614,12 @@ describeWithDb('J1 vote/delegation/address schema', () => {
 
         const resolvedAt = new Date(now.getTime() + 10_000);
         await tx
-          .updateTable('archive_confirmation')
+          .updateTable('archive_event')
           .set({ derivation_actor_resolved_at: resolvedAt })
           .where('id', '=', confirmation!.id)
           .execute();
         const updated = await tx
-          .selectFrom('archive_confirmation')
+          .selectFrom('archive_event')
           .select(['derivation_actor_resolved_at'])
           .where('id', '=', confirmation!.id)
           .executeTakeFirstOrThrow();
@@ -754,7 +754,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             'voting_power_snapshot',
             'actor_address',
             'actor',
-            'archive_confirmation',
+            'archive_event',
           ])
           .execute();
 
@@ -770,7 +770,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           'voting_power_snapshot_proposal_idx',
           'actor_address_primary_uidx',
           'idx_actor_merged_into',
-          'idx_archive_confirmation_actor_resolution_pending',
+          'idx_archive_event_actor_resolution_pending',
         ]) {
           expect(indexNames.has(expected)).toBe(true);
         }

@@ -153,7 +153,7 @@ describeIf('compound governor derivation', () => {
       },
     });
 
-    const rows1 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
+    const rows1 = await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows1);
 
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -198,7 +198,7 @@ describeIf('compound governor derivation', () => {
       .where('tx_hash', '=', numberedHash(1))
       .execute();
 
-    const rows2 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
+    const rows2 = await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows2);
 
     const proposalsAfterReplay = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -216,9 +216,7 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1' },
     });
 
-    await applier.applyBatch(
-      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
-    );
+    await applier.applyBatch(await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10));
 
     const executed = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(executed!.state).toBe('executed');
@@ -232,9 +230,7 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1', eta: '123' },
     });
 
-    await applier.applyBatch(
-      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
-    );
+    await applier.applyBatch(await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10));
 
     const afterLateQueued = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(afterLateQueued!.state).toBe('executed');

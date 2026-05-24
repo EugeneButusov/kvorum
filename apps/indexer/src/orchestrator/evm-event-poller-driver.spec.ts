@@ -8,7 +8,7 @@ vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
   EventPoller: vi.fn(),
   chainMetrics: {
-    pendingEventCount: { record: vi.fn() },
+    underivedDepth: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
     logPollWindowBlocks: { record: vi.fn() },
     logPollLag: { record: vi.fn() },

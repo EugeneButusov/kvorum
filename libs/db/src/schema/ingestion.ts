@@ -23,22 +23,11 @@ export interface ArchiveEventTable {
   derivation_actor_resolved_at: Date | null;
   derivation_attempt_count: Generated<number>;
   actor_resolution_attempt_count: Generated<number>;
-  // Transitional legacy fields while migration/test fixtures are being cut over.
-  confirmation_status?: 'pending' | 'confirmed' | 'orphaned';
-  confirmed_at?: Date | null;
-  orphaned_at?: Date | null;
-  orphaned_by_reorg_event_id?: string | null;
 }
 
 export type ArchiveEvent = Selectable<ArchiveEventTable>;
 export type NewArchiveEvent = Insertable<ArchiveEventTable>;
 export type ArchiveEventUpdate = Updateable<ArchiveEventTable>;
-
-// Transitional aliases during repository/source/plugin migration.
-export type ArchiveConfirmationTable = ArchiveEventTable;
-export type ArchiveConfirmation = ArchiveEvent;
-export type NewArchiveConfirmation = NewArchiveEvent;
-export type ArchiveConfirmationUpdate = ArchiveEventUpdate;
 
 export interface IngestionDlqTable {
   id: Generated<string>;

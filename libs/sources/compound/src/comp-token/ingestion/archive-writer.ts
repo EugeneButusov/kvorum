@@ -3,7 +3,7 @@ import type { LogEvent, Logger } from '@libs/chain';
 import type {
   ArchiveEventRepository,
   DlqRepository,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
 import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
@@ -41,7 +41,7 @@ export class CompTokenArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, { source: ctx.sourceLabel });
       return { result: 'skipped_existing' };
     }
 
@@ -59,7 +59,7 @@ export class CompTokenArchiveWriter {
         payload: JSON.stringify(decoded.payload),
       });
 
-      const row: NewArchiveConfirmation = {
+      const row: NewArchiveEvent = {
         source_type: ctx.sourceType,
         dao_source_id: ctx.daoSourceId,
         chain_id: ctx.chainId,

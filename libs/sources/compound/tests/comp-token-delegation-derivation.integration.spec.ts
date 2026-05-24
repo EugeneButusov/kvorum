@@ -193,7 +193,7 @@ describeIf('comp token delegation derivation integration', () => {
       },
     });
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(EVENT_TYPES, 50));
+    await applier.applyBatch(await archive.findUnderived(EVENT_TYPES, 50));
 
     const rows = await pgDb
       .selectFrom('delegation')
@@ -216,7 +216,7 @@ describeIf('comp token delegation derivation integration', () => {
       event_type: 'votes_changed',
     });
 
-    const pendingRows = await archive.findConfirmedUndderived(EVENT_TYPES, 50);
+    const pendingRows = await archive.findUnderived(EVENT_TYPES, 50);
     expect(pendingRows).toHaveLength(0);
   }, 30_000);
 
@@ -236,7 +236,7 @@ describeIf('comp token delegation derivation integration', () => {
       .where('tx_hash', '=', numberedHash(3))
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(EVENT_TYPES, 50));
+    await applier.applyBatch(await archive.findUnderived(EVENT_TYPES, 50));
 
     const dlqRows = await pgDb
       .selectFrom('ingestion_dlq')

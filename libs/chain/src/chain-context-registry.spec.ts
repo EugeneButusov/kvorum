@@ -2,15 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('./client/failover-rpc-client.js', () => ({ FailoverRpcClient: vi.fn() }));
 vi.mock('./poller/head-tracker.js', () => ({ HeadTracker: vi.fn() }));
-vi.mock('./reorg/reorg-detector.js', () => ({ ReorgDetector: vi.fn() }));
 vi.mock('./proxy/proxy-resolver.js', () => ({ ProxyResolver: vi.fn() }));
 
 import { ChainContextRegistry } from './chain-context-registry.js';
 import { FailoverRpcClient } from './client/failover-rpc-client.js';
 import { HeadTracker } from './poller/head-tracker.js';
-import { ReorgDetector } from './reorg/reorg-detector.js';
 
-const CHAIN_CFG = { chainId: '0x1', name: 'ethereum', reorgHorizon: 12, providers: [] };
+const CHAIN_CFG = { chainId: '0x1', name: 'ethereum', headLag: 12, providers: [] };
 const CHAIN_CFG_137 = { ...CHAIN_CFG, chainId: '0x89', name: 'polygon' };
 
 function makeClient() {
@@ -29,24 +27,14 @@ function makeTracker() {
   };
 }
 
-function makeDetector() {
-  return {
-    attach: vi.fn().mockReturnValue(() => {}),
-    onReorg: vi.fn().mockReturnValue(() => {}),
-  };
-}
-
-function setupMocks(client = makeClient(), tracker = makeTracker(), detector = makeDetector()) {
+function setupMocks(client = makeClient(), tracker = makeTracker()) {
   vi.mocked(FailoverRpcClient).mockImplementation(function () {
     return client;
   } as never);
   vi.mocked(HeadTracker).mockImplementation(function () {
     return tracker;
   } as never);
-  vi.mocked(ReorgDetector).mockImplementation(function () {
-    return detector;
-  } as never);
-  return { client, tracker, detector };
+  return { client, tracker };
 }
 
 beforeEach(() => {
@@ -54,8 +42,8 @@ beforeEach(() => {
 });
 
 describe('ChainContextRegistry', () => {
-  it('#1 — first getOrCreate: constructs client, headTracker, reorgDetector; attaches detector; starts tracker', async () => {
-    const { client, tracker, detector } = setupMocks();
+  it('#1 — first getOrCreate: constructs client + headTracker and starts tracker', async () => {
+    const { client, tracker } = setupMocks();
 
     const registry = new ChainContextRegistry();
     const ctx = await registry.getOrCreate(CHAIN_CFG);
@@ -63,12 +51,9 @@ describe('ChainContextRegistry', () => {
     expect(FailoverRpcClient).toHaveBeenCalledWith(CHAIN_CFG);
     expect(client.start).toHaveBeenCalledTimes(1);
     expect(HeadTracker).toHaveBeenCalledTimes(1);
-    expect(ReorgDetector).toHaveBeenCalledTimes(1);
-    expect(detector.attach).toHaveBeenCalledWith(tracker);
     expect(tracker.start).toHaveBeenCalledTimes(1);
     expect(ctx.client).toBe(client);
     expect(ctx.headTracker).toBe(tracker);
-    expect(ctx.reorgDetector).toBe(detector);
     expect(ctx.chainCfg).toBe(CHAIN_CFG);
   });
 
@@ -91,8 +76,6 @@ describe('ChainContextRegistry', () => {
     const clientB = makeClient();
     const trackerA = makeTracker();
     const trackerB = makeTracker();
-    const detectorA = makeDetector();
-    const detectorB = makeDetector();
 
     vi.mocked(FailoverRpcClient)
       .mockImplementationOnce(function () {
@@ -108,14 +91,6 @@ describe('ChainContextRegistry', () => {
       .mockImplementationOnce(function () {
         return trackerB;
       } as never);
-    vi.mocked(ReorgDetector)
-      .mockImplementationOnce(function () {
-        return detectorA;
-      } as never)
-      .mockImplementationOnce(function () {
-        return detectorB;
-      } as never);
-
     const registry = new ChainContextRegistry();
     const ctxA = await registry.getOrCreate(CHAIN_CFG);
     const ctxB = await registry.getOrCreate(CHAIN_CFG_137);
@@ -150,10 +125,6 @@ describe('ChainContextRegistry', () => {
       .mockImplementationOnce(function () {
         return trackerB;
       } as never);
-    vi.mocked(ReorgDetector).mockImplementation(function () {
-      return makeDetector();
-    } as never);
-
     const registry = new ChainContextRegistry();
     await registry.getOrCreate(CHAIN_CFG);
     await registry.getOrCreate(CHAIN_CFG_137);
@@ -182,10 +153,6 @@ describe('ChainContextRegistry', () => {
     vi.mocked(HeadTracker).mockImplementation(function () {
       return tracker;
     } as never);
-    vi.mocked(ReorgDetector).mockImplementation(function () {
-      return makeDetector();
-    } as never);
-
     const registry = new ChainContextRegistry();
 
     await expect(registry.getOrCreate(CHAIN_CFG)).rejects.toThrow('rpc fail');

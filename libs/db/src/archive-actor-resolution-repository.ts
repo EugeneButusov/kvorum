@@ -37,14 +37,6 @@ export class ArchiveActorResolutionRepository {
       .execute();
   }
 
-  // Transitional alias for in-flight callers.
-  async findConfirmedDerivableBy(
-    eventTypes: readonly string[],
-    limit: number,
-  ): Promise<ArchiveDerivationRow[]> {
-    return this.findDerivableBy(eventTypes, limit);
-  }
-
   async findUnresolvedActors(
     eventTypes: readonly string[],
     attemptThreshold: number,
@@ -76,15 +68,6 @@ export class ArchiveActorResolutionRepository {
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
-  }
-
-  // Transitional alias for in-flight callers.
-  async findConfirmedUnresolvedActors(
-    eventTypes: readonly string[],
-    attemptThreshold: number,
-    limit: number,
-  ): Promise<ArchiveDerivationRow[]> {
-    return this.findUnresolvedActors(eventTypes, attemptThreshold, limit);
   }
 
   async markActorResolved(id: string): Promise<void> {

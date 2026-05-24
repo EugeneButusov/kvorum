@@ -245,7 +245,7 @@ describeIf('compound vote derivation integration', () => {
       .executeTakeFirstOrThrow();
 
     const { txHash } = await seedConfirmedVoteCast({ txN: 1, proposalId: '42' });
-    const rows = await archive.findConfirmedUndderived([EVENT_TYPE], 50);
+    const rows = await archive.findUnderived([EVENT_TYPE], 50);
     await applier.applyBatch(rows);
 
     const votes = await pgDb.selectFrom('vote').selectAll().execute();
@@ -272,7 +272,7 @@ describeIf('compound vote derivation integration', () => {
       .where('tx_hash', '=', txHash)
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived([EVENT_TYPE], 50));
+    await applier.applyBatch(await archive.findUnderived([EVENT_TYPE], 50));
 
     expect(await pgDb.selectFrom('vote').selectAll().execute()).toHaveLength(1);
     expect(await pgDb.selectFrom('vote_choice').selectAll().execute()).toHaveLength(1);
@@ -286,7 +286,7 @@ describeIf('compound vote derivation integration', () => {
       .where('tx_hash', '=', numberedHash(2))
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived([EVENT_TYPE], 50));
+    await applier.applyBatch(await archive.findUnderived([EVENT_TYPE], 50));
 
     const dlqRows = await pgDb
       .selectFrom('ingestion_dlq')

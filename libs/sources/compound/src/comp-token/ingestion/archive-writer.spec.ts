@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import type { ConfirmationRepository, DlqRepository } from '@libs/db';
+import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
 import { CompTokenArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
@@ -44,7 +44,7 @@ function makeEventRepo(
 
 function makeConfirmationRepo(
   overrides: Partial<{ find: ReturnType<typeof vi.fn>; insert: ReturnType<typeof vi.fn> }> = {},
-): ConfirmationRepository {
+): ArchiveEventRepository {
   return {
     find: vi.fn().mockResolvedValue(undefined),
     insert: vi.fn().mockResolvedValue({ id: 'uuid-1' }),
@@ -59,7 +59,7 @@ function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = 
 function buildWriter(
   overrides: {
     eventRepo?: CompTokenEventRepository;
-    confirmationRepo?: ConfirmationRepository;
+    confirmationRepo?: ArchiveEventRepository;
     dlqRepo?: DlqRepository;
   } = {},
 ): CompTokenArchiveWriter {

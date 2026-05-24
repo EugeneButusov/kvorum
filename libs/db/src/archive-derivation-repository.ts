@@ -49,14 +49,6 @@ export class ArchiveDerivationRepository {
       .execute();
   }
 
-  // Transitional alias for in-flight callers/specs.
-  async findConfirmedUndderived(
-    eventTypes: readonly string[],
-    limit: number,
-  ): Promise<ArchiveDerivationRow[]> {
-    return this.findUnderived(eventTypes, limit);
-  }
-
   async markDerived(id: string): Promise<void> {
     await this.pgDb
       .updateTable('archive_event')

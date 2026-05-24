@@ -47,7 +47,7 @@ const ROW: ArchiveDerivationRow = {
 describe('ActorSweepService', () => {
   it('materializes actor for voter and marks row actor-resolved', async () => {
     const archive = {
-      findConfirmedUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -91,7 +91,7 @@ describe('ActorSweepService', () => {
   it('skips zero-address delegate without creating actor', async () => {
     const row = { ...ROW, event_type: 'test_delegation_event', source_type: 'test_source_token' };
     const archive = {
-      findConfirmedUnresolvedActors: vi.fn().mockResolvedValue([row]),
+      findUnresolvedActors: vi.fn().mockResolvedValue([row]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -141,7 +141,7 @@ describe('ActorSweepService', () => {
 
   it('increments attempts and writes DLQ row when threshold is reached', async () => {
     const archive = {
-      findConfirmedUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(5),
     };

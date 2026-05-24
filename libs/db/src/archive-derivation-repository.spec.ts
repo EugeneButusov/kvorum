@@ -44,17 +44,14 @@ function makeUpdateChain() {
 }
 
 describe('ArchiveDerivationRepository', () => {
-  it('selects confirmed underived rows in deterministic order', async () => {
+  it('selects underived rows in deterministic order', async () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedUndderived(['ProposalCreated'], 50)).resolves.toEqual([
-      ARCHIVE_ROW,
-    ]);
+    await expect(repo.findUnderived(['ProposalCreated'], 50)).resolves.toEqual([ARCHIVE_ROW]);
 
-    expect(pgSelect.selectFrom).toHaveBeenCalledWith('archive_confirmation');
+    expect(pgSelect.selectFrom).toHaveBeenCalledWith('archive_event');
     expect(pgSelect.where.mock.calls).toEqual([
-      ['confirmation_status', '=', 'confirmed'],
       ['derived_at', 'is', null],
       ['event_type', 'in', ['ProposalCreated']],
     ]);
@@ -71,7 +68,7 @@ describe('ArchiveDerivationRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveDerivationRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedUndderived([], 10)).resolves.toEqual([]);
+    await expect(repo.findUnderived([], 10)).resolves.toEqual([]);
     expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
@@ -81,7 +78,7 @@ describe('ArchiveDerivationRepository', () => {
 
     await repo.markDerived('row-1');
 
-    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
 
@@ -91,7 +88,7 @@ describe('ArchiveDerivationRepository', () => {
 
     await repo.incrementAttemptCount('row-1');
 
-    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
 });

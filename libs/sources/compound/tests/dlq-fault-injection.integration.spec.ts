@@ -4,7 +4,7 @@ import { Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import type { ConfirmationRepository, DlqRepository } from '@libs/db';
+import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
 import { CompTokenArchiveWriter } from '../src/comp-token/ingestion/archive-writer';
 import { makeCompTokenIngesterListener } from '../src/comp-token/ingestion/ingester-listener';
 import type { CompTokenEventRepository } from '../src/comp-token/persistence/event-repository';
@@ -41,13 +41,13 @@ const COMP_CTX: ArchiveWriteContext = {
   confirmationClassifier: () => 'confirmed',
 };
 
-function makeConfirmationRepo(shouldFail: boolean): ConfirmationRepository {
+function makeConfirmationRepo(shouldFail: boolean): ArchiveEventRepository {
   return {
     find: vi.fn().mockResolvedValue(undefined),
     insert: shouldFail
       ? vi.fn().mockRejectedValue(new Error('forced pg failure'))
       : vi.fn().mockResolvedValue({ id: 'ok' }),
-  } as unknown as ConfirmationRepository;
+  } as unknown as ArchiveEventRepository;
 }
 
 function makeGovEventRepo(shouldFail: boolean): EventRepository {
