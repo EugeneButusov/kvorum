@@ -18,7 +18,7 @@ export class GovernorArchivePayloadRepository {
     );
 
     return this.chDb
-      .selectFrom('event_archive_compound_governor_bravo')
+      .selectFrom('archive_event_compound_governor_bravo')
       .select([
         'chain_id',
         'tx_hash',
@@ -38,7 +38,7 @@ export class GovernorArchivePayloadRepository {
     proposalId: string,
   ): Promise<GovernorArchivePayloadRow[]> {
     return this.chDb
-      .selectFrom('event_archive_compound_governor_bravo')
+      .selectFrom('archive_event_compound_governor_bravo')
       .select([
         'chain_id',
         'tx_hash',

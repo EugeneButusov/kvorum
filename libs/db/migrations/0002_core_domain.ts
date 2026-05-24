@@ -20,10 +20,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
-    CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'orphaned')
-  `.execute(db);
-
-  await sql`
     CREATE TYPE decode_status AS ENUM ('pending', 'decoded', 'undecodable')
   `.execute(db);
 
@@ -75,24 +71,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('profile_data', 'jsonb')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .addColumn('updated_at', 'timestamptz', (col) => col.notNull())
-    .execute();
-
-  // ── reorg_event ──────────────────────────────────────────────────────────────
-  await db.schema
-    .createTable('reorg_event')
-    .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
-    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
-    .addColumn('detected_at', 'timestamptz', (col) => col.notNull())
-    .addColumn('divergence_block_number', 'bigint', (col) => col.notNull())
-    .addColumn('orphaned_block_hashes', sql`text[]`, (col) => col.notNull())
-    .addColumn('canonical_block_hashes', sql`text[]`, (col) => col.notNull())
-    .addColumn('notes', 'text')
-    .execute();
-
-  await db.schema
-    .createIndex('idx_reorg_event_chain_id_detected_at')
-    .on('reorg_event')
-    .columns(['chain_id', 'detected_at desc'])
     .execute();
 
   // ── proposal ─────────────────────────────────────────────────────────────────
@@ -201,9 +179,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addPrimaryKeyConstraint('proposal_choice_pkey', ['proposal_id', 'choice_index'])
     .execute();
 
-  // ── archive_confirmation ─────────────────────────────────────────────────────
+  // ── archive_event ────────────────────────────────────────────────────────────
   await db.schema
-    .createTable('archive_confirmation')
+    .createTable('archive_event')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
     .addColumn('source_type', 'text', (col) =>
       col.notNull().references('source_type.value').onDelete('restrict'),
@@ -218,64 +196,35 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('log_index', 'integer', (col) => col.notNull())
     .addColumn('event_type', 'text', (col) => col.notNull())
     .addColumn('received_at', 'timestamptz', (col) => col.notNull())
-    .addColumn('confirmation_status', sql`confirmation_status`, (col) => col.notNull())
-    .addColumn('confirmed_at', 'timestamptz')
-    .addColumn('orphaned_at', 'timestamptz')
-    .addColumn('orphaned_by_reorg_event_id', 'uuid', (col) =>
-      col.references('reorg_event.id').onDelete('set null'),
-    )
     .addColumn('derived_at', 'timestamptz')
     .addColumn('derivation_actor_resolved_at', 'timestamptz')
     .addColumn('derivation_attempt_count', 'smallint', (col) => col.notNull().defaultTo(0))
     .addColumn('actor_resolution_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
-    .addUniqueConstraint('archive_confirmation_idempotency_key', [
-      'source_type',
-      'chain_id',
-      'tx_hash',
-      'log_index',
-      'block_hash',
-    ])
     .execute();
 
-  // Partial unique: at most one canonical (pending/confirmed) row per 4-tuple.
   await sql`
-    CREATE UNIQUE INDEX idx_archive_confirmation_canonical
-    ON archive_confirmation (source_type, chain_id, tx_hash, log_index)
-    WHERE confirmation_status <> 'orphaned'
+    CREATE UNIQUE INDEX archive_event_idempotency_key
+    ON archive_event (source_type, chain_id, tx_hash, log_index)
   `.execute(db);
 
   await db.schema
-    .createIndex('idx_archive_confirmation_promotion_sweep')
-    .on('archive_confirmation')
-    .columns(['confirmation_status', 'block_number'])
+    .createIndex('idx_archive_event_underived')
+    .on('archive_event')
+    .columns(['dao_source_id'])
+    .where(sql`derived_at IS NULL`)
     .execute();
-
-  await db.schema
-    .createIndex('idx_archive_confirmation_dao_source')
-    .on('archive_confirmation')
-    .columns(['dao_source_id', 'confirmation_status'])
-    .execute();
-
-  // Partial index for G1 derivation watermark: only un-derived confirmed rows.
-  await sql`
-    CREATE INDEX idx_archive_confirmation_g1_watermark
-    ON archive_confirmation (dao_source_id)
-    WHERE confirmation_status = 'confirmed' AND derived_at IS NULL
-  `.execute(db);
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await db.schema.dropTable('archive_confirmation').execute();
+  await db.schema.dropTable('archive_event').execute();
   await db.schema.dropTable('proposal_choice').execute();
   await db.schema.dropTable('proposal_action').execute();
   await db.schema.dropTable('proposal').execute();
-  await db.schema.dropTable('reorg_event').execute();
   await db.schema.dropTable('actor').execute();
   await db.schema.dropTable('dao_source').execute();
   await db.schema.dropTable('dao').execute();
   await db.schema.dropTable('source_type').execute();
 
-  await sql`DROP TYPE confirmation_status`.execute(db);
   await sql`DROP TYPE proposal_state`.execute(db);
   await sql`DROP TYPE decode_status`.execute(db);
 }

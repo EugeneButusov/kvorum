@@ -7,7 +7,7 @@ const validConfig = {
     {
       chainId: '0x1',
       name: 'ethereum',
-      reorgHorizon: 12,
+      headLag: 12,
       providers: [{ name: 'alchemy', url: 'http://localhost:8545', kind: 'http', priority: 1 }],
     },
   ],

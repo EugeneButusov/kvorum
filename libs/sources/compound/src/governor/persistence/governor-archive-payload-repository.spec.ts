@@ -61,7 +61,7 @@ describe('GovernorArchivePayloadRepository', () => {
 
     await expect(repo.fetchPayloads([ARCHIVE_ROW])).resolves.toEqual([payload]);
 
-    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
+    expect(chSelect.selectFrom).toHaveBeenCalledWith('archive_event_compound_governor_bravo');
     expect(chSelect.where).toHaveBeenCalledOnce();
     expect(chSelect.orderBy).toHaveBeenCalledWith('received_at', 'asc');
   });
@@ -83,7 +83,7 @@ describe('GovernorArchivePayloadRepository', () => {
 
     await expect(repo.findByProposalId('source-1', '42')).resolves.toEqual([payload]);
 
-    expect(chSelect.selectFrom).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
+    expect(chSelect.selectFrom).toHaveBeenCalledWith('archive_event_compound_governor_bravo');
     expect(chSelect.where).toHaveBeenCalledTimes(2);
     expect(chSelect.orderBy).toHaveBeenCalledWith('received_at', 'asc');
   });

@@ -1,11 +1,10 @@
-import { ChainContextRegistry, FailoverRpcClient, HeadTracker, ReorgDetector } from '@libs/chain';
+import { ChainContextRegistry, FailoverRpcClient, HeadTracker } from '@libs/chain';
 import type { ChainConfig, ChainContext } from '@libs/chain';
 import { pollUntil } from './pg-test-fixtures';
 
 export interface AnvilTestContext {
   client: FailoverRpcClient;
   headTracker: HeadTracker;
-  reorgDetector: ReorgDetector;
   registry: ChainContextRegistry;
   ctx: ChainContext;
   cleanup: () => Promise<void>;
@@ -27,7 +26,6 @@ export async function createAnvilTestContext(chainCfg: ChainConfig): Promise<Anv
   return {
     client: ctx.client,
     headTracker: ctx.headTracker,
-    reorgDetector: ctx.reorgDetector,
     registry,
     ctx,
     cleanup: () => registry.drainAll(),

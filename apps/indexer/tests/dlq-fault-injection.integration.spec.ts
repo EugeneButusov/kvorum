@@ -57,9 +57,8 @@ describeIf('DLQ fault injection', () => {
         {
           chainId: '0x7a69',
           name: 'anvil',
-          reorgHorizon: 12,
+          headLag: 12,
           headPollIntervalMs: 200,
-          sweepIntervalMs: 500,
           eventPollIntervalMs: 200,
           providers: [
             { name: 'anvil', url: ANVIL_URL, kind: 'http', priority: 1, timeoutMs: 4_000 },
@@ -74,7 +73,7 @@ describeIf('DLQ fault injection', () => {
         new FailoverRpcClient({
           chainId: '0x7a69',
           name: 'anvil',
-          reorgHorizon: 12,
+          headLag: 12,
           providers: [
             { name: 'anvil', url: ANVIL_URL!, kind: 'http', priority: 1, timeoutMs: 4_000 },
           ],
@@ -120,12 +119,17 @@ describeIf('DLQ fault injection', () => {
     const metricsBefore = await captureMetrics();
 
     // Emit the malformed event — truncated 8-byte data, correct topic0
+    // Mine extra blocks upfront to ensure confirmedHead can reach the event block.
+    // With headLag=12, tip must be at least (event_block + headLag) for confirmedHead to include the event.
+    // Mine 13 blocks (so we're at block 13), then emit event at block 14, then mine 13 more (to block 27).
+    // Then confirmedHead = 27 - 12 = 15, which includes block 14.
+    await client.send('anvil_mine', ['0xd']); // 13 blocks
     await sendAndWait(client, {
       from: accounts[0]!,
       to: contractAddress,
       data: '0x' + EMIT_MALFORMED_SELECTOR,
     });
-    await client.send('anvil_mine', ['0x2']);
+    await client.send('anvil_mine', ['0xd']); // 13 more blocks
 
     // Wait for at least one DLQ row to appear. EventPoller's sliding window re-fetches
     // the same malformed log every eventPollIntervalMs, so each re-fetch inserts a new
@@ -134,7 +138,7 @@ describeIf('DLQ fault injection', () => {
     await pollUntil(async () => {
       const rows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
       return rows.length >= 1;
-    }, 20_000);
+    }, 30_000);
 
     const dlqRows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
     expect(dlqRows.length).toBeGreaterThanOrEqual(1);
@@ -147,8 +151,8 @@ describeIf('DLQ fault injection', () => {
     // guard that the DLQ row captures the envelope for the retry path.
     expect(dlqRows[0]!.archive_tx_hash).not.toBeNull();
 
-    // No archive_confirmation row: decode check failed, never reached the archive writer
-    const archiveRows = await pgDb.selectFrom('archive_confirmation').selectAll().execute();
+    // No archive_event row: decode check failed, never reached the archive writer
+    const archiveRows = await pgDb.selectFrom('archive_event').selectAll().execute();
     expect(archiveRows).toHaveLength(0);
 
     // archive_writes{result=inserted} must NOT increment for this malformed event

@@ -149,14 +149,14 @@ function makeProjectionTx(options: ProjectionTxOptions = {}) {
       let lastArchiveSet: 'derived' | 'actor_resolved' | undefined;
       const updateChain = chain({
         set: vi.fn((values: Record<string, unknown>) => {
-          if (table === 'archive_confirmation') {
+          if (table === 'archive_event') {
             if ('derivation_actor_resolved_at' in values) lastArchiveSet = 'actor_resolved';
             if ('derived_at' in values) lastArchiveSet = 'derived';
           }
           return updateChain;
         }),
         where: vi.fn((_column: string, _operator: string, value: unknown) => {
-          if (table === 'archive_confirmation') {
+          if (table === 'archive_event') {
             if (lastArchiveSet === 'actor_resolved') calls.markedActorResolvedId = String(value);
             if (lastArchiveSet === 'derived') calls.markedDerivedId = String(value);
           }

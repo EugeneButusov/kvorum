@@ -2,12 +2,11 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
+import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
 import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
-import { ReorgWatcherService } from './reorg-watcher.service';
 import { FETCH_DRIVERS } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -17,13 +16,10 @@ vi.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
 
 vi.mock('@libs/chain', () => ({
   parseChainConfigFromEnv: vi.fn(),
-  reorgCutoff: vi.fn(
-    (head: bigint, cfg: { reorgHorizon: number }) => head - BigInt(cfg.reorgHorizon) * 2n,
-  ),
   ChainContextRegistry: vi.fn(),
   silentLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   chainMetrics: {
-    pendingEventCount: { record: vi.fn() },
+    underivedDepth: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
     ingestionGapFillFailed: { add: vi.fn() },
     ingestionGapFillSkipped: { add: vi.fn() },
@@ -32,7 +28,7 @@ vi.mock('@libs/chain', () => ({
 
 vi.mock('@libs/db', () => ({
   DaoSourceRepository: vi.fn(),
-  ConfirmationRepository: vi.fn(),
+  ArchiveEventRepository: vi.fn(),
   pgDb: {},
 }));
 
@@ -57,14 +53,10 @@ vi.mock('@sources/core', () => ({
   },
 }));
 
-vi.mock('./reorg-watcher.service', () => ({
-  ReorgWatcherService: vi.fn(),
-}));
-
 const CHAIN_CFG = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   lagThresholdBlocks: 5,
   overallTimeoutMs: 12_000,
   providers: [],
@@ -125,23 +117,16 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 }
 
 const mockDaoSourceRepo = { findAll: vi.fn() };
-const mockConfirmationRepo = { countPendingBySourceType: vi.fn().mockResolvedValue([]) };
+const mockConfirmationRepo = { countUnderivedBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
   getOrCreate: vi.fn().mockResolvedValue({ client: { send: vi.fn() } }),
   allActive: vi.fn().mockReturnValue([]),
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
-const mockReorgWatcher = {
-  watch: vi.fn(),
-};
-
 async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
-  } as never);
-  vi.mocked(ReorgWatcherService).mockImplementation(function () {
-    return mockReorgWatcher;
   } as never);
 
   return Test.createTestingModule({
@@ -150,16 +135,15 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
       { provide: SOURCE_INGESTERS, useValue: plugins },
       { provide: FETCH_DRIVERS, useValue: [driver] },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
-      { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+      { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
-      { provide: ReorgWatcherService, useValue: mockReorgWatcher },
     ],
   }).compile();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
+  mockConfirmationRepo.countUnderivedBySourceType.mockResolvedValue([]);
   mockRegistry.getOrCreate.mockResolvedValue({
     client: { send: vi.fn().mockResolvedValue('0x10') },
   });
@@ -324,7 +308,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([
+    mockConfirmationRepo.countUnderivedBySourceType.mockResolvedValue([
       { count: 3, chain_id: '0x1', source_type: 'compound_governor_bravo' },
     ]);
 
@@ -335,7 +319,7 @@ describe('IndexerOrchestratorService', () => {
 
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(mockConfirmationRepo.countPendingBySourceType).toHaveBeenCalledWith(
+    expect(mockConfirmationRepo.countUnderivedBySourceType).toHaveBeenCalledWith(
       'compound_governor_bravo',
     );
     vi.useRealTimers();
@@ -430,9 +414,6 @@ describe('IndexerOrchestratorService', () => {
     vi.mocked(ChainContextRegistry).mockImplementation(function () {
       return mockRegistry;
     } as never);
-    vi.mocked(ReorgWatcherService).mockImplementation(function () {
-      return mockReorgWatcher;
-    } as never);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -440,9 +421,8 @@ describe('IndexerOrchestratorService', () => {
         { provide: SOURCE_INGESTERS, useValue: [blockHeadPlugin] },
         { provide: FETCH_DRIVERS, useValue: [eventDriver, blockHeadDriver] },
         { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
-        { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+        { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
         { provide: ChainContextRegistry, useValue: mockRegistry },
-        { provide: ReorgWatcherService, useValue: mockReorgWatcher },
       ],
     }).compile();
 

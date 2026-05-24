@@ -74,10 +74,6 @@ describe('admin-cli help snapshots', () => {
     expect(domainHelp(program, 'keys')).toMatchSnapshot();
   });
 
-  it('reorgs --help', () => {
-    expect(domainHelp(program, 'reorgs')).toMatchSnapshot();
-  });
-
   it('status --help', () => {
     expect(domainHelp(program, 'status')).toMatchSnapshot();
   });

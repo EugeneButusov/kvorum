@@ -1,4 +1,10 @@
-import { chainMetrics, type ChainConfig, type Logger, type RpcClient } from '@libs/chain';
+import {
+  chainMetrics,
+  readConfirmedHead,
+  type ChainConfig,
+  type Logger,
+  type RpcClient,
+} from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
 import { BackfillDriver } from './backfill-driver';
 import { BootCatchUpShutdownError } from './errors/boot-catch-up-shutdown.error';
@@ -44,15 +50,13 @@ export async function runBootCatchUp(input: BootCatchUpInput): Promise<BootCatch
           return { kind: 'gap', gapStart: fromBlock, gapEnd: input.toBlock } as const;
         })()
       : (() => {
-          const headHex = rpcClient.send<string>('eth_blockNumber', []);
-          return headHex.then((hex) =>
+          return readConfirmedHead(rpcClient, chainConfig, daoSourceId).then((confirmedHead) =>
             computeGap({
               row: {
                 active_from_block: row.active_from_block,
                 backfill_head_block: row.backfill_head_block,
               },
-              headBlock: BigInt(hex),
-              reorgHorizon: chainConfig.reorgHorizon,
+              confirmedHead,
             }),
           );
         })();

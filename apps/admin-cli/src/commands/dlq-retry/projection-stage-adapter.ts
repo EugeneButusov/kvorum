@@ -6,9 +6,9 @@ function archiveConfirmationIdFromPayload(payload: unknown): string {
     throw new Error('projection DLQ payload is not an object');
   }
   const rec = payload as Record<string, unknown>;
-  const id = rec['archive_confirmation_id'] ?? rec['id'];
+  const id = rec['archive_event_id'] ?? rec['id'];
   if (typeof id !== 'string' || id.length === 0) {
-    throw new Error('projection DLQ payload is missing archive_confirmation_id');
+    throw new Error('projection DLQ payload is missing archive_event_id');
   }
   return id;
 }
@@ -22,6 +22,6 @@ export class ProjectionStageAdapter implements DlqRetryAdapter {
     const archiveConfirmationId = archiveConfirmationIdFromPayload(dlqEntry.payload);
     await this.archiveDerivationAdminRepo.resetWatermarkByConfirmationId(archiveConfirmationId);
 
-    return { status: 'resolved', reason: 'projection retry reset archive_confirmation watermark' };
+    return { status: 'resolved', reason: 'projection retry reset archive_event watermark' };
   }
 }

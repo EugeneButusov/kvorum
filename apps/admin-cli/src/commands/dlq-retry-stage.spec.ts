@@ -3,7 +3,7 @@ import { isDlqRetryableStage } from './dlq-retry-stage.js';
 
 describe('isDlqRetryableStage', () => {
   it('accepts normalized confirmation stage', () => {
-    expect(isDlqRetryableStage('confirmation_archive_stage')).toBe(true);
+    expect(isDlqRetryableStage('archive_event_stage')).toBe(true);
   });
 
   it('accepts normalized vote stage', () => {

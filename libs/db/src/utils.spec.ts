@@ -36,11 +36,11 @@ describe('isTransientDbError', () => {
 });
 
 describe('isCanonicalPartialUniqueViolation', () => {
-  it('23505 + idx_archive_confirmation_canonical → true', () => {
+  it('23505 + archive_event_idempotency_key → true', () => {
     expect(
       isCanonicalPartialUniqueViolation({
         code: '23505',
-        constraint: 'idx_archive_confirmation_canonical',
+        constraint: 'archive_event_idempotency_key',
       }),
     ).toBe(true);
   });
@@ -49,7 +49,7 @@ describe('isCanonicalPartialUniqueViolation', () => {
     expect(
       isCanonicalPartialUniqueViolation({
         code: '23505',
-        constraint: 'archive_confirmation_idempotency_key',
+        constraint: 'some_other_constraint',
       }),
     ).toBe(false);
   });
@@ -58,7 +58,7 @@ describe('isCanonicalPartialUniqueViolation', () => {
     expect(
       isCanonicalPartialUniqueViolation({
         code: '23503',
-        constraint: 'idx_archive_confirmation_canonical',
+        constraint: 'archive_event_idempotency_key',
       }),
     ).toBe(false);
   });

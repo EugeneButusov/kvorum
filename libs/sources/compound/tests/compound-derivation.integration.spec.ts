@@ -73,19 +73,15 @@ describeIf('compound governor derivation', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_confirmation, proposal, actor RESTART IDENTITY CASCADE`.execute(
-      pgDb,
-    );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`TRUNCATE dao, archive_event, proposal, actor RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_confirmation, proposal, actor RESTART IDENTITY CASCADE`.execute(
-      pgDb,
-    );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`TRUNCATE archive_event, proposal, actor RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
@@ -98,7 +94,7 @@ describeIf('compound governor derivation', () => {
     payload: Record<string, unknown>;
   }): Promise<void> {
     await chDb
-      .insertInto('event_archive_compound_governor_bravo')
+      .insertInto('archive_event_compound_governor_bravo')
       .values({
         dao_source_id: daoSourceId,
         chain_id: CHAIN_ID,
@@ -109,12 +105,12 @@ describeIf('compound governor derivation', () => {
         event_type: opts.eventType,
         payload: JSON.stringify(opts.payload),
       } as Parameters<
-        ReturnType<typeof chDb.insertInto<'event_archive_compound_governor_bravo'>>['values']
+        ReturnType<typeof chDb.insertInto<'archive_event_compound_governor_bravo'>>['values']
       >[0])
       .execute();
 
     await pgDb
-      .insertInto('archive_confirmation')
+      .insertInto('archive_event')
       .values({
         source_type: 'compound_governor_bravo',
         dao_source_id: daoSourceId,
@@ -125,10 +121,6 @@ describeIf('compound governor derivation', () => {
         log_index: 0,
         event_type: opts.eventType,
         received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       })
       .execute();
@@ -153,7 +145,7 @@ describeIf('compound governor derivation', () => {
       },
     });
 
-    const rows1 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
+    const rows1 = await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows1);
 
     const proposals = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -193,12 +185,12 @@ describeIf('compound governor derivation', () => {
 
     // Idempotency: reset derived_at and re-run — same snapshot
     await pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derived_at: null })
       .where('tx_hash', '=', numberedHash(1))
       .execute();
 
-    const rows2 = await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
+    const rows2 = await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10);
     await applier.applyBatch(rows2);
 
     const proposalsAfterReplay = await pgDb.selectFrom('proposal').selectAll().execute();
@@ -216,9 +208,7 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1' },
     });
 
-    await applier.applyBatch(
-      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
-    );
+    await applier.applyBatch(await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10));
 
     const executed = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(executed!.state).toBe('executed');
@@ -232,9 +222,7 @@ describeIf('compound governor derivation', () => {
       payload: { proposalId: '1', eta: '123' },
     });
 
-    await applier.applyBatch(
-      await archive.findConfirmedUndderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10),
-    );
+    await applier.applyBatch(await archive.findUnderived(GOVERNOR_DERIVATION_EVENT_TYPES, 10));
 
     const afterLateQueued = await pgDb.selectFrom('proposal').selectAll().executeTakeFirst();
     expect(afterLateQueued!.state).toBe('executed');

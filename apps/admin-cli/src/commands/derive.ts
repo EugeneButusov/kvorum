@@ -29,10 +29,7 @@ export function registerDerive(program: Command): void {
         const fromBlock = parseOptionalBlock(opts.fromBlock, '--from-block');
 
         if (opts.dryRun === true) {
-          const rows = await archiveDerivationRepository.countConfirmedUnderived(
-            daoSourceId,
-            fromBlock,
-          );
+          const rows = await archiveDerivationRepository.countUnderived(daoSourceId, fromBlock);
           emit(format, () => `Would reset derivation watermark for ${rows} rows`, {
             dao_source_id: daoSourceId,
             dry_run: true,

@@ -11,7 +11,7 @@ export class CompTokenEventRepository {
 
   async insert(data: CompTokenEventData): Promise<void> {
     await this.chDb
-      .insertInto('event_archive_compound_comp_token')
+      .insertInto('archive_event_compound_comp_token')
       .values({
         dao_source_id: data.daoSourceId,
         chain_id: data.chainId,
@@ -22,7 +22,7 @@ export class CompTokenEventRepository {
         event_type: data.eventType,
         payload: data.payload,
       } as Parameters<
-        ReturnType<typeof this.chDb.insertInto<'event_archive_compound_comp_token'>>['values']
+        ReturnType<typeof this.chDb.insertInto<'archive_event_compound_comp_token'>>['values']
       >[0])
       .execute();
   }

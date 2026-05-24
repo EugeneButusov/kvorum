@@ -17,7 +17,7 @@ function makeEthersProvider(url: string, timeoutMs = 1500): JsonRpcProvider {
 const BASE_CONFIG: ChainConfig = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   lagThresholdBlocks: 3,
   providers: [],
 };

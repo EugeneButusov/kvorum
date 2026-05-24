@@ -13,7 +13,7 @@ describe('runBootCatchUp', () => {
         id: 'src-1',
         source_type: 'compound_governor_bravo',
         active_from_block: '100',
-        backfill_head_block: '200',
+        backfill_head_block: '205',
       }),
     };
 
@@ -23,7 +23,7 @@ describe('runBootCatchUp', () => {
       repo,
       input: {
         daoSourceId: 'src-1',
-        chainConfig: { reorgHorizon: 5 } as never,
+        chainConfig: { headLag: 5 } as never,
         rpcClient: rpc as never,
         daoSourceRepo: repo as never,
         runtime: { filter: { address: '0xabc' }, listenerFactory: vi.fn() } as never,

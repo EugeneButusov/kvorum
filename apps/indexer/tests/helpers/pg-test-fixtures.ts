@@ -63,7 +63,7 @@ export async function insertPendingConfirmation(
   },
 ): Promise<string> {
   const row = await db
-    .insertInto('archive_confirmation')
+    .insertInto('archive_event')
     .values({
       source_type: opts.sourceType,
       dao_source_id: opts.daoSourceId,
@@ -74,10 +74,6 @@ export async function insertPendingConfirmation(
       log_index: opts.logIndex,
       event_type: 'ProposalCreated',
       received_at: new Date(),
-      confirmation_status: 'pending',
-      confirmed_at: null,
-      orphaned_at: null,
-      orphaned_by_reorg_event_id: null,
       derived_at: null,
     })
     .returning('id')
@@ -88,18 +84,14 @@ export async function insertPendingConfirmation(
 export async function truncateAllIngestionTables(db: Kysely<PgDatabase>): Promise<void> {
   // Preserves dao and dao_source — tests that seed them once in beforeAll (F3a, F3b pattern)
   // need these rows to persist across beforeEach calls.
-  await sql`TRUNCATE archive_confirmation, reorg_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-    db,
-  );
+  await sql`TRUNCATE archive_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(db);
 }
 
 export async function truncateAllTestTables(db: Kysely<PgDatabase>): Promise<void> {
   // Full teardown including dao/dao_source — call from afterAll so successive local
   // test runs don't collide on unique constraints. Not used in beforeEach (that
   // deliberately preserves dao/dao_source across iterations within a file).
-  await sql`TRUNCATE dao, archive_confirmation, reorg_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-    db,
-  );
+  await sql`TRUNCATE dao, archive_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(db);
 }
 
 export async function pollUntil(

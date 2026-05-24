@@ -1,9 +1,9 @@
 import { chainMetrics } from '@libs/chain';
 import type { LogEvent, Logger } from '@libs/chain';
 import type {
-  ConfirmationRepository,
+  ArchiveEventRepository,
   DlqRepository,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
 import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
@@ -14,14 +14,14 @@ import type { CompTokenEventRepository } from '../persistence/event-repository';
 
 export class CompTokenArchiveWriter {
   private readonly eventRepo: CompTokenEventRepository;
-  private readonly confirmationRepo: ConfirmationRepository;
+  private readonly archiveEventRepo: ArchiveEventRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
   constructor(deps: CompTokenArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
-    this.confirmationRepo = deps.confirmationRepo;
+    this.archiveEventRepo = deps.archiveEventRepo;
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
@@ -32,7 +32,7 @@ export class CompTokenArchiveWriter {
     decoded: CompTokenEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    const existing = await this.confirmationRepo.find({
+    const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
@@ -41,12 +41,14 @@ export class CompTokenArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, {
+        source: ctx.sourceLabel,
+        reason: 'rescan_window',
+      });
       return { result: 'skipped_existing' };
     }
 
     const receivedAt = this.now();
-    const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
     try {
       await this.eventRepo.insert({
@@ -60,7 +62,7 @@ export class CompTokenArchiveWriter {
         payload: JSON.stringify(decoded.payload),
       });
 
-      const row: NewArchiveConfirmation = {
+      const row: NewArchiveEvent = {
         source_type: ctx.sourceType,
         dao_source_id: ctx.daoSourceId,
         chain_id: ctx.chainId,
@@ -70,14 +72,10 @@ export class CompTokenArchiveWriter {
         log_index: logRef.logIndex,
         event_type: decoded.type,
         received_at: receivedAt,
-        confirmation_status: confirmationStatus,
-        confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       };
 
-      const result = await this.confirmationRepo.insert(row);
+      const result = await this.archiveEventRepo.insert(row);
 
       if (result?.id) {
         chainMetrics.archiveWrites.add(1, {

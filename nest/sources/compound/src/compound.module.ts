@@ -2,8 +2,8 @@ import { Module, Logger } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
   ActorRepository,
+  ArchiveEventRepository,
   ArchiveDerivationRepository,
-  ConfirmationRepository,
   DaoSourceRepository,
   DelegationRepository,
   DlqRepository,
@@ -39,8 +39,8 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
   imports: [ChainContextModule],
   providers: [
     {
-      provide: ConfirmationRepository,
-      useFactory: () => new ConfirmationRepository(pgDb),
+      provide: ArchiveEventRepository,
+      useFactory: () => new ArchiveEventRepository(pgDb),
     },
     {
       provide: DlqRepository,
@@ -54,11 +54,11 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       provide: GovernorArchiveWriter,
       useFactory: () => {
         const eventRepo = new GovernorEventRepository({ chDb });
-        const confirmationRepo = new ConfirmationRepository(pgDb);
+        const archiveEventRepo = new ArchiveEventRepository(pgDb);
         const dlqRepo = new DlqRepository(pgDb);
         return new GovernorArchiveWriter({
           eventRepo,
-          confirmationRepo,
+          archiveEventRepo,
           dlqRepo,
           logger: toChainLogger(new Logger('GovernorArchiveWriter')),
         });
@@ -76,16 +76,16 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       provide: CompTokenArchiveWriter,
       useFactory: (
         eventRepo: CompTokenEventRepository,
-        confirmationRepo: ConfirmationRepository,
+        archiveEventRepo: ArchiveEventRepository,
         dlqRepo: DlqRepository,
       ) =>
         new CompTokenArchiveWriter({
           eventRepo,
-          confirmationRepo,
+          archiveEventRepo,
           dlqRepo,
           logger: toChainLogger(new Logger('CompTokenArchiveWriter')),
         }),
-      inject: [CompTokenEventRepository, ConfirmationRepository, DlqRepository],
+      inject: [CompTokenEventRepository, ArchiveEventRepository, DlqRepository],
     },
     {
       provide: GovernorProjectionApplier,

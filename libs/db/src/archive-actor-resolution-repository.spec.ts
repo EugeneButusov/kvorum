@@ -12,7 +12,7 @@ const ARCHIVE_ROW: ArchiveDerivationRow = {
   tx_hash: '0xtx',
   log_index: 1,
   event_type: 'ProposalCreated',
-  confirmed_at: new Date('2026-01-01T00:00:00Z'),
+  received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 2,
 };
 
@@ -58,7 +58,7 @@ describe('ArchiveActorResolutionRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveActorResolutionRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
+    await expect(repo.findDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
 
     expect(pgSelect.where).toHaveBeenCalledWith('derived_at', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is not', null);
@@ -69,20 +69,16 @@ describe('ArchiveActorResolutionRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveActorResolutionRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedDerivableBy([], 10)).resolves.toEqual([]);
+    await expect(repo.findDerivableBy([], 10)).resolves.toEqual([]);
     expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
-  it('selects confirmed unresolved actor rows by actor-sweep contract', async () => {
+  it('selects unresolved actor rows by actor-sweep contract', async () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveActorResolutionRepository({ selectFrom: pgSelect.selectFrom } as never);
 
     await expect(
-      repo.findConfirmedUnresolvedActors(
-        ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'],
-        5,
-        25,
-      ),
+      repo.findUnresolvedActors(['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'], 5, 25),
     ).resolves.toEqual([ARCHIVE_ROW]);
 
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is', null);
@@ -98,7 +94,7 @@ describe('ArchiveActorResolutionRepository', () => {
     const pgSelect = makeSelectChain([ARCHIVE_ROW]);
     const repo = new ArchiveActorResolutionRepository({ selectFrom: pgSelect.selectFrom } as never);
 
-    await expect(repo.findConfirmedUnresolvedActors([], 5, 10)).resolves.toEqual([]);
+    await expect(repo.findUnresolvedActors([], 5, 10)).resolves.toEqual([]);
     expect(pgSelect.selectFrom).not.toHaveBeenCalled();
   });
 
@@ -108,7 +104,7 @@ describe('ArchiveActorResolutionRepository', () => {
 
     await repo.markActorResolved('row-1');
 
-    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
 
@@ -118,7 +114,7 @@ describe('ArchiveActorResolutionRepository', () => {
 
     await expect(repo.incrementActorResolutionAttemptCount('row-1')).resolves.toBe(3);
 
-    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
     expect(update.returning).toHaveBeenCalledWith('actor_resolution_attempt_count');
   });

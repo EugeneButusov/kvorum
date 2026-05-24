@@ -43,10 +43,10 @@ describe('chainMetrics counters', () => {
     expect(text).toContain('test_ingestion_rpc_failures_total');
   });
 
-  it('reorgSignals counter emits _total series', async () => {
-    chainMetrics.reorgSignals.add(1, { chain: 'ethereum' });
+  it('archiveWrites counter emits _total series', async () => {
+    chainMetrics.archiveWrites.add(1, { chain: 'ethereum' });
     const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_reorg_signals_total');
+    expect(text).toContain('test_ingestion_archive_writes_total');
   });
 
   it('proxyResolutions counter emits _total series', async () => {
@@ -86,10 +86,10 @@ describe('chainMetrics gauges', () => {
     expect(text).toContain('test_ingestion_head_block_age_seconds');
   });
 
-  it('pendingEventCount gauge emits series', async () => {
-    chainMetrics.pendingEventCount.record(42, { chain_id: '1', source_type: 'compound_governor' });
+  it('underivedDepth gauge emits series', async () => {
+    chainMetrics.underivedDepth.record(42, { chain_id: '1', source_type: 'compound_governor' });
     const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_pending_event_count');
+    expect(text).toContain('test_ingestion_underived_depth');
   });
 
   it('indexerActiveSources gauge emits series', async () => {
@@ -146,10 +146,10 @@ describe('F1 archive metrics', () => {
     expect(text).toContain('test_ingestion_archive_writes_total');
   });
 
-  it('archiveSkippedExistence counter emits series', async () => {
-    chainMetrics.archiveSkippedExistence.add(1, { source: 'compound_governor' });
+  it('archiveDuplicateSkip counter emits series', async () => {
+    chainMetrics.archiveDuplicateSkip.add(1, { source: 'compound_governor' });
     const text = await renderMetrics();
-    expect(text).toContain('test_archive_skipped_existence_total');
+    expect(text).toContain('test_archive_duplicate_skip_total');
   });
 
   it('archiveChWriteErrors counter emits series', async () => {
@@ -221,34 +221,6 @@ describe('shutdownForTest + vi.resetModules isolation', () => {
     });
     const t2 = await renderMetrics();
     expect(t2).toMatch(/test_ingestion_rpc_requests_total\{.*\}\s+1/);
-  });
-});
-
-describe('F2 metrics', () => {
-  it('reorgEvent counter exists and accepts chain_id label', async () => {
-    chainMetrics.reorgEvent.add(1, { chain_id: '0x1' });
-    const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_reorg_event_total');
-  });
-
-  it('orphanedEvents counter exists and accepts chain_id label', async () => {
-    chainMetrics.orphanedEvents.add(2, { chain_id: '0x89' });
-    const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_orphaned_events_total');
-  });
-
-  it('reorgTruncated counter exists and accepts chain_id label', async () => {
-    chainMetrics.reorgTruncated.add(1, { chain_id: '0x1' });
-    const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_reorg_truncated_total');
-  });
-
-  it('promotionSweepDuration histogram exists and accepts chain_id label', async () => {
-    chainMetrics.promotionSweepDuration.record(0.002, { chain_id: '0x1' });
-    const text = await renderMetrics();
-    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_bucket');
-    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_sum');
-    expect(text).toContain('test_ingestion_promotion_sweep_duration_seconds_count');
   });
 });
 

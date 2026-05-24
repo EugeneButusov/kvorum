@@ -16,7 +16,7 @@ const HEAD_BLOCK = 20_000_000n;
 const BASE_CHAIN_CONFIG = {
   chainId: CHAIN_ID,
   name: 'mainnet',
-  reorgHorizon: 100,
+  headLag: 100,
   providers: [{ name: 'p', url: 'http://rpc', kind: 'http' as const, priority: 1 }],
 };
 
@@ -201,70 +201,6 @@ describe('BackfillDriver', () => {
       await expect(
         driver.run({ daoSourceId: DAO_SOURCE_ID, mode: 'resume', fromBlock: 0n }),
       ).rejects.toThrow(BackfillNotResumableError);
-    });
-  });
-
-  describe('classifier correctness (ADR-027 + ADR-046)', () => {
-    it('#7 — classifier uses head − 2×reorgHorizon cutoff', async () => {
-      const head = 20_000_000n;
-      const reorgHorizon = 100;
-      const expectedCutoff = head - BigInt(reorgHorizon) * 2n; // 19_999_800
-
-      const capturedClassifiers: Array<(bn: bigint) => string> = [];
-      const { repo } = makeRepo(makeDaoSourceRow({ backfill_started_at_block: head.toString() }));
-
-      const driver = new BackfillDriver(
-        makeDeps(makeRpcClient({ headBlock: head }), repo, {
-          chainConfig: { ...BASE_CHAIN_CONFIG, reorgHorizon },
-          listenerFactory: (classifier) => {
-            capturedClassifiers.push(classifier);
-            return vi.fn().mockResolvedValue(undefined);
-          },
-        }),
-      );
-
-      await driver.run({
-        daoSourceId: DAO_SOURCE_ID,
-        mode: 'resume',
-        fromBlock: 0n,
-        chunkSize: 100_000_000,
-      });
-
-      expect(capturedClassifiers).toHaveLength(1);
-      const classify = capturedClassifiers[0]!;
-      expect(classify(expectedCutoff)).toBe('confirmed'); // bn <= cutoff ⇒ confirmed
-      expect(classify(expectedCutoff + 1n)).toBe('pending'); // bn > cutoff ⇒ pending
-    });
-
-    it('#8 — resume: cutoff is derived from DB head, not a live eth_blockNumber call', async () => {
-      const dbHead = 19_000_000n;
-      const capturedClassifiers: Array<(bn: bigint) => string> = [];
-
-      const { repo } = makeRepo(makeDaoSourceRow({ backfill_started_at_block: dbHead.toString() }));
-
-      // eth_blockNumber would return a different (later) block if called
-      const rpc = makeRpcClient({ headBlock: 20_000_000n });
-      const driver = new BackfillDriver(
-        makeDeps(rpc, repo, {
-          listenerFactory: (classifier) => {
-            capturedClassifiers.push(classifier);
-            return vi.fn().mockResolvedValue(undefined);
-          },
-        }),
-      );
-
-      await driver.run({
-        daoSourceId: DAO_SOURCE_ID,
-        mode: 'resume',
-        fromBlock: 0n,
-        chunkSize: 100_000_000,
-      });
-
-      const classify = capturedClassifiers[0]!;
-      // cutoff = dbHead - 200 = 18_999_800
-      const expectedCutoff = dbHead - 200n;
-      expect(classify(expectedCutoff)).toBe('confirmed');
-      expect(classify(expectedCutoff + 1n)).toBe('pending');
     });
   });
 

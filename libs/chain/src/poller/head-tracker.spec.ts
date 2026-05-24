@@ -20,7 +20,7 @@ async function makeClient(fake: FakeProvider): Promise<FailoverRpcClient> {
   const client = new FailoverRpcClient({
     chainId: CHAIN_ID,
     name: 'test',
-    reorgHorizon: 12,
+    headLag: 12,
     providers: [{ name: 'fake', url: fake.url, kind: 'http', priority: 1, timeoutMs: 4_000 }],
   });
   await client.start();
@@ -33,7 +33,7 @@ function baseOpts(
 ): HeadTrackerOptions {
   return {
     rpcClient: client,
-    chainCfg: { chainId: CHAIN_ID, name: 'test', reorgHorizon: 12, providers: [] },
+    chainCfg: { chainId: CHAIN_ID, name: 'test', headLag: 12, providers: [] },
     pollIntervalMs: 50,
     stopTimeoutMs: 500,
     ...overrides,
@@ -133,7 +133,7 @@ describe('HeadTracker', () => {
 
       const tracker = new HeadTracker({
         rpcClient: mockRpc,
-        chainCfg: { chainId: CHAIN_ID, name: 'test', reorgHorizon: 12, providers: [] },
+        chainCfg: { chainId: CHAIN_ID, name: 'test', headLag: 12, providers: [] },
         pollIntervalMs: 50,
         stopTimeoutMs: 200,
       });

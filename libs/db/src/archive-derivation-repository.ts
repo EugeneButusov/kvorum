@@ -11,21 +11,21 @@ export interface ArchiveDerivationRow {
   tx_hash: string;
   log_index: number;
   event_type: string;
-  confirmed_at: Date | null;
+  received_at: Date;
   derivation_attempt_count: number;
 }
 
 export class ArchiveDerivationRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
-  async findConfirmedUndderived(
+  async findUnderived(
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
     return this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select([
         'id',
         'source_type',
@@ -36,10 +36,9 @@ export class ArchiveDerivationRepository {
         'tx_hash',
         'log_index',
         'event_type',
-        'confirmed_at',
+        'received_at',
         'derivation_attempt_count',
       ])
-      .where('confirmation_status', '=', 'confirmed')
       .where('derived_at', 'is', null)
       .where('event_type', 'in', eventTypes)
       .orderBy('chain_id', 'asc')
@@ -52,7 +51,7 @@ export class ArchiveDerivationRepository {
 
   async markDerived(id: string): Promise<void> {
     await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derived_at: sql`now()` })
       .where('id', '=', id)
       .execute();
@@ -60,7 +59,7 @@ export class ArchiveDerivationRepository {
 
   async incrementAttemptCount(id: string): Promise<void> {
     await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derivation_attempt_count: sql`derivation_attempt_count + 1` })
       .where('id', '=', id)
       .execute();

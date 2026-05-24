@@ -4,11 +4,11 @@ import {
   ChainContextRegistry,
   parseChainConfigFromEnv,
   chainMetrics,
-  reorgCutoff,
   silentLogger,
+  readConfirmedHead,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
+import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
 import { raceWithAbort, AbortError } from '@libs/utils';
 import {
   BackfillAlreadyStartedError,
@@ -18,7 +18,6 @@ import {
   type SourceIngester,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
-import { ReorgWatcherService } from './reorg-watcher.service';
 import { FETCH_DRIVERS } from './tokens';
 
 @Injectable()
@@ -27,6 +26,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private readonly handles: FetchDriverHandle[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
   private activeSourceTypes: Set<string> = new Set();
+  private activeSources: Array<{ daoSourceId: string; chainCfg: ChainConfig }> = [];
   private shutdownController = new AbortController();
   private catchUpTasks: Promise<void>[] = [];
 
@@ -34,9 +34,8 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     @Inject(SOURCE_INGESTERS) private readonly plugins: ReadonlyArray<SourceIngester>,
     @Inject(FETCH_DRIVERS) private readonly drivers: readonly FetchDriver[],
     private readonly daoSourceRepo: DaoSourceRepository,
-    private readonly confirmationRepo: ConfirmationRepository,
+    private readonly archiveEventRepo: ArchiveEventRepository,
     private readonly registry: ChainContextRegistry,
-    private readonly reorgWatcher: ReorgWatcherService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -140,10 +139,6 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       throw err;
     }
 
-    for (const chainCtx of this.registry.allActive()) {
-      this.reorgWatcher.watch(chainCtx);
-    }
-
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
       chainMetrics.indexerActiveSources.record(count, { source_type: sourceType });
     }
@@ -151,6 +146,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       `started ${validated.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
     );
 
+    this.activeSources = validated.map((v) => ({ daoSourceId: v.src.id, chainCfg: v.chainCfg }));
     this.startPendingDepthGauge();
   }
 
@@ -165,6 +161,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     await Promise.allSettled(this.handles.map((h) => h.stop()));
     this.handles.length = 0;
     this.activeSourceTypes.clear();
+    this.activeSources = [];
     await this.registry.drainAll();
   }
 
@@ -177,16 +174,35 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     const update = async () => {
       try {
         for (const sourceType of this.activeSourceTypes) {
-          const rows = await this.confirmationRepo.countPendingBySourceType(sourceType);
+          const rows = await this.archiveEventRepo.countUnderivedBySourceType(sourceType);
           for (const row of rows) {
-            chainMetrics.pendingEventCount.record(Number(row.count), {
+            chainMetrics.underivedDepth.record(Number(row.count), {
               chain_id: row.chain_id,
               source_type: row.source_type,
             });
           }
         }
       } catch (err) {
-        this.logger.warn('pending_depth_gauge_error', { error: String(err) });
+        this.logger.warn('underived_depth_gauge_error', { error: String(err) });
+      }
+
+      for (const { daoSourceId, chainCfg } of this.activeSources) {
+        try {
+          const chainCtx = await this.registry.getOrCreate(chainCfg);
+          const confirmedHead = await readConfirmedHead(chainCtx.client, chainCfg, daoSourceId);
+          const maxBlock = await this.archiveEventRepo.findMaxBlockNumber(daoSourceId);
+          if (maxBlock != null) {
+            chainMetrics.archiveWriteLag.record(Number(confirmedHead) - Number(maxBlock), {
+              chain_id: chainCfg.chainId,
+              dao_source: daoSourceId,
+            });
+          }
+        } catch (err) {
+          this.logger.warn('archive_write_lag_gauge_error', {
+            dao_source: daoSourceId,
+            error: String(err),
+          });
+        }
       }
     };
 
@@ -215,7 +231,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         runtime,
         logger: silentLogger,
         signal: this.shutdownController.signal,
-        toBlock: reorgCutoff(firstTickHead, entry.chainCfg),
+        toBlock: firstTickHead,
       });
       if (result.status === 'cancelled' && this.shutdownController.signal.aborted) {
         throw new BootCatchUpShutdownError();

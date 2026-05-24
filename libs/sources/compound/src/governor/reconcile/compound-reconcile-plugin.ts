@@ -27,8 +27,8 @@ function createReconcilePlugin(
     buildIngestSpec: (_ctx, _cfg) => ({
       kind: 'evm-block-head-poller',
       listener: ({ chainCfg, headBlock, client }) => {
-        const reorgHorizon = BigInt(chainCfg.reorgHorizon);
-        if (headBlock < reorgHorizon) return;
+        const headLag = BigInt(chainCfg.headLag);
+        if (headBlock < headLag) return;
         const blocksPerMinute = chainCfg.blocksPerMinute ?? 5;
         const recheckGapSeconds = Number(
           process.env['COMPOUND_STATE_RECONCILE_RECHECK_GAP_SECONDS'] ?? 7_200,
@@ -37,7 +37,7 @@ function createReconcilePlugin(
         void driver.onConfirmedHeads([
           {
             chainId: chainCfg.chainId,
-            confirmedThresholdBlock: (headBlock - reorgHorizon).toString(),
+            confirmedThresholdBlock: (headBlock - headLag).toString(),
             recheckGapBlocks,
             client,
           },

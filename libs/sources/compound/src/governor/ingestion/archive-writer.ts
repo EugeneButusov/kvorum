@@ -1,9 +1,9 @@
 import { chainMetrics } from '@libs/chain';
 import type { LogEvent, Logger } from '@libs/chain';
 import type {
-  ConfirmationRepository,
+  ArchiveEventRepository,
   DlqRepository,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
 import type {
@@ -24,14 +24,14 @@ function serializeError(err: unknown): Record<string, unknown> {
 
 export class GovernorArchiveWriter {
   private readonly eventRepo: GovernorEventRepository;
-  private readonly confirmationRepo: ConfirmationRepository;
+  private readonly archiveEventRepo: ArchiveEventRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
   constructor(deps: GovernorArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
-    this.confirmationRepo = deps.confirmationRepo;
+    this.archiveEventRepo = deps.archiveEventRepo;
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
@@ -43,7 +43,7 @@ export class GovernorArchiveWriter {
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
     // Step 1 — existence check (5-tuple, status-agnostic)
-    const existing = await this.confirmationRepo.find({
+    const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
@@ -52,7 +52,10 @@ export class GovernorArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveSkippedExistence.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, {
+        source: ctx.sourceLabel,
+        reason: 'rescan_window',
+      });
       this.logger.debug('archive_check_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
@@ -62,7 +65,6 @@ export class GovernorArchiveWriter {
     }
 
     const receivedAt = this.now();
-    const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
     try {
       // Step 2 — event archive insert (idempotent; CH failures route to DLQ via catch below)
@@ -77,8 +79,8 @@ export class GovernorArchiveWriter {
         payload: JSON.stringify(decoded.payload),
       });
 
-      // Step 3 — confirmation insert with retry (retries managed by ConfirmationRepository)
-      const row: NewArchiveConfirmation = {
+      // Step 3 — confirmation insert with retry (retries managed by ArchiveEventRepository)
+      const row: NewArchiveEvent = {
         source_type: ctx.sourceType,
         dao_source_id: ctx.daoSourceId,
         chain_id: ctx.chainId,
@@ -88,13 +90,9 @@ export class GovernorArchiveWriter {
         log_index: logRef.logIndex,
         event_type: decoded.type,
         received_at: receivedAt,
-        confirmation_status: confirmationStatus,
-        confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       };
-      const result = await this.confirmationRepo.insert(row);
+      const result = await this.archiveEventRepo.insert(row);
 
       if (result?.id) {
         chainMetrics.archiveWrites.add(1, {
@@ -134,7 +132,7 @@ export class GovernorArchiveWriter {
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'confirmation_archive_stage',
+      stage: 'archive_event_stage',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

@@ -26,34 +26,33 @@ function makeUpdateChain(returnValue: unknown) {
 }
 
 describe('ArchiveDerivationAdminRepository', () => {
-  it('counts confirmed underived rows without a starting block', async () => {
+  it('counts underived rows without a starting block', async () => {
     const select = makeCountSelectChain({ count: '7' });
     const repo = new ArchiveDerivationAdminRepository({ selectFrom: select.selectFrom } as never);
 
-    await expect(repo.countConfirmedUnderived('source-1')).resolves.toBe(7);
+    await expect(repo.countUnderived('source-1')).resolves.toBe(7);
 
-    expect(select.selectFrom).toHaveBeenCalledWith('archive_confirmation');
+    expect(select.selectFrom).toHaveBeenCalledWith('archive_event');
     expect(select.chain.where).toHaveBeenCalledWith('dao_source_id', '=', 'source-1');
-    expect(select.chain.where).toHaveBeenCalledWith('confirmation_status', '=', 'confirmed');
     expect(select.chain.where).not.toHaveBeenCalledWith('block_number', '>=', expect.anything());
   });
 
-  it('counts confirmed underived rows from a starting block', async () => {
+  it('counts underived rows from a starting block', async () => {
     const select = makeCountSelectChain({ count: '3' });
     const repo = new ArchiveDerivationAdminRepository({ selectFrom: select.selectFrom } as never);
 
-    await expect(repo.countConfirmedUnderived('source-1', 123n)).resolves.toBe(3);
+    await expect(repo.countUnderived('source-1', 123n)).resolves.toBe(3);
 
     expect(select.chain.where).toHaveBeenCalledWith('block_number', '>=', '123');
   });
 
-  it('resets derivation watermark by archive confirmation id', async () => {
+  it('resets derivation watermark by archive event id', async () => {
     const update = makeUpdateChain({ numUpdatedRows: 1n });
     const repo = new ArchiveDerivationAdminRepository({ updateTable: update.updateTable } as never);
 
     await expect(repo.resetWatermarkByConfirmationId('ac-1')).resolves.toBe(1);
 
-    expect(update.updateTable).toHaveBeenCalledWith('archive_confirmation');
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.chain.set).toHaveBeenCalledWith({
       derived_at: null,
       derivation_attempt_count: 0,

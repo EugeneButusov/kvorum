@@ -37,7 +37,7 @@ describe('GovernorEventRepository', () => {
     const repo = new GovernorEventRepository({ chDb: { insertInto: chain.insertInto } } as never);
     await repo.insert(EVENT_DATA);
 
-    expect(chain.insertInto).toHaveBeenCalledWith('event_archive_compound_governor_bravo');
+    expect(chain.insertInto).toHaveBeenCalledWith('archive_event_compound_governor_bravo');
     const vals = chain.capturedValues as Record<string, unknown>;
     expect(vals['dao_source_id']).toBe(EVENT_DATA.daoSourceId);
     expect(vals['chain_id']).toBe(EVENT_DATA.chainId);

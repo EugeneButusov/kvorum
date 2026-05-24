@@ -8,7 +8,7 @@ vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
   EventPoller: vi.fn(),
   chainMetrics: {
-    pendingEventCount: { record: vi.fn() },
+    underivedDepth: { record: vi.fn() },
     indexerActiveSources: { record: vi.fn() },
     logPollWindowBlocks: { record: vi.fn() },
     logPollLag: { record: vi.fn() },
@@ -20,7 +20,7 @@ vi.mock('@libs/chain', () => ({
 const CHAIN_CFG = {
   chainId: '0x1',
   name: 'ethereum',
-  reorgHorizon: 12,
+  headLag: 12,
   lagThresholdBlocks: 5,
   overallTimeoutMs: 12_000,
   providers: [],

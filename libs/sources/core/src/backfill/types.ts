@@ -19,7 +19,5 @@ export type BackfillOutcome =
 
 export interface BackfillRuntime {
   filter: import('@libs/chain').LogFilter;
-  listenerFactory: (
-    classifier: (blockNumber: bigint) => 'confirmed' | 'pending',
-  ) => import('@libs/chain').EventsListener<import('@libs/chain').LogEvent>;
+  listenerFactory: () => import('@libs/chain').EventsListener<import('@libs/chain').LogEvent>;
 }

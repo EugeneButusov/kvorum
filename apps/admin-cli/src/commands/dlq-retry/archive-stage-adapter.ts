@@ -122,7 +122,7 @@ async function resolveDaoSource(
 }
 
 export const ARCHIVE_STAGES: readonly DlqRetryStage[] = [
-  'confirmation_archive_stage',
+  'archive_event_stage',
   'vote_archive_stage',
   DELEGATION_ARCHIVE_STAGE,
 ];

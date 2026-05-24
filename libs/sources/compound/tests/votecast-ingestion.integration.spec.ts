@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { silentLogger } from '@libs/chain';
-import { chDb, ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
+import { chDb, ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
 import {
   ArchiveWriter,
   EventRepository,
@@ -106,7 +106,7 @@ describeIf('VoteCast ingestion integration', () => {
 
       const writer = new ArchiveWriter({
         eventRepo: new EventRepository({ chDb }),
-        confirmationRepo: new ConfirmationRepository(pgDb),
+        confirmationRepo: new ArchiveEventRepository(pgDb),
         dlqRepo: new DlqRepository(pgDb),
         logger: silentLogger,
       });
@@ -124,17 +124,15 @@ describeIf('VoteCast ingestion integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_confirmation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-      pgDb,
-    );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`TRUNCATE dao, archive_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_confirmation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(pgDb);
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`TRUNCATE archive_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
@@ -164,8 +162,8 @@ describeIf('VoteCast ingestion integration', () => {
     }
 
     const confirmations = await pgDb
-      .selectFrom('archive_confirmation')
-      .select(['source_type', 'dao_source_id', 'event_type', 'confirmation_status'])
+      .selectFrom('archive_event')
+      .select(['source_type', 'dao_source_id', 'event_type'])
       .where('chain_id', '=', CHAIN_ID)
       .where('event_type', '=', 'VoteCast')
       .orderBy('source_type', 'asc')
@@ -177,10 +175,8 @@ describeIf('VoteCast ingestion integration', () => {
       'compound_governor_bravo',
       'compound_governor_oz',
     ]);
-    expect(confirmations.every((r) => r.confirmation_status === 'confirmed')).toBe(true);
-
     const chRows = await chDb
-      .selectFrom('event_archive_compound_governor_bravo')
+      .selectFrom('archive_event_compound_governor_bravo')
       .select(['dao_source_id', 'event_type', 'payload'])
       .where('chain_id', '=', CHAIN_ID)
       .where('event_type', '=', 'VoteCast')

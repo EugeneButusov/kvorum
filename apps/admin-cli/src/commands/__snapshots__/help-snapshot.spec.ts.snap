@@ -167,20 +167,6 @@ Commands:
 "
 `;
 
-exports[`admin-cli help snapshots > reorgs --help 1`] = `
-"Usage: admin-cli reorgs [options] [command]
-
-Chain reorg management
-
-Options:
-  -h, --help      display help for command
-
-Commands:
-  list [options]  List detected chain reorgs
-  help [command]  display help for command
-"
-`;
-
 exports[`admin-cli help snapshots > status --help 1`] = `
 "Usage: admin-cli status [options]
 
@@ -212,7 +198,6 @@ Commands:
   dlq                    Dead-letter queue management
   keys                   API key management
   maintenance            Maintenance mode management
-  reorgs                 Chain reorg management
   status [options]       Show system status
   snapshot               Voting power snapshot operations
   users                  User management

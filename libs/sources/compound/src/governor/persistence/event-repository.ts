@@ -11,7 +11,7 @@ export class GovernorEventRepository {
 
   async insert(data: GovernorEventData): Promise<void> {
     await this.chDb
-      .insertInto('event_archive_compound_governor_bravo')
+      .insertInto('archive_event_compound_governor_bravo')
       .values({
         dao_source_id: data.daoSourceId,
         chain_id: data.chainId,
@@ -22,7 +22,7 @@ export class GovernorEventRepository {
         event_type: data.eventType,
         payload: data.payload,
       } as Parameters<
-        ReturnType<typeof this.chDb.insertInto<'event_archive_compound_governor_bravo'>>['values']
+        ReturnType<typeof this.chDb.insertInto<'archive_event_compound_governor_bravo'>>['values']
       >[0])
       .execute();
   }

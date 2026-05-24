@@ -8,8 +8,8 @@ export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-repository';
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
-export type { ConfirmationKey } from './confirmation-repository';
-export { ConfirmationRepository } from './confirmation-repository';
+export type { ArchiveEventKey } from './archive-event-repository';
+export { ArchiveEventRepository } from './archive-event-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
@@ -37,8 +37,6 @@ export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
-export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
-export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {
@@ -73,7 +71,6 @@ export type {
   NewProposal,
   NewProposalAction,
   NewProposalChoice,
-  NewReorgEvent,
   Proposal,
   ProposalAction,
   ProposalActionTable,
@@ -82,23 +79,20 @@ export type {
   ProposalState,
   ProposalTable,
   ProposalUpdate,
-  ReorgEvent,
-  ReorgEventTable,
   SourceType,
   SourceTypeTable,
   AbiCache,
   AbiCacheTable,
-  ArchiveConfirmation,
-  ArchiveConfirmationTable,
-  ArchiveConfirmationUpdate,
-  ConfirmationStatus,
+  ArchiveEvent,
+  ArchiveEventTable,
+  ArchiveEventUpdate,
   DlqResolutionKind,
   IngestionDlq,
   IngestionDlqResolved,
   IngestionDlqResolvedTable,
   IngestionDlqTable,
   NewAbiCache,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,
   NewSelectorIndex,

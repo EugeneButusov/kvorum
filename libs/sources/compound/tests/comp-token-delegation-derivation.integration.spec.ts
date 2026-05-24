@@ -108,19 +108,19 @@ describeIf('comp token delegation derivation integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_confirmation, actor, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, archive_event, actor, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
-    await sql`ALTER TABLE event_archive_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`ALTER TABLE archive_event_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_confirmation, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE archive_event, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
-    await sql`ALTER TABLE event_archive_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`ALTER TABLE archive_event_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
@@ -136,7 +136,7 @@ describeIf('comp token delegation derivation integration', () => {
     const blockNumber = (1_000_000n + BigInt(opts.txN)).toString();
 
     await chDb
-      .insertInto('event_archive_compound_comp_token')
+      .insertInto('archive_event_compound_comp_token')
       .values({
         dao_source_id: daoSourceId,
         chain_id: CHAIN_ID,
@@ -147,12 +147,12 @@ describeIf('comp token delegation derivation integration', () => {
         event_type: opts.eventType,
         payload: JSON.stringify(opts.payload),
       } as Parameters<
-        ReturnType<typeof chDb.insertInto<'event_archive_compound_comp_token'>>['values']
+        ReturnType<typeof chDb.insertInto<'archive_event_compound_comp_token'>>['values']
       >[0])
       .execute();
 
     await pgDb
-      .insertInto('archive_confirmation')
+      .insertInto('archive_event')
       .values({
         source_type: SOURCE_TYPE,
         dao_source_id: daoSourceId,
@@ -163,10 +163,6 @@ describeIf('comp token delegation derivation integration', () => {
         log_index: logIndex,
         event_type: opts.eventType,
         received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derivation_actor_resolved_at: new Date(),
         derived_at: null,
       })
@@ -193,7 +189,7 @@ describeIf('comp token delegation derivation integration', () => {
       },
     });
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(EVENT_TYPES, 50));
+    await applier.applyBatch(await archive.findUnderived(EVENT_TYPES, 50));
 
     const rows = await pgDb
       .selectFrom('delegation')
@@ -216,7 +212,7 @@ describeIf('comp token delegation derivation integration', () => {
       event_type: 'votes_changed',
     });
 
-    const pendingRows = await archive.findConfirmedUndderived(EVENT_TYPES, 50);
+    const pendingRows = await archive.findUnderived(EVENT_TYPES, 50);
     expect(pendingRows).toHaveLength(0);
   }, 30_000);
 
@@ -231,12 +227,12 @@ describeIf('comp token delegation derivation integration', () => {
       },
     });
     await pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derivation_attempt_count: 4 })
       .where('tx_hash', '=', numberedHash(3))
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived(EVENT_TYPES, 50));
+    await applier.applyBatch(await archive.findUnderived(EVENT_TYPES, 50));
 
     const dlqRows = await pgDb
       .selectFrom('ingestion_dlq')

@@ -9,8 +9,6 @@ import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
-import { PromotionSweepService } from '../orchestrator/promotion-sweep.service';
-import { ReorgWatcherService } from '../orchestrator/reorg-watcher.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
 import { SnapshotModule } from '../snapshot';
 
@@ -40,8 +38,6 @@ import { SnapshotModule } from '../snapshot';
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
     },
     IndexerOrchestratorService,
-    ReorgWatcherService,
-    PromotionSweepService,
   ],
 })
 export class IndexerModule {}

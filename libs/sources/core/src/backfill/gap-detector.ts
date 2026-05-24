@@ -10,10 +10,9 @@ export type GapComputationResult =
 
 export function computeGap(input: {
   row: GapRangeInput;
-  headBlock: bigint;
-  reorgHorizon: number;
+  confirmedHead: bigint;
 }): GapComputationResult {
-  const { row, headBlock, reorgHorizon } = input;
+  const { row, confirmedHead } = input;
 
   if (row.active_from_block === null && row.backfill_head_block === null) {
     return { kind: 'skip', reason: 'no_active_from_block' };
@@ -24,7 +23,7 @@ export function computeGap(input: {
   const lastBlock = backfillHead ?? (activeFrom !== null ? activeFrom - 1n : 0n);
 
   const gapStart = lastBlock + 1n;
-  const gapEnd = headBlock - BigInt(reorgHorizon) * 2n;
+  const gapEnd = confirmedHead;
 
   if (gapEnd < gapStart) {
     return { kind: 'none' };

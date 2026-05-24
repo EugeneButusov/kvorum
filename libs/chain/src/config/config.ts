@@ -23,23 +23,24 @@ const ProviderConfigSchema = z.object({
   dailyQuota: z.number().int().positive().optional(),
 });
 
-const ChainConfigSchema = z.object({
-  chainId: z.string().min(1).transform(normalizeChainId),
-  name: z.string().min(1),
-  reorgHorizon: z.number().int().positive(),
-  blocksPerMinute: z.number().positive().optional(),
-  lagThresholdBlocks: z.number().int().positive().optional(),
-  overallTimeoutMs: z.number().int().positive().optional(),
-  headPollIntervalMs: z.number().int().positive().optional(),
-  sweepIntervalMs: z.number().int().positive().optional(),
-  eventPollIntervalMs: z.number().int().positive().optional(),
-  providers: z
-    .array(ProviderConfigSchema)
-    .min(1)
-    .refine((xs) => new Set(xs.map((x) => x.name)).size === xs.length, {
-      message: 'provider names must be unique within a chain',
-    }),
-});
+const ChainConfigSchema = z
+  .object({
+    chainId: z.string().min(1).transform(normalizeChainId),
+    name: z.string().min(1),
+    headLag: z.number().int().positive(),
+    blocksPerMinute: z.number().positive().optional(),
+    lagThresholdBlocks: z.number().int().positive().optional(),
+    overallTimeoutMs: z.number().int().positive().optional(),
+    headPollIntervalMs: z.number().int().positive().optional(),
+    eventPollIntervalMs: z.number().int().positive().optional(),
+    providers: z
+      .array(ProviderConfigSchema)
+      .min(1)
+      .refine((xs) => new Set(xs.map((x) => x.name)).size === xs.length, {
+        message: 'provider names must be unique within a chain',
+      }),
+  })
+  .strict();
 
 const EnvSchema = z.object({
   chains: z.array(ChainConfigSchema).min(1),

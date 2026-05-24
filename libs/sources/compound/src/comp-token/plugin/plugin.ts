@@ -42,11 +42,11 @@ export function createCompTokenPlugin(
         ],
       ],
     },
-    listenerFactory: (classifier) =>
+    listenerFactory: () =>
       makeCompTokenIngesterListener(
         {
           archiveWriter: deps.archiveWriter,
-          context: { ...ctx, confirmationClassifier: classifier },
+          context: { ...ctx },
           logger: deps.logger,
           dlqRepo: deps.dlqRepo,
         },
@@ -63,7 +63,7 @@ export function createCompTokenPlugin(
       return {
         kind: 'evm-event-poller',
         filter: runtime.filter,
-        listener: runtime.listenerFactory(() => 'pending'),
+        listener: runtime.listenerFactory(),
       };
     },
     buildBackfillRuntime: buildRuntime,

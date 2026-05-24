@@ -2,7 +2,7 @@ import type { ChainContextRegistry, Logger } from '@libs/chain';
 import {
   ActorRepository,
   chDb,
-  ConfirmationRepository,
+  ArchiveEventRepository,
   DaoSourceRepository,
   DelegationRepository,
   DlqRepository,
@@ -39,13 +39,13 @@ export function buildBackfillSourcePlugins(deps: {
 export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly BackfillSourcePlugin[] {
   const governorArchiveWriter = new GovernorArchiveWriter({
     eventRepo: new GovernorEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
     dlqRepo: new DlqRepository(pgDb),
     logger,
   });
   const compTokenArchiveWriter = new CompTokenArchiveWriter({
     eventRepo: new CompTokenEventRepository({ chDb }),
-    confirmationRepo: new ConfirmationRepository(pgDb),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
     dlqRepo: new DlqRepository(pgDb),
     logger,
   });

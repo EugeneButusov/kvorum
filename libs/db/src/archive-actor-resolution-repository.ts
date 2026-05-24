@@ -5,14 +5,14 @@ import type { PgDatabase } from './schema/pg';
 export class ArchiveActorResolutionRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
-  async findConfirmedDerivableBy(
+  async findDerivableBy(
     eventTypes: readonly string[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
     return this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select([
         'id',
         'source_type',
@@ -23,10 +23,9 @@ export class ArchiveActorResolutionRepository {
         'tx_hash',
         'log_index',
         'event_type',
-        'confirmed_at',
+        'received_at',
         'derivation_attempt_count',
       ])
-      .where('confirmation_status', '=', 'confirmed')
       .where('derived_at', 'is', null)
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
@@ -38,7 +37,7 @@ export class ArchiveActorResolutionRepository {
       .execute();
   }
 
-  async findConfirmedUnresolvedActors(
+  async findUnresolvedActors(
     eventTypes: readonly string[],
     attemptThreshold: number,
     limit: number,
@@ -46,7 +45,7 @@ export class ArchiveActorResolutionRepository {
     if (eventTypes.length === 0) return [];
 
     return this.pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select([
         'id',
         'source_type',
@@ -57,10 +56,9 @@ export class ArchiveActorResolutionRepository {
         'tx_hash',
         'log_index',
         'event_type',
-        'confirmed_at',
+        'received_at',
         'derivation_attempt_count',
       ])
-      .where('confirmation_status', '=', 'confirmed')
       .where('derivation_actor_resolved_at', 'is', null)
       .where('event_type', 'in', eventTypes)
       .where('actor_resolution_attempt_count', '<', attemptThreshold)
@@ -74,7 +72,7 @@ export class ArchiveActorResolutionRepository {
 
   async markActorResolved(id: string): Promise<void> {
     await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derivation_actor_resolved_at: sql`now()` })
       .where('id', '=', id)
       .execute();
@@ -82,7 +80,7 @@ export class ArchiveActorResolutionRepository {
 
   async incrementActorResolutionAttemptCount(id: string): Promise<number> {
     const row = await this.pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({
         actor_resolution_attempt_count: sql`actor_resolution_attempt_count + 1`,
       })

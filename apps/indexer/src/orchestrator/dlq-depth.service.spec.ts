@@ -61,7 +61,7 @@ describe('DlqDepthService drain semantics', () => {
       [{ stage: 'archive_decode', source: 'compound_governor_bravo', count: 1 }],
       [
         { stage: 'archive_decode', source: 'compound_governor_bravo', count: 0 },
-        { stage: 'archive_confirmation_write', source: 'compound_governor_bravo', count: 3 },
+        { stage: 'archive_event_write', source: 'compound_governor_bravo', count: 3 },
       ],
     ]);
     const svc = new DlqDepthService(repo as never);
@@ -75,7 +75,7 @@ describe('DlqDepthService drain semantics', () => {
       source: 'compound_governor_bravo',
     });
     expect(recordFn()).toHaveBeenCalledWith(3, {
-      stage: 'archive_confirmation_write',
+      stage: 'archive_event_write',
       source: 'compound_governor_bravo',
     });
   });

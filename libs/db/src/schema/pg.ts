@@ -13,14 +13,9 @@ import type {
   ProposalActionTable,
   ProposalChoiceTable,
   ProposalTable,
-  ReorgEventTable,
   SourceTypeTable,
 } from './domain';
-import type {
-  ArchiveConfirmationTable,
-  IngestionDlqResolvedTable,
-  IngestionDlqTable,
-} from './ingestion';
+import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
 import type {
   VoteChoiceTable,
   VoteTable,
@@ -60,7 +55,6 @@ export type {
   NewProposal,
   NewProposalAction,
   NewProposalChoice,
-  NewReorgEvent,
   Proposal,
   ProposalAction,
   ProposalActionTable,
@@ -69,8 +63,6 @@ export type {
   ProposalState,
   ProposalTable,
   ProposalUpdate,
-  ReorgEvent,
-  ReorgEventTable,
   SourceType,
   SourceTypeTable,
 } from './domain';
@@ -84,16 +76,15 @@ export type {
   SelectorIndexTable,
 } from './abi';
 export type {
-  ArchiveConfirmation,
-  ArchiveConfirmationTable,
-  ArchiveConfirmationUpdate,
-  ConfirmationStatus,
+  ArchiveEvent,
+  ArchiveEventTable,
+  ArchiveEventUpdate,
   DlqResolutionKind,
   IngestionDlq,
   IngestionDlqResolved,
   IngestionDlqResolvedTable,
   IngestionDlqTable,
-  NewArchiveConfirmation,
+  NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,
 } from './ingestion';
@@ -139,8 +130,7 @@ export interface PgDatabase {
   proposal: ProposalTable;
   proposal_action: ProposalActionTable;
   proposal_choice: ProposalChoiceTable;
-  reorg_event: ReorgEventTable;
-  archive_confirmation: ArchiveConfirmationTable;
+  archive_event: ArchiveEventTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
   abi_cache: AbiCacheTable;

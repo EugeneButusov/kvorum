@@ -25,5 +25,5 @@ export function isTransientDbError(err: unknown): boolean {
 export function isCanonicalPartialUniqueViolation(err: unknown): boolean {
   if (err == null || typeof err !== 'object') return false;
   const e = err as Record<string, unknown>;
-  return e['code'] === '23505' && e['constraint'] === 'idx_archive_confirmation_canonical';
+  return e['code'] === '23505' && e['constraint'] === 'archive_event_idempotency_key';
 }

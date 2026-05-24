@@ -36,7 +36,13 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
+          {
+            FailoverRpcClient,
+            normalizeChainId,
+            parseChainConfigFromEnv,
+            consoleLogger,
+            readConfirmedHead,
+          },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
@@ -101,10 +107,9 @@ export function registerBackfill(program: Command): void {
         }
 
         try {
-          const headHex = await rpcClient.send<string>('eth_blockNumber', []);
-          const head = BigInt(headHex);
+          const head = BigInt(await rpcClient.send<string>('eth_blockNumber', []));
+          const confirmedHead = await readConfirmedHead(rpcClient, chainConfig, row.id);
           const resolvedToBlock = toBlock ?? head;
-          const cutoffBlock = head - BigInt(chainConfig.reorgHorizon) * 2n;
 
           if (opts.dryRun === true) {
             emit(
@@ -115,7 +120,7 @@ export function registerBackfill(program: Command): void {
                   `Mode: ${mode}`,
                   `From block: ${resolvedFromBlock.toString()}`,
                   `To block: ${resolvedToBlock.toString()}`,
-                  `Cutoff block: ${cutoffBlock.toString()}`,
+                  `Confirmed head: ${confirmedHead.toString()}`,
                 ].join('\n'),
               {
                 source_type: sourceType,
@@ -124,7 +129,7 @@ export function registerBackfill(program: Command): void {
                 mode,
                 from_block: resolvedFromBlock.toString(),
                 to_block: resolvedToBlock.toString(),
-                cutoff_block: cutoffBlock.toString(),
+                confirmed_head: confirmedHead.toString(),
               },
             );
             return;
@@ -193,7 +198,13 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillCatchUpOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
+          {
+            FailoverRpcClient,
+            normalizeChainId,
+            parseChainConfigFromEnv,
+            consoleLogger,
+            readConfirmedHead,
+          },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
         const { runBootCatchUp, computeGap } = core;
@@ -228,14 +239,13 @@ export function registerBackfill(program: Command): void {
         const rpcClient = new FailoverRpcClient(chainConfig, { logger: consoleLogger });
         await rpcClient.start();
         try {
-          const headBlock = BigInt(await rpcClient.send<string>('eth_blockNumber', []));
+          const confirmedHead = await readConfirmedHead(rpcClient, chainConfig, row.id);
           const gap = computeGap({
             row: {
               active_from_block: row.active_from_block,
               backfill_head_block: row.backfill_head_block,
             },
-            headBlock,
-            reorgHorizon: chainConfig.reorgHorizon,
+            confirmedHead,
           });
 
           if (opts.dryRun === true || opts.confirm !== true) {

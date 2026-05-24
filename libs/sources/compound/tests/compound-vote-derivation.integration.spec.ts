@@ -150,19 +150,19 @@ describeIf('compound vote derivation integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_confirmation, actor, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, archive_event, actor, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_confirmation, proposal, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE archive_event, proposal, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
-    await sql`ALTER TABLE event_archive_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
+    await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
   });
@@ -175,7 +175,7 @@ describeIf('compound vote derivation integration', () => {
     const proposalId = opts?.proposalId ?? '42';
 
     await chDb
-      .insertInto('event_archive_compound_governor_bravo')
+      .insertInto('archive_event_compound_governor_bravo')
       .values({
         dao_source_id: daoSourceId,
         chain_id: CHAIN_ID,
@@ -192,12 +192,12 @@ describeIf('compound vote derivation integration', () => {
           compound: { supportRaw: true, reason: 'integration reason' },
         }),
       } as Parameters<
-        ReturnType<typeof chDb.insertInto<'event_archive_compound_governor_bravo'>>['values']
+        ReturnType<typeof chDb.insertInto<'archive_event_compound_governor_bravo'>>['values']
       >[0])
       .execute();
 
     await pgDb
-      .insertInto('archive_confirmation')
+      .insertInto('archive_event')
       .values({
         source_type: SOURCE_TYPE,
         dao_source_id: daoSourceId,
@@ -208,10 +208,6 @@ describeIf('compound vote derivation integration', () => {
         log_index: logIndex,
         event_type: EVENT_TYPE,
         received_at: new Date(),
-        confirmation_status: 'confirmed',
-        confirmed_at: new Date(),
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derivation_actor_resolved_at: new Date(),
         derived_at: null,
       })
@@ -245,13 +241,13 @@ describeIf('compound vote derivation integration', () => {
       .executeTakeFirstOrThrow();
 
     const { txHash } = await seedConfirmedVoteCast({ txN: 1, proposalId: '42' });
-    const rows = await archive.findConfirmedUndderived([EVENT_TYPE], 50);
+    const rows = await archive.findUnderived([EVENT_TYPE], 50);
     await applier.applyBatch(rows);
 
     const votes = await pgDb.selectFrom('vote').selectAll().execute();
     const choices = await pgDb.selectFrom('vote_choice').selectAll().execute();
     const confirmation = await pgDb
-      .selectFrom('archive_confirmation')
+      .selectFrom('archive_event')
       .select('derived_at')
       .where('tx_hash', '=', txHash)
       .executeTakeFirstOrThrow();
@@ -267,12 +263,12 @@ describeIf('compound vote derivation integration', () => {
     expect(confirmation.derived_at).not.toBeNull();
 
     await pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derived_at: null })
       .where('tx_hash', '=', txHash)
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived([EVENT_TYPE], 50));
+    await applier.applyBatch(await archive.findUnderived([EVENT_TYPE], 50));
 
     expect(await pgDb.selectFrom('vote').selectAll().execute()).toHaveLength(1);
     expect(await pgDb.selectFrom('vote_choice').selectAll().execute()).toHaveLength(1);
@@ -281,12 +277,12 @@ describeIf('compound vote derivation integration', () => {
   it('routes no_proposal failure to vote_projection_stage at threshold', async () => {
     await seedConfirmedVoteCast({ txN: 2, proposalId: '404' });
     await pgDb
-      .updateTable('archive_confirmation')
+      .updateTable('archive_event')
       .set({ derivation_attempt_count: 4 })
       .where('tx_hash', '=', numberedHash(2))
       .execute();
 
-    await applier.applyBatch(await archive.findConfirmedUndderived([EVENT_TYPE], 50));
+    await applier.applyBatch(await archive.findUnderived([EVENT_TYPE], 50));
 
     const dlqRows = await pgDb
       .selectFrom('ingestion_dlq')
