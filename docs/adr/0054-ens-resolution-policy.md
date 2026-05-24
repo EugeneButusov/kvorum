@@ -26,3 +26,15 @@ Epic N introduces actor-level ENS display names. ENS enrichment is best-effort m
 - Reverse records that fail forward-check are intentionally ignored.
 - Routine refreshes stay within predictable RPC envelopes.
 - Prolonged ENS provider outages defer updates but do not block API availability.
+
+## Amendments
+
+### 2026-05-24 — N3 Universal Resolver clarification
+
+The N2 decision wording described reverse and forward checks as two logical steps. N3 implements the same anti-spoofing semantics through ENS Universal Resolver `reverse(bytes)` wrapped by Multicall3 `tryAggregate(false, ...)`:
+
+1. One multicall RPC contains up to 50 resolver calls.
+2. Each subcall returns `name` and `resolvedAddress`.
+3. A result is `resolved` only when `resolvedAddress.toLowerCase() === inputAddress.toLowerCase()`.
+
+Operationally this reduces RPC round-trips while preserving the original policy: forward-check mismatch means no write, and per-address failures remain isolated.
