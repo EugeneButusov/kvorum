@@ -60,6 +60,7 @@ export class DaoController {
         primarySort?.field === 'created_at' ? new Date(row.created_at).toISOString() : row.slug;
 
       return {
+        type: 'time',
         value,
         tiebreak: row.id,
         dir,

@@ -5,8 +5,8 @@ import { badRequestProblem, ProblemException } from '../http/problem-exception';
 import type { ParsedQuery } from '../query/query-descriptor';
 
 const cursorSchema = z.object({
-  type: z.literal('time'),
-  value: z.string().min(1),
+  type: z.enum(['time', 'numeric', 'bigint']),
+  value: z.union([z.string().min(1), z.number()]),
   tiebreak: z.union([z.string(), z.number()]),
   dir: z.enum(['asc', 'desc']),
   q: z.string().min(2),
@@ -113,7 +113,7 @@ export function parseLimit(raw: unknown): number {
 export function buildPagination<T>(
   rows: T[],
   limit: number,
-  sortKeyOf: (row: T) => Pick<CursorPayload, 'value' | 'tiebreak' | 'dir' | 'q'>,
+  sortKeyOf: (row: T) => Pick<CursorPayload, 'type' | 'value' | 'tiebreak' | 'dir' | 'q'>,
 ): {
   data: T[];
   pagination: { limit: number; has_more: boolean; next_cursor: string | null };
@@ -133,13 +133,7 @@ export function buildPagination<T>(
   }
 
   const lastRow = data[data.length - 1];
-  const nextCursor =
-    hasMore && lastRow !== undefined
-      ? encodeCursor({
-          type: 'time',
-          ...sortKeyOf(lastRow),
-        })
-      : null;
+  const nextCursor = hasMore && lastRow !== undefined ? encodeCursor(sortKeyOf(lastRow)) : null;
 
   return {
     data,

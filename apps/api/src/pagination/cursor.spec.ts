@@ -231,6 +231,7 @@ describe('cursor', () => {
     ];
 
     const out = buildPagination(rows, 2, (row) => ({
+      type: 'time',
       value: row.ts,
       tiebreak: row.id,
       dir: 'desc',
@@ -244,5 +245,26 @@ describe('cursor', () => {
     const decoded = decodeCursor(out.pagination.next_cursor!);
     expect(decoded.value).toBe('2026-05-15T09:00:00.000Z');
     expect(decoded.tiebreak).toBe('b');
+  });
+
+  it('round-trips numeric and bigint cursor payload types', () => {
+    const q = canonicalQuery(parsedQuery);
+    const numeric = {
+      type: 'numeric' as const,
+      value: '12345678901234567890.42',
+      tiebreak: 'p-1',
+      dir: 'asc' as const,
+      q,
+    };
+    const bigint = {
+      type: 'bigint' as const,
+      value: '9223372036854775807',
+      tiebreak: 99,
+      dir: 'desc' as const,
+      q,
+    };
+
+    expect(decodeCursor(encodeCursor(numeric))).toEqual(numeric);
+    expect(decodeCursor(encodeCursor(bigint))).toEqual(bigint);
   });
 });
