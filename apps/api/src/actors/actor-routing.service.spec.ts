@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProblemException } from '../http/problem-exception';
 import { ActorRoutingService } from './actor-routing.service';
+import { ProblemException } from '../http/problem-exception';
 
 describe('ActorRoutingService', () => {
   const repo = {

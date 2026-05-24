@@ -10,12 +10,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { ActorRoutingService } from './actor-routing.service';
+import { ActorResponseDto } from './actor.dto';
+import { toActorResponseDto } from './actor.mappers';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
-import { ActorResponseDto } from './actor.dto';
-import { toActorResponseDto } from './actor.mappers';
-import { ActorRoutingService } from './actor-routing.service';
 
 @ApiTags('actors')
 @ApiBearerAuth()

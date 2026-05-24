@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Response } from 'express';
-import { ProblemException } from '../http/problem-exception';
+import { describe, expect, it, vi } from 'vitest';
 import { ActorsController } from './actors.controller';
+import { ProblemException } from '../http/problem-exception';
 
 function mockResponse(): Response {
   const res = {

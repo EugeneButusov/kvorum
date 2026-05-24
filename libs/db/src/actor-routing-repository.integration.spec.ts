@@ -5,8 +5,10 @@ const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe
 
 class RollbackSignal extends Error {}
 
-function hexAddress(fill: string): string {
-  return `0x${fill.repeat(40).slice(0, 40)}`;
+function uniqueAddress(seed: string): string {
+  const suffix = `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.slice(0, 8);
+  const body = `${seed.repeat(32)}${suffix}`.slice(0, 40);
+  return `0x${body}`;
 }
 
 afterAll(async () => {
@@ -19,7 +21,7 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
       pgDb.transaction().execute(async (trx) => {
         const [actor] = await trx
           .insertInto('actor')
-          .values({ primary_address: hexAddress('a'), updated_at: new Date() })
+          .values({ primary_address: uniqueAddress('a'), updated_at: new Date() })
           .returningAll()
           .execute();
 
@@ -35,23 +37,25 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
   it('findLiveActorByPrimaryAddress excludes merged actors', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
+        const survivorAddress = uniqueAddress('b');
+        const mergedAddress = uniqueAddress('c');
         const [survivor] = await trx
           .insertInto('actor')
-          .values({ primary_address: hexAddress('b'), updated_at: new Date() })
+          .values({ primary_address: survivorAddress, updated_at: new Date() })
           .returning(['id'])
           .execute();
 
         await trx
           .insertInto('actor')
           .values({
-            primary_address: hexAddress('c'),
+            primary_address: mergedAddress,
             updated_at: new Date(),
             merged_into_actor_id: survivor!.id,
           })
           .execute();
 
         const repo = new ActorRoutingReadRepository(trx as never);
-        const row = await repo.findLiveActorByPrimaryAddress(hexAddress('c'));
+        const row = await repo.findLiveActorByPrimaryAddress(mergedAddress);
 
         expect(row).toBeUndefined();
         throw new RollbackSignal();
@@ -62,16 +66,18 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
   it('findRedirect returns redirect target and survivor primary address', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
+        const survivorAddress = uniqueAddress('d');
+        const fromAddress = uniqueAddress('e');
         const [survivor] = await trx
           .insertInto('actor')
-          .values({ primary_address: hexAddress('d'), updated_at: new Date() })
+          .values({ primary_address: survivorAddress, updated_at: new Date() })
           .returning(['id', 'primary_address'])
           .execute();
 
         await trx
           .insertInto('actor_address_redirect')
           .values({
-            from_address: hexAddress('e'),
+            from_address: fromAddress,
             to_actor_id: survivor!.id,
             merged_at: new Date(),
             merge_reason: 'test',
@@ -80,7 +86,7 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
           .execute();
 
         const repo = new ActorRoutingReadRepository(trx as never);
-        const row = await repo.findRedirect(hexAddress('e').toUpperCase());
+        const row = await repo.findRedirect(fromAddress.toUpperCase());
 
         expect(row).toEqual({
           to_actor_id: survivor!.id,
@@ -94,9 +100,11 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
   it('findLiveActorByAnyAddress returns actor_id and primary_address for non-primary address', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
+        const primaryAddress = uniqueAddress('f');
+        const secondaryAddress = uniqueAddress('1');
         const [actor] = await trx
           .insertInto('actor')
-          .values({ primary_address: hexAddress('f'), updated_at: new Date() })
+          .values({ primary_address: primaryAddress, updated_at: new Date() })
           .returning(['id', 'primary_address'])
           .execute();
 
@@ -104,14 +112,14 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
           .insertInto('actor_address')
           .values({
             actor_id: actor!.id,
-            address: hexAddress('1'),
+            address: secondaryAddress,
             is_primary: false,
             source: 'm1_backfill',
           })
           .execute();
 
         const repo = new ActorRoutingReadRepository(trx as never);
-        const row = await repo.findLiveActorByAnyAddress(hexAddress('1').toUpperCase());
+        const row = await repo.findLiveActorByAnyAddress(secondaryAddress.toUpperCase());
 
         expect(row).toEqual({
           actor_id: actor!.id,

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ActorRoutingReadRepository, pgDb } from '@libs/db';
-import { ActorsController } from './actors.controller';
 import { ActorRoutingService } from './actor-routing.service';
+import { ActorsController } from './actors.controller';
 
 @Module({
   controllers: [ActorsController],
