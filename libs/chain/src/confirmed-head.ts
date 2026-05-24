@@ -3,8 +3,7 @@ import { chainMetrics } from './metrics/metrics.js';
 
 type ConfirmedHeadConfig = {
   name: string;
-  headLag?: number;
-  reorgHorizon?: number;
+  headLag: number;
 };
 
 /** Returns the highest block at or below tip-headLag. */
@@ -15,7 +14,7 @@ export async function readConfirmedHead(
 ): Promise<bigint> {
   const headHex = await rpcClient.send<string>('eth_blockNumber', []);
   const tip = BigInt(headHex);
-  const lag = BigInt(chainConfig.headLag ?? chainConfig.reorgHorizon ?? 0);
+  const lag = BigInt(chainConfig.headLag);
   const confirmed = tip > lag ? tip - lag : 0n;
   chainMetrics.headLagApplied.record(Number(lag), {
     chain: chainConfig.name,
