@@ -317,6 +317,310 @@
         "tags": ["daos"]
       }
     },
+    "/v1/daos/{slug}/delegations": {
+      "get": {
+        "operationId": "DelegationsController_list",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["delegations"]
+      }
+    },
+    "/v1/daos/{slug}/delegates/{delegate_address}/current": {
+      "get": {
+        "operationId": "DelegationsController_current",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "delegate_address",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "as_of_block_number",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentDelegatorsResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical delegate address"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["delegations"]
+      }
+    },
+    "/v1/daos/{slug}/actors/{address}/delegation": {
+      "get": {
+        "operationId": "DelegationsController_actorDelegation",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorDelegationResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical actor address"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["delegations"]
+      }
+    },
     "/v1/daos/{slug}/proposals": {
       "get": {
         "operationId": "ProposalController_listByDao",
@@ -643,6 +947,263 @@
         ],
         "tags": ["proposals"]
       }
+    },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/votes": {
+      "get": {
+        "operationId": "VotesController_list",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "schema": {
+              "example": "slug,-created_at",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited DAO slugs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Comma-delimited proposal states",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "required": false,
+            "in": "query",
+            "description": "0x-prefixed proposer address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "binding",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "voting_starts_at_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voting_starts_at_max",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteListResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical voter filter"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["votes"]
+      }
+    },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/votes/{voter_address}": {
+      "get": {
+        "operationId": "VotesController_detail",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "voter_address",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteDetailResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical voter address"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["votes"]
+      }
     }
   },
   "info": {
@@ -888,6 +1449,143 @@
         },
         "required": ["data"]
       },
+      "DelegationActorLinksDto": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string"
+          }
+        },
+        "required": ["actor"]
+      },
+      "DelegationActorMetaDto": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "$ref": "#/components/schemas/DelegationActorLinksDto"
+          }
+        },
+        "required": ["links"]
+      },
+      "DelegationActorDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/DelegationActorMetaDto"
+          }
+        },
+        "required": ["address", "_meta"]
+      },
+      "DelegationListItemDto": {
+        "type": "object",
+        "properties": {
+          "delegation_id": {
+            "type": "string"
+          },
+          "delegator": {
+            "$ref": "#/components/schemas/DelegationActorDto"
+          },
+          "delegate": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DelegationActorDto"
+              }
+            ]
+          },
+          "voting_power": {
+            "type": "string"
+          },
+          "block_number": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "tx_hash": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "delegation_id",
+          "delegator",
+          "delegate",
+          "voting_power",
+          "block_number",
+          "event_type",
+          "tx_hash",
+          "created_at"
+        ]
+      },
+      "DelegationListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationListItemDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          }
+        },
+        "required": ["data", "pagination"]
+      },
+      "CurrentDelegatorsMetaDto": {
+        "type": "object",
+        "properties": {
+          "as_of_block_number": {
+            "type": "string"
+          }
+        },
+        "required": ["as_of_block_number"]
+      },
+      "CurrentDelegatorsResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationListItemDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/CurrentDelegatorsMetaDto"
+          }
+        },
+        "required": ["data", "pagination", "_meta"]
+      },
+      "ActorDelegationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DelegationListItemDto"
+              }
+            ]
+          }
+        },
+        "required": ["data"]
+      },
       "ProposerDto": {
         "type": "object",
         "properties": {
@@ -1121,6 +1819,180 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ProposalDetailDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "ActorLinkDto": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string"
+          }
+        },
+        "required": ["actor"]
+      },
+      "EmbeddedActorMetaDto": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "$ref": "#/components/schemas/ActorLinkDto"
+          }
+        },
+        "required": ["links"]
+      },
+      "VoterDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/EmbeddedActorMetaDto"
+          }
+        },
+        "required": ["address", "_meta"]
+      },
+      "VoteMetaDto": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          }
+        },
+        "required": ["confirmed"]
+      },
+      "VoteListItemDto": {
+        "type": "object",
+        "properties": {
+          "vote_id": {
+            "type": "string"
+          },
+          "voter": {
+            "$ref": "#/components/schemas/VoterDto"
+          },
+          "voting_power_reported": {
+            "type": "string"
+          },
+          "voting_power_verified": {
+            "type": "boolean"
+          },
+          "primary_choice": {
+            "type": "object",
+            "nullable": true
+          },
+          "cast_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "reason": {
+            "type": "object",
+            "nullable": true
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/VoteMetaDto"
+          }
+        },
+        "required": [
+          "vote_id",
+          "voter",
+          "voting_power_reported",
+          "voting_power_verified",
+          "primary_choice",
+          "cast_at",
+          "_meta"
+        ]
+      },
+      "VoteListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoteListItemDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          }
+        },
+        "required": ["data", "pagination"]
+      },
+      "VoteChoiceDto": {
+        "type": "object",
+        "properties": {
+          "choice_index": {
+            "type": "number"
+          },
+          "weight": {
+            "type": "string"
+          }
+        },
+        "required": ["choice_index", "weight"]
+      },
+      "VoteDetailDto": {
+        "type": "object",
+        "properties": {
+          "vote_id": {
+            "type": "string"
+          },
+          "voter": {
+            "$ref": "#/components/schemas/VoterDto"
+          },
+          "voting_power_reported": {
+            "type": "string"
+          },
+          "voting_power_verified": {
+            "type": "boolean"
+          },
+          "primary_choice": {
+            "type": "object",
+            "nullable": true
+          },
+          "cast_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "reason": {
+            "type": "object",
+            "nullable": true
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/VoteMetaDto"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoteChoiceDto"
+            }
+          }
+        },
+        "required": [
+          "vote_id",
+          "voter",
+          "voting_power_reported",
+          "voting_power_verified",
+          "primary_choice",
+          "cast_at",
+          "_meta",
+          "choices"
+        ]
+      },
+      "VoteDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VoteDetailDto"
+              }
+            ]
           }
         },
         "required": ["data"]
