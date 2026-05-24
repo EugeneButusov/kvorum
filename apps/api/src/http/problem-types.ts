@@ -8,6 +8,7 @@ export type ProblemSlug =
   | 'unknown-sort-field'
   | 'unauthorized'
   | 'not-found'
+  | 'actor-not-found'
   | 'rate-limited'
   | 'service-unavailable'
   | 'internal-error';
@@ -25,6 +26,7 @@ export const PROBLEM_META: Record<ProblemSlug, ProblemMeta> = {
   'unknown-sort-field': { defaultStatus: 400, title: 'Unknown Sort Field' },
   unauthorized: { defaultStatus: 401, title: 'Unauthorized' },
   'not-found': { defaultStatus: 404, title: 'Not Found' },
+  'actor-not-found': { defaultStatus: 404, title: 'Actor Not Found' },
   'rate-limited': { defaultStatus: 429, title: 'Rate Limited' },
   'service-unavailable': { defaultStatus: 503, title: 'Service Unavailable' },
   'internal-error': { defaultStatus: 500, title: 'Internal Error' },
