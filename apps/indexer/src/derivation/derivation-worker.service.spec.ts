@@ -125,7 +125,7 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
-  it('skips rows above settled cutoff before dispatching to appliers', async () => {
+  it('dispatches rows without cutoff gating', async () => {
     const highRow = { ...ROW, block_number: '300' };
     const archive = { incrementAttemptCount: vi.fn() };
     const actorResolution = {
@@ -140,23 +140,20 @@ describe('DerivationWorkerService', () => {
     const worker = new DerivationWorkerService(
       archive as never,
       actorResolution as never,
-      makeRegistry('0x120') as never,
+      makeRegistry() as never,
       [bundleWith(applier)],
     );
 
     await worker.tick();
 
-    expect(applier.applyBatch).not.toHaveBeenCalled();
+    expect(applier.applyBatch).toHaveBeenCalledWith([highRow]);
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 });
 
-function makeRegistry(headHex = '0x1000') {
+function makeRegistry() {
   return {
-    peek: vi.fn().mockReturnValue({
-      client: { send: vi.fn().mockResolvedValue(headHex) },
-      chainCfg: { chainId: '0x1', reorgHorizon: 12 },
-    }),
+    peek: vi.fn().mockReturnValue(undefined),
   };
 }
 
