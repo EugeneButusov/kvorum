@@ -78,6 +78,10 @@ describe('admin-cli help snapshots', () => {
     expect(domainHelp(program, 'dlq')).toMatchSnapshot();
   });
 
+  it('ens --help', () => {
+    expect(domainHelp(program, 'ens')).toMatchSnapshot();
+  });
+
   it('ai --help', () => {
     expect(domainHelp(program, 'ai')).toMatchSnapshot();
   });

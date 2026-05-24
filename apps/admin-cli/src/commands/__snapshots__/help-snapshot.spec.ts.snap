@@ -162,6 +162,22 @@ Commands:
 "
 `;
 
+exports[`admin-cli help snapshots > ens --help 1`] = `
+"Usage: admin-cli ens [options] [command]
+
+ENS resolver operations
+
+Options:
+  -h, --help                   display help for command
+
+Commands:
+  refresh-all [options]        Refresh ENS display names for all actors
+  refresh [options] <address>  Refresh ENS display name for one actor primary
+                               address
+  help [command]               display help for command
+"
+`;
+
 exports[`admin-cli help snapshots > keys --help 1`] = `
 "Usage: admin-cli keys [options] [command]
 
@@ -223,6 +239,7 @@ Commands:
   daos                   DAO management
   derive                 Derived data management
   dlq                    Dead-letter queue management
+  ens                    ENS resolver operations
   keys                   API key management
   maintenance            Maintenance mode management
   status [options]       Show system status
