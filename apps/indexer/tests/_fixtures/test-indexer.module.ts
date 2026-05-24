@@ -11,7 +11,6 @@ import { IndexerInfraModule } from '../../src/infra/indexer-infra.module';
 import { EvmEventPollerDriver } from '../../src/orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
-import { ReorgWatcherService } from '../../src/orchestrator/reorg-watcher.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
 
 @Module({
@@ -30,7 +29,6 @@ import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
       inject: [EvmEventPollerDriver],
     },
     IndexerOrchestratorService,
-    ReorgWatcherService,
   ],
 })
 export class TestIndexerModule {}

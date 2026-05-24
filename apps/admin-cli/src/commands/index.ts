@@ -8,7 +8,6 @@ import { registerDerive } from './derive.js';
 import { registerDlq } from './dlq.js';
 import { registerKeys } from './keys.js';
 import { registerMaintenance } from './maintenance.js';
-import { registerReorg } from './reorg.js';
 import { registerSnapshot } from './snapshot.js';
 import { registerStatus } from './status.js';
 import { registerUser } from './user.js';
@@ -23,7 +22,6 @@ export function registerAllCommands(program: Command): void {
   registerDlq(program);
   registerKeys(program);
   registerMaintenance(program);
-  registerReorg(program);
   registerStatus(program);
   registerSnapshot(program);
   registerUser(program);

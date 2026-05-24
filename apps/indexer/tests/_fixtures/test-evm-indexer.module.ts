@@ -4,7 +4,6 @@ import { DerivationModule } from '../../src/derivation';
 import { IndexerInfraModule } from '../../src/infra/indexer-infra.module';
 import { EvmEventPollerDriver } from '../../src/orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
-import { ReorgWatcherService } from '../../src/orchestrator/reorg-watcher.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
 
 // IndexerOrchestratorService is NOT provided here: it depends on SOURCE_PLUGINS,
@@ -20,14 +19,7 @@ import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
       useFactory: (eventPoller: EvmEventPollerDriver): FetchDriver[] => [eventPoller],
       inject: [EvmEventPollerDriver],
     },
-    ReorgWatcherService,
   ],
-  exports: [
-    IndexerInfraModule,
-    ChainContextModule,
-    EvmEventPollerDriver,
-    FETCH_DRIVERS,
-    ReorgWatcherService,
-  ],
+  exports: [IndexerInfraModule, ChainContextModule, EvmEventPollerDriver, FETCH_DRIVERS],
 })
 export class TestEvmIndexerModule {}

@@ -6,7 +6,6 @@ import {
   DaoReadRepository,
   DaoSourceRepository,
   DlqRepository,
-  ReorgEventRepository,
   ProposalReadRepository,
   SystemStatusRepository,
   UserRepository,
@@ -22,7 +21,6 @@ export interface AdminCliContainer {
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
   compoundGovernorArchivePayloadRepository: GovernorArchivePayloadRepository;
-  reorgEventRepository: ReorgEventRepository;
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
   adminAuditRepository: AdminAuditRepository;
@@ -38,7 +36,6 @@ export function buildContainer(): AdminCliContainer {
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
     compoundGovernorArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
-    reorgEventRepository: new ReorgEventRepository(pgDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
     adminAuditRepository: new AdminAuditRepository(pgDb),
