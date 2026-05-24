@@ -6,7 +6,7 @@ This runbook covers boot-time catch-up and manual catch-up/backfill operations.
 
 - On indexer startup, live pollers start immediately for enabled sources.
 - For each EVM event source, the orchestrator waits for the first successful live tick head `L`.
-- Boot catch-up then runs in background over `[backfill_head_block + 1, L - 2H]` (`H = reorgHorizon`).
+- Boot catch-up then runs in background over `[backfill_head_block + 1, L - 2H]` (`H = headLag`).
 - Catch-up advances `backfill_head_block` per chunk and does not clear it on completion.
 - Catch-up failure does not stop live polling; it is surfaced through logs/metrics.
 

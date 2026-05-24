@@ -363,7 +363,7 @@ The archive tables are not directly queried by user-facing features. They exist 
 
 Per-source archives are appropriate because event shapes differ substantially. Concrete tables:
 
-- `event_archive_compound_governor_bravo`
+- `archive_event_compound_governor_bravo`
 - `event_archive_aave_v3`
 - `event_archive_aragon`
 - `event_archive_snapshot`
@@ -459,7 +459,7 @@ The ingestion pipeline is logically a pipeline of stages, each with a defined co
                                ▼
                     ┌──────────────────────┐
                     │  Event archive       │  append-only, all events
-                    │  (per-source tables) │  with confirmation_status
+                    │  (per-source tables) │  with archive_event
                     └──────────┬───────────┘
                                │
                        ┌───────┴────────┐
@@ -485,28 +485,28 @@ The ingestion pipeline is logically a pipeline of stages, each with a defined co
                                └──────────────────────┘
 ```
 
-This separation is deliberate. The event archive is the system of record. All canonical state in the core entities is _derived_ from the archive — specifically, from events whose `confirmation_status` is `confirmed`. Bugs in derivation logic are recoverable by replaying the archive, and the archive itself is logically append-only (rows are written once; only the `confirmation_status` field transitions through a defined lifecycle).
+This separation is deliberate. The event archive is the system of record. All canonical state in the core entities is _derived_ from the archive — specifically, from events whose `archive_event` is `confirmed`. Bugs in derivation logic are recoverable by replaying the archive, and the archive itself is logically append-only (rows are written once; only the `archive_event` field transitions through a defined lifecycle).
 
-Reorgs are first-class events. When the reorg detector observes that a previously-recorded block is no longer part of the canonical chain, it writes a `reorg_event` record and transitions affected event rows from `pending` to `orphaned`. The canonical post-reorg events arrive as new archive rows. The full reorg history is preserved.
+Reorgs are first-class events. When the reorg detector observes that a previously-recorded block is no longer part of the canonical chain, it writes a `reorg-audit-log` record and transitions affected event rows from `pending` to `orphaned`. The canonical post-reorg events arrive as new archive rows. The full reorg history is preserved.
 
 ### 3.2 Event lifecycle
 
 Every external event passes through a defined lifecycle, recorded explicitly on the event row itself rather than via row movement between tables.
 
-1. **Observed.** The source adapter has received a raw event. It is normalized and written to the event archive immediately, with `confirmation_status = 'pending'` and the observed `block_number` and `block_hash` populated. The event is not yet visible through the public API or dashboard (see Section 3.4 for the v1 visibility decision); it is recorded for confirmation processing and audit.
-2. **Confirmed.** The event has aged past the source's reorg horizon and the canonical chain still contains the same `block_hash` at this `block_number`. The row's `confirmation_status` transitions to `confirmed`. The derivation layer is notified and projects the event into core entities.
-3. **Orphaned.** A reorg has removed this event's block from the canonical chain. The row's `confirmation_status` transitions to `orphaned`. A `reorg_event` row is written linking this event to the reorg that invalidated it. No derived state changes are required because no derived state was created (events only project to core entities at confirmation).
+1. **Observed.** The source adapter has received a raw event. It is normalized and written to the event archive immediately, with `archive_event = 'pending'` and the observed `block_number` and `block_hash` populated. The event is not yet visible through the public API or dashboard (see Section 3.4 for the v1 visibility decision); it is recorded for confirmation processing and audit.
+2. **Confirmed.** The event has aged past the source's head lag and the canonical chain still contains the same `block_hash` at this `block_number`. The row's `archive_event` transitions to `confirmed`. The derivation layer is notified and projects the event into core entities.
+3. **Orphaned.** A reorg has removed this event's block from the canonical chain. The row's `archive_event` transitions to `orphaned`. A `reorg-audit-log` row is written linking this event to the reorg that invalidated it. No derived state changes are required because no derived state was created (events only project to core entities at confirmation).
 4. **Re-observed (post-reorg, if applicable).** If the canonical post-reorg chain contains a semantically equivalent event, it arrives via live ingestion or polling and lands as a _new_ archive row (different `block_hash`) with its own lifecycle starting at `pending`. The old `orphaned` row remains in the archive forever as part of the audit trail.
 
-The status field has three terminal values for any given row: `confirmed`, `orphaned`, or `pending` (the in-flight state). The data fields of a row — its payload, block number, block hash, transaction hash — are immutable from the moment of insertion. Only `confirmation_status` and `confirmed_at` / `orphaned_at` timestamps are written after the initial insert.
+The status field has three terminal values for any given row: `confirmed`, `orphaned`, or `pending` (the in-flight state). The data fields of a row — its payload, block number, block hash, transaction hash — are immutable from the moment of insertion. Only `archive_event` and `confirmed_at` / `orphaned_at` timestamps are written after the initial insert.
 
 This model has several useful properties:
 
 - **Truly append-only data.** Event payloads are never rewritten. Audit trail is complete by construction.
-- **Reorg history is observable.** The `reorg_event` table is a queryable record of every reorg Kvorum observed, linked to the events it affected. Useful for debugging and for analytical content.
-- **No separate pending buffer.** Pending events live in the archive alongside everything else; they are simply queried with a `confirmation_status` filter. One storage system, one source of truth.
+- **Reorg history is observable.** The `reorg-audit-log` table is a queryable record of every reorg Kvorum observed, linked to the events it affected. Useful for debugging and for analytical content.
+- **No separate pending buffer.** Pending events live in the archive alongside everything else; they are simply queried with a `archive_event` filter. One storage system, one source of truth.
 - **Derivation is conservative.** Core entities reflect only confirmed events. A reorg that invalidates a pending event has no effect on derived state, because the event was never projected.
-- **Pre-confirmation visibility is opt-in (post-v1).** The archive distinguishes pending from confirmed events via the `confirmation_status` field. v1 surfaces only confirmed events through the public API and dashboard; pending visibility is a planned v1.1 feature exposed via opt-in query parameters and subscription modes. See Section 3.4 for the full rationale and forward-compatibility commitments.
+- **Pre-confirmation visibility is opt-in (post-v1).** The archive distinguishes pending from confirmed events via the `archive_event` field. v1 surfaces only confirmed events through the public API and dashboard; pending visibility is a planned v1.1 feature exposed via opt-in query parameters and subscription modes. See Section 3.4 for the full rationale and forward-compatibility commitments.
 
 ### 3.3 EVM source ingestion
 
@@ -520,7 +520,7 @@ For each `dao_source` of an EVM type, the ingester maintains:
 
 Two ingestion modes run concurrently:
 
-**Live ingestion** subscribes to the chain's WebSocket endpoint with `eth_subscribe('logs', filter)`. Each new log is normalized and written to the event archive immediately with `confirmation_status = 'pending'`. The ingester also subscribes to `newHeads` so it can track block confirmations and transition pending events to `confirmed` as they age past the reorg horizon. Reorg detection (block hash mismatch on the same number, or a drop in chain head) triggers the orphaning flow described in Section 3.4.
+**Live ingestion** subscribes to the chain's WebSocket endpoint with `eth_subscribe('logs', filter)`. Each new log is normalized and written to the event archive immediately with `archive_event = 'pending'`. The ingester also subscribes to `newHeads` so it can track block confirmations and transition pending events to `confirmed` as they age past the head lag. Reorg detection (block hash mismatch on the same number, or a drop in chain head) triggers the orphaning flow described in Section 3.4.
 
 **Polling fallback** runs in parallel as a defense against missed events. Every N blocks, the ingester runs an `eth_getLogs` query covering the recently-finalized window and reconciles results against the archive. Any event present in the polling result but missing from the archive is inserted; this catches WebSocket disconnections and missed events. Idempotency on `(chain_id, tx_hash, log_index, block_hash)` ensures duplicates are harmless. (Note the inclusion of `block_hash` in the idempotency key — this is intentional, so that the same logical event observed under two different block hashes during a reorg produces two distinct archive rows rather than overwriting each other.)
 
@@ -532,54 +532,54 @@ Reorg handling is the load-bearing correctness feature of EVM ingestion. Kvorum'
 
 **The model.** When a reorg is detected, two things happen:
 
-1. A `reorg_event` row is written, recording the reorg as an observable historical event.
-2. The affected event archive rows have their `confirmation_status` transitioned from `pending` to `orphaned`. The data fields of those rows (payload, block hash, transaction hash) are not changed. The orphaned rows remain in the archive permanently, linked to the reorg event that invalidated them.
+1. A `reorg-audit-log` row is written, recording the reorg as an observable historical event.
+2. The affected event archive rows have their `archive_event` transitioned from `pending` to `orphaned`. The data fields of those rows (payload, block hash, transaction hash) are not changed. The orphaned rows remain in the archive permanently, linked to the reorg event that invalidated them.
 
 The canonical post-reorg chain produces new events through normal live ingestion. These land as new archive rows with their own `block_hash` (different from the orphaned rows' hashes) and follow the standard pending → confirmed lifecycle.
 
-**Reorg horizon per chain.** Each chain has a configured reorg horizon — the number of confirmations required before an event is considered final. Defaults: Ethereum mainnet 12, Polygon 128, Arbitrum 40, Optimism 40, Avalanche 30, Base 40. These are conservative; the actual practical reorg depth on these chains is usually much shallower, but the cost of being conservative is small (a few minutes of additional ingestion latency) and the cost of being wrong is corrupted state.
+**Reorg horizon per chain.** Each chain has a configured head lag — the number of confirmations required before an event is considered final. Defaults: Ethereum mainnet 12, Polygon 128, Arbitrum 40, Optimism 40, Avalanche 30, Base 40. These are conservative; the actual practical reorg depth on these chains is usually much shallower, but the cost of being conservative is small (a few minutes of additional ingestion latency) and the cost of being wrong is corrupted state.
 
-**Reorg detection.** The ingester maintains a sliding window of recently-observed block hashes per chain (covering the reorg horizon). On every new block from the WebSocket subscription, it compares the new block's parent hash against the previously-recorded block at that height. A mismatch indicates a reorg. The ingester then:
+**Reorg detection.** The ingester maintains a sliding window of recently-observed block hashes per chain (covering the head lag). On every new block from the WebSocket subscription, it compares the new block's parent hash against the previously-recorded block at that height. A mismatch indicates a reorg. The ingester then:
 
 1. Walks backwards from the divergence point to identify the full range of orphaned blocks.
 2. Re-fetches the canonical block hashes for the divergence window via `eth_getBlockByNumber` to confirm.
-3. Writes a `reorg_event` row with `chain_id`, `detected_at`, `divergence_block_number`, `orphaned_block_hashes` (array), `canonical_block_hashes` (array).
-4. Updates affected archive rows: `confirmation_status = 'orphaned'`, `orphaned_at = now()`, `orphaned_by_reorg_event_id = <new reorg_event id>`.
+3. Writes a `reorg-audit-log` row with `chain_id`, `detected_at`, `divergence_block_number`, `orphaned_block_hashes` (array), `canonical_block_hashes` (array).
+4. Updates affected archive rows: `archive_event = 'orphaned'`, `orphaned_at = now()`, `orphaned_by_reorg-audit-log_id = <new reorg-audit-log id>`.
 
-**Confirmation transitions.** Events past the reorg horizon are promoted via a periodic job:
+**Confirmation transitions.** Events past the head lag are promoted via a periodic job:
 
 ```
 UPDATE event_archive_*
-SET confirmation_status = 'confirmed', confirmed_at = now()
-WHERE confirmation_status = 'pending'
+SET archive_event = 'confirmed', confirmed_at = now()
+WHERE archive_event = 'pending'
   AND chain_id = $1
-  AND block_number <= $latest_block - $reorg_horizon;
+  AND block_number <= $latest_block - $head_lag;
 ```
 
 This is an idempotent, set-based operation. The derivation layer subscribes to confirmation transitions (via Postgres LISTEN/NOTIFY or polling) and projects newly-confirmed events into core entities.
 
-**Derived state is built only from confirmed events.** This is the load-bearing simplification. A reorg that orphans pending events causes no downstream state changes, because no `vote`, `proposal`, or `delegation` row was ever created for those events. The derivation layer is a pure projection of `confirmation_status = 'confirmed'` rows from the archive into the core entity tables. Replaying the projection is straightforward: truncate core entities, then re-derive from confirmed archive rows.
+**Derived state is built only from confirmed events.** This is the load-bearing simplification. A reorg that orphans pending events causes no downstream state changes, because no `vote`, `proposal`, or `delegation` row was ever created for those events. The derivation layer is a pure projection of `archive_event = 'confirmed'` rows from the archive into the core entity tables. Replaying the projection is straightforward: truncate core entities, then re-derive from confirmed archive rows.
 
-**Pre-confirmation visibility — v1 decision.** (See KNOWN-001.) Kvorum v1 ships with **confirmed-only visibility**: the public API and dashboard expose only events whose `confirmation_status` is `confirmed`. Pending events are observed and recorded in the archive but are not surfaced through the public read path. The justification:
+**Pre-confirmation visibility — v1 decision.** (See KNOWN-001.) Kvorum v1 ships with **confirmed-only visibility**: the public API and dashboard expose only events whose `archive_event` is `confirmed`. Pending events are observed and recorded in the archive but are not surfaced through the public read path. The justification:
 
 - It is the safest correctness story for initial launch. Any latent issue in pending-event handling — a reorg edge case, a misclassified event — is contained inside Kvorum's internal state and never visible to users.
-- The added latency is bounded by the reorg horizon (≈2.5 minutes on Ethereum mainnet, ≈5 minutes on Polygon for Aave votes). For governance use cases, this is acceptable: votes happen over hours or days, not seconds.
+- The added latency is bounded by the head lag (≈2.5 minutes on Ethereum mainnet, ≈5 minutes on Polygon for Aave votes). For governance use cases, this is acceptable: votes happen over hours or days, not seconds.
 - The audience for sub-minute pending visibility is narrow (researchers watching contentious votes in real-time), and the value proposition is unclear until users ask for it.
 
 **Forward-compatibility commitments.** To keep the upgrade path to pending visibility cheap, v1 commits to the following:
 
 - All API response payloads for entities with a confirmation lifecycle (votes, proposals, delegation events, voting power snapshots) include a `confirmed: boolean` field. In v1 this field is always `true`. Clients that ignore the field continue to work; clients that branch on it gain pending support automatically when it's enabled.
-- The streaming protocols (WebSocket and SSE) themselves are deferred to v1.1 (KNOWN-014). When they ship, their event payloads will include a `confirmation_status` field with values `confirmed`, `pending`, or `orphaned` — anticipated in this spec but not yet implemented.
+- The streaming protocols (WebSocket and SSE) themselves are deferred to v1.1 (KNOWN-014). When they ship, their event payloads will include a `archive_event` field with values `confirmed`, `pending`, or `orphaned` — anticipated in this spec but not yet implemented.
 - The internal repository layer is designed with an `includePending: boolean` parameter (defaulting to `false`) on read methods. The query path supports both modes from day one; only the API and dashboard consume the default-`false` path in v1.
 
 **v1.1 scope (planned, not committed).** The natural next increment is opt-in pending visibility via an `?include_pending=true` query parameter on relevant API endpoints, plus an opt-in WebSocket subscription mode. Dashboard support for displaying pending events with explicit visual treatment (faded styling, "preliminary" badges) is a further increment beyond that. Both are deferred to v1.1+, but the architecture supports them without schema or API breaking changes.
 
-**Reorg analytics as a side benefit.** The `reorg_event` table is queryable: "what reorgs have occurred on Ethereum mainnet in the last 30 days, and what governance events did they affect?" This is the kind of operational visibility most chain analytics products silently lack. It is also content — a reorg log on the dashboard demonstrates Kvorum's correctness story and is engaging in its own right.
+**Reorg analytics as a side benefit.** The `reorg-audit-log` table is queryable: "what reorgs have occurred on Ethereum mainnet in the last 30 days, and what governance events did they affect?" This is the kind of operational visibility most chain analytics products silently lack. It is also content — a reorg log on the dashboard demonstrates Kvorum's correctness story and is engaging in its own right.
 
 **Reorg detection test.** As part of milestone acceptance, the ingester is exercised against an Anvil-forked mainnet with a synthetic reorg injected at a known block. The test verifies that:
 
 1. Pending events from the orphaned branch are transitioned to `orphaned` status.
-2. A `reorg_event` row is written linking them to the reorg.
+2. A `reorg-audit-log` row is written linking them to the reorg.
 3. Canonical post-reorg events are inserted as new archive rows.
 4. No core entity rows were created for the orphaned events (because they never confirmed).
 5. Re-running the projection produces the same final state.
@@ -732,7 +732,7 @@ Backfill is the process of reconstructing historical state from before Kvorum's 
 
 **Idempotency.** Inserts into the event archive are idempotent on `(chain_id, tx_hash, log_index)`. Re-running a chunk produces no duplicates and is harmless. This is essential for resumability.
 
-**Reorg horizon during backfill.** Because backfill operates on historical (deeply confirmed) blocks, events are written directly with `confirmation_status = 'confirmed'`. The pending lifecycle is bypassed entirely. The reorg horizon only applies to live ingestion at the chain head.
+**Reorg horizon during backfill.** Because backfill operates on historical (deeply confirmed) blocks, events are written directly with `archive_event = 'confirmed'`. The pending lifecycle is bypassed entirely. The head lag only applies to live ingestion at the chain head.
 
 **Snapshot backfill.** For Snapshot, backfill paginates through the GraphQL API from genesis using `created_gt` cursors. Same shape, different transport.
 
@@ -801,7 +801,7 @@ Known concerns originating in this section are recorded in **Section 9 — Known
 - KNOWN-004 (event archive not exposed via API in v1)
 - KNOWN-005 (low-confidence forum-proposal inferred linking deferred)
 - KNOWN-006 (Snapshot voting power on-chain block reorg gap)
-- KNOWN-008 (reorg horizon defaults are conservative; tune post-launch)
+- KNOWN-008 (head lag defaults are conservative; tune post-launch)
 - KNOWN-009 (forum content integrity is not verified)
 - KNOWN-010 (block explorer ABIs are trusted when used as enrichment)
 
@@ -2250,7 +2250,7 @@ Pages that depend on AI output (proposal detail's summary section) may show a "s
 
 **Ingestion lag (Section 3.12):**
 
-- Steady-state lag between source event occurring and event appearing as confirmed in Kvorum: bounded by the configured reorg horizon plus < 60 seconds of processing latency
+- Steady-state lag between source event occurring and event appearing as confirmed in Kvorum: bounded by the configured head lag plus < 60 seconds of processing latency
 - Concretely for Ethereum mainnet: ~3 minutes total (12 confirmations × ~12s plus processing)
 - Backfill throughput: > 1000 events per minute per source on the configured RPC tier
 
@@ -2719,7 +2719,7 @@ The decision records below capture the material decisions made during v1.0 draft
 - **Spec sections affected**: 3.4
 - **Related**: KNOWN-001, DR-009
 
-**Context.** Whether the public API and dashboard surface events that have been observed but not yet passed the chain's reorg horizon.
+**Context.** Whether the public API and dashboard surface events that have been observed but not yet passed the chain's head lag.
 
 **Decision.** v1 surfaces only confirmed events. Pending events are recorded in the archive but not exposed publicly. v1.1 adds opt-in pending visibility.
 
@@ -2728,7 +2728,7 @@ The decision records below capture the material decisions made during v1.0 draft
 - _Always show pending_ — exposes users to events that may be reorged away, requiring careful UX treatment that adds scope to the dashboard.
 - _Opt-in pending in v1_ — adds API surface and dashboard treatment that is not required for v1's core value proposition.
 
-**Consequences.** New events appear with a latency floor of the reorg horizon (~3 minutes for Ethereum mainnet). This makes streaming protocols (DR-009) less valuable in v1, justifying their deferral. Forward-compatibility is preserved through the `confirmed: boolean` field on entity responses.
+**Consequences.** New events appear with a latency floor of the head lag (~3 minutes for Ethereum mainnet). This makes streaming protocols (DR-009) less valuable in v1, justifying their deferral. Forward-compatibility is preserved through the `confirmed: boolean` field on entity responses.
 
 #### DR-006 — Append-only event archive with explicit reorg events
 
@@ -2738,7 +2738,7 @@ The decision records below capture the material decisions made during v1.0 draft
 
 **Context.** Reorg handling is the load-bearing correctness feature of EVM ingestion. The naive approach uses a Redis-backed pending buffer that is mutated on reorg.
 
-**Decision.** Event payloads are written to the archive immediately and never mutated. Confirmation status (`pending` / `confirmed` / `orphaned`) transitions on the row. Reorgs are first-class records in a `reorg_event` table linking to the events they orphaned.
+**Decision.** Event payloads are written to the archive immediately and never mutated. Confirmation status (`pending` / `confirmed` / `orphaned`) transitions on the row. Reorgs are first-class records in a `reorg-audit-log` table linking to the events they orphaned.
 
 **Alternatives considered.**
 
@@ -2795,7 +2795,7 @@ The decision records below capture the material decisions made during v1.0 draft
 
 **Alternatives considered.**
 
-- _Ship WebSocket in v1 alongside confirmed-only events_ — implementation cost (5–8 days plus operational complexity) without proportional value, given the reorg horizon already introduces minutes of latency.
+- _Ship WebSocket in v1 alongside confirmed-only events_ — implementation cost (5–8 days plus operational complexity) without proportional value, given the head lag already introduces minutes of latency.
 - _Ship SSE only in v1, WebSocket later_ — splits the streaming work without simplifying it.
 
 **Consequences.** v1 deployment is simpler (no Redis pub/sub for cross-instance fan-out). Polling at 10-second intervals is the v1 real-time mechanism. Forward-compatibility is preserved through the `confirmed` field on REST responses.
@@ -3077,7 +3077,7 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Severity**: material
 - **Category**: usability
 - **Spec sections**: 3.2, 3.4
-- **Description**: Kvorum v1 surfaces only events whose `confirmation_status` is `confirmed`. Pending events are recorded in the archive but not exposed through the public API or dashboard. This means a vote cast on Compound is not visible to API consumers until it has aged past the chain's reorg horizon (≈2.5 minutes for Ethereum mainnet, longer for Polygon/Avalanche).
+- **Description**: Kvorum v1 surfaces only events whose `archive_event` is `confirmed`. Pending events are recorded in the archive but not exposed through the public API or dashboard. This means a vote cast on Compound is not visible to API consumers until it has aged past the chain's head lag (≈2.5 minutes for Ethereum mainnet, longer for Polygon/Avalanche).
 - **Rationale for v1**: Conservative correctness story for initial launch; pending logic edge cases are contained inside Kvorum until they are well-tested.
 - **Resolution**: v1.1 ships opt-in pending visibility, paired with the introduction of streaming protocols (WebSocket and SSE) where it materially helps. The relevant additions: `?include_pending=true` on REST endpoints, and pending events delivered through the new streaming endpoints. Forward-compatibility schema (`confirmed: boolean` field on REST responses) is in place from v1 to make REST changes purely additive. (See also KNOWN-014.)
 - **Target version**: v1.1
@@ -3107,9 +3107,9 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Severity**: minor
 - **Category**: usability
 - **Spec sections**: 3.13
-- **Description**: The reorg-aware event archive — including the `reorg_event` log — is internal to Kvorum in v1. Researchers and journalists who would benefit from raw event access ("show me every reorg that affected a vote") cannot access it via the public API.
+- **Description**: The reorg-aware event archive — including the `reorg-audit-log` log — is internal to Kvorum in v1. Researchers and journalists who would benefit from raw event access ("show me every reorg that affected a vote") cannot access it via the public API.
 - **Rationale for v1**: The archive schema is the most likely part of Kvorum to evolve as new sources are added or interpretation logic improves. Committing publicly to a schema before it has stabilized would force API breaking changes or dual-write maintenance.
-- **Resolution**: v1.1+ exposes a read-only events endpoint once the schema is settled and the operational picture (especially around reorg events) is well-understood. Likely shape: `GET /daos/{slug}/events?source_type=&block_range=&confirmation_status=`.
+- **Resolution**: v1.1+ exposes a read-only events endpoint once the schema is settled and the operational picture (especially around reorg events) is well-understood. Likely shape: `GET /daos/{slug}/events?source_type=&block_range=&archive_event=`.
 - **Target version**: v1.1 or later
 
 #### KNOWN-005 — Low-confidence forum-to-proposal linking is deferred
@@ -3128,7 +3128,7 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Category**: correctness
 - **Spec sections**: 3.6
 - **Description**: Snapshot proposals reference an on-chain block (the `snapshot` field in Snapshot's API) at which voting power is computed. Snapshot reads state at that block once at proposal creation time and does not re-evaluate. If that on-chain block is later reorged out of the canonical chain, Snapshot's reported voting power values are based on state from a chain branch that no longer exists.
-- **Rationale**: In practice, Snapshot's chosen reference blocks are well past the reorg horizon by the time proposals are evaluated. The chains Snapshot reads from (mainly Ethereum mainnet) have not had a deep reorg in years.
+- **Rationale**: In practice, Snapshot's chosen reference blocks are well past the head lag by the time proposals are evaluated. The chains Snapshot reads from (mainly Ethereum mainnet) have not had a deep reorg in years.
 - **Resolution**: Document the trust boundary; no active resolution planned. If Snapshot's behavior changes or a relevant reorg occurs, revisit. KNOWN-002's verification mechanism would surface the discrepancy if it ever materialized.
 - **Target version**: Permanent acceptance
 
@@ -3146,8 +3146,8 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Severity**: minor
 - **Category**: operational
 - **Spec sections**: 3.4
-- **Description**: The reorg horizons used by v1 (12 / 128 / 40 / 40 / 30 / 40 confirmations for Ethereum / Polygon / Arbitrum / Optimism / Avalanche / Base) are conservative defaults chosen from public guidance, not measurements of Kvorum's specific operational experience. They likely produce unnecessary latency on chains where deep reorgs are rare in practice.
-- **Resolution**: Post-launch, monitor actual reorg depths observed by Kvorum's `reorg_event` log. After 30 days of operational data, tune horizons per chain if the data supports it. Any change is a configuration update, not a schema or code change.
+- **Description**: The head lags used by v1 (12 / 128 / 40 / 40 / 30 / 40 confirmations for Ethereum / Polygon / Arbitrum / Optimism / Avalanche / Base) are conservative defaults chosen from public guidance, not measurements of Kvorum's specific operational experience. They likely produce unnecessary latency on chains where deep reorgs are rare in practice.
+- **Resolution**: Post-launch, monitor actual reorg depths observed by Kvorum's `reorg-audit-log` log. After 30 days of operational data, tune horizons per chain if the data supports it. Any change is a configuration update, not a schema or code change.
 - **Target version**: Operational tuning post-launch
 
 #### KNOWN-009 — Forum content integrity is not verified
@@ -3201,8 +3201,8 @@ There is no `critical` tier in the v1 registry. A critical concern would block v
 - **Category**: usability
 - **Spec sections**: 4.1, 4.6
 - **Description**: v1 ships REST endpoints only. Real-time consumption is via short-interval polling (typically 10 seconds for active dashboard views), which is sufficient given v1's confirmed-only visibility model — the ~3 minute reorg-confirmation latency (KNOWN-001) already dwarfs polling intervals, so push delivery offers no meaningful improvement. WebSocket and SSE are deferred to v1.1, where they pair naturally with the introduction of pending event visibility (KNOWN-001's resolution).
-- **Rationale for v1**: Streaming infrastructure is real engineering work — connection lifecycle, auth, channel routing, broadcast fan-out across instances via Redis pub/sub, heartbeats, reconnection handling, and meaningful integration testing. The work is approximately 5–8 days plus ongoing operational complexity. With pending visibility deferred, the case for streaming weakens substantially: polling at 10-second intervals introduces less latency than the reorg horizon already does. Bundling streaming with pending visibility in v1.1 is the right packaging.
-- **Resolution**: v1.1 introduces a WebSocket endpoint at `/v1/ws` and SSE streams under `/v1/streams/...`. The shape of these is described in earlier draft material from this spec and is anticipated to remain similar: token-authenticated, channel-based subscriptions, JSON message format, heartbeats. v1.1 also introduces concurrent-connection rate limit tiers (anticipated in Section 4.4) and the `confirmation_status` field on streamed event payloads.
+- **Rationale for v1**: Streaming infrastructure is real engineering work — connection lifecycle, auth, channel routing, broadcast fan-out across instances via Redis pub/sub, heartbeats, reconnection handling, and meaningful integration testing. The work is approximately 5–8 days plus ongoing operational complexity. With pending visibility deferred, the case for streaming weakens substantially: polling at 10-second intervals introduces less latency than the head lag already does. Bundling streaming with pending visibility in v1.1 is the right packaging.
+- **Resolution**: v1.1 introduces a WebSocket endpoint at `/v1/ws` and SSE streams under `/v1/streams/...`. The shape of these is described in earlier draft material from this spec and is anticipated to remain similar: token-authenticated, channel-based subscriptions, JSON message format, heartbeats. v1.1 also introduces concurrent-connection rate limit tiers (anticipated in Section 4.4) and the `archive_event` field on streamed event payloads.
 - **Target version**: v1.1
 
 #### KNOWN-015 — Natural-language query interface deferred
@@ -3377,7 +3377,7 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 - Chain client lib (`libs/chain`): RPC abstraction, multi-provider failover, circuit breakers, EIP-1967 proxy resolution
 - Compound Governor adapter (`apps/indexer/sources/compound-governor`): parses `ProposalCreated`, `ProposalCanceled`, `ProposalExecuted`, `ProposalQueued` events
 - Append-only event archive Postgres schema (per Section 3.2)
-- Reorg detection and handling (per Section 3.4): confirmation-status transitions, `reorg_event` table, append-only invalidation
+- Reorg detection and handling (per Section 3.4): confirmation-status transitions, `reorg-audit-log` table, append-only invalidation
 - `proposal` core entity derivation from archive events
 - ABI decoding pipeline (Section 3.8): bundled selector index, bundled ABI library, local-first decoding
 - API endpoints: `GET /v1/daos/{slug}/proposals`, `GET /v1/daos/{slug}/proposals/{type}/{id}`

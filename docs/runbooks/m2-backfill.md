@@ -130,7 +130,7 @@ Poll until stable across 3 polls at least 60 seconds apart:
 ```bash
 psql -c "
   SELECT source_type, event_type, count(*)
-  FROM archive_confirmation
+  FROM archive_event
   WHERE source_type IN (
     'compound_governor_alpha',
     'compound_governor_bravo',
@@ -163,7 +163,7 @@ docker compose logs --since=30s indexer | grep -E 'block_poll|event_decoded'
 ```bash
 chsql --query "
   SELECT count()
-  FROM event_archive_compound_governor_bravo FINAL
+  FROM archive_event_compound_governor_bravo FINAL
   WHERE dao_source_id = (SELECT id FROM dao_source WHERE source_type='compound_governor_bravo')
     AND event_type = 'VoteCast'
 "
@@ -183,7 +183,7 @@ For each preselected proposal id:
 ```bash
 chsql --query "
   SELECT count()
-  FROM event_archive_compound_governor_bravo FINAL
+  FROM archive_event_compound_governor_bravo FINAL
   WHERE dao_source_id = (SELECT id FROM dao_source WHERE source_type='compound_governor_bravo')
     AND event_type = 'VoteCast'
     AND JSONExtractString(payload, 'proposalId') = '<proposal_id>'
@@ -197,7 +197,7 @@ Any mismatch blocks M2 acceptance.
 ```bash
 chsql --query "
   SELECT event_type, count()
-  FROM event_archive_compound_comp_token FINAL
+  FROM archive_event_compound_comp_token FINAL
   WHERE dao_source_id = (SELECT id FROM dao_source WHERE source_type='compound_comp_token')
   GROUP BY event_type
   ORDER BY event_type
@@ -208,11 +208,11 @@ chsql --query "
 
 ```bash
 DAO_SOURCE_ID=$(psql -Atc "SELECT id FROM dao_source WHERE source_type='compound_governor_bravo'")
-COUNT_BEFORE=$(chsql --query "SELECT count() FROM event_archive_compound_governor_bravo FINAL WHERE dao_source_id='$DAO_SOURCE_ID' AND block_number BETWEEN 25000000 AND 25001000")
+COUNT_BEFORE=$(chsql --query "SELECT count() FROM archive_event_compound_governor_bravo FINAL WHERE dao_source_id='$DAO_SOURCE_ID' AND block_number BETWEEN 25000000 AND 25001000")
 
 admin-cli backfill start compound_governor_bravo --from-block 25000000 --to-block 25001000 --confirm-replay --format json
 
-COUNT_AFTER=$(chsql --query "SELECT count() FROM event_archive_compound_governor_bravo FINAL WHERE dao_source_id='$DAO_SOURCE_ID' AND block_number BETWEEN 25000000 AND 25001000")
+COUNT_AFTER=$(chsql --query "SELECT count() FROM archive_event_compound_governor_bravo FINAL WHERE dao_source_id='$DAO_SOURCE_ID' AND block_number BETWEEN 25000000 AND 25001000")
 
 echo "before=$COUNT_BEFORE after=$COUNT_AFTER"
 # expected: equal
@@ -243,11 +243,11 @@ Run each scenario in its own shell subshell with cleanup trap.
 
 ```bash
 (
-  trap 'psql -c "GRANT INSERT ON archive_confirmation TO kvorum" || true' EXIT
+  trap 'psql -c "GRANT INSERT ON archive_event TO kvorum" || true' EXIT
 
   TARGET_BLOCK=<known_votecast_only_block>
 
-  psql -c "REVOKE INSERT ON archive_confirmation FROM kvorum"
+  psql -c "REVOKE INSERT ON archive_event FROM kvorum"
 
   admin-cli backfill start compound_governor_bravo \
     --from-block "$TARGET_BLOCK" \
@@ -259,7 +259,7 @@ Run each scenario in its own shell subshell with cleanup trap.
 
   DLQ_ID=$(psql -Atc "SELECT id FROM ingestion_dlq WHERE stage='vote_archive_write' ORDER BY first_seen_at DESC LIMIT 1")
 
-  psql -c "GRANT INSERT ON archive_confirmation TO kvorum"
+  psql -c "GRANT INSERT ON archive_event TO kvorum"
 
   admin-cli dlq retry "$DLQ_ID" --format json
 
@@ -267,15 +267,15 @@ Run each scenario in its own shell subshell with cleanup trap.
 )
 ```
 
-### Scenario B — Proposal PG failure -> `archive_confirmation_write`
+### Scenario B — Proposal PG failure -> `archive_event_write`
 
 ```bash
 (
-  trap 'psql -c "GRANT INSERT ON archive_confirmation TO kvorum" || true' EXIT
+  trap 'psql -c "GRANT INSERT ON archive_event TO kvorum" || true' EXIT
 
   TARGET_BLOCK=<known_proposal_event_block>
 
-  psql -c "REVOKE INSERT ON archive_confirmation FROM kvorum"
+  psql -c "REVOKE INSERT ON archive_event FROM kvorum"
 
   admin-cli backfill start compound_governor_bravo \
     --from-block "$TARGET_BLOCK" \
@@ -283,7 +283,7 @@ Run each scenario in its own shell subshell with cleanup trap.
     --confirm-replay \
     --format json
 
-  psql -c "SELECT id, stage, first_seen_at FROM ingestion_dlq WHERE stage='archive_confirmation_write' ORDER BY first_seen_at DESC LIMIT 5"
+  psql -c "SELECT id, stage, first_seen_at FROM ingestion_dlq WHERE stage='archive_event_write' ORDER BY first_seen_at DESC LIMIT 5"
 )
 ```
 
@@ -308,7 +308,7 @@ Run each scenario in its own shell subshell with cleanup trap.
   psql -c "
     SELECT id, stage, first_seen_at
     FROM ingestion_dlq
-    WHERE stage IN ('vote_archive_write','archive_confirmation_write')
+    WHERE stage IN ('vote_archive_write','archive_event_write')
     ORDER BY first_seen_at DESC
     LIMIT 10
   "
@@ -319,11 +319,11 @@ Run each scenario in its own shell subshell with cleanup trap.
 
 ```bash
 (
-  trap 'psql -c "GRANT INSERT ON archive_confirmation TO kvorum" || true' EXIT
+  trap 'psql -c "GRANT INSERT ON archive_event TO kvorum" || true' EXIT
 
   TARGET_BLOCK=<known_comp_token_event_block>
 
-  psql -c "REVOKE INSERT ON archive_confirmation FROM kvorum"
+  psql -c "REVOKE INSERT ON archive_event FROM kvorum"
 
   admin-cli backfill start compound_comp_token \
     --from-block "$TARGET_BLOCK" \
@@ -335,7 +335,7 @@ Run each scenario in its own shell subshell with cleanup trap.
 
   DLQ_ID=$(psql -Atc "SELECT id FROM ingestion_dlq WHERE stage='delegation_archive_write' ORDER BY first_seen_at DESC LIMIT 1")
 
-  psql -c "GRANT INSERT ON archive_confirmation TO kvorum"
+  psql -c "GRANT INSERT ON archive_event TO kvorum"
 
   admin-cli dlq retry "$DLQ_ID" --format json
 )

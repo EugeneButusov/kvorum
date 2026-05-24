@@ -11,7 +11,7 @@ ADR-026 (Proposed, 2026-05-08) defers all of ClickHouse to v1.x and ships v1 on 
 
 That trade-off conflated two different ClickHouse use cases that the SPEC describes side-by-side in §2.7:
 
-1. **Raw event archive layer.** SPEC §3.2 commits to one archive table per source (`event_archive_compound_governor_bravo`, future `event_archive_aave_governor`, etc.), storing every observed governance event for SPEC §3.3 idempotency, SPEC §3.4 reorg observability, and SPEC §3.10 backfill resumability. By end of M3 this is 5 tables × every governance event from every chain Kvorum tracks — millions of rows, append-mostly, queried by `(chain_id, block_number)` ranges and by the `(chain_id, tx_hash, log_index, block_hash)` exact-key lookups.
+1. **Raw event archive layer.** SPEC §3.2 commits to one archive table per source (`archive_event_compound_governor_bravo`, future `event_archive_aave_governor`, etc.), storing every observed governance event for SPEC §3.3 idempotency, SPEC §3.4 reorg observability, and SPEC §3.10 backfill resumability. By end of M3 this is 5 tables × every governance event from every chain Kvorum tracks — millions of rows, append-mostly, queried by `(chain_id, block_number)` ranges and by the `(chain_id, tx_hash, log_index, block_hash)` exact-key lookups.
 
 2. **Analytical mirror layer.** SPEC §2.7 describes denormalized join tables (`vote_events_analytics`, `delegation_flow_analytics`) for SPEC §4.6.2 analytical endpoints — concentration, delegation flow, delegate alignment, cross-DAO actor analytics, proposal pass-rate.
 
@@ -24,7 +24,7 @@ ADR-026 is correct that the analytical mirror can run on Postgres at v1 scale. I
 
 - **The archive is the wrong shape for Postgres.** Storing millions of wide event payloads in a Postgres table (even with `jsonb` + partitioning) burns disk, RAM (TOAST overhead, autovacuum), and query budget that ClickHouse handles natively. By M3 the table is a known performance liability.
 - **The Postgres-then-mirror migration is expensive.** Building a Postgres archive in M1 and then backfilling it into ClickHouse during M3 (per SPEC §10.4: "ClickHouse analytical mirror populated; daily ETL job from Postgres") is a one-shot data migration of millions of rows plus the dual-write window during cutover. Designing the archive into ClickHouse from M1 skips that entirely.
-- **The mutation path is small and isolatable.** Postgres only needs to track `confirmation_status` and the orphaning FK to `reorg_event` — small, mutable, OLTP-shaped. Pulling that into a separate Postgres `archive_confirmation` table keeps the OLTP control plane in Postgres and the OLAP data plane in ClickHouse — the textbook split.
+- **The mutation path is small and isolatable.** Postgres only needs to track `confirmation_status` and the orphaning FK to `reorg_event` — small, mutable, OLTP-shaped. Pulling that into a separate Postgres `archive_event` table keeps the OLTP control plane in Postgres and the OLAP data plane in ClickHouse — the textbook split.
 
 The cost of activating ClickHouse in M1 is real but bounded:
 
@@ -43,7 +43,7 @@ ADR-026's RAM concern was the right concern. Its conclusion ("defer all of Click
 The archive ships in ClickHouse from the start. The schema is a `ReplacingMergeTree` engine keyed on the SPEC §3.3 idempotency tuple, with `received_at` as the version column for natural deduplication on retry:
 
 ```sql
-CREATE TABLE event_archive_compound_governor_bravo (
+CREATE TABLE archive_event_compound_governor_bravo (
   dao_source_id   UUID,
   chain_id        UInt32,
   block_number    UInt64,
@@ -59,7 +59,7 @@ PARTITION BY toYYYYMM(received_at)
 ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
 ```
 
-**Mutation pattern:** the archive itself is **immutable** — `confirmation_status`, `confirmed_at`, `orphaned_at`, and `orphaned_by_reorg_event_id` move out of ClickHouse into a Postgres `archive_confirmation` tracker (see plan-m1-e1.md). F1 inserts to ClickHouse first, then to Postgres in the same logical operation; on retry, ClickHouse's `ReplacingMergeTree` absorbs the duplicate insert and Postgres's unique key absorbs its own. F2's promotion sweep updates **only Postgres**. This makes the archive truly append-only and gives ClickHouse its preferred mutation pattern (none).
+**Mutation pattern:** the archive itself is **immutable** — `confirmation_status`, `confirmed_at`, `orphaned_at`, and `orphaned_by_reorg_event_id` move out of ClickHouse into a Postgres `archive_event` tracker (see plan-m1-e1.md). F1 inserts to ClickHouse first, then to Postgres in the same logical operation; on retry, ClickHouse's `ReplacingMergeTree` absorbs the duplicate insert and Postgres's unique key absorbs its own. F2's promotion sweep updates **only Postgres**. This makes the archive truly append-only and gives ClickHouse its preferred mutation pattern (none).
 
 **Cross-DB integrity** is application-managed: F1 writes to both DBs in a defined order, with a reconciliation job (deferred to M2) catching divergence. The acceptable failure modes are:
 
@@ -109,7 +109,7 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
   - PR split adjusted: ClickHouse scaffolding lands as part of the Compound source package (PR 2).
 - **ORM choice flips** (see `docs/proposal-orm-choice.md` v2): the dual-DB commitment from M1 makes Kysely's "shared call-site idiom across Postgres + ClickHouse" load-bearing rather than nice-to-have. The recommendation flips from Drizzle to Kysely + a Postgres migration tool + the community `kysely-clickhouse` dialect.
 - **Source-package boundary** (see `docs/proposal-source-package-boundary.md`) — Option B (per-package schema files) becomes the default, since both Postgres tables and ClickHouse tables for a source live in the same `libs/sources/<name>/` package.
-- **F1 (Compound archive writer) gets dual-DB scope.** Its task description gains a CH insert path; Postgres insert is the small `archive_confirmation` row.
+- **F1 (Compound archive writer) gets dual-DB scope.** Its task description gains a CH insert path; Postgres insert is the small `archive_event` row.
 - **F2 (reorg detection / promotion sweep) is simpler in ClickHouse terms** because CH has no role in the mutation path — F2 is pure Postgres.
 - **G1 (derivation worker)** reads from Postgres (for canonical-confirmed entries) and joins to ClickHouse (for raw payloads) at processing time. This is the boundary that justifies Kysely: same call-site idiom for the two reads.
 - **F3 (DLQ) stays in Postgres.** DLQ is small, mutable, queried by admin CLI — OLTP-shaped.
@@ -121,7 +121,7 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 ## Implementation notes
 
 - **Engine choice rationale.** `ReplacingMergeTree(received_at)` deduplicates rows with the same `ORDER BY` tuple, keeping the row with the largest `received_at`. F1's idempotent insert path benefits naturally — a retry inserts a new row, the merge process deduplicates, queries see one row. `CollapsingMergeTree` was considered but adds the burden of paired `+1`/`-1` sign rows; rejected as unnecessary given the archive is logically immutable.
-- **Reorg semantics in ClickHouse.** The same logical event observed under two different `block_hash` values (canonical + orphaned) produces two distinct rows in ClickHouse, identical to the Postgres-only design — `block_hash` is part of the `ORDER BY` tuple. The Postgres-side `archive_confirmation` table tracks which is canonical.
+- **Reorg semantics in ClickHouse.** The same logical event observed under two different `block_hash` values (canonical + orphaned) produces two distinct rows in ClickHouse, identical to the Postgres-only design — `block_hash` is part of the `ORDER BY` tuple. The Postgres-side `archive_event` table tracks which is canonical.
 - **Payload codec.** Apply `CODEC(ZSTD(3))` to the `payload` column in the M1 schema migration. Default LZ4 is faster but compresses ~2× less for JSON payloads.
 - **Local dev:** `docker-compose.yml` adds a `clickhouse-server:24` container with default settings sufficient for dev volume. Schema migrations apply via the chosen migration tool (see ORM choice ADR forthcoming).
 - **CI:** GitHub Actions adds a `clickhouse/clickhouse-server:24-alpine` service container alongside Postgres. Integration tests reset both DBs per test run.
@@ -129,21 +129,21 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 
 ## Amendments
 
-### 2026-05-10 — Polymorphic `archive_confirmation` table (sub-decision)
+### 2026-05-10 — Polymorphic `archive_event` table (sub-decision)
 
-The original ADR text (line 27) describes "a separate Postgres `archive_confirmation` table" without specifying whether the table is **per-source** (e.g., `archive_confirmation_compound_governor_bravo`, `archive_confirmation_aave_governor`) or **polymorphic** (one table for all sources, discriminated by `source_type`). plan-m1-e1.md v3 picked polymorphic implicitly; v4 makes the choice explicit and ratifies it here:
+The original ADR text (line 27) describes "a separate Postgres `archive_event` table" without specifying whether the table is **per-source** (e.g., `archive_event_compound_governor_bravo`, `archive_event_aave_governor`) or **polymorphic** (one table for all sources, discriminated by `source_type`). plan-m1-e1.md v3 picked polymorphic implicitly; v4 makes the choice explicit and ratifies it here:
 
-> The Postgres `archive_confirmation` table is **polymorphic across all source types**. A single table carries `source_type` as the leading column of its idempotency key, and a single set of indexes serves F1/F2/G1/F3 across all current and future sources.
+> The Postgres `archive_event` table is **polymorphic across all source types**. A single table carries `source_type` as the leading column of its idempotency key, and a single set of indexes serves F1/F2/G1/F3 across all current and future sources.
 
 Rationale:
 
 - **Schema growth is bounded.** Adding a new source (Aave, Snapshot, Lido) ships a new ClickHouse archive table and a new entry in the `source_type` enum — no new Postgres table.
-- **Query patterns are identical across sources.** Every read against `archive_confirmation` is keyed by `(dao_source_id, …)` or `(source_type, chain_id, tx_hash, log_index, block_hash)`. Splitting per-source would force every cross-source admin query (e.g., `dlq list --since`) to UNION-ALL a growing set of tables.
+- **Query patterns are identical across sources.** Every read against `archive_event` is keyed by `(dao_source_id, …)` or `(source_type, chain_id, tx_hash, log_index, block_hash)`. Splitting per-source would force every cross-source admin query (e.g., `dlq list --since`) to UNION-ALL a growing set of tables.
 - **Mutation paths are identical.** F2's promotion sweep, F1's PG-first existence check, F3's DLQ join — all are source-agnostic.
 
 Trade-off: a single hot table for all sources rather than N per-source tables. At v1 scale (3 DAOs, ~10 events/day post-backfill steady-state), the table is small (~10k rows/year). Revisit if a future high-volume source pushes the table past ~10M rows; partitioning by `source_type` is a one-step migration if needed.
 
-The ClickHouse archive layer remains **per-source** (one table per `source_type` — `event_archive_compound_governor_bravo`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
+The ClickHouse archive layer remains **per-source** (one table per `source_type` — `archive_event_compound_governor_bravo`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
 
 ### 2026-05-10 — Cross-DB integrity contract refined by ADR-041
 
