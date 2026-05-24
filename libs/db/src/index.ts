@@ -8,6 +8,8 @@ export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-repository';
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
+export type { ArchiveEventKey } from './archive-event-repository';
+export { ArchiveEventRepository } from './archive-event-repository';
 export type { ConfirmationKey } from './confirmation-repository';
 export { ConfirmationRepository } from './confirmation-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';

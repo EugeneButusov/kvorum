@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { parseChainConfigFromEnv, ChainContextRegistry, chainMetrics } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
+import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
 import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
@@ -28,7 +28,7 @@ vi.mock('@libs/chain', () => ({
 
 vi.mock('@libs/db', () => ({
   DaoSourceRepository: vi.fn(),
-  ConfirmationRepository: vi.fn(),
+  ArchiveEventRepository: vi.fn(),
   pgDb: {},
 }));
 
@@ -117,7 +117,7 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 }
 
 const mockDaoSourceRepo = { findAll: vi.fn() };
-const mockConfirmationRepo = { countPendingBySourceType: vi.fn().mockResolvedValue([]) };
+const mockConfirmationRepo = { countUnderivedBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
   getOrCreate: vi.fn().mockResolvedValue({ client: { send: vi.fn() } }),
   allActive: vi.fn().mockReturnValue([]),
@@ -135,7 +135,7 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
       { provide: SOURCE_INGESTERS, useValue: plugins },
       { provide: FETCH_DRIVERS, useValue: [driver] },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
-      { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+      { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
     ],
   }).compile();
@@ -143,7 +143,7 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([]);
+  mockConfirmationRepo.countUnderivedBySourceType.mockResolvedValue([]);
   mockRegistry.getOrCreate.mockResolvedValue({
     client: { send: vi.fn().mockResolvedValue('0x10') },
   });
@@ -308,7 +308,7 @@ describe('IndexerOrchestratorService', () => {
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
     ]);
-    mockConfirmationRepo.countPendingBySourceType.mockResolvedValue([
+    mockConfirmationRepo.countUnderivedBySourceType.mockResolvedValue([
       { count: 3, chain_id: '0x1', source_type: 'compound_governor_bravo' },
     ]);
 
@@ -319,7 +319,7 @@ describe('IndexerOrchestratorService', () => {
 
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(mockConfirmationRepo.countPendingBySourceType).toHaveBeenCalledWith(
+    expect(mockConfirmationRepo.countUnderivedBySourceType).toHaveBeenCalledWith(
       'compound_governor_bravo',
     );
     vi.useRealTimers();
@@ -421,7 +421,7 @@ describe('IndexerOrchestratorService', () => {
         { provide: SOURCE_INGESTERS, useValue: [blockHeadPlugin] },
         { provide: FETCH_DRIVERS, useValue: [eventDriver, blockHeadDriver] },
         { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
-        { provide: ConfirmationRepository, useValue: mockConfirmationRepo },
+        { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
         { provide: ChainContextRegistry, useValue: mockRegistry },
       ],
     }).compile();

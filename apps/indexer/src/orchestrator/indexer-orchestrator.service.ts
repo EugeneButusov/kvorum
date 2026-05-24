@@ -7,7 +7,7 @@ import {
   silentLogger,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
-import { ConfirmationRepository, DaoSourceRepository } from '@libs/db';
+import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
 import { raceWithAbort, AbortError } from '@libs/utils';
 import {
   BackfillAlreadyStartedError,
@@ -32,7 +32,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     @Inject(SOURCE_INGESTERS) private readonly plugins: ReadonlyArray<SourceIngester>,
     @Inject(FETCH_DRIVERS) private readonly drivers: readonly FetchDriver[],
     private readonly daoSourceRepo: DaoSourceRepository,
-    private readonly confirmationRepo: ConfirmationRepository,
+    private readonly archiveEventRepo: ArchiveEventRepository,
     private readonly registry: ChainContextRegistry,
   ) {}
 
@@ -170,7 +170,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     const update = async () => {
       try {
         for (const sourceType of this.activeSourceTypes) {
-          const rows = await this.confirmationRepo.countPendingBySourceType(sourceType);
+          const rows = await this.archiveEventRepo.countUnderivedBySourceType(sourceType);
           for (const row of rows) {
             chainMetrics.pendingEventCount.record(Number(row.count), {
               chain_id: row.chain_id,
