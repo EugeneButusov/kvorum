@@ -1,4 +1,4 @@
-import type { Kysely, Transaction } from 'kysely';
+import { sql, type Kysely, type Transaction } from 'kysely';
 import type { Actor, PgDatabase } from './schema/pg';
 
 type ActorAddressSource = 'proposer_event' | 'voter_event' | 'delegator_event' | 'delegate_event';
@@ -27,6 +27,44 @@ export interface ActorOverview {
 
 export class ActorRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
+
+  async findEnsRefreshCandidates(args: {
+    limit: number;
+    ttlSeconds: number;
+  }): Promise<Array<{ id: string; primary_address: string }>> {
+    const base = this.db
+      .selectFrom('actor')
+      .select(['id', 'primary_address'])
+      .where('merged_into_actor_id', 'is', null)
+      .orderBy('updated_at', 'asc')
+      .orderBy('id', 'asc')
+      .limit(args.limit);
+
+    if (args.ttlSeconds <= 0) {
+      return base.execute();
+    }
+
+    return base
+      .where((eb) =>
+        eb.or([
+          eb('display_name', 'is', null),
+          sql<boolean>`updated_at < now() - make_interval(secs => ${args.ttlSeconds})`,
+        ]),
+      )
+      .execute();
+  }
+
+  async updateDisplayName(args: { actorId: string; displayName: string | null }): Promise<void> {
+    await this.db
+      .updateTable('actor')
+      .set({
+        display_name: args.displayName,
+        updated_at: sql`now()`,
+      })
+      .where('id', '=', args.actorId)
+      .where('merged_into_actor_id', 'is', null)
+      .execute();
+  }
 
   async findByAddress(address: string): Promise<Actor | undefined> {
     const normalized = address.toLowerCase();

@@ -6,6 +6,7 @@ import { registerBackfill } from './backfill.js';
 import { registerDao } from './dao.js';
 import { registerDerive } from './derive.js';
 import { registerDlq } from './dlq.js';
+import { registerEns } from './ens.js';
 import { registerKeys } from './keys.js';
 import { registerMaintenance } from './maintenance.js';
 import { registerSnapshot } from './snapshot.js';
@@ -20,6 +21,7 @@ export function registerAllCommands(program: Command): void {
   registerDao(program);
   registerDerive(program);
   registerDlq(program);
+  registerEns(program);
   registerKeys(program);
   registerMaintenance(program);
   registerStatus(program);

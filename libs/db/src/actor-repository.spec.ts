@@ -128,6 +128,45 @@ describe('ActorRepository', () => {
     expect(wherePrimary).toHaveBeenCalledWith('is_primary', '=', true);
   });
 
+  it('finds ENS refresh candidates with ttlSeconds=0 without stale filter', async () => {
+    const execute = vi.fn().mockResolvedValue([{ id: 'actor-1', primary_address: '0xabc' }]);
+    const limit = vi.fn().mockReturnValue({ execute });
+    const orderById = vi.fn().mockReturnValue({ limit });
+    const orderByUpdated = vi.fn().mockReturnValue({ orderBy: orderById });
+    const whereMerged = vi.fn().mockReturnValue({ orderBy: orderByUpdated });
+    const select = vi.fn().mockReturnValue({ where: whereMerged });
+    const selectFrom = vi.fn().mockReturnValue({ select });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findEnsRefreshCandidates({ limit: 50, ttlSeconds: 0 })).resolves.toEqual([
+      { id: 'actor-1', primary_address: '0xabc' },
+    ]);
+
+    expect(selectFrom).toHaveBeenCalledWith('actor');
+    expect(select).toHaveBeenCalledWith(['id', 'primary_address']);
+    expect(whereMerged).toHaveBeenCalledWith('merged_into_actor_id', 'is', null);
+    expect(orderByUpdated).toHaveBeenCalledWith('updated_at', 'asc');
+    expect(orderById).toHaveBeenCalledWith('id', 'asc');
+    expect(limit).toHaveBeenCalledWith(50);
+  });
+
+  it('updates display_name and touches updated_at for non-merged actors', async () => {
+    const execute = vi.fn().mockResolvedValue(undefined);
+    const whereMerged = vi.fn().mockReturnValue({ execute });
+    const whereId = vi.fn().mockReturnValue({ where: whereMerged });
+    const set = vi.fn().mockReturnValue({ where: whereId });
+    const updateTable = vi.fn().mockReturnValue({ set });
+    const repo = new ActorRepository({ updateTable } as never);
+
+    await expect(
+      repo.updateDisplayName({ actorId: 'actor-1', displayName: 'alice.eth' }),
+    ).resolves.toBeUndefined();
+
+    expect(updateTable).toHaveBeenCalledWith('actor');
+    expect(whereId).toHaveBeenCalledWith('id', '=', 'actor-1');
+    expect(whereMerged).toHaveBeenCalledWith('merged_into_actor_id', 'is', null);
+  });
+
   it('finds actor by actor_address', async () => {
     const executeTakeFirst = vi.fn().mockResolvedValue(ACTOR_ROW);
     const where = vi.fn().mockReturnValue({ executeTakeFirst });

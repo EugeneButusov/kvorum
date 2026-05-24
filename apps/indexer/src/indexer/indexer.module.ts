@@ -4,6 +4,7 @@ import type { SourceIngester, SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { DerivationModule } from '../derivation';
+import { EnsResolverModule } from '../ens';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-driver';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
@@ -18,6 +19,7 @@ import { SnapshotModule } from '../snapshot';
     ChainContextModule,
     DerivationModule,
     SnapshotModule,
+    EnsResolverModule,
     SourcesModule,
   ],
   providers: [

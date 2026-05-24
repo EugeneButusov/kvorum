@@ -56,3 +56,16 @@ export { BackfillChunkTooSmallError } from './backfill/errors/backfill-chunk-too
 export type { ChainContext } from './chain-context-registry.js';
 export { ChainContextRegistry } from './chain-context-registry.js';
 export { readConfirmedHead } from './confirmed-head.js';
+
+export {
+  EnsClient,
+  MainnetRequiredForEnsError,
+  type ReverseResolveOutcome,
+} from './ens/ens-client.js';
+export {
+  tickEnsResolution,
+  type TickOptions,
+  type TickCounts,
+  type TickOutcome,
+} from './ens/tick.js';
+export { MULTICALL3_ADDRESS, ENS_UNIVERSAL_RESOLVER_ADDRESS } from './ens/ens-abi.js';
