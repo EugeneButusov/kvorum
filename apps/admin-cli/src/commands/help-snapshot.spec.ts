@@ -58,6 +58,22 @@ describe('admin-cli help snapshots', () => {
     expect(domainHelp(program, 'actors')).toMatchSnapshot();
   });
 
+  it('actors merge --help', () => {
+    const actors = program.commands.find((c) => c.name() === 'actors');
+    if (!actors) throw new Error('actors command not found');
+    const merge = actors.commands.find((c) => c.name() === 'merge');
+    if (!merge) throw new Error('actors merge command not found');
+    expect(merge.helpInformation()).toMatchSnapshot();
+  });
+
+  it('actors show --help', () => {
+    const actors = program.commands.find((c) => c.name() === 'actors');
+    if (!actors) throw new Error('actors command not found');
+    const show = actors.commands.find((c) => c.name() === 'show');
+    if (!show) throw new Error('actors show command not found');
+    expect(show.helpInformation()).toMatchSnapshot();
+  });
+
   it('dlq --help', () => {
     expect(domainHelp(program, 'dlq')).toMatchSnapshot();
   });

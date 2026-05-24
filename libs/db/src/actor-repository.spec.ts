@@ -238,4 +238,74 @@ describe('ActorRepository', () => {
     });
     expect(actorAddressInsert.capturedConflictColumns).toEqual(['actor_id', 'address']);
   });
+
+  it('loads an actor overview with deduplicated addresses and redirects', async () => {
+    const rows = [
+      {
+        actorId: 'actor-1',
+        primaryAddress: '0xaaa',
+        mergedIntoActorId: null,
+        address: '0xaaa',
+        isPrimary: true,
+        source: 'manual',
+        fromAddress: '0x111',
+        toActorId: 'actor-1',
+        mergedAt: new Date('2026-05-01T00:00:00Z'),
+        mergeReason: 'delegate consolidation',
+        createdBy: 'alice',
+      },
+      {
+        actorId: 'actor-1',
+        primaryAddress: '0xaaa',
+        mergedIntoActorId: null,
+        address: '0xbbb',
+        isPrimary: false,
+        source: 'manual',
+        fromAddress: '0x111',
+        toActorId: 'actor-1',
+        mergedAt: new Date('2026-05-01T00:00:00Z'),
+        mergeReason: 'delegate consolidation',
+        createdBy: 'alice',
+      },
+    ];
+    const execute = vi.fn().mockResolvedValue(rows);
+    const chain = {
+      innerJoin: vi.fn(),
+      leftJoin: vi.fn(),
+      select: vi.fn(),
+      where: vi.fn(),
+      execute,
+    };
+    chain.innerJoin.mockReturnValue(chain);
+    chain.leftJoin.mockReturnValue(chain);
+    chain.select.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    const selectFrom = vi.fn().mockReturnValue(chain);
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findActorOverview('0xAAA')).resolves.toEqual({
+      actorId: 'actor-1',
+      primaryAddress: '0xaaa',
+      mergedIntoActorId: null,
+      addresses: [
+        { address: '0xaaa', isPrimary: true, source: 'manual' },
+        { address: '0xbbb', isPrimary: false, source: 'manual' },
+      ],
+      inboundRedirects: [
+        {
+          fromAddress: '0x111',
+          toActorId: 'actor-1',
+          mergedAt: new Date('2026-05-01T00:00:00Z'),
+          mergeReason: 'delegate consolidation',
+          createdBy: 'alice',
+        },
+      ],
+    });
+    expect(selectFrom).toHaveBeenCalledWith('actor as a');
+    expect(chain.innerJoin).toHaveBeenCalledWith(
+      'actor_address as lookup',
+      'lookup.actor_id',
+      'a.id',
+    );
+  });
 });

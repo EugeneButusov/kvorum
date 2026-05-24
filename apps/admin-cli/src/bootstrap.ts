@@ -2,6 +2,8 @@ import {
   AdminAuditRepository,
   ApiKeyRepository,
   ArchiveDerivationAdminRepository,
+  ActorMergeRepository,
+  ActorRepository,
   DaoAdminRepository,
   DaoReadRepository,
   DaoSourceRepository,
@@ -18,6 +20,8 @@ export interface AdminCliContainer {
   daoSourceRepository: DaoSourceRepository;
   daoReadRepository: DaoReadRepository;
   daoAdminRepository: DaoAdminRepository;
+  actorRepository: ActorRepository;
+  actorMergeRepository: ActorMergeRepository;
   proposalReadRepository: ProposalReadRepository;
   userRepository: UserRepository;
   compoundGovernorArchivePayloadRepository: GovernorArchivePayloadRepository;
@@ -33,6 +37,8 @@ export function buildContainer(): AdminCliContainer {
     daoSourceRepository: new DaoSourceRepository(pgDb),
     daoReadRepository: new DaoReadRepository(pgDb),
     daoAdminRepository: new DaoAdminRepository(pgDb),
+    actorRepository: new ActorRepository(pgDb),
+    actorMergeRepository: new ActorMergeRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
     userRepository: new UserRepository(pgDb),
     compoundGovernorArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),

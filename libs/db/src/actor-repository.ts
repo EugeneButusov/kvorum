@@ -3,6 +3,28 @@ import type { Actor, PgDatabase } from './schema/pg';
 
 type ActorAddressSource = 'proposer_event' | 'voter_event' | 'delegator_event' | 'delegate_event';
 
+export interface ActorOverviewAddress {
+  address: string;
+  isPrimary: boolean;
+  source: string;
+}
+
+export interface ActorOverviewRedirect {
+  fromAddress: string;
+  toActorId: string;
+  mergedAt: Date;
+  mergeReason: string;
+  createdBy: string;
+}
+
+export interface ActorOverview {
+  actorId: string;
+  primaryAddress: string;
+  addresses: ActorOverviewAddress[];
+  mergedIntoActorId: string | null;
+  inboundRedirects: ActorOverviewRedirect[];
+}
+
 export class ActorRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -67,6 +89,73 @@ export class ActorRepository {
       .where('actor_id', 'in', [...actorIds])
       .where('is_primary', '=', true)
       .execute();
+  }
+
+  async findActorOverview(address: string): Promise<ActorOverview | null> {
+    const normalized = address.toLowerCase();
+    const rows = await this.db
+      .selectFrom('actor as a')
+      .innerJoin('actor_address as lookup', 'lookup.actor_id', 'a.id')
+      .leftJoin('actor_address as aa', 'aa.actor_id', 'a.id')
+      .leftJoin('actor_address_redirect as ar', 'ar.to_actor_id', 'a.id')
+      .select([
+        'a.id as actorId',
+        'a.primary_address as primaryAddress',
+        'a.merged_into_actor_id as mergedIntoActorId',
+        'aa.address as address',
+        'aa.is_primary as isPrimary',
+        'aa.source as source',
+        'ar.from_address as fromAddress',
+        'ar.to_actor_id as toActorId',
+        'ar.merged_at as mergedAt',
+        'ar.merge_reason as mergeReason',
+        'ar.created_by as createdBy',
+      ])
+      .where('lookup.address', '=', normalized)
+      .execute();
+
+    if (rows.length === 0) return null;
+
+    const first = rows[0]!;
+    const addressesByKey = new Map<string, ActorOverviewAddress>();
+    const redirectsByKey = new Map<string, ActorOverviewRedirect>();
+
+    for (const row of rows) {
+      if (row.address != null && !addressesByKey.has(row.address)) {
+        addressesByKey.set(row.address, {
+          address: row.address,
+          isPrimary: row.isPrimary ?? false,
+          source: row.source ?? '',
+        });
+      }
+
+      if (row.fromAddress != null && !redirectsByKey.has(row.fromAddress)) {
+        redirectsByKey.set(row.fromAddress, {
+          fromAddress: row.fromAddress,
+          toActorId: row.toActorId ?? first.actorId,
+          mergedAt: row.mergedAt ?? new Date(0),
+          mergeReason: row.mergeReason ?? '',
+          createdBy: row.createdBy ?? '',
+        });
+      }
+    }
+
+    const addresses = [...addressesByKey.values()].sort((left, right) => {
+      if (left.isPrimary && !right.isPrimary) return -1;
+      if (!left.isPrimary && right.isPrimary) return 1;
+      return left.address.localeCompare(right.address);
+    });
+    const inboundRedirects = [...redirectsByKey.values()].sort((left, right) =>
+      left.fromAddress.localeCompare(right.fromAddress),
+    );
+
+    return {
+      actorId: first.actorId,
+      primaryAddress: first.primaryAddress,
+      addresses,
+      mergedIntoActorId: first.mergedIntoActorId,
+      inboundRedirects,
+    };
   }
 
   private async findOrCreateByAddressTx(
