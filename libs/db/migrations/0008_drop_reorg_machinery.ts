@@ -20,17 +20,22 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_reorg_event_chain_id_detected_at').ifExists().execute();
   await db.schema.dropTable('reorg_event').ifExists().execute();
 
+  // Drop indexes before dropping the columns they depend on
+  await db.schema
+    .dropIndex('idx_archive_confirmation_actor_resolution_pending')
+    .ifExists()
+    .execute();
+  await db.schema.dropIndex('idx_archive_confirmation_canonical').ifExists().execute();
+  await db.schema.dropIndex('idx_archive_confirmation_promotion_sweep').ifExists().execute();
+  await db.schema.dropIndex('idx_archive_confirmation_dao_source').ifExists().execute();
+  await db.schema.dropIndex('idx_archive_confirmation_g1_watermark').ifExists().execute();
+
   await db.schema
     .alterTable('archive_confirmation')
     .dropColumn('confirmation_status')
     .dropColumn('confirmed_at')
     .dropColumn('orphaned_at')
     .execute();
-
-  await db.schema.dropIndex('idx_archive_confirmation_canonical').ifExists().execute();
-  await db.schema.dropIndex('idx_archive_confirmation_promotion_sweep').ifExists().execute();
-  await db.schema.dropIndex('idx_archive_confirmation_dao_source').ifExists().execute();
-  await db.schema.dropIndex('idx_archive_confirmation_g1_watermark').ifExists().execute();
 
   await db.schema
     .alterTable('archive_confirmation')
@@ -49,6 +54,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await db.schema.alterTable('archive_confirmation').renameTo('archive_event').execute();
+
+  // Recreate actor_resolution index with new name and simplified WHERE clause (no confirmation_status)
+  await sql`
+    CREATE INDEX idx_archive_event_actor_resolution_pending
+    ON archive_event (dao_source_id)
+    WHERE derivation_actor_resolved_at IS NULL
+  `.execute(db);
+
   await sql`DROP TYPE confirmation_status`.execute(db);
 }
 
@@ -60,6 +73,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.alterTable('archive_event').renameTo('archive_confirmation').execute();
 
   await db.schema.dropIndex('idx_archive_event_underived').ifExists().execute();
+  await db.schema.dropIndex('idx_archive_event_actor_resolution_pending').ifExists().execute();
   await db.schema.dropIndex('archive_event_idempotency_key').ifExists().execute();
 
   await db.schema
@@ -137,5 +151,11 @@ export async function down(db: Kysely<unknown>): Promise<void> {
     CREATE INDEX idx_archive_confirmation_g1_watermark
     ON archive_confirmation (dao_source_id)
     WHERE confirmation_status = 'confirmed' AND derived_at IS NULL
+  `.execute(db);
+
+  await sql`
+    CREATE INDEX idx_archive_confirmation_actor_resolution_pending
+    ON archive_confirmation (dao_source_id)
+    WHERE confirmation_status = 'confirmed' AND derivation_actor_resolved_at IS NULL
   `.execute(db);
 }
