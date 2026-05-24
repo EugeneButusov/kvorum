@@ -16,8 +16,6 @@ export interface ArchiveWriteContext {
   sourceType: string;
   chainId: string;
   sourceLabel: string;
-  /** Per-event confirmation classifier. Absent on the live path (defaults to 'pending'). */
-  confirmationClassifier?: (blockNumber: bigint) => 'pending' | 'confirmed';
 }
 
 export type ArchiveWriteOutcome = {

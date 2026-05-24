@@ -41,11 +41,11 @@ function createPlugin(
         address: cfg.governor_address.toLowerCase(),
         topics: [[...proposalTopics, topics.VoteCast]],
       },
-      listenerFactory: (classifier) =>
+      listenerFactory: () =>
         makeIngesterListener(
           {
             archiveWriter: deps.archiveWriter,
-            context: { ...ctx, confirmationClassifier: classifier },
+            context: { ...ctx },
             logger: deps.logger,
             dlqRepo: deps.dlqRepo,
           },
@@ -63,7 +63,7 @@ function createPlugin(
       return {
         kind: 'evm-event-poller',
         filter: runtime.filter,
-        listener: runtime.listenerFactory(() => 'pending'),
+        listener: runtime.listenerFactory(),
       };
     },
     buildBackfillRuntime,

@@ -62,7 +62,6 @@ export class GovernorArchiveWriter {
     }
 
     const receivedAt = this.now();
-    const confirmationStatus = ctx.confirmationClassifier?.(logRef.blockNumber) ?? 'pending';
 
     try {
       // Step 2 — event archive insert (idempotent; CH failures route to DLQ via catch below)
@@ -88,10 +87,6 @@ export class GovernorArchiveWriter {
         log_index: logRef.logIndex,
         event_type: decoded.type,
         received_at: receivedAt,
-        confirmation_status: confirmationStatus,
-        confirmed_at: confirmationStatus === 'confirmed' ? receivedAt : null,
-        orphaned_at: null,
-        orphaned_by_reorg_event_id: null,
         derived_at: null,
       };
       const result = await this.confirmationRepo.insert(row);

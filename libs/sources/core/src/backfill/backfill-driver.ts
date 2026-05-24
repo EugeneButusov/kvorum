@@ -1,4 +1,4 @@
-import { BackfillRangeFetcher, chainMetrics, makeCutoffClassifier, reorgCutoff } from '@libs/chain';
+import { BackfillRangeFetcher, chainMetrics, readConfirmedHead } from '@libs/chain';
 import type { BackfillRangeFetcherResult } from '@libs/chain';
 import type { ChainConfig, EventsListener, LogFilter, Logger, RpcClient } from '@libs/chain';
 import type { DaoSourceRepository } from '@libs/db';
@@ -12,10 +12,8 @@ export interface BackfillDriverDeps {
   chainConfig: ChainConfig;
   /** eth_getLogs filter for the specific contract/topics being backfilled. */
   filter: LogFilter;
-  /** Factory called during run() with the computed classifier so the caller can wire
-   *  confirmationClassifier into the ArchiveWriteContext without coupling the driver
-   *  to any source-specific import. */
-  listenerFactory: (classifier: (blockNumber: bigint) => 'confirmed' | 'pending') => EventsListener;
+  /** Factory called during run() to construct a source-specific log listener. */
+  listenerFactory: () => EventsListener;
   logger: Logger;
 }
 
@@ -76,7 +74,7 @@ export class BackfillDriver {
         } else {
           const headHex = await rpcClient.send<string>('eth_blockNumber', []);
           head = BigInt(headHex);
-          toBlock = reorgCutoff(head, chainConfig);
+          toBlock = await readConfirmedHead(rpcClient, chainConfig, row.id);
         }
         if (row.backfill_started_at_block === null) {
           await daoSourceRepo.captureBackfillStart(input.daoSourceId, startBlock);
@@ -92,12 +90,8 @@ export class BackfillDriver {
       }
     }
 
-    // Step 3 — cutoff = head − 2×reorgHorizon (ADR-027 + ADR-046)
-    const cutoffBlock = reorgCutoff(head, chainConfig);
-
-    // Step 4 — build per-event classifier and listener
-    const classifier = makeCutoffClassifier(cutoffBlock);
-    const listener = listenerFactory(classifier);
+    // Step 3 — construct listener
+    const listener = listenerFactory();
 
     // Step 5 — resolve range
     logger.info('backfill_run_start', {
@@ -105,7 +99,6 @@ export class BackfillDriver {
       mode: input.mode,
       fromBlock: startBlock.toString(),
       toBlock: toBlock.toString(),
-      cutoffBlock: cutoffBlock.toString(),
       head: head.toString(),
     });
 

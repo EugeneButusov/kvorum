@@ -36,7 +36,13 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
+          {
+            FailoverRpcClient,
+            normalizeChainId,
+            parseChainConfigFromEnv,
+            consoleLogger,
+            readConfirmedHead,
+          },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
@@ -193,7 +199,13 @@ export function registerBackfill(program: Command): void {
     .action(async function action(sourceType: string, opts: BackfillCatchUpOptions) {
       await withBackfillFormat(this, opts, async (format) => {
         const [
-          { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger },
+          {
+            FailoverRpcClient,
+            normalizeChainId,
+            parseChainConfigFromEnv,
+            consoleLogger,
+            readConfirmedHead,
+          },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
         const { runBootCatchUp, computeGap } = core;
@@ -228,14 +240,13 @@ export function registerBackfill(program: Command): void {
         const rpcClient = new FailoverRpcClient(chainConfig, { logger: consoleLogger });
         await rpcClient.start();
         try {
-          const headBlock = BigInt(await rpcClient.send<string>('eth_blockNumber', []));
+          const confirmedHead = await readConfirmedHead(rpcClient, chainConfig, row.id);
           const gap = computeGap({
             row: {
               active_from_block: row.active_from_block,
               backfill_head_block: row.backfill_head_block,
             },
-            headBlock,
-            reorgHorizon: chainConfig.reorgHorizon,
+            confirmedHead,
           });
 
           if (opts.dryRun === true || opts.confirm !== true) {

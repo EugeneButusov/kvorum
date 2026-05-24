@@ -2,12 +2,10 @@ import { FailoverRpcClient } from './client/failover-rpc-client.js';
 import type { ChainConfig } from './config/config.js';
 import { HeadTracker } from './poller/head-tracker.js';
 import { ProxyResolver } from './proxy/proxy-resolver.js';
-import { ReorgDetector } from './reorg/reorg-detector.js';
 
 export interface ChainContext {
   client: FailoverRpcClient;
   headTracker: HeadTracker;
-  reorgDetector: ReorgDetector;
   chainCfg: ChainConfig;
   proxyResolver: ProxyResolver;
 }
@@ -32,19 +30,11 @@ export class ChainContextRegistry {
       stopTimeoutMs: 5_000,
     });
 
-    const reorgDetector = new ReorgDetector({
-      rpcClient: client,
-      chainId: chainCfg.chainId,
-      chainName: chainCfg.name,
-      reorgHorizon: chainCfg.reorgHorizon,
-    });
-
-    reorgDetector.attach(headTracker);
     await headTracker.start();
 
     const proxyResolver = new ProxyResolver({ rpcClient: client, chainName: chainCfg.name });
 
-    const ctx: ChainContext = { client, headTracker, reorgDetector, chainCfg, proxyResolver };
+    const ctx: ChainContext = { client, headTracker, chainCfg, proxyResolver };
     this.map.set(chainCfg.chainId, ctx);
     return ctx;
   }

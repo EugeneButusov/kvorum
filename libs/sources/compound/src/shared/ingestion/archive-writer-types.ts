@@ -3,7 +3,6 @@ export interface ArchiveWriteContext {
   sourceType: string;
   chainId: string;
   sourceLabel: string;
-  confirmationClassifier?: (blockNumber: bigint) => 'pending' | 'confirmed';
 }
 
 export type ArchiveWriteOutcome = {
