@@ -117,6 +117,10 @@ export const chainMetrics = {
     name: 'ingestion_log_poll_window_blocks',
     description: 'Current window size in blocks. Diagnostic; constant in v1 (2 × reorgHorizon).',
   }),
+  headLagApplied: defineGauge({
+    name: 'ingestion_head_lag_applied_blocks',
+    description: 'Configured head lag applied to derive confirmed head for polling.',
+  }),
   pendingEventCount: defineGauge({
     name: 'ingestion_pending_event_count',
     description:

@@ -26,6 +26,7 @@ const ProviderConfigSchema = z.object({
 const ChainConfigSchema = z.object({
   chainId: z.string().min(1).transform(normalizeChainId),
   name: z.string().min(1),
+  headLag: z.number().int().positive().optional(),
   reorgHorizon: z.number().int().positive(),
   blocksPerMinute: z.number().positive().optional(),
   lagThresholdBlocks: z.number().int().positive().optional(),
@@ -67,5 +68,8 @@ export function parseChainConfigFromEnv(env: NodeJS.ProcessEnv): ChainConfig[] {
     throw new ChainConfigError(`CHAIN_CONFIG validation failed: ${issues}`);
   }
 
-  return result.data.chains;
+  return result.data.chains.map((chain) => ({
+    ...chain,
+    headLag: chain.headLag ?? chain.reorgHorizon,
+  }));
 }

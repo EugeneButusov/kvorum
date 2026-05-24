@@ -65,5 +65,6 @@ export { BackfillChunkTooSmallError } from './backfill/errors/backfill-chunk-too
 
 export type { ChainContext } from './chain-context-registry.js';
 export { ChainContextRegistry } from './chain-context-registry.js';
+export { readConfirmedHead } from './confirmed-head.js';
 export { reorgCutoff } from './reorg-cutoff.js';
 export { makeCutoffClassifier } from './cutoff-classifier.js';
