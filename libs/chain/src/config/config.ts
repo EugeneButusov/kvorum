@@ -68,16 +68,5 @@ export function parseChainConfigFromEnv(env: NodeJS.ProcessEnv): ChainConfig[] {
     throw new ChainConfigError(`CHAIN_CONFIG validation failed: ${issues}`);
   }
 
-  if (raw.includes('"reorgHorizon"')) {
-    throw new ChainConfigError(
-      'CHAIN_CONFIG uses legacy field "reorgHorizon"; rename it to "headLag" per ADR-058',
-    );
-  }
-  if (raw.includes('"sweepIntervalMs"')) {
-    throw new ChainConfigError(
-      'CHAIN_CONFIG uses legacy field "sweepIntervalMs"; remove it (sweep service removed)',
-    );
-  }
-
   return result.data.chains;
 }
