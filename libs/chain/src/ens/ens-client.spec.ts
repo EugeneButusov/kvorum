@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EnsClient, MainnetRequiredForEnsError } from './ens-client.js';
 import { encodeMulticall3TryAggregate, encodeUniversalResolverReverse } from './ens-abi.js';
+import { EnsClient, MainnetRequiredForEnsError } from './ens-client.js';
 
 describe('EnsClient', () => {
   it('throws when chain is not mainnet', () => {

@@ -1,4 +1,3 @@
-import type { FailoverRpcClient } from '../client/failover-rpc-client.js';
 import {
   decodeMulticall3TryAggregateReturn,
   decodeUniversalResolverReverseReturn,
@@ -7,6 +6,7 @@ import {
   ENS_UNIVERSAL_RESOLVER_ADDRESS,
   MULTICALL3_ADDRESS,
 } from './ens-abi.js';
+import type { FailoverRpcClient } from '../client/failover-rpc-client.js';
 
 const MAINNET_CHAIN_ID = '0x1';
 const BATCH_SIZE = 50;

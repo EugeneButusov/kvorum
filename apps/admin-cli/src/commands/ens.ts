@@ -5,8 +5,6 @@ import {
   parseChainConfigFromEnv,
   tickEnsResolution,
 } from '@libs/chain';
-import type { ActorRepository } from '@libs/db';
-import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, resolveFormat, type OutputFormat } from '../output.js';
 
 const MAINNET_CHAIN_ID = '0x1';
@@ -28,6 +26,7 @@ export function registerEns(program: Command): void {
     .action(async function action(opts: { limitPerPage?: string; format?: string }) {
       await withEnsFormat(this, opts, async (format) => {
         const limitPerPage = parseLimitPerPage(opts.limitPerPage, format);
+        const { buildContainer } = await import('../bootstrap.js');
         const actorRepo = buildContainer().actorRepository;
 
         const registry = new ChainContextRegistry();
@@ -91,6 +90,7 @@ export function registerEns(program: Command): void {
       await withEnsFormat(this, opts, async (format) => {
         validateAddressShape(address, '<address>', format);
         const normalized = address.toLowerCase();
+        const { buildContainer } = await import('../bootstrap.js');
         const actorRepo = buildContainer().actorRepository;
 
         const actor = await actorRepo.findByAddress(normalized);
