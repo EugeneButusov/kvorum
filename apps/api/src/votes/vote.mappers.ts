@@ -1,6 +1,6 @@
 import type { VoteChoiceReadRow, VoteReadRow } from '@libs/db';
-import { isoSeconds } from '../http/iso';
 import { VoteDetailDto, VoteListItemDto } from './vote.dto';
+import { isoSeconds } from '../http/iso';
 
 function toEmbeddedVoter(row: VoteReadRow) {
   return {

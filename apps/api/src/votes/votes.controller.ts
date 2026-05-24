@@ -10,6 +10,9 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
+import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
+import { VOTE_QUERY } from './vote.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
@@ -24,9 +27,6 @@ import {
 } from '../pagination/cursor';
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
-import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
-import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
-import { VOTE_QUERY } from './vote.query';
 
 @ApiTags('votes')
 @ApiBearerAuth()

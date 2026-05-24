@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DaoReadRepository, DelegationReadRepository, pgDb } from '@libs/db';
-import { ActorsModule } from '../actors/actors.module';
 import { DelegationsController } from './delegations.controller';
+import { ActorsModule } from '../actors/actors.module';
 
 @Module({
   imports: [ActorsModule],

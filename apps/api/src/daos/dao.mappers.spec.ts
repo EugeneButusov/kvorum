@@ -1,5 +1,5 @@
-import { isoSeconds } from '../http/iso';
 import { curateSourceConfig, toDaoSourceDto } from './dao.mappers';
+import { isoSeconds } from '../http/iso';
 
 describe('dao.mappers', () => {
   it('curateSourceConfig extracts only whitelisted keys', () => {

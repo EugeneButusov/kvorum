@@ -11,6 +11,13 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
+import {
+  ActorDelegationResponseDto,
+  CurrentDelegatorsResponseDto,
+  DelegationListResponseDto,
+} from './delegation.dto';
+import { toDelegationListItemDto } from './delegation.mappers';
+import { DELEGATION_QUERY } from './delegation.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
@@ -25,13 +32,6 @@ import {
 } from '../pagination/cursor';
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
-import {
-  ActorDelegationResponseDto,
-  CurrentDelegatorsResponseDto,
-  DelegationListResponseDto,
-} from './delegation.dto';
-import { toDelegationListItemDto } from './delegation.mappers';
-import { DELEGATION_QUERY } from './delegation.query';
 
 @ApiTags('delegations')
 @ApiBearerAuth()

@@ -1,6 +1,6 @@
 import type { DelegationReadRow } from '@libs/db';
-import { isoSeconds } from '../http/iso';
 import { DelegationListItemDto } from './delegation.dto';
+import { isoSeconds } from '../http/iso';
 
 function toEmbeddedActor(address: string, displayName: string | null) {
   const normalized = address.toLowerCase();
