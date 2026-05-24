@@ -1,41 +1,11 @@
 import { sql, type Kysely, type Transaction } from 'kysely';
+import {
+  ActorAddressCollisionError,
+  ActorAlreadyMergedError,
+  ActorNotFoundForAddressError,
+  SameActorMergeError,
+} from './errors/actor-merge-errors';
 import type { PgDatabase } from './schema/pg';
-
-export class ActorNotFoundForAddressError extends Error {
-  constructor(public readonly address: string) {
-    super(`actor not found for address: ${address}`);
-  }
-}
-
-export class ActorAlreadyMergedError extends Error {
-  constructor(
-    public readonly address: string,
-    public readonly mergedIntoActorId: string,
-  ) {
-    super(`actor for address ${address} is already merged (into ${mergedIntoActorId})`);
-  }
-}
-
-export class SameActorMergeError extends Error {
-  constructor(
-    public readonly primaryAddress: string,
-    public readonly secondaryAddress: string,
-    public readonly actorId: string,
-  ) {
-    super(`primary and secondary addresses resolve to the same actor: ${actorId}`);
-  }
-}
-
-export class ActorAddressCollisionError extends Error {
-  constructor(
-    public readonly address: string,
-    public readonly survivorActorId: string,
-  ) {
-    super(
-      `survivor actor ${survivorActorId} already owns address ${address}; merge would violate actor_address_pkey`,
-    );
-  }
-}
 
 export interface MergePlan {
   survivor: { actorId: string; primaryAddress: string };

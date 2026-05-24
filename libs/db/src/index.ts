@@ -4,10 +4,10 @@ export { AbiCacheRepository } from './abi-cache-repository';
 export {
   ActorAddressCollisionError,
   ActorAlreadyMergedError,
-  ActorMergeRepository,
   ActorNotFoundForAddressError,
   SameActorMergeError,
-} from './actor-merge-repository';
+} from './errors/actor-merge-errors';
+export { ActorMergeRepository } from './actor-merge-repository';
 export { ActorRepository } from './actor-repository';
 export type {
   ActorOverview,

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ActorMergeRepository } from './actor-merge-repository';
 import {
   ActorAddressCollisionError,
   ActorAlreadyMergedError,
-  ActorMergeRepository,
   ActorNotFoundForAddressError,
   SameActorMergeError,
-} from './actor-merge-repository';
+} from './errors/actor-merge-errors';
 
 type SelectResponse = unknown;
 type UpdateResponse = { numUpdatedRows?: bigint } | undefined;
