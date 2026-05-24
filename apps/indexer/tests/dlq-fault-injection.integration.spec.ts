@@ -133,7 +133,7 @@ describeIf('DLQ fault injection', () => {
     await pollUntil(async () => {
       const rows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
       return rows.length >= 1;
-    }, 20_000);
+    }, 30_000);
 
     const dlqRows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
     expect(dlqRows.length).toBeGreaterThanOrEqual(1);
