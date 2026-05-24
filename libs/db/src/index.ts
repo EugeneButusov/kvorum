@@ -39,8 +39,6 @@ export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
-export type { OrphanResult, ReorgWriteInput } from './reorg-event-repository';
-export { ReorgEventRepository } from './reorg-event-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {

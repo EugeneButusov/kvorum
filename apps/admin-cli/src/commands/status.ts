@@ -26,7 +26,6 @@ export function registerStatus(program: Command): void {
             [
               `DLQ size: ${payload.dlq_size}`,
               `Active backfills: ${payload.active_backfills}`,
-              `Last reorg detected at: ${payload.last_reorg_detected_at ?? 'n/a'}`,
               `Last archived event at: ${payload.last_archived_event_at ?? 'n/a'}`,
               `Ingestion idle for: ${payload.ingestion_idle_for_seconds ?? 'n/a'}s`,
             ].join('\n'),
