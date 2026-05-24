@@ -134,7 +134,7 @@ export class GovernorArchiveWriter {
     receivedAt: Date,
   ): Promise<ArchiveWriteOutcome> {
     const dlqRow: NewIngestionDlq = {
-      stage: 'confirmation_archive_stage',
+      stage: 'archive_event_stage',
       source: ctx.sourceLabel,
       payload: {
         raw: { topics: logRef.topics, data: logRef.data },

@@ -3,7 +3,7 @@ import { DlqRepository } from './dlq-repository';
 import type { NewIngestionDlq } from './schema/pg';
 
 const DLQ_ROW: NewIngestionDlq = {
-  stage: 'archive_confirmation_write',
+  stage: 'archive_event_write',
   source: 'compound_governor_bravo',
   payload: { raw: { topics: [], data: '0x' }, block_number: '20000000' },
   error: { name: 'Error', message: 'boom' },

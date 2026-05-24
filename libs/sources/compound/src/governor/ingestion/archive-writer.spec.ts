@@ -319,7 +319,7 @@ describe('GovernorArchiveWriter', () => {
     expect(row['confirmed_at']).toBeNull();
   });
 
-  it('#15 — VoteCast routes to confirmation_archive_stage on confirmation insert failure', async () => {
+  it('#15 — VoteCast routes to archive_event_stage on confirmation insert failure', async () => {
     let capturedDlqRow: unknown;
     const confirmationRepo = makeConfirmationRepo({
       insert: vi.fn().mockRejectedValue(new Error('pg')),
@@ -337,10 +337,10 @@ describe('GovernorArchiveWriter', () => {
       LOG_REF,
     );
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_event_stage');
   });
 
-  it('#16 — proposal events route to confirmation_archive_stage on CH insert failure', async () => {
+  it('#16 — proposal events route to archive_event_stage on CH insert failure', async () => {
     let capturedDlqRow: unknown;
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('ch down')),
@@ -354,10 +354,10 @@ describe('GovernorArchiveWriter', () => {
 
     const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_event_stage');
   });
 
-  it('#17 — VoteCast routes to confirmation_archive_stage on CH insert failure', async () => {
+  it('#17 — VoteCast routes to archive_event_stage on CH insert failure', async () => {
     let capturedDlqRow: unknown;
     const eventRepo = makeEventRepo({
       insert: vi.fn().mockRejectedValue(new Error('ch down')),
@@ -371,6 +371,6 @@ describe('GovernorArchiveWriter', () => {
 
     const outcome = await buildWriter({ eventRepo, dlqRepo }).write(CTX, VOTECAST_DECODED, LOG_REF);
     expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlqRow as { stage: string }).stage).toBe('confirmation_archive_stage');
+    expect((capturedDlqRow as { stage: string }).stage).toBe('archive_event_stage');
   });
 });

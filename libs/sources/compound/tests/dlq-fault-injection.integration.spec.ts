@@ -134,7 +134,7 @@ describe('DLQ fault injection integration', () => {
     expect(dlqRows[0]!.stage).toBe('vote_archive_write');
   });
 
-  it('routes governor proposal PG failure to archive_confirmation_write', async () => {
+  it('routes governor proposal PG failure to archive_event_write', async () => {
     const dlqRows: Array<{ stage: string; payload: unknown }> = [];
     const writer = new ArchiveWriter({
       eventRepo: makeGovEventRepo(false),
@@ -163,7 +163,7 @@ describe('DLQ fault injection integration', () => {
     const outcome = await writer.write(GOV_CTX, decoded, logRef);
     expect(outcome.result).toBe('dlq_routed');
     expect(dlqRows).toHaveLength(1);
-    expect(dlqRows[0]!.stage).toBe('archive_confirmation_write');
+    expect(dlqRows[0]!.stage).toBe('archive_event_write');
   });
 
   it('routes governor VoteCast CH failure to vote_archive_write', async () => {

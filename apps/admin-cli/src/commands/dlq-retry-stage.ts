@@ -1,4 +1,4 @@
-export const CONFIRMATION_ARCHIVE_STAGE = 'confirmation_archive_stage';
+export const CONFIRMATION_ARCHIVE_STAGE = 'archive_event_stage';
 export const VOTE_ARCHIVE_STAGE = 'vote_archive_stage';
 export const DELEGATION_ARCHIVE_STAGE = 'delegation_archive_stage';
 export const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
