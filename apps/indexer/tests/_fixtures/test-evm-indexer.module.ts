@@ -4,7 +4,6 @@ import { DerivationModule } from '../../src/derivation';
 import { IndexerInfraModule } from '../../src/infra/indexer-infra.module';
 import { EvmEventPollerDriver } from '../../src/orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
-import { PromotionSweepService } from '../../src/orchestrator/promotion-sweep.service';
 import { ReorgWatcherService } from '../../src/orchestrator/reorg-watcher.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
 
@@ -22,7 +21,6 @@ import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
       inject: [EvmEventPollerDriver],
     },
     ReorgWatcherService,
-    PromotionSweepService,
   ],
   exports: [
     IndexerInfraModule,
@@ -30,7 +28,6 @@ import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
     EvmEventPollerDriver,
     FETCH_DRIVERS,
     ReorgWatcherService,
-    PromotionSweepService,
   ],
 })
 export class TestEvmIndexerModule {}
