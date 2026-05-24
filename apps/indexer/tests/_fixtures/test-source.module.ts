@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
 import type { EventsListener, LogEvent } from '@libs/chain';
-import { ConfirmationRepository, DlqRepository, pgDb } from '@libs/db';
+import { ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
 import type { NewArchiveConfirmation, NewIngestionDlq } from '@libs/db';
 import type { SourceContext, SourcePlugin } from '@sources/core';
 import { SOURCE_PLUGINS } from '@sources/core';
@@ -12,7 +12,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
     {
       provide: SOURCE_PLUGINS,
       useFactory: (): SourcePlugin[] => {
-        const confirmationRepo = new ConfirmationRepository(pgDb);
+        const archiveEventRepo = new ArchiveEventRepository(pgDb);
         const dlqRepo = new DlqRepository(pgDb);
         return [
           {
@@ -27,7 +27,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
                     address: (cfg as { governor_address: string }).governor_address.toLowerCase(),
                     topics: [[PROPOSAL_CREATED_TOPIC]],
                   },
-                  listenerFactory: () => makeTestListener(ctx, confirmationRepo, dlqRepo),
+                  listenerFactory: () => makeTestListener(ctx, archiveEventRepo, dlqRepo),
                 }),
                 buildIngestSpec: (ctx, cfg) => ({
                   kind: 'evm-event-poller' as const,
@@ -35,7 +35,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
                     address: (cfg as { governor_address: string }).governor_address.toLowerCase(),
                     topics: [[PROPOSAL_CREATED_TOPIC]],
                   },
-                  listener: makeTestListener(ctx, confirmationRepo, dlqRepo),
+                  listener: makeTestListener(ctx, archiveEventRepo, dlqRepo),
                 }),
               },
             ],
@@ -51,7 +51,7 @@ export class TestEvmSourceModule {}
 
 function makeTestListener(
   ctx: SourceContext,
-  confirmationRepo: ConfirmationRepository,
+  archiveEventRepo: ArchiveEventRepository,
   dlqRepo: DlqRepository,
 ): EventsListener<LogEvent> {
   return async (events) => {
@@ -94,7 +94,7 @@ function makeTestListener(
         received_at: new Date(),
         confirmation_status: 'pending',
       };
-      await confirmationRepo.insert(row);
+      await archiveEventRepo.insert(row);
       chainMetrics.archiveWrites.add(1, {
         source: ctx.sourceLabel,
         event_type: 'ProposalCreated',

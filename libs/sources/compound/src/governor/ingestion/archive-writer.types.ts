@@ -1,10 +1,10 @@
 import type { Logger } from '@libs/chain';
-import type { ConfirmationRepository, DlqRepository } from '@libs/db';
+import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
 import type { GovernorEventRepository } from '../persistence/event-repository';
 
 export interface GovernorArchiveWriterDeps {
   eventRepo: GovernorEventRepository;
-  confirmationRepo: ConfirmationRepository;
+  archiveEventRepo: ArchiveEventRepository;
   dlqRepo: DlqRepository;
   logger: Logger;
   /** Wall-clock factory for PG `received_at` and DLQ timestamps. Injectable for tests. */

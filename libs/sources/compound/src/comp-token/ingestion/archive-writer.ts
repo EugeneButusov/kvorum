@@ -1,7 +1,7 @@
 import { chainMetrics } from '@libs/chain';
 import type { LogEvent, Logger } from '@libs/chain';
 import type {
-  ConfirmationRepository,
+  ArchiveEventRepository,
   DlqRepository,
   NewArchiveConfirmation,
   NewIngestionDlq,
@@ -14,14 +14,14 @@ import type { CompTokenEventRepository } from '../persistence/event-repository';
 
 export class CompTokenArchiveWriter {
   private readonly eventRepo: CompTokenEventRepository;
-  private readonly confirmationRepo: ConfirmationRepository;
+  private readonly archiveEventRepo: ArchiveEventRepository;
   private readonly dlqRepo: DlqRepository;
   private readonly logger: Logger;
   private readonly now: () => Date;
 
   constructor(deps: CompTokenArchiveWriterDeps) {
     this.eventRepo = deps.eventRepo;
-    this.confirmationRepo = deps.confirmationRepo;
+    this.archiveEventRepo = deps.archiveEventRepo;
     this.dlqRepo = deps.dlqRepo;
     this.logger = deps.logger;
     this.now = deps.now ?? (() => new Date());
@@ -32,7 +32,7 @@ export class CompTokenArchiveWriter {
     decoded: CompTokenEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    const existing = await this.confirmationRepo.find({
+    const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
@@ -72,7 +72,7 @@ export class CompTokenArchiveWriter {
         derived_at: null,
       };
 
-      const result = await this.confirmationRepo.insert(row);
+      const result = await this.archiveEventRepo.insert(row);
 
       if (result?.id) {
         chainMetrics.archiveWrites.add(1, {

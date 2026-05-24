@@ -107,10 +107,9 @@ export function registerBackfill(program: Command): void {
         }
 
         try {
-          const headHex = await rpcClient.send<string>('eth_blockNumber', []);
-          const head = BigInt(headHex);
+          const head = BigInt(await rpcClient.send<string>('eth_blockNumber', []));
+          const confirmedHead = await readConfirmedHead(rpcClient, chainConfig, row.id);
           const resolvedToBlock = toBlock ?? head;
-          const cutoffBlock = head - BigInt(chainConfig.reorgHorizon) * 2n;
 
           if (opts.dryRun === true) {
             emit(
@@ -121,7 +120,7 @@ export function registerBackfill(program: Command): void {
                   `Mode: ${mode}`,
                   `From block: ${resolvedFromBlock.toString()}`,
                   `To block: ${resolvedToBlock.toString()}`,
-                  `Cutoff block: ${cutoffBlock.toString()}`,
+                  `Confirmed head: ${confirmedHead.toString()}`,
                 ].join('\n'),
               {
                 source_type: sourceType,
@@ -130,7 +129,7 @@ export function registerBackfill(program: Command): void {
                 mode,
                 from_block: resolvedFromBlock.toString(),
                 to_block: resolvedToBlock.toString(),
-                cutoff_block: cutoffBlock.toString(),
+                confirmed_head: confirmedHead.toString(),
               },
             );
             return;
