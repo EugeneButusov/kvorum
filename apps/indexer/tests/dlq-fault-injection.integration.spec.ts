@@ -119,12 +119,15 @@ describeIf('DLQ fault injection', () => {
     const metricsBefore = await captureMetrics();
 
     // Emit the malformed event — truncated 8-byte data, correct topic0
+    // Mine extra blocks upfront to ensure confirmedHead can reach the event block
+    // (tip must be at least event_block + headLag for confirmedHead to include the event)
+    await client.send('anvil_mine', ['0x5']);
     await sendAndWait(client, {
       from: accounts[0]!,
       to: contractAddress,
       data: '0x' + EMIT_MALFORMED_SELECTOR,
     });
-    await client.send('anvil_mine', ['0x2']);
+    await client.send('anvil_mine', ['0x5']);
 
     // Wait for at least one DLQ row to appear. EventPoller's sliding window re-fetches
     // the same malformed log every eventPollIntervalMs, so each re-fetch inserts a new
