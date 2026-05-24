@@ -41,7 +41,7 @@ async function makeClient(fake: FakeProvider): Promise<FailoverRpcClient> {
   const client = new FailoverRpcClient({
     chainId: CHAIN_ID,
     name: 'test',
-    reorgHorizon: 12,
+    headLag: 12,
     providers: [{ name: 'fake', url: fake.url, kind: 'http', priority: 1, timeoutMs: 4_000 }],
   });
   await client.start();
@@ -56,7 +56,7 @@ function baseOpts(
     rpcClient: client,
     chainId: CHAIN_ID,
     chainName: 'test',
-    reorgHorizon: 12,
+    headLag: 12,
     filter: { address: ADDRESS },
     sourceType: 'compound_governor',
     daoSourceLabel: 'dao-1',

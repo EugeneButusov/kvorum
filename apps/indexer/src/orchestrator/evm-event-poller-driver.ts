@@ -34,7 +34,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       rpcClient: chainCtx.client,
       chainId: ctx.chainId,
       chainName: chainCfg.name,
-      reorgHorizon: chainCfg.reorgHorizon,
+      headLag: chainCfg.headLag ?? chainCfg.reorgHorizon,
       sourceType: ctx.sourceType,
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,

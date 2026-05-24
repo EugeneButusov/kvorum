@@ -39,7 +39,7 @@ export interface EventPollerOptions {
   rpcClient: RpcClient;
   chainId: string;
   chainName: string;
-  reorgHorizon: number;
+  headLag: number;
   filter: LogFilter;
   /** Source type (e.g. 'compound_governor') — required for 5-tuple idempotency key
    *  composition by listeners and stamped onto LogEvent.sourceType. */

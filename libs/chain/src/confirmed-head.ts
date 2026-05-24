@@ -1,11 +1,16 @@
 import type { RpcClient } from './client/rpc-client.js';
-import type { ChainConfig } from './config/config.js';
 import { chainMetrics } from './metrics/metrics.js';
+
+type ConfirmedHeadConfig = {
+  name: string;
+  headLag?: number;
+  reorgHorizon?: number;
+};
 
 /** Returns the highest block at or below tip-headLag. */
 export async function readConfirmedHead(
   rpcClient: RpcClient,
-  chainConfig: ChainConfig,
+  chainConfig: ConfirmedHeadConfig,
   daoSourceLabel?: string,
 ): Promise<bigint> {
   const headHex = await rpcClient.send<string>('eth_blockNumber', []);

@@ -3,18 +3,19 @@ import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './
 import { chainMetrics } from '../metrics/metrics.js';
 import { decodeLogEvent } from './utils/decode.utils.js';
 import { lowercaseFilter } from './utils/filter.utils.js';
+import { readConfirmedHead } from '../confirmed-head.js';
 
 const PROGRESS_LOG_BLOCK_INTERVAL = 50n;
 const PROGRESS_LOG_MS = 5 * 60 * 1_000;
 
-/** Polls eth_getLogs over a sliding window of 2 × reorgHorizon blocks.
+/** Polls eth_getLogs over a sliding window anchored at confirmed head.
  *
  *  Tick-dropping contract: if listeners are slower than pollIntervalMs the re-entry
  *  guard drops the overlapping tick and logs a warn. No events are lost (next tick
  *  re-fetches the same window), but ingestion_log_poll_lag_seconds grows
  *  unbounded under this condition — SPEC §6.20.2's alert fires on that gauge.
  *
- *  Cold-start gap: on indexer restart after downtime exceeding 2 × reorgHorizon blocks
+ *  Cold-start gap: on indexer restart after downtime exceeding 2 × headLag blocks
  *  (~5 min at mainnet 12s), events in the gap fall outside the first tick's window.
  *  Filling that gap is a backfill responsibility, not E3's scope. */
 export class EventPoller extends AbstractPoller {
@@ -60,24 +61,21 @@ export class EventPoller extends AbstractPoller {
   }
 
   protected override async runTick(): Promise<void> {
-    const { rpcClient, chainId, reorgHorizon, sourceType } = this.opts;
+    const { rpcClient, chainId, headLag, sourceType } = this.opts;
     const chain = this.chainName;
     const src = this.daoSourceLabel;
 
     let headBn: bigint;
     try {
-      const headHex = await rpcClient.send<string>('eth_blockNumber', [], {
-        deadlineMs: this.stopped ? this.stopTimeoutMs : undefined,
-      });
-      headBn = BigInt(headHex);
+      headBn = await readConfirmedHead(rpcClient, { name: chain, headLag }, src);
     } catch (err) {
       this.logger.warn(
-        `[chain:${chain}][source:${src}] EventPoller eth_blockNumber failed: ${String(err)}`,
+        `[chain:${chain}][source:${src}] EventPoller readConfirmedHead failed: ${String(err)}`,
       );
       return;
     }
 
-    const windowSize = BigInt(reorgHorizon) * 2n;
+    const windowSize = BigInt(headLag) * 2n;
     const fromBn = headBn > windowSize ? headBn - windowSize : 0n;
     const fromHex = '0x' + fromBn.toString(16);
     const toHex = '0x' + headBn.toString(16);

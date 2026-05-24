@@ -32,7 +32,7 @@ describeIf('Anvil integration', () => {
     const config: ChainConfig = {
       chainId: '0x7a69',
       name: 'anvil',
-      reorgHorizon: 1,
+      headLag: 1,
       providers: [
         {
           name: 'anvil',
@@ -86,7 +86,7 @@ describeIf('Anvil integration', () => {
       rpcClient: client,
       chainId: '0x7a69',
       chainName: 'anvil',
-      reorgHorizon: 2,
+      headLag: 2,
       filter: { address: from }, // self-address filter (likely no logs, but tests the call path)
       sourceType: 'compound_governor',
       daoSourceLabel: 'test-source',
@@ -123,7 +123,7 @@ describeIf('Anvil integration', () => {
       rpcClient: client,
       chainId: '0x7a69',
       chainName: 'anvil',
-      reorgHorizon: 2,
+      headLag: 2,
       filter: { address: '0x' + '00'.repeat(20), topics: [TRANSFER_TOPIC] },
       sourceType: 'compound_governor',
       daoSourceLabel: 'test-source-2',
@@ -161,7 +161,7 @@ describeIf('Anvil integration', () => {
   it('E3d-3: HeadTracker resolves awaitFirstHead() and emits heads', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
+      chainCfg: { chainId: '0x7a69', name: 'anvil', headLag: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
     });
@@ -251,7 +251,7 @@ describeIf('Anvil integration', () => {
 
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
+      chainCfg: { chainId: '0x7a69', name: 'anvil', headLag: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 5_000,
     });
@@ -260,7 +260,7 @@ describeIf('Anvil integration', () => {
       rpcClient: client,
       chainId: '0x7a69',
       chainName: 'anvil',
-      reorgHorizon: 12,
+      headLag: 12,
     });
 
     const reorgSignals: ReorgSignal[] = [];
@@ -336,7 +336,7 @@ describeIf('Anvil integration', () => {
   it('E3d-4: head_block_age_seconds metric is set after first tick and stays reasonable', async () => {
     const tracker = new HeadTracker({
       rpcClient: client,
-      chainCfg: { chainId: '0x7a69', name: 'anvil', reorgHorizon: 12, providers: [] },
+      chainCfg: { chainId: '0x7a69', name: 'anvil', headLag: 12, providers: [] },
       pollIntervalMs: 200,
       stopTimeoutMs: 2_000,
     });
