@@ -41,7 +41,10 @@ export class CompTokenArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveDuplicateSkip.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, {
+        source: ctx.sourceLabel,
+        reason: 'rescan_window',
+      });
       return { result: 'skipped_existing' };
     }
 

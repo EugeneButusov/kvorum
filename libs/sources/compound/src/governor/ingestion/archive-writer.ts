@@ -52,7 +52,10 @@ export class GovernorArchiveWriter {
     });
 
     if (existing) {
-      chainMetrics.archiveDuplicateSkip.add(1, { source: ctx.sourceLabel });
+      chainMetrics.archiveDuplicateSkip.add(1, {
+        source: ctx.sourceLabel,
+        reason: 'rescan_window',
+      });
       this.logger.debug('archive_check_skip', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),

@@ -1,4 +1,5 @@
 import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
 import type { NewArchiveEvent, PgDatabase } from './schema/pg';
 import { isCanonicalPartialUniqueViolation, isTransientDbError } from './utils';
 
@@ -44,6 +45,15 @@ export class ArchiveEventRepository {
       .where('source_type', '=', sourceType)
       .groupBy(['chain_id', 'source_type'])
       .execute();
+  }
+
+  async findMaxBlockNumber(daoSourceId: string): Promise<bigint | null> {
+    const row = await this.pgDb
+      .selectFrom('archive_event')
+      .select(sql<string>`max(block_number::bigint)`.as('max_block'))
+      .where('dao_source_id', '=', daoSourceId)
+      .executeTakeFirst();
+    return row?.max_block != null ? BigInt(row.max_block) : null;
   }
 
   async insert(row: NewArchiveEvent): Promise<{ id: string } | undefined> {

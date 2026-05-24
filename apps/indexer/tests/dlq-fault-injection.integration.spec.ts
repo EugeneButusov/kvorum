@@ -59,7 +59,6 @@ describeIf('DLQ fault injection', () => {
           name: 'anvil',
           headLag: 12,
           headPollIntervalMs: 200,
-          sweepIntervalMs: 500,
           eventPollIntervalMs: 200,
           providers: [
             { name: 'anvil', url: ANVIL_URL, kind: 'http', priority: 1, timeoutMs: 4_000 },

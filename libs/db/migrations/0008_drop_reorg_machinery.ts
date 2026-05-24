@@ -4,6 +4,14 @@ import { sql } from 'kysely';
 /** Destructive migration for pre-production refactor.
  *  Drops reorg/status machinery and renames archive_confirmation -> archive_event. */
 export async function up(db: Kysely<unknown>): Promise<void> {
+  // §13.D — rename DLQ stage before dropping the old table so existing rows are visible
+  await sql`UPDATE ingestion_dlq          SET stage = 'archive_event_stage' WHERE stage = 'confirmation_archive_stage'`.execute(
+    db,
+  );
+  await sql`UPDATE ingestion_dlq_resolved SET stage = 'archive_event_stage' WHERE stage = 'confirmation_archive_stage'`.execute(
+    db,
+  );
+
   await db.schema
     .alterTable('archive_confirmation')
     .dropColumn('orphaned_by_reorg_event_id')

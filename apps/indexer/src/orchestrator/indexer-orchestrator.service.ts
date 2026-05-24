@@ -5,6 +5,7 @@ import {
   parseChainConfigFromEnv,
   chainMetrics,
   silentLogger,
+  readConfirmedHead,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
@@ -25,6 +26,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
   private readonly handles: FetchDriverHandle[] = [];
   private gaugeInterval: ReturnType<typeof setInterval> | null = null;
   private activeSourceTypes: Set<string> = new Set();
+  private activeSources: Array<{ daoSourceId: string; chainCfg: ChainConfig }> = [];
   private shutdownController = new AbortController();
   private catchUpTasks: Promise<void>[] = [];
 
@@ -144,6 +146,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       `started ${validated.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
     );
 
+    this.activeSources = validated.map((v) => ({ daoSourceId: v.src.id, chainCfg: v.chainCfg }));
     this.startPendingDepthGauge();
   }
 
@@ -158,6 +161,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     await Promise.allSettled(this.handles.map((h) => h.stop()));
     this.handles.length = 0;
     this.activeSourceTypes.clear();
+    this.activeSources = [];
     await this.registry.drainAll();
   }
 
@@ -179,7 +183,26 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           }
         }
       } catch (err) {
-        this.logger.warn('pending_depth_gauge_error', { error: String(err) });
+        this.logger.warn('underived_depth_gauge_error', { error: String(err) });
+      }
+
+      for (const { daoSourceId, chainCfg } of this.activeSources) {
+        try {
+          const chainCtx = await this.registry.getOrCreate(chainCfg);
+          const confirmedHead = await readConfirmedHead(chainCtx.client, chainCfg, daoSourceId);
+          const maxBlock = await this.archiveEventRepo.findMaxBlockNumber(daoSourceId);
+          if (maxBlock != null) {
+            chainMetrics.archiveWriteLag.record(Number(confirmedHead) - Number(maxBlock), {
+              chain_id: chainCfg.chainId,
+              dao_source: daoSourceId,
+            });
+          }
+        } catch (err) {
+          this.logger.warn('archive_write_lag_gauge_error', {
+            dao_source: daoSourceId,
+            error: String(err),
+          });
+        }
       }
     };
 
