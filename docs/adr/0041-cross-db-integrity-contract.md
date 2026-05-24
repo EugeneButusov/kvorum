@@ -139,7 +139,15 @@ The 2026-05-11 rider's "DLQ schema gains stage value `archive_ch_write`" line is
 
 ---
 
-## Rider — 2026-05-12 (race-window narrow 23505)
+## Rider — 2026-05-12 (race-window narrow 23505) — **RETRACTED 2026-05-24**
+
+> **Retracted by ADR-058 (2026-05-24).** This rider's rationale was specific to the pending/orphaned
+> status plane and the reorg window. With confirmed-head-only ingestion every insert is canonical
+> at write time; the `idx_archive_event_canonical` partial unique no longer exists; and the
+> ReorgWatcherService that created the race condition has been deleted. The 4-tuple
+> `archive_event_idempotency_key` is a true unique (not partial), so 23505 on conflict is handled
+> entirely by `ON CONFLICT DO NOTHING` and never triggers the retry path described here.
+> Riders 1 and 2 survive verbatim.
 
 Refines the 2026-05-11 rider §1 ("23xxx → DLQ on first failure"). Carve out one
 narrow exception: 23505 raised by `idx_archive_event_canonical` (the
@@ -173,7 +181,12 @@ rate is non-trivial in production.
 
 ---
 
-## Rider — 2026-05-12 (orphan-state reconciliation sweep, narrow coverage)
+## Rider — 2026-05-12 (orphan-state reconciliation sweep, narrow coverage) — **RETRACTED 2026-05-24**
+
+> **Retracted by ADR-058 (2026-05-24).** This rider described a sweep to catch archive rows that
+> remained `pending` after a reorg transaction race. With confirmed-head-only ingestion there is no
+> `pending` status, no `reorg_event` table, and no orphan-state transition. The sweep, its metrics,
+> and the M2 "reorg signal WAL" sub-task it referenced are all dissolved.
 
 Extends the M2 reconciliation contract (Decision §Reconciliation job) with a
 third sweep covering a narrow orphan-state inconsistency window.

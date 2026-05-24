@@ -48,16 +48,16 @@ Use Kysely query builder methods (`pgDb.selectFrom(…).where(…).execute()`) b
 
 For ClickHouse queries use `chDb` (the `@founderpath/kysely-clickhouse` Kysely instance). Use `SELECT … FINAL` when reading from `ReplacingMergeTree` tables to get deduped results; **never** issue `OPTIMIZE TABLE FINAL` from application code or scheduled jobs — that is reserved for manual operator intervention only.
 
-### Cross-DB writes (ADR-041)
+### Cross-DB writes (ADR-041, ADR-058)
 
-F1/I1 follow the PG-first-then-CH-then-PG protocol for every dual-DB write:
+All archive writes follow the PG-first-then-CH-then-PG protocol:
 
-1. PG existence check: `SELECT id FROM archive_confirmation WHERE (source_type, chain_id, tx_hash, log_index, block_hash) = (…)`.
+1. PG existence check: `SELECT id FROM archive_event WHERE (source_type, chain_id, tx_hash, log_index) = (…)`.
 2. CH insert (idempotent via `ReplacingMergeTree`).
 3. PG insert with `ON CONFLICT DO NOTHING` + bounded retry (3 attempts × exponential backoff 200/600/1800 ms).
 4. DLQ row on persistent PG failure.
 
-See ADR-041 for the full contract, metric names, and M2 reconciliation job.
+Every ingested event is structurally canonical at write time (reads at `confirmedHead = tip − headLag` per ADR-058). The `archive_event` table is a 4-tuple idempotency cache and derivation watermark; there is no `confirmation_status` column or promotion sweep. See ADR-041 for the full write-protocol contract and ADR-058 for the confirmed-head-only model.
 
 ## Pre-commit checks
 

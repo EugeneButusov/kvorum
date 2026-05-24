@@ -1,6 +1,6 @@
 # ADR-027 — Backfill confirmation cutoff rule
 
-- **Status**: Superseded in part by ADR-046 (2026-05-16) — the cutoff-boundary formula changes from `1 × head_lag` to `2 × head_lag`. The capture-once / rehydrate-on-resume / never-refresh determinism rule below is **unchanged and still authoritative**.
+- **Status**: Superseded by ADR-058 (2026-05-24). The capture-once / rehydrate-on-resume / never-refresh determinism rule is lifted verbatim into ADR-058; there is no longer a `2 × head_lag` boundary formula because backfill and live polling read at the same `confirmedHead = tip − headLag` point.
 - **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted, ratified by `dao_source.backfill_started_at_block` column + `archive_event` write semantics in `docs/plan-m1-e1.md` v3)
 - **Spec sections affected**: 3.10
 - **Related**: DR-006

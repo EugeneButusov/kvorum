@@ -22,14 +22,14 @@ The fire-on-condition contract committed above leaves the implementation shape o
 
 - **Snapshot worker** (Epic L's `voting-power-snapshot` module) — derived-path computation + sample verification. RPC-budgeted; runs per proposal `active`-transition.
 - **Mirror ETL** (Epic Q's `mirror-etl` module) — daily 04:00-UTC PG→CH copy with 6h overlap. CPU + I/O burst once daily.
-- **Reconciliation sweeps** (Epic P's three sweep modules under `apps/indexer/src/reconciliation/`) — CH-orphan, PG-orphan, orphan-state hourly sweeps.
+- ~~**Reconciliation sweeps** (Epic P's three sweep modules under `apps/indexer/src/reconciliation/`) — CH-orphan, PG-orphan, orphan-state hourly sweeps.~~ _(Retracted 2026-05-24: Epic P dissolved by ADR-058; reorg-machinery sweeps no longer exist.)_
 
 **What stays in `apps/indexer`**:
 
 - Event polling (the hot-path loop whose lag triggers the split).
 - Archive write path (F1's PG-first-then-CH-then-PG protocol per ADR-041).
 - Derivation workers (pre-derivation actor sweep + vote/delegation derivation).
-- Reorg detector + Epic P's `reorg-signal-recovery-sweep` (must stay co-located with event polling for tight reorg-response semantics).
+- ~~Reorg detector + Epic P's `reorg-signal-recovery-sweep` (must stay co-located with event polling for tight reorg-response semantics).~~ _(Retracted 2026-05-24: reorg detector and reorg-signal-recovery-sweep deleted by ADR-058.)_
 - DLQ retry worker (M1 carry-over) — colocated with archive write path for retry latency.
 - Governor state reconciler (ADR-049) — chain-state-driven; tightly coupled to event polling.
 

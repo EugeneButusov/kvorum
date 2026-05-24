@@ -69,3 +69,9 @@ Add a confirmed-head-driven proposal state reconciler that performs bounded on-c
 - Deployment requires RPC support for historical block headers (`eth_getBlockByNumber`) and confirmed-threshold `eth_call` for `state()`.
 - A full node is sufficient for block-header timestamp reads; providers that prune required historical headers are unsupported for this reconciler path.
 - Eventual consistency target for newly eligible rows is one confirmed-head cadence plus one batch cycle.
+
+---
+
+## Amendment — 2026-05-24 (ADR-058)
+
+The "confirmed head" read by the reconciler's candidate-selection query now comes from `readConfirmedHead(rpcClient, chainConfig)` (introduced in ADR-058) rather than from promotion-sweep-driven row promotion. The reconciler's algorithm and SQL-gate logic are otherwise unchanged.

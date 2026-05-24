@@ -702,7 +702,7 @@ The non-glamorous things that determine whether the system actually runs.
 **Observability.**
 
 - **Structured logging** at every stage transition, with consistent field names (`source`, `dao_id`, `event_type`, `block_number`).
-- **Metrics** exposed in Prometheus format: ingestion lag per source (head_block_age in seconds), pending event count per chain (events awaiting confirmation), DLQ size, reorg event count, RPC error rate per provider, derivation throughput.
+- **Metrics** exposed in Prometheus format: ingestion lag per source (head_block_age in seconds), underived event depth per chain, archive write lag, DLQ size, RPC error rate per provider, derivation throughput.
 - **Alerts** configured against these metrics: ingestion lag exceeding 5 minutes for any source for more than 10 minutes, DLQ size exceeding 100, RPC error rate exceeding 10% for any provider sustained for 5 minutes.
 - **Tracing** via OpenTelemetry for cross-service requests; the derivation layer's trace shows the full event-to-derived-state path.
 
@@ -2032,7 +2032,7 @@ admin-cli keys list [--user <id>]
 admin-cli keys revoke <key_id>
 admin-cli keys ban-ip <ip>
 
-admin-cli reorg list [--chain <id>] [--since <iso>]
+admin-cli chain rewind --chain <id> --to-block <n>  # operator recovery path for L2 fraud-proof reverts (deferred; see ADR-059)
 
 admin-cli status
 admin-cli maintenance enable --until <iso> --message <text>
@@ -2067,7 +2067,7 @@ The specific stack is a deployment choice — the spec commits to _the shape_ (a
 
 **Dashboards committed to ship in v1:**
 
-1. **Ingestion health** — head-block age per source, pending event count, DLQ size, RPC error rate per provider, reorg event count over time. Highlights any source falling behind.
+1. **Ingestion health** — head-block age per source, underived event depth, archive write lag, DLQ size, RPC error rate per provider. Highlights any source falling behind.
 2. **AI cost and feature health** — daily and monthly spend per feature with cap utilization, queue depth per AI feature, success/failure rate, p95 generation latency.
 3. **API health** — request volume by endpoint, p50/p95/p99 latency, error rate by status code, rate-limit-hit rate per API key tier.
 4. **System health** — host CPU, memory, disk; Postgres connection count, query latency, replication lag if applicable; Redis memory; ClickHouse query throughput.
@@ -2230,7 +2230,7 @@ Each Kvorum service exposes a `/metrics` endpoint with structured Prometheus met
 
 **Committed metric families for v1:**
 
-- `kvorum_ingestion_*` — head block age, pending event count, archive write rate, reorg event count
+- `kvorum_ingestion_*` — head block age, underived event depth, archive write rate, archive write lag, archive duplicate skip (reason=rescan_window|true_duplicate)
 - `kvorum_derivation_*` — projection lag, snapshot job duration, ABI decode success rate
 - `kvorum_ai_*` — generation latency, cache hit rate, cost (USD), feature enabled status
 - `kvorum_api_*` — request count, latency histogram, error rate by status code
@@ -2652,7 +2652,7 @@ The decision records below capture the material decisions made during v1.0 draft
 
 **Context.** Whether the public API and dashboard surface events that have been observed but not yet passed the chain's head lag.
 
-**Decision.** v1 surfaces only confirmed events. Pending events are recorded in the archive but not exposed publicly. v1.1 adds opt-in pending visibility.
+**Decision.** v1 surfaces only events observed at or below `confirmedHead = tip − headLag` (ADR-058). No pending-visibility concept exists in v1: every persisted archive row is canonical at write time. The `confirmed: boolean` field on entity responses is always `true` in v1 (forward-compat reservation per KNOWN-001). v1.1 may add opt-in real-time visibility if freshness becomes a product requirement.
 
 **Alternatives considered.**
 
