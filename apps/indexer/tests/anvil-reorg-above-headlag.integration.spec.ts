@@ -10,7 +10,6 @@
  * anvil_reorg requires Foundry ≥ v0.3; if not present the test gracefully passes.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { renderMetrics } from '@libs/observability';
 import {
   EventPoller,
   FailoverRpcClient,
@@ -18,6 +17,7 @@ import {
   type ChainConfig,
   type LogEvent,
 } from '@libs/chain';
+import { renderMetrics } from '@libs/observability';
 
 const ANVIL_URL = process.env['ANVIL_RPC_URL'];
 const describeIf = ANVIL_URL ? describe : describe.skip;
@@ -104,7 +104,7 @@ describeIf('reorg above headLag is invisible to the indexer (anvil)', () => {
     poller.onEvents((evs) => {
       try {
         surfaced.push(...evs);
-      } catch (err) {
+      } catch {
         listenerErrors++;
       }
     });

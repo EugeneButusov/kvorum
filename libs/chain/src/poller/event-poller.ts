@@ -1,9 +1,9 @@
 import { AbstractPoller } from './abstract-poller.js';
 import type { EventPollerOptions, EventsListener, LogEvent, LogFilter } from './types.js';
+import { readConfirmedHead } from '../confirmed-head.js';
 import { chainMetrics } from '../metrics/metrics.js';
 import { decodeLogEvent } from './utils/decode.utils.js';
 import { lowercaseFilter } from './utils/filter.utils.js';
-import { readConfirmedHead } from '../confirmed-head.js';
 
 const PROGRESS_LOG_BLOCK_INTERVAL = 50n;
 const PROGRESS_LOG_MS = 5 * 60 * 1_000;

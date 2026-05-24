@@ -13,7 +13,7 @@ const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
 const PROGRESS_LOG_INTERVAL_MS = 30_000;
 
-interface ChainContextRegistryLike {}
+type ChainContextRegistryLike = object;
 
 @Injectable()
 export class DerivationWorkerService implements OnApplicationBootstrap {
