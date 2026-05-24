@@ -4,7 +4,7 @@
 
 This runbook covers the N3 ENS background resolver:
 
-- daily cron in `apps/indexer` (`03:00` schedule)
+- daily cron in `apps/indexer` (default `00:00`, configurable)
 - bulk/manual refresh commands in `admin-cli`
 - expected outcomes and known limitations
 
@@ -12,6 +12,8 @@ This runbook covers the N3 ENS background resolver:
 
 1. `CHAIN_CONFIG` must include Ethereum mainnet (`chainId = 0x1`). ENS Universal Resolver is mainnet-only.
 2. Indexer process timezone should match operator intent for the cron schedule (production should use UTC).
+   - Cron expression env var: `ENS_RESOLVER_CRON`
+   - Default cron: `0 0 * * *` (midnight)
 3. RPC providers for mainnet must allow `eth_call` to:
 
 - `0xcA11bde05977b3631167028862bE2a173976CA11` (Multicall3)

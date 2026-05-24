@@ -11,7 +11,7 @@ Epic N introduces actor-level ENS display names. ENS enrichment is best-effort m
 
 ## Decision
 
-1. Refresh cadence is a daily cron at `03:00 UTC`.
+1. Refresh cadence is a daily cron, default `00:00 UTC`, configurable via `ENS_RESOLVER_CRON`.
 2. Refresh eligibility TTL is `7 days`: actors with `updated_at < now() - INTERVAL '7 days'` are in scope.
 3. ENS calls are batched with `multicall3`, `50` addresses per call.
 4. Reverse name is accepted only when forward-check passes: `getEnsAddress(reverseName) === address`.

@@ -6,6 +6,7 @@ import { ensResolverMetrics } from './ens-resolver-metrics';
 
 const DEFAULT_PAGE_LIMIT = 500;
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const ENS_RESOLVER_CRON = process.env['ENS_RESOLVER_CRON'] ?? '0 0 * * *';
 
 @Injectable()
 export class EnsResolverService {
@@ -17,7 +18,7 @@ export class EnsResolverService {
     private readonly actorRepo: ActorRepository,
   ) {}
 
-  @Cron('0 3 * * *')
+  @Cron(ENS_RESOLVER_CRON)
   async tick(): Promise<void> {
     await this.tickOnce();
   }
