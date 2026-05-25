@@ -9,8 +9,8 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { AnalyticsReadRepository } from '@libs/db';
 import { toAnalyticsMeta } from './analytics-meta.dto';
-import { AnalyticsReadRepository } from './analytics-read-repository';
 import { CrossDaoActorDto } from './cross-dao.dto';
 import { toCrossDaoActorDto } from './cross-dao.mappers';
 import { ActorRoutingService } from '../actors/actor-routing.service';

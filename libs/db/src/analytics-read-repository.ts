@@ -1,7 +1,15 @@
-import { sql, type Kysely } from 'kysely';
-import type { ClickHouseDatabase, PgDatabase } from '@libs/db';
-import type { BucketGrain } from './bucket';
-import { pgTimeBucketExpression } from './bucket';
+import { sql, type Kysely, type RawBuilder } from 'kysely';
+import type { ClickHouseDatabase } from './schema/clickhouse';
+import type { PgDatabase } from './schema/pg';
+
+export type BucketGrain = 'daily' | 'weekly' | 'monthly';
+
+function pgTimeBucketExpression(column: string, grain: BucketGrain): RawBuilder<Date> {
+  const ref = sql.ref(column);
+  if (grain === 'daily') return sql<Date>`date_trunc('day', ${ref})`;
+  if (grain === 'weekly') return sql<Date>`date_trunc('week', ${ref})`;
+  return sql<Date>`date_trunc('month', ${ref})`;
+}
 
 type VoteEventsAnalyticsTable = {
   vote_id: string;

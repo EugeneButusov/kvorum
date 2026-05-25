@@ -1,4 +1,4 @@
-import type { DelegateAlignmentRow } from './analytics-read-repository';
+import type { DelegateAlignmentRow } from '@libs/db';
 import type { DelegateAlignmentPeerDto } from './delegate-alignment.dto';
 
 export function toDelegateAlignmentPeerDto(

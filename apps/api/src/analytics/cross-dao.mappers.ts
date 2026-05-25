@@ -1,6 +1,6 @@
 import type { Actor } from '@libs/db';
+import type { CrossDaoSummaryRow } from '@libs/db';
 import type { AnalyticsMetaDto } from './analytics-meta.dto';
-import type { CrossDaoSummaryRow } from './analytics-read-repository';
 import type { CrossDaoActorDto } from './cross-dao.dto';
 import { isoSeconds } from '../http/iso';
 

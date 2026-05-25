@@ -1,4 +1,4 @@
-import type { PassRateRow } from './analytics-read-repository';
+import type { PassRateRow } from '@libs/db';
 import type { PassRateRowDto } from './proposal-pass-rate.dto';
 import { toIsoDate } from '../http/iso';
 

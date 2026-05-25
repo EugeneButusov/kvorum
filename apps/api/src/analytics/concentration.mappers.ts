@@ -1,4 +1,4 @@
-import type { ConcentrationBucketRow } from './analytics-read-repository';
+import type { ConcentrationBucketRow } from '@libs/db';
 import type { ConcentrationRowDto } from './concentration.dto';
 import { computeGini } from './gini';
 import { toIsoDate } from '../http/iso';

@@ -9,9 +9,8 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { DaoReadRepository } from '@libs/db';
+import { AnalyticsReadRepository, DaoReadRepository } from '@libs/db';
 import { toAnalyticsMeta } from './analytics-meta.dto';
-import { AnalyticsReadRepository } from './analytics-read-repository';
 import { estimateBucketCount } from './bucket';
 import { ConcentrationQueryDto, ConcentrationResponseDto } from './concentration.dto';
 import { toConcentrationRowDto } from './concentration.mappers';

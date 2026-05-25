@@ -1,4 +1,4 @@
-import type { ActorPowerRow, DelegationFlowEdgeRow } from './analytics-read-repository';
+import type { ActorPowerRow, DelegationFlowEdgeRow } from '@libs/db';
 import type { DelegationFlowEdgeDto, DelegationFlowNodeDto } from './delegation-flow.dto';
 import { delegateActorIdFromCh } from './sentinels';
 import { toIsoDate } from '../http/iso';
