@@ -393,6 +393,458 @@
         "tags": ["actors"]
       }
     },
+    "/v1/daos/{slug}/analytics/proposal-pass-rate": {
+      "get": {
+        "operationId": "DaoAnalyticsController_passRate",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bucket",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassRateResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["analytics"]
+      }
+    },
+    "/v1/daos/{slug}/analytics/concentration": {
+      "get": {
+        "operationId": "DaoAnalyticsController_concentration",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bucket",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConcentrationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["analytics"]
+      }
+    },
+    "/v1/daos/{slug}/analytics/delegation-flow": {
+      "get": {
+        "operationId": "DaoAnalyticsController_delegationFlow",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_voting_power",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegationFlowResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["analytics"]
+      }
+    },
+    "/v1/daos/{slug}/analytics/delegate-alignment": {
+      "get": {
+        "operationId": "DaoAnalyticsController_delegateAlignment",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "delegate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "-vote_count",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DelegateAlignmentResponseDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical delegate filter"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["analytics"]
+      }
+    },
+    "/v1/actors/{address}/analytics/cross-dao": {
+      "get": {
+        "operationId": "ActorAnalyticsController_crossDao",
+        "parameters": [
+          {
+            "name": "address",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossDaoActorDto"
+                }
+              }
+            }
+          },
+          "301": {
+            "description": "Redirect to canonical actor address"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["analytics"]
+      }
+    },
     "/v1/daos": {
       "get": {
         "operationId": "DaoController_list",
@@ -1783,6 +2235,303 @@
           }
         },
         "required": ["data", "pagination"]
+      },
+      "PassRateRowDto": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "pass_rate": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["source_type", "bucket", "passed", "failed"]
+      },
+      "AnalyticsMetaDto": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          },
+          "mirror_ready": {
+            "type": "boolean"
+          },
+          "mirror_last_etl": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["confirmed", "mirror_ready"]
+      },
+      "PassRateResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassRateRowDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
+      },
+      "ConcentrationTopShareDto": {
+        "type": "object",
+        "properties": {
+          "n_1": {
+            "type": "number"
+          },
+          "n_5": {
+            "type": "number"
+          },
+          "n_10": {
+            "type": "number"
+          },
+          "n_20": {
+            "type": "number"
+          }
+        },
+        "required": ["n_1", "n_5", "n_10", "n_20"]
+      },
+      "ConcentrationRowDto": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "gini": {
+            "type": "number"
+          },
+          "top_share": {
+            "$ref": "#/components/schemas/ConcentrationTopShareDto"
+          },
+          "effective_delegate_count": {
+            "type": "number"
+          },
+          "total_voting_power": {
+            "type": "string"
+          },
+          "delegate_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "bucket",
+          "gini",
+          "top_share",
+          "effective_delegate_count",
+          "total_voting_power",
+          "delegate_count"
+        ]
+      },
+      "ConcentrationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationRowDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
+      },
+      "DelegationFlowNodeDto": {
+        "type": "object",
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "primary_address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          },
+          "current_voting_power": {
+            "type": "string"
+          }
+        },
+        "required": ["actor_id", "primary_address", "current_voting_power"]
+      },
+      "DelegationFlowEdgeDto": {
+        "type": "object",
+        "properties": {
+          "delegator_actor_id": {
+            "type": "string"
+          },
+          "delegate_actor_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_power": {
+            "type": "string"
+          },
+          "block_number": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "delegator_actor_id",
+          "voting_power",
+          "block_number",
+          "event_type",
+          "created_at"
+        ]
+      },
+      "DelegationFlowResponseDto": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationFlowNodeDto"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegationFlowEdgeDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["nodes", "edges", "_meta"]
+      },
+      "DelegateAlignmentFocalDto": {
+        "type": "object",
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["actor_id", "address"]
+      },
+      "DelegateAlignmentPeerDto": {
+        "type": "object",
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          },
+          "vote_count": {
+            "type": "number"
+          },
+          "shared_proposals": {
+            "type": "number"
+          },
+          "alignment_score": {
+            "type": "number"
+          }
+        },
+        "required": ["actor_id", "address", "vote_count", "shared_proposals", "alignment_score"]
+      },
+      "DelegateAlignmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "focal_delegate": {
+            "$ref": "#/components/schemas/DelegateAlignmentFocalDto"
+          },
+          "peers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DelegateAlignmentPeerDto"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationDto"
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["focal_delegate", "peers", "pagination", "_meta"]
+      },
+      "CrossDaoSummaryDto": {
+        "type": "object",
+        "properties": {
+          "dao_slug": {
+            "type": "string"
+          },
+          "votes_cast": {
+            "type": "number"
+          },
+          "proposals_proposed": {
+            "type": "number"
+          },
+          "current_voting_power": {
+            "type": "string"
+          },
+          "last_active_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "alignment_with_majority_pct": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["dao_slug", "votes_cast", "proposals_proposed", "current_voting_power"]
+      },
+      "CrossDaoActorDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "daos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrossDaoSummaryDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["address", "actor_id", "daos", "_meta"]
       },
       "DaoLinksDto": {
         "type": "object",
