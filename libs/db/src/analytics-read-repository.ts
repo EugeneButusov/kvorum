@@ -105,7 +105,7 @@ export class AnalyticsReadRepository {
 
   async findEarliestDelegationEventAt(daoId: string): Promise<Date | null> {
     const row = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics FINAL`.as('dfa'))
+      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
       .select((eb) => eb.fn.min('dfa.created_at').as('earliest'))
       .where('dfa.dao_id', '=', daoId)
       .executeTakeFirst();
@@ -114,7 +114,7 @@ export class AnalyticsReadRepository {
 
   async findGlobalEtlWatermark(): Promise<Date | null> {
     const row = await this.chDb
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics FINAL`.as('vea'))
+      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('vea'))
       .select((eb) => eb.fn.max('vea.created_at').as('watermark'))
       .executeTakeFirst();
     return row?.watermark ?? null;
@@ -182,7 +182,7 @@ export class AnalyticsReadRepository {
           : sql<Date>`toStartOfMonth(dfa.created_at)`;
 
     const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics FINAL`.as('dfa'))
+      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
       .select(chBucket.as('bucket'))
       .select(sql<string[]>`arraySort(groupArray(dfa.voting_power))`.as('weights'))
       .select(sql<number>`count(*)`.as('delegate_count'))
@@ -205,7 +205,7 @@ export class AnalyticsReadRepository {
     minVotingPowerWei?: bigint;
   }): Promise<MirrorEnvelope<DelegationFlowEdgeRow>> {
     let qb = this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics FINAL`.as('dfa'))
+      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
       .select([
         'dfa.delegator_actor_id',
         'dfa.delegate_actor_id',
@@ -236,7 +236,7 @@ export class AnalyticsReadRepository {
   ): Promise<ActorPowerRow[]> {
     if (actorIds.length === 0) return [];
     const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics FINAL`.as('dfa'))
+      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
       .select('dfa.delegator_actor_id as actor_id')
       .select(sql<string>`argMax(dfa.voting_power, dfa.created_at)`.as('voting_power'))
       .where('dfa.dao_id', '=', daoId)
@@ -276,7 +276,7 @@ export class AnalyticsReadRepository {
     const rows = await this.chDb
       .with('focal', (db) => {
         let inner = db
-          .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics FINAL`.as('v'))
+          .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v'))
           .select(['v.proposal_id', 'v.primary_choice'])
           .where('v.dao_id', '=', args.daoId)
           .where('v.voter_actor_id', '=', args.focalActorId)
@@ -285,7 +285,7 @@ export class AnalyticsReadRepository {
         if (args.to !== undefined) inner = inner.where('v.cast_at', '<=', args.to);
         return inner;
       })
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics FINAL`.as('v2'))
+      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v2'))
       .innerJoin('focal', 'focal.proposal_id', 'v2.proposal_id')
       .select('v2.voter_actor_id as peer_actor_id')
       .select(sql<number>`count(*)`.as('vote_count'))
@@ -308,7 +308,7 @@ export class AnalyticsReadRepository {
 
   async crossDaoSummaryForActor(rawAddress: string): Promise<MirrorEnvelope<CrossDaoSummaryRow>> {
     const rows = await this.chDb
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics FINAL`.as('v'))
+      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v'))
       .select(['v.dao_id', 'v.dao_slug', 'v.voter_actor_id'])
       .select(sql<number>`count(*)`.as('votes_cast'))
       .select((eb) => eb.fn.max('v.cast_at').as('last_active_at'))
