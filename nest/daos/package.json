@@ -1,0 +1,21 @@
+{
+  "name": "@nest/daos",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@libs/db": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "tslib": "^2.3.0"
+  }
+}

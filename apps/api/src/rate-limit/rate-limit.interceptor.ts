@@ -6,13 +6,13 @@ import {
   type ExecutionContext,
   type NestInterceptor,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '@nest/auth';
 import { TIERS, type Tier } from './rate-limit.config';
 import {
   RateLimiterService,
   RedisUnavailableError,
   type RateLimitResult,
 } from './rate-limiter.service';
-import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { problemException } from '../http/problem-exception';
 import { apiMetrics } from '../observability/api-metrics';
 

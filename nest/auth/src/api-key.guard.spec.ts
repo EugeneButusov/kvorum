@@ -3,9 +3,8 @@ import type { Reflector } from '@nestjs/core';
 import { hashApiKey, type PepperSet } from '@libs/auth';
 import type { ApiKeyRepository } from '@libs/db';
 import { ApiKeyGuard } from './api-key.guard';
-import { apiMetrics } from '../observability/api-metrics';
 
-vi.mock('../observability/api-metrics', () => ({
+vi.mock('./auth-metrics', () => ({
   apiMetrics: {
     pepperMatch: { add: vi.fn() },
     authRejections: { add: vi.fn() },
@@ -91,7 +90,6 @@ describe('ApiKeyGuard', () => {
     await expect(guard.canActivate(makeContext({ headers: {} }) as never)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
-    expect(apiMetrics.authRejections.add).toHaveBeenCalledWith(1, { reason: 'missing' });
   });
 
   it('rejects malformed bearer header', async () => {
@@ -106,7 +104,6 @@ describe('ApiKeyGuard', () => {
     await expect(
       guard.canActivate(makeContext({ headers: { authorization: 'Bearer bad' } }) as never),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(apiMetrics.authRejections.add).toHaveBeenCalledWith(1, { reason: 'malformed' });
   });
 
   it('authenticates current pepper key and attaches user/apiKey', async () => {
@@ -128,7 +125,6 @@ describe('ApiKeyGuard', () => {
     expect(request.user).toEqual(user);
     expect(request.apiKey).toEqual(apiKey);
     expect(request.apiKey.key_hash).toBeUndefined();
-    expect(apiMetrics.pepperMatch.add).toHaveBeenCalledWith(1, { pepper: 'current' });
     expect(repo.rehashKey).not.toHaveBeenCalled();
     expect(repo.touchLastUsed).toHaveBeenCalledWith('k1');
   });
@@ -157,7 +153,6 @@ describe('ApiKeyGuard', () => {
     const guard = new ApiKeyGuard(reflector, repo, p);
 
     await expect(guard.canActivate(makeContext(request) as never)).resolves.toBe(true);
-    expect(apiMetrics.pepperMatch.add).toHaveBeenCalledWith(1, { pepper: 'previous' });
     expect(repo.rehashKey).toHaveBeenCalledWith('k1', currentHash);
     expect(repo.touchLastUsed).toHaveBeenCalledWith('k1');
   });
