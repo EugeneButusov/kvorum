@@ -6,7 +6,7 @@ import { ApiKeyGuard, AUTH_CONFIG } from './api-key.guard';
 import { parseAuthConfigFromEnv } from './auth.config';
 
 @Module({
-  imports: [DbModule],
+  imports: [DbModule.forFeature([ApiKeyRepository])],
   providers: [
     {
       provide: AUTH_CONFIG,

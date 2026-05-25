@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { type DynamicModule, Module, type Type } from '@nestjs/common';
 import type { Kysely } from 'kysely';
 import {
   ActorRepository,
@@ -14,30 +14,27 @@ import {
   VoteReadRepository,
 } from '@libs/db';
 
-@Module({
-  providers: [
-    { provide: ActorRepository, useFactory: () => new ActorRepository(pgDb) },
-    { provide: ActorRoutingReadRepository, useFactory: () => new ActorRoutingReadRepository(pgDb) },
-    {
-      provide: AnalyticsReadRepository,
-      useFactory: () =>
-        new AnalyticsReadRepository(chDb as unknown as Kysely<AnalyticsClickHouseDatabase>, pgDb),
-    },
-    { provide: ApiKeyRepository, useFactory: () => new ApiKeyRepository(pgDb) },
-    { provide: DaoReadRepository, useFactory: () => new DaoReadRepository(pgDb) },
-    { provide: DelegationReadRepository, useFactory: () => new DelegationReadRepository(pgDb) },
-    { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
-    { provide: VoteReadRepository, useFactory: () => new VoteReadRepository(pgDb) },
-  ],
-  exports: [
-    ActorRepository,
-    ActorRoutingReadRepository,
+const FACTORIES = new Map<Type, () => unknown>([
+  [ActorRepository, () => new ActorRepository(pgDb)],
+  [ActorRoutingReadRepository, () => new ActorRoutingReadRepository(pgDb)],
+  [
     AnalyticsReadRepository,
-    ApiKeyRepository,
-    DaoReadRepository,
-    DelegationReadRepository,
-    ProposalReadRepository,
-    VoteReadRepository,
+    () => new AnalyticsReadRepository(chDb as unknown as Kysely<AnalyticsClickHouseDatabase>, pgDb),
   ],
-})
-export class DbModule {}
+  [ApiKeyRepository, () => new ApiKeyRepository(pgDb)],
+  [DaoReadRepository, () => new DaoReadRepository(pgDb)],
+  [DelegationReadRepository, () => new DelegationReadRepository(pgDb)],
+  [ProposalReadRepository, () => new ProposalReadRepository(pgDb)],
+  [VoteReadRepository, () => new VoteReadRepository(pgDb)],
+]);
+
+@Module({})
+export class DbModule {
+  static forFeature(repositories: Type[]): DynamicModule {
+    const providers = repositories.map((repo) => ({
+      provide: repo,
+      useFactory: FACTORIES.get(repo)!,
+    }));
+    return { module: DbModule, providers, exports: repositories };
+  }
+}
