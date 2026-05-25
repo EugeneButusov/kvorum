@@ -102,6 +102,38 @@ interface ConflictColumnsBuilder {
 }
 
 describe('ActorRepository', () => {
+  it('lists actor addresses ordered by primary first then address asc', async () => {
+    const rows = [
+      { actor_id: 'actor-1', address: '0xaaa', is_primary: true, source: 'voter_event' },
+      { actor_id: 'actor-1', address: '0xbbb', is_primary: false, source: 'delegate_event' },
+    ];
+    const execute = vi.fn().mockResolvedValue(rows);
+    const orderByAddress = vi.fn().mockReturnValue({ execute });
+    const orderByPrimary = vi.fn().mockReturnValue({ orderBy: orderByAddress });
+    const where = vi.fn().mockReturnValue({ orderBy: orderByPrimary });
+    const selectAll = vi.fn().mockReturnValue({ where });
+    const selectFrom = vi.fn().mockReturnValue({ selectAll });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.listAddressesForActor('actor-1')).resolves.toEqual(rows);
+    expect(selectFrom).toHaveBeenCalledWith('actor_address');
+    expect(where).toHaveBeenCalledWith('actor_id', '=', 'actor-1');
+    expect(orderByPrimary).toHaveBeenCalledWith('is_primary', 'desc');
+    expect(orderByAddress).toHaveBeenCalledWith('address', 'asc');
+  });
+
+  it('returns empty list when actor has no addresses', async () => {
+    const execute = vi.fn().mockResolvedValue([]);
+    const orderByAddress = vi.fn().mockReturnValue({ execute });
+    const orderByPrimary = vi.fn().mockReturnValue({ orderBy: orderByAddress });
+    const where = vi.fn().mockReturnValue({ orderBy: orderByPrimary });
+    const selectAll = vi.fn().mockReturnValue({ where });
+    const selectFrom = vi.fn().mockReturnValue({ selectAll });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.listAddressesForActor('missing-actor')).resolves.toEqual([]);
+  });
+
   it('returns empty list when findPrimaryAddressesByActorIds receives no actor ids', async () => {
     const selectFrom = vi.fn();
     const repo = new ActorRepository({ selectFrom } as never);

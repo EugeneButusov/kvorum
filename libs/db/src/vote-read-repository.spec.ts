@@ -30,6 +30,22 @@ describe('VoteReadRepository', () => {
     expect(chain.where).toHaveBeenCalledWith('vote.superseded_by_vote_id', 'is', null);
   });
 
+  it('listBaseQuery selects proposal enrichment fields', async () => {
+    const { chain } = makeSelectChain([]);
+    const repo = new VoteReadRepository({ selectFrom: vi.fn().mockReturnValue(chain) } as never);
+
+    await repo.listBaseQuery().execute();
+
+    expect(chain.select).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'proposal.title as proposal_title',
+        'proposal.state as proposal_state',
+        'proposal.created_at as proposal_created_at',
+        'proposal.voting_ends_at as proposal_voting_ends_at',
+      ]),
+    );
+  });
+
   it('findOneByVoter filters by proposal and voter actor ids', async () => {
     const row = { id: 'v1' };
     const { selectFrom, chain } = makeSelectChain(row);

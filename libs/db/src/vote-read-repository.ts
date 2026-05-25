@@ -14,6 +14,10 @@ export type VoteReadRow = {
   voter_display_name: string | null;
   proposal_source_type: string;
   proposal_source_id: string;
+  proposal_title: string | null;
+  proposal_state: string;
+  proposal_created_at: Date;
+  proposal_voting_ends_at: Date | null;
   dao_slug: string;
 };
 
@@ -48,6 +52,10 @@ export class VoteReadRepository {
         'actor.display_name as voter_display_name',
         'proposal.source_type as proposal_source_type',
         'proposal.source_id as proposal_source_id',
+        'proposal.title as proposal_title',
+        'proposal.state as proposal_state',
+        'proposal.created_at as proposal_created_at',
+        'proposal.voting_ends_at as proposal_voting_ends_at',
         'dao.slug as dao_slug',
       ])
       .where('vote.superseded_by_vote_id', 'is', null);
