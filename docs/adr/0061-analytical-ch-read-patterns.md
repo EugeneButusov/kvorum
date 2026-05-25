@@ -1,6 +1,6 @@
 # 0061 - Analytical CH read patterns
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-25
 
 ## Context

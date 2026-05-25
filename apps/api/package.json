@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:e2e": "vitest run -c vitest.e2e.config.mts",
     "lint": "eslint src tests",
+    "script:autocannon-analytics": "pnpm exec tsx scripts/autocannon-analytics.ts",
     "openapi:generate": "GENERATE_OPENAPI=1 NEST_HTTP_TESTS=1 OPS_PORT=19095 CURSOR_SECRET=openapi-generate-secret DATABASE_URL=postgresql://kvorum:kvorum@localhost:55432/kvorum REDIS_URL=redis://localhost:56379 vitest run -c vitest.e2e.config.mts tests/openapi.generate.e2e.spec.ts"
   },
   "dependencies": {
