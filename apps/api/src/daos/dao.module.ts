@@ -10,5 +10,6 @@ import { DaoController } from './dao.controller';
       useFactory: () => new DaoReadRepository(pgDb),
     },
   ],
+  exports: [DaoReadRepository],
 })
 export class DaoModule {}
