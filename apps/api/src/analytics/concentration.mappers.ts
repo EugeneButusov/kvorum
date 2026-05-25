@@ -1,6 +1,7 @@
 import type { ConcentrationBucketRow } from './analytics-read-repository';
 import type { ConcentrationRowDto } from './concentration.dto';
 import { computeGini } from './gini';
+import { toIsoDate } from '../http/iso';
 
 function topShare(weights: bigint[], n: number, total: bigint): number {
   if (total === 0n) return 0;
@@ -21,7 +22,7 @@ export function toConcentrationRowDto(row: ConcentrationBucketRow): Concentratio
   const weights = row.weights.map((w) => BigInt(w));
   const total = BigInt(row.total_voting_power);
   return {
-    bucket: row.bucket.toISOString(),
+    bucket: toIsoDate(row.bucket),
     gini: computeGini([...weights].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))),
     top_share: {
       n_1: topShare(weights, 1, total),

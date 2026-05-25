@@ -2,6 +2,7 @@ import type { Actor } from '@libs/db';
 import type { AnalyticsMetaDto } from './analytics-meta.dto';
 import type { CrossDaoSummaryRow } from './analytics-read-repository';
 import type { CrossDaoActorDto } from './cross-dao.dto';
+import { isoSeconds } from '../http/iso';
 
 export function toCrossDaoActorDto(args: {
   actor: Actor;
@@ -20,7 +21,7 @@ export function toCrossDaoActorDto(args: {
         votes_cast: s.votes_cast,
         proposals_proposed: 0,
         current_voting_power: '0',
-        last_active_at: s.last_active_at?.toISOString() ?? null,
+        last_active_at: isoSeconds(s.last_active_at),
         alignment_with_majority_pct: pct,
       };
     }),

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { isoSeconds } from '../http/iso';
 
 export class AnalyticsMetaDto {
   @ApiProperty()
@@ -15,6 +16,6 @@ export function toAnalyticsMeta(mirrorLastEtl: Date | null): AnalyticsMetaDto {
   return {
     confirmed: true,
     mirror_ready: mirrorLastEtl !== null,
-    mirror_last_etl: mirrorLastEtl?.toISOString() ?? null,
+    mirror_last_etl: isoSeconds(mirrorLastEtl),
   };
 }

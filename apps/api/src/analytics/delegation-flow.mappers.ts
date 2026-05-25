@@ -1,6 +1,7 @@
 import type { ActorPowerRow, DelegationFlowEdgeRow } from './analytics-read-repository';
 import type { DelegationFlowEdgeDto, DelegationFlowNodeDto } from './delegation-flow.dto';
 import { delegateActorIdFromCh } from './sentinels';
+import { toIsoDate } from '../http/iso';
 
 export function toDelegationFlowEdgeDto(row: DelegationFlowEdgeRow): DelegationFlowEdgeDto {
   return {
@@ -9,7 +10,7 @@ export function toDelegationFlowEdgeDto(row: DelegationFlowEdgeRow): DelegationF
     voting_power: row.voting_power,
     block_number: row.block_number,
     event_type: row.event_type,
-    created_at: row.created_at.toISOString(),
+    created_at: toIsoDate(row.created_at),
   };
 }
 
