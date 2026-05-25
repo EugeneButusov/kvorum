@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@libs/auth": "workspace:*",
-    "@nest/db": "workspace:*",
     "@nest/observability": "workspace:*"
   }
 }

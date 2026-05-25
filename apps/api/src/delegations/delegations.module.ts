@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
-import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
-import { DbModule } from '@nest/db';
+import { DaoReadRepository, DelegationReadRepository, pgDb } from '@libs/db';
 import { DelegationsController } from './delegations.controller';
 import { ActorsModule } from '../actors/actors.module';
 
 @Module({
-  imports: [ActorsModule, DbModule.forFeature([DelegationReadRepository, DaoReadRepository])],
+  imports: [ActorsModule],
+  providers: [
+    { provide: DelegationReadRepository, useFactory: () => new DelegationReadRepository(pgDb) },
+    { provide: DaoReadRepository, useFactory: () => new DaoReadRepository(pgDb) },
+  ],
   controllers: [DelegationsController],
-  providers: [],
 })
 export class DelegationsModule {}

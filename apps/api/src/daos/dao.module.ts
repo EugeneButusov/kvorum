@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-import { DaoReadRepository } from '@libs/db';
-import { DbModule } from '@nest/db';
+import { DaoReadRepository, pgDb } from '@libs/db';
 import { DaoController } from './dao.controller';
 
 @Module({
-  imports: [DbModule.forFeature([DaoReadRepository])],
+  providers: [{ provide: DaoReadRepository, useFactory: () => new DaoReadRepository(pgDb) }],
   controllers: [DaoController],
-  providers: [],
 })
 export class DaoModule {}

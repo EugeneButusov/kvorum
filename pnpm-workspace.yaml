@@ -3,7 +3,6 @@ packages:
   - 'libs/*'
   - 'libs/sources/*'
   - 'nest/chain'
-  - 'nest/db'
   - 'nest/logging'
   - 'nest/observability'
   - 'nest/sources/*'
