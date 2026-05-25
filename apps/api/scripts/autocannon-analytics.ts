@@ -47,7 +47,7 @@ async function runOne(baseUrl: string, apiKey: string, target: Target): Promise<
   const got = target.threshold.metric === 'p95' ? result.latency.p95 : result.latency.p99;
   const ok = got <= target.threshold.maxMs;
   const status = ok ? 'OK' : 'FAIL';
-   
+
   console.log(
     `${status} ${target.name}: ${target.threshold.metric}=${got}ms (limit ${target.threshold.maxMs}ms)`,
   );

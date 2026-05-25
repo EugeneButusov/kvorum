@@ -242,8 +242,8 @@ Commands:
   ens                    ENS resolver operations
   keys                   API key management
   maintenance            Maintenance mode management
-  status [options]       Show system status
   snapshot               Voting power snapshot operations
+  status [options]       Show system status
   users                  User management
   help [command]         display help for command
 "

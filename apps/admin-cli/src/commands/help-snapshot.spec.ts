@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import { registerAllCommands } from './index.js';
+import { registerCommands } from './index.js';
 
-function buildProgram(): Command {
+async function buildProgram(): Promise<Command> {
   const program = new Command();
   program
     .name('admin-cli')
@@ -9,7 +9,7 @@ function buildProgram(): Command {
     .version('0.0.0')
     .option('-f, --format <format>', 'output format: human or json', 'human')
     .helpCommand(true);
-  registerAllCommands(program);
+  await registerCommands(program);
   return program;
 }
 
@@ -30,8 +30,8 @@ function subHelp(program: Command, domain: string, sub: string): string {
 describe('admin-cli help snapshots', () => {
   let program: Command;
 
-  beforeEach(() => {
-    program = buildProgram();
+  beforeEach(async () => {
+    program = await buildProgram();
   });
 
   it('top-level --help', () => {
