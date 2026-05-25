@@ -16,7 +16,14 @@
   },
   "dependencies": {
     "@libs/auth": "workspace:*",
+    "@nest/actors": "workspace:*",
+    "@nest/analytics": "workspace:*",
+    "@nest/auth": "workspace:*",
+    "@nest/daos": "workspace:*",
     "@nest/db": "workspace:*",
-    "@nest/observability": "workspace:*"
+    "@nest/delegations": "workspace:*",
+    "@nest/observability": "workspace:*",
+    "@nest/proposals": "workspace:*",
+    "@nest/votes": "workspace:*"
   }
 }

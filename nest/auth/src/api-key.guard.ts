@@ -14,9 +14,9 @@ import {
   type PepperSet,
 } from '@libs/auth';
 import { ApiKeyRepository } from '@libs/db';
+import { apiMetrics } from './auth-metrics';
 import type { AuthenticatedRequest, SafeApiKey } from './authenticated-request';
 import { IS_PUBLIC_KEY } from './public.decorator';
-import { apiMetrics } from '../observability/api-metrics';
 
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 

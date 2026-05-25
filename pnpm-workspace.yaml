@@ -2,11 +2,18 @@ packages:
   - 'apps/*'
   - 'libs/*'
   - 'libs/sources/*'
+  - 'nest/actors'
+  - 'nest/analytics'
+  - 'nest/auth'
   - 'nest/chain'
+  - 'nest/daos'
   - 'nest/db'
+  - 'nest/delegations'
   - 'nest/logging'
   - 'nest/observability'
+  - 'nest/proposals'
   - 'nest/sources/*'
+  - 'nest/votes'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true

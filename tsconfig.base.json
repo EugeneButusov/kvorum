@@ -28,8 +28,15 @@
       "@sources/compound/governor/data-access": [
         "./libs/sources/compound/src/governor/data-access.ts"
       ],
+      "@nest/actors": ["./nest/actors/src/index.ts"],
+      "@nest/analytics": ["./nest/analytics/src/index.ts"],
+      "@nest/auth": ["./nest/auth/src/index.ts"],
       "@nest/chain": ["./nest/chain/src/index.ts"],
+      "@nest/daos": ["./nest/daos/src/index.ts"],
       "@nest/db": ["./nest/db/src/index.ts"],
+      "@nest/delegations": ["./nest/delegations/src/index.ts"],
+      "@nest/proposals": ["./nest/proposals/src/index.ts"],
+      "@nest/votes": ["./nest/votes/src/index.ts"],
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
       "@nest/sources": ["./nest/sources/index.ts"],
       "@nest/observability": ["./nest/observability/src/index.ts"],
