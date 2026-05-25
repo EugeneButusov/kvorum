@@ -1,20 +1,11 @@
 import { Module } from '@nestjs/common';
-import { pgDb, ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import { DbModule } from '@nest/db';
 import { VotesController } from './votes.controller';
 import { ActorsModule } from '../actors/actors.module';
 
 @Module({
-  imports: [ActorsModule],
+  imports: [ActorsModule, DbModule],
   controllers: [VotesController],
-  providers: [
-    {
-      provide: VoteReadRepository,
-      useFactory: () => new VoteReadRepository(pgDb),
-    },
-    {
-      provide: ProposalReadRepository,
-      useFactory: () => new ProposalReadRepository(pgDb),
-    },
-  ],
+  providers: [],
 })
 export class VotesModule {}

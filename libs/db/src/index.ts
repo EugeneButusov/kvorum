@@ -10,6 +10,17 @@ export {
 export { ActorMergeRepository } from './actor-merge-repository';
 export { ActorRepository } from './actor-repository';
 export { ActorRoutingReadRepository } from './actor-routing-repository';
+export { AnalyticsReadRepository } from './analytics-read-repository';
+export type {
+  ActorPowerRow,
+  AnalyticsClickHouseDatabase,
+  ConcentrationBucketRow,
+  CrossDaoSummaryRow,
+  DelegateAlignmentRow,
+  DelegationFlowEdgeRow,
+  MirrorEnvelope,
+  PassRateRow,
+} from './analytics-read-repository';
 export type {
   ActorOverview,
   ActorOverviewAddress,

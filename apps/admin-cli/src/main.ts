@@ -1,11 +1,22 @@
 import { CommanderError, Command } from 'commander';
-import { registerAllCommands } from './commands/index.js';
-import { ExitCode } from './output.js';
+import { emitNotImplemented, ExitCode } from './output.js';
 
 // Injected at build time by build.mjs (--define:PKG_VERSION)
 declare const PKG_VERSION: string;
 
 async function main(): Promise<void> {
+  if (process.argv.includes('--version') || process.argv.includes('-V')) {
+    process.stdout.write(`${PKG_VERSION}\n`);
+    return;
+  }
+
+  if (
+    process.argv[2] === 'maintenance' &&
+    (process.argv[3] === 'enable' || process.argv[3] === 'disable')
+  ) {
+    emitNotImplemented(`maintenance ${process.argv[3]}`, {});
+  }
+
   const program = new Command();
 
   program
@@ -16,7 +27,11 @@ async function main(): Promise<void> {
     .helpCommand(true)
     .exitOverride();
 
-  registerAllCommands(program);
+  const topLevelArg = process.argv[2];
+  const topLevelCommand =
+    topLevelArg !== undefined && !topLevelArg.startsWith('-') ? topLevelArg : undefined;
+  const { registerCommands } = await import('./commands/index.js');
+  await registerCommands(program, topLevelCommand);
 
   try {
     await program.parseAsync(process.argv);

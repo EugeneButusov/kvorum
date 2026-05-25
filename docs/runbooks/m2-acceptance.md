@@ -132,3 +132,35 @@ Expected:
 
 - AC #3 (fallback path exercised) is verified by integration tests in M2; no production fault injection is required in acceptance operations.
 - Snapshot retry semantics are crash-safe: retries re-enter from `in_progress` and recompute proposal rows from scratch.
+
+## O3 analytical endpoints
+
+### Performance gate
+
+Seed mirror data first, then run:
+
+```bash
+API_KEY=<m2-api-key> pnpm --filter api script:autocannon-analytics
+```
+
+Acceptance thresholds:
+
+- `proposal-pass-rate` p95 < 500ms
+- `concentration`, `delegation-flow`, `delegate-alignment`, `cross-dao` p99 < 5s
+
+If a threshold breaches, profile the CH query and reduce response shape pressure before widening infra.
+
+### AC #4 Gini cross-check
+
+1. Pick a Compound DAO/time bucket used for release acceptance.
+2. Pull weights from CH:
+
+```sql
+SELECT voting_power
+FROM delegation_flow_analytics FINAL
+WHERE dao_slug = 'compound'
+ORDER BY voting_power ASC;
+```
+
+3. Compare endpoint `gini` value against an independent calculator (e.g. Wolfram `Gini[{...}]`).
+4. Accept if absolute difference <= 0.001.

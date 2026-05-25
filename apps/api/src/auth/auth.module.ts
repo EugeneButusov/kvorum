@@ -1,15 +1,13 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
-import { ApiKeyRepository, pgDb } from '@libs/db';
+import { ApiKeyRepository } from '@libs/db';
+import { DbModule } from '@nest/db';
 import { ApiKeyGuard, AUTH_CONFIG } from './api-key.guard';
 import { parseAuthConfigFromEnv } from './auth.config';
 
 @Module({
+  imports: [DbModule],
   providers: [
-    {
-      provide: ApiKeyRepository,
-      useFactory: () => new ApiKeyRepository(pgDb),
-    },
     {
       provide: AUTH_CONFIG,
       useFactory: () => parseAuthConfigFromEnv(process.env),

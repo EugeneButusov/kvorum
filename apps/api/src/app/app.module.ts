@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
 import { ActorsModule } from '../actors/actors.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { AuthModule } from '../auth/auth.module';
 import { CacheModule } from '../cache/cache.module';
 import { DaoModule } from '../daos/dao.module';
@@ -18,6 +19,7 @@ import { VotesModule } from '../votes/votes.module';
   imports: [
     AuthModule,
     ActorsModule,
+    AnalyticsModule,
     CacheModule,
     DaoModule,
     DelegationsModule,

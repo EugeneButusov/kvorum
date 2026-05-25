@@ -1,18 +1,10 @@
 import { Module } from '@nestjs/common';
-import { DaoReadRepository, pgDb, ProposalReadRepository } from '@libs/db';
+import { DbModule } from '@nest/db';
 import { ProposalController } from './proposal.controller';
 
 @Module({
+  imports: [DbModule],
   controllers: [ProposalController],
-  providers: [
-    {
-      provide: ProposalReadRepository,
-      useFactory: () => new ProposalReadRepository(pgDb),
-    },
-    {
-      provide: DaoReadRepository,
-      useFactory: () => new DaoReadRepository(pgDb),
-    },
-  ],
+  providers: [],
 })
 export class ProposalModule {}
