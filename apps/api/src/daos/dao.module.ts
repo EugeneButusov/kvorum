@@ -6,6 +6,5 @@ import { DaoController } from './dao.controller';
   imports: [DbModule],
   controllers: [DaoController],
   providers: [],
-  exports: [DbModule],
 })
 export class DaoModule {}
