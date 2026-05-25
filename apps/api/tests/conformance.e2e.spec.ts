@@ -101,6 +101,14 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
           typeof res.headers['etag'] === 'string' ? res.headers['etag'] : null;
       }
 
+      const actorRes = await request(server)
+        .get(`/v1/actors/${seeded.actorPrimaryAddress}`)
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+      expect(actorRes.body).toMatchSnapshot('actor-detail');
+      etagByEndpoint['actor-detail'] =
+        typeof actorRes.headers['etag'] === 'string' ? actorRes.headers['etag'] : null;
+
       expect(etagByEndpoint).toMatchSnapshot('etag-by-endpoint');
     } finally {
       await app.close();
