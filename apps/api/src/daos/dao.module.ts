@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { DaoReadRepository } from '@libs/db';
 import { DbModule } from '@nest/db';
 import { DaoController } from './dao.controller';
 
@@ -7,6 +6,6 @@ import { DaoController } from './dao.controller';
   imports: [DbModule],
   controllers: [DaoController],
   providers: [],
-  exports: [DaoReadRepository],
+  exports: [DbModule],
 })
 export class DaoModule {}
