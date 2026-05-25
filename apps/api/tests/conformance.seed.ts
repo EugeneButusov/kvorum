@@ -9,6 +9,7 @@ const TEST_BEARER_KEY = `${'kv_live_'}${'a'.repeat(32)}`;
 export type ConformanceSeedContext = {
   bearer: string;
   proposalWithNullVotingWindowSourceId: string;
+  actorPrimaryAddress: string;
 };
 
 export async function seedConformanceData(): Promise<ConformanceSeedContext> {
@@ -122,6 +123,24 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
         profile_data: null,
         created_at: new Date('2026-05-16T09:02:01.000Z'),
         updated_at: new Date('2026-05-16T09:02:01.000Z'),
+      },
+    ])
+    .execute();
+
+  await pgDb
+    .insertInto('actor_address')
+    .values([
+      {
+        actor_id: actorAId,
+        address: `0x${'a'.repeat(40)}`,
+        is_primary: true,
+        source: 'm1_backfill',
+      },
+      {
+        actor_id: actorBId,
+        address: `0x${'b'.repeat(40)}`,
+        is_primary: true,
+        source: 'm1_backfill',
       },
     ])
     .execute();
@@ -244,5 +263,6 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
   return {
     bearer: `Bearer ${TEST_BEARER_KEY}`,
     proposalWithNullVotingWindowSourceId: '43',
+    actorPrimaryAddress: `0x${'a'.repeat(40)}`,
   };
 }

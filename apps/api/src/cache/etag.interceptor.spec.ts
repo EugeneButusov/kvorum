@@ -142,7 +142,7 @@ describe('EtagInterceptor', () => {
     expect(errRes.setHeader).not.toHaveBeenCalled();
   });
 
-  it('sets cache-control on 3xx responses for cache-decorated routes without etag', async () => {
+  it('sets no-store cache-control on 3xx responses for cache-decorated routes without etag', async () => {
     const reflector = new Reflector();
     vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key) => {
       if (key === CACHE_CONTROL_KEY) {
@@ -167,7 +167,7 @@ describe('EtagInterceptor', () => {
     );
 
     expect(out).toEqual([{ ok: true }]);
-    expect(headers.get('Cache-Control')).toBe('public, max-age=60');
+    expect(headers.get('Cache-Control')).toBe('no-store');
     expect(headers.has('ETag')).toBe(false);
   });
 });

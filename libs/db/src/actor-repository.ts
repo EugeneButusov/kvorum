@@ -1,5 +1,5 @@
 import { sql, type Kysely, type Transaction } from 'kysely';
-import type { Actor, PgDatabase } from './schema/pg';
+import type { Actor, ActorAddress, PgDatabase } from './schema/pg';
 
 type ActorAddressSource = 'proposer_event' | 'voter_event' | 'delegator_event' | 'delegate_event';
 
@@ -126,6 +126,16 @@ export class ActorRepository {
       .select(['actor_id', 'address'])
       .where('actor_id', 'in', [...actorIds])
       .where('is_primary', '=', true)
+      .execute();
+  }
+
+  async listAddressesForActor(actorId: string): Promise<ActorAddress[]> {
+    return this.db
+      .selectFrom('actor_address')
+      .selectAll()
+      .where('actor_id', '=', actorId)
+      .orderBy('is_primary', 'desc')
+      .orderBy('address', 'asc')
       .execute();
   }
 

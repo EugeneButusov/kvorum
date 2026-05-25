@@ -10,6 +10,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { ActorRepository } from '@libs/db';
 import { ActorRoutingService } from './actor-routing.service';
 import { ActorResponseDto } from './actor.dto';
 import { toActorResponseDto } from './actor.mappers';
@@ -21,7 +22,10 @@ import { ProblemDto } from '../openapi/openapi.dto';
 @ApiBearerAuth()
 @Controller('v1/actors')
 export class ActorsController {
-  constructor(private readonly routingService: ActorRoutingService) {}
+  constructor(
+    private readonly routingService: ActorRoutingService,
+    private readonly actorRepo: ActorRepository,
+  ) {}
 
   @ApiParam({ name: 'address', type: String })
   @ApiOkResponse({ type: ActorResponseDto })
@@ -49,6 +53,7 @@ export class ActorsController {
       });
     }
 
-    return toActorResponseDto(result.actor);
+    const addresses = await this.actorRepo.listAddressesForActor(result.actor.id);
+    return toActorResponseDto(result.actor, addresses);
   }
 }

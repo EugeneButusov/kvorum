@@ -9,6 +9,20 @@ export class ActorDto {
 
   @ApiPropertyOptional({ nullable: true })
   declare display_name: string | null;
+
+  @ApiProperty({ type: () => [ActorAddressDto] })
+  declare all_addresses: ActorAddressDto[];
+}
+
+export class ActorAddressDto {
+  @ApiProperty()
+  declare address: string;
+
+  @ApiProperty()
+  declare is_primary: boolean;
+
+  @ApiProperty()
+  declare source: string;
 }
 
 export class ActorResponseDto {

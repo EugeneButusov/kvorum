@@ -28,6 +28,9 @@ function isCacheableRequest(req: Request): boolean {
 function is2xx(statusCode: number): boolean {
   return statusCode >= 200 && statusCode < 300;
 }
+function is3xx(statusCode: number): boolean {
+  return statusCode >= 300 && statusCode < 400;
+}
 
 function base64UrlSha1(input: string): string {
   return createHash('sha1').update(input).digest('base64url');
@@ -102,7 +105,10 @@ export class EtagInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap((body) => {
         if (cacheControl !== undefined) {
-          res.setHeader('Cache-Control', serializeCacheControl(cacheControl));
+          res.setHeader(
+            'Cache-Control',
+            is3xx(res.statusCode) ? 'no-store' : serializeCacheControl(cacheControl),
+          );
         }
 
         if (!is2xx(res.statusCode) || body === undefined || body === null) {

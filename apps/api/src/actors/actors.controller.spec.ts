@@ -23,7 +23,17 @@ describe('ActorsController', () => {
         },
       }),
     };
-    const controller = new ActorsController(routing as never);
+    const actorRepo = {
+      listAddressesForActor: vi.fn().mockResolvedValue([
+        {
+          actor_id: 'actor-1',
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          is_primary: true,
+          source: 'voter_event',
+        },
+      ]),
+    };
+    const controller = new ActorsController(routing as never, actorRepo as never);
     const res = mockResponse();
 
     await expect(
@@ -33,6 +43,13 @@ describe('ActorsController', () => {
         actor_id: 'actor-1',
         primary_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         display_name: 'Alice',
+        all_addresses: [
+          {
+            address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            is_primary: true,
+            source: 'voter_event',
+          },
+        ],
       },
     });
 
@@ -47,7 +64,10 @@ describe('ActorsController', () => {
         survivorPrimaryAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       }),
     };
-    const controller = new ActorsController(routing as never);
+    const controller = new ActorsController(
+      routing as never,
+      { listAddressesForActor: vi.fn() } as never,
+    );
     const res = mockResponse();
 
     await expect(
@@ -65,7 +85,10 @@ describe('ActorsController', () => {
     const routing = {
       resolveAddress: vi.fn().mockResolvedValue({ kind: 'not-found' }),
     };
-    const controller = new ActorsController(routing as never);
+    const controller = new ActorsController(
+      routing as never,
+      { listAddressesForActor: vi.fn() } as never,
+    );
 
     await expect(
       controller.getByAddress('0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', mockResponse()),
