@@ -67,7 +67,6 @@ export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
-export { ADVISORY_LOCK_NAMESPACE_MIRROR_ETL } from './advisory-lock-namespaces';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {
