@@ -75,7 +75,7 @@ If CLI reset is unavailable:
 ```sql
 UPDATE etl_watermark
 SET watermark = TIMESTAMPTZ '1970-01-01T00:00:00Z', updated_at = now()
-WHERE name = 'vote_events_etl';
+WHERE job_name = 'vote_events_etl';
 ```
 
 Use direct SQL only as an emergency fallback.
