@@ -38,6 +38,8 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DelegationRepository } from './delegation-repository';
+export { MirrorEtlRunRepository } from './mirror-etl-run-repository';
+export { MirrorEtlWatermarkRepository } from './mirror-etl-watermark-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
@@ -65,6 +67,7 @@ export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
+export { ADVISORY_LOCK_NAMESPACE_MIRROR_ETL } from './advisory-lock-namespaces';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {
@@ -128,6 +131,13 @@ export type {
   SelectorIndex,
   SelectorIndexTable,
   Delegation,
+  EtlWatermark,
+  EtlWatermarkTable,
   VotingPowerSnapshotRun,
   VotingPowerSnapshotRunStatus,
+  MirrorEtlRun,
+  MirrorEtlRunStatus,
+  MirrorEtlRunTable,
+  NewEtlWatermark,
+  NewMirrorEtlRun,
 } from './schema/pg';
