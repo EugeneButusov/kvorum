@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS vote_events_analytics
     voting_power             UInt256 CODEC(ZSTD(1)),
     cast_at                  DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
     created_at               DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
-    block_number             UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_number             UInt64 CODEC(DoubleDelta, ZSTD(1)),
     superseded               UInt8,
     INDEX bf_voter_address voter_address TYPE bloom_filter(0.01) GRANULARITY 4
 )
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS delegation_flow_analytics
     dao_id               UUID,
     dao_slug             LowCardinality(String),
     voting_power         UInt256 CODEC(ZSTD(1)),
-    block_number         UInt64 CODEC(Delta(8), ZSTD(1)),
+    block_number         UInt64 CODEC(DoubleDelta, ZSTD(1)),
     event_type           LowCardinality(String),
     created_at           DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
     INDEX bf_delegate_actor delegate_actor_id TYPE bloom_filter(0.01) GRANULARITY 4

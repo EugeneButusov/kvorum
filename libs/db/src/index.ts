@@ -38,6 +38,8 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DelegationRepository } from './delegation-repository';
+export { MirrorEtlRunRepository } from './mirror-etl-run-repository';
+export { MirrorEtlWatermarkRepository } from './mirror-etl-watermark-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
@@ -128,6 +130,13 @@ export type {
   SelectorIndex,
   SelectorIndexTable,
   Delegation,
+  EtlWatermark,
+  EtlWatermarkTable,
   VotingPowerSnapshotRun,
   VotingPowerSnapshotRunStatus,
+  MirrorEtlRun,
+  MirrorEtlRunStatus,
+  MirrorEtlRunTable,
+  NewEtlWatermark,
+  NewMirrorEtlRun,
 } from './schema/pg';
