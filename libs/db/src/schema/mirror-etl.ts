@@ -3,7 +3,7 @@ import type { Generated, Insertable, Selectable } from 'kysely';
 export type MirrorEtlRunStatus = 'in_progress' | 'completed' | 'failed';
 
 export interface EtlWatermarkTable {
-  name: string;
+  job_name: string;
   watermark: Date;
   updated_at: Generated<Date>;
 }

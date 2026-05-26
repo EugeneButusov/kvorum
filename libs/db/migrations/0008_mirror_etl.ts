@@ -6,7 +6,7 @@ const EPOCH = new Date('1970-01-01T00:00:00.000Z');
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('etl_watermark')
-    .addColumn('name', 'text', (col) => col.primaryKey())
+    .addColumn('job_name', 'text', (col) => col.primaryKey())
     .addColumn('watermark', 'timestamptz', (col) => col.notNull())
     .addColumn('updated_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .execute();
@@ -14,8 +14,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db
     .insertInto('etl_watermark')
     .values([
-      { name: 'vote_events_etl', watermark: EPOCH },
-      { name: 'delegation_flow_etl', watermark: EPOCH },
+      { job_name: 'vote_events_etl', watermark: EPOCH },
+      { job_name: 'delegation_flow_etl', watermark: EPOCH },
     ])
     .execute();
 

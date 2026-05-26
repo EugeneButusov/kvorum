@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MirrorEtlWatermarkRepository } from './mirror-etl-watermark-repository';
 
 describe('MirrorEtlWatermarkRepository', () => {
-  it('finds watermark by name', async () => {
+  it('finds watermark by job name', async () => {
     const executeTakeFirst = vi
       .fn()
       .mockResolvedValue({ watermark: new Date('2026-01-01T00:00:00Z') });
@@ -16,6 +16,6 @@ describe('MirrorEtlWatermarkRepository', () => {
     expect(watermark?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
     expect(selectFrom).toHaveBeenCalledWith('etl_watermark');
     expect(select).toHaveBeenCalledWith('watermark');
-    expect(where).toHaveBeenCalledWith('name', '=', 'vote_events_etl');
+    expect(where).toHaveBeenCalledWith('job_name', '=', 'vote_events_etl');
   });
 });
