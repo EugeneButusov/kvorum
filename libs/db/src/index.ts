@@ -38,6 +38,7 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DelegationRepository } from './delegation-repository';
+export { ADVISORY_LOCK_NAMESPACE_MIRROR_ETL } from './advisory-lock-namespaces';
 export { MirrorEtlRunRepository } from './mirror-etl-run-repository';
 export { MirrorEtlWatermarkRepository } from './mirror-etl-watermark-repository';
 export { DaoSourceRepository } from './dao-source-repository';
