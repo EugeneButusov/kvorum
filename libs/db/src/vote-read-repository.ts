@@ -63,7 +63,7 @@ export class VoteReadRepository {
     if (proposal === undefined) return [];
 
     let qb = this.ch
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection FINAL`.as('v'))
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
         'v.vote_id as id',
         'v.voting_power as voting_power_reported',
@@ -125,7 +125,7 @@ export class VoteReadRepository {
     if (addresses.length === 0) return [];
 
     const votes = await this.ch
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection FINAL`.as('v'))
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
         'v.vote_id as id',
         'v.voting_power as voting_power_reported',
@@ -199,7 +199,7 @@ export class VoteReadRepository {
 
   async findChoicesForVote(voteId: string): Promise<VoteChoiceReadRow[]> {
     const row = await this.ch
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection FINAL`.as('v'))
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select(['v.primary_choice'])
       .where('v.vote_id', '=', voteId)
       .executeTakeFirst();
