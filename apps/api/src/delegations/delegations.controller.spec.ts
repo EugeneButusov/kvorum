@@ -13,36 +13,25 @@ describe('DelegationsController', () => {
   };
 
   it('returns delegation list', async () => {
-    const qb = {
-      where: vi.fn(),
-      orderBy: vi.fn(),
-      limit: vi.fn(),
-      execute: vi.fn(),
-    };
-    qb.where.mockReturnValue(qb);
-    qb.orderBy.mockReturnValue(qb);
-    qb.limit.mockReturnValue(qb);
-    qb.execute.mockResolvedValue([
-      {
-        id: 'd1',
-        dao_id: 'dao-1',
-        voting_power: '100',
-        block_number: '123',
-        tx_hash: '0xhash',
-        event_type: 'delegate_changed',
-        created_at: new Date('2026-01-01T00:00:00Z'),
-        dao_slug: 'compound',
-        delegator_actor_id: 'a1',
-        delegator_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        delegator_display_name: 'Alice',
-        delegate_actor_id: null,
-        delegate_address: null,
-        delegate_display_name: null,
-      },
-    ]);
-
     const delegationRepo = {
-      listBaseQuery: vi.fn().mockReturnValue(qb),
+      listForDao: vi.fn().mockResolvedValue([
+        {
+          id: 'd1',
+          dao_id: 'dao-1',
+          voting_power: '100',
+          block_number: '123',
+          tx_hash: '0xhash',
+          event_type: 'delegate_changed',
+          created_at: new Date('2026-01-01T00:00:00Z'),
+          dao_slug: 'compound',
+          delegator_actor_id: 'a1',
+          delegator_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          delegator_display_name: 'Alice',
+          delegate_actor_id: null,
+          delegate_address: null,
+          delegate_display_name: null,
+        },
+      ]),
     };
     const routing = { resolveAddress: vi.fn() };
     const controller = new DelegationsController(

@@ -17,13 +17,8 @@ function makeRepos() {
     proposalRepo: {
       findNextSnapshotCandidate: vi.fn(),
     },
-    snapshotRepo: {
-      deleteForProposal: vi.fn(),
-      bulkInsert: vi.fn(),
-      sampleForProposal: vi.fn(),
-      listPrimaryAddressesForProposal: vi.fn(),
-      updatePower: vi.fn(),
-    },
+    snapshotRepo: { bulkInsert: vi.fn() },
+    actorRepo: { findPrimaryAddressesByActorIds: vi.fn() },
     runRepo: {
       findByProposalId: vi.fn(),
       touchAttempt: vi.fn(),
@@ -58,6 +53,7 @@ describe('SnapshotWorkerService', () => {
     const svc = new SnapshotWorkerService(
       repos.proposalRepo as never,
       repos.snapshotRepo as never,
+      repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
       new Map<string, VotingPowerStrategy>([
@@ -81,6 +77,7 @@ describe('SnapshotWorkerService', () => {
     const svc = new SnapshotWorkerService(
       repos.proposalRepo as never,
       repos.snapshotRepo as never,
+      repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
       new Map<string, VotingPowerStrategy>(),
@@ -97,46 +94,46 @@ describe('SnapshotWorkerService', () => {
     );
   });
 
-  it('engages fallback and updates powers when sample verification mismatches', async () => {
+  it('writes computed snapshot rows and marks run completed', async () => {
     const repos = makeRepos();
     const candidate = makeCandidate();
     repos.proposalRepo.findNextSnapshotCandidate.mockResolvedValue(candidate);
     repos.runRepo.findByProposalId.mockResolvedValue(undefined);
-    repos.snapshotRepo.bulkInsert.mockResolvedValue(1);
-    repos.snapshotRepo.sampleForProposal.mockResolvedValue([
-      { actorId: 'actor-1', address: '0xabc', power: '10' },
-    ]);
-    repos.snapshotRepo.listPrimaryAddressesForProposal.mockResolvedValue([
-      { actorId: 'actor-1', address: '0xabc' },
+    repos.actorRepo.findPrimaryAddressesByActorIds.mockResolvedValue([
+      { actor_id: 'actor-1', address: '0xabc' },
     ]);
 
     const strategy: VotingPowerStrategy = {
-      computeSnapshot: vi
-        .fn()
-        .mockResolvedValue([{ actorId: 'actor-1', address: '0xabc', power: 10n }]),
-      verifyOnChain: vi
-        .fn()
-        .mockResolvedValueOnce(11n) // sample mismatch
-        .mockResolvedValueOnce(11n), // fallback value
+      computeSnapshot: vi.fn().mockResolvedValue([{ actorId: 'actor-1', power: 10n }]),
+      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
       repos.proposalRepo as never,
       repos.snapshotRepo as never,
+      repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
       new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
-      outcome: 'fallback_engaged',
+      outcome: 'verified',
       proposalId: candidate.id,
     });
-    expect(repos.snapshotRepo.listPrimaryAddressesForProposal).toHaveBeenCalledWith(candidate.id);
-    expect(repos.snapshotRepo.updatePower).toHaveBeenCalledWith(candidate.id, 'actor-1', '11');
+    expect(repos.actorRepo.findPrimaryAddressesByActorIds).toHaveBeenCalledWith(['actor-1']);
+    expect(repos.snapshotRepo.bulkInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        dao_id: 'dao-1',
+        proposal_id: 'proposal-1',
+        actor_address: '0xabc',
+        voting_power: '10',
+        actor_id_hint: 'actor-1',
+      }),
+    ]);
     expect(repos.runRepo.markCompleted).toHaveBeenCalledWith(
       candidate.id,
-      expect.objectContaining({ fallback_engaged: true, rows_inserted: 1 }),
+      expect.objectContaining({ fallback_engaged: false, rows_inserted: 1 }),
     );
   });
 
@@ -155,6 +152,7 @@ describe('SnapshotWorkerService', () => {
     const svc = new SnapshotWorkerService(
       repos.proposalRepo as never,
       repos.snapshotRepo as never,
+      repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
       new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),

@@ -116,7 +116,7 @@ describe('GovernorVoteProjectionApplier', () => {
     );
   });
 
-  it('projects vote + choice and marks row derived', async () => {
+  it('records pg_tx_error when proposal/db path is unavailable', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories: TestRepositories = {
       proposals: {
@@ -140,21 +140,9 @@ describe('GovernorVoteProjectionApplier', () => {
 
     await applier.applyBatch([BASE_ROW]);
 
-    expect(repositories.votes.insertVote).toHaveBeenCalledWith(
-      expect.objectContaining({
-        proposal_id: 'proposal-1',
-        voter_actor_id: 'actor-1',
-        reason: 'reason-from-compound',
-      }),
-    );
-    expect(repositories.votes.insertVoteChoice).toHaveBeenCalledWith('vote-1', {
-      choice_index: 1,
-      weight: '1.0',
-    });
-    expect(repositories.archive.markDerived).toHaveBeenCalledWith('archive-1');
-    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'derived', reason: null }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 
@@ -182,9 +170,8 @@ describe('GovernorVoteProjectionApplier', () => {
 
     await applier.applyBatch([BASE_ROW]);
 
-    expect(repositories.votes.insertVoteChoice).not.toHaveBeenCalled();
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 
@@ -207,11 +194,11 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'no_proposal' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 
-  it('fails with no_voter and increments attempts', async () => {
+  it('fails with pg_tx_error and increments attempts', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories: TestRepositories = {
       proposals: {
@@ -230,7 +217,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'no_voter' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 

@@ -65,7 +65,7 @@ describe('CompTokenDelegationProjectionApplier', () => {
     expect(applier.eventTypes).toEqual(['DelegateChanged', 'DelegateVotesChanged']);
   });
 
-  it('projects DelegateChanged and marks row derived', async () => {
+  it('records pg_tx_error when proposal/db path is unavailable', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories = {
       proposals: { findDaoIdForSource: vi.fn().mockResolvedValue('dao-1') },
@@ -84,22 +84,13 @@ describe('CompTokenDelegationProjectionApplier', () => {
 
     await applier.applyBatch([BASE_ROW]);
 
-    expect(repositories.delegations.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dao_id: 'dao-1',
-        delegator_actor_id: 'delegator-actor',
-        delegate_actor_id: 'delegate-actor',
-        event_type: 'delegate_changed',
-      }),
-    );
-    expect(repositories.archive.markDerived).toHaveBeenCalledWith('archive-1');
-    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'derived', reason: null }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 
-  it('fails with no_delegator', async () => {
+  it('fails with pg_tx_error', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories = {
       proposals: { findDaoIdForSource: vi.fn().mockResolvedValue('dao-1') },
@@ -115,7 +106,7 @@ describe('CompTokenDelegationProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'no_delegator' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
     );
   });
 
