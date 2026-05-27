@@ -23,7 +23,7 @@ const FACTORIES = new Map<Type, () => unknown>([
   ],
   [ApiKeyRepository, () => new ApiKeyRepository(pgDb)],
   [DaoReadRepository, () => new DaoReadRepository(pgDb)],
-  [DelegationReadRepository, () => new DelegationReadRepository(pgDb)],
+  [DelegationReadRepository, () => new DelegationReadRepository(pgDb, chDb as never)],
   [ProposalReadRepository, () => new ProposalReadRepository(pgDb)],
   [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb as never)],
 ]);
