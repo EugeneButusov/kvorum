@@ -5,43 +5,47 @@ import { COMP_TOKEN_ADDRESS } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { COMPOUND_SOURCE_PLUGIN, CompoundSourceModule } from './compound.module';
 
-vi.mock('@libs/db', () => ({
-  pgDb: {},
-  chDb: {},
-  ActorRepository: class {
-    constructor(_db: unknown) {}
-  },
-  ArchiveEventRepository: class {
-    public find = vi.fn();
-    public insert = vi.fn();
-    constructor(_db: unknown) {}
-  },
-  DaoSourceRepository: class {
-    constructor(_db: unknown) {}
-  },
-  DelegationRepository: class {
-    constructor(_db: unknown) {}
-  },
-  DelegationFlowProjectionWriter: class {
-    constructor(_db: unknown) {}
-  },
-  DlqRepository: class {
-    public insert = vi.fn();
-    constructor(_db: unknown) {}
-  },
-  ArchiveDerivationRepository: class {
-    constructor(_db: unknown) {}
-  },
-  VoteEventsProjectionWriter: class {
-    constructor(_db: unknown) {}
-  },
-  VoteEventsProjectionReadRepository: class {
-    constructor(_db: unknown) {}
-  },
-  VotingPowerSnapshotProjectionWriter: class {
-    constructor(_db: unknown) {}
-  },
-}));
+vi.mock('@libs/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@libs/db')>();
+  return {
+    ...actual,
+    pgDb: {},
+    chDb: {},
+    ActorRepository: class {
+      constructor(_db: unknown) {}
+    },
+    ArchiveEventRepository: class {
+      public find = vi.fn();
+      public insert = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DaoSourceRepository: class {
+      constructor(_db: unknown) {}
+    },
+    DelegationRepository: class {
+      constructor(_db: unknown) {}
+    },
+    DelegationFlowProjectionWriter: class {
+      constructor(_db: unknown) {}
+    },
+    DlqRepository: class {
+      public insert = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    ArchiveDerivationRepository: class {
+      constructor(_db: unknown) {}
+    },
+    VoteEventsProjectionWriter: class {
+      constructor(_db: unknown) {}
+    },
+    VoteEventsProjectionReadRepository: class {
+      constructor(_db: unknown) {}
+    },
+    VotingPowerSnapshotProjectionWriter: class {
+      constructor(_db: unknown) {}
+    },
+  };
+});
 
 describe('CompoundSourceModule', () => {
   beforeEach(() => {

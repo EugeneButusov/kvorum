@@ -43,6 +43,12 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
   imports: [
     ChainContextModule,
     DbModule.forFeature([
+      ActorRepository,
+      ArchiveDerivationRepository,
+      ArchiveEventRepository,
+      DaoSourceRepository,
+      DelegationRepository,
+      DlqRepository,
       ProposalRepository,
       VoteEventsProjectionReadRepository,
       VoteEventsProjectionWriter,
@@ -50,23 +56,9 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
   ],
   providers: [
     {
-      provide: ArchiveEventRepository,
-      useFactory: () => new ArchiveEventRepository(pgDb),
-    },
-    {
-      provide: DlqRepository,
-      useFactory: () => new DlqRepository(pgDb),
-    },
-    {
-      provide: ArchiveDerivationRepository,
-      useFactory: () => new ArchiveDerivationRepository(pgDb),
-    },
-    {
       provide: GovernorArchiveWriter,
-      useFactory: () => {
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) => {
         const eventRepo = new GovernorEventRepository({ chDb });
-        const archiveEventRepo = new ArchiveEventRepository(pgDb);
-        const dlqRepo = new DlqRepository(pgDb);
         return new GovernorArchiveWriter({
           eventRepo,
           archiveEventRepo,
@@ -74,6 +66,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           logger: toChainLogger(new Logger('GovernorArchiveWriter')),
         });
       },
+      inject: [ArchiveEventRepository, DlqRepository],
     },
     {
       provide: CompoundProposalRepository,
@@ -100,11 +93,11 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
     },
     {
       provide: GovernorProjectionApplier,
-      useFactory: () =>
+      useFactory: (archive: ArchiveDerivationRepository) =>
         new GovernorProjectionApplier({
           pgDb,
           chDb,
-          archive: new ArchiveDerivationRepository(pgDb),
+          archive,
           payloads: new GovernorArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
@@ -112,18 +105,21 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           },
           logger: toChainLogger(new Logger('GovernorProjectionApplier')),
         }),
+      inject: [ArchiveDerivationRepository],
     },
     {
       provide: GovernorVoteProjectionApplier,
       useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlq: DlqRepository,
         proposals: ProposalRepository,
         voteRead: VoteEventsProjectionReadRepository,
         voteWrite: VoteEventsProjectionWriter,
         registry: ChainContextRegistry,
       ) =>
         new GovernorVoteProjectionApplier({
-          archive: new ArchiveDerivationRepository(pgDb),
-          dlq: new DlqRepository(pgDb),
+          archive,
+          dlq,
           payloads: new GovernorArchivePayloadRepository(chDb),
           proposals,
           voteRead,
@@ -136,6 +132,8 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           logger: toChainLogger(new Logger('GovernorVoteProjectionApplier')),
         }),
       inject: [
+        ArchiveDerivationRepository,
+        DlqRepository,
         ProposalRepository,
         VoteEventsProjectionReadRepository,
         VoteEventsProjectionWriter,
@@ -144,12 +142,12 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
     },
     {
       provide: CompTokenDelegationProjectionApplier,
-      useFactory: () =>
+      useFactory: (archive: ArchiveDerivationRepository, dlq: DlqRepository) =>
         new CompTokenDelegationProjectionApplier({
           pgDb,
           chDb,
-          archive: new ArchiveDerivationRepository(pgDb),
-          dlq: new DlqRepository(pgDb),
+          archive,
+          dlq,
           payloads: new CompTokenArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
@@ -157,6 +155,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           },
           logger: toChainLogger(new Logger('CompTokenDelegationProjectionApplier')),
         }),
+      inject: [ArchiveDerivationRepository, DlqRepository],
     },
     {
       provide: COMPOUND_SOURCE_PLUGIN,
@@ -168,6 +167,9 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
+        delegationRepo: DelegationRepository,
+        actorRepo: ActorRepository,
+        daoSourceRepo: DaoSourceRepository,
         registry: ChainContextRegistry,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
@@ -177,9 +179,9 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
         const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
-          new DelegationRepository(pgDb),
-          new ActorRepository(pgDb),
-          new DaoSourceRepository(pgDb),
+          delegationRepo,
+          actorRepo,
+          daoSourceRepo,
           registry,
           '0x1',
         );
@@ -254,6 +256,9 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
         CompTokenDelegationProjectionApplier,
+        DelegationRepository,
+        ActorRepository,
+        DaoSourceRepository,
         ChainContextRegistry,
       ],
     },
