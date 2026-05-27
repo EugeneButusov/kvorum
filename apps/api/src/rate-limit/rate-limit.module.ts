@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { parseRateLimitConfigFromEnv } from './rate-limit.config';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
 import {
+  RateLimiterService,
   RedisRateLimiterService,
   TestRateLimiterService,
   type RateLimiter,
@@ -47,12 +48,16 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
       inject: [RATE_LIMIT_CONFIG],
     },
     {
-      provide: RATE_LIMITER,
+      provide: RateLimiterService,
       useFactory: (redis: SlidingWindowRedis) => {
         const isTest = process.env['NODE_ENV'] === 'test';
         return isTest ? new TestRateLimiterService() : new RedisRateLimiterService(redis);
       },
       inject: [RATE_LIMIT_REDIS],
+    },
+    {
+      provide: RATE_LIMITER,
+      useExisting: RateLimiterService,
     },
     {
       provide: RateLimitInterceptor,
