@@ -25,7 +25,7 @@ const FACTORIES = new Map<Type, () => unknown>([
   [DaoReadRepository, () => new DaoReadRepository(pgDb)],
   [DelegationReadRepository, () => new DelegationReadRepository(pgDb)],
   [ProposalReadRepository, () => new ProposalReadRepository(pgDb)],
-  [VoteReadRepository, () => new VoteReadRepository(pgDb)],
+  [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb as never)],
 ]);
 
 @Module({})

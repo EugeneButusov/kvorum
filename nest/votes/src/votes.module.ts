@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { pgDb, ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import { chDb, pgDb, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 
 @Module({
   providers: [
-    { provide: VoteReadRepository, useFactory: () => new VoteReadRepository(pgDb) },
+    { provide: VoteReadRepository, useFactory: () => new VoteReadRepository(pgDb, chDb as never) },
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
   ],
   exports: [VoteReadRepository, ProposalReadRepository],

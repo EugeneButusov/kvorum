@@ -25,7 +25,6 @@ import {
   decodeCursor,
   parseLimit,
 } from '../pagination/cursor';
-import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
 @ApiTags('votes')
@@ -91,12 +90,15 @@ export class VotesController {
     }
 
     const canonical = canonicalQuery(parsed);
-    let qb = this.voteRepo.listBaseQuery().where('vote.proposal_id', '=', found.proposal.id);
-    if (voterActorId !== undefined) {
-      qb = qb.where('vote.voter_actor_id', '=', voterActorId);
-    }
-
-    const rows = await applyQuery(qb, parsed, VOTE_QUERY, limit, cursor).execute();
+    const primaryChoices =
+      parsed.filters['primary_choice']?.value == null
+        ? undefined
+        : (parsed.filters['primary_choice'].value as number[]);
+    const rows = await this.voteRepo.listForProposal({
+      proposalId: found.proposal.id,
+      voterActorId,
+      primaryChoices,
+    });
     const sort = parsed.sort[0] ?? VOTE_QUERY.defaultSort[0];
     const page = buildPagination(rows, limit, (row) => ({
       type: sort?.field === 'voting_power_reported' ? 'numeric' : 'time',
