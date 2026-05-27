@@ -5,17 +5,13 @@ export class AnalyticsMetaDto {
   @ApiProperty()
   declare confirmed: boolean;
 
-  @ApiProperty()
-  declare mirror_ready: boolean;
-
   @ApiPropertyOptional({ nullable: true })
-  declare mirror_last_etl: string | null;
+  declare derived_through: string | null;
 }
 
-export function toAnalyticsMeta(mirrorLastEtl: Date | null): AnalyticsMetaDto {
+export function toAnalyticsMeta(derivedThrough: Date | null): AnalyticsMetaDto {
   return {
     confirmed: true,
-    mirror_ready: mirrorLastEtl !== null,
-    mirror_last_etl: isoSeconds(mirrorLastEtl),
+    derived_through: isoSeconds(derivedThrough),
   };
 }

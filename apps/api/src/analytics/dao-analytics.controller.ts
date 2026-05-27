@@ -69,7 +69,7 @@ export class DaoAnalyticsController {
 
     return {
       data: rows.map(toPassRateRowDto),
-      _meta: { confirmed: true, mirror_ready: true, mirror_last_etl: null },
+      _meta: { confirmed: true, derived_through: null },
     };
   }
 
