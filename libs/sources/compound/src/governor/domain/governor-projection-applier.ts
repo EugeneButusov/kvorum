@@ -29,7 +29,10 @@ export type CompoundDerivationOutcome =
   | 'skipped_idempotent'
   | 'failed';
 
-export type CompoundDerivationFailureReason = 'ch_missing' | 'decode_error' | 'pg_tx_error';
+export type CompoundDerivationFailureReason =
+  | 'payload_missing'
+  | 'decode_error'
+  | 'projection_apply_error';
 
 export interface GovernorProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
@@ -100,7 +103,7 @@ export class GovernorProjectionApplier {
     for (const row of rows) {
       const payload = byKey.get(tupleKey(row));
       if (payload === undefined) {
-        this.record(row, 'failed', 'ch_missing');
+        this.record(row, 'failed', 'payload_missing');
         await this.archive.incrementAttemptCount(row.id);
         this.logger.error('derivation_ch_missing', {
           row_id: row.id,
@@ -200,7 +203,7 @@ export class GovernorProjectionApplier {
         },
       );
     } catch (err) {
-      this.record(row, 'failed', 'pg_tx_error');
+      this.record(row, 'failed', 'projection_apply_error');
       await this.archive.incrementAttemptCount(row.id);
       this.logger.error('derivation_pg_tx_failed', {
         row_id: row.id,

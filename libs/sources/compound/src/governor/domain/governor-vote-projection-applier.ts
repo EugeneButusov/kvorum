@@ -24,10 +24,10 @@ const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
 
 export type CompoundVoteDerivationOutcome = 'derived' | 'skipped_idempotent' | 'failed';
 export type CompoundVoteDerivationFailureReason =
-  | 'ch_missing'
+  | 'payload_missing'
   | 'decode_error'
   | 'projection_apply_error'
-  | 'pg_watermark_error'
+  | 'watermark_update_error'
   | 'no_proposal'
   | 'block_timestamp_unavailable';
 
@@ -126,7 +126,7 @@ export class GovernorVoteProjectionApplier {
     for (const row of cappedRows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
-        await this.failAndMaybeDlq(row, 'ch_missing', new Error('archive payload missing'));
+        await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));
         continue;
       }
 
@@ -195,7 +195,7 @@ export class GovernorVoteProjectionApplier {
       try {
         await this.archive.markDerived(row.id);
       } catch (watermarkError) {
-        await this.failAndMaybeDlq(row, 'pg_watermark_error', watermarkError);
+        await this.failAndMaybeDlq(row, 'watermark_update_error', watermarkError);
         return;
       }
 

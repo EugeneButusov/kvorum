@@ -65,7 +65,7 @@ describe('CompTokenDelegationProjectionApplier', () => {
     expect(applier.eventTypes).toEqual(['DelegateChanged', 'DelegateVotesChanged']);
   });
 
-  it('records pg_tx_error when proposal/db path is unavailable', async () => {
+  it('records projection_apply_error when proposal/db path is unavailable', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories = {
       proposals: { findDaoIdForSource: vi.fn().mockResolvedValue('dao-1') },
@@ -86,11 +86,11 @@ describe('CompTokenDelegationProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 
-  it('fails with pg_tx_error', async () => {
+  it('fails with projection_apply_error', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories = {
       proposals: { findDaoIdForSource: vi.fn().mockResolvedValue('dao-1') },
@@ -106,7 +106,7 @@ describe('CompTokenDelegationProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 

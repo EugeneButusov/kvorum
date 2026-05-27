@@ -23,10 +23,10 @@ const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 
 export type CompTokenDelegationDerivationOutcome = 'derived' | 'failed';
 export type CompTokenDelegationDerivationFailureReason =
-  | 'ch_missing'
+  | 'payload_missing'
   | 'decode_error'
-  | 'pg_tx_error'
-  | 'pg_watermark_error'
+  | 'projection_apply_error'
+  | 'watermark_update_error'
   | 'no_dao'
   | 'unknown_event_type';
 
@@ -94,7 +94,7 @@ export class CompTokenDelegationProjectionApplier {
     for (const row of cappedRows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
-        await this.failAndMaybeDlq(row, 'ch_missing', new Error('archive payload missing'));
+        await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));
         continue;
       }
       await this.apply(row, payload);
@@ -124,13 +124,13 @@ export class CompTokenDelegationProjectionApplier {
       try {
         await this.archive.markDerived(row.id);
       } catch (watermarkError) {
-        await this.failAndMaybeDlq(row, 'pg_watermark_error', watermarkError);
+        await this.failAndMaybeDlq(row, 'watermark_update_error', watermarkError);
         return;
       }
 
       this.record(row, 'derived', null);
     } catch (error) {
-      const reason = error instanceof ProjectionError ? error.reason : 'pg_tx_error';
+      const reason = error instanceof ProjectionError ? error.reason : 'projection_apply_error';
       await this.failAndMaybeDlq(row, reason, error);
     }
   }
