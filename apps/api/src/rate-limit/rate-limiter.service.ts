@@ -22,8 +22,12 @@ export interface RateLimitResult {
   bindingWindow: 'minute' | 'day';
 }
 
+export interface RateLimiter {
+  consume(identity: string, tier: Tier, nowMs?: number): Promise<RateLimitResult>;
+}
+
 @Injectable()
-export class RateLimiterService {
+export class RedisRateLimiterService implements RateLimiter {
   constructor(private readonly redis: SlidingWindowRedis) {}
 
   async consume(identity: string, tier: Tier, nowMs = Date.now()): Promise<RateLimitResult> {
@@ -44,6 +48,23 @@ export class RateLimiterService {
     } catch (error: unknown) {
       throw new RedisUnavailableError(error);
     }
+  }
+}
+
+@Injectable()
+export class RateLimiterService extends RedisRateLimiterService {}
+
+@Injectable()
+export class TestRateLimiterService implements RateLimiter {
+  async consume(): Promise<RateLimitResult> {
+    return {
+      allowed: true,
+      limit: Number.MAX_SAFE_INTEGER,
+      remaining: Number.MAX_SAFE_INTEGER,
+      resetSeconds: 0,
+      retryAfterSeconds: 0,
+      bindingWindow: 'minute',
+    };
   }
 }
 

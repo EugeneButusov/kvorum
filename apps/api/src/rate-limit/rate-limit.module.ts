@@ -2,21 +2,16 @@ import { Module, type OnApplicationBootstrap, type OnApplicationShutdown } from 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { parseRateLimitConfigFromEnv } from './rate-limit.config';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
-import type { RateLimitResult } from './rate-limiter.service';
-import { RateLimiterService } from './rate-limiter.service';
+import {
+  RedisRateLimiterService,
+  TestRateLimiterService,
+  type RateLimiter,
+} from './rate-limiter.service';
+import { RATE_LIMITER } from './rate-limiter.token';
 import { createRateLimitRedis, type SlidingWindowRedis } from './redis.client';
 
 const RATE_LIMIT_CONFIG = Symbol('RATE_LIMIT_CONFIG');
 const RATE_LIMIT_REDIS = Symbol('RATE_LIMIT_REDIS');
-
-const TEST_RATE_LIMIT_RESULT: RateLimitResult = {
-  allowed: true,
-  limit: Number.MAX_SAFE_INTEGER,
-  remaining: Number.MAX_SAFE_INTEGER,
-  resetSeconds: 0,
-  retryAfterSeconds: 0,
-  bindingWindow: 'minute',
-};
 
 class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   constructor(private readonly redis: SlidingWindowRedis) {}
@@ -51,22 +46,17 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
       inject: [RATE_LIMIT_CONFIG],
     },
     {
-      provide: RateLimiterService,
+      provide: RATE_LIMITER,
       useFactory: (redis: SlidingWindowRedis) => {
-        if (process.env['NODE_ENV'] === 'test') {
-          return {
-            consume: async () => TEST_RATE_LIMIT_RESULT,
-          } as unknown as RateLimiterService;
-        }
-        return new RateLimiterService(redis);
+        const isTest = process.env['NODE_ENV'] === 'test';
+        return isTest ? new TestRateLimiterService() : new RedisRateLimiterService(redis);
       },
       inject: [RATE_LIMIT_REDIS],
     },
     {
       provide: RateLimitInterceptor,
-      useFactory: (rateLimiterService: RateLimiterService) =>
-        new RateLimitInterceptor(rateLimiterService),
-      inject: [RateLimiterService],
+      useFactory: (rateLimiterService: RateLimiter) => new RateLimitInterceptor(rateLimiterService),
+      inject: [RATE_LIMITER],
     },
     {
       provide: APP_INTERCEPTOR,
