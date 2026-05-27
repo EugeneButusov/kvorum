@@ -125,7 +125,7 @@ export class DelegationsController {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
     }
 
-    const resolved = await this.routing.resolveAddress(delegateAddress, 'delegations.current');
+    const resolved = await this.routing.resolveAddress(delegateAddress);
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(
@@ -188,7 +188,7 @@ export class DelegationsController {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
     }
 
-    const resolved = await this.routing.resolveAddress(address, 'delegations.actor');
+    const resolved = await this.routing.resolveAddress(address);
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

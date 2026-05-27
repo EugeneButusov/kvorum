@@ -64,7 +64,7 @@ export class VotesController {
 
     let voterActorId: string | undefined;
     if (typeof query['voter'] === 'string') {
-      const resolved = await this.routing.resolveAddress(query['voter'], 'votes.list');
+      const resolved = await this.routing.resolveAddress(query['voter']);
       if (resolved.kind === 'redirect') {
         res.status(301);
         res.setHeader(
@@ -138,7 +138,7 @@ export class VotesController {
       });
     }
 
-    const resolved = await this.routing.resolveAddress(voterAddress, 'votes.detail');
+    const resolved = await this.routing.resolveAddress(voterAddress);
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

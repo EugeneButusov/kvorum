@@ -197,10 +197,7 @@ export class DaoAnalyticsController {
       ],
     });
 
-    const routing = await this.routing.resolveAddress(
-      parsed.data.delegate.toLowerCase(),
-      'analytics.delegate_alignment',
-    );
+    const routing = await this.routing.resolveAddress(parsed.data.delegate.toLowerCase());
     if (routing.kind === 'redirect') {
       res.status(301);
       res.setHeader(

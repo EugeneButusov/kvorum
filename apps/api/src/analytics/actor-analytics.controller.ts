@@ -38,7 +38,7 @@ export class ActorAnalyticsController {
     @Param('address') rawAddress: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<CrossDaoActorDto | undefined> {
-    const resolved = await this.routing.resolveAddress(rawAddress, 'analytics.actor_cross_dao');
+    const resolved = await this.routing.resolveAddress(rawAddress);
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

@@ -39,7 +39,7 @@ export class ActorsController {
     @Param('address') rawAddress: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ActorResponseDto | undefined> {
-    const result = await this.routingService.resolveAddress(rawAddress, 'actors.detail');
+    const result = await this.routingService.resolveAddress(rawAddress);
 
     if (result.kind === 'redirect') {
       res.status(301);

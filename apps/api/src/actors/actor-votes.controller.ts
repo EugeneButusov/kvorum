@@ -48,7 +48,7 @@ export class ActorVotesController {
     @Query() rawQuery: ApiListQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ActorVoteListResponseDto | undefined> {
-    const resolved = await this.routing.resolveAddress(rawAddress, 'actors.votes');
+    const resolved = await this.routing.resolveAddress(rawAddress);
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader('Location', `/v1/actors/${resolved.survivorPrimaryAddress}/votes`);

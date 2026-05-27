@@ -15,7 +15,7 @@ export type ActorRoutingResult =
 export class ActorRoutingService {
   constructor(private readonly repo: ActorRoutingReadRepository) {}
 
-  async resolveAddress(rawAddress: string, endpoint = 'unknown'): Promise<ActorRoutingResult> {
+  async resolveAddress(rawAddress: string): Promise<ActorRoutingResult> {
     if (!ADDRESS_PATTERN.test(rawAddress)) {
       throw badRequestProblem('validation', [
         { field: 'address', message: 'must be 0x + 40 hex characters' },
@@ -45,7 +45,7 @@ export class ActorRoutingService {
       };
     }
 
-    apiMetrics.addressResolutionMisses.add(1, { endpoint });
+    apiMetrics.addressResolutionMisses.add(1);
     return { kind: 'not-found' };
   }
 }
