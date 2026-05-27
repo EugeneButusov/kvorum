@@ -55,9 +55,16 @@ export class ActorRoutingReadRepository {
 
     const rows = (
       await sql<CurrentActorIdByAddressRow>`
-        select address, current_actor_id
-        from actor_redirect_view
-        where address in (${sql.join(normalized.map((address) => sql`${address}`))})
+        with input_addresses as (
+          select unnest(array[${sql.join(normalized.map((address) => sql`${address}`))}]::text[]) as address
+        )
+        select
+          i.address as address,
+          coalesce(aa.actor_id, a.id, aar.to_actor_id) as current_actor_id
+        from input_addresses i
+        left join actor_address aa on aa.address = i.address
+        left join actor a on a.primary_address = i.address
+        left join actor_address_redirect aar on aar.from_address = i.address
       `.execute(this.db)
     ).rows;
 
