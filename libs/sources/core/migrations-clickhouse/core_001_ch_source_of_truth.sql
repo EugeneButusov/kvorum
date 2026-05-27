@@ -64,7 +64,20 @@ SOURCE(
         USER 'postgres'
         PASSWORD 'postgres'
         DB 'kvorum'
-        TABLE 'actor_redirect_view'
+        QUERY '
+            SELECT
+              aa.address,
+              aa.actor_id AS current_actor_id
+            FROM actor_address aa
+            UNION ALL
+            SELECT
+              r.from_address AS address,
+              r.to_actor_id AS current_actor_id
+            FROM actor_address_redirect r
+            WHERE NOT EXISTS (
+              SELECT 1 FROM actor_address aa WHERE aa.address = r.from_address
+            )
+        '
     )
 )
 LIFETIME(MIN 30 MAX 90)
