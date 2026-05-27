@@ -17,12 +17,10 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   constructor(private readonly redis: SlidingWindowRedis) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    if (process.env['NODE_ENV'] === 'test') return;
     await this.redis.connect();
   }
 
   async onApplicationShutdown(): Promise<void> {
-    if (process.env['NODE_ENV'] === 'test') return;
     try {
       await this.redis.quit();
     } catch {
@@ -41,8 +39,11 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
     },
     {
       provide: RATE_LIMIT_REDIS,
-      useFactory: (config: ReturnType<typeof parseRateLimitConfigFromEnv>) =>
-        createRateLimitRedis(config),
+      useFactory: (config: ReturnType<typeof parseRateLimitConfigFromEnv>) => {
+        const isTest = process.env['NODE_ENV'] === 'test';
+        if (isTest) return createNoopRateLimitRedis();
+        return createRateLimitRedis(config);
+      },
       inject: [RATE_LIMIT_CONFIG],
     },
     {
@@ -70,3 +71,12 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   ],
 })
 export class RateLimitModule {}
+
+function createNoopRateLimitRedis(): SlidingWindowRedis {
+  return {
+    connect: async () => undefined,
+    quit: async () => 'OK',
+    disconnect: () => undefined,
+    slidingWindow: async () => [1, 1, 1, 0, 0, 'minute'],
+  } as unknown as SlidingWindowRedis;
+}
