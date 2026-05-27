@@ -23,4 +23,8 @@ export const apiMetrics = {
     name: 'rate_limit_rejections',
     description: 'Rate limit rejections by tier and reason',
   }),
+  addressResolutionMisses: defineCounter({
+    name: 'address_resolution_misses_total',
+    description: 'Address lookups that did not resolve to any actor',
+  }),
 } as const;

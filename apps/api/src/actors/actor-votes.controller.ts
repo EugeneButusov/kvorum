@@ -38,7 +38,7 @@ export class ActorVotesController {
   ) {}
 
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorVoteListResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -49,7 +49,7 @@ export class ActorVotesController {
     @Query() rawQuery: ApiListQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ActorVoteListResponseDto | undefined> {
-    const resolved = await this.routing.resolveAddress(rawAddress);
+    const resolved = await this.routing.resolveAddress(rawAddress, 'actors.votes');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader('Location', `/v1/actors/${resolved.survivorPrimaryAddress}/votes`);

@@ -44,7 +44,7 @@ export class DelegationsController {
   ) {}
 
   @Get('delegations')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: DelegationListResponseDto })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -90,7 +90,7 @@ export class DelegationsController {
   }
 
   @Get('delegates/:delegate_address/current')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: CurrentDelegatorsResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical delegate address' })
   @ApiQuery({ name: 'as_of_block_number', required: false, type: String })
@@ -108,7 +108,7 @@ export class DelegationsController {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
     }
 
-    const resolved = await this.routing.resolveAddress(delegateAddress);
+    const resolved = await this.routing.resolveAddress(delegateAddress, 'delegations.current');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(
@@ -155,7 +155,7 @@ export class DelegationsController {
   }
 
   @Get('actors/:address/delegation')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   @ApiOkResponse({ type: ActorDelegationResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -171,7 +171,7 @@ export class DelegationsController {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
     }
 
-    const resolved = await this.routing.resolveAddress(address);
+    const resolved = await this.routing.resolveAddress(address, 'delegations.actor');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

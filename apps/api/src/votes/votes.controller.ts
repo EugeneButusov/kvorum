@@ -39,7 +39,7 @@ export class VotesController {
   ) {}
 
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: VoteListResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical voter filter' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -65,7 +65,7 @@ export class VotesController {
 
     let voterActorId: string | undefined;
     if (typeof query['voter'] === 'string') {
-      const resolved = await this.routing.resolveAddress(query['voter']);
+      const resolved = await this.routing.resolveAddress(query['voter'], 'votes.list');
       if (resolved.kind === 'redirect') {
         res.status(301);
         res.setHeader(
@@ -116,7 +116,7 @@ export class VotesController {
   }
 
   @Get(':voter_address')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   @ApiOkResponse({ type: VoteDetailResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical voter address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -136,7 +136,7 @@ export class VotesController {
       });
     }
 
-    const resolved = await this.routing.resolveAddress(voterAddress);
+    const resolved = await this.routing.resolveAddress(voterAddress, 'votes.detail');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

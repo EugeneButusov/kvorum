@@ -38,12 +38,13 @@ describe('etagTesting helpers', () => {
     const opts: CacheControlOptions = {
       visibility: 'private',
       maxAgeSecs: 60,
+      mustRevalidate: true,
       sMaxAgeSecs: 120,
       staleWhileRevalidateSecs: 30,
     };
     expect(etagTesting.serializeCacheControl(undefined)).toBe('no-cache');
     expect(etagTesting.serializeCacheControl(opts)).toBe(
-      'private, max-age=60, s-maxage=120, stale-while-revalidate=30',
+      'private, max-age=60, s-maxage=120, must-revalidate, stale-while-revalidate=30',
     );
   });
 });
