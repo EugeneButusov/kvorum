@@ -142,13 +142,12 @@ export class SnapshotWorkerService {
       await this.snapshotRepo.bulkInsert(snapshotRows);
 
       const sampleSize = Math.min(SNAPSHOT_SAMPLE_SIZE, computed.length);
-      const mismatch = false;
 
       await this.runRepo.markCompleted(candidate.id, {
         rows_inserted: computed.length,
         population_size: computed.length,
         sample_size: sampleSize,
-        fallback_engaged: mismatch,
+        fallback_engaged: false,
         completed_at: new Date(),
       });
 
