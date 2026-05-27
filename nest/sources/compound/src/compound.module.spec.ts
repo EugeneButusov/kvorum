@@ -35,6 +35,9 @@ vi.mock('@libs/db', () => ({
   VoteEventsProjectionWriter: class {
     constructor(_db: unknown) {}
   },
+  VoteEventsProjectionReadRepository: class {
+    constructor(_db: unknown) {}
+  },
   VotingPowerSnapshotProjectionWriter: class {
     constructor(_db: unknown) {}
   },

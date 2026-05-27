@@ -1,14 +1,5 @@
-import { sql, type Generated, type Kysely } from 'kysely';
+import type { Generated, Kysely } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
-
-export interface CurrentVoteRow {
-  voteId: string;
-  castAt: Date;
-  blockNumber: string;
-  logIndex: number;
-  primaryChoice: number;
-  votingPower: string;
-}
 
 export interface NewVoteEventsProjectionRow {
   vote_id: string;
@@ -41,34 +32,12 @@ type VoteEventsProjectionTable = {
   version: Generated<Date>;
 };
 
-type VoteEventsFlatDatabase = ClickHouseDatabase & {
+type VoteEventsProjectionDatabase = ClickHouseDatabase & {
   vote_events_projection: VoteEventsProjectionTable;
 };
 
 export class VoteEventsProjectionWriter {
-  constructor(private readonly chDb: Kysely<VoteEventsFlatDatabase>) {}
-
-  async findCurrentVote(args: {
-    daoId: string;
-    proposalId: string;
-    voterAddress: string;
-  }): Promise<CurrentVoteRow | undefined> {
-    return this.chDb
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection FINAL`.as('vef'))
-      .select([
-        'vef.vote_id as voteId',
-        'vef.cast_at as castAt',
-        'vef.block_number as blockNumber',
-        'vef.log_index as logIndex',
-        'vef.primary_choice as primaryChoice',
-        'vef.voting_power as votingPower',
-      ])
-      .where('vef.dao_id', '=', args.daoId)
-      .where('vef.proposal_id', '=', args.proposalId)
-      .where('vef.voter_address', '=', args.voterAddress)
-      .where('vef.superseded', '=', 0)
-      .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
-  }
+  constructor(private readonly chDb: Kysely<VoteEventsProjectionDatabase>) {}
 
   async insertBatch(rows: readonly NewVoteEventsProjectionRow[]): Promise<void> {
     if (rows.length === 0) return;

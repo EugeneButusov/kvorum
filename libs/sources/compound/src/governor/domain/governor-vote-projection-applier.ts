@@ -7,6 +7,7 @@ import {
   type ClickHouseDatabase,
   type CurrentVoteRow,
   DlqRepository,
+  VoteEventsProjectionReadRepository,
   VoteEventsProjectionWriter,
   ProposalRepository,
   type PgDatabase,
@@ -74,6 +75,7 @@ export class GovernorVoteProjectionApplier {
   private readonly metrics: GovernorVoteProjectionMetrics;
   private readonly registry: ChainContextRegistry;
   private readonly logger: Logger;
+  private readonly voteEventsProjectionReadRepository: VoteEventsProjectionReadRepository;
   private readonly voteEventsProjectionWriter: VoteEventsProjectionWriter;
   private readonly blockTimestamps = new VoteBlockTimestampFetcher();
 
@@ -85,6 +87,7 @@ export class GovernorVoteProjectionApplier {
     this.metrics = deps.metrics;
     this.registry = deps.registry;
     this.logger = deps.logger ?? silentLogger;
+    this.voteEventsProjectionReadRepository = new VoteEventsProjectionReadRepository(deps.chDb);
     this.voteEventsProjectionWriter = new VoteEventsProjectionWriter(deps.chDb);
   }
 
@@ -173,7 +176,7 @@ export class GovernorVoteProjectionApplier {
       if (proposal === undefined) throw new ProjectionError('no_proposal');
 
       const voterAddress = event.voter.toLowerCase();
-      const current = await this.voteEventsProjectionWriter.findCurrentVote({
+      const current = await this.voteEventsProjectionReadRepository.findCurrentVote({
         daoId,
         proposalId: proposal.id,
         voterAddress,
