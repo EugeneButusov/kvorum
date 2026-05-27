@@ -24,10 +24,10 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
     try {
       await this.redis.quit();
     } catch {
-      this.redis.disconnect();
       return;
+    } finally {
+      this.redis.disconnect();
     }
-    this.redis.disconnect();
   }
 }
 
