@@ -3,10 +3,10 @@ import { defineCounter, defineGauge, defineHistogram } from '@libs/observability
 // Keep reason labels centralized for projection appliers.
 export type DerivationFailureReason =
   | 'unsupported_dispatch'
-  | 'ch_missing'
+  | 'payload_missing'
   | 'decode_error'
-  | 'pg_tx_error'
-  | 'pg_watermark_error'
+  | 'projection_apply_error'
+  | 'watermark_update_error'
   | 'no_proposal'
   | 'block_timestamp_unavailable'
   | 'unknown_event_type';
