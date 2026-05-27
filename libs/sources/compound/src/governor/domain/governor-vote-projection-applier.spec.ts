@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { GovernorVoteProjectionApplier } from './governor-vote-projection-applier';
+import {
+  GovernorVoteProjectionApplier,
+  type GovernorVoteProjectionApplierDeps,
+} from './governor-vote-projection-applier';
 import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
 const BASE_ROW: ArchiveDerivationRow = {
@@ -64,26 +67,37 @@ function mutable(applier: GovernorVoteProjectionApplier): MutableVoteApplier {
 }
 
 function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainCtx?: unknown }) {
-  const archive = { incrementAttemptCount: vi.fn().mockResolvedValue(undefined) };
-  const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
-  const payloads = {
+  const archive: GovernorVoteProjectionApplierDeps['archive'] = {
+    incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+  } as unknown as GovernorVoteProjectionApplierDeps['archive'];
+  const dlq: GovernorVoteProjectionApplierDeps['dlq'] = {
+    insert: vi.fn().mockResolvedValue(undefined),
+  } as unknown as GovernorVoteProjectionApplierDeps['dlq'];
+  const payloads: GovernorVoteProjectionApplierDeps['payloads'] = {
     fetchPayloads: vi.fn().mockResolvedValue(options?.payloads ?? [BASE_PAYLOAD]),
-  };
+  } as unknown as GovernorVoteProjectionApplierDeps['payloads'];
   const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
-  const proposals = {
+  const proposals: GovernorVoteProjectionApplierDeps['proposals'] = {
     findDaoIdForSource: vi.fn(),
     findBySource: vi.fn(),
-  };
-  const voteRead = { findCurrentVote: vi.fn() };
-  const voteWrite = { insertBatch: vi.fn() };
+  } as unknown as GovernorVoteProjectionApplierDeps['proposals'];
+  const voteRead: GovernorVoteProjectionApplierDeps['voteRead'] = {
+    findCurrentVote: vi.fn(),
+  } as unknown as GovernorVoteProjectionApplierDeps['voteRead'];
+  const voteWrite: GovernorVoteProjectionApplierDeps['voteWrite'] = {
+    insertBatch: vi.fn(),
+  } as unknown as GovernorVoteProjectionApplierDeps['voteWrite'];
+  const registry: GovernorVoteProjectionApplierDeps['registry'] = {
+    peek: vi.fn().mockReturnValue(options?.chainCtx ?? makeChainContext()),
+  } as unknown as GovernorVoteProjectionApplierDeps['registry'];
   const applier = new GovernorVoteProjectionApplier({
-    proposals: proposals as never,
-    voteRead: voteRead as never,
-    voteWrite: voteWrite as never,
-    archive: archive as never,
-    dlq: dlq as never,
-    payloads: payloads as never,
-    registry: { peek: vi.fn().mockReturnValue(options?.chainCtx ?? makeChainContext()) } as never,
+    proposals,
+    voteRead,
+    voteWrite,
+    archive,
+    dlq,
+    payloads,
+    registry,
     metrics,
   });
   mutable(applier).blockTimestamps = {
