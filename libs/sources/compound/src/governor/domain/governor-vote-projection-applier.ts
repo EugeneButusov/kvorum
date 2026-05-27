@@ -1,16 +1,13 @@
-import type { Kysely } from 'kysely';
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
-  type ClickHouseDatabase,
   type CurrentVoteRow,
   DlqRepository,
+  ProposalRepository,
   VoteEventsProjectionReadRepository,
   VoteEventsProjectionWriter,
-  ProposalRepository,
-  type PgDatabase,
 } from '@libs/db';
 import type { VoteCastPayload } from './types';
 import { VoteBlockTimestampFetcher } from './vote-block-timestamp';
@@ -43,11 +40,12 @@ export interface GovernorVoteProjectionMetrics {
 }
 
 export interface GovernorVoteProjectionApplierDeps {
-  pgDb: Kysely<PgDatabase>;
-  chDb: Kysely<ClickHouseDatabase>;
   archive: ArchiveDerivationRepository;
   dlq: DlqRepository;
   payloads: GovernorArchivePayloadRepository;
+  proposals: ProposalRepository;
+  voteRead: VoteEventsProjectionReadRepository;
+  voteWrite: VoteEventsProjectionWriter;
   metrics: GovernorVoteProjectionMetrics;
   registry: ChainContextRegistry;
   logger?: Logger;
@@ -68,10 +66,10 @@ export class GovernorVoteProjectionApplier {
   ] as const;
   readonly eventTypes = ['VoteCast'] as const;
 
-  private readonly pgDb: Kysely<PgDatabase>;
   private readonly archive: ArchiveDerivationRepository;
   private readonly dlq: DlqRepository;
   private readonly payloads: GovernorArchivePayloadRepository;
+  private readonly proposals: ProposalRepository;
   private readonly metrics: GovernorVoteProjectionMetrics;
   private readonly registry: ChainContextRegistry;
   private readonly logger: Logger;
@@ -80,15 +78,15 @@ export class GovernorVoteProjectionApplier {
   private readonly blockTimestamps = new VoteBlockTimestampFetcher();
 
   constructor(deps: GovernorVoteProjectionApplierDeps) {
-    this.pgDb = deps.pgDb;
     this.archive = deps.archive;
     this.dlq = deps.dlq;
     this.payloads = deps.payloads;
+    this.proposals = deps.proposals;
     this.metrics = deps.metrics;
     this.registry = deps.registry;
     this.logger = deps.logger ?? silentLogger;
-    this.voteEventsProjectionReadRepository = new VoteEventsProjectionReadRepository(deps.chDb);
-    this.voteEventsProjectionWriter = new VoteEventsProjectionWriter(deps.chDb);
+    this.voteEventsProjectionReadRepository = deps.voteRead;
+    this.voteEventsProjectionWriter = deps.voteWrite;
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -163,12 +161,11 @@ export class GovernorVoteProjectionApplier {
     }
 
     try {
-      const proposals = new ProposalRepository(this.pgDb);
-      const daoId = await proposals.findDaoIdForSource(row.dao_source_id);
+      const daoId = await this.proposals.findDaoIdForSource(row.dao_source_id);
       if (daoId === undefined) {
         throw new Error(`unknown dao_source ${row.dao_source_id}`);
       }
-      const proposal = await proposals.findBySource({
+      const proposal = await this.proposals.findBySource({
         daoId,
         sourceType: row.source_type,
         sourceId: event.proposalId,

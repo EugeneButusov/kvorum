@@ -13,6 +13,8 @@ import {
   pgDb,
   ProposalRepository,
   ProposalReadRepository,
+  VoteEventsProjectionReadRepository,
+  VoteEventsProjectionWriter,
   VoteReadRepository,
   VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
@@ -31,6 +33,8 @@ const FACTORIES = new Map<Type, () => unknown>([
   [DelegationReadRepository, () => new DelegationReadRepository(pgDb, chDb as never)],
   [ProposalRepository, () => new ProposalRepository(pgDb)],
   [ProposalReadRepository, () => new ProposalReadRepository(pgDb)],
+  [VoteEventsProjectionReadRepository, () => new VoteEventsProjectionReadRepository(chDb as never)],
+  [VoteEventsProjectionWriter, () => new VoteEventsProjectionWriter(chDb as never)],
   [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb)],
   [
     VotingPowerSnapshotProjectionWriter,

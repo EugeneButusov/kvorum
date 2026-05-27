@@ -7,6 +7,9 @@ import {
   DaoSourceRepository,
   DelegationRepository,
   DlqRepository,
+  ProposalRepository,
+  VoteEventsProjectionReadRepository,
+  VoteEventsProjectionWriter,
   chDb,
   pgDb,
 } from '@libs/db';
@@ -30,13 +33,21 @@ import {
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
+import { DbModule } from '@nest/db';
 import { buildDriverMetrics } from './state-reconciler-metrics';
 import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
 
 @Module({
-  imports: [ChainContextModule],
+  imports: [
+    ChainContextModule,
+    DbModule.forFeature([
+      ProposalRepository,
+      VoteEventsProjectionReadRepository,
+      VoteEventsProjectionWriter,
+    ]),
+  ],
   providers: [
     {
       provide: ArchiveEventRepository,
@@ -104,13 +115,19 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
     },
     {
       provide: GovernorVoteProjectionApplier,
-      useFactory: (registry: ChainContextRegistry) =>
+      useFactory: (
+        proposals: ProposalRepository,
+        voteRead: VoteEventsProjectionReadRepository,
+        voteWrite: VoteEventsProjectionWriter,
+        registry: ChainContextRegistry,
+      ) =>
         new GovernorVoteProjectionApplier({
-          pgDb,
-          chDb,
           archive: new ArchiveDerivationRepository(pgDb),
           dlq: new DlqRepository(pgDb),
           payloads: new GovernorArchivePayloadRepository(chDb),
+          proposals,
+          voteRead,
+          voteWrite,
           registry,
           metrics: {
             batchLookupSeconds: () => undefined,
@@ -118,7 +135,12 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           },
           logger: toChainLogger(new Logger('GovernorVoteProjectionApplier')),
         }),
-      inject: [ChainContextRegistry],
+      inject: [
+        ProposalRepository,
+        VoteEventsProjectionReadRepository,
+        VoteEventsProjectionWriter,
+        ChainContextRegistry,
+      ],
     },
     {
       provide: CompTokenDelegationProjectionApplier,

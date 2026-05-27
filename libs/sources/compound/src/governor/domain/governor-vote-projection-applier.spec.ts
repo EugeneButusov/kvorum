@@ -1,6 +1,5 @@
-import type { Kysely } from 'kysely';
 import { describe, expect, it, vi } from 'vitest';
-import type { ArchiveDerivationRow, ClickHouseDatabase, PgDatabase } from '@libs/db';
+import type { ArchiveDerivationRow } from '@libs/db';
 import { GovernorVoteProjectionApplier } from './governor-vote-projection-applier';
 import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
@@ -71,9 +70,16 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
     fetchPayloads: vi.fn().mockResolvedValue(options?.payloads ?? [BASE_PAYLOAD]),
   };
   const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
+  const proposals = {
+    findDaoIdForSource: vi.fn(),
+    findBySource: vi.fn(),
+  };
+  const voteRead = { findCurrentVote: vi.fn() };
+  const voteWrite = { insertBatch: vi.fn() };
   const applier = new GovernorVoteProjectionApplier({
-    pgDb: {} as Kysely<PgDatabase>,
-    chDb: {} as Kysely<ClickHouseDatabase>,
+    proposals: proposals as never,
+    voteRead: voteRead as never,
+    voteWrite: voteWrite as never,
     archive: archive as never,
     dlq: dlq as never,
     payloads: payloads as never,
