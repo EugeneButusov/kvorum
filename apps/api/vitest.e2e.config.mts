@@ -14,5 +14,7 @@ export default defineConfig({
     reporters: ['default'],
     passWithNoTests: true,
     setupFiles: ['./vitest.setup.ts'],
+    fileParallelism: false,
+    maxConcurrency: 1,
   },
 });
