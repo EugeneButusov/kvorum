@@ -1,3 +1,4 @@
+import type { Generated } from 'kysely';
 import type { ClickHouseDatabase } from '@libs/db';
 
 export interface VoteEventsAnalyticsTable {
@@ -48,7 +49,7 @@ export interface VoteEventsFlatRow {
   superseded: number;
   superseded_at: Date | null;
   superseded_by_vote_id: string | null;
-  version: Date;
+  version: Generated<Date>;
 }
 
 export type NewVoteEventsFlatRow = Omit<VoteEventsFlatRow, 'version'>;
@@ -63,7 +64,7 @@ export interface DelegationFlowFlatRow {
   log_index: number;
   event_type: string;
   created_at: Date;
-  version: Date;
+  version: Generated<Date>;
 }
 
 export type NewDelegationFlowFlatRow = Omit<DelegationFlowFlatRow, 'version'>;
@@ -75,7 +76,7 @@ export interface VotingPowerSnapshotFlatRow {
   voting_power: string;
   actor_id_hint: string | null;
   computed_at: Date;
-  version: Date;
+  version: Generated<Date>;
 }
 
 export type NewVotingPowerSnapshotFlatRow = Omit<VotingPowerSnapshotFlatRow, 'version'>;

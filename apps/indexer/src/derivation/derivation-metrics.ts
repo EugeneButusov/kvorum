@@ -6,11 +6,9 @@ export type DerivationFailureReason =
   | 'ch_missing'
   | 'decode_error'
   | 'pg_tx_error'
+  | 'pg_watermark_error'
   | 'no_proposal'
-  | 'no_voter'
   | 'block_timestamp_unavailable'
-  | 'no_delegator'
-  | 'no_delegate'
   | 'unknown_event_type';
 
 export const derivationMetrics = {

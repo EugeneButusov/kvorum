@@ -14,7 +14,6 @@ const COMMAND_LOADERS: Record<string, Loader> = {
   ens: async () => ({ register: (await import('./ens.js')).registerEns }),
   keys: async () => ({ register: (await import('./keys.js')).registerKeys }),
   maintenance: async () => ({ register: (await import('./maintenance.js')).registerMaintenance }),
-  'mirror-etl': async () => ({ register: (await import('./mirror-etl.js')).registerMirrorEtl }),
   snapshot: async () => ({ register: (await import('./snapshot.js')).registerSnapshot }),
   status: async () => ({ register: (await import('./status.js')).registerStatus }),
   user: async () => ({ register: (await import('./user.js')).registerUser }),

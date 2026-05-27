@@ -36,6 +36,14 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    const workerId = process.env['INDEXER_WORKER_ID'];
+    if (workerId == null || workerId === '') {
+      this.logger.warn('worker_id_unset', {
+        invariant: 'single_worker_invariant_assumed',
+      });
+    } else {
+      this.logger.log('single_worker_invariant_assumed', { worker_id: workerId });
+    }
     void this.tick();
   }
 
