@@ -12,15 +12,19 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   constructor(private readonly redis: SlidingWindowRedis) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    if (process.env['NODE_ENV'] === 'test') return;
     await this.redis.connect();
   }
 
   async onApplicationShutdown(): Promise<void> {
+    if (process.env['NODE_ENV'] === 'test') return;
     try {
       await this.redis.quit();
     } catch {
       this.redis.disconnect();
+      return;
     }
+    this.redis.disconnect();
   }
 }
 
