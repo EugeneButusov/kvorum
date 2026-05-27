@@ -26,7 +26,7 @@ export type CompoundVoteDerivationOutcome = 'derived' | 'skipped_idempotent' | '
 export type CompoundVoteDerivationFailureReason =
   | 'ch_missing'
   | 'decode_error'
-  | 'pg_tx_error'
+  | 'projection_apply_error'
   | 'pg_watermark_error'
   | 'no_proposal'
   | 'block_timestamp_unavailable';
@@ -201,7 +201,7 @@ export class GovernorVoteProjectionApplier {
 
       this.record(row, incomingIsNewer ? 'derived' : 'skipped_idempotent', null);
     } catch (error) {
-      const reason = error instanceof ProjectionError ? error.reason : 'pg_tx_error';
+      const reason = error instanceof ProjectionError ? error.reason : 'projection_apply_error';
       await this.failAndMaybeDlq(row, reason, error);
     }
   }

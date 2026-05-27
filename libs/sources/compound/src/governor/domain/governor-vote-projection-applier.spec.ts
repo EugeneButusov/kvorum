@@ -116,7 +116,7 @@ describe('GovernorVoteProjectionApplier', () => {
     );
   });
 
-  it('records pg_tx_error when proposal/db path is unavailable', async () => {
+  it('records projection_apply_error when proposal/db path is unavailable', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories: TestRepositories = {
       proposals: {
@@ -142,7 +142,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 
@@ -171,7 +171,7 @@ describe('GovernorVoteProjectionApplier', () => {
     await applier.applyBatch([BASE_ROW]);
 
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 
@@ -194,11 +194,11 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 
-  it('fails with pg_tx_error and increments attempts', async () => {
+  it('fails with projection_apply_error and increments attempts', async () => {
     const { applier, archive, metrics } = buildApplier();
     const repositories: TestRepositories = {
       proposals: {
@@ -217,7 +217,7 @@ describe('GovernorVoteProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'pg_tx_error' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
     );
   });
 
