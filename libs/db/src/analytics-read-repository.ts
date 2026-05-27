@@ -11,37 +11,34 @@ function pgTimeBucketExpression(column: string, grain: BucketGrain): RawBuilder<
   return sql<Date>`date_trunc('month', ${ref})`;
 }
 
-type VoteEventsAnalyticsTable = {
+type VoteEventsFlatTable = {
   vote_id: string;
   proposal_id: string;
-  voter_actor_id: string;
   voter_address: string;
   dao_id: string;
-  dao_slug: string;
-  source_type: string;
   primary_choice: number;
   voting_power: string;
   cast_at: Date;
-  created_at: Date;
   block_number: string;
   superseded: number;
+  version: Date;
 };
 
-type DelegationFlowAnalyticsTable = {
+type DelegationFlowFlatTable = {
   delegation_id: string;
-  delegator_actor_id: string;
-  delegate_actor_id: string;
+  delegator_address: string;
+  delegate_address: string;
   dao_id: string;
-  dao_slug: string;
   voting_power: string;
   block_number: string;
   event_type: string;
   created_at: Date;
+  version: Date;
 };
 
 export type AnalyticsClickHouseDatabase = ClickHouseDatabase & {
-  vote_events_analytics: VoteEventsAnalyticsTable;
-  delegation_flow_analytics: DelegationFlowAnalyticsTable;
+  vote_events_flat: VoteEventsFlatTable;
+  delegation_flow_flat: DelegationFlowFlatTable;
 };
 
 const RESOLVED_PASS_STATES = ['executed', 'succeeded'] as const;
@@ -105,7 +102,7 @@ export class AnalyticsReadRepository {
 
   async findEarliestDelegationEventAt(daoId: string): Promise<Date | null> {
     const row = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
+      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('dfa'))
       .select((eb) => eb.fn.min('dfa.created_at').as('earliest'))
       .where('dfa.dao_id', '=', daoId)
       .executeTakeFirst();
@@ -114,8 +111,8 @@ export class AnalyticsReadRepository {
 
   async findGlobalEtlWatermark(): Promise<Date | null> {
     const row = await this.chDb
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('vea'))
-      .select((eb) => eb.fn.max('vea.created_at').as('watermark'))
+      .selectFrom(sql<VoteEventsFlatTable>`vote_events_flat FINAL`.as('vea'))
+      .select((eb) => eb.fn.max('vea.version').as('watermark'))
       .executeTakeFirst();
     return row?.watermark ?? null;
   }
@@ -182,7 +179,7 @@ export class AnalyticsReadRepository {
           : sql<Date>`toStartOfMonth(dfa.created_at)`;
 
     const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
+      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('dfa'))
       .select(chBucket.as('bucket'))
       .select(sql<string[]>`arraySort(groupArray(dfa.voting_power))`.as('weights'))
       .select(sql<number>`count(*)`.as('delegate_count'))
@@ -205,10 +202,14 @@ export class AnalyticsReadRepository {
     minVotingPowerWei?: bigint;
   }): Promise<MirrorEnvelope<DelegationFlowEdgeRow>> {
     let qb = this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
+      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('dfa'))
       .select([
-        'dfa.delegator_actor_id',
-        'dfa.delegate_actor_id',
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address))`.as(
+          'delegator_actor_id',
+        ),
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegate_address))`.as(
+          'delegate_actor_id',
+        ),
         'dfa.voting_power',
         'dfa.block_number',
         'dfa.event_type',
@@ -236,12 +237,20 @@ export class AnalyticsReadRepository {
   ): Promise<ActorPowerRow[]> {
     if (actorIds.length === 0) return [];
     const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowAnalyticsTable>`delegation_flow_analytics`.as('dfa'))
-      .select('dfa.delegator_actor_id as actor_id')
+      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('dfa'))
+      .select(
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address))`.as(
+          'actor_id',
+        ),
+      )
       .select(sql<string>`argMax(dfa.voting_power, dfa.created_at)`.as('voting_power'))
       .where('dfa.dao_id', '=', daoId)
-      .where('dfa.delegator_actor_id', 'in', [...actorIds])
-      .groupBy('dfa.delegator_actor_id')
+      .where(
+        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address)) in (${sql.join(
+          actorIds.map((id) => sql`${id}`),
+        )})`,
+      )
+      .groupBy('actor_id')
       .execute();
 
     return rows;
@@ -276,18 +285,24 @@ export class AnalyticsReadRepository {
     const rows = await this.chDb
       .with('focal', (db) => {
         let inner = db
-          .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v'))
+          .selectFrom(sql<VoteEventsFlatTable>`vote_events_flat FINAL`.as('v'))
           .select(['v.proposal_id', 'v.primary_choice'])
           .where('v.dao_id', '=', args.daoId)
-          .where('v.voter_actor_id', '=', args.focalActorId)
+          .where(
+            sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${args.focalActorId}`,
+          )
           .where('v.superseded', '=', 0);
         if (args.from !== undefined) inner = inner.where('v.cast_at', '>=', args.from);
         if (args.to !== undefined) inner = inner.where('v.cast_at', '<=', args.to);
         return inner;
       })
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v2'))
+      .selectFrom(sql<VoteEventsFlatTable>`vote_events_flat FINAL`.as('v2'))
       .innerJoin('focal', 'focal.proposal_id', 'v2.proposal_id')
-      .select('v2.voter_actor_id as peer_actor_id')
+      .select(
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v2.voter_address))`.as(
+          'peer_actor_id',
+        ),
+      )
       .select(sql<number>`count(*)`.as('vote_count'))
       .select(sql<number>`count(*)`.as('shared_proposals'))
       .select(
@@ -295,8 +310,10 @@ export class AnalyticsReadRepository {
       )
       .where('v2.dao_id', '=', args.daoId)
       .where('v2.superseded', '=', 0)
-      .where('v2.voter_actor_id', '!=', args.focalActorId)
-      .groupBy('v2.voter_actor_id')
+      .where(
+        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v2.voter_address)) != ${args.focalActorId}`,
+      )
+      .groupBy('peer_actor_id')
       .orderBy(orderExpr, dir)
       .orderBy('peer_actor_id', dir)
       .limit(args.limit + 1)
@@ -307,15 +324,38 @@ export class AnalyticsReadRepository {
   }
 
   async crossDaoSummaryForActor(rawAddress: string): Promise<MirrorEnvelope<CrossDaoSummaryRow>> {
-    const rows = await this.chDb
-      .selectFrom(sql<VoteEventsAnalyticsTable>`vote_events_analytics`.as('v'))
-      .select(['v.dao_id', 'v.dao_slug', 'v.voter_actor_id'])
+    const chRows = await this.chDb
+      .selectFrom(sql<VoteEventsFlatTable>`vote_events_flat FINAL`.as('v'))
+      .select([
+        'v.dao_id',
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address))`.as(
+          'voter_actor_id',
+        ),
+      ])
       .select(sql<number>`count(*)`.as('votes_cast'))
       .select((eb) => eb.fn.max('v.cast_at').as('last_active_at'))
       .where('v.voter_address', '=', rawAddress.toLowerCase())
       .where('v.superseded', '=', 0)
-      .groupBy(['v.dao_id', 'v.dao_slug', 'v.voter_actor_id'])
+      .groupBy(['v.dao_id', 'voter_actor_id'])
       .execute();
+
+    const daoIds = [...new Set(chRows.map((row) => row.dao_id))];
+    const daos =
+      daoIds.length === 0
+        ? []
+        : await this.pgDb
+            .selectFrom('dao')
+            .select(['id', 'slug'])
+            .where('id', 'in', daoIds)
+            .execute();
+    const daoSlugById = new Map(daos.map((dao) => [dao.id, dao.slug]));
+    const rows: CrossDaoSummaryRow[] = chRows.map((row) => ({
+      dao_id: row.dao_id,
+      dao_slug: daoSlugById.get(row.dao_id) ?? '',
+      voter_actor_id: row.voter_actor_id,
+      votes_cast: row.votes_cast,
+      last_active_at: row.last_active_at,
+    }));
 
     const mirrorLastEtl = await this.findGlobalEtlWatermark();
     return { rows, mirrorLastEtl };
