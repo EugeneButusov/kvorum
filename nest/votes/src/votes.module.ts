@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-import { chDb, pgDb, ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import { DbModule } from '@nest/db';
 
 @Module({
-  providers: [
-    { provide: VoteReadRepository, useFactory: () => new VoteReadRepository(pgDb, chDb) },
-    { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
-  ],
+  imports: [DbModule.forFeature([VoteReadRepository, ProposalReadRepository])],
   exports: [VoteReadRepository, ProposalReadRepository],
 })
 export class VotesModule {}
