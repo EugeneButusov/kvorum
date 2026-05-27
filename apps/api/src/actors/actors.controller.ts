@@ -34,12 +34,12 @@ export class ActorsController {
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   @Get(':address')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   async getByAddress(
     @Param('address') rawAddress: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ActorResponseDto | undefined> {
-    const result = await this.routingService.resolveAddress(rawAddress);
+    const result = await this.routingService.resolveAddress(rawAddress, 'actors.detail');
 
     if (result.kind === 'redirect') {
       res.status(301);

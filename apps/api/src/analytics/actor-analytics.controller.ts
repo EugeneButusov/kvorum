@@ -28,7 +28,7 @@ export class ActorAnalyticsController {
   ) {}
 
   @Get('cross-dao')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: CrossDaoActorDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -38,7 +38,7 @@ export class ActorAnalyticsController {
     @Param('address') rawAddress: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<CrossDaoActorDto | undefined> {
-    const resolved = await this.routing.resolveAddress(rawAddress);
+    const resolved = await this.routing.resolveAddress(rawAddress, 'analytics.actor_cross_dao');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader(

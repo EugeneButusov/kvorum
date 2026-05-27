@@ -38,7 +38,7 @@ export class ActorProposalsController {
   ) {}
 
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorProposalListResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -49,7 +49,7 @@ export class ActorProposalsController {
     @Query() rawQuery: ApiListQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ActorProposalListResponseDto | undefined> {
-    const resolved = await this.routing.resolveAddress(rawAddress);
+    const resolved = await this.routing.resolveAddress(rawAddress, 'actors.proposals');
     if (resolved.kind === 'redirect') {
       res.status(301);
       res.setHeader('Location', `/v1/actors/${resolved.survivorPrimaryAddress}/proposals`);
