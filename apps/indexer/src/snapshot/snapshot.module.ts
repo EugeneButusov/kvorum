@@ -3,40 +3,30 @@ import { ScheduleModule } from '@nestjs/schedule';
 import {
   ActorRepository,
   DlqRepository,
-  pgDb,
   ProposalRepository,
-  chDb,
   VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import { SOURCE_PLUGINS, type SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
+import { DbModule } from '@nest/db';
 import { SourcesModule } from '@nest/sources';
 import { SnapshotWorkerService } from './snapshot-worker.service';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), ChainContextModule, SourcesModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    ChainContextModule,
+    SourcesModule,
+    DbModule.forFeature([
+      VotingPowerSnapshotProjectionWriter,
+      ActorRepository,
+      ProposalRepository,
+      VotingPowerSnapshotRunRepository,
+      DlqRepository,
+    ]),
+  ],
   providers: [
-    {
-      provide: VotingPowerSnapshotProjectionWriter,
-      useFactory: () => new VotingPowerSnapshotProjectionWriter(chDb),
-    },
-    {
-      provide: ActorRepository,
-      useFactory: () => new ActorRepository(pgDb),
-    },
-    {
-      provide: ProposalRepository,
-      useFactory: () => new ProposalRepository(pgDb),
-    },
-    {
-      provide: VotingPowerSnapshotRunRepository,
-      useFactory: () => new VotingPowerSnapshotRunRepository(pgDb),
-    },
-    {
-      provide: DlqRepository,
-      useFactory: () => new DlqRepository(pgDb),
-    },
     {
       provide: SnapshotWorkerService,
       useFactory: (

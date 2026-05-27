@@ -8,10 +8,14 @@ import {
   ApiKeyRepository,
   chDb,
   DaoReadRepository,
+  DlqRepository,
   DelegationReadRepository,
   pgDb,
+  ProposalRepository,
   ProposalReadRepository,
   VoteReadRepository,
+  VotingPowerSnapshotProjectionWriter,
+  VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 
 const FACTORIES = new Map<Type, () => unknown>([
@@ -23,9 +27,16 @@ const FACTORIES = new Map<Type, () => unknown>([
   ],
   [ApiKeyRepository, () => new ApiKeyRepository(pgDb)],
   [DaoReadRepository, () => new DaoReadRepository(pgDb)],
+  [DlqRepository, () => new DlqRepository(pgDb)],
   [DelegationReadRepository, () => new DelegationReadRepository(pgDb, chDb as never)],
+  [ProposalRepository, () => new ProposalRepository(pgDb)],
   [ProposalReadRepository, () => new ProposalReadRepository(pgDb)],
   [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb as never)],
+  [
+    VotingPowerSnapshotProjectionWriter,
+    () => new VotingPowerSnapshotProjectionWriter(chDb as never),
+  ],
+  [VotingPowerSnapshotRunRepository, () => new VotingPowerSnapshotRunRepository(pgDb)],
 ]);
 
 @Module({})
