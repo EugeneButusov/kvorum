@@ -22,11 +22,20 @@ vi.mock('@libs/db', () => ({
   DelegationRepository: class {
     constructor(_db: unknown) {}
   },
+  DelegationFlowFlatWriter: class {
+    constructor(_db: unknown) {}
+  },
   DlqRepository: class {
     public insert = vi.fn();
     constructor(_db: unknown) {}
   },
   ArchiveDerivationRepository: class {
+    constructor(_db: unknown) {}
+  },
+  VoteEventsFlatWriter: class {
+    constructor(_db: unknown) {}
+  },
+  VotingPowerSnapshotFlatWriter: class {
     constructor(_db: unknown) {}
   },
 }));
