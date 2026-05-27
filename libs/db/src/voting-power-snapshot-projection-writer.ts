@@ -3,7 +3,7 @@ import type { ClickHouseDatabase } from './schema/clickhouse';
 
 const BULK_INSERT_CHUNK_SIZE = 1000;
 
-export interface NewVotingPowerSnapshotFlatRow {
+export interface NewVotingPowerSnapshotProjectionRow {
   dao_id: string;
   proposal_id: string;
   actor_address: string;
@@ -12,7 +12,7 @@ export interface NewVotingPowerSnapshotFlatRow {
   computed_at: Date;
 }
 
-type VotingPowerSnapshotFlatTable = {
+type VotingPowerSnapshotProjectionTable = {
   dao_id: string;
   proposal_id: string;
   actor_address: string;
@@ -23,20 +23,20 @@ type VotingPowerSnapshotFlatTable = {
 };
 
 type VotingPowerSnapshotFlatDatabase = ClickHouseDatabase & {
-  voting_power_snapshot_flat: VotingPowerSnapshotFlatTable;
+  voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
 };
 
-export class VotingPowerSnapshotFlatWriter {
+export class VotingPowerSnapshotProjectionWriter {
   constructor(private readonly chDb: Kysely<VotingPowerSnapshotFlatDatabase>) {}
 
-  async bulkInsert(rows: readonly NewVotingPowerSnapshotFlatRow[]): Promise<number> {
+  async bulkInsert(rows: readonly NewVotingPowerSnapshotProjectionRow[]): Promise<number> {
     if (rows.length === 0) return 0;
 
     let inserted = 0;
     for (let offset = 0; offset < rows.length; offset += BULK_INSERT_CHUNK_SIZE) {
       const chunk = rows.slice(offset, offset + BULK_INSERT_CHUNK_SIZE);
       await this.chDb
-        .insertInto('voting_power_snapshot_flat')
+        .insertInto('voting_power_snapshot_projection')
         .values([...chunk])
         .execute();
       inserted += chunk.length;

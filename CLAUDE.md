@@ -22,7 +22,7 @@ Guidance for Claude Code working in this repo.
 | Admin CLI           | commander 14 (Node ESM)      | `apps/admin-cli` — operator tooling, single-file bundle                                   |
 | Chain client        | ethers v6 (HTTP)             | failover wrapper in `libs/chain`; WS deferred per ADR-037                                 |
 
-ClickHouse is the source of truth for chain-event-derived data (`vote_events_flat`, `delegation_flow_flat`, `voting_power_snapshot_flat`) from PR-1 (#217) onward. PostgreSQL keeps identity (`actor`, `actor_address`, `actor_address_redirect`), configuration, the proposal state machine, and the `archive_event` derivation watermark. See ADR-0062 (PR-3 #219) for the boundary contract.
+ClickHouse is the source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`) from PR-1 (#217) onward. PostgreSQL keeps identity (`actor`, `actor_address`, `actor_address_redirect`), configuration, the proposal state machine, and the `archive_event` derivation watermark. See ADR-0062 (PR-3 #219) for the boundary contract.
 
 ## Module boundaries
 

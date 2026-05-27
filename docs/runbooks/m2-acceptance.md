@@ -157,7 +157,7 @@ If a threshold breaches, profile the CH query and reduce response shape pressure
 
 ```sql
 SELECT voting_power
-FROM delegation_flow_flat FINAL
+FROM delegation_flow_projection FINAL
 WHERE dao_id = '<compound-dao-id>'
 ORDER BY voting_power ASC;
 ```

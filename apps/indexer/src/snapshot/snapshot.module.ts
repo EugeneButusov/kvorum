@@ -6,7 +6,7 @@ import {
   pgDb,
   ProposalRepository,
   chDb,
-  VotingPowerSnapshotFlatWriter,
+  VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import { SOURCE_PLUGINS, type SourcePlugin } from '@sources/core';
@@ -18,8 +18,8 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
   imports: [ScheduleModule.forRoot(), ChainContextModule, SourcesModule],
   providers: [
     {
-      provide: VotingPowerSnapshotFlatWriter,
-      useFactory: () => new VotingPowerSnapshotFlatWriter(chDb),
+      provide: VotingPowerSnapshotProjectionWriter,
+      useFactory: () => new VotingPowerSnapshotProjectionWriter(chDb),
     },
     {
       provide: ActorRepository,
@@ -41,7 +41,7 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
       provide: SnapshotWorkerService,
       useFactory: (
         proposals: ProposalRepository,
-        snapshots: VotingPowerSnapshotFlatWriter,
+        snapshots: VotingPowerSnapshotProjectionWriter,
         actors: ActorRepository,
         runs: VotingPowerSnapshotRunRepository,
         dlq: DlqRepository,
@@ -57,7 +57,7 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
         ),
       inject: [
         ProposalRepository,
-        VotingPowerSnapshotFlatWriter,
+        VotingPowerSnapshotProjectionWriter,
         ActorRepository,
         VotingPowerSnapshotRunRepository,
         DlqRepository,

@@ -1,7 +1,7 @@
 import type { Generated } from 'kysely';
 import type { ClickHouseDatabase } from '@libs/db';
 
-export interface VoteEventsFlatRow {
+export interface VoteEventsProjectionRow {
   vote_id: string;
   dao_id: string;
   proposal_id: string;
@@ -17,9 +17,9 @@ export interface VoteEventsFlatRow {
   version: Generated<Date>;
 }
 
-export type NewVoteEventsFlatRow = Omit<VoteEventsFlatRow, 'version'>;
+export type NewVoteEventsProjectionRow = Omit<VoteEventsProjectionRow, 'version'>;
 
-export interface DelegationFlowFlatRow {
+export interface DelegationFlowProjectionRow {
   delegation_id: string;
   dao_id: string;
   delegator_address: string;
@@ -32,9 +32,9 @@ export interface DelegationFlowFlatRow {
   version: Generated<Date>;
 }
 
-export type NewDelegationFlowFlatRow = Omit<DelegationFlowFlatRow, 'version'>;
+export type NewDelegationFlowProjectionRow = Omit<DelegationFlowProjectionRow, 'version'>;
 
-export interface VotingPowerSnapshotFlatRow {
+export interface VotingPowerSnapshotProjectionRow {
   dao_id: string;
   proposal_id: string;
   actor_address: string;
@@ -44,17 +44,17 @@ export interface VotingPowerSnapshotFlatRow {
   version: Generated<Date>;
 }
 
-export type NewVotingPowerSnapshotFlatRow = Omit<VotingPowerSnapshotFlatRow, 'version'>;
+export type NewVotingPowerSnapshotProjectionRow = Omit<VotingPowerSnapshotProjectionRow, 'version'>;
 
 declare module '@libs/db' {
   interface ClickHouseDatabase {
-    vote_events_flat: VoteEventsFlatRow;
-    delegation_flow_flat: DelegationFlowFlatRow;
-    voting_power_snapshot_flat: VotingPowerSnapshotFlatRow;
+    vote_events_projection: VoteEventsProjectionRow;
+    delegation_flow_projection: DelegationFlowProjectionRow;
+    voting_power_snapshot_projection: VotingPowerSnapshotProjectionRow;
   }
 }
 
-type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_flat'];
-type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_flat'];
+type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_projection'];
+type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_projection'];
 type _VotingPowerSnapshotFlatAugmentationActiveCheck =
-  ClickHouseDatabase['voting_power_snapshot_flat'];
+  ClickHouseDatabase['voting_power_snapshot_projection'];

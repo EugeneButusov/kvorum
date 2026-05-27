@@ -386,9 +386,9 @@ The data volumes for the v1 DAOs comfortably fit in Postgres. Estimates: low tho
 
 **ClickHouse (analytical mirror, time-series queries):**
 
-- `voting_power_history_flat(actor_id, dao_id, block_number, power, timestamp)` — flattened, denormalized, optimized for delegate trajectory queries
-- `vote_events_flat` — denormalized join of vote, voter, proposal, dao, used for fast aggregations across millions of rows
-- `delegation_flow_flat` — directed graph edges with timestamps, for delegation flow visualizations and concentration metrics over time
+- `voting_power_history_projection(actor_id, dao_id, block_number, power, timestamp)` — flattened, denormalized, optimized for delegate trajectory queries
+- `vote_events_projection` — denormalized join of vote, voter, proposal, dao, used for fast aggregations across millions of rows
+- `delegation_flow_projection` — directed graph edges with timestamps, for delegation flow visualizations and concentration metrics over time
 
 For v1 with three DAOs, ClickHouse is technically optional — the analytical queries run acceptably on Postgres. ClickHouse is set up nonetheless, with mirror writes from Postgres, so that scaling to additional DAOs post-v1 does not require rewriting analytical queries.
 

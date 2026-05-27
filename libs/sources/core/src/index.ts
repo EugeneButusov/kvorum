@@ -120,10 +120,10 @@ export type {
 // ./persistence/schema activates whenever @sources/core (or any module that
 // transitively imports it) is compiled.
 export type {
-  VoteEventsFlatRow,
-  NewVoteEventsFlatRow,
-  DelegationFlowFlatRow,
-  NewDelegationFlowFlatRow,
-  VotingPowerSnapshotFlatRow,
-  NewVotingPowerSnapshotFlatRow,
+  VoteEventsProjectionRow,
+  NewVoteEventsProjectionRow,
+  DelegationFlowProjectionRow,
+  NewDelegationFlowProjectionRow,
+  VotingPowerSnapshotProjectionRow,
+  NewVotingPowerSnapshotProjectionRow,
 } from './persistence/schema';

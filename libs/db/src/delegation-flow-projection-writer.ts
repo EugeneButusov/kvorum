@@ -3,7 +3,7 @@ import type { ClickHouseDatabase } from './schema/clickhouse';
 
 export const ZERO_DELEGATE_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-export interface NewDelegationFlowFlatRow {
+export interface NewDelegationFlowProjectionRow {
   delegation_id: string;
   dao_id: string;
   delegator_address: string;
@@ -15,7 +15,7 @@ export interface NewDelegationFlowFlatRow {
   created_at: Date;
 }
 
-type DelegationFlowFlatTable = {
+type DelegationFlowProjectionTable = {
   delegation_id: string;
   dao_id: string;
   delegator_address: string;
@@ -29,16 +29,16 @@ type DelegationFlowFlatTable = {
 };
 
 type DelegationFlowFlatDatabase = ClickHouseDatabase & {
-  delegation_flow_flat: DelegationFlowFlatTable;
+  delegation_flow_projection: DelegationFlowProjectionTable;
 };
 
-export class DelegationFlowFlatWriter {
+export class DelegationFlowProjectionWriter {
   constructor(private readonly chDb: Kysely<DelegationFlowFlatDatabase>) {}
 
-  async insertBatch(rows: readonly NewDelegationFlowFlatRow[]): Promise<void> {
+  async insertBatch(rows: readonly NewDelegationFlowProjectionRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.chDb
-      .insertInto('delegation_flow_flat')
+      .insertInto('delegation_flow_projection')
       .values([...rows])
       .execute();
   }

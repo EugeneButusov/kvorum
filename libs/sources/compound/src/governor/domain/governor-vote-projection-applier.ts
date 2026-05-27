@@ -7,7 +7,7 @@ import {
   type ClickHouseDatabase,
   type CurrentVoteRow,
   DlqRepository,
-  VoteEventsFlatWriter,
+  VoteEventsProjectionWriter,
   ProposalRepository,
   type PgDatabase,
 } from '@libs/db';
@@ -74,7 +74,7 @@ export class GovernorVoteProjectionApplier {
   private readonly metrics: GovernorVoteProjectionMetrics;
   private readonly registry: ChainContextRegistry;
   private readonly logger: Logger;
-  private readonly voteEventsFlatWriter: VoteEventsFlatWriter;
+  private readonly voteEventsProjectionWriter: VoteEventsProjectionWriter;
   private readonly blockTimestamps = new VoteBlockTimestampFetcher();
 
   constructor(deps: GovernorVoteProjectionApplierDeps) {
@@ -85,7 +85,7 @@ export class GovernorVoteProjectionApplier {
     this.metrics = deps.metrics;
     this.registry = deps.registry;
     this.logger = deps.logger ?? silentLogger;
-    this.voteEventsFlatWriter = new VoteEventsFlatWriter(deps.chDb);
+    this.voteEventsProjectionWriter = new VoteEventsProjectionWriter(deps.chDb);
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -173,7 +173,7 @@ export class GovernorVoteProjectionApplier {
       if (proposal === undefined) throw new ProjectionError('no_proposal');
 
       const voterAddress = event.voter.toLowerCase();
-      const current = await this.voteEventsFlatWriter.findCurrentVote({
+      const current = await this.voteEventsProjectionWriter.findCurrentVote({
         daoId,
         proposalId: proposal.id,
         voterAddress,
@@ -190,7 +190,7 @@ export class GovernorVoteProjectionApplier {
         incomingIsNewer,
       });
 
-      await this.voteEventsFlatWriter.insertBatch(rows);
+      await this.voteEventsProjectionWriter.insertBatch(rows);
 
       try {
         await this.archive.markDerived(row.id);

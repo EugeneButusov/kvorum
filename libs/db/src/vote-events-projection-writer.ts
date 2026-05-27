@@ -10,7 +10,7 @@ export interface CurrentVoteRow {
   votingPower: string;
 }
 
-export interface NewVoteEventsFlatRow {
+export interface NewVoteEventsProjectionRow {
   vote_id: string;
   dao_id: string;
   proposal_id: string;
@@ -25,7 +25,7 @@ export interface NewVoteEventsFlatRow {
   superseded_by_vote_id: string | null;
 }
 
-type VoteEventsFlatTable = {
+type VoteEventsProjectionTable = {
   vote_id: string;
   dao_id: string;
   proposal_id: string;
@@ -42,10 +42,10 @@ type VoteEventsFlatTable = {
 };
 
 type VoteEventsFlatDatabase = ClickHouseDatabase & {
-  vote_events_flat: VoteEventsFlatTable;
+  vote_events_projection: VoteEventsProjectionTable;
 };
 
-export class VoteEventsFlatWriter {
+export class VoteEventsProjectionWriter {
   constructor(private readonly chDb: Kysely<VoteEventsFlatDatabase>) {}
 
   async findCurrentVote(args: {
@@ -54,7 +54,7 @@ export class VoteEventsFlatWriter {
     voterAddress: string;
   }): Promise<CurrentVoteRow | undefined> {
     return this.chDb
-      .selectFrom(sql<VoteEventsFlatTable>`vote_events_flat FINAL`.as('vef'))
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection FINAL`.as('vef'))
       .select([
         'vef.vote_id as voteId',
         'vef.cast_at as castAt',
@@ -70,10 +70,10 @@ export class VoteEventsFlatWriter {
       .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
   }
 
-  async insertBatch(rows: readonly NewVoteEventsFlatRow[]): Promise<void> {
+  async insertBatch(rows: readonly NewVoteEventsProjectionRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.chDb
-      .insertInto('vote_events_flat')
+      .insertInto('vote_events_projection')
       .values([...rows])
       .execute();
   }

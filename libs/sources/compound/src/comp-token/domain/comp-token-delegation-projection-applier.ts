@@ -4,7 +4,7 @@ import {
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
   type ClickHouseDatabase,
-  DelegationFlowFlatWriter,
+  DelegationFlowProjectionWriter,
   DlqRepository,
   type PgDatabase,
   ProposalRepository,
@@ -67,7 +67,7 @@ export class CompTokenDelegationProjectionApplier {
   private readonly payloads: CompTokenArchivePayloadRepository;
   private readonly metrics: CompTokenDelegationProjectionMetrics;
   private readonly logger: Logger;
-  private readonly delegationFlowFlatWriter: DelegationFlowFlatWriter;
+  private readonly delegationFlowProjectionWriter: DelegationFlowProjectionWriter;
 
   constructor(deps: CompTokenDelegationProjectionApplierDeps) {
     this.pgDb = deps.pgDb;
@@ -76,7 +76,7 @@ export class CompTokenDelegationProjectionApplier {
     this.payloads = deps.payloads;
     this.metrics = deps.metrics;
     this.logger = deps.logger ?? silentLogger;
-    this.delegationFlowFlatWriter = new DelegationFlowFlatWriter(deps.chDb);
+    this.delegationFlowProjectionWriter = new DelegationFlowProjectionWriter(deps.chDb);
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -119,7 +119,7 @@ export class CompTokenDelegationProjectionApplier {
       if (daoId === undefined) throw new ProjectionError('no_dao');
 
       const rows = this.projectRows(row, parsed, daoId);
-      await this.delegationFlowFlatWriter.insertBatch(rows);
+      await this.delegationFlowProjectionWriter.insertBatch(rows);
 
       try {
         await this.archive.markDerived(row.id);

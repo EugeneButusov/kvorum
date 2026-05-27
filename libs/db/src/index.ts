@@ -59,15 +59,18 @@ export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
 export { VoteReadRepository } from './vote-read-repository';
 export { DelegationReadRepository } from './delegation-read-repository';
-export { DelegationFlowFlatWriter, ZERO_DELEGATE_ADDRESS } from './delegation-flow-flat-writer';
+export {
+  DelegationFlowProjectionWriter,
+  ZERO_DELEGATE_ADDRESS,
+} from './delegation-flow-projection-writer';
 export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
 export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
-export { VoteEventsFlatWriter } from './vote-events-flat-writer';
-export type { CurrentVoteRow } from './vote-events-flat-writer';
+export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
+export type { CurrentVoteRow } from './vote-events-projection-writer';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
-export { VotingPowerSnapshotFlatWriter } from './voting-power-snapshot-flat-writer';
+export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';

@@ -20,7 +20,7 @@ export type DelegationReadRow = {
   delegate_display_name: string | null;
 };
 
-type DelegationFlowFlatTable = {
+type DelegationFlowProjectionTable = {
   delegation_id: string;
   dao_id: string;
   delegator_address: string;
@@ -32,7 +32,7 @@ type DelegationFlowFlatTable = {
 };
 
 type DelegationReadClickHouseDatabase = ClickHouseDatabase & {
-  delegation_flow_flat: DelegationFlowFlatTable;
+  delegation_flow_projection: DelegationFlowProjectionTable;
 };
 
 const ZERO_DELEGATE_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -64,7 +64,7 @@ export class DelegationReadRepository {
     if (dao === undefined) return [];
 
     let qb = this.ch
-      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('d'))
+      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection FINAL`.as('d'))
       .select([
         'd.delegation_id as id',
         'd.dao_id',
@@ -117,7 +117,7 @@ export class DelegationReadRepository {
     if (delegateAddress === undefined) return [];
 
     const rows = await this.ch
-      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('d'))
+      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection FINAL`.as('d'))
       .select([
         'd.delegation_id as id',
         'd.dao_id',
@@ -156,7 +156,7 @@ export class DelegationReadRepository {
     if (delegatorAddress === undefined) return undefined;
 
     const row = await this.ch
-      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('d'))
+      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection FINAL`.as('d'))
       .select([
         'd.delegation_id as id',
         'd.dao_id',
@@ -182,7 +182,7 @@ export class DelegationReadRepository {
 
   async currentConfirmedHead(daoId: string): Promise<string | null> {
     const row = await this.ch
-      .selectFrom(sql<DelegationFlowFlatTable>`delegation_flow_flat FINAL`.as('d'))
+      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection FINAL`.as('d'))
       .select((eb) => eb.fn.max('d.block_number').as('max_block_number'))
       .where('d.dao_id', '=', daoId)
       .executeTakeFirst();

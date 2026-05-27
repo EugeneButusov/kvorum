@@ -22,7 +22,7 @@ vi.mock('@libs/db', () => ({
   DelegationRepository: class {
     constructor(_db: unknown) {}
   },
-  DelegationFlowFlatWriter: class {
+  DelegationFlowProjectionWriter: class {
     constructor(_db: unknown) {}
   },
   DlqRepository: class {
@@ -32,10 +32,10 @@ vi.mock('@libs/db', () => ({
   ArchiveDerivationRepository: class {
     constructor(_db: unknown) {}
   },
-  VoteEventsFlatWriter: class {
+  VoteEventsProjectionWriter: class {
     constructor(_db: unknown) {}
   },
-  VotingPowerSnapshotFlatWriter: class {
+  VotingPowerSnapshotProjectionWriter: class {
     constructor(_db: unknown) {}
   },
 }));

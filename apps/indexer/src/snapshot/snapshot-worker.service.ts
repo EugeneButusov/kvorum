@@ -6,7 +6,7 @@ import {
   ProposalRepository,
   type ProposalState,
   type SnapshotCandidate,
-  VotingPowerSnapshotFlatWriter,
+  VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
@@ -51,7 +51,7 @@ export class SnapshotWorkerService {
 
   constructor(
     private readonly proposalRepo: ProposalRepository,
-    private readonly snapshotRepo: VotingPowerSnapshotFlatWriter,
+    private readonly snapshotRepo: VotingPowerSnapshotProjectionWriter,
     private readonly actorRepo: ActorRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,

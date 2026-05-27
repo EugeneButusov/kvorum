@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS vote_events_flat
+CREATE TABLE IF NOT EXISTS vote_events_projection
 (
     vote_id UUID,
     dao_id UUID,
@@ -19,7 +19,7 @@ ENGINE = ReplacingMergeTree(version)
 PARTITION BY toYYYYMM(cast_at)
 ORDER BY (dao_id, proposal_id, voter_address, block_number, log_index, vote_id);
 
-CREATE TABLE IF NOT EXISTS delegation_flow_flat
+CREATE TABLE IF NOT EXISTS delegation_flow_projection
 (
     delegation_id UUID,
     dao_id UUID,
@@ -37,7 +37,7 @@ ENGINE = ReplacingMergeTree(version)
 PARTITION BY toYYYYMM(created_at)
 ORDER BY (dao_id, delegator_address, block_number, log_index, delegation_id);
 
-CREATE TABLE IF NOT EXISTS voting_power_snapshot_flat
+CREATE TABLE IF NOT EXISTS voting_power_snapshot_projection
 (
     dao_id UUID,
     proposal_id UUID,
