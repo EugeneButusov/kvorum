@@ -124,7 +124,7 @@ export class SnapshotWorkerService {
       const addresses = await this.actorRepo.findPrimaryAddressesByActorIds(actorIds);
       const primaryByActorId = new Map(addresses.map((row) => [row.actor_id, row.address]));
 
-      const chRows = computed.flatMap((row) => {
+      const snapshotRows = computed.flatMap((row) => {
         const primaryAddress = primaryByActorId.get(row.actorId);
         if (primaryAddress === undefined) return [];
         return [
@@ -139,7 +139,7 @@ export class SnapshotWorkerService {
         ];
       });
 
-      await this.snapshotRepo.bulkInsert(chRows);
+      await this.snapshotRepo.bulkInsert(snapshotRows);
 
       const sampleSize = Math.min(SNAPSHOT_SAMPLE_SIZE, computed.length);
       const mismatch = false;
