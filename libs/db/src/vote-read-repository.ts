@@ -38,18 +38,11 @@ type VoteEventsProjectionTable = {
   superseded: number;
 };
 
-type VoteReadClickHouseDatabase = ClickHouseDatabase & {
-  vote_events_projection: VoteEventsProjectionTable;
-};
-
 export class VoteReadRepository {
   private readonly pg: Kysely<PgDatabase>;
-  private readonly ch: Kysely<VoteReadClickHouseDatabase>;
+  private readonly ch: Kysely<ClickHouseDatabase>;
 
-  constructor(
-    pg: Kysely<PgDatabase> = pgDb,
-    ch: Kysely<VoteReadClickHouseDatabase> = chDb as never,
-  ) {
+  constructor(pg: Kysely<PgDatabase> = pgDb, ch: Kysely<ClickHouseDatabase> = chDb) {
     this.pg = pg;
     this.ch = ch;
   }
