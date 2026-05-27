@@ -1,5 +1,6 @@
+import type { Kysely } from 'kysely';
 import { describe, expect, it, vi } from 'vitest';
-import type { ArchiveDerivationRow } from '@libs/db';
+import type { ArchiveDerivationRow, ClickHouseDatabase, PgDatabase } from '@libs/db';
 import { GovernorVoteProjectionApplier } from './governor-vote-projection-applier';
 import type { GovernorArchivePayloadRow } from '../persistence/governor-archive-payload-repository';
 
@@ -71,8 +72,8 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
   };
   const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
   const applier = new GovernorVoteProjectionApplier({
-    pgDb: {} as never,
-    chDb: {} as never,
+    pgDb: {} as Kysely<PgDatabase>,
+    chDb: {} as Kysely<ClickHouseDatabase>,
     archive: archive as never,
     dlq: dlq as never,
     payloads: payloads as never,
