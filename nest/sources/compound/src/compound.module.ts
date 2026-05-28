@@ -4,6 +4,7 @@ import {
   ActorRepository,
   ArchiveEventRepository,
   ArchiveDerivationRepository,
+  CompTokenDelegationSnapshotRepository,
   DaoSourceRepository,
   DlqRepository,
   ProposalRepository,
@@ -45,6 +46,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       ActorRepository,
       ArchiveDerivationRepository,
       ArchiveEventRepository,
+      CompTokenDelegationSnapshotRepository,
       DaoSourceRepository,
       DlqRepository,
       ProposalRepository,
@@ -165,6 +167,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
+        delegationSnapshotRepo: CompTokenDelegationSnapshotRepository,
         actorRepo: ActorRepository,
         daoSourceRepo: DaoSourceRepository,
         registry: ChainContextRegistry,
@@ -176,7 +179,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
         const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
-          chDb,
+          delegationSnapshotRepo,
           actorRepo,
           daoSourceRepo,
           registry,
@@ -253,6 +256,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
         CompTokenDelegationProjectionApplier,
+        CompTokenDelegationSnapshotRepository,
         ActorRepository,
         DaoSourceRepository,
         ChainContextRegistry,

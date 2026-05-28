@@ -1,8 +1,9 @@
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import {
   ActorRepository,
-  chDb,
   ArchiveEventRepository,
+  CompTokenDelegationSnapshotRepository,
+  chDb,
   DaoSourceRepository,
   DlqRepository,
   pgDb,
@@ -61,7 +62,7 @@ export function buildSnapshotStrategyMap(input: {
   chainId: string;
 }): Map<string, VotingPowerStrategy> {
   const strategy = new CompoundCompTokenVotingPowerStrategy(
-    chDb,
+    new CompTokenDelegationSnapshotRepository(chDb),
     new ActorRepository(pgDb),
     new DaoSourceRepository(pgDb),
     input.registry,

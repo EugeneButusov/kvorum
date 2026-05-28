@@ -1,6 +1,10 @@
 import { sql, type Kysely, type RawBuilder } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
+import type {
+  DelegationFlowProjectionTable,
+  VoteEventsProjectionTable,
+} from './schema/projections';
 
 export type BucketGrain = 'daily' | 'weekly' | 'monthly';
 
@@ -11,35 +15,7 @@ function pgTimeBucketExpression(column: string, grain: BucketGrain): RawBuilder<
   return sql<Date>`date_trunc('month', ${ref})`;
 }
 
-type VoteEventsProjectionTable = {
-  vote_id: string;
-  proposal_id: string;
-  voter_address: string;
-  dao_id: string;
-  primary_choice: number;
-  voting_power: string;
-  cast_at: Date;
-  block_number: string;
-  superseded: number;
-  version: Date;
-};
-
-type DelegationFlowProjectionTable = {
-  delegation_id: string;
-  delegator_address: string;
-  delegate_address: string;
-  dao_id: string;
-  voting_power: string;
-  block_number: string;
-  event_type: string;
-  created_at: Date;
-  version: Date;
-};
-
-export type AnalyticsClickHouseDatabase = ClickHouseDatabase & {
-  vote_events_projection: VoteEventsProjectionTable;
-  delegation_flow_projection: DelegationFlowProjectionTable;
-};
+export type AnalyticsClickHouseDatabase = ClickHouseDatabase;
 
 const RESOLVED_PASS_STATES = ['executed', 'succeeded'] as const;
 const RESOLVED_FAIL_STATES = ['defeated', 'expired', 'vetoed'] as const;
@@ -96,7 +72,7 @@ export type MirrorEnvelope<T> = {
 
 export class AnalyticsReadRepository {
   constructor(
-    private readonly chDb: Kysely<AnalyticsClickHouseDatabase>,
+    private readonly chDb: Kysely<ClickHouseDatabase>,
     private readonly pgDb: Kysely<PgDatabase>,
   ) {}
 

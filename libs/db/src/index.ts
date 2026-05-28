@@ -59,6 +59,8 @@ export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
 export { VoteReadRepository } from './vote-read-repository';
 export { DelegationReadRepository } from './delegation-read-repository';
+export { CompTokenDelegationSnapshotRepository } from './comp-token-delegation-snapshot-repository';
+export type { DelegationSnapshotEventRow } from './comp-token-delegation-snapshot-repository';
 export {
   DelegationFlowProjectionWriter,
   ZERO_DELEGATE_ADDRESS,
@@ -68,8 +70,11 @@ export type { DelegationReadRow } from './delegation-read-repository';
 export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
 export type { CurrentVoteRow } from './vote-events-projection-read-repository';
 export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
+export type { NewVoteEventsProjectionRow } from './vote-events-projection-writer';
 export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
+export type { NewVotingPowerSnapshotProjectionRow } from './voting-power-snapshot-projection-writer';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
+export type { NewDelegationFlowProjectionRow } from './delegation-flow-projection-writer';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
 export type {

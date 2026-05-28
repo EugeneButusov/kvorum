@@ -225,8 +225,8 @@ export function registerSnapshot(program: Command): void {
         });
         const runner = new SnapshotDrainRunner(
           new ProposalRepository(pgDb),
-          new VotingPowerSnapshotProjectionWriter(chDb as never),
-          new SnapshotProjectionReadRepository(chDb as never),
+          new VotingPowerSnapshotProjectionWriter(chDb),
+          new SnapshotProjectionReadRepository(chDb),
           new VotingPowerSnapshotRunRepository(pgDb),
           new DlqRepository(pgDb),
           strategies,

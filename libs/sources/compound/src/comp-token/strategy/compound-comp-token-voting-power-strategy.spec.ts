@@ -1,33 +1,30 @@
-import type { Kysely } from 'kysely';
 import { describe, expect, it, vi } from 'vitest';
 import type { ChainContextRegistry } from '@libs/chain';
-import type { ActorRepository, ClickHouseDatabase, DaoSourceRepository } from '@libs/db';
+import type {
+  ActorRepository,
+  CompTokenDelegationSnapshotRepository,
+  DaoSourceRepository,
+} from '@libs/db';
 import { CompoundCompTokenVotingPowerStrategy } from './compound-comp-token-voting-power-strategy';
 
 describe('CompoundCompTokenVotingPowerStrategy', () => {
   it('computeSnapshot builds population and applies latest votes_changed power', async () => {
-    const execute = vi.fn().mockResolvedValue([
-      {
-        event_type: 'delegate_changed',
-        delegator_address: '0xaaa',
-        delegate_address: '0xbbb',
-        voting_power: '0',
-      },
-      {
-        event_type: 'votes_changed',
-        delegator_address: '0xaaa',
-        delegate_address: '0xbbb',
-        voting_power: '10',
-      },
-    ]);
-    const chDb = {
-      selectFrom: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        execute,
-      }),
-    } as unknown as Kysely<ClickHouseDatabase>;
+    const delegations = {
+      listForSnapshot: vi.fn().mockResolvedValue([
+        {
+          event_type: 'delegate_changed',
+          delegator_address: '0xaaa',
+          delegate_address: '0xbbb',
+          voting_power: '0',
+        },
+        {
+          event_type: 'votes_changed',
+          delegator_address: '0xaaa',
+          delegate_address: '0xbbb',
+          voting_power: '10',
+        },
+      ]),
+    } as unknown as CompTokenDelegationSnapshotRepository;
     const actors = {
       findActorsByAddresses: vi.fn().mockResolvedValue([{ id: 'actor-1' }, { id: 'actor-2' }]),
       findPrimaryAddressesByActorIds: vi.fn().mockResolvedValue([
@@ -39,7 +36,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
     const registry = { peek: vi.fn() } as unknown as ChainContextRegistry;
 
     const strategy = new CompoundCompTokenVotingPowerStrategy(
-      chDb,
+      delegations,
       actors,
       daoSources,
       registry,
@@ -49,7 +46,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
     const rows = await strategy.computeSnapshot(123n, { daoId: 'dao-1' });
     const byActor = new Map(rows.map((row) => [row.actorId, row]));
 
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect(delegations.listForSnapshot).toHaveBeenCalledWith('dao-1', '123');
     expect(byActor.get('actor-1')).toMatchObject({ address: '0xaaa', power: 0n });
     expect(byActor.get('actor-2')).toMatchObject({ address: '0xbbb', power: 10n });
   });
@@ -68,7 +65,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
     } as unknown as DaoSourceRepository;
 
     const strategy = new CompoundCompTokenVotingPowerStrategy(
-      { selectFrom: vi.fn() } as unknown as Kysely<ClickHouseDatabase>,
+      { listForSnapshot: vi.fn() } as unknown as CompTokenDelegationSnapshotRepository,
       { findPrimaryAddressesByActorIds: vi.fn() } as unknown as ActorRepository,
       daoSources,
       registry,
@@ -93,7 +90,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
 
   it('throws when token address is missing', async () => {
     const strategy = new CompoundCompTokenVotingPowerStrategy(
-      { selectFrom: vi.fn() } as unknown as Kysely<ClickHouseDatabase>,
+      { listForSnapshot: vi.fn() } as unknown as CompTokenDelegationSnapshotRepository,
       { findPrimaryAddressesByActorIds: vi.fn() } as unknown as ActorRepository,
       {
         findTokenAddressByDaoAndSourceType: vi.fn().mockResolvedValue(undefined),
