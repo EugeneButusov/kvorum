@@ -30,6 +30,11 @@ export const derivationMetrics = {
     description: 'Wall-clock duration of one ClickHouse archive payload batch lookup',
     buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
   }),
+  chWriteSeconds: defineHistogram({
+    name: 'derivation_ch_write_seconds',
+    description: 'Wall-clock duration of one ClickHouse projection batch write',
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
+  }),
   timestampFill: defineCounter({
     name: 'derivation_timestamp_fill',
     description: 'Lazy voting timestamp fill outcomes',

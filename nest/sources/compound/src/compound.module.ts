@@ -126,6 +126,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           registry,
           metrics: {
             batchLookupSeconds: () => undefined,
+            chWriteSeconds: () => undefined,
             processed: () => undefined,
           },
           logger: toChainLogger(new Logger('GovernorVoteProjectionApplier')),
@@ -150,6 +151,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           payloads: new CompTokenArchivePayloadRepository(chDb),
           metrics: {
             batchLookupSeconds: () => undefined,
+            chWriteSeconds: () => undefined,
             processed: () => undefined,
           },
           logger: toChainLogger(new Logger('CompTokenDelegationProjectionApplier')),

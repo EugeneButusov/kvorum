@@ -76,7 +76,7 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
   const payloads: GovernorVoteProjectionApplierDeps['payloads'] = {
     fetchPayloads: vi.fn().mockResolvedValue(options?.payloads ?? [BASE_PAYLOAD]),
   } as unknown as GovernorVoteProjectionApplierDeps['payloads'];
-  const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
+  const metrics = { batchLookupSeconds: vi.fn(), chWriteSeconds: vi.fn(), processed: vi.fn() };
   const proposals: GovernorVoteProjectionApplierDeps['proposals'] = {
     findDaoIdForSource: vi.fn(),
     findBySource: vi.fn(),
