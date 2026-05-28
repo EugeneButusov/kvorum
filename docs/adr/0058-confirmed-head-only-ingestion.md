@@ -64,7 +64,7 @@ Empirical count of L1-settlement reverts on Base/Optimism/Arbitrum production: *
 
 If an L1-settlement revert occurs, the recovery path is manual: `admin-cli chain rewind --chain <id> --to-block <n>` per ADR-059.
 
-## Amendment — 2026-05-28 (single-worker-per-protocol invariant added)
+## Operational assumptions — 2026-05-28 (single-worker-per-protocol invariant)
 
 v1 indexer runs a single process; per-protocol there is exactly one worker for each `(chain_id, source_type)` pair.
 
