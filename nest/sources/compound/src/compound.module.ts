@@ -4,7 +4,6 @@ import {
   ActorRepository,
   ArchiveEventRepository,
   ArchiveDerivationRepository,
-  CompTokenDelegationSnapshotRepository,
   DaoSourceRepository,
   DlqRepository,
   ProposalRepository,
@@ -16,6 +15,7 @@ import {
 import {
   COMPOUND_ACTOR_SWEEP_EXTRACTOR,
   CompoundCompTokenVotingPowerStrategy,
+  CompTokenDelegationSnapshotRepository,
   CompTokenArchiveWriter,
   CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
@@ -46,7 +46,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       ActorRepository,
       ArchiveDerivationRepository,
       ArchiveEventRepository,
-      CompTokenDelegationSnapshotRepository,
       DaoSourceRepository,
       DlqRepository,
       ProposalRepository,
@@ -156,6 +155,10 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
           logger: toChainLogger(new Logger('CompTokenDelegationProjectionApplier')),
         }),
       inject: [ArchiveDerivationRepository, DlqRepository],
+    },
+    {
+      provide: CompTokenDelegationSnapshotRepository,
+      useFactory: () => new CompTokenDelegationSnapshotRepository(chDb),
     },
     {
       provide: COMPOUND_SOURCE_PLUGIN,

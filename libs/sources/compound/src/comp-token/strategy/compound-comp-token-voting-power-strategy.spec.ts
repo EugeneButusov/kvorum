@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChainContextRegistry } from '@libs/chain';
-import type {
-  ActorRepository,
-  CompTokenDelegationSnapshotRepository,
-  DaoSourceRepository,
-} from '@libs/db';
+import type { ActorRepository, DaoSourceRepository } from '@libs/db';
 import { CompoundCompTokenVotingPowerStrategy } from './compound-comp-token-voting-power-strategy';
+import type { CompTokenDelegationSnapshotRepository } from '../persistence/delegation-snapshot-repository';
 
 describe('CompoundCompTokenVotingPowerStrategy', () => {
   it('computeSnapshot builds population and applies latest votes_changed power', async () => {

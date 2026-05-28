@@ -2,7 +2,6 @@ import type { ChainContextRegistry, Logger } from '@libs/chain';
 import {
   ActorRepository,
   ArchiveEventRepository,
-  CompTokenDelegationSnapshotRepository,
   chDb,
   DaoSourceRepository,
   DlqRepository,
@@ -11,6 +10,7 @@ import {
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
 import {
+  CompTokenDelegationSnapshotRepository,
   CompoundCompTokenVotingPowerStrategy,
   GovernorArchiveWriter,
   CompTokenArchiveWriter,

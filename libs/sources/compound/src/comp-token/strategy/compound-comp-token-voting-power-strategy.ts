@@ -1,17 +1,14 @@
 import { Interface } from 'ethers';
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import {
-  ActorRepository,
-  CompTokenDelegationSnapshotRepository,
-  DaoSourceRepository,
-} from '@libs/db';
+import { ActorRepository, DaoSourceRepository } from '@libs/db';
 import type {
   ComputedActorPower,
   VotingPowerStrategy,
   VotingPowerStrategyContext,
 } from '@libs/domain';
 import { COMP_TOKEN_VOTING_POWER_ABI } from './comp-token-abi';
+import type { CompTokenDelegationSnapshotRepository } from '../persistence/delegation-snapshot-repository';
 
 const iface = new Interface(COMP_TOKEN_VOTING_POWER_ABI);
 

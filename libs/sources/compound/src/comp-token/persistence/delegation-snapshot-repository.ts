@@ -1,5 +1,5 @@
 import { sql, type Kysely } from 'kysely';
-import type { ClickHouseDatabase } from './schema/clickhouse';
+import type { ClickHouseDatabase } from '@libs/db';
 
 type DelegationFlowProjectionTable = {
   dao_id: string;
