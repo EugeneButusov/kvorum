@@ -1,13 +1,8 @@
 import { sql, type Kysely } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
-import type { VotingPowerSnapshotProjectionTable } from './schema/projections';
-
-type VotingPowerSnapshotProjectionReadDatabase = ClickHouseDatabase & {
-  voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
-};
 
 export class VotingPowerSnapshotProjectionReadRepository {
-  constructor(private readonly ch: Kysely<VotingPowerSnapshotProjectionReadDatabase>) {}
+  constructor(private readonly ch: Kysely<ClickHouseDatabase>) {}
 
   async deleteForProposal(proposalId: string): Promise<void> {
     await sql`ALTER TABLE voting_power_snapshot_projection DELETE WHERE proposal_id = ${proposalId}`.execute(
@@ -20,9 +15,7 @@ export class VotingPowerSnapshotProjectionReadRepository {
     limit: number,
   ): Promise<Array<{ actorId: string; power: string; address: string }>> {
     const rows = await this.ch
-      .selectFrom(
-        sql<VotingPowerSnapshotProjectionTable>`voting_power_snapshot_projection`.as('vps'),
-      )
+      .selectFrom('voting_power_snapshot_projection as vps')
       .select([
         'vps.actor_address as address',
         'vps.voting_power as power',
@@ -42,9 +35,7 @@ export class VotingPowerSnapshotProjectionReadRepository {
     proposalId: string,
   ): Promise<Array<{ actorId: string; address: string }>> {
     return this.ch
-      .selectFrom(
-        sql<VotingPowerSnapshotProjectionTable>`voting_power_snapshot_projection`.as('vps'),
-      )
+      .selectFrom('voting_power_snapshot_projection as vps')
       .select([
         'vps.actor_address as address',
         sql<string>`coalesce(dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(vps.actor_address)), vps.actor_id_hint, '')`.as(
