@@ -2,11 +2,11 @@ import { defineCounter, defineGauge, defineHistogram } from '@libs/observability
 
 export const reconciliationMetrics = {
   chOrphanTotal: defineCounter({
-    name: 'indexer_reconciliation_ch_orphan_total',
+    name: 'indexer_reconciliation_ch_orphan',
     description: 'CH-orphan sweep outcomes by dao_source_id',
   }),
   pgOrphanTotal: defineCounter({
-    name: 'indexer_reconciliation_pg_orphan_total',
+    name: 'indexer_reconciliation_pg_orphan',
     description: 'PG-orphan sweep outcomes by dao_source_id',
   }),
   sweepDurationSeconds: defineHistogram({
