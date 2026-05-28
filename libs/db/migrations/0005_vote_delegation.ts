@@ -70,6 +70,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
+    CREATE INDEX actor_address_address_idx
+    ON actor_address (address)
+  `.execute(db);
+
+  await sql`
     CREATE INDEX idx_actor_merged_into
     ON actor (merged_into_actor_id)
     WHERE merged_into_actor_id IS NOT NULL
@@ -91,6 +96,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_archive_event_actor_resolution_pending').execute();
+  await db.schema.dropIndex('actor_address_address_idx').execute();
   await db.schema.dropIndex('idx_actor_merged_into').execute();
 
   await db.schema.alterTable('actor').dropColumn('merged_into_actor_id').execute();
