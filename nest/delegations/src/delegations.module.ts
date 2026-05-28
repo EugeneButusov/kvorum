@@ -2,10 +2,12 @@ import { Module } from '@nestjs/common';
 import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
 import { DbModule } from '@nest/db';
 
-const DELEGATIONS_DB_MODULE = DbModule.forFeature([DelegationReadRepository, DaoReadRepository]);
-
 @Module({
-  imports: [DELEGATIONS_DB_MODULE],
-  exports: [DELEGATIONS_DB_MODULE],
+  imports: [DbModule.forFeature([DelegationReadRepository, DaoReadRepository])],
+  providers: [
+    { provide: DelegationReadRepository, useExisting: DelegationReadRepository },
+    { provide: DaoReadRepository, useExisting: DaoReadRepository },
+  ],
+  exports: [DelegationReadRepository, DaoReadRepository],
 })
 export class DelegationsModule {}
