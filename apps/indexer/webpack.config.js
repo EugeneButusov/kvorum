@@ -29,6 +29,7 @@ module.exports = {
       '@sources/core': path.join(root, 'libs/sources/core/src/index.ts'),
       '@sources/compound': path.join(root, 'libs/sources/compound/src/index.ts'),
       '@nest/chain': path.join(root, 'nest/chain/src/index.ts'),
+      '@nest/db': path.join(root, 'nest/db/src/index.ts'),
       '@nest/compound': path.join(root, 'nest/sources/compound/src/index.ts'),
       '@nest/sources': path.join(root, 'nest/sources/index.ts'),
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
