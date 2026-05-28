@@ -129,6 +129,15 @@ export class ActorRepository {
       .execute();
   }
 
+  async findActorsByAddresses(addresses: readonly string[]): Promise<Array<{ id: string }>> {
+    if (addresses.length === 0) return [];
+    return this.db
+      .selectFrom('actor_address')
+      .select(['actor_id as id'])
+      .where('address', 'in', [...addresses])
+      .execute();
+  }
+
   async listAddressesForActor(actorId: string): Promise<ActorAddress[]> {
     return this.db
       .selectFrom('actor_address')

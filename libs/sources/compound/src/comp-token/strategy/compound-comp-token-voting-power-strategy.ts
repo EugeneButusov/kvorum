@@ -1,7 +1,8 @@
 import { Interface } from 'ethers';
+import { sql, type Kysely } from 'kysely';
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import { ActorRepository, DaoSourceRepository, DelegationRepository } from '@libs/db';
+import { ActorRepository, DaoSourceRepository, type ClickHouseDatabase } from '@libs/db';
 import type {
   ComputedActorPower,
   VotingPowerStrategy,
@@ -15,7 +16,7 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
   private readonly tokenAddressByDaoId = new Map<string, string>();
 
   constructor(
-    private readonly delegations: DelegationRepository,
+    private readonly chDb: Kysely<ClickHouseDatabase>,
     private readonly actors: ActorRepository,
     private readonly daoSources: DaoSourceRepository,
     private readonly chainContextRegistry: ChainContextRegistry,
@@ -27,27 +28,38 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
     block: bigint,
     ctx: VotingPowerStrategyContext,
   ): Promise<ComputedActorPower[]> {
-    const rows = await this.delegations.listForSnapshot(ctx.daoId, block.toString());
+    const rows = await this.chDb
+      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('d'))
+      .select(['d.event_type', 'd.voting_power', 'd.delegator_address', 'd.delegate_address'])
+      .where('d.dao_id', '=', ctx.daoId)
+      .where('d.block_number', '<=', block.toString())
+      .orderBy('d.block_number', 'asc')
+      .orderBy('d.log_index', 'asc')
+      .execute();
 
     const powerByActorId = new Map<string, bigint>();
-    const population = new Set<string>();
+    const populationByAddress = new Set<string>();
 
     for (const row of rows) {
-      population.add(row.delegator_actor_id);
-      if (row.delegate_actor_id !== null) population.add(row.delegate_actor_id);
-      if (row.event_type === 'votes_changed' && row.delegate_actor_id !== null) {
-        powerByActorId.set(row.delegate_actor_id, BigInt(row.voting_power));
+      populationByAddress.add(row.delegator_address.toLowerCase());
+      if (row.delegate_address !== ZERO_DELEGATE_ADDRESS) {
+        populationByAddress.add(row.delegate_address.toLowerCase());
+      }
+      if (row.event_type === 'votes_changed' && row.delegate_address !== ZERO_DELEGATE_ADDRESS) {
+        powerByActorId.set(row.delegate_address.toLowerCase(), BigInt(row.voting_power));
       }
     }
 
-    if (population.size === 0) return [];
+    if (populationByAddress.size === 0) return [];
 
-    const addresses = await this.actors.findPrimaryAddressesByActorIds([...population]);
+    const actors = await this.actors.findActorsByAddresses([...populationByAddress]);
+    const actorIds = new Set(actors.map((actor) => actor.id));
+    const addresses = await this.actors.findPrimaryAddressesByActorIds([...actorIds]);
 
     const addressByActorId = new Map(addresses.map((record) => [record.actor_id, record.address]));
 
     const output: ComputedActorPower[] = [];
-    for (const actorId of population) {
+    for (const actorId of actorIds) {
       const address = addressByActorId.get(actorId);
       if (address === undefined) {
         this.logger.warn('snapshot_actor_primary_address_missing', { actor_id: actorId });
@@ -56,7 +68,7 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
       output.push({
         actorId,
         address,
-        power: powerByActorId.get(actorId) ?? 0n,
+        power: powerByActorId.get(address.toLowerCase()) ?? 0n,
       });
     }
 
@@ -102,3 +114,15 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
     return address;
   }
 }
+
+type DelegationFlowProjectionTable = {
+  dao_id: string;
+  delegator_address: string;
+  delegate_address: string;
+  voting_power: string;
+  block_number: string;
+  log_index: number;
+  event_type: 'delegate_changed' | 'votes_changed';
+};
+
+const ZERO_DELEGATE_ADDRESS = '0x0000000000000000000000000000000000000000';

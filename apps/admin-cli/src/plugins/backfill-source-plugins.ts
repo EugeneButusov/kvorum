@@ -4,7 +4,6 @@ import {
   chDb,
   ArchiveEventRepository,
   DaoSourceRepository,
-  DelegationRepository,
   DlqRepository,
   pgDb,
   type SourceType,
@@ -62,7 +61,7 @@ export function buildSnapshotStrategyMap(input: {
   chainId: string;
 }): Map<string, VotingPowerStrategy> {
   const strategy = new CompoundCompTokenVotingPowerStrategy(
-    new DelegationRepository(pgDb),
+    chDb,
     new ActorRepository(pgDb),
     new DaoSourceRepository(pgDb),
     input.registry,
