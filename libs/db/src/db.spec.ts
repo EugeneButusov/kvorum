@@ -277,7 +277,7 @@ describeWithDb('decode tracking schema (baseline migration)', () => {
 });
 
 describeWithDb('J1 vote/delegation/address schema', () => {
-  it('supports smoke inserts across vote/delegation/address tables', async () => {
+  it('supports smoke inserts across proposal/address tables', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
         const now = new Date();
@@ -300,12 +300,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .values({ primary_address: `0x${'2'.repeat(40)}`, updated_at: now })
           .returning(['id'])
           .execute();
-        const [actorB] = await tx
-          .insertInto('actor')
-          .values({ primary_address: `0x${'3'.repeat(40)}`, updated_at: now })
-          .returning(['id'])
-          .execute();
-        const [proposal] = await tx
+        await tx
           .insertInto('proposal')
           .values({
             dao_id: dao!.id,
@@ -324,53 +319,13 @@ describeWithDb('J1 vote/delegation/address schema', () => {
             state_updated_at: now,
             updated_at: now,
           })
-          .returning(['id'])
           .execute();
 
-        const [vote] = await tx
-          .insertInto('vote')
-          .values({
-            proposal_id: proposal!.id,
-            voter_actor_id: actorA!.id,
-            voting_power_reported: '100',
-            cast_at: now,
-            tx_hash: `0x${'4'.repeat(64)}`,
-            log_index: 1,
-            primary_choice: 1,
-          })
-          .returning(['id'])
-          .execute();
-        await tx
-          .insertInto('vote_choice')
-          .values({ vote_id: vote!.id, choice_index: 1, weight: '1.000000000000000000' })
-          .execute();
-        await tx
-          .insertInto('voting_power_snapshot')
-          .values({
-            actor_id: actorA!.id,
-            dao_id: dao!.id,
-            proposal_id: proposal!.id,
-            block_number: '10',
-            power: '100',
-          })
-          .execute();
-        await tx
-          .insertInto('delegation')
-          .values({
-            dao_id: dao!.id,
-            delegator_actor_id: actorA!.id,
-            delegate_actor_id: actorB!.id,
-            voting_power: '100',
-            block_number: '10',
-            tx_hash: `0x${'5'.repeat(64)}`,
-            event_type: 'delegate_changed',
-          })
-          .execute();
         await tx
           .insertInto('actor_address')
           .values({
             actor_id: actorA!.id,
-            address: `0x${'6'.repeat(40)}`,
+            address: `0x${'3'.repeat(40)}`,
             is_primary: false,
             source: 'manual',
           })
@@ -378,164 +333,13 @@ describeWithDb('J1 vote/delegation/address schema', () => {
         await tx
           .insertInto('actor_address_redirect')
           .values({
-            from_address: `0x${'7'.repeat(40)}`,
+            from_address: `0x${'4'.repeat(40)}`,
             to_actor_id: actorA!.id,
             merged_at: now,
             merge_reason: 'smoke',
             created_by: 'test',
           })
           .execute();
-        throw new RollbackSignal();
-      }),
-    ).rejects.toThrow(RollbackSignal);
-  });
-
-  it('enforces vote current-row uniqueness (ADR-021)', async () => {
-    await expect(
-      pgDb.transaction().execute(async (tx) => {
-        const now = new Date();
-        const [dao] = await tx
-          .insertInto('dao')
-          .values({
-            slug: `j1-unique-dao-${Date.now()}`,
-            name: 'J1 Unique DAO',
-            primary_token_address: `0x${'8'.repeat(40)}`,
-            primary_chain_id: '1',
-            description: 'smoke',
-            website_url: 'https://example.com',
-            forum_url: 'https://example.com',
-            updated_at: now,
-          })
-          .returning(['id'])
-          .execute();
-        const [actor] = await tx
-          .insertInto('actor')
-          .values({ primary_address: `0x${'9'.repeat(40)}`, updated_at: now })
-          .returning(['id'])
-          .execute();
-        const [proposal] = await tx
-          .insertInto('proposal')
-          .values({
-            dao_id: dao!.id,
-            source_type: 'compound_governor_bravo',
-            source_id: `j1-unique-proposal-${Date.now()}`,
-            proposer_actor_id: actor!.id,
-            description: 'smoke proposal',
-            description_hash: 'b'.repeat(64),
-            binding: true,
-            voting_starts_at: null,
-            voting_ends_at: null,
-            voting_starts_block: '3',
-            voting_ends_block: '4',
-            voting_power_block: '3',
-            state: 'active',
-            state_updated_at: now,
-            updated_at: now,
-          })
-          .returning(['id'])
-          .execute();
-
-        await tx
-          .insertInto('vote')
-          .values({
-            proposal_id: proposal!.id,
-            voter_actor_id: actor!.id,
-            voting_power_reported: '1',
-            cast_at: now,
-          })
-          .execute();
-        await expect(
-          tx
-            .insertInto('vote')
-            .values({
-              proposal_id: proposal!.id,
-              voter_actor_id: actor!.id,
-              voting_power_reported: '2',
-              cast_at: now,
-            })
-            .execute(),
-        ).rejects.toMatchObject({ code: '23505' });
-
-        throw new RollbackSignal();
-      }),
-    ).rejects.toThrow(RollbackSignal);
-  });
-
-  it('enforces vote event idempotency uniqueness', async () => {
-    await expect(
-      pgDb.transaction().execute(async (tx) => {
-        const now = new Date();
-        const [dao] = await tx
-          .insertInto('dao')
-          .values({
-            slug: `j1-idempotency-dao-${Date.now()}`,
-            name: 'J1 Idempotency DAO',
-            primary_token_address: `0x${'8'.repeat(40)}`,
-            primary_chain_id: '1',
-            description: 'smoke',
-            website_url: 'https://example.com',
-            forum_url: 'https://example.com',
-            updated_at: now,
-          })
-          .returning(['id'])
-          .execute();
-        const [actor] = await tx
-          .insertInto('actor')
-          .values({ primary_address: uniqueAddress('9'), updated_at: now })
-          .returning(['id'])
-          .execute();
-        const [actor2] = await tx
-          .insertInto('actor')
-          .values({ primary_address: uniqueAddress('b'), updated_at: now })
-          .returning(['id'])
-          .execute();
-        const [proposal] = await tx
-          .insertInto('proposal')
-          .values({
-            dao_id: dao!.id,
-            source_type: 'compound_governor_bravo',
-            source_id: `j1-idempotency-proposal-${Date.now()}`,
-            proposer_actor_id: actor!.id,
-            description: 'smoke proposal',
-            description_hash: 'c'.repeat(64),
-            binding: true,
-            voting_starts_at: null,
-            voting_ends_at: null,
-            voting_starts_block: '5',
-            voting_ends_block: '6',
-            voting_power_block: '5',
-            state: 'active',
-            state_updated_at: now,
-            updated_at: now,
-          })
-          .returning(['id'])
-          .execute();
-
-        await tx
-          .insertInto('vote')
-          .values({
-            proposal_id: proposal!.id,
-            voter_actor_id: actor!.id,
-            voting_power_reported: '3',
-            cast_at: now,
-            tx_hash: `0x${'a'.repeat(64)}`,
-            log_index: 99,
-          })
-          .execute();
-        await expect(
-          tx
-            .insertInto('vote')
-            .values({
-              proposal_id: proposal!.id,
-              voter_actor_id: actor2!.id,
-              voting_power_reported: '4',
-              cast_at: now,
-              tx_hash: `0x${'a'.repeat(64)}`,
-              log_index: 99,
-            })
-            .execute(),
-        ).rejects.toMatchObject({ code: '23505' });
-
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);
@@ -746,39 +550,17 @@ describeWithDb('J1 vote/delegation/address schema', () => {
         const indexes = await tx
           .selectFrom('pg_indexes')
           .select(['indexname', 'indexdef'])
-          .where('tablename', 'in', [
-            'vote',
-            'delegation',
-            'voting_power_snapshot',
-            'actor_address',
-            'actor',
-            'archive_event',
-          ])
+          .where('tablename', 'in', ['actor_address', 'actor', 'archive_event'])
           .execute();
 
         const indexNames = new Set(indexes.map((row) => row.indexname));
         for (const expected of [
-          'vote_proposal_id_cast_at_idx',
-          'vote_voter_actor_id_cast_at_idx',
-          'vote_proposal_voter_current_uidx',
-          'vote_event_idempotency_uidx',
-          'delegation_delegator_actor_block_idx',
-          'delegation_delegate_actor_block_idx',
-          'delegation_dao_block_idx',
-          'voting_power_snapshot_proposal_idx',
           'actor_address_primary_uidx',
           'idx_actor_merged_into',
           'idx_archive_event_actor_resolution_pending',
         ]) {
           expect(indexNames.has(expected)).toBe(true);
         }
-
-        const voteCurrent = indexes.find(
-          (row) => row.indexname === 'vote_proposal_voter_current_uidx',
-        );
-        expect(voteCurrent).toBeDefined();
-        const canonicalized = voteCurrent!.indexdef.replace(/\s+/g, ' ').trim();
-        expect(canonicalized).toContain('WHERE (superseded_by_vote_id IS NULL)');
 
         throw new RollbackSignal();
       }),

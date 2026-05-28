@@ -10,13 +10,7 @@ import type { PgDatabase } from './schema/pg';
 export interface MergePlan {
   survivor: { actorId: string; primaryAddress: string };
   secondary: { actorId: string; primaryAddress: string };
-  fkRewrites: {
-    proposal_proposer_actor_id: number;
-    vote_voter_actor_id: number;
-    delegation_delegator_actor_id: number;
-    delegation_delegate_actor_id: number;
-    voting_power_snapshot_actor_id: number;
-  };
+  proposalProposerRewrites: number;
   actorAddressRetargets: number;
   actorAddressPrimaryFlip: { address: string; willFlipIsPrimary: boolean };
   redirectsToFlatten: Array<{ from_address: string; current_to_actor_id: string }>;
@@ -91,15 +85,7 @@ async function assertActorState(
 
 async function countRows(
   db: Kysely<PgDatabase> | Transaction<PgDatabase>,
-  table: keyof Pick<
-    PgDatabase,
-    | 'proposal'
-    | 'vote'
-    | 'delegation'
-    | 'voting_power_snapshot'
-    | 'actor_address'
-    | 'actor_address_redirect'
-  >,
+  table: keyof Pick<PgDatabase, 'proposal' | 'actor_address' | 'actor_address_redirect'>,
   column: string,
   actorId: string,
 ): Promise<number> {
@@ -177,13 +163,7 @@ async function buildPlan(
     return {
       survivor: { actorId: primaryRow.actorId, primaryAddress: primaryRow.primaryAddress },
       secondary: { actorId: secondaryRow.actorId, primaryAddress: secondaryRow.primaryAddress },
-      fkRewrites: {
-        proposal_proposer_actor_id: 0,
-        vote_voter_actor_id: 0,
-        delegation_delegator_actor_id: 0,
-        delegation_delegate_actor_id: 0,
-        voting_power_snapshot_actor_id: 0,
-      },
+      proposalProposerRewrites: 0,
       actorAddressRetargets: 0,
       actorAddressPrimaryFlip: {
         address: secondaryRow.primaryAddress,
@@ -204,20 +184,8 @@ async function buildPlan(
   validateLookupPair(normalizedPrimary, normalizedSecondary, primaryRow, secondaryRow);
   await assertActorState(db, primaryRow.actorId, secondaryRow.primaryAddress);
 
-  const [
-    proposalCount,
-    voteCount,
-    delegatorCount,
-    delegateCount,
-    snapshotCount,
-    addressRetargets,
-    redirectsToFlatten,
-  ] = await Promise.all([
+  const [proposalCount, addressRetargets, redirectsToFlatten] = await Promise.all([
     countRows(db, 'proposal', 'proposer_actor_id', secondaryRow.actorId),
-    countRows(db, 'vote', 'voter_actor_id', secondaryRow.actorId),
-    countRows(db, 'delegation', 'delegator_actor_id', secondaryRow.actorId),
-    countRows(db, 'delegation', 'delegate_actor_id', secondaryRow.actorId),
-    countRows(db, 'voting_power_snapshot', 'actor_id', secondaryRow.actorId),
     countRows(db, 'actor_address', 'actor_id', secondaryRow.actorId),
     db
       .selectFrom('actor_address_redirect')
@@ -229,13 +197,7 @@ async function buildPlan(
   return {
     survivor: { actorId: primaryRow.actorId, primaryAddress: primaryRow.primaryAddress },
     secondary: { actorId: secondaryRow.actorId, primaryAddress: secondaryRow.primaryAddress },
-    fkRewrites: {
-      proposal_proposer_actor_id: proposalCount,
-      vote_voter_actor_id: voteCount,
-      delegation_delegator_actor_id: delegatorCount,
-      delegation_delegate_actor_id: delegateCount,
-      voting_power_snapshot_actor_id: snapshotCount,
-    },
+    proposalProposerRewrites: proposalCount,
     actorAddressRetargets: addressRetargets,
     actorAddressPrimaryFlip: {
       address: secondaryRow.primaryAddress,
@@ -265,43 +227,14 @@ export class ActorMergeRepository {
       const survivorId = plan.survivor.actorId;
       const secondaryId = plan.secondary.actorId;
 
-      const fkRewrites = {
-        proposal_proposer_actor_id: toUpdatedRows(
-          await trx
-            .updateTable('proposal')
-            .set({ proposer_actor_id: survivorId })
-            .where('proposer_actor_id', '=', secondaryId)
-            .executeTakeFirst(),
-        ),
-        vote_voter_actor_id: toUpdatedRows(
-          await trx
-            .updateTable('vote')
-            .set({ voter_actor_id: survivorId })
-            .where('voter_actor_id', '=', secondaryId)
-            .executeTakeFirst(),
-        ),
-        delegation_delegator_actor_id: toUpdatedRows(
-          await trx
-            .updateTable('delegation')
-            .set({ delegator_actor_id: survivorId })
-            .where('delegator_actor_id', '=', secondaryId)
-            .executeTakeFirst(),
-        ),
-        delegation_delegate_actor_id: toUpdatedRows(
-          await trx
-            .updateTable('delegation')
-            .set({ delegate_actor_id: survivorId })
-            .where('delegate_actor_id', '=', secondaryId)
-            .executeTakeFirst(),
-        ),
-        voting_power_snapshot_actor_id: toUpdatedRows(
-          await trx
-            .updateTable('voting_power_snapshot')
-            .set({ actor_id: survivorId })
-            .where('actor_id', '=', secondaryId)
-            .executeTakeFirst(),
-        ),
-      };
+      // FK-rewrite cascade reduced to proposer_actor_id only after the CH cutover; see ADR-033 amendment in #219.
+      const proposalProposerRewrites = toUpdatedRows(
+        await trx
+          .updateTable('proposal')
+          .set({ proposer_actor_id: survivorId })
+          .where('proposer_actor_id', '=', secondaryId)
+          .executeTakeFirst(),
+      );
 
       const addressRetargets = toUpdatedRows(
         await trx
@@ -345,7 +278,7 @@ export class ActorMergeRepository {
 
       return {
         ...plan,
-        fkRewrites,
+        proposalProposerRewrites,
         actorAddressRetargets: addressRetargets,
         redirectsToFlatten:
           flattened > 0

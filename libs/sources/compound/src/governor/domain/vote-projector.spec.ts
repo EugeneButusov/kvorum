@@ -13,7 +13,7 @@ const ROW: ArchiveDerivationRow = {
   tx_hash: '0xtx',
   log_index: 3,
   event_type: 'VoteCast',
-  confirmed_at: new Date('2026-01-01T00:00:00Z'),
+  received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 0,
 };
 
@@ -33,21 +33,24 @@ describe('projectVoteCast', () => {
     const castAt = new Date('2026-01-01T00:05:00Z');
     const projection = projectVoteCast(PAYLOAD, ROW, {
       castAt,
-      voterActorId: 'actor-1',
+      daoId: 'dao-1',
       proposalId: 'proposal-1',
+      voterAddress: `0x${'ab'.repeat(20)}`,
     });
 
     expect(projection.vote).toEqual({
+      vote_id: 'archive-1',
+      dao_id: 'dao-1',
       proposal_id: 'proposal-1',
-      voter_actor_id: 'actor-1',
-      voting_power_reported: '123456',
+      voter_address: `0x${'ab'.repeat(20)}`,
+      voting_power: '123456',
       cast_at: castAt,
       block_number: '100',
-      tx_index: 0,
-      tx_hash: '0xtx',
       log_index: 3,
       primary_choice: 2,
-      reason: 'because',
+      superseded: 0,
+      superseded_at: null,
+      superseded_by_vote_id: null,
     });
     expect(projection.choice).toEqual({
       choice_index: 2,

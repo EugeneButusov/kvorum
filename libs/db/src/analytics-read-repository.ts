@@ -1,6 +1,10 @@
 import { sql, type Kysely, type RawBuilder } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
+import type {
+  DelegationFlowProjectionTable,
+  VoteEventsProjectionTable,
+} from './schema/projections';
 
 export type BucketGrain = 'daily' | 'weekly' | 'monthly';
 
@@ -11,35 +15,7 @@ function pgTimeBucketExpression(column: string, grain: BucketGrain): RawBuilder<
   return sql<Date>`date_trunc('month', ${ref})`;
 }
 
-type VoteEventsProjectionTable = {
-  vote_id: string;
-  proposal_id: string;
-  voter_address: string;
-  dao_id: string;
-  primary_choice: number;
-  voting_power: string;
-  cast_at: Date;
-  block_number: string;
-  superseded: number;
-  version: Date;
-};
-
-type DelegationFlowProjectionTable = {
-  delegation_id: string;
-  delegator_address: string;
-  delegate_address: string;
-  dao_id: string;
-  voting_power: string;
-  block_number: string;
-  event_type: string;
-  created_at: Date;
-  version: Date;
-};
-
-export type AnalyticsClickHouseDatabase = ClickHouseDatabase & {
-  vote_events_projection: VoteEventsProjectionTable;
-  delegation_flow_projection: DelegationFlowProjectionTable;
-};
+export type AnalyticsClickHouseDatabase = ClickHouseDatabase;
 
 const RESOLVED_PASS_STATES = ['executed', 'succeeded'] as const;
 const RESOLVED_FAIL_STATES = ['defeated', 'expired', 'vetoed'] as const;
@@ -96,7 +72,7 @@ export type MirrorEnvelope<T> = {
 
 export class AnalyticsReadRepository {
   constructor(
-    private readonly chDb: Kysely<AnalyticsClickHouseDatabase>,
+    private readonly chDb: Kysely<ClickHouseDatabase>,
     private readonly pgDb: Kysely<PgDatabase>,
   ) {}
 
@@ -367,31 +343,47 @@ export class AnalyticsReadRepository {
   ): Promise<Map<string, { matches: number; denom: number }>> {
     if (daoIds.length === 0) return new Map();
 
-    const rows = await this.pgDb
-      .selectFrom('vote')
-      .innerJoin('proposal', 'proposal.id', 'vote.proposal_id')
-      .select('proposal.dao_id as dao_id')
-      .select(
-        sql<number>`sum(case
-          when vote.choice = 'For' and proposal.state in ('executed', 'succeeded') then 1
-          when vote.choice = 'Against' and proposal.state in ('defeated', 'expired', 'vetoed') then 1
-          else 0
-        end)`.as('matches'),
-      )
-      .select(
-        sql<number>`sum(case
-          when vote.choice in ('For', 'Against')
-            and proposal.state in ('executed', 'succeeded', 'defeated', 'expired', 'vetoed') then 1
-          else 0
-        end)`.as('denom'),
-      )
-      .where('vote.voter_actor_id', '=', actorId)
-      .where('proposal.dao_id', 'in', [...daoIds])
-      .groupBy('proposal.dao_id')
+    const proposals = await this.pgDb
+      .selectFrom('proposal')
+      .select(['id', 'dao_id', 'state'])
+      .where('dao_id', 'in', [...daoIds])
+      .where('state', 'in', [...RESOLVED_STATES])
       .execute();
 
-    return new Map(
-      rows.map((r) => [r.dao_id, { matches: Number(r.matches), denom: Number(r.denom) }]),
-    );
+    if (proposals.length === 0) return new Map();
+
+    const proposalById = new Map(proposals.map((row) => [row.id, row]));
+    const voteRows = await this.chDb
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
+      .select(['v.proposal_id', 'v.primary_choice'])
+      .where('v.superseded', '=', 0)
+      .where(
+        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${actorId}`,
+      )
+      .where(
+        'v.proposal_id',
+        'in',
+        proposals.map((proposal) => proposal.id),
+      )
+      .execute();
+
+    const result = new Map<string, { matches: number; denom: number }>();
+    for (const row of voteRows) {
+      const proposal = proposalById.get(row.proposal_id);
+      if (proposal === undefined) continue;
+      if (row.primary_choice !== 0 && row.primary_choice !== 1) continue;
+
+      const current = result.get(proposal.dao_id) ?? { matches: 0, denom: 0 };
+      current.denom += 1;
+      if (
+        (row.primary_choice === 1 && RESOLVED_PASS_STATES.includes(proposal.state as never)) ||
+        (row.primary_choice === 0 && RESOLVED_FAIL_STATES.includes(proposal.state as never))
+      ) {
+        current.matches += 1;
+      }
+      result.set(proposal.dao_id, current);
+    }
+
+    return result;
   }
 }

@@ -31,20 +31,13 @@ type DelegationFlowProjectionTable = {
   created_at: Date;
 };
 
-type DelegationReadClickHouseDatabase = ClickHouseDatabase & {
-  delegation_flow_projection: DelegationFlowProjectionTable;
-};
-
 const ZERO_DELEGATE_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export class DelegationReadRepository {
   private readonly pg: Kysely<PgDatabase>;
-  private readonly ch: Kysely<DelegationReadClickHouseDatabase>;
+  private readonly ch: Kysely<ClickHouseDatabase>;
 
-  constructor(
-    pg: Kysely<PgDatabase> = pgDb,
-    ch: Kysely<DelegationReadClickHouseDatabase> = chDb as never,
-  ) {
+  constructor(pg: Kysely<PgDatabase> = pgDb, ch: Kysely<ClickHouseDatabase> = chDb) {
     this.pg = pg;
     this.ch = ch;
   }

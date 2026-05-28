@@ -184,10 +184,6 @@ describe('ActorMergeRepository', () => {
         ],
         undefined,
         { count: 3 },
-        { count: 4 },
-        { count: 5 },
-        { count: 6 },
-        { count: 7 },
         { count: 8 },
         [{ from_address: '0x' + '4'.repeat(40), current_to_actor_id: 'actor-2' }],
       ],
@@ -203,6 +199,7 @@ describe('ActorMergeRepository', () => {
     ).resolves.toMatchObject({
       survivor: { actorId: 'actor-1', primaryAddress: '0x' + '1'.repeat(40) },
       secondary: { actorId: 'actor-2', primaryAddress: '0x' + '3'.repeat(40) },
+      proposalProposerRewrites: 3,
       actorAddressRetargets: 8,
       redirectToInsert: {
         from_address: '0x' + '3'.repeat(40),
@@ -231,22 +228,13 @@ describe('ActorMergeRepository', () => {
         undefined,
         { count: 1 },
         { count: 2 },
-        { count: 3 },
-        { count: 4 },
-        { count: 5 },
-        { count: 6 },
         [{ from_address: '0x' + '4'.repeat(40), current_to_actor_id: 'actor-2' }],
       ],
       [
-        { numUpdatedRows: 1n },
         { numUpdatedRows: 2n },
         { numUpdatedRows: 3n },
         { numUpdatedRows: 4n },
         { numUpdatedRows: 5n },
-        { numUpdatedRows: 6n },
-        { numUpdatedRows: 7n },
-        { numUpdatedRows: 8n },
-        { numUpdatedRows: 9n },
       ],
     );
     const repo = new ActorMergeRepository(db as never);
@@ -258,22 +246,12 @@ describe('ActorMergeRepository', () => {
       createdBy: 'alice',
     });
 
-    expect(result.fkRewrites).toEqual({
-      proposal_proposer_actor_id: 1,
-      vote_voter_actor_id: 2,
-      delegation_delegator_actor_id: 3,
-      delegation_delegate_actor_id: 4,
-      voting_power_snapshot_actor_id: 5,
-    });
+    expect(result.proposalProposerRewrites).toEqual(2);
     expect(db.updateTable).toHaveBeenNthCalledWith(1, 'proposal');
-    expect(db.updateTable).toHaveBeenNthCalledWith(2, 'vote');
-    expect(db.updateTable).toHaveBeenNthCalledWith(3, 'delegation');
-    expect(db.updateTable).toHaveBeenNthCalledWith(4, 'delegation');
-    expect(db.updateTable).toHaveBeenNthCalledWith(5, 'voting_power_snapshot');
-    expect(db.updateTable).toHaveBeenNthCalledWith(6, 'actor_address');
-    expect(db.updateTable).toHaveBeenNthCalledWith(7, 'actor_address');
-    expect(db.updateTable).toHaveBeenNthCalledWith(8, 'actor_address_redirect');
-    expect(db.updateTable).toHaveBeenNthCalledWith(9, 'actor');
+    expect(db.updateTable).toHaveBeenNthCalledWith(2, 'actor_address');
+    expect(db.updateTable).toHaveBeenNthCalledWith(3, 'actor_address');
+    expect(db.updateTable).toHaveBeenNthCalledWith(4, 'actor_address_redirect');
+    expect(db.updateTable).toHaveBeenNthCalledWith(5, 'actor');
     expect(db.insertInto).toHaveBeenCalledWith('actor_address_redirect');
     expect(db.insertValues[0]).toMatchObject({
       from_address: '0x' + '3'.repeat(40),

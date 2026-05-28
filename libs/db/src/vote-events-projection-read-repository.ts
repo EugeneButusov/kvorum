@@ -26,12 +26,8 @@ type VoteEventsProjectionTable = {
   version: Generated<Date>;
 };
 
-type VoteEventsProjectionDatabase = ClickHouseDatabase & {
-  vote_events_projection: VoteEventsProjectionTable;
-};
-
 export class VoteEventsProjectionReadRepository {
-  constructor(private readonly chDb: Kysely<VoteEventsProjectionDatabase>) {}
+  constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
   async findCurrentVote(args: {
     daoId: string;

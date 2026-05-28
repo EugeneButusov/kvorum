@@ -16,7 +16,7 @@ const ROW: ArchiveDerivationRow = {
   tx_hash: '0xtx',
   log_index: 3,
   event_type: 'DelegateChanged',
-  confirmed_at: new Date('2026-01-01T00:00:00Z'),
+  received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 0,
 };
 
@@ -29,19 +29,19 @@ describe('delegation-projector', () => {
         toDelegate: `0x${'ef'.repeat(20)}`,
       },
       ROW,
-      { daoId: 'dao-1', delegatorActorId: 'actor-1', delegateActorId: 'actor-2' },
+      { daoId: 'dao-1', delegatorAddress: `0x${'ab'.repeat(20)}` },
     );
 
     expect(projection).toEqual({
+      delegation_id: 'archive-1',
       dao_id: 'dao-1',
-      delegator_actor_id: 'actor-1',
-      delegate_actor_id: 'actor-2',
+      delegator_address: `0x${'ab'.repeat(20)}`,
+      delegate_address: `0x${'ef'.repeat(20)}`,
       voting_power: '0',
       block_number: '100',
-      tx_index: 0,
       log_index: 3,
-      tx_hash: '0xtx',
       event_type: 'delegate_changed',
+      created_at: new Date('2026-01-01T00:00:00Z'),
     });
   });
 
@@ -53,19 +53,19 @@ describe('delegation-projector', () => {
         newVotes: '15',
       },
       { ...ROW, event_type: 'DelegateVotesChanged' },
-      { daoId: 'dao-1', delegateActorId: 'actor-2' },
+      { daoId: 'dao-1', delegateAddress: `0x${'ef'.repeat(20)}` },
     );
 
     expect(projection).toEqual({
+      delegation_id: 'archive-1',
       dao_id: 'dao-1',
-      delegator_actor_id: 'actor-2',
-      delegate_actor_id: 'actor-2',
+      delegator_address: `0x${'ef'.repeat(20)}`,
+      delegate_address: `0x${'ef'.repeat(20)}`,
       voting_power: '15',
       block_number: '100',
-      tx_index: 0,
       log_index: 3,
-      tx_hash: '0xtx',
       event_type: 'votes_changed',
+      created_at: new Date('2026-01-01T00:00:00Z'),
     });
   });
 

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChainContextRegistry } from '@libs/chain';
-import type { ActorRepository, DaoSourceRepository, DelegationRepository } from '@libs/db';
+import type { ActorRepository, DaoSourceRepository } from '@libs/db';
 import { CompoundCompTokenVotingPowerStrategy } from './compound-comp-token-voting-power-strategy';
+import type { CompTokenDelegationSnapshotRepository } from '../persistence/delegation-snapshot-repository';
 
 describe('CompoundCompTokenVotingPowerStrategy', () => {
   it('computeSnapshot builds population and applies latest votes_changed power', async () => {
@@ -9,19 +10,20 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
       listForSnapshot: vi.fn().mockResolvedValue([
         {
           event_type: 'delegate_changed',
-          delegator_actor_id: 'actor-1',
-          delegate_actor_id: 'actor-2',
+          delegator_address: '0xaaa',
+          delegate_address: '0xbbb',
           voting_power: '0',
         },
         {
           event_type: 'votes_changed',
-          delegator_actor_id: 'actor-1',
-          delegate_actor_id: 'actor-2',
+          delegator_address: '0xaaa',
+          delegate_address: '0xbbb',
           voting_power: '10',
         },
       ]),
-    } as unknown as DelegationRepository;
+    } as unknown as CompTokenDelegationSnapshotRepository;
     const actors = {
+      findActorsByAddresses: vi.fn().mockResolvedValue([{ id: 'actor-1' }, { id: 'actor-2' }]),
       findPrimaryAddressesByActorIds: vi.fn().mockResolvedValue([
         { actor_id: 'actor-1', address: '0xaaa' },
         { actor_id: 'actor-2', address: '0xbbb' },
@@ -60,7 +62,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
     } as unknown as DaoSourceRepository;
 
     const strategy = new CompoundCompTokenVotingPowerStrategy(
-      { listForSnapshot: vi.fn() } as unknown as DelegationRepository,
+      { listForSnapshot: vi.fn() } as unknown as CompTokenDelegationSnapshotRepository,
       { findPrimaryAddressesByActorIds: vi.fn() } as unknown as ActorRepository,
       daoSources,
       registry,
@@ -85,7 +87,7 @@ describe('CompoundCompTokenVotingPowerStrategy', () => {
 
   it('throws when token address is missing', async () => {
     const strategy = new CompoundCompTokenVotingPowerStrategy(
-      { listForSnapshot: vi.fn() } as unknown as DelegationRepository,
+      { listForSnapshot: vi.fn() } as unknown as CompTokenDelegationSnapshotRepository,
       { findPrimaryAddressesByActorIds: vi.fn() } as unknown as ActorRepository,
       {
         findTokenAddressByDaoAndSourceType: vi.fn().mockResolvedValue(undefined),

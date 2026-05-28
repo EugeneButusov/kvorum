@@ -22,8 +22,8 @@ vi.mock('@libs/db', async (importOriginal) => {
     DaoSourceRepository: class {
       constructor(_db: unknown) {}
     },
-    DelegationRepository: class {
-      constructor(_db: unknown) {}
+    CompTokenDelegationSnapshotRepository: class {
+      constructor(_db?: unknown) {}
     },
     DelegationFlowProjectionWriter: class {
       constructor(_db: unknown) {}

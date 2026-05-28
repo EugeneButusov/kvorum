@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ActorMergeRepository } from './actor-merge-repository';
 import { pgDb } from './client';
@@ -104,39 +105,6 @@ async function seedMergeFixture(
     .execute();
 
   await trx
-    .insertInto('vote')
-    .values({
-      proposal_id: proposal!.id,
-      voter_actor_id: secondary!.id,
-      voting_power_reported: '1',
-      cast_at: now,
-    })
-    .execute();
-  await trx
-    .insertInto('delegation')
-    .values({
-      dao_id: dao!.id,
-      delegator_actor_id: secondary!.id,
-      delegate_actor_id: secondary!.id,
-      voting_power: '1',
-      block_number: '1',
-      tx_index: 0,
-      log_index: 0,
-      tx_hash: uniqueAddress(`${seed}4`),
-      event_type: 'delegate_changed',
-    })
-    .execute();
-  await trx
-    .insertInto('voting_power_snapshot')
-    .values({
-      actor_id: secondary!.id,
-      dao_id: dao!.id,
-      proposal_id: proposal!.id,
-      block_number: '1',
-      power: '1',
-    })
-    .execute();
-  await trx
     .insertInto('actor_address_redirect')
     .values({
       from_address: uniqueAddress(`${seed}5`),
@@ -157,8 +125,18 @@ async function seedMergeFixture(
   };
 }
 
+async function assertRedirectFlattenInvariant(): Promise<void> {
+  const row = await pgDb
+    .selectFrom('actor_address_redirect as r')
+    .innerJoin('actor as a', 'a.id', 'r.to_actor_id')
+    .select('r.from_address')
+    .where('a.merged_into_actor_id', 'is not', null)
+    .executeTakeFirst();
+  expect(row).toBeUndefined();
+}
+
 describeWithDb('ActorMergeRepository (integration)', () => {
-  it('rewrites foreign keys, retargets actor addresses, and marks the secondary merged', async () => {
+  it('rewrites proposer FK, retargets actor addresses, and marks the secondary merged', async () => {
     const fixture = await seedMergeFixture(pgDb as never, 'a');
     const repo = new ActorMergeRepository(pgDb);
 
@@ -169,34 +147,15 @@ describeWithDb('ActorMergeRepository (integration)', () => {
       createdBy: 'alice',
     });
 
-    const [proposalCount, voteCount, delegationCount, snapshotCount] = await Promise.all([
+    const [proposalCount] = await Promise.all([
       pgDb
         .selectFrom('proposal')
         .select((eb) => eb.fn.countAll<string>().as('count'))
         .where('proposer_actor_id', '=', fixture.secondaryActorId)
         .executeTakeFirst(),
-      pgDb
-        .selectFrom('vote')
-        .select((eb) => eb.fn.countAll<string>().as('count'))
-        .where('voter_actor_id', '=', fixture.secondaryActorId)
-        .executeTakeFirst(),
-      pgDb
-        .selectFrom('delegation')
-        .select((eb) => eb.fn.countAll<string>().as('count'))
-        .where('delegator_actor_id', '=', fixture.secondaryActorId)
-        .where('delegate_actor_id', '=', fixture.secondaryActorId)
-        .executeTakeFirst(),
-      pgDb
-        .selectFrom('voting_power_snapshot')
-        .select((eb) => eb.fn.countAll<string>().as('count'))
-        .where('actor_id', '=', fixture.secondaryActorId)
-        .executeTakeFirst(),
     ]);
 
     expect(Number(proposalCount?.count ?? 0)).toBe(0);
-    expect(Number(voteCount?.count ?? 0)).toBe(0);
-    expect(Number(delegationCount?.count ?? 0)).toBe(0);
-    expect(Number(snapshotCount?.count ?? 0)).toBe(0);
 
     const addresses = await pgDb
       .selectFrom('actor_address')
@@ -257,6 +216,7 @@ describeWithDb('ActorMergeRepository (integration)', () => {
       .where('from_address', '=', predecessor)
       .executeTakeFirstOrThrow();
     expect(flattened.to_actor_id).toBe(fixture.survivorActorId);
+    await assertRedirectFlattenInvariant();
   });
 
   it('rejects re-merging after the secondary address is absorbed by the survivor', async () => {
@@ -314,5 +274,14 @@ describeWithDb('ActorMergeRepository (integration)', () => {
       dry_run: false,
       reason: 'same delegate',
     });
+    await assertRedirectFlattenInvariant();
+  });
+
+  it('enforces lowercase check for actor.primary_address', async () => {
+    await expect(
+      sql`insert into actor (primary_address, updated_at) values ('0xAbCd000000000000000000000000000000000000', now())`.execute(
+        pgDb,
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
   });
 });

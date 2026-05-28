@@ -1,4 +1,4 @@
-import type { Generated, Kysely } from 'kysely';
+import type { Kysely } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 
 const BULK_INSERT_CHUNK_SIZE = 1000;
@@ -12,22 +12,8 @@ export interface NewVotingPowerSnapshotProjectionRow {
   computed_at: Date;
 }
 
-type VotingPowerSnapshotProjectionTable = {
-  dao_id: string;
-  proposal_id: string;
-  actor_address: string;
-  voting_power: string;
-  actor_id_hint: string | null;
-  computed_at: Date;
-  version: Generated<Date>;
-};
-
-type VotingPowerSnapshotFlatDatabase = ClickHouseDatabase & {
-  voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
-};
-
 export class VotingPowerSnapshotProjectionWriter {
-  constructor(private readonly chDb: Kysely<VotingPowerSnapshotFlatDatabase>) {}
+  constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
   async bulkInsert(rows: readonly NewVotingPowerSnapshotProjectionRow[]): Promise<number> {
     if (rows.length === 0) return 0;

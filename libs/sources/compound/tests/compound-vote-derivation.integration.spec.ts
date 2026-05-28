@@ -159,7 +159,7 @@ describeIf('compound vote derivation integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_event, actor, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, archive_event, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
     await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
@@ -168,7 +168,7 @@ describeIf('compound vote derivation integration', () => {
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_event, proposal, vote, vote_choice, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE archive_event, proposal, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
     await sql`ALTER TABLE archive_event_compound_governor_bravo DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
@@ -225,7 +225,7 @@ describeIf('compound vote derivation integration', () => {
     return { txHash };
   }
 
-  it('projects confirmed VoteCast to vote+choice and is idempotent on replay', async () => {
+  it('projects confirmed VoteCast to vote_events_projection and is idempotent on replay', async () => {
     const proposal = await pgDb
       .insertInto('proposal')
       .values({
@@ -253,8 +253,12 @@ describeIf('compound vote derivation integration', () => {
     const rows = await archive.findUnderived([EVENT_TYPE], 50);
     await applier.applyBatch(rows);
 
-    const votes = await pgDb.selectFrom('vote').selectAll().execute();
-    const choices = await pgDb.selectFrom('vote_choice').selectAll().execute();
+    const votes = await chDb
+      .selectFrom('vote_events_projection')
+      .selectAll()
+      .where('proposal_id', '=', proposal.id)
+      .where('superseded', '=', 0)
+      .execute();
     const confirmation = await pgDb
       .selectFrom('archive_event')
       .select('derived_at')
@@ -263,12 +267,10 @@ describeIf('compound vote derivation integration', () => {
 
     expect(votes).toHaveLength(1);
     expect(votes[0]!.proposal_id).toBe(proposal.id);
-    expect(votes[0]!.voter_actor_id).toBe(voterActorId);
-    expect(votes[0]!.voting_power_reported).toBe('123');
-    expect(votes[0]!.reason).toBe('integration reason');
+    expect(votes[0]!.voter_address).toBe('0x' + 'ab'.repeat(20));
+    expect(votes[0]!.voting_power).toBe('123');
+    expect(votes[0]!.primary_choice).toBe(1);
     expect(votes[0]!.cast_at.getTime()).toBe(anvilBlockTimestamp.getTime());
-    expect(choices).toHaveLength(1);
-    expect(choices[0]).toMatchObject({ choice_index: 1, weight: '1.0' });
     expect(confirmation.derived_at).not.toBeNull();
 
     await pgDb
@@ -279,8 +281,14 @@ describeIf('compound vote derivation integration', () => {
 
     await applier.applyBatch(await archive.findUnderived([EVENT_TYPE], 50));
 
-    expect(await pgDb.selectFrom('vote').selectAll().execute()).toHaveLength(1);
-    expect(await pgDb.selectFrom('vote_choice').selectAll().execute()).toHaveLength(1);
+    expect(
+      await chDb
+        .selectFrom('vote_events_projection')
+        .selectAll()
+        .where('proposal_id', '=', proposal.id)
+        .where('superseded', '=', 0)
+        .execute(),
+    ).toHaveLength(1);
   }, 30_000);
 
   it('routes no_proposal failure to vote_projection_stage at threshold', async () => {

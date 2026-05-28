@@ -1,13 +1,14 @@
 import { Interface } from 'ethers';
 import type { ChainContextRegistry, Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import { ActorRepository, DaoSourceRepository, DelegationRepository } from '@libs/db';
+import { ActorRepository, DaoSourceRepository } from '@libs/db';
 import type {
   ComputedActorPower,
   VotingPowerStrategy,
   VotingPowerStrategyContext,
 } from '@libs/domain';
 import { COMP_TOKEN_VOTING_POWER_ABI } from './comp-token-abi';
+import type { CompTokenDelegationSnapshotRepository } from '../persistence/delegation-snapshot-repository';
 
 const iface = new Interface(COMP_TOKEN_VOTING_POWER_ABI);
 
@@ -15,7 +16,7 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
   private readonly tokenAddressByDaoId = new Map<string, string>();
 
   constructor(
-    private readonly delegations: DelegationRepository,
+    private readonly delegations: CompTokenDelegationSnapshotRepository,
     private readonly actors: ActorRepository,
     private readonly daoSources: DaoSourceRepository,
     private readonly chainContextRegistry: ChainContextRegistry,
@@ -30,24 +31,28 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
     const rows = await this.delegations.listForSnapshot(ctx.daoId, block.toString());
 
     const powerByActorId = new Map<string, bigint>();
-    const population = new Set<string>();
+    const populationByAddress = new Set<string>();
 
     for (const row of rows) {
-      population.add(row.delegator_actor_id);
-      if (row.delegate_actor_id !== null) population.add(row.delegate_actor_id);
-      if (row.event_type === 'votes_changed' && row.delegate_actor_id !== null) {
-        powerByActorId.set(row.delegate_actor_id, BigInt(row.voting_power));
+      populationByAddress.add(row.delegator_address.toLowerCase());
+      if (row.delegate_address !== ZERO_DELEGATE_ADDRESS) {
+        populationByAddress.add(row.delegate_address.toLowerCase());
+      }
+      if (row.event_type === 'votes_changed' && row.delegate_address !== ZERO_DELEGATE_ADDRESS) {
+        powerByActorId.set(row.delegate_address.toLowerCase(), BigInt(row.voting_power));
       }
     }
 
-    if (population.size === 0) return [];
+    if (populationByAddress.size === 0) return [];
 
-    const addresses = await this.actors.findPrimaryAddressesByActorIds([...population]);
+    const actors = await this.actors.findActorsByAddresses([...populationByAddress]);
+    const actorIds = new Set(actors.map((actor) => actor.id));
+    const addresses = await this.actors.findPrimaryAddressesByActorIds([...actorIds]);
 
     const addressByActorId = new Map(addresses.map((record) => [record.actor_id, record.address]));
 
     const output: ComputedActorPower[] = [];
-    for (const actorId of population) {
+    for (const actorId of actorIds) {
       const address = addressByActorId.get(actorId);
       if (address === undefined) {
         this.logger.warn('snapshot_actor_primary_address_missing', { actor_id: actorId });
@@ -56,7 +61,7 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
       output.push({
         actorId,
         address,
-        power: powerByActorId.get(actorId) ?? 0n,
+        power: powerByActorId.get(address.toLowerCase()) ?? 0n,
       });
     }
 
@@ -102,3 +107,5 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
     return address;
   }
 }
+
+const ZERO_DELEGATE_ADDRESS = '0x0000000000000000000000000000000000000000';

@@ -114,13 +114,7 @@ describe('actors command surface', () => {
     container.actorMergeRepository.planMerge.mockResolvedValue({
       survivor: { actorId: 'actor-1', primaryAddress: '0x' + '1'.repeat(40) },
       secondary: { actorId: 'actor-2', primaryAddress: '0x' + '2'.repeat(40) },
-      fkRewrites: {
-        proposal_proposer_actor_id: 3,
-        vote_voter_actor_id: 812,
-        delegation_delegator_actor_id: 17,
-        delegation_delegate_actor_id: 9,
-        voting_power_snapshot_actor_id: 412,
-      },
+      proposalProposerRewrites: 3,
       actorAddressRetargets: 4,
       actorAddressPrimaryFlip: { address: '0x' + '2'.repeat(40), willFlipIsPrimary: true },
       redirectsToFlatten: [],
@@ -161,13 +155,7 @@ describe('actors command surface', () => {
   Survivor:  primary_address=0x1111111111111111111111111111111111111111  actor_id=actor-1
   Secondary: primary_address=0x2222222222222222222222222222222222222222  actor_id=actor-2
 
-  FK rewrites:
-    proposal.proposer_actor_id:        3 rows
-    vote.voter_actor_id:               812 rows
-    delegation.delegator_actor_id:     17 rows
-    delegation.delegate_actor_id:      9 rows
-    voting_power_snapshot.actor_id:     412 rows
-    total:                              1253 rows
+  FK rewrites: 3 rows (proposal proposer)
 
   actor_address rows retargeted: 4
   (former primary 0x2222222222222222222222222222222222222222 will be flipped to is_primary=false)
@@ -188,13 +176,7 @@ describe('actors command surface', () => {
     container.actorMergeRepository.executeMerge.mockResolvedValue({
       survivor: { actorId: 'actor-1', primaryAddress: '0x' + '1'.repeat(40) },
       secondary: { actorId: 'actor-2', primaryAddress: '0x' + '2'.repeat(40) },
-      fkRewrites: {
-        proposal_proposer_actor_id: 1,
-        vote_voter_actor_id: 2,
-        delegation_delegator_actor_id: 3,
-        delegation_delegate_actor_id: 4,
-        voting_power_snapshot_actor_id: 5,
-      },
+      proposalProposerRewrites: 1,
       actorAddressRetargets: 6,
       redirectsToFlatten: [],
       redirectToInsert: { from_address: '0x' + '2'.repeat(40), to_actor_id: 'actor-1' },

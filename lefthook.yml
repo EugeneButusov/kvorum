@@ -12,3 +12,11 @@ pre-commit:
     typecheck:
       glob: '*.{ts,tsx}'
       run: pnpm -w typecheck
+
+pre-push:
+  parallel: false
+  commands:
+    format_check:
+      run: pnpm -w format:check
+    lint:
+      run: pnpm -w lint
