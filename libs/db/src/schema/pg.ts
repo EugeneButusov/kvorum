@@ -5,7 +5,6 @@ import type {
   ActorAddressTable,
 } from './actor-address';
 import type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
-import type { DelegationTable } from './delegation';
 import type {
   ActorTable,
   DaoSourceTable,
@@ -16,12 +15,7 @@ import type {
   SourceTypeTable,
 } from './domain';
 import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
-import type {
-  VoteChoiceTable,
-  VoteTable,
-  VotingPowerSnapshotRunTable,
-  VotingPowerSnapshotTable,
-} from './vote';
+import type { VotingPowerSnapshotRunTable } from './vote';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 export type {
@@ -88,7 +82,6 @@ export type {
   NewIngestionDlq,
   NewIngestionDlqResolved,
 } from './ingestion';
-export type { Delegation, DelegationEventType, DelegationTable, NewDelegation } from './delegation';
 export type {
   ActorAddress,
   ActorAddressRedirect,
@@ -103,19 +96,9 @@ export type {
   NewActorAddressSource,
 } from './actor-address';
 export type {
-  NewVote,
-  NewVoteChoice,
-  NewVotingPowerSnapshot,
-  Vote,
-  VoteChoice,
-  VoteChoiceTable,
-  VoteTable,
-  VoteUpdate,
-  VotingPowerSnapshot,
   VotingPowerSnapshotRun,
   VotingPowerSnapshotRunStatus,
   VotingPowerSnapshotRunTable,
-  VotingPowerSnapshotTable,
   NewVotingPowerSnapshotRun,
 } from './vote';
 
@@ -135,11 +118,7 @@ export interface PgDatabase {
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
-  vote: VoteTable;
-  vote_choice: VoteChoiceTable;
-  voting_power_snapshot: VotingPowerSnapshotTable;
   voting_power_snapshot_run: VotingPowerSnapshotRunTable;
-  delegation: DelegationTable;
   actor_address: ActorAddressTable;
   actor_address_redirect: ActorAddressRedirectTable;
   actor_address_source: ActorAddressSourceTable;

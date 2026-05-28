@@ -1,7 +1,19 @@
-import type { ArchiveDerivationRow, NewDelegation } from '@libs/db';
+import type { ArchiveDerivationRow } from '@libs/db';
 import type { DelegateChangedPayload, DelegateVotesChangedPayload } from './types';
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+type ProjectedDelegationRow = {
+  dao_id: string;
+  delegator_actor_id: string;
+  delegate_actor_id: string | null;
+  voting_power: string;
+  block_number: string;
+  tx_index: number;
+  log_index: number;
+  tx_hash: string;
+  event_type: 'delegate_changed' | 'votes_changed';
+};
 
 export function projectDelegateChanged(
   _payload: DelegateChangedPayload,
@@ -11,7 +23,7 @@ export function projectDelegateChanged(
     delegatorActorId: string;
     delegateActorId: string | null;
   },
-): NewDelegation {
+): ProjectedDelegationRow {
   return {
     dao_id: ctx.daoId,
     delegator_actor_id: ctx.delegatorActorId,
@@ -29,7 +41,7 @@ export function projectDelegateVotesChanged(
   payload: DelegateVotesChangedPayload,
   archiveRow: ArchiveDerivationRow,
   ctx: { daoId: string; delegateActorId: string },
-): NewDelegation {
+): ProjectedDelegationRow {
   return {
     dao_id: ctx.daoId,
     delegator_actor_id: ctx.delegateActorId,

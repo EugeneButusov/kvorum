@@ -100,7 +100,6 @@ export type {
   NewActor,
   NewDao,
   NewDaoSource,
-  NewDelegation,
   NewProposal,
   NewProposalAction,
   NewProposalChoice,
@@ -132,7 +131,6 @@ export type {
   NewVotingPowerSnapshotRun,
   SelectorIndex,
   SelectorIndexTable,
-  Delegation,
   VotingPowerSnapshotRun,
   VotingPowerSnapshotRunStatus,
 } from './schema/pg';

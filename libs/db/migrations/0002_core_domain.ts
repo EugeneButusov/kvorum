@@ -65,7 +65,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('actor')
     .addColumn('id', 'uuid', (col) => col.primaryKey().defaultTo(sql`gen_random_uuid()`))
-    .addColumn('primary_address', 'text', (col) => col.notNull().unique())
+    .addColumn('primary_address', 'text', (col) =>
+      col
+        .notNull()
+        .unique()
+        .check(sql`primary_address = lower(primary_address)`),
+    )
     .addColumn('display_name', 'text')
     .addColumn('bio', 'text')
     .addColumn('profile_data', 'jsonb')
