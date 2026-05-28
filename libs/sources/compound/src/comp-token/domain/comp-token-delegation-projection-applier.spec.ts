@@ -45,7 +45,7 @@ function buildApplier(payloadsRows?: CompTokenArchivePayloadRow[]) {
   const payloads = {
     fetchPayloads: vi.fn().mockResolvedValue(payloadsRows ?? [DELEGATE_CHANGED_PAYLOAD]),
   };
-  const metrics = { batchLookupSeconds: vi.fn(), chWriteSeconds: vi.fn(), processed: vi.fn() };
+  const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
 
   const applier = new CompTokenDelegationProjectionApplier({
     pgDb: {} as never,

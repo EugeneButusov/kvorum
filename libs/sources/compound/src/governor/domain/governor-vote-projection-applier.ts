@@ -31,7 +31,6 @@ export type CompoundVoteDerivationFailureReason =
 
 export interface GovernorVoteProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
-  chWriteSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
     event_type: string;
@@ -191,9 +190,7 @@ export class GovernorVoteProjectionApplier {
         incomingIsNewer,
       });
 
-      const writeStartedAt = Date.now();
       await this.voteEventsProjectionWriter.insertBatch(rows);
-      this.metrics.chWriteSeconds((Date.now() - writeStartedAt) / 1000);
 
       try {
         await this.archive.markDerived(row.id);
