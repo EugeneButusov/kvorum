@@ -1,18 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import {
+  ArchiveEventRepository,
   DaoSourceRepository,
   DlqRepository,
   ReconciliationWatermarkRepository,
   pgDb,
 } from '@libs/db';
 import { SOURCE_PLUGINS, type SourcePlugin } from '@sources/core';
+import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { ChOrphanSweepService } from './ch-orphan-sweep.service';
 import { PgOrphanSweepService } from './pg-orphan-sweep.service';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), SourcesModule],
+  imports: [ScheduleModule.forRoot(), SourcesModule, ChainContextModule],
   providers: [
     {
       provide: DaoSourceRepository,
@@ -21,6 +23,10 @@ import { PgOrphanSweepService } from './pg-orphan-sweep.service';
     {
       provide: ReconciliationWatermarkRepository,
       useFactory: () => new ReconciliationWatermarkRepository(pgDb),
+    },
+    {
+      provide: ArchiveEventRepository,
+      useFactory: () => new ArchiveEventRepository(pgDb),
     },
     {
       provide: DlqRepository,
