@@ -2,6 +2,7 @@
 
 - **Status**: Proposed
 - **Date**: 2026-05-20
+- **Amends**: 0062
 - **Spec sections affected**: 8.4 (operationalization rider in M2/J3)
 
 ## Context
@@ -21,7 +22,7 @@ The fire-on-condition contract committed above leaves the implementation shape o
 **Candidate split — workers that move out of `apps/indexer` into a new analytics-style worker app if the trigger fires**:
 
 - **Snapshot worker** (Epic L's `voting-power-snapshot` module) — derived-path computation + sample verification. RPC-budgeted; runs per proposal `active`-transition.
-- **Mirror ETL** (Epic Q's `mirror-etl` module) — daily 04:00-UTC PG→CH copy with 6h overlap. CPU + I/O burst once daily.
+- ~~**Mirror ETL** (Epic Q's `mirror-etl` module) — daily 04:00-UTC PG→CH copy with 6h overlap. CPU + I/O burst once daily.~~ [retracted 2026-05-28 — module deleted by PR-1 #220 + PR-2 #221; CH is source of truth for chain-event-derived data per ADR-0062, no separate mirror layer]
 - ~~**Reconciliation sweeps** (Epic P's three sweep modules under `apps/indexer/src/reconciliation/`) — CH-orphan, PG-orphan, orphan-state hourly sweeps.~~ _(Retracted 2026-05-24: Epic P dissolved by ADR-058; reorg-machinery sweeps no longer exist.)_
 
 **What stays in `apps/indexer`**:

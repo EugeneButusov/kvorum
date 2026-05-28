@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-05-24
 - Supersedes: ADR-027, ADR-046
-- Amends: ADR-032, ADR-037, ADR-038, ADR-041, ADR-056
+- Amends: ADR-032, ADR-037, ADR-038, ADR-041, ADR-056, ADR-0062
 
 ## Context
 
@@ -63,6 +63,16 @@ For optimistic L2s (Base, Optimism, Arbitrum), `headLag` protects only against *
 Empirical count of L1-settlement reverts on Base/Optimism/Arbitrum production: **zero** as of 2026-05-24.
 
 If an L1-settlement revert occurs, the recovery path is manual: `admin-cli chain rewind --chain <id> --to-block <n>` per ADR-059.
+
+## Operational assumptions — 2026-05-28 (single-worker-per-protocol invariant)
+
+v1 indexer runs a single process; per-protocol there is exactly one worker for each `(chain_id, source_type)` pair.
+
+This invariant is **load-bearing for ADR-021 correctness** post-CH cutover: the `SELECT FINAL → INSERT` supersession sequence in the vote derivation applier is naturally serialised per `(proposal_id, voter_address)` only because there is no second writer for the same `(chain_id, source_type)`. Without single-worker, two concurrent appliers could both observe no prior current vote and emit conflicting `superseded = 0` rows.
+
+M3+ multi-worker scale-out requires either revisiting this invariant or adding distributed coordination (advisory locks per `(proposal_id, voter_address)`, or partition assignment by `chain_id`).
+
+Cite ADR-0062 + ADR-021.
 
 ## FAQ: why is `dao_source_id` not in the idempotency key?
 

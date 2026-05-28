@@ -3,7 +3,8 @@
 - **Status**: Accepted (2026-05-10; amended same date — see "Amendments" below)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 2.6, 2.7, 3.2, 3.3, 3.4, 7.1, 7.5, 10.4
-- **Related**: supersedes ADR-026; refined by ADR-041 (cross-DB integrity contract); `docs/plan-m1-e1.md`, `docs/proposal-orm-choice.md`, KNOWN-026
+- **Amends**: 0062
+- **Related**: supersedes ADR-026; refined by ADR-041 (cross-DB integrity contract); `docs/plan-m1-e1.md`, `docs/proposal-orm-choice.md`
 
 ## Context
 
@@ -17,14 +18,14 @@ That trade-off conflated two different ClickHouse use cases that the SPEC descri
 
 These have very different shapes:
 
-- The archive is **append-mostly with rare mutations** (`confirmation_status` transitions on promotion / orphaning). It is the data ClickHouse exists for: wide payloads, columnar compression (10–50× vs Postgres jsonb+TOAST), high-volume range scans, append-only ingestion.
+- The archive is ~~**append-mostly with rare mutations** (`confirmation_status` transitions on promotion / orphaning)~~ → **append-only post-ADR-058** (no `confirmation_status`, no orphaning — reads at `confirmedHead`). It is the data ClickHouse exists for: wide payloads, columnar compression (10–50× vs Postgres jsonb+TOAST), high-volume range scans, append-only ingestion. _Superseded by ADR-058._
 - The analytical mirror is **a derived view, refreshed periodically**, queried via a small set of pre-defined endpoints. SPEC §2.7 itself acknowledges that "for v1 with three DAOs, ClickHouse is technically optional — the analytical queries run acceptably on Postgres."
 
 ADR-026 is correct that the analytical mirror can run on Postgres at v1 scale. It is wrong to extend that conclusion to the archive layer, because:
 
 - **The archive is the wrong shape for Postgres.** Storing millions of wide event payloads in a Postgres table (even with `jsonb` + partitioning) burns disk, RAM (TOAST overhead, autovacuum), and query budget that ClickHouse handles natively. By M3 the table is a known performance liability.
 - **The Postgres-then-mirror migration is expensive.** Building a Postgres archive in M1 and then backfilling it into ClickHouse during M3 (per SPEC §10.4: "ClickHouse analytical mirror populated; daily ETL job from Postgres") is a one-shot data migration of millions of rows plus the dual-write window during cutover. Designing the archive into ClickHouse from M1 skips that entirely.
-- **The mutation path is small and isolatable.** Postgres only needs to track `confirmation_status` and the orphaning FK to `reorg_event` — small, mutable, OLTP-shaped. Pulling that into a separate Postgres `archive_event` table keeps the OLTP control plane in Postgres and the OLAP data plane in ClickHouse — the textbook split.
+- **The mutation path is small and isolatable.** ~~Postgres only needs to track `confirmation_status` and the orphaning FK to `reorg_event`~~ → Postgres `archive_event` tracks the 4-tuple idempotency cache + `derived_at` watermark per ADR-058. _Superseded by ADR-058._ Keeping the OLTP control plane in Postgres and the OLAP data plane in ClickHouse is the textbook split.
 
 The cost of activating ClickHouse in M1 is real but bounded:
 
@@ -35,6 +36,8 @@ The cost of activating ClickHouse in M1 is real but bounded:
 ADR-026's RAM concern was the right concern. Its conclusion ("defer all of ClickHouse") was over-broad. Splitting the two layers respects both the SPEC's architectural intent and the operational constraint.
 
 ## Decision
+
+> **Reading guide (added 2026-05-28):** This ADR was written pre-ADR-058 and pre-ADR-0062. The original Decision body retains historical claims about `confirmation_status`, promotion sweep, and the "analytical mirror layer — deferred" framing that have been retracted. See ADR-058 (confirmed-head-only ingestion; removes `confirmation_status` + promotion sweep) and ADR-0062 (CH is source of truth for chain-event-derived data; mirror layer is no longer a separate concept). Specific superseded lines are marked `~~struck~~` inline below.
 
 **v1 ships ClickHouse for the raw event archive layer, in M1. The analytical mirror layer remains deferred per ADR-026's activation triggers.**
 
@@ -59,7 +62,9 @@ PARTITION BY toYYYYMM(received_at)
 ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
 ```
 
-**Mutation pattern:** the archive itself is **immutable** — `confirmation_status`, `confirmed_at`, `orphaned_at`, and `orphaned_by_reorg_event_id` move out of ClickHouse into a Postgres `archive_event` tracker (see plan-m1-e1.md). F1 inserts to ClickHouse first, then to Postgres in the same logical operation; on retry, ClickHouse's `ReplacingMergeTree` absorbs the duplicate insert and Postgres's unique key absorbs its own. F2's promotion sweep updates **only Postgres**. This makes the archive truly append-only and gives ClickHouse its preferred mutation pattern (none).
+~~**Mutation pattern:** the archive itself is **immutable** — `confirmation_status`, `confirmed_at`, `orphaned_at`, and `orphaned_by_reorg_event_id` move out of ClickHouse into a Postgres `archive_event` tracker (see plan-m1-e1.md). F1 inserts to ClickHouse first, then to Postgres in the same logical operation; on retry, ClickHouse's `ReplacingMergeTree` absorbs the duplicate insert and Postgres's unique key absorbs its own. F2's promotion sweep updates **only Postgres**. This makes the archive truly append-only and gives ClickHouse its preferred mutation pattern (none).~~
+
+**Amendment (2026-05-28 per ADR-0062):** the archive itself is **immutable** (no confirmation*status, no F2 promotion sweep per ADR-058). The `archive_event` PG tracker is the 4-tuple idempotency cache + `derived_at` watermark per ADR-058. Archival is write-once; all writes are via confirmed-head-only reads. \_Superseded by ADR-058 + ADR-0062.*
 
 **Cross-DB integrity** is application-managed: F1 writes to both DBs in a defined order, with a reconciliation job (deferred to M2) catching divergence. The acceptable failure modes are:
 
@@ -67,7 +72,7 @@ ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
 - PG succeeds, CH fails → derivation worker (G1) fails to fetch payload; F3 routes to DLQ; reconciliation later catches and re-inserts.
 - PG-rollback case: not possible; CH inserts come first, so a PG failure leaves a "tracking-less" CH row that the reconciliation job sweeps.
 
-### Analytical mirror layer (deferred — ADR-026's posture preserved)
+~~### Analytical mirror layer (deferred — ADR-026's posture preserved)
 
 ADR-026's deferral applies **only to the analytical mirror layer**. SPEC §4.6.2 endpoints (concentration, delegation flow, delegate alignment, cross-DAO actor analytics, proposal pass-rate) continue to run against Postgres for v1 with appropriate indexes and one or two materialized views (refresh cadence per ADR-026: concentration daily, delegation flow hourly).
 
@@ -77,7 +82,9 @@ ADR-026's deferral applies **only to the analytical mirror layer**. SPEC §4.6.2
 - A fourth DAO is added to v1.x scope.
 - The Postgres-side denormalized view equivalent to `vote_events_analytics` exceeds ~5 M rows.
 
-When triggered, the analytical-mirror activation work consists of: defining `vote_events_analytics` and `delegation_flow_analytics` materialized views in ClickHouse, populating from Postgres via a daily ETL job, repointing the §4.6.2 endpoint handlers. The archive layer is already there from M1.
+When triggered, the analytical-mirror activation work consists of: defining `vote_events_analytics` and `delegation_flow_analytics` materialized views in ClickHouse, populating from Postgres via a daily ETL job, repointing the §4.6.2 endpoint handlers. The archive layer is already there from M1.~~
+
+**Superseded 2026-05-28 by ADR-0062**: CH analytical projections (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`) ship as source of truth, not a deferred layer.
 
 ### Deployment
 
@@ -110,13 +117,12 @@ CLAUDE.md currently reads "ClickHouse is deferred (ADR-026). Do not add ClickHou
 - **ORM choice flips** (see `docs/proposal-orm-choice.md` v2): the dual-DB commitment from M1 makes Kysely's "shared call-site idiom across Postgres + ClickHouse" load-bearing rather than nice-to-have. The recommendation flips from Drizzle to Kysely + a Postgres migration tool + the community `kysely-clickhouse` dialect.
 - **Source-package boundary** (see `docs/proposal-source-package-boundary.md`) — Option B (per-package schema files) becomes the default, since both Postgres tables and ClickHouse tables for a source live in the same `libs/sources/<name>/` package.
 - **F1 (Compound archive writer) gets dual-DB scope.** Its task description gains a CH insert path; Postgres insert is the small `archive_event` row.
-- **F2 (reorg detection / promotion sweep) is simpler in ClickHouse terms** because CH has no role in the mutation path — F2 is pure Postgres.
-- **G1 (derivation worker)** reads from Postgres (for canonical-confirmed entries) and joins to ClickHouse (for raw payloads) at processing time. This is the boundary that justifies Kysely: same call-site idiom for the two reads.
+- ~~**F2 (reorg detection / promotion sweep) is simpler in ClickHouse terms** because CH has no role in the mutation path — F2 is pure Postgres.~~ _Superseded by ADR-058 — no F2 promotion sweep._
+- ~~**G1 (derivation worker)** reads from Postgres (for canonical-confirmed entries) and joins to ClickHouse (for raw payloads) at processing time. This is the boundary that justifies Kysely: same call-site idiom for the two reads.~~ _Superseded by ADR-058 + ADR-041 §G1 — confirmed-head reads remove the canonical/orphaned split._
 - **F3 (DLQ) stays in Postgres.** DLQ is small, mutable, queried by admin CLI — OLTP-shaped.
 - **M1 effort grows by ~4–6h** for ClickHouse scaffolding (Docker Compose entry, client wiring, schema migration tool wiring, dev-loop verification, smoke test). Plan-m1-e1.md re-estimates total at ~17–18h post-revision.
 - **CI complexity grows.** GitHub Actions jobs need a ClickHouse service container alongside Postgres (already planned per SPEC §10.1 "ephemeral Postgres + Redis + ClickHouse instances"). The service containers are well-supported in GitHub Actions.
 - **Operational surface grows.** Backups must now cover ClickHouse. SPEC §7.5 mandates daily Postgres backups via `pg_dump --format=custom` + `wal-g`; it does not enumerate ClickHouse because the v1.0 baseline assumed CH was deferred. This ADR commits to a parallel daily ClickHouse backup using native `BACKUP TABLE event_archive_<source> TO Disk('backups', 'YYYYMMDD.zip')` (CH 22.x+). Retention matches SPEC §7.5's Postgres retention (30 days). Monitoring (SPEC §7.7.3) gains ClickHouse query throughput and disk usage metrics from M1.
-- **KNOWN-026 is rewritten** to reflect the split: archive layer is no longer deferred; analytical mirror layer remains deferred per the original triggers.
 
 ## Implementation notes
 
@@ -153,9 +159,11 @@ The original ADR text (lines 64–68) sketches the failure modes but does not sp
 
 `ReplacingMergeTree(received_at)` keeps the row with the largest `received_at` per `ORDER BY` tuple. Under SPEC §3.3 polling fallback, F1 may legitimately re-observe the same canonical event multiple times, and each observation advances `received_at`. The kept value is therefore **most-recent observation timestamp**, not first-observation. This is documented in ADR-041's read-side semantics and in the M1 runbook. If forensic "first observation" is ever needed, a separate `first_observed_at` column ships in a follow-up migration; M1 does not need it.
 
-### 2026-05-21 — M2 analytical mirror activation
+### 2026-05-21 — M2 analytical mirror activation [RETRACTED 2026-05-28 — see ADR-0062 + 2026-05-28 amendment below]
 
-The original ADR's "Activation criteria" for the analytical mirror layer (KNOWN-026, deferred from M1) are **overridden by milestone decision** in M2. `vote_events_analytics` and `delegation_flow_analytics` ship in M2 (Epic Q) against Compound only. KNOWN-026's registry entry is closed by this amendment; its "deferred until activation triggers fire" status is superseded by the staged rollout below.
+Retracted because the staged-activation framework (schema-active / data-active / read-active) was load-bearing for the mirror-ETL model deleted by PR-1 #220 + PR-2 #221. CH projections ship as source of truth directly.
+
+The original ADR's "Activation criteria" for the analytical mirror layer (KNOWN-026, deferred from M1) [RETRACTED 2026-05-28] are **overridden by milestone decision** in M2. `vote_events_analytics` and `delegation_flow_analytics` ship in M2 (Epic Q) against Compound only. KNOWN-026's registry entry is closed by this amendment; its "deferred until activation triggers fire" status is superseded by the staged rollout below.
 
 Activation is **staged**, not atomic:
 
@@ -166,3 +174,7 @@ Activation is **staged**, not atomic:
 Until data-active fires, the J3 tables exist but are empty; analytical endpoints must not be exposed publicly. The M2 acceptance checklist gates public exposure on data-active + read-active both being true.
 
 All other activation conditions (data-plane operational triggers, cost envelope, backup integration) remain as documented in the original ADR. M3+ source onboarding flows into the same tables without further ADR amendment. The "issue TBD" placeholders for Q1 / O3 are filled in by amendment riders when those epics open issues; the J3 issue (#166) is inlined above to anchor the audit trail.
+
+### 2026-05-28 — CH cutover per ADR-0062
+
+The analytical mirror layer is no longer a separate concept. CH is source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`) from first derivation tick post-PR-1 #220. The `archive_event` PG tracker retains the 4-tuple idempotency cache + `derived_at` watermark per ADR-058. See ADR-0062 §Decision.

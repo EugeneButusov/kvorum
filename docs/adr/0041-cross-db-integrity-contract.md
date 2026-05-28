@@ -3,6 +3,7 @@
 - **Status**: Accepted (2026-05-10)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 2.6, 3.2, 3.3, 3.12
+- **Amends**: 0062
 - **Related**: ADR-038 (introduced the split), ADR-027 (backfill cutoff)
 
 ## Context
@@ -241,3 +242,15 @@ M1 risk acceptance: the residual full-rollback window (D-F2b-3) is logged
 loudly by ReorgWatcherService.handleReorg's catch block (reorg_write_failed
 structured log). Operators paging on this log line can manually orphan affected
 rows via admin-cli pending the M2 WAL fix.
+
+---
+
+## Amendment — 2026-05-28 (derivation write protocol simplifies + read-protocol 5-tuple superseded)
+
+The PG-first existence check + CH-then-PG-with-retry + DLQ protocol (original §"Write protocol (F1, I1)") remains the contract for **archive ingestion** (raw chain events landing in `archive_event_*` CH + `archive_event` PG tracker).
+
+For **derivation** (applier-side writes producing `vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`), the protocol is simpler: CH insert is idempotent via `ReplacingMergeTree(version)` with server-side `now64(6)`; on success the PG `archive_event.derived_at` watermark is set. If the watermark update fails, the next derivation tick re-runs the applier; CH absorbs the duplicate insert via version-overwrite under FINAL.
+
+The G1 read protocol (Decision §"Read protocol") remains the contract for archive payload reads — **with one cross-reference correction (D16):** the original §"Read protocol" references a 5-tuple `(source_type, chain_id, tx_hash, log_index, block_hash)` idempotency key. ADR-058 narrowed the key to a 4-tuple `(source_type, chain_id, tx_hash, log_index)` by removing `block_hash` (no reorg machinery, no orphan distinction). The 4-tuple is authoritative.
+
+Cite ADR-0062 + ADR-058 + PR #220.
