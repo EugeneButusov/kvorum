@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ActorMergeRepository } from './actor-merge-repository';
 import { pgDb } from './client';

@@ -105,7 +105,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .execute();
 
         const now = new Date();
-        await tx
+        const [proposal] = await tx
           .insertInto('proposal')
           .values({
             dao_id: dao!.id,
@@ -124,6 +124,7 @@ describeWithDb('ingestion domain smoke test', () => {
             state_updated_at: now,
             updated_at: now,
           })
+          .returning(['id'])
           .execute();
 
         await tx
