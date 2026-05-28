@@ -9,6 +9,7 @@ import {
   type ProposalState,
   type SnapshotCandidate,
   type ClickHouseDatabase,
+  type VotingPowerSnapshotProjectionTable,
   VotingPowerSnapshotRunRepository,
   VotingPowerSnapshotProjectionWriter,
 } from '@libs/db';
@@ -278,15 +279,6 @@ export function registerSnapshot(program: Command): void {
       });
     });
 }
-
-type VotingPowerSnapshotProjectionTable = {
-  dao_id: string;
-  proposal_id: string;
-  actor_address: string;
-  voting_power: string;
-  actor_id_hint: string | null;
-  computed_at: Date;
-};
 
 type SnapshotProjectionClickHouseDb = ClickHouseDatabase & {
   voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;

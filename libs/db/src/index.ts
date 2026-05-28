@@ -77,6 +77,7 @@ export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-re
 export type { NewDelegationFlowProjectionRow } from './delegation-flow-projection-writer';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
+export type { VotingPowerSnapshotProjectionTable } from './schema/projections';
 export type {
   AdminAudit,
   AdminAuditTable,
