@@ -108,7 +108,7 @@ describeIf('comp token delegation derivation integration', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, archive_event, actor, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, archive_event, actor, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
     await sql`ALTER TABLE archive_event_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
@@ -117,9 +117,7 @@ describeIf('comp token delegation derivation integration', () => {
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_event, delegation, ingestion_dlq RESTART IDENTITY CASCADE`.execute(
-      pgDb,
-    );
+    await sql`TRUNCATE archive_event, ingestion_dlq RESTART IDENTITY CASCADE`.execute(pgDb);
     await sql`ALTER TABLE archive_event_compound_comp_token DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
@@ -191,23 +189,23 @@ describeIf('comp token delegation derivation integration', () => {
 
     await applier.applyBatch(await archive.findUnderived(EVENT_TYPES, 50));
 
-    const rows = await pgDb
-      .selectFrom('delegation')
+    const rows = await chDb
+      .selectFrom('delegation_flow_projection')
       .selectAll()
       .orderBy('block_number', 'asc')
       .execute();
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       dao_id: daoId,
-      delegator_actor_id: delegatorActorId,
-      delegate_actor_id: delegateActorId,
+      delegator_address: '0x' + 'aa'.repeat(20),
+      delegate_address: '0x' + 'ab'.repeat(20),
       voting_power: '0',
       event_type: 'delegate_changed',
     });
     expect(rows[1]).toMatchObject({
       dao_id: daoId,
-      delegator_actor_id: delegateActorId,
-      delegate_actor_id: delegateActorId,
+      delegator_address: '0x' + 'ab'.repeat(20),
+      delegate_address: '0x' + 'ab'.repeat(20),
       voting_power: '25',
       event_type: 'votes_changed',
     });

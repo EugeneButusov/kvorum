@@ -1,13 +1,16 @@
 import { Command } from 'commander';
+import { sql, type Kysely } from 'kysely';
 import { ChainContextRegistry, parseChainConfigFromEnv } from '@libs/chain';
 import {
+  chDb,
   DlqRepository,
   pgDb,
   ProposalRepository,
   type ProposalState,
   type SnapshotCandidate,
-  VotingPowerSnapshotRepository,
+  type ClickHouseDatabase,
   VotingPowerSnapshotRunRepository,
+  VotingPowerSnapshotProjectionWriter,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -46,7 +49,8 @@ interface TickOutcome {
 class SnapshotDrainRunner {
   constructor(
     private readonly proposals: ProposalRepository,
-    private readonly snapshots: VotingPowerSnapshotRepository,
+    private readonly snapshotProjectionWriter: VotingPowerSnapshotProjectionWriter,
+    private readonly snapshotProjectionRead: SnapshotProjectionReadRepository,
     private readonly runs: VotingPowerSnapshotRunRepository,
     private readonly dlq: DlqRepository,
     private readonly strategies: Map<string, VotingPowerStrategy>,
@@ -65,7 +69,7 @@ class SnapshotDrainRunner {
     try {
       const existing = await this.runs.findByProposalId(candidate.id);
       if (existing?.status === 'in_progress') {
-        await this.snapshots.deleteForProposal(candidate.id);
+        await this.snapshotProjectionRead.deleteForProposal(candidate.id);
         await this.runs.touchAttempt(candidate.id, new Date());
       } else if (existing === undefined) {
         await this.runs.insertInProgress({
@@ -88,18 +92,19 @@ class SnapshotDrainRunner {
         return { outcome: 'empty_population', proposalId: candidate.id };
       }
 
-      await this.snapshots.bulkInsert(
+      await this.snapshotProjectionWriter.bulkInsert(
         computed.map((row) => ({
-          actor_id: row.actorId,
           dao_id: candidate.dao_id,
           proposal_id: candidate.id,
-          block_number: candidate.voting_power_block,
-          power: row.power.toString(),
+          actor_address: row.address,
+          voting_power: row.power.toString(),
+          actor_id_hint: row.actorId,
+          computed_at: new Date(),
         })),
       );
 
       const sampleSize = Math.min(SNAPSHOT_SAMPLE_SIZE, computed.length);
-      const sample = await this.snapshots.sampleForProposal(candidate.id, sampleSize);
+      const sample = await this.snapshotProjectionRead.sampleForProposal(candidate.id, sampleSize);
       let mismatch = false;
 
       await Promise.all(
@@ -160,14 +165,14 @@ class SnapshotDrainRunner {
     block: bigint,
     strategy: VotingPowerStrategy,
   ): Promise<void> {
-    const rows = await this.snapshots.listPrimaryAddressesForProposal(proposalId);
+    const rows = await this.snapshotProjectionRead.listPrimaryAddressesForProposal(proposalId);
 
     for (let i = 0; i < rows.length; i += 25) {
       const chunk = rows.slice(i, i + 25);
       await Promise.all(
         chunk.map(async (row) => {
           const power = await strategy.verifyOnChain(row.address, block, { daoId });
-          await this.snapshots.updatePower(proposalId, row.actorId, power.toString());
+          await this.snapshotProjectionRead.updatePower(proposalId, row.address, power.toString());
         }),
       );
     }
@@ -220,7 +225,8 @@ export function registerSnapshot(program: Command): void {
         });
         const runner = new SnapshotDrainRunner(
           new ProposalRepository(pgDb),
-          new VotingPowerSnapshotRepository(pgDb),
+          new VotingPowerSnapshotProjectionWriter(chDb as never),
+          new SnapshotProjectionReadRepository(chDb as never),
           new VotingPowerSnapshotRunRepository(pgDb),
           new DlqRepository(pgDb),
           strategies,
@@ -271,6 +277,75 @@ export function registerSnapshot(program: Command): void {
         }
       });
     });
+}
+
+type VotingPowerSnapshotProjectionTable = {
+  dao_id: string;
+  proposal_id: string;
+  actor_address: string;
+  voting_power: string;
+  actor_id_hint: string | null;
+  computed_at: Date;
+};
+
+type SnapshotProjectionClickHouseDb = ClickHouseDatabase & {
+  voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
+};
+
+class SnapshotProjectionReadRepository {
+  constructor(private readonly ch: Kysely<SnapshotProjectionClickHouseDb>) {}
+
+  async deleteForProposal(proposalId: string): Promise<void> {
+    await sql`ALTER TABLE voting_power_snapshot_projection DELETE WHERE proposal_id = ${proposalId}`.execute(
+      this.ch,
+    );
+  }
+
+  async sampleForProposal(
+    proposalId: string,
+    limit: number,
+  ): Promise<Array<{ actorId: string; power: string; address: string }>> {
+    const rows = await this.ch
+      .selectFrom(
+        sql<VotingPowerSnapshotProjectionTable>`voting_power_snapshot_projection`.as('vps'),
+      )
+      .select([
+        'vps.actor_address as address',
+        'vps.voting_power as power',
+        sql<string>`coalesce(dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(vps.actor_address)), vps.actor_id_hint, '')`.as(
+          'actorId',
+        ),
+      ])
+      .where('vps.proposal_id', '=', proposalId)
+      .orderBy(sql`rand()`)
+      .limit(limit)
+      .execute();
+
+    return rows;
+  }
+
+  async listPrimaryAddressesForProposal(
+    proposalId: string,
+  ): Promise<Array<{ actorId: string; address: string }>> {
+    return this.ch
+      .selectFrom(
+        sql<VotingPowerSnapshotProjectionTable>`voting_power_snapshot_projection`.as('vps'),
+      )
+      .select([
+        'vps.actor_address as address',
+        sql<string>`coalesce(dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(vps.actor_address)), vps.actor_id_hint, '')`.as(
+          'actorId',
+        ),
+      ])
+      .where('vps.proposal_id', '=', proposalId)
+      .execute();
+  }
+
+  async updatePower(proposalId: string, actorAddress: string, power: string): Promise<void> {
+    await sql`ALTER TABLE voting_power_snapshot_projection UPDATE voting_power = ${power} WHERE proposal_id = ${proposalId} AND actor_address = ${actorAddress}`.execute(
+      this.ch,
+    );
+  }
 }
 
 function resolveMainnetChainConfig(format: OutputFormat) {

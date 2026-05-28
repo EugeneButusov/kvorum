@@ -367,31 +367,47 @@ export class AnalyticsReadRepository {
   ): Promise<Map<string, { matches: number; denom: number }>> {
     if (daoIds.length === 0) return new Map();
 
-    const rows = await this.pgDb
-      .selectFrom('vote')
-      .innerJoin('proposal', 'proposal.id', 'vote.proposal_id')
-      .select('proposal.dao_id as dao_id')
-      .select(
-        sql<number>`sum(case
-          when vote.choice = 'For' and proposal.state in ('executed', 'succeeded') then 1
-          when vote.choice = 'Against' and proposal.state in ('defeated', 'expired', 'vetoed') then 1
-          else 0
-        end)`.as('matches'),
-      )
-      .select(
-        sql<number>`sum(case
-          when vote.choice in ('For', 'Against')
-            and proposal.state in ('executed', 'succeeded', 'defeated', 'expired', 'vetoed') then 1
-          else 0
-        end)`.as('denom'),
-      )
-      .where('vote.voter_actor_id', '=', actorId)
-      .where('proposal.dao_id', 'in', [...daoIds])
-      .groupBy('proposal.dao_id')
+    const proposals = await this.pgDb
+      .selectFrom('proposal')
+      .select(['id', 'dao_id', 'state'])
+      .where('dao_id', 'in', [...daoIds])
+      .where('state', 'in', [...RESOLVED_STATES])
       .execute();
 
-    return new Map(
-      rows.map((r) => [r.dao_id, { matches: Number(r.matches), denom: Number(r.denom) }]),
-    );
+    if (proposals.length === 0) return new Map();
+
+    const proposalById = new Map(proposals.map((row) => [row.id, row]));
+    const voteRows = await this.chDb
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
+      .select(['v.proposal_id', 'v.primary_choice'])
+      .where('v.superseded', '=', 0)
+      .where(
+        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${actorId}`,
+      )
+      .where(
+        'v.proposal_id',
+        'in',
+        proposals.map((proposal) => proposal.id),
+      )
+      .execute();
+
+    const result = new Map<string, { matches: number; denom: number }>();
+    for (const row of voteRows) {
+      const proposal = proposalById.get(row.proposal_id);
+      if (proposal === undefined) continue;
+      if (row.primary_choice !== 0 && row.primary_choice !== 1) continue;
+
+      const current = result.get(proposal.dao_id) ?? { matches: 0, denom: 0 };
+      current.denom += 1;
+      if (
+        (row.primary_choice === 1 && RESOLVED_PASS_STATES.includes(proposal.state as never)) ||
+        (row.primary_choice === 0 && RESOLVED_FAIL_STATES.includes(proposal.state as never))
+      ) {
+        current.matches += 1;
+      }
+      result.set(proposal.dao_id, current);
+    }
+
+    return result;
   }
 }
