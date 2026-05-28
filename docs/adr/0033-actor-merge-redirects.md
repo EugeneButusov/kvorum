@@ -3,6 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-05-08; rider 2026-05-20 (M2 review)
 - **Spec sections affected**: 2.4.3, 4.2, 6.10, 6.20.1 (rider), 2.8 invariant 4 (rider)
+- **Amends**: 0062
 - **Related**: invariant 2.8.4
 
 ## Context
@@ -134,3 +135,15 @@ M2's `admin-cli actors merge` implementation adds a required `--reason <text>` f
 - The CLI rejects empty or whitespace-only reasons.
 - The CLI caps `--reason` at 4 KiB to avoid bloating audit rows with pasted forum posts.
 - This amendment only changes the operator interface for `actors merge`; the redirect routing contract above is unchanged.
+
+---
+
+## Amendment — 2026-05-28 (FK rewrite cascade withdrawn, redirect-flatten retained)
+
+The Rider §3 step 1 ("Rewrite FKs (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`, `proposal.proposer_actor_id`) from secondary to survivor") is **partially withdrawn**: the three derivation-FK rewrites (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`) are gone because those tables are gone. PG tables were **removed in PR-2 #221** (in-place edit to migration `0005_vote_delegation.ts`, not a separate drop migration). The fourth (`proposal.proposer_actor_id`) **survives** because `proposal` is still PG-resident (state machine, not chain-derived).
+
+The Rider §3 steps 2–5 (move `actor_address` rows; insert redirect; flatten existing redirects; flip `merged_into_actor_id`) are **unchanged and load-bearing**. The flatten step (`UPDATE actor_address_redirect SET to_actor_id = survivor WHERE to_actor_id = secondary`) keeps the redirect graph at depth 1 by construction; the read-path single LEFT JOIN at `/v1/actors/{address}` only resolves correctly because of this invariant. Multi-hop merges (A→B→C) flatten to A→C in the same transaction.
+
+The §3 read precedence (primary `actor_address` → redirect fallback → never recurse through `actor.merged_into_actor_id`) is unchanged.
+
+Cite PR #221 (PR-2 fkRewrites hoist + minimal-strip body per the plan-218 D1/D3 decisions).

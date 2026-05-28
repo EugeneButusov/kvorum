@@ -2,6 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-24
+**Amends:** 0062
 
 ---
 
@@ -51,7 +52,7 @@ The command is intentionally manual: no scheduler, no auto-trigger, no daemon. O
 
 ### Out of scope for the command
 
-- ClickHouse analytical mirror tables (`vote_events_analytics`, etc., per ADR-038): mirror ETL re-runs from PG, so they self-heal once PG is corrected. No direct delete from the command.
+- ~~ClickHouse analytical mirror tables (`vote_events_analytics`, etc., per ADR-038): mirror ETL re-runs from PG, so they self-heal once PG is corrected. No direct delete from the command.~~ _Superseded by ADR-0062 — no mirror ETL post-cutover._
 - AI summaries and any downstream artefacts: explicitly out of scope. If a rewind invalidates a summary, the AI worker re-derives.
 
 ### Per-table rewind handler registry
@@ -100,3 +101,7 @@ Handlers are aggregated centrally (e.g. via a `REWIND_HANDLERS` DI token) so add
 
 - The command is for incident response only. Routine ingestion bugs do **not** call for `rewind`; routine bugs call for fixing the indexer code and letting normal forward ingestion correct itself.
 - Pre-rewind operator checklist (to be detailed in the runbook): stop indexer for the affected chain, verify canonical chain state at `N` against a second RPC provider, confirm no in-flight derivation work, capture pre-rewind row counts, run `--dry-run`, review, run `--execute`, restart indexer, monitor `archiveWrites` and `underivedDepth` until they catch up.
+
+## Amendment — 2026-05-28 (CH projections explicit cleanup)
+
+The rewind handler registry must now include CH projection cleanup explicitly: `vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection` — operator-driven `ALTER TABLE … DELETE WHERE block_number > N` per chain rewind. This is **scope-noting only**, not a contract change: the actual rewind handler implementation remains deferred per ADR-059's Proposed status.

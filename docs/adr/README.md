@@ -40,6 +40,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-050](0050-compound-governor-oz.md)                 | Index Compound Governor OZ as `compound_governor_oz`                              | Accepted                      | 2.4.4, 3.3, 3.10                        |
 | [ADR-058](0058-confirmed-head-only-ingestion.md)        | Confirmed-head-only ingestion (drop reorg handling plane)                         | Accepted                      | 2.6, 3.2, 3.3, 3.10, 3.12               |
 | [ADR-059](0059-manual-chain-rewind-admin-command.md)    | Manual chain rewind admin command (recovery path)                                 | Proposed                      | 6.20.1, 7.x                             |
+| [ADR-0062](0062-ch-source-of-truth-for-derivations.md)  | ClickHouse as source of truth for chain-event-derived data                        | Accepted                      | 2.6, 3.2, 3.3, 3.10, 4.6.2              |
 
 ## Status legend
 
