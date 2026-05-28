@@ -32,6 +32,7 @@ export type CompTokenDelegationDerivationFailureReason =
 
 export interface CompTokenDelegationProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
+  chWriteSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
     event_type: string;
@@ -119,7 +120,9 @@ export class CompTokenDelegationProjectionApplier {
       if (daoId === undefined) throw new ProjectionError('no_dao');
 
       const rows = this.projectRows(row, parsed, daoId);
+      const writeStartedAt = Date.now();
       await this.delegationFlowProjectionWriter.insertBatch(rows);
+      this.metrics.chWriteSeconds((Date.now() - writeStartedAt) / 1000);
 
       try {
         await this.archive.markDerived(row.id);
