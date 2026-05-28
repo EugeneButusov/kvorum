@@ -12,26 +12,22 @@ describe('ChOrphanSweepService', () => {
 
   it('recovers missing tuples and advances watermark to upper bound', async () => {
     const daoSources = {
-      findActiveByChain: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'src-1',
-            source_type: 'compound_governor_bravo',
-            primary_chain_id: '0x1',
-            active_from_block: '10',
-          },
-        ]),
-      findActive: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'src-1',
-            source_type: 'compound_governor_bravo',
-            primary_chain_id: '0x1',
-            active_from_block: '10',
-          },
-        ]),
+      findActiveByChain: vi.fn().mockResolvedValue([
+        {
+          id: 'src-1',
+          source_type: 'compound_governor_bravo',
+          primary_chain_id: '0x1',
+          active_from_block: '10',
+        },
+      ]),
+      findActive: vi.fn().mockResolvedValue([
+        {
+          id: 'src-1',
+          source_type: 'compound_governor_bravo',
+          primary_chain_id: '0x1',
+          active_from_block: '10',
+        },
+      ]),
     };
     const archiveEvents = {
       findExistingTuples: vi.fn().mockResolvedValue(new Set()),
