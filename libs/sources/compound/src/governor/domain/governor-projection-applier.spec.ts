@@ -374,7 +374,7 @@ describe('GovernorProjectionApplier', () => {
     expect(calls.transactionCount).toBe(0);
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: 'failed', reason: 'ch_missing' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
     );
   });
 });

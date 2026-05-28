@@ -5,7 +5,7 @@
 - **Spec sections affected**: 2.7, 7.1
 - **Related**: DR-014, KNOWN-026, ADR-038 (supersedes)
 
-> **Superseded note (2026-05-10):** ADR-038 splits the original blanket deferral into two layers — the **raw event archive layer** ships in M1 on ClickHouse; the **analytical mirror layer** (`vote_events_flat`, `delegation_flow_flat`) remains deferred per this ADR's activation triggers. The activation-trigger language below is preserved verbatim by ADR-038 and continues to apply to the analytical mirror layer only.
+> **Superseded note (2026-05-10):** ADR-038 splits the original blanket deferral into two layers — the **raw event archive layer** ships in M1 on ClickHouse; the **analytical mirror layer** (`vote_events_projection`, `delegation_flow_projection`) remains deferred per this ADR's activation triggers. The activation-trigger language below is preserved verbatim by ADR-038 and continues to apply to the analytical mirror layer only.
 
 ## Context
 
@@ -25,13 +25,13 @@ Three responses are reasonable:
 
 v1 ships without ClickHouse. The analytical endpoints in §4.6.2 are implemented against Postgres with appropriate indexes and one or two materialized views (refreshed on a cron schedule appropriate to the metric — concentration daily, delegation flow hourly).
 
-The ClickHouse table designs in §2.7 (`voting_power_history_flat`, `vote_events_flat`, `delegation_flow_flat`) remain documented as the v1.x activation path. No mirror writes are implemented in v1; when ClickHouse is activated, the initial population is an offline backfill from Postgres.
+The ClickHouse table designs in §2.7 (`voting_power_history_projection`, `vote_events_projection`, `delegation_flow_projection`) remain documented as the v1.x activation path. No mirror writes are implemented in v1; when ClickHouse is activated, the initial population is an offline backfill from Postgres.
 
 **Activation triggers** (ClickHouse moves from deferred to deployed when _any_ of these is true):
 
 - Any committed analytical endpoint exceeds p99 5 s sustained for 10 minutes (§7.2's stated p99).
 - A fourth DAO is added to v1.x scope.
-- Indexed Postgres rows in the `vote_events_flat`-equivalent denormalized view exceed ~5 M rows.
+- Indexed Postgres rows in the `vote_events_projection`-equivalent denormalized view exceed ~5 M rows.
 
 Activation is a v1.x release, not an ADR — when triggered, the deployment runbook walks through provisioning, backfill, and cutover. The CX42 upgrade is bundled with activation.
 

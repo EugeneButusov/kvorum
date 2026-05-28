@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -9,10 +10,11 @@ import {
 import type { AuthenticatedRequest } from '@nest/auth';
 import { TIERS, type Tier } from './rate-limit.config';
 import {
-  RateLimiterService,
+  type RateLimiter,
   RedisUnavailableError,
   type RateLimitResult,
 } from './rate-limiter.service';
+import { RATE_LIMITER } from './rate-limiter.token';
 import { problemException } from '../http/problem-exception';
 import { apiMetrics } from '../observability/api-metrics';
 
@@ -22,7 +24,7 @@ const SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS = 5;
 export class RateLimitInterceptor implements NestInterceptor {
   private readonly logger = new Logger(RateLimitInterceptor.name);
 
-  constructor(private readonly rateLimiter: RateLimiterService) {}
+  constructor(@Inject(RATE_LIMITER) private readonly rateLimiter: RateLimiter) {}
 
   async intercept(context: ExecutionContext, next: CallHandler) {
     const http = context.switchToHttp();

@@ -39,7 +39,7 @@ export class ProposalController {
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async listByDao(@Param('slug') slug: string, @Query() rawQuery: ApiListQueryDto) {
     const dao = await this.daoRepo.findDaoBySlug(slug);
     if (dao === undefined) {
@@ -86,7 +86,7 @@ export class ProposalController {
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   @Get('daos/:slug/proposals/:source_type/:source_id')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   async detail(
     @Param('slug') slug: string,
     @Param('source_type') sourceType: string,
@@ -108,7 +108,7 @@ export class ProposalController {
   @ApiOkResponse({ type: ProposalListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get('proposals')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async listCrossDao(@Query() rawQuery: ApiListQueryDto) {
     const query = rawQuery as Record<string, unknown>;
     const parsed = parseQuery(query, CROSS_DAO_PROPOSAL_QUERY);

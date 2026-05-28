@@ -41,7 +41,7 @@ export class DaoAnalyticsController {
   ) {}
 
   @Get('proposal-pass-rate')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: PassRateResponseDto })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -69,12 +69,12 @@ export class DaoAnalyticsController {
 
     return {
       data: rows.map(toPassRateRowDto),
-      _meta: { confirmed: true, mirror_ready: true, mirror_last_etl: null },
+      _meta: { confirmed: true, derived_through: null },
     };
   }
 
   @Get('concentration')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: ConcentrationResponseDto })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -108,7 +108,7 @@ export class DaoAnalyticsController {
   }
 
   @Get('delegation-flow')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: DelegationFlowResponseDto })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -153,7 +153,7 @@ export class DaoAnalyticsController {
   }
 
   @Get('delegate-alignment')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: DelegateAlignmentResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical delegate filter' })
   @ApiBadRequestResponse({ type: ProblemDto })

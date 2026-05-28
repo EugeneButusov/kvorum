@@ -28,7 +28,7 @@ export class ActorAnalyticsController {
   ) {}
 
   @Get('cross-dao')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 3600 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: CrossDaoActorDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })

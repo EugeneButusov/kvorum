@@ -38,7 +38,7 @@ export class ActorProposalsController {
   ) {}
 
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorProposalListResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })

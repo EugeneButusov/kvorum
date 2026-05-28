@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Actor } from '@libs/db';
 import { ActorRoutingReadRepository } from '@libs/db';
 import { badRequestProblem } from '../http/problem-exception';
+import { apiMetrics } from '../observability/api-metrics';
 
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
@@ -44,6 +45,7 @@ export class ActorRoutingService {
       };
     }
 
+    apiMetrics.addressResolutionMisses.add(1);
     return { kind: 'not-found' };
   }
 }

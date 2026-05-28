@@ -5,7 +5,6 @@ export const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 export const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
 export const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 export const SNAPSHOT_COMPUTE_STAGE = 'snapshot_compute_stage';
-export const MIRROR_ETL_RUN_STAGE = 'mirror_etl_run';
 
 export type DlqRetryStage =
   | typeof CONFIRMATION_ARCHIVE_STAGE
@@ -14,8 +13,7 @@ export type DlqRetryStage =
   | typeof ACTOR_RESOLUTION_STAGE
   | typeof VOTE_PROJECTION_STAGE
   | typeof DELEGATION_PROJECTION_STAGE
-  | typeof SNAPSHOT_COMPUTE_STAGE
-  | typeof MIRROR_ETL_RUN_STAGE;
+  | typeof SNAPSHOT_COMPUTE_STAGE;
 
 export function isDlqRetryableStage(stage: string): boolean {
   return stage in getRetryableStageSet();
@@ -34,6 +32,5 @@ function getRetryableStageSet(): Record<string, true> {
     [VOTE_PROJECTION_STAGE]: true,
     [DELEGATION_PROJECTION_STAGE]: true,
     [SNAPSHOT_COMPUTE_STAGE]: true,
-    [MIRROR_ETL_RUN_STAGE]: true,
   };
 }

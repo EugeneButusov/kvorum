@@ -129,4 +129,36 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
       }),
     ).rejects.toThrow(RollbackSignal);
   });
+
+  it('findCurrentActorIdsByAddresses resolves addresses through actor_redirect_view', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const primaryAddress = uniqueAddress('7');
+        const fromAddress = uniqueAddress('8');
+        const [actor] = await trx
+          .insertInto('actor')
+          .values({ primary_address: primaryAddress, updated_at: new Date() })
+          .returning(['id', 'primary_address'])
+          .execute();
+
+        await trx
+          .insertInto('actor_address_redirect')
+          .values({
+            from_address: fromAddress,
+            to_actor_id: actor!.id,
+            merged_at: new Date(),
+            merge_reason: 'test',
+            created_by: 'test-suite',
+          })
+          .execute();
+
+        const repo = new ActorRoutingReadRepository(trx as never);
+        const rows = await repo.findCurrentActorIdsByAddresses([primaryAddress, fromAddress]);
+        expect(rows.get(primaryAddress)).toBe(actor!.id);
+        expect(rows.get(fromAddress)).toBe(actor!.id);
+        expect(rows.get(uniqueAddress('9'))).toBeUndefined();
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
 });

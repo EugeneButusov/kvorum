@@ -49,6 +49,9 @@ function serializeCacheControl(options: CacheControlOptions | undefined): string
   if (options.sMaxAgeSecs !== undefined) {
     directives.push(`s-maxage=${options.sMaxAgeSecs}`);
   }
+  if (options.mustRevalidate === true) {
+    directives.push('must-revalidate');
+  }
   if (options.staleWhileRevalidateSecs !== undefined) {
     directives.push(`stale-while-revalidate=${options.staleWhileRevalidateSecs}`);
   }

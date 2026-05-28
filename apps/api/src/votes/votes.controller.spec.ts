@@ -13,35 +13,28 @@ describe('VotesController', () => {
   };
 
   it('returns paginated vote list', async () => {
-    const qb = {
-      where: vi.fn(),
-      orderBy: vi.fn(),
-      limit: vi.fn(),
-      execute: vi.fn(),
-    };
-    qb.where.mockReturnValue(qb);
-    qb.orderBy.mockReturnValue(qb);
-    qb.limit.mockReturnValue(qb);
-    qb.execute.mockResolvedValue([
-      {
-        id: 'v1',
-        voting_power_reported: '100',
-        voting_power_verified: true,
-        primary_choice: 1,
-        cast_at: new Date('2026-01-01T00:00:00Z'),
-        reason: null,
-        proposal_id: 'p1',
-        voter_actor_id: 'a1',
-        voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        voter_display_name: 'Alice',
-        proposal_source_type: 'compound_governor_bravo',
-        proposal_source_id: '1',
-        dao_slug: 'compound',
-      },
-    ]);
-
     const voteRepo = {
-      listBaseQuery: vi.fn().mockReturnValue(qb),
+      listForProposal: vi.fn().mockResolvedValue([
+        {
+          id: 'v1',
+          voting_power_reported: '100',
+          voting_power_verified: true,
+          primary_choice: 1,
+          cast_at: new Date('2026-01-01T00:00:00Z'),
+          reason: null,
+          proposal_id: 'p1',
+          voter_actor_id: 'a1',
+          voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          voter_display_name: 'Alice',
+          proposal_source_type: 'compound_governor_bravo',
+          proposal_source_id: '1',
+          proposal_title: 'Title',
+          proposal_state: 'active',
+          proposal_created_at: new Date('2025-12-31T00:00:00Z'),
+          proposal_voting_ends_at: null,
+          dao_slug: 'compound',
+        },
+      ]),
     };
     const routing = { resolveAddress: vi.fn() };
     const controller = new VotesController(

@@ -27,6 +27,7 @@ module.exports = {
       '@nest/actors': path.join(root, 'nest/actors/src/index.ts'),
       '@nest/analytics': path.join(root, 'nest/analytics/src/index.ts'),
       '@nest/auth': path.join(root, 'nest/auth/src/index.ts'),
+      '@nest/db': path.join(root, 'nest/db/src/index.ts'),
       '@nest/daos': path.join(root, 'nest/daos/src/index.ts'),
       '@nest/delegations': path.join(root, 'nest/delegations/src/index.ts'),
       '@nest/logging': path.join(root, 'nest/logging/src/index.ts'),

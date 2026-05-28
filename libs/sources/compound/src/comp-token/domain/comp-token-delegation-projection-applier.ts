@@ -1,21 +1,16 @@
 import type { Kysely } from 'kysely';
 import { silentLogger, type Logger } from '@libs/chain';
 import {
-  ActorRepository,
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
   type ClickHouseDatabase,
-  DelegationRepository,
+  DelegationFlowProjectionWriter,
   DlqRepository,
-  type NewDelegation,
   type PgDatabase,
   ProposalRepository,
+  ZERO_DELEGATE_ADDRESS,
 } from '@libs/db';
-import {
-  projectDelegateChanged,
-  projectDelegateVotesChanged,
-  ZERO_ADDRESS,
-} from './delegation-projector';
+import { ZERO_ADDRESS } from './delegation-projector';
 import type { DelegateChangedPayload, DelegateVotesChangedPayload } from './types';
 import {
   CompTokenArchivePayloadRepository,
@@ -28,12 +23,11 @@ const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 
 export type CompTokenDelegationDerivationOutcome = 'derived' | 'failed';
 export type CompTokenDelegationDerivationFailureReason =
-  | 'ch_missing'
+  | 'payload_missing'
   | 'decode_error'
-  | 'pg_tx_error'
+  | 'projection_apply_error'
+  | 'watermark_update_error'
   | 'no_dao'
-  | 'no_delegator'
-  | 'no_delegate'
   | 'unknown_event_type';
 
 export interface CompTokenDelegationProjectionMetrics {
@@ -56,17 +50,8 @@ export interface CompTokenDelegationProjectionApplierDeps {
   logger?: Logger;
 }
 
-interface DelegationProjectionRepositories {
-  proposals: ProposalRepository;
-  actors: ActorRepository;
-  delegations: DelegationRepository;
-  archive: ArchiveDerivationRepository;
-}
-
 class ProjectionError extends Error {
-  constructor(
-    public readonly reason: 'no_dao' | 'no_delegator' | 'no_delegate' | 'unknown_event_type',
-  ) {
+  constructor(public readonly reason: 'no_dao' | 'unknown_event_type') {
     super(reason);
   }
 }
@@ -82,6 +67,7 @@ export class CompTokenDelegationProjectionApplier {
   private readonly payloads: CompTokenArchivePayloadRepository;
   private readonly metrics: CompTokenDelegationProjectionMetrics;
   private readonly logger: Logger;
+  private readonly delegationFlowProjectionWriter: DelegationFlowProjectionWriter;
 
   constructor(deps: CompTokenDelegationProjectionApplierDeps) {
     this.pgDb = deps.pgDb;
@@ -90,6 +76,7 @@ export class CompTokenDelegationProjectionApplier {
     this.payloads = deps.payloads;
     this.metrics = deps.metrics;
     this.logger = deps.logger ?? silentLogger;
+    this.delegationFlowProjectionWriter = new DelegationFlowProjectionWriter(deps.chDb);
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -107,7 +94,7 @@ export class CompTokenDelegationProjectionApplier {
     for (const row of cappedRows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
-        await this.failAndMaybeDlq(row, 'ch_missing', new Error('archive payload missing'));
+        await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));
         continue;
       }
       await this.apply(row, payload);
@@ -127,61 +114,79 @@ export class CompTokenDelegationProjectionApplier {
     }
 
     try {
-      await this.transaction(async ({ proposals, actors, delegations, archive }) => {
-        const daoId = await proposals.findDaoIdForSource(row.dao_source_id);
-        if (daoId === undefined) throw new ProjectionError('no_dao');
+      const proposals = new ProposalRepository(this.pgDb);
+      const daoId = await proposals.findDaoIdForSource(row.dao_source_id);
+      if (daoId === undefined) throw new ProjectionError('no_dao');
 
-        let projection: NewDelegation;
-        if (row.event_type === 'DelegateChanged') {
-          const event = parsed as DelegateChangedPayload;
-          const delegatorActor = await actors.findByAddress(event.delegator);
-          if (delegatorActor === undefined) throw new ProjectionError('no_delegator');
+      const rows = this.projectRows(row, parsed, daoId);
+      await this.delegationFlowProjectionWriter.insertBatch(rows);
 
-          let delegateActorId: string | null = null;
-          if (event.toDelegate !== ZERO_ADDRESS) {
-            const delegateActor = await actors.findByAddress(event.toDelegate);
-            if (delegateActor === undefined) throw new ProjectionError('no_delegate');
-            delegateActorId = delegateActor.id;
-          }
+      try {
+        await this.archive.markDerived(row.id);
+      } catch (watermarkError) {
+        await this.failAndMaybeDlq(row, 'watermark_update_error', watermarkError);
+        return;
+      }
 
-          projection = projectDelegateChanged(event, row, {
-            daoId,
-            delegatorActorId: delegatorActor.id,
-            delegateActorId,
-          });
-        } else if (row.event_type === 'DelegateVotesChanged') {
-          const event = parsed as DelegateVotesChangedPayload;
-          const delegateActor = await actors.findByAddress(event.delegate);
-          if (delegateActor === undefined) throw new ProjectionError('no_delegate');
-          projection = projectDelegateVotesChanged(event, row, {
-            daoId,
-            delegateActorId: delegateActor.id,
-          });
-        } else {
-          throw new ProjectionError('unknown_event_type');
-        }
-
-        await delegations.insert(projection);
-        await archive.markDerived(row.id);
-        this.record(row, 'derived', null);
-      });
+      this.record(row, 'derived', null);
     } catch (error) {
-      const reason = error instanceof ProjectionError ? error.reason : 'pg_tx_error';
+      const reason = error instanceof ProjectionError ? error.reason : 'projection_apply_error';
       await this.failAndMaybeDlq(row, reason, error);
     }
   }
 
-  private async transaction<T>(
-    fn: (repositories: DelegationProjectionRepositories) => Promise<T>,
-  ): Promise<T> {
-    return this.pgDb.transaction().execute((tx) =>
-      fn({
-        proposals: new ProposalRepository(tx),
-        actors: new ActorRepository(tx),
-        delegations: new DelegationRepository(tx),
-        archive: new ArchiveDerivationRepository(tx),
-      }),
-    );
+  private projectRows(
+    row: ArchiveDerivationRow,
+    parsed: DelegateChangedPayload | DelegateVotesChangedPayload,
+    daoId: string,
+  ): Array<{
+    delegation_id: string;
+    dao_id: string;
+    delegator_address: string;
+    delegate_address: string;
+    voting_power: string;
+    block_number: string;
+    log_index: number;
+    event_type: string;
+    created_at: Date;
+  }> {
+    if (row.event_type === 'DelegateChanged') {
+      const event = parsed as DelegateChangedPayload;
+      return [
+        {
+          delegation_id: row.id,
+          dao_id: daoId,
+          delegator_address: event.delegator.toLowerCase(),
+          delegate_address:
+            event.toDelegate === ZERO_ADDRESS
+              ? ZERO_DELEGATE_ADDRESS
+              : event.toDelegate.toLowerCase(),
+          voting_power: '0',
+          block_number: row.block_number,
+          log_index: row.log_index,
+          event_type: 'delegate_changed',
+          created_at: row.received_at,
+        },
+      ];
+    }
+    if (row.event_type === 'DelegateVotesChanged') {
+      const event = parsed as DelegateVotesChangedPayload;
+      return [
+        {
+          delegation_id: row.id,
+          dao_id: daoId,
+          delegator_address: event.delegate.toLowerCase(),
+          delegate_address: event.delegate.toLowerCase(),
+          voting_power: event.newVotes,
+          block_number: row.block_number,
+          log_index: row.log_index,
+          event_type: 'votes_changed',
+          created_at: row.received_at,
+        },
+      ];
+    }
+
+    throw new ProjectionError('unknown_event_type');
   }
 
   private async failAndMaybeDlq(

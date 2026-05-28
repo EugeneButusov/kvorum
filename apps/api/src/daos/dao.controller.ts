@@ -33,7 +33,7 @@ export class DaoController {
   @ApiOkResponse({ type: DaoListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async list(@Query() rawQuery: ApiListQueryDto) {
     const query = rawQuery as Record<string, unknown>;
     const parsed = parseQuery(query, DAO_LIST_QUERY);
@@ -78,7 +78,7 @@ export class DaoController {
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   @Get(':slug')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   async detail(@Param('slug') slug: string) {
     const dao = await this.repo.findDaoBySlug(slug);
     if (dao === undefined) {
@@ -94,7 +94,7 @@ export class DaoController {
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   @Get(':slug/sources')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async sources(@Param('slug') slug: string) {
     const dao = await this.repo.findDaoBySlug(slug);
     if (dao === undefined) {

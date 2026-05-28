@@ -6,7 +6,6 @@ import { SourcesModule } from '@nest/sources';
 import { DerivationModule } from '../derivation';
 import { EnsResolverModule } from '../ens';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
-import { MirrorEtlModule } from '../mirror-etl';
 import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-driver';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
@@ -21,7 +20,6 @@ import { SnapshotModule } from '../snapshot';
     DerivationModule,
     SnapshotModule,
     EnsResolverModule,
-    MirrorEtlModule,
     SourcesModule,
   ],
   providers: [

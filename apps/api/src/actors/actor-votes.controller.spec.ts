@@ -9,38 +9,29 @@ function mockResponse(): Response {
 
 describe('ActorVotesController', () => {
   it('returns actor vote list for a resolved actor', async () => {
-    const qb = {
-      where: vi.fn(),
-      orderBy: vi.fn(),
-      limit: vi.fn(),
-      execute: vi.fn(),
+    const voteRepo = {
+      listForActor: vi.fn().mockResolvedValue([
+        {
+          id: 'vote-1',
+          voting_power_reported: '123.45',
+          voting_power_verified: false,
+          primary_choice: 1,
+          cast_at: new Date('2026-01-01T00:00:00Z'),
+          reason: null,
+          proposal_id: 'proposal-row-1',
+          voter_actor_id: 'actor-1',
+          voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          voter_display_name: null,
+          proposal_source_type: 'compound_governor_bravo',
+          proposal_source_id: '42',
+          proposal_title: 'Test Proposal',
+          proposal_state: 'active',
+          proposal_created_at: new Date('2025-12-31T00:00:00Z'),
+          proposal_voting_ends_at: null,
+          dao_slug: 'compound',
+        },
+      ]),
     };
-    qb.where.mockReturnValue(qb);
-    qb.orderBy.mockReturnValue(qb);
-    qb.limit.mockReturnValue(qb);
-    qb.execute.mockResolvedValue([
-      {
-        id: 'vote-1',
-        voting_power_reported: '123.45',
-        voting_power_verified: false,
-        primary_choice: 1,
-        cast_at: new Date('2026-01-01T00:00:00Z'),
-        reason: null,
-        proposal_id: 'proposal-row-1',
-        voter_actor_id: 'actor-1',
-        voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        voter_display_name: null,
-        proposal_source_type: 'compound_governor_bravo',
-        proposal_source_id: '42',
-        proposal_title: 'Test Proposal',
-        proposal_state: 'active',
-        proposal_created_at: new Date('2025-12-31T00:00:00Z'),
-        proposal_voting_ends_at: null,
-        dao_slug: 'compound',
-      },
-    ]);
-
-    const voteRepo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
     const routing = {
       resolveAddress: vi.fn().mockResolvedValue({
         kind: 'ok',
@@ -68,7 +59,7 @@ describe('ActorVotesController', () => {
       }),
     };
     const controller = new ActorVotesController(
-      { listBaseQuery: vi.fn() } as never,
+      { listForActor: vi.fn() } as never,
       routing as never,
     );
     const res = mockResponse();
@@ -90,7 +81,7 @@ describe('ActorVotesController', () => {
   it('throws actor-not-found for unknown actor', async () => {
     const routing = { resolveAddress: vi.fn().mockResolvedValue({ kind: 'not-found' }) };
     const controller = new ActorVotesController(
-      { listBaseQuery: vi.fn() } as never,
+      { listForActor: vi.fn() } as never,
       routing as never,
     );
 

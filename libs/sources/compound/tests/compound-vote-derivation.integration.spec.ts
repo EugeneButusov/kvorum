@@ -1,6 +1,14 @@
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { ArchiveDerivationRepository, chDb, DlqRepository, pgDb } from '@libs/db';
+import {
+  ArchiveDerivationRepository,
+  chDb,
+  DlqRepository,
+  pgDb,
+  ProposalRepository,
+  VoteEventsProjectionReadRepository,
+  VoteEventsProjectionWriter,
+} from '@libs/db';
 import { GovernorArchivePayloadRepository, GovernorVoteProjectionApplier } from '@sources/compound';
 
 const DB_URL = process.env['DATABASE_URL'];
@@ -131,11 +139,12 @@ describeIf('compound vote derivation integration', () => {
     anvilBlockTimestamp = new Date(Number(BigInt(anvilBlock.timestamp)) * 1000);
 
     applier = new GovernorVoteProjectionApplier({
-      pgDb,
-      chDb,
       archive,
       dlq: new DlqRepository(pgDb),
       payloads: new GovernorArchivePayloadRepository(chDb),
+      proposals: new ProposalRepository(pgDb),
+      voteRead: new VoteEventsProjectionReadRepository(chDb),
+      voteWrite: new VoteEventsProjectionWriter(chDb),
       metrics: { batchLookupSeconds: () => undefined, processed: () => undefined },
       registry: {
         peek: (chainId: string) =>

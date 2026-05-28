@@ -25,7 +25,6 @@ import {
   decodeCursor,
   parseLimit,
 } from '../pagination/cursor';
-import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
 @ApiTags('actors')
@@ -38,7 +37,7 @@ export class ActorVotesController {
   ) {}
 
   @Get()
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorVoteListResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -71,13 +70,7 @@ export class ActorVotesController {
     }
 
     const canonical = canonicalQuery(parsed);
-    const rows = await applyQuery(
-      this.voteRepo.listBaseQuery().where('vote.voter_actor_id', '=', resolved.actor.id),
-      parsed,
-      ACTOR_VOTE_QUERY,
-      limit,
-      cursor,
-    ).execute();
+    const rows = await this.voteRepo.listForActor(resolved.actor.id);
 
     const sort = parsed.sort[0] ?? ACTOR_VOTE_QUERY.defaultSort[0];
     const page = buildPagination(rows, limit, (row) => ({

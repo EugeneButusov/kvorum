@@ -38,9 +38,6 @@ export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
 export { DelegationRepository } from './delegation-repository';
-export { ADVISORY_LOCK_NAMESPACE_MIRROR_ETL } from './advisory-lock-namespaces';
-export { MirrorEtlRunRepository } from './mirror-etl-run-repository';
-export { MirrorEtlWatermarkRepository } from './mirror-etl-watermark-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
@@ -62,11 +59,19 @@ export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
 export { VoteReadRepository } from './vote-read-repository';
 export { DelegationReadRepository } from './delegation-read-repository';
+export {
+  DelegationFlowProjectionWriter,
+  ZERO_DELEGATE_ADDRESS,
+} from './delegation-flow-projection-writer';
 export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
 export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
 export { VoteRepository } from './vote-repository';
+export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
+export type { CurrentVoteRow } from './vote-events-projection-read-repository';
+export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
 export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
+export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
@@ -131,13 +136,6 @@ export type {
   SelectorIndex,
   SelectorIndexTable,
   Delegation,
-  EtlWatermark,
-  EtlWatermarkTable,
   VotingPowerSnapshotRun,
   VotingPowerSnapshotRunStatus,
-  MirrorEtlRun,
-  MirrorEtlRunStatus,
-  MirrorEtlRunTable,
-  NewEtlWatermark,
-  NewMirrorEtlRun,
 } from './schema/pg';

@@ -16,7 +16,6 @@ import type {
   SourceTypeTable,
 } from './domain';
 import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
-import type { EtlWatermarkTable, MirrorEtlRunTable } from './mirror-etl';
 import type {
   VoteChoiceTable,
   VoteTable,
@@ -91,15 +90,6 @@ export type {
 } from './ingestion';
 export type { Delegation, DelegationEventType, DelegationTable, NewDelegation } from './delegation';
 export type {
-  EtlWatermark,
-  EtlWatermarkTable,
-  MirrorEtlRun,
-  MirrorEtlRunStatus,
-  MirrorEtlRunTable,
-  NewEtlWatermark,
-  NewMirrorEtlRun,
-} from './mirror-etl';
-export type {
   ActorAddress,
   ActorAddressRedirect,
   ActorAddressRedirectTable,
@@ -153,6 +143,4 @@ export interface PgDatabase {
   actor_address: ActorAddressTable;
   actor_address_redirect: ActorAddressRedirectTable;
   actor_address_source: ActorAddressSourceTable;
-  etl_watermark: EtlWatermarkTable;
-  mirror_etl_run: MirrorEtlRunTable;
 }

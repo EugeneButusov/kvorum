@@ -2,7 +2,13 @@ import { Module, type OnApplicationBootstrap, type OnApplicationShutdown } from 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { parseRateLimitConfigFromEnv } from './rate-limit.config';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
-import { RateLimiterService } from './rate-limiter.service';
+import {
+  RateLimiterService,
+  RedisRateLimiterService,
+  TestRateLimiterService,
+  type RateLimiter,
+} from './rate-limiter.service';
+import { RATE_LIMITER } from './rate-limiter.token';
 import { createRateLimitRedis, type SlidingWindowRedis } from './redis.client';
 
 const RATE_LIMIT_CONFIG = Symbol('RATE_LIMIT_CONFIG');
@@ -19,6 +25,8 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
     try {
       await this.redis.quit();
     } catch {
+      return;
+    } finally {
       this.redis.disconnect();
     }
   }
@@ -32,20 +40,29 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
     },
     {
       provide: RATE_LIMIT_REDIS,
-      useFactory: (config: ReturnType<typeof parseRateLimitConfigFromEnv>) =>
-        createRateLimitRedis(config),
+      useFactory: (config: ReturnType<typeof parseRateLimitConfigFromEnv>) => {
+        const isTest = process.env['NODE_ENV'] === 'test';
+        if (isTest) return createNoopRateLimitRedis();
+        return createRateLimitRedis(config);
+      },
       inject: [RATE_LIMIT_CONFIG],
     },
     {
       provide: RateLimiterService,
-      useFactory: (redis: SlidingWindowRedis) => new RateLimiterService(redis),
+      useFactory: (redis: SlidingWindowRedis) => {
+        const isTest = process.env['NODE_ENV'] === 'test';
+        return isTest ? new TestRateLimiterService() : new RedisRateLimiterService(redis);
+      },
       inject: [RATE_LIMIT_REDIS],
     },
     {
+      provide: RATE_LIMITER,
+      useExisting: RateLimiterService,
+    },
+    {
       provide: RateLimitInterceptor,
-      useFactory: (rateLimiterService: RateLimiterService) =>
-        new RateLimitInterceptor(rateLimiterService),
-      inject: [RateLimiterService],
+      useFactory: (rateLimiterService: RateLimiter) => new RateLimitInterceptor(rateLimiterService),
+      inject: [RATE_LIMITER],
     },
     {
       provide: APP_INTERCEPTOR,
@@ -59,3 +76,12 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
   ],
 })
 export class RateLimitModule {}
+
+function createNoopRateLimitRedis(): SlidingWindowRedis {
+  return {
+    connect: async () => undefined,
+    quit: async () => 'OK',
+    disconnect: () => undefined,
+    slidingWindow: async () => [1, 1, 1, 0, 0, 'minute'],
+  } as unknown as SlidingWindowRedis;
+}

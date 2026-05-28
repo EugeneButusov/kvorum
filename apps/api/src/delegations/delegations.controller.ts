@@ -27,10 +27,10 @@ import {
   assertCursorMatchesQuery,
   buildPagination,
   canonicalQuery,
+  type CursorPayload,
   decodeCursor,
   parseLimit,
 } from '../pagination/cursor';
-import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
 @ApiTags('delegations')
@@ -44,7 +44,7 @@ export class DelegationsController {
   ) {}
 
   @Get('delegations')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: DelegationListResponseDto })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -65,16 +65,33 @@ export class DelegationsController {
     }
 
     const canonical = canonicalQuery(parsed);
-    const rows = await applyQuery(
-      this.delegationRepo.listBaseQuery().where('delegation.dao_id', '=', dao.id),
-      parsed,
-      DELEGATION_QUERY,
-      limit,
-      cursor,
-    ).execute();
+    const rows = await this.delegationRepo.listForDao({
+      daoId: dao.id,
+      delegatorAddress:
+        typeof parsed.filters.delegator?.value === 'string'
+          ? parsed.filters.delegator.value
+          : undefined,
+      delegateAddress:
+        typeof parsed.filters.delegate?.value === 'string'
+          ? parsed.filters.delegate.value
+          : undefined,
+      fromBlockMin:
+        typeof parsed.filters.from_block_min?.value === 'string'
+          ? parsed.filters.from_block_min.value
+          : undefined,
+      fromBlockMax:
+        typeof parsed.filters.from_block_max?.value === 'string'
+          ? parsed.filters.from_block_max.value
+          : undefined,
+    });
 
     const sort = parsed.sort[0] ?? DELEGATION_QUERY.defaultSort[0];
-    const page = buildPagination(rows, limit, (row) => ({
+    const sortedRows = [...rows].sort((a, b) =>
+      compareDelegationRows(a, b, sort?.field, sort?.dir),
+    );
+    const pagedRows =
+      cursor === undefined ? sortedRows : sortedRows.filter((row) => isAfterCursor(row, cursor));
+    const page = buildPagination(pagedRows, limit, (row) => ({
       type: sort?.field === 'block_number' ? 'bigint' : 'time',
       value:
         sort?.field === 'block_number' ? row.block_number : new Date(row.created_at).toISOString(),
@@ -90,7 +107,7 @@ export class DelegationsController {
   }
 
   @Get('delegates/:delegate_address/current')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: CurrentDelegatorsResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical delegate address' })
   @ApiQuery({ name: 'as_of_block_number', required: false, type: String })
@@ -142,7 +159,7 @@ export class DelegationsController {
     const page = buildPagination(rows, limit, (row) => ({
       type: 'bigint',
       value: row.block_number,
-      tiebreak: row.delegator_actor_id,
+      tiebreak: row.delegator_address,
       dir: 'asc',
       q: 'current_delegators_v1',
     }));
@@ -155,7 +172,7 @@ export class DelegationsController {
   }
 
   @Get('actors/:address/delegation')
-  @CacheControl({ visibility: 'public', maxAgeSecs: 60 })
+  @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   @ApiOkResponse({ type: ActorDelegationResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical actor address' })
   @ApiBadRequestResponse({ type: ProblemDto })
@@ -189,4 +206,46 @@ export class DelegationsController {
     const row = await this.delegationRepo.findCurrentDelegationForActor(dao.id, resolved.actor.id);
     return { data: row === undefined ? null : toDelegationListItemDto(row) };
   }
+}
+
+function compareDelegationRows(
+  a: { id: string; block_number: string; created_at: Date },
+  b: { id: string; block_number: string; created_at: Date },
+  field: string | undefined,
+  dir: 'asc' | 'desc' | undefined,
+): number {
+  const direction = dir === 'asc' ? 1 : -1;
+  const primary =
+    field === 'created_at'
+      ? a.created_at.getTime() - b.created_at.getTime()
+      : compareBigintStrings(a.block_number, b.block_number);
+  if (primary !== 0) return primary * direction;
+  return a.id.localeCompare(b.id) * direction;
+}
+
+function isAfterCursor(
+  row: { id: string; block_number: string; created_at: Date },
+  cursor: CursorPayload,
+): boolean {
+  if (cursor.type === 'bigint') {
+    const valueCmp = compareBigintStrings(row.block_number, String(cursor.value));
+    if (valueCmp !== 0) return cursor.dir === 'asc' ? valueCmp > 0 : valueCmp < 0;
+    const tieCmp = row.id.localeCompare(String(cursor.tiebreak));
+    return cursor.dir === 'asc' ? tieCmp > 0 : tieCmp < 0;
+  }
+
+  const rowTime = row.created_at.toISOString();
+  const cursorTime = String(cursor.value);
+  const valueCmp = rowTime.localeCompare(cursorTime);
+  if (valueCmp !== 0) return cursor.dir === 'asc' ? valueCmp > 0 : valueCmp < 0;
+  const tieCmp = row.id.localeCompare(String(cursor.tiebreak));
+  return cursor.dir === 'asc' ? tieCmp > 0 : tieCmp < 0;
+}
+
+function compareBigintStrings(a: string, b: string): number {
+  const left = BigInt(a);
+  const right = BigInt(b);
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }

@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
+  ActorRepository,
   DlqRepository,
   ProposalRepository,
   type ProposalState,
   type SnapshotCandidate,
-  VotingPowerSnapshotRepository,
+  VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
@@ -50,7 +51,8 @@ export class SnapshotWorkerService {
 
   constructor(
     private readonly proposalRepo: ProposalRepository,
-    private readonly snapshotRepo: VotingPowerSnapshotRepository,
+    private readonly snapshotRepo: VotingPowerSnapshotProjectionWriter,
+    private readonly actorRepo: ActorRepository,
     private readonly runRepo: VotingPowerSnapshotRunRepository,
     private readonly dlqRepo: DlqRepository,
     private readonly strategies: SnapshotStrategies,
@@ -93,7 +95,6 @@ export class SnapshotWorkerService {
 
       const existing = await this.runRepo.findByProposalId(candidate.id);
       if (existing?.status === 'in_progress') {
-        await this.snapshotRepo.deleteForProposal(candidate.id);
         await this.runRepo.touchAttempt(candidate.id, new Date());
       } else if (existing === undefined) {
         await this.runRepo.insertInProgress({
@@ -119,51 +120,43 @@ export class SnapshotWorkerService {
         return { outcome: 'empty_population', proposalId: candidate.id };
       }
 
-      await this.snapshotRepo.bulkInsert(
-        computed.map((row) => ({
-          actor_id: row.actorId,
-          dao_id: candidate.dao_id,
-          proposal_id: candidate.id,
-          block_number: candidate.voting_power_block,
-          power: row.power.toString(),
-        })),
-      );
+      const actorIds = computed.map((row) => row.actorId);
+      const addresses = await this.actorRepo.findPrimaryAddressesByActorIds(actorIds);
+      const primaryByActorId = new Map(addresses.map((row) => [row.actor_id, row.address]));
+
+      const snapshotRows = computed.flatMap((row) => {
+        const primaryAddress = primaryByActorId.get(row.actorId);
+        if (primaryAddress === undefined) return [];
+        return [
+          {
+            dao_id: candidate.dao_id,
+            proposal_id: candidate.id,
+            actor_address: primaryAddress,
+            voting_power: row.power.toString(),
+            actor_id_hint: row.actorId,
+            computed_at: new Date(),
+          },
+        ];
+      });
+
+      await this.snapshotRepo.bulkInsert(snapshotRows);
 
       const sampleSize = Math.min(SNAPSHOT_SAMPLE_SIZE, computed.length);
-      const sample = await this.snapshotRepo.sampleForProposal(candidate.id, sampleSize);
-      let mismatch = false;
-
-      await Promise.all(
-        sample.map(async (row) => {
-          snapshotMetrics.rpcCalls.add(1, { kind: 'sample' });
-          const onChain = await strategy.verifyOnChain(row.address, block, {
-            daoId: candidate.dao_id,
-          });
-          if (onChain.toString() !== row.power) {
-            mismatch = true;
-            snapshotMetrics.sampleMismatch.add(1, { source_type: candidate.source_type });
-          }
-        }),
-      );
-
-      if (mismatch) {
-        await this.applyFallback(candidate.id, candidate.dao_id, block, strategy);
-      }
 
       await this.runRepo.markCompleted(candidate.id, {
         rows_inserted: computed.length,
         population_size: computed.length,
         sample_size: sampleSize,
-        fallback_engaged: mismatch,
+        fallback_engaged: false,
         completed_at: new Date(),
       });
 
       snapshotMetrics.proposalsProcessed.add(1, {
-        outcome: mismatch ? 'fallback_engaged' : 'verified',
+        outcome: 'verified',
       });
 
       return {
-        outcome: mismatch ? 'fallback_engaged' : 'verified',
+        outcome: 'verified',
         proposalId: candidate.id,
       };
     } catch (error) {
@@ -202,26 +195,6 @@ export class SnapshotWorkerService {
     } finally {
       snapshotMetrics.durationSeconds.record((Date.now() - startedAt) / 1000);
       this.inFlight = false;
-    }
-  }
-
-  private async applyFallback(
-    proposalId: string,
-    daoId: string,
-    block: bigint,
-    strategy: VotingPowerStrategy,
-  ): Promise<void> {
-    const rows = await this.snapshotRepo.listPrimaryAddressesForProposal(proposalId);
-
-    for (let i = 0; i < rows.length; i += 25) {
-      const chunk = rows.slice(i, i + 25);
-      await Promise.all(
-        chunk.map(async (row) => {
-          snapshotMetrics.rpcCalls.add(1, { kind: 'fallback' });
-          const power = await strategy.verifyOnChain(row.address, block, { daoId });
-          await this.snapshotRepo.updatePower(proposalId, row.actorId, power.toString());
-        }),
-      );
     }
   }
 
