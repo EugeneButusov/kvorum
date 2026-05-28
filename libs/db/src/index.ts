@@ -35,6 +35,11 @@ export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-rep
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
 export type { ArchiveEventKey } from './archive-event-repository';
 export { ArchiveEventRepository } from './archive-event-repository';
+export type {
+  ReconciliationCursor,
+  ReconciliationWatermarkRow,
+} from './reconciliation-watermark-repository';
+export { ReconciliationWatermarkRepository } from './reconciliation-watermark-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';

@@ -11,6 +11,7 @@ import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
+import { ReconciliationModule } from '../reconciliation';
 import { SnapshotModule } from '../snapshot';
 
 @Module({
@@ -21,6 +22,7 @@ import { SnapshotModule } from '../snapshot';
     SnapshotModule,
     EnsResolverModule,
     SourcesModule,
+    ReconciliationModule,
   ],
   providers: [
     {

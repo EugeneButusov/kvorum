@@ -14,7 +14,12 @@ import type {
   ProposalTable,
   SourceTypeTable,
 } from './domain';
-import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
+import type {
+  ArchiveEventTable,
+  IngestionDlqResolvedTable,
+  IngestionDlqTable,
+  ReconciliationWatermarkTable,
+} from './ingestion';
 import type { VotingPowerSnapshotRunTable } from './vote';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
@@ -81,6 +86,9 @@ export type {
   NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,
+  NewReconciliationWatermark,
+  ReconciliationWatermark,
+  ReconciliationWatermarkTable,
 } from './ingestion';
 export type {
   ActorAddress,
@@ -116,6 +124,7 @@ export interface PgDatabase {
   archive_event: ArchiveEventTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
+  reconciliation_watermark: ReconciliationWatermarkTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
   voting_power_snapshot_run: VotingPowerSnapshotRunTable;

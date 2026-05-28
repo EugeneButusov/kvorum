@@ -53,6 +53,41 @@ export class DaoSourceRepository {
       .execute();
   }
 
+  async findActive() {
+    return this.db
+      .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+      .select([
+        'dao_source.id',
+        'dao_source.dao_id',
+        'dao_source.source_type',
+        'dao_source.source_config',
+        'dao_source.active_from_block',
+        'dao.primary_chain_id',
+      ])
+      .where('dao_source.active_to_block', 'is', null)
+      .orderBy('dao_source.id', 'asc')
+      .execute();
+  }
+
+  async findActiveByChain(chainId: string) {
+    return this.db
+      .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+      .select([
+        'dao_source.id',
+        'dao_source.dao_id',
+        'dao_source.source_type',
+        'dao_source.source_config',
+        'dao_source.active_from_block',
+        'dao.primary_chain_id',
+      ])
+      .where('dao.primary_chain_id', '=', chainId)
+      .where('dao_source.active_to_block', 'is', null)
+      .orderBy('dao_source.id', 'asc')
+      .execute();
+  }
+
   /** Returns the source row joined with its chain — the full shape the backfill driver needs. */
   async findByIdWithChain(id: string) {
     return this.findWithChainWhere('dao_source.id', id);

@@ -73,3 +73,16 @@ export interface IngestionDlqResolvedTable {
 
 export type IngestionDlqResolved = Selectable<IngestionDlqResolvedTable>;
 export type NewIngestionDlqResolved = Insertable<IngestionDlqResolvedTable>;
+
+export interface ReconciliationWatermarkTable {
+  sweep_name: string;
+  dao_source_id: string;
+  // pg bigint values are represented as strings by the driver
+  last_swept_block_number: string;
+  last_swept_tx_hash: string;
+  last_swept_log_index: number;
+  last_sweep_at: Date | null;
+}
+
+export type ReconciliationWatermark = Selectable<ReconciliationWatermarkTable>;
+export type NewReconciliationWatermark = Insertable<ReconciliationWatermarkTable>;
