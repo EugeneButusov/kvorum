@@ -1,4 +1,3 @@
-import type { InsertEventVoteRow } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { VoteCastPayload } from './types';
 
@@ -9,7 +8,18 @@ export interface VoteProjectionContext {
 }
 
 export interface VoteProjectionResult {
-  vote: InsertEventVoteRow;
+  vote: {
+    proposal_id: string;
+    voter_actor_id: string;
+    voting_power_reported: string;
+    cast_at: Date;
+    block_number: string;
+    tx_index: number;
+    tx_hash: string;
+    log_index: number;
+    primary_choice: number;
+    reason: string | null;
+  };
   choice: {
     choice_index: number;
     weight: string;

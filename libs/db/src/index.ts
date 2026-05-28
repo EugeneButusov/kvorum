@@ -8,6 +8,7 @@ export {
   SameActorMergeError,
 } from './errors/actor-merge-errors';
 export { ActorMergeRepository } from './actor-merge-repository';
+export type { MergePlan, MergeResult } from './actor-merge-repository';
 export { ActorRepository } from './actor-repository';
 export { ActorRoutingReadRepository } from './actor-routing-repository';
 export { AnalyticsReadRepository } from './analytics-read-repository';
@@ -37,7 +38,6 @@ export { ArchiveEventRepository } from './archive-event-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
-export { DelegationRepository } from './delegation-repository';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
@@ -65,12 +65,9 @@ export {
 } from './delegation-flow-projection-writer';
 export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
-export type { InsertEventVoteRow, InsertVoteResult } from './vote-repository';
-export { VoteRepository } from './vote-repository';
 export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
 export type { CurrentVoteRow } from './vote-events-projection-read-repository';
 export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
-export { VotingPowerSnapshotRepository } from './voting-power-snapshot-repository';
 export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
 export type { PgDatabase } from './schema/pg';

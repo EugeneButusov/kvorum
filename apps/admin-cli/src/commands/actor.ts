@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import type { MergePlan, MergeResult } from '@libs/db';
 import {
   emit,
   emitNotImplemented,
@@ -251,41 +252,15 @@ function resolveCreatedBy(): string {
   return 'unknown';
 }
 
-function renderPlanHuman(plan: {
-  survivor: { actorId: string; primaryAddress: string };
-  secondary: { actorId: string; primaryAddress: string };
-  fkRewrites: {
-    proposal_proposer_actor_id: number;
-    vote_voter_actor_id: number;
-    delegation_delegator_actor_id: number;
-    delegation_delegate_actor_id: number;
-    voting_power_snapshot_actor_id: number;
-  };
-  actorAddressRetargets: number;
-  actorAddressPrimaryFlip: { address: string; willFlipIsPrimary: boolean };
-  redirectsToFlatten: Array<{ from_address: string; current_to_actor_id: string }>;
-  redirectToInsert: { from_address: string; to_actor_id: string };
-}): string {
-  const totalFkWrites =
-    plan.fkRewrites.proposal_proposer_actor_id +
-    plan.fkRewrites.vote_voter_actor_id +
-    plan.fkRewrites.delegation_delegator_actor_id +
-    plan.fkRewrites.delegation_delegate_actor_id +
-    plan.fkRewrites.voting_power_snapshot_actor_id;
-
+function renderPlanHuman(plan: MergePlan): string {
+  const totalFkWrites = plan.proposalProposerRewrites;
   return [
     'Merge plan (DRY RUN - no DB changes):',
     '',
     `  Survivor:  primary_address=${plan.survivor.primaryAddress}  actor_id=${plan.survivor.actorId}`,
     `  Secondary: primary_address=${plan.secondary.primaryAddress}  actor_id=${plan.secondary.actorId}`,
     '',
-    '  FK rewrites:',
-    `    proposal.proposer_actor_id:        ${plan.fkRewrites.proposal_proposer_actor_id} rows`,
-    `    vote.voter_actor_id:               ${plan.fkRewrites.vote_voter_actor_id} rows`,
-    `    delegation.delegator_actor_id:     ${plan.fkRewrites.delegation_delegator_actor_id} rows`,
-    `    delegation.delegate_actor_id:      ${plan.fkRewrites.delegation_delegate_actor_id} rows`,
-    `    voting_power_snapshot.actor_id:     ${plan.fkRewrites.voting_power_snapshot_actor_id} rows`,
-    `    total:                              ${totalFkWrites} rows`,
+    `  FK rewrites: ${totalFkWrites} rows (proposal proposer)`,
     '',
     `  actor_address rows retargeted: ${plan.actorAddressRetargets}`,
     `  (former primary ${plan.actorAddressPrimaryFlip.address} will be flipped to is_primary=false)`,
@@ -299,38 +274,15 @@ function renderPlanHuman(plan: {
   ].join('\n');
 }
 
-function renderResultHuman(
-  result: {
-    survivor: { actorId: string; primaryAddress: string };
-    secondary: { actorId: string; primaryAddress: string };
-    fkRewrites: {
-      proposal_proposer_actor_id: number;
-      vote_voter_actor_id: number;
-      delegation_delegator_actor_id: number;
-      delegation_delegate_actor_id: number;
-      voting_power_snapshot_actor_id: number;
-    };
-    actorAddressRetargets: number;
-    redirectsToFlatten: Array<{ from_address: string; current_to_actor_id: string }>;
-    redirectToInsert: { from_address: string; to_actor_id: string };
-    appliedAt: Date;
-  },
-  reason: string,
-): string {
-  const totalFkWrites =
-    result.fkRewrites.proposal_proposer_actor_id +
-    result.fkRewrites.vote_voter_actor_id +
-    result.fkRewrites.delegation_delegator_actor_id +
-    result.fkRewrites.delegation_delegate_actor_id +
-    result.fkRewrites.voting_power_snapshot_actor_id;
-
+function renderResultHuman(result: MergeResult, reason: string): string {
+  const totalFkWrites = result.proposalProposerRewrites;
   return [
     'Merge applied:',
     '',
     `  Survivor:  primary_address=${result.survivor.primaryAddress}  actor_id=${result.survivor.actorId}`,
     `  Secondary: primary_address=${result.secondary.primaryAddress}  actor_id=${result.secondary.actorId}`,
     '',
-    `  FK rewrites: ${totalFkWrites} rows across 5 tables`,
+    `  FK rewrites: ${totalFkWrites} rows (proposal proposer)`,
     `  actor_address rows retargeted: ${result.actorAddressRetargets}`,
     `  Redirect inserted: ${result.redirectToInsert.from_address} -> ${result.redirectToInsert.to_actor_id}`,
     `  Redirects flattened: ${result.redirectsToFlatten.length}`,
