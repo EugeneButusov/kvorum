@@ -102,7 +102,8 @@ export async function down(db: Kysely<unknown>): Promise<void> {
       'compound_governor_bravo',
       'compound_governor_oz',
       'compound_governor_bravo_reconcile',
-      'compound_governor_oz_reconcile'
+      'compound_governor_oz_reconcile',
+      'compound_comp_token'
     )
       AND dao_id = (SELECT id FROM dao WHERE slug = 'compound')
   `.execute(db);
