@@ -12,7 +12,6 @@ import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
 import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
-import { PgBossLifecycle } from '../queue/pg-boss-lifecycle';
 import { SeenLogPruneService } from '../queue/seen-log-prune.service';
 import { SnapshotModule } from '../snapshot';
 
@@ -42,7 +41,6 @@ import { SnapshotModule } from '../snapshot';
       ],
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
     },
-    PgBossLifecycle,
     ArchiveProducerProvider,
     SeenLogPruneService,
     IndexerOrchestratorService,

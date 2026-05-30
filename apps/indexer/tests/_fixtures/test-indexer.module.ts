@@ -13,7 +13,6 @@ import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
 import { ArchiveProducerProvider } from '../../src/queue/archive-producer.provider';
-import { PgBossLifecycle } from '../../src/queue/pg-boss-lifecycle';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, TestEvmSourceModule],
@@ -24,7 +23,6 @@ import { PgBossLifecycle } from '../../src/queue/pg-boss-lifecycle';
         plugins.flatMap((p) => p.ingesters),
       inject: [SOURCE_PLUGINS],
     },
-    PgBossLifecycle,
     ArchiveProducerProvider,
     EvmEventPollerDriver,
     {
