@@ -8,7 +8,6 @@ import {
   EMIT_MALFORMED_SELECTOR,
 } from './_fixtures/evm-test-emitter.bytecode';
 import { TestIndexerModule } from './_fixtures/test-indexer.module';
-import { captureMetrics, findMetricValue, getCounterDelta } from './helpers/metrics-helpers';
 import {
   insertTestDao,
   insertTestDaoSource,
@@ -42,7 +41,11 @@ async function sendAndWait(
   return receipt;
 }
 
-describeIf('DLQ fault injection', () => {
+// NOTE: The DLQ decode-fault test (stage='archive_decode') moved to PR-D: the consumer
+// is the decode layer; in producer-only mode (PR-C) the generic producer enqueues all
+// confirmed logs as archive_ch jobs without decoding — no DLQ entries are created.
+// This test verifies producer-only behavior: seen_log populated, archive_event empty.
+describeIf('Producer fault injection (PR-C producer-only)', () => {
   let app: INestApplicationContext;
   let client: { send: <T>(method: string, params: unknown[]) => Promise<T> };
   let contractAddress: string;
@@ -50,7 +53,6 @@ describeIf('DLQ fault injection', () => {
 
   beforeAll(async () => {
     await truncateAllTestTables(pgDb);
-    // DlqDepthService ticks at 500ms in tests — keeps gauge assertion window tight.
     process.env['DLQ_DEPTH_INTERVAL_MS'] = '500';
     process.env['CHAIN_CONFIG'] = JSON.stringify({
       chains: [
@@ -67,7 +69,6 @@ describeIf('DLQ fault injection', () => {
       ],
     });
 
-    // Deploy the EVM test emitter BEFORE booting Nest.
     const deployClient = (await import('@libs/chain').then(
       ({ FailoverRpcClient }) =>
         new FailoverRpcClient({
@@ -93,7 +94,7 @@ describeIf('DLQ fault injection', () => {
     contractAddress = receipt.contractAddress!.toLowerCase();
     await deployClient.stop();
 
-    const daoId = await insertTestDao(pgDb, { slug: 'dlq-fault-test', name: 'DLQ Fault Test' });
+    const daoId = await insertTestDao(pgDb, { slug: 'producer-test', name: 'Producer Test' });
     await insertTestDaoSource(pgDb, {
       daoId,
       sourceType: 'evm_test_emitter',
@@ -115,69 +116,35 @@ describeIf('DLQ fault injection', () => {
     await truncateAllIngestionTables(pgDb);
   });
 
-  it('routes malformed payloads to DLQ with stage=archive_decode', async () => {
-    const metricsBefore = await captureMetrics();
-
-    // Emit the malformed event — truncated 8-byte data, correct topic0
-    // Mine extra blocks upfront to ensure confirmedHead can reach the event block.
-    // With headLag=12, tip must be at least (event_block + headLag) for confirmedHead to include the event.
-    // Mine 13 blocks (so we're at block 13), then emit event at block 14, then mine 13 more (to block 27).
-    // Then confirmedHead = 27 - 12 = 15, which includes block 14.
+  it('producer records confirmed logs in seen_log without writing archive_event or DLQ', async () => {
+    // The generic archive producer is domain-blind: it records the chain coordinate in
+    // seen_log and enqueues an archive_ch job — no decoding, no archive_event write, no DLQ.
+    // Mine extra blocks so confirmedHead reaches the event block (headLag=12 → need 13+ blocks).
     await client.send('anvil_mine', ['0xd']); // 13 blocks
     await sendAndWait(client, {
       from: accounts[0]!,
       to: contractAddress,
-      data: '0x' + EMIT_MALFORMED_SELECTOR,
+      data: '0x' + EMIT_MALFORMED_SELECTOR, // content irrelevant — producer is domain-blind
     });
-    await client.send('anvil_mine', ['0xd']); // 13 more blocks
+    await client.send('anvil_mine', ['0xd']); // 13 more → confirmedHead includes event block
 
-    // Wait for at least one DLQ row to appear. EventPoller's sliding window re-fetches
-    // the same malformed log every eventPollIntervalMs, so each re-fetch inserts a new
-    // DLQ row (no idempotency on the archive tuple — deferred to I2's retry/accept work).
-    // We assert "≥ 1" rather than "exactly 1" to tolerate that race.
+    // Wait for seen_log to record the coordinate (proves the producer processed the event)
     await pollUntil(async () => {
-      const rows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
+      const rows = await pgDb.selectFrom('seen_log').selectAll().execute();
       return rows.length >= 1;
     }, 30_000);
 
-    const dlqRows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
-    expect(dlqRows.length).toBeGreaterThanOrEqual(1);
-    // All DLQ rows for this fault share the same shape — verify on the first one.
-    expect(dlqRows[0]!.stage).toBe('archive_decode');
-    expect(dlqRows[0]!.source).toBe('evm_test_emitter');
-    expect(dlqRows[0]!.archive_source_type).toBe('evm_test_emitter');
-    expect(dlqRows[0]!.archive_chain_id).toBe('0x7a69');
-    // archive_tx_hash is populated from the raw log envelope before decoding — regression
-    // guard that the DLQ row captures the envelope for the retry path.
-    expect(dlqRows[0]!.archive_tx_hash).not.toBeNull();
+    const seenRows = await pgDb.selectFrom('seen_log').selectAll().execute();
+    expect(seenRows.length).toBeGreaterThanOrEqual(1);
+    expect(seenRows[0]!.chain_id).toBe('0x7a69');
+    expect(seenRows[0]!.tx_hash).not.toBeNull();
 
-    // No archive_event row: decode check failed, never reached the archive writer
+    // Producer does not write archive_event — that is the consumer's responsibility (PR-D)
     const archiveRows = await pgDb.selectFrom('archive_event').selectAll().execute();
     expect(archiveRows).toHaveLength(0);
 
-    // archive_writes{result=inserted} must NOT increment for this malformed event
-    const insertedDelta = await getCounterDelta(
-      `indexer_ingestion_archive_writes_total`,
-      { result: 'inserted', source: 'evm_test_emitter', chain_id: '0x7a69' },
-      metricsBefore,
-    );
-    expect(insertedDelta).toBe(0);
-
-    // Gauge reflects at least one DLQ entry (delta-based: robust against residual values
-    // from earlier test runs). 20s window covers ≥2 DlqDepthService ticks at 500ms.
-    await pollUntil(async () => {
-      const after = await captureMetrics();
-      const before =
-        findMetricValue(metricsBefore, `indexer_ingestion_dlq_size`, {
-          stage: 'archive_decode',
-          source: 'evm_test_emitter',
-        }) ?? 0;
-      const now =
-        findMetricValue(after, `indexer_ingestion_dlq_size`, {
-          stage: 'archive_decode',
-          source: 'evm_test_emitter',
-        }) ?? 0;
-      return now - before >= 1;
-    }, 20_000);
+    // Producer does not route to DLQ — decode failures are a consumer concern (PR-D)
+    const dlqRows = await pgDb.selectFrom('ingestion_dlq').selectAll().execute();
+    expect(dlqRows).toHaveLength(0);
   }, 60_000);
 });
