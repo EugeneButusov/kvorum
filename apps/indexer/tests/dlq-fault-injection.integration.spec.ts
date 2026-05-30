@@ -43,7 +43,7 @@ async function sendAndWait(
 
 // NOTE: The DLQ decode-fault test (stage='archive_decode') moved to PR-D: the consumer
 // is the decode layer; in producer-only mode (PR-C) the generic producer enqueues all
-// confirmed logs as archive_ch jobs without decoding — no DLQ entries are created.
+// confirmed logs as archive_log jobs without decoding — no DLQ entries are created.
 // This test verifies producer-only behavior: seen_log populated, archive_event empty.
 describeIf('Producer fault injection (PR-C producer-only)', () => {
   let app: INestApplicationContext;
@@ -118,7 +118,7 @@ describeIf('Producer fault injection (PR-C producer-only)', () => {
 
   it('producer records confirmed logs in seen_log without writing archive_event or DLQ', async () => {
     // The generic archive producer is domain-blind: it records the chain coordinate in
-    // seen_log and enqueues an archive_ch job — no decoding, no archive_event write, no DLQ.
+    // seen_log and enqueues an archive_log job — no decoding, no archive_event write, no DLQ.
     // Mine extra blocks so confirmedHead reaches the event block (headLag=12 → need 13+ blocks).
     await client.send('anvil_mine', ['0xd']); // 13 blocks
     await sendAndWait(client, {

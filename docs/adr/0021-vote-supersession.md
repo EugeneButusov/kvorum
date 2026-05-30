@@ -52,7 +52,7 @@ Cite ADR-0062, PR #220, PR #221.
 
 ## Amendment — 2026-05-30 (single-worker ordering constraint — Epic 1 scope, superseded in Epic 2)
 
-The "load-bearing invariant" added in the 2026-05-28 amendment — single-worker-per-protocol makes the `SELECT … → INSERT` supersession sequence naturally serialised — is preserved for Epic 1 (`localConcurrency = 1` on the `archive_ch` consumer, ADR-0063).
+The "load-bearing invariant" added in the 2026-05-28 amendment — single-worker-per-protocol makes the `SELECT … → INSERT` supersession sequence naturally serialised — is preserved for Epic 1 (`localConcurrency = 1` on the `archive_log` consumer, ADR-0063).
 
 In Epic 2 (co-timed with M5), vote/delegation projections will be made **order-independent**, removing the need for `localConcurrency = 1` and enabling intra-protocol parallelism. At that point this invariant is superseded; it must not be cited as a hard constraint in new code past Epic 2.
 

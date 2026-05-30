@@ -4,7 +4,7 @@ import { PgBoss, fromKysely } from 'pg-boss';
 import type { EventsListener, LogEvent } from '@libs/chain';
 import { pgDb, SeenLogRepository } from '@libs/db';
 import { makeArchiveProducer, type RawLogJob } from '@sources/core';
-import { ARCHIVE_CH_QUEUE, ARCHIVE_CH_DLQ_QUEUE } from './queue-names';
+import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
 
 @Injectable()
 export class ArchiveProducerProvider implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -29,11 +29,11 @@ export class ArchiveProducerProvider implements OnApplicationBootstrap, OnApplic
     await this.boss.start();
 
     // DLQ must exist before the main queue references it as deadLetter.
-    await this.boss.createQueue(ARCHIVE_CH_DLQ_QUEUE);
-    await this.boss.createQueue(ARCHIVE_CH_QUEUE, {
+    await this.boss.createQueue(ARCHIVE_LOG_DLQ_QUEUE);
+    await this.boss.createQueue(ARCHIVE_LOG_QUEUE, {
       retryLimit: 5,
       retryBackoff: true,
-      deadLetter: ARCHIVE_CH_DLQ_QUEUE,
+      deadLetter: ARCHIVE_LOG_DLQ_QUEUE,
     });
 
     const boss = this.boss;
@@ -41,7 +41,7 @@ export class ArchiveProducerProvider implements OnApplicationBootstrap, OnApplic
       pgDb,
       seenLog: this.seenLog,
       enqueue: async (job: RawLogJob, trx) => {
-        await boss.send(ARCHIVE_CH_QUEUE, job, { db: fromKysely(trx) });
+        await boss.send(ARCHIVE_LOG_QUEUE, job, { db: fromKysely(trx) });
       },
       logger: {
         debug: (msg, ctx) => this.logger.debug(msg, ctx),

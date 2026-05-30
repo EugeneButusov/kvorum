@@ -110,7 +110,7 @@ The rewind handler registry must now include CH projection cleanup explicitly: `
 
 When `admin-cli chain rewind --chain X --to-block N` runs, the rewind handler registry must also:
 
-1. **Cancel/delete all pending `archive_ch` jobs** in pg-boss whose `blockNumber > N` for chain `X` — these would re-ingest events on blocks being rewound, producing duplicate `archive_event` rows that the `ON CONFLICT` guard would silently drop, but whose CH payloads would persist.
+1. **Cancel/delete all pending `archive_log` jobs** in pg-boss whose `blockNumber > N` for chain `X` — these would re-ingest events on blocks being rewound, producing duplicate `archive_event` rows that the `ON CONFLICT` guard would silently drop, but whose CH payloads would persist.
 2. **Delete `seen_log` rows** with `chain_id = X AND block_number > N` — otherwise the pruned coordinates would be treated as already-ingested by the producer on re-scan, and the events would never be re-enqueued.
 
 The rewind command requires the indexer to be stopped for the affected chain (serialising against the consumer), so no in-flight jobs are racing during the purge. This is scope-noting only; the actual implementation remains deferred per ADR-059's Proposed status.

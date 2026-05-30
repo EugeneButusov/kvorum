@@ -1,2 +1,2 @@
-export const ARCHIVE_CH_QUEUE = 'archive_ch';
-export const ARCHIVE_CH_DLQ_QUEUE = 'archive_ch_dlq';
+export const ARCHIVE_LOG_QUEUE = 'archive_log';
+export const ARCHIVE_LOG_DLQ_QUEUE = 'archive_log_dlq';
