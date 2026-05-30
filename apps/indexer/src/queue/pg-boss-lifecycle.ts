@@ -28,13 +28,14 @@ export class PgBossLifecycle implements OnApplicationBootstrap, OnApplicationShu
     await this.boss.start();
 
     // Queues must exist before send()/work() on pg-boss v12.
-    // deleteAfterSeconds pins the forensic retention window; consumer (PR-D) sets it explicitly.
+    // DLQ must be created first — pg-boss validates that the deadLetter queue exists when
+    // creating the main queue. Reversing the order produces "Queue archive_ch_dlq does not exist".
+    await this.boss.createQueue(ARCHIVE_CH_DLQ_QUEUE);
     await this.boss.createQueue(ARCHIVE_CH_QUEUE, {
       retryLimit: 5,
       retryBackoff: true,
       deadLetter: ARCHIVE_CH_DLQ_QUEUE,
     });
-    await this.boss.createQueue(ARCHIVE_CH_DLQ_QUEUE);
 
     this.resolveReady();
     this.logger.log('pg_boss_started');
