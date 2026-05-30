@@ -69,6 +69,7 @@ function mutable(applier: GovernorVoteProjectionApplier): MutableVoteApplier {
 function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainCtx?: unknown }) {
   const archive: GovernorVoteProjectionApplierDeps['archive'] = {
     incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+    markDerived: vi.fn().mockResolvedValue(undefined),
   } as unknown as GovernorVoteProjectionApplierDeps['archive'];
   const dlq: GovernorVoteProjectionApplierDeps['dlq'] = {
     insert: vi.fn().mockResolvedValue(undefined),
@@ -106,7 +107,7 @@ function buildApplier(options?: { payloads?: GovernorArchivePayloadRow[]; chainC
       .mockResolvedValue(new Map([['100:0xblock', new Date('2026-01-01T00:01:40Z')]])),
     resultKey: (blockNumber: string, blockHash: string) => `${blockNumber}:${blockHash}`,
   };
-  return { applier, archive, dlq, payloads, metrics };
+  return { applier, archive, dlq, payloads, metrics, proposals, voteRead, voteWrite };
 }
 
 function makeChainContext() {
@@ -291,5 +292,31 @@ describe('GovernorVoteProjectionApplier', () => {
     await built.applier.applyBatch(rows);
 
     expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
+  });
+
+  it('identity guard: skips insertBatch and advances watermark when incoming is already current', async () => {
+    // §4.2c regression: re-deriving the row that is already current must not run buildVoteRows/insertBatch.
+    // Without the guard, buildVoteRows emits a self-superseding row (superseded=1, superseded_by=self),
+    // collapsing the vote to zero superseded=0 rows under FINAL.
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: BASE_ROW.id, // same id as the row being processed — identity case
+      castAt: new Date('2026-01-01T00:01:40Z'),
+      blockNumber: BASE_ROW.block_number,
+      logIndex: BASE_ROW.log_index,
+      primaryChoice: 1,
+      votingPower: '123',
+    });
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    expect(archive.markDerived).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
+    );
   });
 });
