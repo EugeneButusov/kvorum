@@ -38,7 +38,7 @@ describe('DelegationFlowProjectionWriter', () => {
     ] as const;
 
     await expect(writer.insertBatch(rows)).resolves.toBeUndefined();
-    expect(ch.insertInto).toHaveBeenCalledWith('delegation_flow_projection');
+    expect(ch.insertInto).toHaveBeenCalledWith('delegation_flow_raw');
     expect(insertChain.values).toHaveBeenCalledWith([...rows]);
     expect(insertChain.execute).toHaveBeenCalledTimes(1);
   });

@@ -51,4 +51,18 @@ describe('VoteReadRepository', () => {
 
     await expect(repo.findChoicesForVote('vote-1')).resolves.toEqual([]);
   });
+
+  it('guard R12: findChoicesForVote uses executeTakeFirst — VIEW exposes one row per vote_id', async () => {
+    // Safe: the vote_events_projection VIEW groups by the full sorting key including vote_id,
+    // so each vote_id is exactly one row. executeTakeFirst() picks it; execute() would return
+    // an array and break the caller. A refactor switching to execute() would be unsafe.
+    const chChain = makeChain({ primary_choice: 1 });
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+    const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
+
+    const result = await repo.findChoicesForVote('vote-1');
+
+    expect(result).toHaveLength(1);
+    expect(chChain.executeTakeFirst).toHaveBeenCalledOnce();
+  });
 });

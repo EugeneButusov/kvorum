@@ -21,7 +21,7 @@ export class DelegationFlowProjectionWriter {
   async insertBatch(rows: readonly NewDelegationFlowProjectionRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.chDb
-      .insertInto('delegation_flow_projection')
+      .insertInto('delegation_flow_raw')
       .values([...rows])
       .execute();
   }

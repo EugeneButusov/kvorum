@@ -22,7 +22,7 @@ export class VoteEventsProjectionWriter {
   async insertBatch(rows: readonly NewVoteEventsProjectionRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.chDb
-      .insertInto('vote_events_projection')
+      .insertInto('vote_events_raw')
       .values([...rows])
       .execute();
   }

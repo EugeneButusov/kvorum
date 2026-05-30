@@ -1,60 +1,15 @@
-import type { Generated } from 'kysely';
-import type { ClickHouseDatabase } from '@libs/db';
+// CH projection row types are now canonical in @libs/db/src/schema/projections.
+// Re-export here so @sources/core remains the historical import point for consumers
+// that were already importing from @sources/core.
 
-export interface VoteEventsProjectionRow {
-  vote_id: string;
-  dao_id: string;
-  proposal_id: string;
-  voter_address: string;
-  primary_choice: number;
-  voting_power: string;
-  cast_at: Date;
-  block_number: string;
-  log_index: number;
-  superseded: number;
-  superseded_at: Date | null;
-  superseded_by_vote_id: string | null;
-  version: Generated<Date>;
-}
+export type {
+  VoteEventsProjectionTable as VoteEventsProjectionRow,
+  DelegationFlowProjectionTable as DelegationFlowProjectionRow,
+  VotingPowerSnapshotProjectionTable as VotingPowerSnapshotProjectionRow,
+} from '@libs/db';
 
-export type NewVoteEventsProjectionRow = Omit<VoteEventsProjectionRow, 'version'>;
-
-export interface DelegationFlowProjectionRow {
-  delegation_id: string;
-  dao_id: string;
-  delegator_address: string;
-  delegate_address: string;
-  voting_power: string;
-  block_number: string;
-  log_index: number;
-  event_type: string;
-  created_at: Date;
-  version: Generated<Date>;
-}
-
-export type NewDelegationFlowProjectionRow = Omit<DelegationFlowProjectionRow, 'version'>;
-
-export interface VotingPowerSnapshotProjectionRow {
-  dao_id: string;
-  proposal_id: string;
-  actor_address: string;
-  voting_power: string;
-  actor_id_hint: string | null;
-  computed_at: Date;
-  version: Generated<Date>;
-}
-
-export type NewVotingPowerSnapshotProjectionRow = Omit<VotingPowerSnapshotProjectionRow, 'version'>;
-
-declare module '@libs/db' {
-  interface ClickHouseDatabase {
-    vote_events_projection: VoteEventsProjectionRow;
-    delegation_flow_projection: DelegationFlowProjectionRow;
-    voting_power_snapshot_projection: VotingPowerSnapshotProjectionRow;
-  }
-}
-
-type _VoteEventsFlatAugmentationActiveCheck = ClickHouseDatabase['vote_events_projection'];
-type _DelegationFlowFlatAugmentationActiveCheck = ClickHouseDatabase['delegation_flow_projection'];
-type _VotingPowerSnapshotFlatAugmentationActiveCheck =
-  ClickHouseDatabase['voting_power_snapshot_projection'];
+export type {
+  NewVoteEventsProjectionRow,
+  NewDelegationFlowProjectionRow,
+  NewVotingPowerSnapshotProjectionRow,
+} from '@libs/db';

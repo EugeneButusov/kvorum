@@ -22,7 +22,7 @@ export class VotingPowerSnapshotProjectionWriter {
     for (let offset = 0; offset < rows.length; offset += BULK_INSERT_CHUNK_SIZE) {
       const chunk = rows.slice(offset, offset + BULK_INSERT_CHUNK_SIZE);
       await this.chDb
-        .insertInto('voting_power_snapshot_projection')
+        .insertInto('voting_power_snapshot_raw')
         .values([...chunk])
         .execute();
       inserted += chunk.length;

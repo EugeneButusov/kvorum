@@ -5,7 +5,11 @@ export class VotingPowerSnapshotProjectionReadRepository {
   constructor(private readonly ch: Kysely<ClickHouseDatabase>) {}
 
   async deleteForProposal(proposalId: string): Promise<void> {
-    await sql`ALTER TABLE voting_power_snapshot_projection DELETE WHERE proposal_id = ${proposalId}`.execute(
+    // Must delete from both raw and agg — the MV only propagates inserts, not deletes.
+    await sql`ALTER TABLE voting_power_snapshot_raw DELETE WHERE proposal_id = ${proposalId}`.execute(
+      this.ch,
+    );
+    await sql`ALTER TABLE voting_power_snapshot_agg DELETE WHERE proposal_id = ${proposalId}`.execute(
       this.ch,
     );
   }
@@ -46,9 +50,25 @@ export class VotingPowerSnapshotProjectionReadRepository {
       .execute();
   }
 
-  async updatePower(proposalId: string, actorAddress: string, power: string): Promise<void> {
-    await sql`ALTER TABLE voting_power_snapshot_projection UPDATE voting_power = ${power} WHERE proposal_id = ${proposalId} AND actor_address = ${actorAddress}`.execute(
-      this.ch,
-    );
+  async updatePower(args: {
+    daoId: string;
+    proposalId: string;
+    actorAddress: string;
+    votingPower: string;
+    actorIdHint: string | null;
+  }): Promise<void> {
+    // Insert a new raw row with a fresh version — the MV feeds it into the AMT and
+    // argMaxMerge(voting_power_state) picks the latest value going forward.
+    await this.ch
+      .insertInto('voting_power_snapshot_raw')
+      .values({
+        dao_id: args.daoId,
+        proposal_id: args.proposalId,
+        actor_address: args.actorAddress,
+        voting_power: args.votingPower,
+        actor_id_hint: args.actorIdHint,
+        computed_at: new Date(),
+      })
+      .execute();
   }
 }

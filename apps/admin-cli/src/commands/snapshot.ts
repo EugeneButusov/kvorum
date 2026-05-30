@@ -171,7 +171,13 @@ class SnapshotDrainRunner {
       await Promise.all(
         chunk.map(async (row) => {
           const power = await strategy.verifyOnChain(row.address, block, { daoId });
-          await this.snapshotProjectionRead.updatePower(proposalId, row.address, power.toString());
+          await this.snapshotProjectionRead.updatePower({
+            daoId,
+            proposalId,
+            actorAddress: row.address,
+            votingPower: power.toString(),
+            actorIdHint: row.actorId || null,
+          });
         }),
       );
     }

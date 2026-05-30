@@ -49,10 +49,10 @@ describe('VoteEventsProjectionReadRepository', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('applies deterministic ORDER BY for the read-modify-write path (§4.2b fix)', async () => {
-    // Asserts the tiebreak ORDER BY — a refactor removing any of these orderBy calls or
-    // changing a direction would break this test, re-opening the two-superseded=0-rows
-    // corruption where findCurrentVote picks an arbitrary stale row under concurrent dups.
+  it('applies deterministic ORDER BY as a defensive guard (§4.2b fix)', async () => {
+    // The VIEW over AggregatingMergeTree provides one row per sorting key, so ORDER BY
+    // + LIMIT 1 is a defensive fallback. A refactor removing these or changing a direction
+    // would re-open the window where a stale row could be picked if the guard ever relaxes.
     const row = {
       voteId: 'v1',
       castAt: new Date(),
@@ -71,7 +71,6 @@ describe('VoteEventsProjectionReadRepository', () => {
       ['vef.cast_at', 'desc'],
       ['vef.block_number', 'desc'],
       ['vef.log_index', 'desc'],
-      ['vef.version', 'desc'],
     ]);
     expect(chChain.limit).toHaveBeenCalledWith(1);
   });
