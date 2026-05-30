@@ -3,6 +3,7 @@ import type { Logger as ChainLogger } from '@libs/chain';
 import { EventPoller, ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
+import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
 
 @Injectable()
 export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
@@ -15,7 +16,10 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     error: (msg, ...args) => this.logger.error(msg, ...args),
   };
 
-  constructor(private readonly registry: ChainContextRegistry) {}
+  constructor(
+    private readonly registry: ChainContextRegistry,
+    private readonly archiveProducer: ArchiveProducerProvider,
+  ) {}
 
   async start(
     spec: Extract<IngestSpec, { kind: 'evm-event-poller' }>,
@@ -43,7 +47,9 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       logger: this.chainLogger,
     });
 
-    poller.onEvents(spec.listener);
+    // Live path always uses the generic domain-blind producer (G1).
+    // spec.listener, if supplied, is for backfill only — ignored here.
+    poller.onEvents(this.archiveProducer.listener);
     await poller.start();
 
     return {

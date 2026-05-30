@@ -3,6 +3,7 @@ import { EventPoller } from '@libs/chain';
 import type { ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
+import type { ArchiveProducerProvider } from '../queue/archive-producer.provider';
 
 vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
@@ -35,12 +36,17 @@ const CTX: SourceContext = {
   sourceLabel: 'compound_governor_bravo',
 };
 
-const LISTENER = vi.fn();
 const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
   kind: 'evm-event-poller',
   filter: { address: '0xabc', topics: [] },
-  listener: LISTENER,
+  // listener omitted — driver uses the archive producer
 };
+
+const PRODUCER_LISTENER = vi.fn();
+
+function makeArchiveProducer(): ArchiveProducerProvider {
+  return { listener: PRODUCER_LISTENER } as unknown as ArchiveProducerProvider;
+}
 
 function makeClient() {
   return {
@@ -82,16 +88,17 @@ beforeEach(() => {
 });
 
 describe('EvmEventPollerDriver', () => {
-  it('#1 — start() gets context from registry, starts poller, wires listener', async () => {
+  it('#1 — start() gets context from registry, starts poller, wires archive producer listener', async () => {
     const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG);
     expect(poller.start).toHaveBeenCalledTimes(1);
-    expect(poller.onEvents).toHaveBeenCalledWith(LISTENER);
+    // Live path always uses the archive producer listener, not spec.listener
+    expect(poller.onEvents).toHaveBeenCalledWith(PRODUCER_LISTENER);
   });
 
   it('#2 — two sources on same chain: registry.getOrCreate called twice (registry handles caching)', async () => {
@@ -104,7 +111,7 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     const ctx2 = { ...CTX, daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG);
@@ -128,7 +135,7 @@ describe('EvmEventPollerDriver', () => {
       };
     } as never);
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     const ctx2 = { ...CTX, chainId: '0x89', daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG_137);
@@ -142,7 +149,7 @@ describe('EvmEventPollerDriver', () => {
     const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     const handle = await driver.start(SPEC, CTX, CHAIN_CFG);
     await handle.stop();
 
@@ -154,7 +161,7 @@ describe('EvmEventPollerDriver', () => {
     const { registry } = makeRegistry(makeRegistryContext(client));
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as { rpcClient: typeof client };
@@ -167,7 +174,7 @@ describe('EvmEventPollerDriver', () => {
     } as unknown as ChainContextRegistry;
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
   });
 
@@ -176,7 +183,7 @@ describe('EvmEventPollerDriver', () => {
     setupMockPoller();
     const onFirstHeadComplete = vi.fn();
 
-    const driver = new EvmEventPollerDriver(registry);
+    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
     await driver.start(SPEC, CTX, CHAIN_CFG, { onFirstHeadComplete });
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as {

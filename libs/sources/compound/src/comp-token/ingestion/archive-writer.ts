@@ -32,12 +32,12 @@ export class CompTokenArchiveWriter {
     decoded: CompTokenEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
+    // 4-tuple existence check; blockHash is not part of the unique index
     const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
       logIndex: logRef.logIndex,
-      blockHash: logRef.blockHash,
     });
 
     if (existing) {

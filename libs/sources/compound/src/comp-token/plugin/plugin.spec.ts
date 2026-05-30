@@ -83,11 +83,11 @@ describe('createCompTokenPlugin', () => {
     ]);
   });
 
-  it('P8 buildIngestSpec returns evm-event-poller with listener', () => {
+  it('P8 buildIngestSpec returns evm-event-poller without listener (driver supplies archive producer)', () => {
     const plugin = makePlugin();
     const spec = plugin.buildIngestSpec(CTX, { token_address: COMP_TOKEN_ADDRESS });
     expect(spec.kind).toBe('evm-event-poller');
-    expect(typeof spec.listener).toBe('function');
+    expect(spec.listener).toBeUndefined();
   });
 
   it('P9 parseConfig strips unknown fields', () => {

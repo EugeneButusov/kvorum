@@ -107,22 +107,22 @@ describe('createCompoundGovernorBravoPlugin', () => {
       expect(spec.filter.topics![0]).toHaveLength(5);
     });
 
-    it('#8 — listener is a function', () => {
+    it('#8 — listener is absent (driver supplies generic archive producer for live path)', () => {
       const plugin = makePlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',
       });
       const spec = plugin.buildIngestSpec(CTX, cfg);
-      expect(typeof spec.listener).toBe('function');
+      expect(spec.listener).toBeUndefined();
     });
 
-    it('#8.1 — listener is built with onWriteFailure=throw', () => {
+    it('#8.1 — buildBackfillRuntime listenerFactory is built with onWriteFailure=throw', () => {
       const spy = vi.spyOn(ingesterListener, 'makeIngesterListener');
       const plugin = makePlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',
       });
-      plugin.buildIngestSpec(CTX, cfg);
+      plugin.buildBackfillRuntime(CTX, cfg).listenerFactory();
 
       expect(spy).toHaveBeenCalledWith(expect.any(Object), { onWriteFailure: 'throw' });
     });
@@ -190,13 +190,13 @@ describe('createCompoundGovernorAlphaPlugin', () => {
       expect(spec.filter.topics![0]).toHaveLength(5);
     });
 
-    it('#16 — listener is a function', () => {
+    it('#16 — listener is absent (driver supplies generic archive producer for live path)', () => {
       const plugin = makeAlphaPlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0dA01a04C3f3E0be433606045bB7017A7323E38',
       });
       const spec = plugin.buildIngestSpec(ALPHA_CTX, cfg);
-      expect(typeof spec.listener).toBe('function');
+      expect(spec.listener).toBeUndefined();
     });
   });
 });

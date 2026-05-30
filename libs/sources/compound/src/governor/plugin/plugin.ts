@@ -58,12 +58,23 @@ function createPlugin(
     sourceType,
     supportedChainIds: SUPPORTED_CHAIN_IDS,
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
-    buildIngestSpec: (ctx, cfg) => {
-      const runtime = buildBackfillRuntime(ctx, cfg);
+    buildIngestSpec: (_ctx, cfg) => {
+      const topics = interfaceForSource(sourceType).topics;
+      // listener omitted — EvmEventPollerDriver supplies the generic archive producer for live path
       return {
         kind: 'evm-event-poller',
-        filter: runtime.filter,
-        listener: runtime.listenerFactory(),
+        filter: {
+          address: cfg.governor_address.toLowerCase(),
+          topics: [
+            [
+              topics.ProposalCreated,
+              topics.ProposalQueued,
+              topics.ProposalExecuted,
+              topics.ProposalCanceled,
+              topics.VoteCast,
+            ],
+          ],
+        },
       };
     },
     buildBackfillRuntime,

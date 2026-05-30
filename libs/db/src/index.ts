@@ -38,6 +38,8 @@ export { ArchiveEventRepository } from './archive-event-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
+export { SeenLogRepository } from './seen-log-repository';
+export type { SeenLog, SeenLogTable, NewSeenLog } from './schema/seen-log';
 export { DaoSourceRepository } from './dao-source-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';

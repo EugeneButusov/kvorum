@@ -15,7 +15,9 @@ import type {
   SourceTypeTable,
 } from './domain';
 import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
+import type { SeenLogTable } from './seen-log';
 import type { VotingPowerSnapshotRunTable } from './vote';
+export type { SeenLog, SeenLogTable, NewSeenLog } from './seen-log';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 export type {
@@ -122,4 +124,5 @@ export interface PgDatabase {
   actor_address: ActorAddressTable;
   actor_address_redirect: ActorAddressRedirectTable;
   actor_address_source: ActorAddressSourceTable;
+  seen_log: SeenLogTable;
 }

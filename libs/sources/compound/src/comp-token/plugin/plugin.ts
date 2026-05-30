@@ -58,14 +58,19 @@ export function createCompTokenPlugin(
     sourceType: 'compound_comp_token',
     supportedChainIds: COMP_TOKEN_SUPPORTED_CHAIN_IDS,
     parseConfig: (raw) => CompTokenSourceConfigSchema.parse(raw),
-    buildIngestSpec: (ctx, cfg) => {
-      const runtime = buildRuntime(ctx, cfg);
-      return {
-        kind: 'evm-event-poller',
-        filter: runtime.filter,
-        listener: runtime.listenerFactory(),
-      };
-    },
+    buildIngestSpec: (_ctx, cfg) => ({
+      // listener omitted — EvmEventPollerDriver supplies the generic archive producer for live path
+      kind: 'evm-event-poller',
+      filter: {
+        address: cfg.token_address.toLowerCase(),
+        topics: [
+          [
+            COMPOUND_COMP_TOKEN_TOPICS.DelegateChanged,
+            COMPOUND_COMP_TOKEN_TOPICS.DelegateVotesChanged,
+          ],
+        ],
+      },
+    }),
     buildBackfillRuntime: buildRuntime,
   };
 }
