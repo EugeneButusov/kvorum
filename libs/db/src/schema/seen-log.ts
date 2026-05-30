@@ -5,6 +5,7 @@ export interface SeenLogTable {
   tx_hash: string;
   log_index: number;
   block_number: string; // pg bigint → string driver representation
+  block_hash: string;
 }
 
 export type SeenLog = Selectable<SeenLogTable>;

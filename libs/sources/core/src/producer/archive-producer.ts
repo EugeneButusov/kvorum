@@ -40,6 +40,7 @@ export function makeArchiveProducer(deps: ArchiveProducerDeps): EventsListener<L
           tx_hash: e.txHash,
           log_index: e.logIndex,
           block_number: e.blockNumber.toString(),
+          block_hash: e.blockHash,
         };
         const isNew = await deps.seenLog.recordIfNew(trx, coord);
         if (!isNew) {

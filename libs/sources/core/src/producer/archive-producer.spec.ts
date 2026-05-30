@@ -50,10 +50,16 @@ describe('makeArchiveProducer', () => {
     const job = enqueue.mock.calls[0]?.[0];
     expect(job).toMatchObject({
       chainId: '0x1',
+      blockHash: '0xblock',
       txHash: '0xtx',
       logIndex: 0,
       address: '0xcontract',
     });
+    // Verify block_hash is recorded in seen_log for re-org integrity
+    expect(seenLog.recordIfNew).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ block_hash: '0xblock' }),
+    );
   });
 
   it('G2 atomicity: skips enqueue for already-seen coordinate (window re-scan no-op)', async () => {

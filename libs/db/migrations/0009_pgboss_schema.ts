@@ -15,6 +15,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('tx_hash', 'text', (col) => col.notNull())
     .addColumn('log_index', 'integer', (col) => col.notNull())
     .addColumn('block_number', 'bigint', (col) => col.notNull())
+    .addColumn('block_hash', 'text', (col) => col.notNull())
     .addPrimaryKeyConstraint('seen_log_pkey', ['chain_id', 'tx_hash', 'log_index'])
     .execute();
 
