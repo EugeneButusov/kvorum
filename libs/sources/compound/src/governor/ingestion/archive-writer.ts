@@ -42,12 +42,12 @@ export class GovernorArchiveWriter {
     decoded: CompoundGovernorEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    // Step 1 — existence check (4-tuple; blockHash is not part of the unique index)
     const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,
       txHash: logRef.txHash,
       logIndex: logRef.logIndex,
+      blockHash: logRef.blockHash,
     });
 
     if (existing) {
