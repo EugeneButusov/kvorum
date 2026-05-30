@@ -47,8 +47,7 @@ function overrideDeps(
     daoSourceRepo = makeDaoSourceRepo([{ primary_chain_id: '0x1' }]),
   } = {},
 ) {
-  (svc as never as { seenLog: unknown }).seenLog = seenLog;
-  (svc as never as { daoSourceRepo: unknown }).daoSourceRepo = daoSourceRepo;
+  Object.assign(svc, { seenLog, daoSourceRepo });
   return { seenLog, daoSourceRepo };
 }
 
