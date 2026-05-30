@@ -13,8 +13,12 @@ export class ArchiveProducerProvider implements OnApplicationBootstrap {
   private readonly logger = new Logger('ArchiveProducer');
   private readonly seenLog = new SeenLogRepository(pgDb);
   private producer: EventsListener<LogEvent> | null = null;
+  private ready!: Promise<void>;
+  private resolveReady!: () => void;
 
-  constructor(private readonly lifecycle: PgBossLifecycle) {}
+  constructor(private readonly lifecycle: PgBossLifecycle) {
+    this.ready = new Promise((res) => (this.resolveReady = res));
+  }
 
   async onApplicationBootstrap(): Promise<void> {
     await this.lifecycle.whenReady();
@@ -31,6 +35,12 @@ export class ArchiveProducerProvider implements OnApplicationBootstrap {
         error: (msg, ctx) => this.logger.error(msg, ctx),
       },
     });
+
+    this.resolveReady();
+  }
+
+  whenReady(): Promise<void> {
+    return this.ready;
   }
 
   get listener(): EventsListener<LogEvent> {

@@ -45,7 +45,10 @@ const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
 const PRODUCER_LISTENER = vi.fn();
 
 function makeArchiveProducer(): ArchiveProducerProvider {
-  return { listener: PRODUCER_LISTENER } as unknown as ArchiveProducerProvider;
+  return {
+    listener: PRODUCER_LISTENER,
+    whenReady: () => Promise.resolve(),
+  } as unknown as ArchiveProducerProvider;
 }
 
 function makeClient() {
