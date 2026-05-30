@@ -39,7 +39,6 @@ const CTX: SourceContext = {
 const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
   kind: 'evm-event-poller',
   filter: { address: '0xabc', topics: [] },
-  // listener omitted — driver uses the archive producer
 };
 
 const PRODUCER_LISTENER = vi.fn();
