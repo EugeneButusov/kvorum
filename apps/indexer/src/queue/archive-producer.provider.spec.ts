@@ -42,6 +42,26 @@ beforeEach(() => {
 });
 
 describe('ArchiveProducerProvider', () => {
+  describe('constructor', () => {
+    it('builds the listener immediately via makeArchiveProducer', () => {
+      const provider = new ArchiveProducerProvider();
+
+      expect(makeArchiveProducer).toHaveBeenCalledOnce();
+      expect(provider.listener).toBe(mockProducer);
+    });
+
+    it('listener enqueue closure sends to the correct queue via boss', async () => {
+      const provider = new ArchiveProducerProvider();
+      await provider.onApplicationBootstrap(); // starts boss
+
+      const deps = vi.mocked(makeArchiveProducer).mock.calls[0]![0];
+      const fakeJob = { chainId: '0x1' } as never;
+      await deps.enqueue(fakeJob, {} as never);
+
+      expect(mockBoss.send).toHaveBeenCalledWith(ARCHIVE_LOG_QUEUE, fakeJob, expect.any(Object));
+    });
+  });
+
   describe('onApplicationBootstrap()', () => {
     it('constructs PgBoss with migrate:false and starts it', async () => {
       const provider = new ArchiveProducerProvider();
@@ -66,50 +86,10 @@ describe('ArchiveProducerProvider', () => {
         deadLetter: ARCHIVE_LOG_DLQ_QUEUE,
       });
     });
-
-    it('resolves whenReady() after bootstrap completes', async () => {
-      const provider = new ArchiveProducerProvider();
-
-      const readyBefore = vi.fn();
-      provider.whenReady().then(readyBefore);
-      await Promise.resolve(); // flush microtasks
-      expect(readyBefore).not.toHaveBeenCalled(); // not yet resolved
-
-      await provider.onApplicationBootstrap();
-      await provider.whenReady(); // should resolve now
-      expect(readyBefore).toHaveBeenCalledOnce();
-    });
-
-    it('builds the producer via makeArchiveProducer with an enqueue that calls boss.send', async () => {
-      const provider = new ArchiveProducerProvider();
-      await provider.onApplicationBootstrap();
-
-      expect(makeArchiveProducer).toHaveBeenCalledOnce();
-      const deps = vi.mocked(makeArchiveProducer).mock.calls[0]![0];
-
-      // Exercise the enqueue closure to verify it sends to the correct queue
-      const fakeJob = { chainId: '0x1' } as never;
-      const fakeTrx = {} as never;
-      await deps.enqueue(fakeJob, fakeTrx);
-      expect(mockBoss.send).toHaveBeenCalledWith(ARCHIVE_LOG_QUEUE, fakeJob, expect.any(Object));
-    });
-  });
-
-  describe('listener getter', () => {
-    it('throws before bootstrap', () => {
-      const provider = new ArchiveProducerProvider();
-      expect(() => provider.listener).toThrow('ArchiveProducer not ready');
-    });
-
-    it('returns the producer after bootstrap', async () => {
-      const provider = new ArchiveProducerProvider();
-      await provider.onApplicationBootstrap();
-      expect(provider.listener).toBe(mockProducer);
-    });
   });
 
   describe('onApplicationShutdown()', () => {
-    it('stops pg-boss gracefully and nulls the instance', async () => {
+    it('stops pg-boss gracefully', async () => {
       const provider = new ArchiveProducerProvider();
       await provider.onApplicationBootstrap();
       await provider.onApplicationShutdown();

@@ -48,9 +48,6 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     });
 
     // Live path always uses the generic domain-blind producer (G1).
-    // Await readiness — NestJS calls onApplicationBootstrap concurrently so the
-    // producer may not be fully initialized when the orchestrator calls start().
-    await this.archiveProducer.whenReady();
     poller.onEvents(this.archiveProducer.listener);
     await poller.start();
 

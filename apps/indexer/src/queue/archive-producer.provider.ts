@@ -9,14 +9,21 @@ import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
 @Injectable()
 export class ArchiveProducerProvider implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger('ArchiveProducer');
-  private readonly seenLog = new SeenLogRepository(pgDb);
   private boss: PgBoss | null = null;
-  private producer: EventsListener<LogEvent> | null = null;
-  private ready!: Promise<void>;
-  private resolveReady!: () => void;
+  readonly listener: EventsListener<LogEvent>;
 
   constructor() {
-    this.ready = new Promise((res) => (this.resolveReady = res));
+    this.listener = makeArchiveProducer({
+      pgDb,
+      seenLog: new SeenLogRepository(pgDb),
+      enqueue: async (job: RawLogJob, trx) => {
+        await this.boss!.send(ARCHIVE_LOG_QUEUE, job, { db: fromKysely(trx) });
+      },
+      logger: {
+        debug: (msg, ctx) => this.logger.debug(msg, ctx),
+        error: (msg, ctx) => this.logger.error(msg, ctx),
+      },
+    });
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -36,34 +43,11 @@ export class ArchiveProducerProvider implements OnApplicationBootstrap, OnApplic
       deadLetter: ARCHIVE_LOG_DLQ_QUEUE,
     });
 
-    const boss = this.boss;
-    this.producer = makeArchiveProducer({
-      pgDb,
-      seenLog: this.seenLog,
-      enqueue: async (job: RawLogJob, trx) => {
-        await boss.send(ARCHIVE_LOG_QUEUE, job, { db: fromKysely(trx) });
-      },
-      logger: {
-        debug: (msg, ctx) => this.logger.debug(msg, ctx),
-        error: (msg, ctx) => this.logger.error(msg, ctx),
-      },
-    });
-
-    this.resolveReady();
     this.logger.log('archive_producer_ready');
   }
 
   async onApplicationShutdown(): Promise<void> {
     await this.boss?.stop({ graceful: true });
     this.boss = null;
-  }
-
-  whenReady(): Promise<void> {
-    return this.ready;
-  }
-
-  get listener(): EventsListener<LogEvent> {
-    if (!this.producer) throw new Error('ArchiveProducer not ready');
-    return this.producer;
   }
 }
