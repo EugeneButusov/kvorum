@@ -65,6 +65,9 @@ importers:
       pg:
         specifier: ^8.20.0
         version: 8.20.0
+      pg-boss:
+        specifier: ^12.18.2
+        version: 12.18.2
       react:
         specifier: ^19.0.0
         version: 19.2.6
