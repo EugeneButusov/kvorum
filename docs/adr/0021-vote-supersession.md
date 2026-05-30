@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-05-08
 - **Spec sections affected**: 2.4.7, 2.8 (invariant 2), 4.2, 4.6.1
-- **Amends**: 0062
+- **Amends**: 0062, 0063
 - **Related**: DR-006
 
 ## Context
@@ -49,3 +49,11 @@ Semantic API contract unchanged: `WHERE superseded = 0` is the "current vote" vi
 PG `vote` table was **removed in PR-2 #221** (in-place edit to migration `0005_vote_delegation.ts`, not a separate drop migration).
 
 Cite ADR-0062, PR #220, PR #221.
+
+## Amendment — 2026-05-30 (single-worker ordering constraint — Epic 1 scope, superseded in Epic 2)
+
+The "load-bearing invariant" added in the 2026-05-28 amendment — single-worker-per-protocol makes the `SELECT … → INSERT` supersession sequence naturally serialised — is preserved for Epic 1 (`localConcurrency = 1` on the `archive_ch` consumer, ADR-0063).
+
+In Epic 2 (co-timed with M5), vote/delegation projections will be made **order-independent**, removing the need for `localConcurrency = 1` and enabling intra-protocol parallelism. At that point this invariant is superseded; it must not be cited as a hard constraint in new code past Epic 2.
+
+Cite ADR-0063, epic #227.

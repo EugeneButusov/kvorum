@@ -3,7 +3,7 @@
 - **Status**: Accepted (2026-05-10)
 - **Date**: 2026-05-10
 - **Spec sections affected**: 2.6, 3.2, 3.3, 3.12
-- **Amends**: 0062
+- **Amends**: 0062, 0063
 - **Related**: ADR-038 (introduced the split), ADR-027 (backfill cutoff)
 
 ## Context
@@ -254,3 +254,15 @@ For **derivation** (applier-side writes producing `vote_events_projection`, `del
 The G1 read protocol (Decision §"Read protocol") remains the contract for archive payload reads — **with one cross-reference correction (D16):** the original §"Read protocol" references a 5-tuple `(source_type, chain_id, tx_hash, log_index, block_hash)` idempotency key. ADR-058 narrowed the key to a 4-tuple `(source_type, chain_id, tx_hash, log_index)` by removing `block_hash` (no reorg machinery, no orphan distinction). The 4-tuple is authoritative.
 
 Cite ADR-0062 + ADR-058 + PR #220.
+
+## Amendment — 2026-05-30 (reconciliation job superseded by producer/consumer — ADR-0063)
+
+The "Reconciliation job (M2)" section above is **superseded** by ADR-0063.
+
+The CH-orphan sweep and PG-orphan sweep are withdrawn. The anti-orphan guarantee is now structural: the `archive_ch` consumer writes the CH row before inserting `archive_event`; a row's existence in `archive_event` implies its CH payload exists. pg-boss retries cover the crash-after-CH-before-`archive_event` window idempotently.
+
+The `reconciliation_pg_orphan_stage` DLQ stage value is withdrawn. The supported DLQ stages in M2 are defined in ADR-0063 and the PR-D implementation.
+
+**Backfill keeps the direct write path** (Q4 — find() short-circuit + writeCore). Only the real-time indexer path is replaced.
+
+Cite ADR-0063, epic #227.

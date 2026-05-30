@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-24
-**Amends:** 0062
+**Amends:** 0062, 0063
 
 ---
 
@@ -105,3 +105,14 @@ Handlers are aggregated centrally (e.g. via a `REWIND_HANDLERS` DI token) so add
 ## Amendment — 2026-05-28 (CH projections explicit cleanup)
 
 The rewind handler registry must now include CH projection cleanup explicitly: `vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection` — operator-driven `ALTER TABLE … DELETE WHERE block_number > N` per chain rewind. This is **scope-noting only**, not a contract change: the actual rewind handler implementation remains deferred per ADR-059's Proposed status.
+
+## Amendment — 2026-05-30 (pg-boss jobs and seen_log must be purged on rewind — ADR-0063)
+
+When `admin-cli chain rewind --chain X --to-block N` runs, the rewind handler registry must also:
+
+1. **Cancel/delete all pending `archive_ch` jobs** in pg-boss whose `blockNumber > N` for chain `X` — these would re-ingest events on blocks being rewound, producing duplicate `archive_event` rows that the `ON CONFLICT` guard would silently drop, but whose CH payloads would persist.
+2. **Delete `seen_log` rows** with `chain_id = X AND block_number > N` — otherwise the pruned coordinates would be treated as already-ingested by the producer on re-scan, and the events would never be re-enqueued.
+
+The rewind command requires the indexer to be stopped for the affected chain (serialising against the consumer), so no in-flight jobs are racing during the purge. This is scope-noting only; the actual implementation remains deferred per ADR-059's Proposed status.
+
+Cite ADR-0063.

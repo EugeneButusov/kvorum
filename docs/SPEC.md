@@ -394,9 +394,10 @@ For v1 with three DAOs, ClickHouse is technically optional — the analytical qu
 
 **Redis:**
 
-- Job queues (BullMQ for AI synthesis tasks, ABI decoding, and other background work)
 - Rate limiting state for the API
 - (v1.1+) WebSocket and SSE subscription routing across API instances
+
+_(Ingestion and derivation job queuing uses **pg-boss** on Postgres, not Redis/BullMQ — see ADR-0063. AI synthesis queuing, M5, is not pre-committed to any queue backend.)_
 
 **Not used:** MongoDB. The data is structured, the relationships matter, and the analytical access patterns benefit from joins. Adding Mongo would be technology theater.
 
@@ -2143,7 +2144,7 @@ Kvorum v1 deploys six service classes plus three supporting infrastructure compo
 **Supporting infrastructure:**
 
 - **Postgres 16** — primary data store. All entities, archive, AI cache. Single instance with daily backups (Section 7.5).
-- **Redis 7** — job queues (BullMQ), rate limit state, ephemeral session storage.
+- **Redis 7** — rate limit state, ephemeral session storage. _(Ingestion/derivation job queuing moved to pg-boss on Postgres per ADR-0063; AI worker queue TBD at M5.)_
 - **ClickHouse** — analytical mirror. Single instance.
 
 **Monitoring stack (Section 6.20.2):**
