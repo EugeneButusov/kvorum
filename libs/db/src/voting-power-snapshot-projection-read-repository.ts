@@ -5,11 +5,12 @@ export class VotingPowerSnapshotProjectionReadRepository {
   constructor(private readonly ch: Kysely<ClickHouseDatabase>) {}
 
   async deleteForProposal(proposalId: string): Promise<void> {
-    // Must delete from both raw and agg — the MV only propagates inserts, not deletes.
-    await sql`ALTER TABLE voting_power_snapshot_raw DELETE WHERE proposal_id = ${proposalId}`.execute(
+    // Lightweight DELETE (CH 23.3+) — marks rows deleted without rewriting parts.
+    // Must target both raw and agg; the MV only propagates inserts, not deletes.
+    await sql`DELETE FROM voting_power_snapshot_raw WHERE proposal_id = ${proposalId}`.execute(
       this.ch,
     );
-    await sql`ALTER TABLE voting_power_snapshot_agg DELETE WHERE proposal_id = ${proposalId}`.execute(
+    await sql`DELETE FROM voting_power_snapshot_agg WHERE proposal_id = ${proposalId}`.execute(
       this.ch,
     );
   }
