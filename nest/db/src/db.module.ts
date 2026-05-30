@@ -19,6 +19,7 @@ import {
   VoteReadRepository,
   VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
+  SeenLogRepository,
 } from '@libs/db';
 
 const FACTORIES = new Map<Type, () => unknown>([
@@ -39,6 +40,7 @@ const FACTORIES = new Map<Type, () => unknown>([
   [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb)],
   [VotingPowerSnapshotProjectionWriter, () => new VotingPowerSnapshotProjectionWriter(chDb)],
   [VotingPowerSnapshotRunRepository, () => new VotingPowerSnapshotRunRepository(pgDb)],
+  [SeenLogRepository, () => new SeenLogRepository(pgDb)],
 ]);
 
 @Module({})

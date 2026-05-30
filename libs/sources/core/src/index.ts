@@ -97,7 +97,9 @@ export interface SourcePlugin {
 }
 
 export type IngestSpec =
-  | { kind: 'evm-event-poller'; filter: LogFilter; listener: EventsListener<LogEvent> }
+  // listener is optional: the driver injects the generic archive producer for the live path.
+  // Backfill supplies its own listener via buildBackfillRuntime().listenerFactory().
+  | { kind: 'evm-event-poller'; filter: LogFilter; listener?: EventsListener<LogEvent> }
   | { kind: 'evm-block-head-poller'; listener: HeadListener };
 
 export interface SourceContext {
@@ -107,6 +109,8 @@ export interface SourceContext {
   sourceLabel: SourceType;
 }
 
+export { makeArchiveProducer } from './producer/archive-producer';
+export type { RawLogJob, ArchiveProducerDeps } from './producer/archive-producer';
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,

@@ -29,23 +29,18 @@ function buildGenericSourceListenerProvider(): DlqRetryListenerProvider {
       }
 
       const parsedConfig = plugin.parseConfig(input.sourceConfig);
-      const spec = plugin.buildIngestSpec(
-        {
-          daoSourceId: input.daoSourceId,
-          sourceType: input.archiveSourceType as SourceType,
-          chainId: input.archiveChainId,
-          sourceLabel: input.archiveSourceType as SourceType,
-        },
-        parsedConfig,
-      );
+      const ctx = {
+        daoSourceId: input.daoSourceId,
+        sourceType: input.archiveSourceType as SourceType,
+        chainId: input.archiveChainId,
+        sourceLabel: input.archiveSourceType as SourceType,
+      };
+      // Use buildBackfillRuntime — it always supplies a domain listener with the archive writer.
+      // buildIngestSpec no longer provides a listener (live path uses the generic producer instead).
+      const runtime = plugin.buildBackfillRuntime(ctx, parsedConfig);
+      const listener = runtime.listenerFactory();
 
-      if (spec.kind !== 'evm-event-poller') {
-        throw new Error(
-          `dlq retry expects evm-event-poller ingest spec for source_type=${input.archiveSourceType}`,
-        );
-      }
-
-      return spec.listener;
+      return listener;
     },
   };
 }

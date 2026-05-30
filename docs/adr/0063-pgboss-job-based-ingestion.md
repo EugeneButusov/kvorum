@@ -24,13 +24,13 @@ Replace the real-time write path with a **producer/consumer pipeline** built on 
 **Producer (generic, domain-blind):**
 
 - Runs in the existing polling listener, triggered once per confirmed log.
-- In a single Kysely transaction: insert the chain-coordinate into `seen_log(chain_id, tx_hash, log_index, block_number)` with `ON CONFLICT … RETURNING`; only when a _new_ coordinate is recorded, enqueue an `archive_ch` pg-boss job carrying the raw log payload.
+- In a single Kysely transaction: insert the chain-coordinate into `seen_log(chain_id, tx_hash, log_index, block_number)` with `ON CONFLICT … RETURNING`; only when a _new_ coordinate is recorded, enqueue an `archive_log` pg-boss job carrying the raw log payload.
 - Job payload contains only chain-structural fields + the emitting contract address: `{ chainId, blockNumber, blockHash, txHash, logIndex, address, topics, data }`. No domain columns. No `sourceType`.
 - `seen_log` is block-height-pruned (not time-TTL) inline with the poll window; the table stays bounded.
 
 **Consumer (owns the domain):**
 
-- Drains `archive_ch` jobs; runs with `localConcurrency = 1` (Epic 1).
+- Drains `archive_log` jobs; runs with `localConcurrency = 1` (Epic 1).
 - Per job: resolve `address → source` via a **rebuildable** map (rebuilt on miss before dead-lettering, not frozen at startup); decode the log; classify `event_type`; **CH insert** → `[txn]` **INSERT `archive_event`** with 4-tuple `ON CONFLICT DO NOTHING`.
 - Writing `archive_event` CH-first restores the original "row exists ⇒ archived" invariant without a sweep. A CH write that completes and then crashes before `archive_event` is re-tried by pg-boss; the CH insert is idempotent (`ReplacingMergeTree` / now AggregatingMergeTree); the `ON CONFLICT` guard catches duplicates.
 
@@ -49,7 +49,7 @@ A `SeenLogPruneService` runs the block-height `DELETE` on an interval ≈ `N × 
 ### Two-layer idempotency
 
 - **Layer 1 — `seen_log`:** queue hygiene. The transactional enqueue ensures exactly-once-into-queue per chain coordinate. A re-scan of an already-recorded coordinate enqueues nothing.
-- **Layer 2 — `archive_event` 4-tuple `ON CONFLICT`:** authoritative domain guard. A duplicate `archive_ch` job (pg-boss retry or manual replay) yields exactly one `archive_event` row.
+- **Layer 2 — `archive_event` 4-tuple `ON CONFLICT`:** authoritative domain guard. A duplicate `archive_log` job (pg-boss retry or manual replay) yields exactly one `archive_event` row.
 
 ### No detection-gap reconciliation
 
@@ -57,7 +57,7 @@ Exceptional CH durability loss (manual `DROP PARTITION`, lost replica part) is h
 
 ### Deployment sequencing
 
-PR-C (producer) and PR-D (consumer) ship in the **same deploy**. A producer-only `main` would accumulate `archive_ch` jobs under `deleteAfterSeconds` retention while `seen_log` self-prunes by block height — events past retention would require backfill recovery. They may be reviewed as separate PRs but must merge/deploy together.
+PR-C (producer) and PR-D (consumer) ship in the **same deploy**. A producer-only `main` would accumulate `archive_log` jobs under `deleteAfterSeconds` retention while `seen_log` self-prunes by block height — events past retention would require backfill recovery. They may be reviewed as separate PRs but must merge/deploy together.
 
 ## Consequences
 

@@ -42,7 +42,6 @@ export class GovernorArchiveWriter {
     decoded: CompoundGovernorEvent,
     logRef: LogEvent,
   ): Promise<ArchiveWriteOutcome> {
-    // Step 1 — existence check (5-tuple, status-agnostic)
     const existing = await this.archiveEventRepo.find({
       sourceType: ctx.sourceType,
       chainId: ctx.chainId,

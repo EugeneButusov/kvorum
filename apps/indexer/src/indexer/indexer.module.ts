@@ -11,6 +11,8 @@ import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
+import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
+import { SeenLogPruneService } from '../queue/seen-log-prune.service';
 import { SnapshotModule } from '../snapshot';
 
 @Module({
@@ -39,6 +41,8 @@ import { SnapshotModule } from '../snapshot';
       ],
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
     },
+    ArchiveProducerProvider,
+    SeenLogPruneService,
     IndexerOrchestratorService,
   ],
 })

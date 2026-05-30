@@ -10,5 +10,8 @@
     "build:dev": "webpack-cli build --node-env=development",
     "test": "vitest run",
     "lint": "eslint src"
+  },
+  "dependencies": {
+    "pg-boss": "^12.18.2"
   }
 }
