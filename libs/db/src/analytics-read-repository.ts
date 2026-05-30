@@ -4,6 +4,7 @@ import type { PgDatabase } from './schema/pg';
 import type {
   DelegationFlowProjectionTable,
   VoteEventsProjectionTable,
+  VoteEventsRawTable,
 } from './schema/projections';
 
 export type BucketGrain = 'daily' | 'weekly' | 'monthly';
@@ -86,8 +87,9 @@ export class AnalyticsReadRepository {
   }
 
   async findGlobalEtlWatermark(): Promise<Date | null> {
+    // version is the ingestion timestamp; raw table preserves it; the VIEW does not expose it.
     const row = await this.chDb
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vea'))
+      .selectFrom(sql<VoteEventsRawTable>`vote_events_raw`.as('vea'))
       .select((eb) => eb.fn.max('vea.version').as('watermark'))
       .executeTakeFirst();
     return row?.watermark ?? null;

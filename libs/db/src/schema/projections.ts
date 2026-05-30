@@ -1,6 +1,9 @@
 import type { Generated } from 'kysely';
 import type { ClickHouseDatabase } from './clickhouse';
 
+// VIEW interfaces — same column names as the former RMT tables; read code is unchanged.
+// version is absent: VIEWs materialise argMaxMerge results, not raw rows.
+
 export interface DelegationFlowProjectionTable {
   delegation_id: string;
   dao_id: string;
@@ -11,7 +14,6 @@ export interface DelegationFlowProjectionTable {
   log_index: number;
   event_type: string;
   created_at: Date;
-  version: Generated<Date>;
 }
 
 export interface VoteEventsProjectionTable {
@@ -27,7 +29,6 @@ export interface VoteEventsProjectionTable {
   superseded: number;
   superseded_at: Date | null;
   superseded_by_vote_id: string | null;
-  version: Generated<Date>;
 }
 
 export interface VotingPowerSnapshotProjectionTable {
@@ -37,14 +38,33 @@ export interface VotingPowerSnapshotProjectionTable {
   voting_power: string;
   actor_id_hint: string | null;
   computed_at: Date;
+}
+
+// Raw table interfaces — used only by projection writers for insert.
+// Same columns as the corresponding VIEW plus version (DEFAULT now64(6)).
+
+export interface VoteEventsRawTable extends VoteEventsProjectionTable {
+  version: Generated<Date>;
+}
+
+export interface DelegationFlowRawTable extends DelegationFlowProjectionTable {
+  version: Generated<Date>;
+}
+
+export interface VotingPowerSnapshotRawTable extends VotingPowerSnapshotProjectionTable {
   version: Generated<Date>;
 }
 
 declare module './clickhouse' {
   interface ClickHouseDatabase {
+    // Views (reads)
     delegation_flow_projection: DelegationFlowProjectionTable;
     vote_events_projection: VoteEventsProjectionTable;
     voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
+    // Raw forensic tables (writes)
+    vote_events_raw: VoteEventsRawTable;
+    delegation_flow_raw: DelegationFlowRawTable;
+    voting_power_snapshot_raw: VotingPowerSnapshotRawTable;
   }
 }
 

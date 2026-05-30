@@ -34,7 +34,7 @@ describe('VotingPowerSnapshotProjectionWriter', () => {
 
     await expect(writer.bulkInsert(rows)).resolves.toBe(1001);
     expect(ch.insertInto).toHaveBeenCalledTimes(2);
-    expect(ch.insertInto).toHaveBeenCalledWith('voting_power_snapshot_projection');
+    expect(ch.insertInto).toHaveBeenCalledWith('voting_power_snapshot_raw');
     expect(insertChain.values).toHaveBeenCalledTimes(2);
     expect((insertChain.values.mock.calls[0]![0] as unknown[]).length).toBe(1000);
     expect((insertChain.values.mock.calls[1]![0] as unknown[]).length).toBe(1);

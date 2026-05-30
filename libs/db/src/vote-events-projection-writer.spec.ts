@@ -41,7 +41,7 @@ describe('VoteEventsProjectionWriter', () => {
     ] as const;
 
     await expect(writer.insertBatch(rows)).resolves.toBeUndefined();
-    expect(ch.insertInto).toHaveBeenCalledWith('vote_events_projection');
+    expect(ch.insertInto).toHaveBeenCalledWith('vote_events_raw');
     expect(insertChain.values).toHaveBeenCalledWith([...rows]);
     expect(insertChain.execute).toHaveBeenCalledTimes(1);
   });

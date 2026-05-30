@@ -1,5 +1,6 @@
-import { sql, type Generated, type Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { ClickHouseDatabase } from './schema/clickhouse';
+import type { VoteEventsProjectionTable } from './schema/projections';
 
 export interface CurrentVoteRow {
   voteId: string;
@@ -10,22 +11,6 @@ export interface CurrentVoteRow {
   votingPower: string;
 }
 
-type VoteEventsProjectionTable = {
-  vote_id: string;
-  dao_id: string;
-  proposal_id: string;
-  voter_address: string;
-  primary_choice: number;
-  voting_power: string;
-  cast_at: Date;
-  block_number: string;
-  log_index: number;
-  superseded: number;
-  superseded_at: Date | null;
-  superseded_by_vote_id: string | null;
-  version: Generated<Date>;
-};
-
 export class VoteEventsProjectionReadRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
@@ -34,6 +19,10 @@ export class VoteEventsProjectionReadRepository {
     proposalId: string;
     voterAddress: string;
   }): Promise<CurrentVoteRow | undefined> {
+    // vote_events_projection is a VIEW over AggregatingMergeTree — each (dao, proposal,
+    // voter, block, log, vote_id) tuple is exactly one row, so no FINAL or LIMIT 1 BY
+    // needed. The identity guard (commit 0.0) ensures at most one superseded=0 row per
+    // (dao, proposal, voter) at any time. ORDER BY + LIMIT 1 is a defensive fallback.
     return this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
       .select([
@@ -48,6 +37,10 @@ export class VoteEventsProjectionReadRepository {
       .where('vef.proposal_id', '=', args.proposalId)
       .where('vef.voter_address', '=', args.voterAddress)
       .where('vef.superseded', '=', 0)
+      .orderBy('vef.cast_at', 'desc')
+      .orderBy('vef.block_number', 'desc')
+      .orderBy('vef.log_index', 'desc')
+      .limit(1)
       .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
   }
 }

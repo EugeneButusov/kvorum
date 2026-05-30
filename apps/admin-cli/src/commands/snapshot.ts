@@ -166,15 +166,29 @@ class SnapshotDrainRunner {
   ): Promise<void> {
     const rows = await this.snapshotProjectionRead.listPrimaryAddressesForProposal(proposalId);
 
+    const corrected: Array<{ address: string; actorId: string; power: string }> = [];
     for (let i = 0; i < rows.length; i += 25) {
       const chunk = rows.slice(i, i + 25);
-      await Promise.all(
+      const results = await Promise.all(
         chunk.map(async (row) => {
           const power = await strategy.verifyOnChain(row.address, block, { daoId });
-          await this.snapshotProjectionRead.updatePower(proposalId, row.address, power.toString());
+          return { address: row.address, actorId: row.actorId, power: power.toString() };
         }),
       );
+      corrected.push(...results);
     }
+
+    await this.snapshotProjectionRead.deleteForProposal(proposalId);
+    await this.snapshotProjectionWriter.bulkInsert(
+      corrected.map((row) => ({
+        dao_id: daoId,
+        proposal_id: proposalId,
+        actor_address: row.address,
+        voting_power: row.power,
+        actor_id_hint: row.actorId || null,
+        computed_at: new Date(),
+      })),
+    );
   }
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
