@@ -3,14 +3,16 @@ import { VoteEventsProjectionReadRepository } from './vote-events-projection-rea
 
 function makeChain<T>(result: T) {
   const chain = {
-    as: vi.fn(),
     select: vi.fn(),
     where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
     executeTakeFirst: vi.fn().mockResolvedValue(result),
   };
-  chain.as.mockReturnValue(chain);
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
   return chain;
 }
 
@@ -45,5 +47,32 @@ describe('VoteEventsProjectionReadRepository', () => {
     await expect(
       repo.findCurrentVote({ daoId: 'dao-1', proposalId: 'p-1', voterAddress: '0xabc' }),
     ).resolves.toBeUndefined();
+  });
+
+  it('applies deterministic ORDER BY for the read-modify-write path (§4.2b fix)', async () => {
+    // Asserts the tiebreak ORDER BY — a refactor removing any of these orderBy calls or
+    // changing a direction would break this test, re-opening the two-superseded=0-rows
+    // corruption where findCurrentVote picks an arbitrary stale row under concurrent dups.
+    const row = {
+      voteId: 'v1',
+      castAt: new Date(),
+      blockNumber: '100',
+      logIndex: 0,
+      primaryChoice: 1,
+      votingPower: '100',
+    };
+    const chChain = makeChain(row);
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+    const repo = new VoteEventsProjectionReadRepository(ch as never);
+
+    await repo.findCurrentVote({ daoId: 'dao-1', proposalId: 'prop-1', voterAddress: '0xabc' });
+
+    expect(chChain.orderBy.mock.calls).toEqual([
+      ['vef.cast_at', 'desc'],
+      ['vef.block_number', 'desc'],
+      ['vef.log_index', 'desc'],
+      ['vef.version', 'desc'],
+    ]);
+    expect(chChain.limit).toHaveBeenCalledWith(1);
   });
 });

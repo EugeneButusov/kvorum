@@ -1,4 +1,5 @@
-import { sql, type Generated, type Kysely } from 'kysely';
+import { type Generated, type Kysely } from 'kysely';
+import { chFinal } from './ch-final';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 
 export interface CurrentVoteRow {
@@ -35,7 +36,7 @@ export class VoteEventsProjectionReadRepository {
     voterAddress: string;
   }): Promise<CurrentVoteRow | undefined> {
     return this.chDb
-      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
+      .selectFrom(chFinal<VoteEventsProjectionTable>('vote_events_projection').as('vef'))
       .select([
         'vef.vote_id as voteId',
         'vef.cast_at as castAt',
@@ -48,6 +49,11 @@ export class VoteEventsProjectionReadRepository {
       .where('vef.proposal_id', '=', args.proposalId)
       .where('vef.voter_address', '=', args.voterAddress)
       .where('vef.superseded', '=', 0)
+      .orderBy('vef.cast_at', 'desc')
+      .orderBy('vef.block_number', 'desc')
+      .orderBy('vef.log_index', 'desc')
+      .orderBy('vef.version', 'desc')
+      .limit(1)
       .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
   }
 }

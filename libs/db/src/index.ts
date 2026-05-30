@@ -1,4 +1,5 @@
 export { pgDb, chDb } from './client';
+export { chFinal } from './ch-final';
 export { AdminAuditRepository } from './admin-audit-repository';
 export { AbiCacheRepository } from './abi-cache-repository';
 export {
