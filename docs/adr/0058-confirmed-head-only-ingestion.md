@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-05-24
 - Supersedes: ADR-027, ADR-046
-- Amends: ADR-032, ADR-037, ADR-038, ADR-041, ADR-056, ADR-0062
+- Amends: ADR-032, ADR-037, ADR-038, ADR-041, ADR-056, ADR-0062, ADR-0063
 
 ## Context
 
@@ -83,3 +83,9 @@ The 4-tuple `(source_type, chain_id, tx_hash, log_index)` is globally unique on 
 - `source_type` discriminates contract-family listeners (e.g., `compound_governor` vs `comp_token`). Two `dao_source` rows with the same `source_type` on the same `chain_id` must listen at _different contract addresses_, producing distinct `(tx_hash, log_index)` pairs — two DAO governance contracts emit distinct events. Two DAOs running the same source_type at the same address on the same chain are not a supported configuration.
 
 `dao_source_id` is present as a column for query efficiency (watermark lookups, write-lag gauge) but must not appear in the unique constraint.
+
+## Amendment — 2026-05-30 (P2 reorg-signal WAL — already RETRACTED, confirmed dissolved by ADR-0063)
+
+The P2 rider (reorg-signal WAL consumer, added to this ADR's Consequences) was RETRACTED on 2026-05-24 alongside ADR-0041's orphan-state sweep rider. ADR-0063 confirms it is fully dissolved: the producer/consumer pipeline carries no reorg-state signal; reorgs are handled at the chain-read layer by the confirmed-head model alone.
+
+No new machinery required. Cite ADR-0063.
