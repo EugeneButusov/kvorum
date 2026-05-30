@@ -30,7 +30,19 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('snapshot_compute_stage')).toBe(true);
   });
 
-  it('rejects non-retryable stage', () => {
-    expect(isDlqRetryableStage('archive_decode')).toBe(false);
+  it('accepts archive_log stage', () => {
+    expect(isDlqRetryableStage('archive_log')).toBe(true);
+  });
+
+  it('accepts archive_decode stage (pg-boss consumer path)', () => {
+    expect(isDlqRetryableStage('archive_decode')).toBe(true);
+  });
+
+  it('accepts archive_unmapped stage', () => {
+    expect(isDlqRetryableStage('archive_unmapped')).toBe(true);
+  });
+
+  it('rejects truly unknown stage', () => {
+    expect(isDlqRetryableStage('nonexistent_stage')).toBe(false);
   });
 });

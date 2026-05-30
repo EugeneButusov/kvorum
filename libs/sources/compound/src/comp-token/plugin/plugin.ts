@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import type { Logger } from '@libs/chain';
+import type { LogEvent, Logger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
-import type { BackfillRuntime, SourceIngester } from '@sources/core';
+import type { ArchiveConsumeFn, BackfillRuntime, SourceIngester } from '@sources/core';
+import { decodeCompTokenLog } from '../abi/decoder';
 import { COMPOUND_COMP_TOKEN_TOPICS } from '../abi/events';
 import { COMP_TOKEN_ADDRESS } from '../constants';
 import type { CompTokenArchiveWriter } from '../ingestion/archive-writer';
@@ -72,5 +73,21 @@ export function createCompTokenPlugin(
       },
     }),
     buildBackfillRuntime: buildRuntime,
+    buildArchiveConsumer: (): ArchiveConsumeFn => async (ctx, raw) => {
+      const logRef: LogEvent = {
+        sourceType: ctx.sourceType,
+        chainId: raw.chainId,
+        blockNumber: BigInt(raw.blockNumber),
+        blockHash: raw.blockHash,
+        txHash: raw.txHash,
+        txIndex: 0, // unused by archive writes; synthesized per plan M4
+        logIndex: raw.logIndex,
+        address: raw.address,
+        topics: raw.topics,
+        data: raw.data,
+      };
+      const decoded = decodeCompTokenLog(logRef); // throws DecodeError
+      await deps.archiveWriter.writeCore(ctx, decoded, logRef); // throws on transient
+    },
   };
 }

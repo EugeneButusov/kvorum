@@ -6,6 +6,11 @@ export const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
 export const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 export const SNAPSHOT_COMPUTE_STAGE = 'snapshot_compute_stage';
 
+// pg-boss queue stages (re-enqueue via PgBossReEnqueueAdapter)
+export const ARCHIVE_LOG_STAGE = 'archive_log';
+export const ARCHIVE_DECODE_STAGE = 'archive_decode';
+export const ARCHIVE_UNMAPPED_STAGE = 'archive_unmapped';
+
 export type DlqRetryStage =
   | typeof CONFIRMATION_ARCHIVE_STAGE
   | typeof VOTE_ARCHIVE_STAGE
@@ -13,7 +18,10 @@ export type DlqRetryStage =
   | typeof ACTOR_RESOLUTION_STAGE
   | typeof VOTE_PROJECTION_STAGE
   | typeof DELEGATION_PROJECTION_STAGE
-  | typeof SNAPSHOT_COMPUTE_STAGE;
+  | typeof SNAPSHOT_COMPUTE_STAGE
+  | typeof ARCHIVE_LOG_STAGE
+  | typeof ARCHIVE_DECODE_STAGE
+  | typeof ARCHIVE_UNMAPPED_STAGE;
 
 export function isDlqRetryableStage(stage: string): boolean {
   return stage in getRetryableStageSet();
@@ -32,5 +40,8 @@ function getRetryableStageSet(): Record<string, true> {
     [VOTE_PROJECTION_STAGE]: true,
     [DELEGATION_PROJECTION_STAGE]: true,
     [SNAPSHOT_COMPUTE_STAGE]: true,
+    [ARCHIVE_LOG_STAGE]: true,
+    [ARCHIVE_DECODE_STAGE]: true,
+    [ARCHIVE_UNMAPPED_STAGE]: true,
   };
 }

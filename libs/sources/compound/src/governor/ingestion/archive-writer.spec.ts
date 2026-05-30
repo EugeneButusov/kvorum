@@ -126,13 +126,13 @@ describe('GovernorArchiveWriter', () => {
     expect(archiveEventRepo.insert).not.toHaveBeenCalled();
   });
 
-  it('#3 — conflict: existence empty → archive insert → confirmation returns undefined → skipped_conflict', async () => {
+  it('#3 — ON CONFLICT (confirmation returns undefined) → inserted (backfill write collapses conflict into inserted per D.2)', async () => {
     const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockResolvedValue(undefined),
     });
     const outcome = await buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF);
 
-    expect(outcome.result).toBe('skipped_conflict');
+    expect(outcome.result).toBe('inserted');
   });
 
   it('#4 — archiveEventRepo.insert throws → DLQ routed, outcome pg_dlq_routed', async () => {
@@ -238,7 +238,7 @@ describe('GovernorArchiveWriter', () => {
     expect((error as Record<string, unknown>)['stack']).toBeDefined();
   });
 
-  it('#11 — two concurrent writes for same 5-tuple: one inserted, one skipped_conflict', async () => {
+  it('#11 — two concurrent writes for same 5-tuple: both return inserted (backfill write collapses conflict per D.2)', async () => {
     let callCount = 0;
     const archiveEventRepo = makeArchiveEventRepo({
       insert: vi.fn().mockImplementation(() => {
@@ -251,7 +251,7 @@ describe('GovernorArchiveWriter', () => {
       buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF),
       buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF),
     ]);
-    expect([r1.result, r2.result].sort()).toEqual(['inserted', 'skipped_conflict']);
+    expect([r1.result, r2.result].sort()).toEqual(['inserted', 'inserted']);
   });
 
   it('#12 — VoteCast routes to archive_event_stage on confirmation insert failure', async () => {
