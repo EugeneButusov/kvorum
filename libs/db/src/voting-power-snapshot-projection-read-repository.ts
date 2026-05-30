@@ -50,26 +50,4 @@ export class VotingPowerSnapshotProjectionReadRepository {
       .where('vps.proposal_id', '=', proposalId)
       .execute();
   }
-
-  async updatePower(args: {
-    daoId: string;
-    proposalId: string;
-    actorAddress: string;
-    votingPower: string;
-    actorIdHint: string | null;
-  }): Promise<void> {
-    // Insert a new raw row with a fresh version — the MV feeds it into the AMT and
-    // argMaxMerge(voting_power_state) picks the latest value going forward.
-    await this.ch
-      .insertInto('voting_power_snapshot_raw')
-      .values({
-        dao_id: args.daoId,
-        proposal_id: args.proposalId,
-        actor_address: args.actorAddress,
-        voting_power: args.votingPower,
-        actor_id_hint: args.actorIdHint,
-        computed_at: new Date(),
-      })
-      .execute();
-  }
 }
