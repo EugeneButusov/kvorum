@@ -18,7 +18,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
 
   constructor(
     private readonly registry: ChainContextRegistry,
-    private readonly archiveProducer: JobQueueService,
+    private readonly jobQueue: JobQueueService,
   ) {}
 
   async start(
@@ -48,7 +48,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     });
 
     // Live path always uses the generic domain-blind producer (G1).
-    poller.onEvents(this.archiveProducer.listener);
+    poller.onEvents(this.jobQueue.listener);
     await poller.start();
 
     return {
