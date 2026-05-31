@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { chainMetrics } from '@libs/chain';
 import type { DlqDepthRow } from '@libs/db';
 import { DlqDepthService } from './dlq-depth.service';
@@ -18,6 +18,39 @@ function makeRepo(sequences: DlqDepthRow[][]): {
     depthByStageAndSource: async () => sequences[call++] ?? [],
   };
 }
+
+describe('DlqDepthService lifecycle', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('onApplicationBootstrap starts interval and fires initial tick', async () => {
+    const repo = makeRepo([[{ stage: 's', source: 'x', count: 1 }]]);
+    const svc = new DlqDepthService(repo as never);
+    await svc.onApplicationBootstrap();
+    svc.onApplicationShutdown(); // stop interval immediately to avoid infinite loop
+    await vi.runAllTimersAsync(); // let initial void this.tick() settle
+
+    expect(vi.mocked(chainMetrics.dlqDepth.record)).toHaveBeenCalled();
+  });
+
+  it('onApplicationShutdown clears the interval', async () => {
+    const repo = makeRepo([[]]);
+    const svc = new DlqDepthService(repo as never);
+    await svc.onApplicationBootstrap();
+    svc.onApplicationShutdown();
+    svc.onApplicationShutdown(); // calling again when null should be a no-op
+  });
+
+  it('logs warn when depthByStageAndSource throws', async () => {
+    const repo = { depthByStageAndSource: vi.fn().mockRejectedValue(new Error('db down')) };
+    const svc = new DlqDepthService(repo as never);
+    await expect((svc as unknown as { tick: () => Promise<void> }).tick()).resolves.toBeUndefined();
+  });
+});
 
 describe('DlqDepthService drain semantics', () => {
   const recordFn = () => vi.mocked(chainMetrics.dlqDepth.record);

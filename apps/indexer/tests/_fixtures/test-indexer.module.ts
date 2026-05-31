@@ -20,6 +20,7 @@ import { JobQueueService } from '../../src/queue/job-queue.service';
   providers: [
     {
       provide: SOURCE_INGESTERS,
+      /* v8 ignore next -- integration-only: useFactory runs only inside a live Nest container */
       useFactory: (plugins: SourcePlugin[]): SourceIngester[] =>
         plugins.flatMap((p) => p.ingesters),
       inject: [SOURCE_PLUGINS],
@@ -29,6 +30,7 @@ import { JobQueueService } from '../../src/queue/job-queue.service';
     EvmEventPollerDriver,
     {
       provide: FETCH_DRIVERS,
+      /* v8 ignore next -- integration-only: useFactory runs only inside a live Nest container */
       useFactory: (eventPoller: EvmEventPollerDriver): FetchDriver[] => [eventPoller],
       inject: [EvmEventPollerDriver],
     },

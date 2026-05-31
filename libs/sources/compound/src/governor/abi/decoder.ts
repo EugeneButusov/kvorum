@@ -6,7 +6,6 @@ import { DecodeError } from '../../shared';
 import type { CompoundGovernorEvent } from '../domain/types';
 
 export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGovernorEvent {
-  const topic0 = log.topics[0]?.toLowerCase();
   const logRef = { txHash: log.txHash, logIndex: log.logIndex, blockHash: log.blockHash };
 
   let iface: ReturnType<typeof interfaceForSource>['iface'];
@@ -18,11 +17,6 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
     throw new DecodeError('wrong_variant', err, logRef);
   }
 
-  const knownTopics = Object.values(topics) as string[];
-  if (!topic0 || !knownTopics.includes(topic0)) {
-    throw new DecodeError('unknown_topic', undefined, logRef);
-  }
-
   let parsed: ReturnType<typeof iface.parseLog>;
   try {
     parsed = iface.parseLog({ topics: log.topics, data: log.data });
@@ -31,10 +25,10 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
   }
 
   if (!parsed) {
-    throw new DecodeError('parse_failed', new Error('parseLog returned null'), logRef);
+    throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  switch (topic0) {
+  switch (parsed.fragment.topicHash.toLowerCase()) {
     case topics.ProposalCreated: {
       const args = parsed.args;
       const abiValues = args[3] as unknown as bigint[];

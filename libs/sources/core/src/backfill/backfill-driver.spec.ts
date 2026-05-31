@@ -265,6 +265,99 @@ describe('BackfillDriver', () => {
     });
   });
 
+  describe('catch-up mode', () => {
+    it('#7 — floor from backfill_head when present', async () => {
+      const { repo, captureBackfillStart } = makeRepo(
+        makeDaoSourceRow({ backfill_started_at_block: null, backfill_head_block: '18000000' }),
+      );
+      const rpc = makeRpcClient();
+      const driver = new BackfillDriver(makeDeps(rpc, repo));
+
+      const result = await driver.run({
+        daoSourceId: DAO_SOURCE_ID,
+        mode: 'catch-up',
+        fromBlock: 0n,
+        toBlock: HEAD_BLOCK,
+        chunkSize: 100_000_000,
+      });
+
+      expect(result.status).toBe('completed');
+      // captureBackfillStart must be called since backfill_started_at_block was null
+      expect(captureBackfillStart).toHaveBeenCalledWith(DAO_SOURCE_ID, 18_000_001n);
+    });
+
+    it('#7b — floor from active_from - 1 when backfill_head is null', async () => {
+      const { repo } = makeRepo(
+        makeDaoSourceRow({
+          backfill_started_at_block: '20000000',
+          backfill_head_block: null,
+          active_from_block: '100',
+        }),
+      );
+      const rpc = makeRpcClient();
+      const driver = new BackfillDriver(
+        makeDeps(rpc, {
+          ...repo,
+          findByIdWithChain: vi.fn().mockResolvedValue({
+            id: DAO_SOURCE_ID,
+            dao_id: 'dao-1',
+            source_type: 'compound_governor',
+            source_config: {},
+            active_from_block: '100',
+            backfill_started_at_block: '20000000',
+            backfill_head_block: null,
+            primary_chain_id: CHAIN_ID,
+          }),
+        }),
+      );
+
+      const result = await driver.run({
+        daoSourceId: DAO_SOURCE_ID,
+        mode: 'catch-up',
+        fromBlock: 0n,
+        toBlock: HEAD_BLOCK,
+        chunkSize: 100_000_000,
+      });
+
+      // floor = 100n - 1n = 99n → startBlock = 100n
+      expect(result.status).toBe('completed');
+    });
+
+    it('#7c — throws when both backfill_head and active_from are null in catch-up mode', async () => {
+      const { repo } = makeRepo(
+        makeDaoSourceRow({ backfill_started_at_block: null, backfill_head_block: null }),
+      );
+      const driver = new BackfillDriver(makeDeps(makeRpcClient(), repo));
+
+      await expect(
+        driver.run({ daoSourceId: DAO_SOURCE_ID, mode: 'catch-up', fromBlock: 0n }),
+      ).rejects.toThrow('has no active_from_block');
+    });
+
+    it('#8 — above_floor skip when startBlock > toBlock (explicit toBlock)', async () => {
+      const { repo, captureBackfillStart } = makeRepo(
+        makeDaoSourceRow({
+          backfill_started_at_block: '20000000',
+          backfill_head_block: '19999999',
+        }),
+      );
+      const rpc = makeRpcClient();
+      const driver = new BackfillDriver(makeDeps(rpc, repo));
+
+      const result = await driver.run({
+        daoSourceId: DAO_SOURCE_ID,
+        mode: 'catch-up',
+        fromBlock: 0n,
+        toBlock: 100n, // startBlock = 20_000_000 > toBlock = 100 → above_floor skip
+        chunkSize: 100_000_000,
+      });
+
+      expect(result.status).toBe('completed');
+      // captureBackfillStart NOT called since backfill_started_at_block was not null
+      expect(captureBackfillStart).not.toHaveBeenCalled();
+    });
+  });
+
   describe('AbortSignal', () => {
     it('#11 — signal aborted before start: returns cancelled immediately', async () => {
       const controller = new AbortController();

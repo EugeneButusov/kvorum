@@ -140,6 +140,23 @@ describe('decodeCompoundLog', () => {
     }
   });
 
+  it('throws unknown_topic when parseLog returns an unexpected event name', () => {
+    vi.spyOn(COMPOUND_GOVERNOR_BRAVO_INTERFACE, 'parseLog').mockReturnValueOnce({
+      name: 'Transfer',
+      fragment: { topicHash: '0x' + 'ff'.repeat(32) },
+    } as never);
+    const encoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
+      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
+      [42n],
+    );
+    expect(() =>
+      decodeCompoundLog(
+        makeLog({ topics: encoded.topics as string[], data: encoded.data }),
+        'compound_governor_bravo',
+      ),
+    ).toThrow(DecodeError);
+  });
+
   it('throws unknown_topic for variant-mismatched VoteCast topic', () => {
     const encoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('VoteCast')!,

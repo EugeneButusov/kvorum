@@ -7,6 +7,7 @@ import { ProposalActionRepository } from '@libs/db';
 import type { DecodeResult } from '@sources/core';
 import { CalldataDecoder } from '@sources/core';
 import { calldataDecodeMetrics } from './calldata-decode-metrics';
+import { readIntervalMs, readPositiveInt } from '../app/env-helpers';
 
 const INTERVAL_MS = readIntervalMs('INDEXER_CALLDATA_DECODE_INTERVAL_MS', 10_000);
 const BATCH_SIZE = readPositiveInt('INDEXER_CALLDATA_DECODE_BATCH_SIZE', 100);
@@ -99,18 +100,4 @@ function jitteredRetryAt(): Date {
   const base = 24 * 60 * 60 * 1000;
   const jitter = 0.8 + Math.random() * 0.4;
   return new Date(Date.now() + base * jitter);
-}
-
-function readIntervalMs(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function readPositiveInt(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

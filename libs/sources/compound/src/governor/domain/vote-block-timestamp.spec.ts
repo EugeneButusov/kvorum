@@ -51,4 +51,68 @@ describe('VoteBlockTimestampFetcher', () => {
 
     expect(result.get(fetcher.resultKey('100', '0xaaa'))).toBeUndefined();
   });
+
+  it('returns undefined when RPC response has no timestamp, hash, or number fields', async () => {
+    const send = vi.fn().mockResolvedValue({}); // empty response — missing all fields
+    const fetcher = new VoteBlockTimestampFetcher();
+
+    const result = await fetcher.fetchBatch(
+      { client: { send } as never, chainCfg: { chainId: '0x1' } as never },
+      [{ blockNumber: '100', blockHash: '0xaaa' }],
+    );
+
+    expect(result.get(fetcher.resultKey('100', '0xaaa'))).toBeUndefined();
+  });
+
+  it('drops response when returned hash does not match requested hash', async () => {
+    const send = vi.fn().mockResolvedValue({
+      hash: '0xbbb', // different from requested '0xaaa'
+      number: '0x64',
+      timestamp: '0x64',
+    });
+    const fetcher = new VoteBlockTimestampFetcher();
+
+    const result = await fetcher.fetchBatch(
+      { client: { send } as never, chainCfg: { chainId: '0x1' } as never },
+      [{ blockNumber: '100', blockHash: '0xaaa' }],
+    );
+
+    expect(result.get(fetcher.resultKey('100', '0xaaa'))).toBeUndefined();
+  });
+
+  it('moves an existing cache entry to tail (LRU re-insert) when cacheSet is called twice for the same key', () => {
+    const fetcher = new VoteBlockTimestampFetcher();
+    const cacheSet = (fetcher as unknown as { cacheSet(k: string, v: Date): void }).cacheSet.bind(
+      fetcher,
+    );
+    const d1 = new Date(1000);
+    const d2 = new Date(2000);
+    cacheSet('key-a', d1);
+    cacheSet('key-b', new Date(3000));
+    cacheSet('key-a', d2); // re-inserts key-a at tail, covers the has() branch
+    const cache = (fetcher as unknown as { cache: Map<string, Date> }).cache;
+    // key-a should now be at the tail (most recently inserted)
+    expect([...cache.keys()].at(-1)).toBe('key-a');
+    expect(cache.get('key-a')).toBe(d2);
+  });
+
+  it('evicts oldest entry when cache exceeds MAX_CACHE_ENTRIES', async () => {
+    const send = vi.fn().mockResolvedValue({ hash: '0xnew', number: '0x1', timestamp: '0x1' });
+    const fetcher = new VoteBlockTimestampFetcher();
+
+    // Fill the internal cache to exactly 10,000 entries
+    const cache = (fetcher as unknown as { cache: Map<string, Date> }).cache;
+    for (let i = 0; i < 10_000; i++) {
+      cache.set(`key${i}`, new Date(i));
+    }
+    expect(cache.size).toBe(10_000);
+
+    // Fetching a new block should add one entry and evict the oldest
+    await fetcher.fetchBatch({ client: { send } as never, chainCfg: { chainId: '0x1' } as never }, [
+      { blockNumber: '1', blockHash: '0xnew' },
+    ]);
+
+    expect(cache.size).toBe(10_000); // still 10,000 after eviction
+    expect(cache.has('key0')).toBe(false); // oldest evicted
+  });
 });

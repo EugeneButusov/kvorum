@@ -20,7 +20,7 @@ export default defineConfig({
       reportsDirectory: '../../../coverage/libs/sources/compound',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'html'],
-      thresholds: { lines: 70, functions: 70, branches: 55 },
+      thresholds: { lines: 90, functions: 90, branches: 90 },
     },
   },
 });

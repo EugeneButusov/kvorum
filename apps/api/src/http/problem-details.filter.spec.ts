@@ -2,6 +2,7 @@ import { HttpException, NotFoundException } from '@nestjs/common';
 import { ZodError, z } from 'zod';
 import { ProblemDetailsFilter } from './problem-details.filter';
 import { ProblemException } from './problem-exception';
+import { slugFromHttpStatus } from './problem-types';
 
 type ResponseMock = {
   headersSent: boolean;
@@ -135,5 +136,96 @@ describe('ProblemDetailsFilter', () => {
         violations: [{ field: '(root)', message: 'root issue' }],
       }),
     );
+  });
+
+  it('uses title as detail when ProblemException has no explicit detail', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+
+    filter.catch(new ProblemException('not-found', 404), createHost(response, '/x') as never);
+
+    const body = response.json.mock.calls[0]?.[0] as { title: string; detail: string };
+    expect(body.detail).toBe(body.title);
+  });
+
+  it('logs and suppresses detail on 5xx HttpException', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+
+    filter.catch(new HttpException('crash', 500), createHost(response, '/crash') as never);
+
+    expect(response.status).toHaveBeenCalledWith(500);
+    expect(response.json).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: 'An unexpected error occurred.' }),
+    );
+  });
+
+  it('uses string response body as detail', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+
+    filter.catch(new HttpException('plain string', 400), createHost(response, '/foo') as never);
+
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ detail: 'plain string' }));
+  });
+
+  it('maps 401 to unauthorized', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    filter.catch(new HttpException('unauthorized', 401), createHost(response, '/secure') as never);
+    expect(response.status).toHaveBeenCalledWith(401);
+  });
+
+  it('maps 503 to service-unavailable', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    filter.catch(new HttpException('unavailable', 503), createHost(response, '/svc') as never);
+    expect(response.status).toHaveBeenCalledWith(503);
+  });
+
+  it('maps 429 to rate-limited', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    filter.catch(new HttpException('too many', 429), createHost(response, '/rl') as never);
+    expect(response.status).toHaveBeenCalledWith(429);
+  });
+
+  it('falls back to exception.message for non-string non-object response', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+
+    const ex = new HttpException({ code: 42 }, 400);
+    filter.catch(ex, createHost(response, '/foo') as never);
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    const body = response.json.mock.calls[0]?.[0] as { detail: string };
+    expect(typeof body.detail).toBe('string');
+  });
+
+  it('falls back to exception.message when response.message is not a string', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+
+    const ex = new HttpException({ message: [1, 2, 3] }, 400);
+    filter.catch(ex, createHost(response, '/foo') as never);
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    const body = response.json.mock.calls[0]?.[0] as { detail: string };
+    expect(typeof body.detail).toBe('string');
+  });
+});
+
+describe('slugFromHttpStatus', () => {
+  it.each([
+    [400, 'validation'],
+    [401, 'unauthorized'],
+    [404, 'not-found'],
+    [429, 'rate-limited'],
+    [503, 'service-unavailable'],
+    [500, 'internal-error'],
+    [502, 'internal-error'],
+    [300, 'validation'],
+  ])('maps %i → %s', (status, expected) => {
+    expect(slugFromHttpStatus(status)).toBe(expected);
   });
 });

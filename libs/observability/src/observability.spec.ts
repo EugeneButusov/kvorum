@@ -83,6 +83,17 @@ describe('module load guard', () => {
     await expect(import('./index')).rejects.toThrow('OTEL_SERVICE_NAME');
     process.env['OTEL_SERVICE_NAME'] = 'obs-test';
   });
+
+  it('throws in define.ts when OTEL_SERVICE_NAME is unset and provider is mocked', async () => {
+    vi.resetModules();
+    delete process.env['OTEL_SERVICE_NAME'];
+    vi.doMock('./provider', () => ({
+      meter: { createCounter: vi.fn(), createGauge: vi.fn(), createHistogram: vi.fn() },
+    }));
+    await expect(import('./define')).rejects.toThrow('OTEL_SERVICE_NAME');
+    vi.doUnmock('./provider');
+    process.env['OTEL_SERVICE_NAME'] = 'obs-test';
+  });
 });
 
 describe('shutdownForTest', () => {

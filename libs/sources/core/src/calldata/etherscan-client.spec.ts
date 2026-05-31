@@ -160,4 +160,28 @@ describe('EtherscanClient', () => {
     expect(result).toBeNull();
     expect(logger.info).toHaveBeenCalledWith('etherscan_network_error', expect.anything());
   });
+
+  it('returns null and logs info on generic non-404/429 HTTP error (e.g. 500)', async () => {
+    const { client, logger } = makeClient();
+    globalThis.fetch = mockFetch(500, '', false);
+
+    const result = await client.fetchAbi(CHAIN, ADDR);
+
+    expect(result).toBeNull();
+    expect(logger.info).toHaveBeenCalledWith('etherscan_http_error', expect.anything());
+  });
+
+  it('returns null and logs warn when parsed ABI result is not an array', async () => {
+    const { client, logger } = makeClient();
+    globalThis.fetch = mockFetch(200, {
+      status: '1',
+      message: 'OK',
+      result: JSON.stringify({ not: 'an array' }),
+    });
+
+    const result = await client.fetchAbi(CHAIN, ADDR);
+
+    expect(result).toBeNull();
+    expect(logger.warn).toHaveBeenCalledWith('etherscan_abi_not_array', expect.anything());
+  });
 });

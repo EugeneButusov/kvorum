@@ -41,7 +41,7 @@ export default defineConfig({
       reportsDirectory: '../../coverage/apps/indexer',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'html'],
-      thresholds: { lines: 70, functions: 55, branches: 54 },
+      thresholds: { lines: 90, functions: 90, branches: 90 },
     },
     projects: [
       {

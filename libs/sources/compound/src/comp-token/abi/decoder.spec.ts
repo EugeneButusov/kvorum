@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { decodeCompTokenLog } from './decoder';
 import { COMPOUND_COMP_TOKEN_INTERFACE } from './events';
@@ -67,6 +67,24 @@ describe('decodeCompTokenLog', () => {
     expect(() => decodeCompTokenLog(makeLog({ topics: ['0x' + '00'.repeat(32)] }))).toThrow(
       DecodeError,
     );
+  });
+
+  it('throws unknown_topic when parseLog returns an unexpected event name', () => {
+    vi.spyOn(COMPOUND_COMP_TOKEN_INTERFACE, 'parseLog').mockReturnValueOnce({
+      name: 'Transfer',
+      fragment: { topicHash: '0x' + 'ff'.repeat(32) },
+    } as never);
+    const encoded = COMPOUND_COMP_TOKEN_INTERFACE.encodeEventLog(
+      COMPOUND_COMP_TOKEN_INTERFACE.getEvent('DelegateChanged')!,
+      [
+        '0x1111111111111111111111111111111111111111',
+        '0x0000000000000000000000000000000000000000',
+        '0x2222222222222222222222222222222222222222',
+      ],
+    );
+    expect(() =>
+      decodeCompTokenLog(makeLog({ topics: encoded.topics as string[], data: encoded.data })),
+    ).toThrow(DecodeError);
   });
 
   it('throws parse_failed for wrong topic count', () => {

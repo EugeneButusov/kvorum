@@ -7,6 +7,7 @@ import {
   type ArchiveDerivationRow,
 } from '@libs/db';
 import type { ActorSweepAdapter } from '@sources/core';
+import { readIntervalMs } from '../app/env-helpers';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;
@@ -167,11 +168,4 @@ function tupleKey(row: {
   block_hash: string;
 }): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
-}
-
-function readIntervalMs(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

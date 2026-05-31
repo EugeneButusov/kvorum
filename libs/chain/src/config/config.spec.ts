@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseChainConfigFromEnv } from './config.js';
+import { normalizeChainId, parseChainConfigFromEnv } from './config.js';
 import { ChainConfigError } from '../errors/chain-config.error.js';
 
 const validConfig = {
@@ -16,6 +16,17 @@ const validConfig = {
 function env(config: unknown): NodeJS.ProcessEnv {
   return { CHAIN_CONFIG: JSON.stringify(config) };
 }
+
+describe('normalizeChainId', () => {
+  it('normalises hex chain id to lowercase with no leading zeros', () => {
+    expect(normalizeChainId('0x01')).toBe('0x1');
+    expect(normalizeChainId('0X89')).toBe('0x89');
+  });
+
+  it('passes through non-hex strings unchanged', () => {
+    expect(normalizeChainId('solana-mainnet')).toBe('solana-mainnet');
+  });
+});
 
 describe('parseChainConfigFromEnv', () => {
   it('parses a valid config', () => {

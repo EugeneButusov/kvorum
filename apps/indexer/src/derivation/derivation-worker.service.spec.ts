@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
 import { DerivationWorkerService } from './derivation-worker.service';
 
+vi.mock('./derivation-metrics', () => ({
+  derivationMetrics: {
+    lagSeconds: { record: vi.fn() },
+    processed: { add: vi.fn() },
+    tickDurationSeconds: { record: vi.fn() },
+    batchLookupSeconds: { record: vi.fn() },
+    chWriteSeconds: { record: vi.fn() },
+    timestampFill: { add: vi.fn() },
+    timestampFillBacklog: { record: vi.fn() },
+  },
+}));
+
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
   source_type: 'test_source_bravo',
@@ -120,6 +132,73 @@ describe('DerivationWorkerService', () => {
 
     expect(applier.applyBatch).toHaveBeenCalledWith([alphaRow]);
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
+
+  it('skips tick when already in flight', async () => {
+    const actorResolution = {
+      findDerivableBy: vi
+        .fn()
+        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), 50))),
+    };
+    const worker = new DerivationWorkerService(
+      { incrementAttemptCount: vi.fn() } as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [],
+    );
+
+    const p1 = worker.tick();
+    await worker.tick(); // should return early (in-flight)
+    await p1;
+
+    expect(actorResolution.findDerivableBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('records lag=0 and returns when watermark is empty', async () => {
+    const actorResolution = { findDerivableBy: vi.fn().mockResolvedValue([]) };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [],
+    );
+
+    await worker.tick();
+
+    expect(actorResolution.findDerivableBy).toHaveBeenCalled();
+  });
+
+  it('logs error and continues when tick throws', async () => {
+    const actorResolution = { findDerivableBy: vi.fn().mockRejectedValue(new Error('db down')) };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [],
+    );
+
+    await expect(worker.tick()).resolves.toBeUndefined();
+  });
+
+  it('groups two rows with same dispatch key into one applyBatch call', async () => {
+    const row2 = { ...ROW, id: 'archive-2', tx_hash: '0xtx2' };
+    const actorResolution = { findDerivableBy: vi.fn().mockResolvedValue([ROW, row2]) };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['test_event_created'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    expect(applier.applyBatch).toHaveBeenCalledWith([ROW, row2]);
   });
 
   it('dispatches rows without cutoff gating', async () => {

@@ -8,6 +8,7 @@ import {
 } from '@libs/db';
 import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
+import { readIntervalMs } from '../app/env-helpers';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;
@@ -139,11 +140,4 @@ function parseDispatchKey(dispatchKey: string): [string, string] {
     throw new Error(`invalid derivation dispatch key: ${dispatchKey}`);
   }
   return [dispatchKey.slice(0, separator), dispatchKey.slice(separator + 1)];
-}
-
-function readIntervalMs(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

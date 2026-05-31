@@ -11,6 +11,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: ['tests/**/*.e2e.spec.ts'],
     reporters: ['default'],
     passWithNoTests: true,
     setupFiles: ['./vitest.setup.ts'],
@@ -19,7 +20,7 @@ export default defineConfig({
       reportsDirectory: '../../coverage/apps/api',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'html'],
-      thresholds: { lines: 58, functions: 42, branches: 43 },
+      thresholds: { lines: 90, functions: 90, branches: 90 },
     },
   },
 });

@@ -35,4 +35,45 @@ describe('EnsResolverService', () => {
     const service = new EnsResolverService({} as never, {} as never);
     await expect(service.tickOnce()).resolves.toBe('completed');
   });
+
+  it('returns skipped_inflight when a tick is already in progress', async () => {
+    vi.mocked(tickEnsResolution).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ outcome: 'idle' }), 100)),
+    );
+
+    const service = new EnsResolverService({} as never, {} as never);
+    const p1 = service.tickOnce(); // starts first tick
+    const p2 = service.tickOnce(); // second tick while first is running
+
+    await expect(p2).resolves.toBe('skipped_inflight');
+    await p1;
+  });
+
+  it('logs warn for mismatch and error outcomes in perCandidate', async () => {
+    vi.mocked(tickEnsResolution).mockResolvedValueOnce({
+      outcome: 'completed',
+      counts: { resolved: 0, no_record: 0, mismatch: 1, error: 1 },
+      perCandidate: [
+        {
+          actorId: 'a1',
+          address: '0x1',
+          outcome: { kind: 'mismatch', reverseName: 'bob.eth' },
+        },
+        {
+          actorId: 'a2',
+          address: '0x2',
+          outcome: { kind: 'error', reason: 'rpc_failed' },
+        },
+      ],
+    });
+
+    const service = new EnsResolverService({} as never, {} as never);
+    await expect(service.tickOnce()).resolves.toBe('completed');
+  });
+
+  it('tick() delegates to tickOnce()', async () => {
+    vi.mocked(tickEnsResolution).mockResolvedValueOnce({ outcome: 'idle' });
+    const service = new EnsResolverService({} as never, {} as never);
+    await expect(service.tick()).resolves.toBeUndefined();
+  });
 });

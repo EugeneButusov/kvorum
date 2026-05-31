@@ -4,16 +4,22 @@ import { makeArchiveProducer } from '@sources/core';
 import { JobQueueService } from './job-queue.service';
 import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
 
-const { mockBoss, mockProducer } = vi.hoisted(() => ({
-  mockBoss: {
-    on: vi.fn(),
-    start: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
-    createQueue: vi.fn<[string, object?], Promise<void>>().mockResolvedValue(undefined),
-    send: vi.fn<[], Promise<string>>().mockResolvedValue('job-id'),
-    stop: vi.fn<[object?], Promise<void>>().mockResolvedValue(undefined),
-  },
-  mockProducer: vi.fn(),
-}));
+const { mockBoss, mockProducer, mockExecuteQuery } = vi.hoisted(() => {
+  const mockExecuteQuery = vi.fn().mockResolvedValue({ rows: [{ oldest_seconds: 42 }] });
+  return {
+    mockBoss: {
+      on: vi.fn(),
+      start: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
+      createQueue: vi.fn<[string, object?], Promise<void>>().mockResolvedValue(undefined),
+      send: vi.fn<[], Promise<string>>().mockResolvedValue('job-id'),
+      stop: vi.fn<[object?], Promise<void>>().mockResolvedValue(undefined),
+      work: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
+      getQueueStats: vi.fn().mockResolvedValue({ queuedCount: 3 }),
+    },
+    mockProducer: vi.fn(),
+    mockExecuteQuery,
+  };
+});
 
 vi.mock('pg-boss', () => ({
   PgBoss: vi.fn().mockImplementation(function () {
@@ -23,7 +29,15 @@ vi.mock('pg-boss', () => ({
 }));
 
 vi.mock('@libs/db', () => ({
-  pgDb: {},
+  pgDb: {
+    getExecutor: vi.fn().mockReturnValue({
+      executeQuery: mockExecuteQuery,
+      transformQuery: vi.fn().mockImplementation((n: unknown) => n),
+      compileQuery: vi
+        .fn()
+        .mockReturnValue({ sql: 'SELECT 1', parameters: [], queryId: { queryId: '1' } }),
+    }),
+  },
   SeenLogRepository: vi.fn().mockImplementation(function () {
     return {};
   }),
@@ -38,6 +52,9 @@ beforeEach(() => {
   mockBoss.start.mockResolvedValue(undefined);
   mockBoss.createQueue.mockResolvedValue(undefined);
   mockBoss.stop.mockResolvedValue(undefined);
+  mockBoss.work.mockResolvedValue(undefined);
+  mockBoss.getQueueStats.mockResolvedValue({ queuedCount: 3 });
+  mockExecuteQuery.mockResolvedValue({ rows: [{ oldest_seconds: 42 }] });
   vi.mocked(makeArchiveProducer).mockReturnValue(mockProducer);
 });
 
@@ -85,6 +102,71 @@ describe('JobQueueService', () => {
         retryBackoff: true,
         deadLetter: ARCHIVE_LOG_DLQ_QUEUE,
       });
+    });
+  });
+
+  describe('work()', () => {
+    it('waits for readyPromise then delegates to boss.work', async () => {
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+      await provider.work('my-queue', { localConcurrency: 2 }, handler);
+
+      expect(mockBoss.work).toHaveBeenCalledWith(
+        'my-queue',
+        { localConcurrency: 2 },
+        expect.any(Function),
+      );
+    });
+
+    it('maps pg-boss jobs to {id, data} before calling handler', async () => {
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+      await provider.work<{ val: string }>('q', { localConcurrency: 1 }, handler);
+
+      // Get the wrapper function passed to mockBoss.work and invoke it
+      const wrapFn = (mockBoss.work as ReturnType<typeof vi.fn>).mock.calls[0]?.[2] as (
+        jobs: { id: string; data: { val: string } }[],
+      ) => Promise<void>;
+      await wrapFn([{ id: 'job-1', data: { val: 'hello' } }]);
+
+      expect(handler).toHaveBeenCalledWith([{ id: 'job-1', data: { val: 'hello' } }]);
+    });
+  });
+
+  describe('getQueueStats()', () => {
+    it('returns stats from boss.getQueueStats', async () => {
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      const result = await provider.getQueueStats('my-queue');
+
+      expect(mockBoss.getQueueStats).toHaveBeenCalledWith('my-queue');
+      expect(result).toEqual({ queuedCount: 3 });
+    });
+  });
+
+  describe('getOldestJobAgeSeconds()', () => {
+    it('returns oldest job age from SQL query', async () => {
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      const result = await provider.getOldestJobAgeSeconds('my-queue');
+
+      expect(result).toBe(42);
+    });
+
+    it('returns null when no jobs exist (oldest_seconds is null)', async () => {
+      mockExecuteQuery.mockResolvedValueOnce({ rows: [{ oldest_seconds: null }] });
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      const result = await provider.getOldestJobAgeSeconds('my-queue');
+
+      expect(result).toBeNull();
     });
   });
 

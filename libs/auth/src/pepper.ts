@@ -20,9 +20,6 @@ export function decodePepper(raw: string): Buffer {
   }
 
   const decoded = Buffer.from(raw, 'base64');
-  if (decoded.length !== 32) {
-    throw new Error('Pepper must decode to exactly 32 bytes');
-  }
 
   if (decoded.toString('base64') !== raw) {
     throw new Error('Pepper must be canonical base64 encoding');

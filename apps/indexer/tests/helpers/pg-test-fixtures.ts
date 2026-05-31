@@ -3,6 +3,7 @@ import { sql } from 'kysely';
 import { pgDb } from '@libs/db';
 import type { PgDatabase } from '@libs/db';
 
+/* v8 ignore next -- integration-only: requires a real Postgres database */
 export async function insertTestDao(
   db: Kysely<PgDatabase>,
   opts: { slug: string; name: string },
@@ -24,6 +25,7 @@ export async function insertTestDao(
   return row.id;
 }
 
+/* v8 ignore next -- integration-only: requires a real Postgres database */
 export async function insertTestDaoSource(
   db: Kysely<PgDatabase>,
   opts: { daoId: string; sourceType: string; chainId: string; contractAddress: string },
@@ -50,6 +52,7 @@ export async function insertTestDaoSource(
   return row.id;
 }
 
+/* v8 ignore next -- integration-only: requires a real Postgres database */
 export async function insertPendingConfirmation(
   db: Kysely<PgDatabase>,
   opts: {
@@ -81,12 +84,14 @@ export async function insertPendingConfirmation(
   return row.id;
 }
 
+/* v8 ignore next -- integration-only: requires a real Postgres database */
 export async function truncateAllIngestionTables(db: Kysely<PgDatabase>): Promise<void> {
   // Preserves dao and dao_source — tests that seed them once in beforeAll (F3a, F3b pattern)
   // need these rows to persist across beforeEach calls.
   await sql`TRUNCATE archive_event, ingestion_dlq, seen_log RESTART IDENTITY CASCADE`.execute(db);
 }
 
+/* v8 ignore next -- integration-only: requires a real Postgres database */
 export async function truncateAllTestTables(db: Kysely<PgDatabase>): Promise<void> {
   // Full teardown including dao/dao_source — call from afterAll so successive local
   // test runs don't collide on unique constraints. Not used in beforeEach (that
@@ -96,6 +101,7 @@ export async function truncateAllTestTables(db: Kysely<PgDatabase>): Promise<voi
   );
 }
 
+/* v8 ignore next -- integration-only: used only in integration test polling loops */
 export async function pollUntil(
   fn: () => Promise<boolean>,
   timeoutMs = 5000,

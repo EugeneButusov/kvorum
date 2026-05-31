@@ -11,6 +11,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
   providers: [
     {
       provide: SOURCE_PLUGINS,
+      /* v8 ignore next -- integration-only: useFactory runs only inside a live Nest container */
       useFactory: (): SourcePlugin[] => {
         const archiveEventRepo = new ArchiveEventRepository(pgDb);
         const dlqRepo = new DlqRepository(pgDb);
@@ -49,6 +50,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
 })
 export class TestEvmSourceModule {}
 
+/* v8 ignore next -- integration-only: only called inside the integration test suite's Nest container */
 function makeTestListener(
   ctx: SourceContext,
   archiveEventRepo: ArchiveEventRepository,

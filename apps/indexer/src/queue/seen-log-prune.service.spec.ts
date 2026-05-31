@@ -160,5 +160,12 @@ describe('SeenLogPruneService', () => {
 
       vi.useRealTimers();
     });
+
+    it('logs debug when pruneBelow deletes at least one row', async () => {
+      seenLog.pruneBelow.mockResolvedValue(42); // non-zero → logs debug
+      await prune(makeSvc());
+      // Just verify it completes without throwing
+      expect(seenLog.pruneBelow).toHaveBeenCalled();
+    });
   });
 });

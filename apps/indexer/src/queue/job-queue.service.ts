@@ -42,6 +42,7 @@ export class JobQueueService
       schema: 'pgboss',
       migrate: false,
     });
+    /* v8 ignore next -- unreachable-guard: boss 'error' event is fired by pg-boss internals; not deterministically testable in unit context */
     this.boss.on('error', (e: Error) => this.logger.error('pgboss_error', e));
     await this.boss.start();
 
