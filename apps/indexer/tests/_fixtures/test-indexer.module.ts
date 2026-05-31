@@ -12,7 +12,8 @@ import { EvmEventPollerDriver } from '../../src/orchestrator/evm-event-poller-dr
 import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
-import { ArchiveProducerProvider } from '../../src/queue/archive-producer.provider';
+import { JOB_QUEUE_PORT } from '../../src/queue/job-queue-port';
+import { JobQueueService } from '../../src/queue/job-queue.service';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, TestEvmSourceModule],
@@ -23,7 +24,8 @@ import { ArchiveProducerProvider } from '../../src/queue/archive-producer.provid
         plugins.flatMap((p) => p.ingesters),
       inject: [SOURCE_PLUGINS],
     },
-    ArchiveProducerProvider,
+    JobQueueService,
+    { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },
     EvmEventPollerDriver,
     {
       provide: FETCH_DRIVERS,
