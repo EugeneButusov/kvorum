@@ -64,6 +64,7 @@ export class VoteBlockTimestampFetcher {
   }
 
   private cacheSet(key: string, value: Date): void {
+    /* v8 ignore next -- unreachable-guard in sequential execution: only reachable under concurrent fetchBatch for the same block */
     if (this.cache.has(key)) this.cache.delete(key);
     this.cache.set(key, value);
     if (this.cache.size <= MAX_CACHE_ENTRIES) return;

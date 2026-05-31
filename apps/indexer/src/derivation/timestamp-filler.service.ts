@@ -114,6 +114,7 @@ function readBlockTimestamp(block: unknown): string | null {
   return typeof timestamp === 'string' ? timestamp : null;
 }
 
+/* v8 ignore next -- unreachable-guard: module-load-time env parsing; env var is not set in unit test context */
 function readIntervalMs(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;

@@ -19,6 +19,7 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
     throw new DecodeError('parse_failed', err, logRef);
   }
 
+  /* v8 ignore next -- unreachable-guard: parseLog only returns null when topic is unknown, already guarded above */
   if (!parsed) {
     throw new DecodeError('parse_failed', new Error('parseLog returned null'), logRef);
   }
@@ -44,6 +45,7 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
         },
       };
 
+    /* v8 ignore next -- exhaustive-never: topic0 is validated against knownTopics above */
     default:
       throw new DecodeError('unknown_topic', undefined, logRef);
   }

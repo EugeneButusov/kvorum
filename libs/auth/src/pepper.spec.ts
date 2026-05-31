@@ -24,6 +24,10 @@ describe('decodePepper', () => {
   it('throws on empty value', () => {
     expect(() => decodePepper('')).toThrow();
   });
+
+  it('throws on non-canonical base64 with non-zero trailing bits', () => {
+    expect(() => decodePepper('AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAB=')).toThrow();
+  });
 });
 
 describe('pepperCandidates', () => {

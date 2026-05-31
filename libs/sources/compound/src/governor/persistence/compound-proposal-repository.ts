@@ -37,6 +37,7 @@ export class CompoundProposalRepository {
   ): Promise<StaleReconciliationRow[]> {
     if (sourceTypes.length === 0 || perChainBounds.length === 0 || limit <= 0) return [];
 
+    /* v8 ignore next -- integration-only: compound-derivation.integration.spec.ts runs this query against real PG */
     return this.db
       .selectFrom('proposal')
       .innerJoin('dao', 'dao.id', 'proposal.dao_id')

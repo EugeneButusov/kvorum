@@ -4,7 +4,8 @@ import { lastValueFrom, of } from 'rxjs';
 import { toArray } from 'rxjs/operators';
 import { describe, expect, it, vi } from 'vitest';
 import { CACHE_CONTROL_KEY, type CacheControlOptions } from './cache-control.decorator';
-import { EtagInterceptor, etagTesting } from './etag.interceptor';
+import { EtagInterceptor, etagTesting, EtagOverride } from './etag.interceptor';
+import { IdentityResponseNormalizer } from './response-normalizer';
 import type { ResponseNormalizer } from './response-normalizer';
 
 function createExecutionContext(req: Record<string, unknown>, res: Record<string, unknown>) {
@@ -170,5 +171,21 @@ describe('EtagInterceptor', () => {
     expect(out).toEqual([{ ok: true }]);
     expect(headers.get('Cache-Control')).toBe('no-store');
     expect(headers.has('ETag')).toBe(false);
+  });
+});
+
+describe('IdentityResponseNormalizer', () => {
+  it('returns the body unchanged', () => {
+    const normalizer = new IdentityResponseNormalizer();
+    const body = { foo: 'bar', count: 42 };
+    expect(normalizer.normalize(body)).toBe(body);
+  });
+});
+
+describe('EtagOverride', () => {
+  it('creates a decorator factory that returns a function', () => {
+    const fn = () => '"custom-etag"';
+    const decorator = EtagOverride(fn);
+    expect(typeof decorator).toBe('function');
   });
 });

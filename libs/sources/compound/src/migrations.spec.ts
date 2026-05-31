@@ -1,4 +1,6 @@
+import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
+import { vi } from 'vitest';
 import { pgDb } from '@libs/db';
 import {
   GOVERNOR_ALPHA_DEPLOY_BLOCK,
@@ -15,6 +17,49 @@ import { COMP_TOKEN_ADDRESS, COMP_TOKEN_DEPLOY_BLOCK } from './comp-token/consta
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
 class RollbackSignal extends Error {}
+
+// Mocked-db smoke tests: verify up/down call sql.execute(db) at least once.
+// Scope: line coverage only — these are migration SQL templates, not unit-testable logic.
+describe('compound migrations smoke (mocked db)', () => {
+  function makeMockDb() {
+    const executeQuery = vi.fn().mockResolvedValue({ rows: [] });
+    const executor = {
+      executeQuery,
+      transformQuery: vi.fn().mockImplementation((node: unknown) => node),
+      compileQuery: vi
+        .fn()
+        .mockReturnValue({ sql: 'SELECT 1', parameters: [], queryId: { queryId: '1' } }),
+    };
+    return {
+      getExecutor: vi.fn().mockReturnValue(executor),
+      _executeQuery: executeQuery,
+    } as unknown as Kysely<unknown> & { _executeQuery: ReturnType<typeof vi.fn> };
+  }
+
+  it('compound_002_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await upCompoundSeed(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('compound_002_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await downCompoundSeed(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('compound_003_comp_token up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await upCompToken(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('compound_003_comp_token down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await downCompToken(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+});
 
 // These tests require a running Postgres instance (DATABASE_URL env var).
 // They are skipped when DATABASE_URL is not set so the suite passes in

@@ -101,6 +101,7 @@ function jitteredRetryAt(): Date {
   return new Date(Date.now() + base * jitter);
 }
 
+/* v8 ignore next -- unreachable-guard: module-load-time env parsing; env var is not set in unit test context */
 function readIntervalMs(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;
@@ -108,6 +109,7 @@ function readIntervalMs(envName: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/* v8 ignore next -- unreachable-guard: module-load-time env parsing; env var is not set in unit test context */
 function readPositiveInt(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;

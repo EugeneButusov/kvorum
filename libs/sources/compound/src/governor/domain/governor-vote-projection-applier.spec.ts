@@ -294,6 +294,211 @@ describe('GovernorVoteProjectionApplier', () => {
     expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
   });
 
+  it('derives new vote when no current vote exists', async () => {
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(voteWrite.insertBatch).toHaveBeenCalledTimes(1);
+    const insertedRows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      superseded: number;
+    }[];
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0]?.superseded).toBe(0);
+    expect(archive.markDerived).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'derived', reason: null }),
+    );
+  });
+
+  it('supersedes the current vote when incoming is newer (by block timestamp)', async () => {
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: 'old-vote-id',
+      castAt: new Date('2025-12-31T00:00:00Z'), // older than the incoming 2026-01-01T00:01:40Z
+      blockNumber: '50',
+      logIndex: 0,
+      primaryChoice: 2,
+      votingPower: '99',
+    });
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    const rows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      vote_id: string;
+      superseded: number;
+    }[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.vote_id).toBe(BASE_ROW.id);
+    expect(rows[0]?.superseded).toBe(0);
+    expect(rows[1]?.vote_id).toBe('old-vote-id');
+    expect(rows[1]?.superseded).toBe(1);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'derived', reason: null }),
+    );
+  });
+
+  it('marks incoming as superseded when current vote is newer (by block timestamp)', async () => {
+    const { applier, metrics, proposals, voteRead, voteWrite } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: 'newer-vote-id',
+      castAt: new Date('2026-06-01T00:00:00Z'), // newer than incoming
+      blockNumber: '200',
+      logIndex: 0,
+      primaryChoice: 1,
+      votingPower: '200',
+    });
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    const rows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      superseded: number;
+    }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.superseded).toBe(1);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
+    );
+  });
+
+  it('uses block number as tiebreaker when castAt matches (incoming block is higher)', async () => {
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+    const tiedCastAt = new Date('2026-01-01T00:01:40Z'); // same as blockTimestamps mock
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: 'old-vote-id',
+      castAt: tiedCastAt,
+      blockNumber: '50', // incoming block '100' > '50' → incoming is newer
+      logIndex: 0,
+      primaryChoice: 2,
+      votingPower: '99',
+    });
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'derived' }));
+  });
+
+  it('uses log index as tiebreaker when castAt and block number both match (incoming logIndex is higher)', async () => {
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+    const tiedCastAt = new Date('2026-01-01T00:01:40Z');
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: 'old-vote-id',
+      castAt: tiedCastAt,
+      blockNumber: BASE_ROW.block_number, // same block
+      logIndex: 0, // incoming logIndex=1 > 0 → incoming is newer
+      primaryChoice: 2,
+      votingPower: '99',
+    });
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'derived' }));
+  });
+
+  it('fails with no_proposal when findBySource returns undefined', async () => {
+    const { applier, archive, metrics, proposals } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'no_proposal' }),
+    );
+  });
+
+  it('fails with decode_error when payload JSON is invalid', async () => {
+    const { applier, archive, metrics, proposals } = buildApplier({
+      payloads: [{ ...BASE_PAYLOAD, payload: 'not-valid-json' }],
+    });
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'decode_error' }),
+    );
+  });
+
+  it('fails with payload_missing when payload is not in fetched batch', async () => {
+    const { applier, archive, metrics } = buildApplier({ payloads: [] });
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+  });
+
+  it('fails with block_timestamp_unavailable when block timestamp is missing from fetched batch', async () => {
+    const { applier, archive, metrics, proposals } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+
+    // Override blockTimestamps to return an empty map (no timestamp for any block)
+    mutable(applier).blockTimestamps = {
+      fetchBatch: vi.fn().mockResolvedValue(new Map()),
+      resultKey: (n: string, h: string) => `${n}:${h}`,
+    };
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith(BASE_ROW.id);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'block_timestamp_unavailable' }),
+    );
+  });
+
+  it('fails with watermark_update_error when archive.markDerived throws', async () => {
+    const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
+
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('PG write failed'),
+    );
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'watermark_update_error' }),
+    );
+  });
+
   it('identity guard: skips insertBatch and advances watermark when incoming is already current', async () => {
     // §4.2c regression: re-deriving the row that is already current must not run buildVoteRows/insertBatch.
     // Without the guard, buildVoteRows emits a self-superseding row (superseded=1, superseded_by=self),

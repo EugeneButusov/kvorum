@@ -9,6 +9,7 @@ import { JobQueueService } from '../queue/job-queue.service';
 export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
   readonly kind = 'evm-event-poller' as const;
   private readonly logger = new Logger('EventPoller');
+  /* v8 ignore next -- prod-only-DI: chainLogger closures only invoked inside a live Nest/chain context */
   private readonly chainLogger: ChainLogger = {
     debug: (msg, ...args) => this.logger.debug(msg, ...args),
     info: (msg, ...args) => this.logger.log(msg, ...args),

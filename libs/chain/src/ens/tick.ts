@@ -77,6 +77,7 @@ export async function tickEnsResolution(args: {
       case 'error':
         counts.error += 1;
         break;
+      /* v8 ignore next -- exhaustive-never: ReverseResolveOutcome is a closed union */
       default: {
         const exhaustive: never = outcome;
         throw new Error(`unreachable outcome kind: ${(exhaustive as { kind: string }).kind}`);

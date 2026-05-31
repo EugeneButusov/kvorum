@@ -18,7 +18,7 @@ export default defineConfig({
       reportsDirectory: '../../coverage/libs/chain',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'html'],
-      thresholds: { lines: 80, functions: 80, branches: 75 },
+      thresholds: { lines: 90, functions: 90, branches: 90 },
     },
   },
 });

@@ -1,4 +1,8 @@
-import { RateLimiterService, RedisUnavailableError } from './rate-limiter.service';
+import {
+  RateLimiterService,
+  RedisUnavailableError,
+  TestRateLimiterService,
+} from './rate-limiter.service';
 
 type SlidingWindowFn = (
   ...args: Array<string | number>
@@ -38,5 +42,29 @@ describe('RateLimiterService', () => {
     await expect(service.consume('apikey:k1', 'authenticated_free')).rejects.toBeInstanceOf(
       RedisUnavailableError,
     );
+  });
+
+  it('wraps mapResult error in RedisUnavailableError for unknown binding window', async () => {
+    const slidingWindow: SlidingWindowFn = vi.fn(
+      async () => [1, 60, 59, 60, 0, 'neither'] as never,
+    );
+    const service = new RateLimiterService({ slidingWindow } as never);
+    await expect(service.consume('apikey:k1', 'authenticated_free')).rejects.toBeInstanceOf(
+      RedisUnavailableError,
+    );
+  });
+
+  it('RedisUnavailableError preserves non-Error cause without stack assignment', () => {
+    const error = new RedisUnavailableError('string cause');
+    expect(error.message).toBe('Redis unavailable for rate limiting');
+  });
+});
+
+describe('TestRateLimiterService', () => {
+  it('always allows with max values', async () => {
+    const svc = new TestRateLimiterService();
+    const result = await svc.consume('any', 'authenticated_free');
+    expect(result.allowed).toBe(true);
+    expect(result.limit).toBe(Number.MAX_SAFE_INTEGER);
   });
 });

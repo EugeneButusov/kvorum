@@ -3,6 +3,18 @@ import type { ArchiveDerivationRow } from '@libs/db';
 import type { ActorSweepAdapter } from '@sources/core';
 import { ActorSweepService } from './actor-sweep.service';
 
+vi.mock('./derivation-metrics', () => ({
+  derivationMetrics: {
+    lagSeconds: { record: vi.fn() },
+    processed: { add: vi.fn() },
+    tickDurationSeconds: { record: vi.fn() },
+    batchLookupSeconds: { record: vi.fn() },
+    chWriteSeconds: { record: vi.fn() },
+    timestampFill: { add: vi.fn() },
+    timestampFillBacklog: { record: vi.fn() },
+  },
+}));
+
 const SOURCE_TYPES = [
   'test_source_alpha',
   'test_source_bravo',
@@ -45,6 +57,17 @@ const ROW: ArchiveDerivationRow = {
 };
 
 describe('ActorSweepService', () => {
+  it('returns early when no unresolved actors exist', async () => {
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn(),
+    };
+    const service = new ActorSweepService(archive as never, {} as never, {} as never, []);
+    await expect(service.tick()).resolves.toBeUndefined();
+    expect(archive.markActorResolved).not.toHaveBeenCalled();
+  });
+
   it('materializes actor for voter and marks row actor-resolved', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
@@ -183,5 +206,125 @@ describe('ActorSweepService', () => {
       }),
     );
     expect(archive.markActorResolved).not.toHaveBeenCalled();
+  });
+
+  it('groups two rows with same source_type into one processSourceBatch call', async () => {
+    const row2 = { ...ROW, id: 'archive-2', tx_hash: '0xtx2', log_index: 2 };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW, row2]),
+      markActorResolved: vi.fn().mockResolvedValue(undefined),
+      incrementActorResolutionAttemptCount: vi.fn(),
+    };
+    const actors = { findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }) };
+    const dlq = { insert: vi.fn() };
+    const payload = (row: typeof ROW) => ({
+      chain_id: row.chain_id,
+      tx_hash: row.tx_hash,
+      log_index: row.log_index,
+      block_hash: row.block_hash,
+      event_type: row.event_type,
+      payload: JSON.stringify({ voter: '0x' + 'ab'.repeat(20) }),
+      received_at: new Date(),
+    });
+    const sourcePayloads = {
+      fetchPayloads: vi.fn().mockResolvedValue([payload(ROW), payload(row2)]),
+    };
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
+      fetchPayloads: sourcePayloads.fetchPayloads,
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
+
+    await service.tick();
+
+    // Both rows are in the same source_type batch → fetchPayloads called once with both rows
+    expect(sourcePayloads.fetchPayloads).toHaveBeenCalledTimes(1);
+    expect(archive.markActorResolved).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws "no adapter" and calls handleFailure when source_type has no registered adapter', async () => {
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]), // ROW has source_type 'test_source_bravo'
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
+    };
+    const actors = { findOrCreateActorAddress: vi.fn() };
+    const dlq = { insert: vi.fn() };
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: ['test_source_alpha'], // does NOT include 'test_source_bravo' → adapter will be undefined
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
+      fetchPayloads: vi.fn().mockResolvedValue([]),
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
+
+    await service.tick();
+
+    // Inner catch fires for the 'no adapter' throw → handleFailure for each row
+    expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith(ROW.id);
+  });
+
+  it('calls handleFailure for all rows when fetchPayloads throws (inner catch)', async () => {
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
+    };
+    const actors = { findOrCreateActorAddress: vi.fn() };
+    const dlq = { insert: vi.fn() };
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
+      fetchPayloads: vi.fn().mockRejectedValue(new Error('db crash')),
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
+
+    await service.tick();
+
+    // Inner catch in processSourceBatch: handleFailure called for all rows in batch
+    expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith(ROW.id);
+  });
+
+  it('logs actor_sweep_tick_failed when findUnresolvedActors throws (outer catch)', async () => {
+    const archive = {
+      findUnresolvedActors: vi.fn().mockRejectedValue(new Error('db down')),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn(),
+    };
+    const service = new ActorSweepService(archive as never, {} as never, {} as never, []);
+
+    await expect(service.tick()).resolves.toBeUndefined();
+  });
+
+  it('calls handleFailure when row payload is missing from fetched batch', async () => {
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
+    };
+    const actors = { findOrCreateActorAddress: vi.fn() };
+    const dlq = { insert: vi.fn() };
+    const adapter: ActorSweepAdapter = {
+      sourceTypes: SOURCE_TYPES,
+      eventTypes: EVENT_TYPES,
+      extractAddresses,
+      fetchPayloads: vi.fn().mockResolvedValue([]), // no payloads → missing for the row
+    };
+    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [
+      adapter,
+    ]);
+
+    await service.tick();
+
+    expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith(ROW.id);
   });
 });

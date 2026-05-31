@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderMetrics } from '@libs/observability';
 import { FailoverRpcClient, createFailoverRpcClient } from './failover-rpc-client.js';
+import { createJsonRpcProvider } from './provider-factory.js';
 import type { ChainConfig } from '../config/config.js';
 import { AllProvidersFailedError } from '../errors/all-providers-failed.error.js';
 import { ClientStoppedError } from '../errors/client-stopped.error.js';
+import { NotImplementedError } from '../errors/not-implemented.error.js';
 import { FakeProvider } from '../test-utils/fake-provider.js';
 
 const baseConfig: ChainConfig = {
@@ -330,5 +332,16 @@ describe('FailoverRpcClient.send() (with FakeProvider)', () => {
     const { client } = await makeClient([fakes[0]!]);
     await client.stop();
     await expect(client.send('eth_blockNumber', [])).rejects.toThrow(ClientStoppedError);
+  });
+});
+
+describe('createJsonRpcProvider', () => {
+  it('throws NotImplementedError for ws kind', () => {
+    expect(() =>
+      createJsonRpcProvider(
+        { name: 'p', url: 'ws://localhost:8546', kind: 'ws', priority: 1 },
+        '0x1',
+      ),
+    ).toThrow(NotImplementedError);
   });
 });

@@ -20,4 +20,10 @@ describe('raceWithAbort', () => {
     c.abort();
     await expect(raced).rejects.toBeInstanceOf(AbortError);
   });
+
+  it('rejects with the underlying error when the promise rejects first', async () => {
+    const c = new AbortController();
+    const err = new Error('boom');
+    await expect(raceWithAbort(Promise.reject(err), c.signal)).rejects.toBe(err);
+  });
 });

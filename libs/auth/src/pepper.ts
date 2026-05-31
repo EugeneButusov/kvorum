@@ -20,6 +20,7 @@ export function decodePepper(raw: string): Buffer {
   }
 
   const decoded = Buffer.from(raw, 'base64');
+  /* v8 ignore next -- unreachable: BASE64_32_BYTE_PATTERN fixes length to 44 chars → decode is always 32 bytes */
   if (decoded.length !== 32) {
     throw new Error('Pepper must decode to exactly 32 bytes');
   }

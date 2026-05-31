@@ -59,6 +59,24 @@ describe('MetricsInterceptor', () => {
     expect(latencySpy).toHaveBeenCalled();
   });
 
+  it('passes through without recording metrics for non-http context', async () => {
+    const interceptor = new MetricsInterceptor();
+    const nonHttpCtx = {
+      getType: () => 'rpc',
+      switchToHttp: () => ({ getRequest: () => ({}), getResponse: () => ({}) }),
+    } as unknown as import('@nestjs/common').ExecutionContext;
+
+    const { lastValueFrom, of } = await import('rxjs');
+    const { toArray } = await import('rxjs/operators');
+
+    const result = await lastValueFrom(
+      interceptor
+        .intercept(nonHttpCtx, { handle: () => of('data') } as import('@nestjs/common').CallHandler)
+        .pipe(toArray()),
+    );
+    expect(result).toEqual(['data']);
+  });
+
   it('records metrics on thrown errors via finalize', async () => {
     const requestsSpy = vi.spyOn(apiMetrics.requests, 'add');
     const latencySpy = vi.spyOn(apiMetrics.latencySeconds, 'record');

@@ -189,6 +189,7 @@ export class CompTokenDelegationProjectionApplier {
       ];
     }
 
+    /* v8 ignore next -- exhaustive-never: eventTypes union is closed (DelegateChanged|DelegateVotesChanged) */
     throw new ProjectionError('unknown_event_type');
   }
 
