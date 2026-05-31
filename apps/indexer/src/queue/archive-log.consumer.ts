@@ -27,9 +27,9 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
     await this.archiveProducer.whenBossReady();
     const boss = this.archiveProducer.getBoss();
     await boss.work(ARCHIVE_LOG_QUEUE, { localConcurrency: 1 }, async (jobs) => {
-      const job = jobs[0];
-      if (!job) return;
-      await this.handle(job.data as RawLogJob);
+      for (const job of jobs) {
+        await this.handle(job.data as RawLogJob);
+      }
     });
     this.logger.log('archive_log_consumer_registered');
   }

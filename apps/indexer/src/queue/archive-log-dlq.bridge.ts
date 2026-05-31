@@ -19,29 +19,29 @@ export class ArchiveLogDlqBridge implements OnApplicationBootstrap {
     await this.archiveProducer.whenBossReady();
     const boss = this.archiveProducer.getBoss();
     await boss.work(ARCHIVE_LOG_DLQ_QUEUE, { localConcurrency: 1 }, async (jobs) => {
-      const job = jobs[0];
-      if (!job) return;
-      const raw = job.data as RawLogJob;
-      const now = new Date();
-      await this.dlqRepo.insert({
-        stage: 'archive_log',
-        source: raw.chainId,
-        payload: {
-          raw: { topics: raw.topics, data: raw.data },
-          block_number: raw.blockNumber,
-          address: raw.address,
-        },
-        error: { name: 'PgBossDeadLettered', message: `job ${job.id} exhausted retries` },
-        retries: 0,
-        first_seen_at: now,
-        last_attempt_at: now,
-        archive_source_type: null,
-        archive_chain_id: raw.chainId,
-        archive_tx_hash: raw.txHash,
-        archive_log_index: raw.logIndex,
-        archive_block_hash: raw.blockHash,
-      });
-      this.logger.warn('archive_log_dead_lettered', { jobId: job.id, txHash: raw.txHash });
+      for (const job of jobs) {
+        const raw = job.data as RawLogJob;
+        const now = new Date();
+        await this.dlqRepo.insert({
+          stage: 'archive_log',
+          source: raw.chainId,
+          payload: {
+            raw: { topics: raw.topics, data: raw.data },
+            block_number: raw.blockNumber,
+            address: raw.address,
+          },
+          error: { name: 'PgBossDeadLettered', message: `job ${job.id} exhausted retries` },
+          retries: 0,
+          first_seen_at: now,
+          last_attempt_at: now,
+          archive_source_type: null,
+          archive_chain_id: raw.chainId,
+          archive_tx_hash: raw.txHash,
+          archive_log_index: raw.logIndex,
+          archive_block_hash: raw.blockHash,
+        });
+        this.logger.warn('archive_log_dead_lettered', { jobId: job.id, txHash: raw.txHash });
+      }
     });
     this.logger.log('archive_log_dlq_bridge_registered');
   }
