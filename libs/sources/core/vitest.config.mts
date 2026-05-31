@@ -15,8 +15,11 @@ export default defineConfig({
     passWithNoTests: true,
     reporters: ['default'],
     coverage: {
+      enabled: !!process.env['CI'],
       reportsDirectory: '../../../coverage/libs/sources/core',
       provider: 'v8' as const,
+      reporter: ['text', 'json-summary', 'html'],
+      thresholds: { lines: 62, functions: 67, branches: 45 },
     },
   },
 });

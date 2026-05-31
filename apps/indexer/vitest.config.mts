@@ -37,8 +37,11 @@ export default defineConfig({
     reporters: ['default'],
     passWithNoTests: true,
     coverage: {
+      enabled: !!process.env['CI'],
       reportsDirectory: '../../coverage/apps/indexer',
       provider: 'v8' as const,
+      reporter: ['text', 'json-summary', 'html'],
+      thresholds: { lines: 70, functions: 55, branches: 54 },
     },
     projects: [
       {
