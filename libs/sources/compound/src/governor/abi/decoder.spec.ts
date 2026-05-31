@@ -143,6 +143,7 @@ describe('decodeCompoundLog', () => {
   it('throws unknown_topic when parseLog returns an unexpected event name', () => {
     vi.spyOn(COMPOUND_GOVERNOR_BRAVO_INTERFACE, 'parseLog').mockReturnValueOnce({
       name: 'Transfer',
+      fragment: { topicHash: '0x' + 'ff'.repeat(32) },
     } as never);
     const encoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,

@@ -9,9 +9,10 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
   const logRef = { txHash: log.txHash, logIndex: log.logIndex, blockHash: log.blockHash };
 
   let iface: ReturnType<typeof interfaceForSource>['iface'];
+  let topics: ReturnType<typeof interfaceForSource>['topics'];
   let variant: CompoundGovernorVariant;
   try {
-    ({ iface, variant } = interfaceForSource(sourceType));
+    ({ iface, topics, variant } = interfaceForSource(sourceType));
   } catch (err) {
     throw new DecodeError('wrong_variant', err, logRef);
   }
@@ -27,8 +28,8 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
     throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  switch (parsed.name) {
-    case 'ProposalCreated': {
+  switch (parsed.fragment.topicHash.toLowerCase()) {
+    case topics.ProposalCreated: {
       const args = parsed.args;
       const abiValues = args[3] as unknown as bigint[];
       return {
@@ -47,7 +48,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case 'ProposalQueued': {
+    case topics.ProposalQueued: {
       const args = parsed.args;
       return {
         type: 'ProposalQueued',
@@ -58,7 +59,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case 'ProposalExecuted': {
+    case topics.ProposalExecuted: {
       const args = parsed.args;
       return {
         type: 'ProposalExecuted',
@@ -68,7 +69,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case 'ProposalCanceled': {
+    case topics.ProposalCanceled: {
       const args = parsed.args;
       return {
         type: 'ProposalCanceled',
@@ -78,7 +79,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case 'VoteCast':
+    case topics.VoteCast:
       return decodeVoteCast(parsed, variant);
 
     default:

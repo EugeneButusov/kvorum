@@ -1,5 +1,5 @@
 import type { LogEvent } from '@libs/chain';
-import { COMPOUND_COMP_TOKEN_INTERFACE } from './events';
+import { COMPOUND_COMP_TOKEN_INTERFACE, COMPOUND_COMP_TOKEN_TOPICS } from './events';
 import { DecodeError } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 
@@ -17,8 +17,8 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
     throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  switch (parsed.name) {
-    case 'DelegateChanged':
+  switch (parsed.fragment.topicHash.toLowerCase()) {
+    case COMPOUND_COMP_TOKEN_TOPICS.DelegateChanged:
       return {
         type: 'DelegateChanged',
         payload: {
@@ -28,7 +28,7 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
         },
       };
 
-    case 'DelegateVotesChanged':
+    case COMPOUND_COMP_TOKEN_TOPICS.DelegateVotesChanged:
       return {
         type: 'DelegateVotesChanged',
         payload: {
