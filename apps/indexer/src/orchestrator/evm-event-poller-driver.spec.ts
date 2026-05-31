@@ -77,7 +77,7 @@ function setupMockPoller() {
     stop: vi.fn().mockResolvedValue(undefined),
   };
   vi.mocked(EventPoller).mockImplementation(function () {
-    return Object.assign(Object.create(EventPoller.prototype), instance);
+    return instance as EventPoller;
   });
   return instance;
 }
@@ -103,11 +103,11 @@ describe('EvmEventPollerDriver', () => {
   it('#2 — two sources on same chain: registry.getOrCreate called twice (registry handles caching)', async () => {
     const { registry } = makeRegistry();
     vi.mocked(EventPoller).mockImplementation(function () {
-      return Object.assign(Object.create(EventPoller.prototype), {
+      return {
         onEvents: vi.fn(),
         start: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
-      });
+      } as EventPoller;
     });
 
     const driver = new EvmEventPollerDriver(registry, makeJobQueue());
@@ -127,11 +127,11 @@ describe('EvmEventPollerDriver', () => {
     } as ChainContextRegistry;
 
     vi.mocked(EventPoller).mockImplementation(function () {
-      return Object.assign(Object.create(EventPoller.prototype), {
+      return {
         onEvents: vi.fn(),
         start: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
-      });
+      } as EventPoller;
     });
 
     const driver = new EvmEventPollerDriver(registry, makeJobQueue());
