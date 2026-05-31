@@ -1,7 +1,7 @@
 import { PgBoss } from 'pg-boss';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeArchiveProducer } from '@sources/core';
-import { ArchiveProducerProvider } from './archive-producer.provider';
+import { JobQueueService } from './job-queue.service';
 import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
 
 const { mockBoss, mockProducer } = vi.hoisted(() => ({
@@ -41,17 +41,17 @@ beforeEach(() => {
   vi.mocked(makeArchiveProducer).mockReturnValue(mockProducer);
 });
 
-describe('ArchiveProducerProvider', () => {
+describe('JobQueueService', () => {
   describe('constructor', () => {
     it('builds the listener immediately via makeArchiveProducer', () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
 
       expect(makeArchiveProducer).toHaveBeenCalledOnce();
       expect(provider.listener).toBe(mockProducer);
     });
 
     it('listener enqueue closure sends to the correct queue via boss', async () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
       await provider.onApplicationBootstrap(); // starts boss
 
       const deps = vi.mocked(makeArchiveProducer).mock.calls[0]![0];
@@ -64,7 +64,7 @@ describe('ArchiveProducerProvider', () => {
 
   describe('onApplicationBootstrap()', () => {
     it('constructs PgBoss with migrate:false and starts it', async () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
       await provider.onApplicationBootstrap();
 
       expect(PgBoss).toHaveBeenCalledWith(
@@ -74,7 +74,7 @@ describe('ArchiveProducerProvider', () => {
     });
 
     it('creates DLQ queue before main queue (deadLetter requires it to exist first)', async () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
       await provider.onApplicationBootstrap();
 
       const calls = mockBoss.createQueue.mock.calls;
@@ -90,7 +90,7 @@ describe('ArchiveProducerProvider', () => {
 
   describe('onApplicationShutdown()', () => {
     it('stops pg-boss gracefully', async () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
       await provider.onApplicationBootstrap();
       await provider.onApplicationShutdown();
 
@@ -98,7 +98,7 @@ describe('ArchiveProducerProvider', () => {
     });
 
     it('is a no-op if called before bootstrap', async () => {
-      const provider = new ArchiveProducerProvider();
+      const provider = new JobQueueService();
       await expect(provider.onApplicationShutdown()).resolves.toBeUndefined();
       expect(mockBoss.stop).not.toHaveBeenCalled();
     });

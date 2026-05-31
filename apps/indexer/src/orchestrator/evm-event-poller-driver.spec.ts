@@ -3,7 +3,7 @@ import { EventPoller } from '@libs/chain';
 import type { ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
-import type { ArchiveProducerProvider } from '../queue/archive-producer.provider';
+import type { JobQueueService } from '../queue/job-queue.service';
 
 vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
@@ -43,8 +43,8 @@ const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
 
 const PRODUCER_LISTENER = vi.fn();
 
-function makeArchiveProducer(): ArchiveProducerProvider {
-  return { listener: PRODUCER_LISTENER } as unknown as ArchiveProducerProvider;
+function makeArchiveProducer(): JobQueueService {
+  return { listener: PRODUCER_LISTENER } as unknown as JobQueueService;
 }
 
 function makeClient() {

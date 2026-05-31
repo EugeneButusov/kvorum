@@ -12,7 +12,7 @@ import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
 const DEFAULT_JOB_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 @Injectable()
-export class ArchiveProducerProvider
+export class JobQueueService
   implements JobQueuePort, OnApplicationBootstrap, OnApplicationShutdown
 {
   private readonly logger = new Logger('ArchiveProducer');

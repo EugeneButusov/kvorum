@@ -13,8 +13,8 @@ import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
 import { ArchiveLogDlqBridge } from '../queue/archive-log-dlq.bridge';
 import { ArchiveLogConsumer, ARCHIVE_CONSUMER_FNS } from '../queue/archive-log.consumer';
-import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
 import { JOB_QUEUE_PORT } from '../queue/job-queue-port';
+import { JobQueueService } from '../queue/job-queue.service';
 import { PgBossMetricsService } from '../queue/pgboss-metrics.service';
 import { SeenLogPruneService } from '../queue/seen-log-prune.service';
 import { SourceResolver } from '../queue/source-resolver';
@@ -46,8 +46,8 @@ import { SnapshotModule } from '../snapshot';
       ],
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
     },
-    ArchiveProducerProvider,
-    { provide: JOB_QUEUE_PORT, useExisting: ArchiveProducerProvider },
+    JobQueueService,
+    { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },
     SeenLogPruneService,
     SourceResolver,
     {
