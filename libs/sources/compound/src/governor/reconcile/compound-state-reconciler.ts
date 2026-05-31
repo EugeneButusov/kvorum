@@ -81,8 +81,6 @@ export class CompoundStateReconciler {
       if (row.voting_starts_block === null) return { outcome: 'guard_skipped' };
       stateUpdatedAt = await this.readBlockTimestamp(chainCtx, row.voting_starts_block);
     } else if (mapped === 'expired') {
-      /* v8 ignore next -- unreachable-guard: L72 already returns for expired+null_queued_at_block */
-      if (row.queued_at_block === null) return { outcome: 'expired_no_queued_at_block' };
       const timelockParams = await this.resolveTimelockParams({
         chainId: chainCtx.chainCfg.chainId,
         governorAddress: row.governor_address,
@@ -90,7 +88,7 @@ export class CompoundStateReconciler {
         chainCtx,
       });
       if (timelockParams === null) return { outcome: 'expired_no_queued_at_block' };
-      const queuedTs = await this.readBlockTimestamp(chainCtx, row.queued_at_block);
+      const queuedTs = await this.readBlockTimestamp(chainCtx, row.queued_at_block as string);
       stateUpdatedAt = new Date(
         queuedTs.getTime() + (timelockParams.delay + timelockParams.gracePeriod) * 1000,
       );
@@ -189,8 +187,6 @@ export class CompoundStateReconciler {
   private validateSeconds(value: number): number | null {
     const min = Number(process.env['COMPOUND_GOVERNOR_GRACE_MIN_SECONDS'] ?? 3_600);
     const max = Number(process.env['COMPOUND_GOVERNOR_GRACE_MAX_SECONDS'] ?? 7_776_000);
-    /* v8 ignore next -- unreachable-guard: Kysely decodes uint256 via BigInt→Number, always integer */
-    if (!Number.isInteger(value)) return null;
     if (value < min || value > max) return null;
     return value;
   }

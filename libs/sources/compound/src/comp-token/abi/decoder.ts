@@ -1,16 +1,10 @@
 import type { LogEvent } from '@libs/chain';
-import { COMPOUND_COMP_TOKEN_INTERFACE, COMPOUND_COMP_TOKEN_TOPICS } from './events';
+import { COMPOUND_COMP_TOKEN_INTERFACE } from './events';
 import { DecodeError } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 
 export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
-  const topic0 = log.topics[0]?.toLowerCase();
   const logRef = { txHash: log.txHash, logIndex: log.logIndex, blockHash: log.blockHash };
-
-  const knownTopics = Object.values(COMPOUND_COMP_TOKEN_TOPICS) as string[];
-  if (!topic0 || !knownTopics.includes(topic0)) {
-    throw new DecodeError('unknown_topic', undefined, logRef);
-  }
 
   let parsed: ReturnType<typeof COMPOUND_COMP_TOKEN_INTERFACE.parseLog>;
   try {
@@ -19,13 +13,12 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
     throw new DecodeError('parse_failed', err, logRef);
   }
 
-  /* v8 ignore next -- unreachable-guard: parseLog only returns null when topic is unknown, already guarded above */
   if (!parsed) {
-    throw new DecodeError('parse_failed', new Error('parseLog returned null'), logRef);
+    throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  switch (topic0) {
-    case COMPOUND_COMP_TOKEN_TOPICS.DelegateChanged:
+  switch (parsed.name) {
+    case 'DelegateChanged':
       return {
         type: 'DelegateChanged',
         payload: {
@@ -35,7 +28,7 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
         },
       };
 
-    case COMPOUND_COMP_TOKEN_TOPICS.DelegateVotesChanged:
+    case 'DelegateVotesChanged':
       return {
         type: 'DelegateVotesChanged',
         payload: {
@@ -45,7 +38,6 @@ export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {
         },
       };
 
-    /* v8 ignore next -- exhaustive-never: topic0 is validated against knownTopics above */
     default:
       throw new DecodeError('unknown_topic', undefined, logRef);
   }

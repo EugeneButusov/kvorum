@@ -6,21 +6,14 @@ import { DecodeError } from '../../shared';
 import type { CompoundGovernorEvent } from '../domain/types';
 
 export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGovernorEvent {
-  const topic0 = log.topics[0]?.toLowerCase();
   const logRef = { txHash: log.txHash, logIndex: log.logIndex, blockHash: log.blockHash };
 
   let iface: ReturnType<typeof interfaceForSource>['iface'];
-  let topics: ReturnType<typeof interfaceForSource>['topics'];
   let variant: CompoundGovernorVariant;
   try {
-    ({ iface, topics, variant } = interfaceForSource(sourceType));
+    ({ iface, variant } = interfaceForSource(sourceType));
   } catch (err) {
     throw new DecodeError('wrong_variant', err, logRef);
-  }
-
-  const knownTopics = Object.values(topics) as string[];
-  if (!topic0 || !knownTopics.includes(topic0)) {
-    throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
   let parsed: ReturnType<typeof iface.parseLog>;
@@ -30,13 +23,12 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
     throw new DecodeError('parse_failed', err, logRef);
   }
 
-  /* v8 ignore next -- unreachable-guard: parseLog only returns null when topic is unknown, already guarded above */
   if (!parsed) {
-    throw new DecodeError('parse_failed', new Error('parseLog returned null'), logRef);
+    throw new DecodeError('unknown_topic', undefined, logRef);
   }
 
-  switch (topic0) {
-    case topics.ProposalCreated: {
+  switch (parsed.name) {
+    case 'ProposalCreated': {
       const args = parsed.args;
       const abiValues = args[3] as unknown as bigint[];
       return {
@@ -55,7 +47,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case topics.ProposalQueued: {
+    case 'ProposalQueued': {
       const args = parsed.args;
       return {
         type: 'ProposalQueued',
@@ -66,7 +58,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case topics.ProposalExecuted: {
+    case 'ProposalExecuted': {
       const args = parsed.args;
       return {
         type: 'ProposalExecuted',
@@ -76,7 +68,7 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case topics.ProposalCanceled: {
+    case 'ProposalCanceled': {
       const args = parsed.args;
       return {
         type: 'ProposalCanceled',
@@ -86,10 +78,9 @@ export function decodeCompoundLog(log: LogEvent, sourceType: string): CompoundGo
       };
     }
 
-    case topics.VoteCast:
+    case 'VoteCast':
       return decodeVoteCast(parsed, variant);
 
-    /* v8 ignore next -- exhaustive-never: topic0 is validated against knownTopics above */
     default:
       throw new DecodeError('unknown_topic', undefined, logRef);
   }

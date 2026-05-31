@@ -80,6 +80,22 @@ describe('VoteBlockTimestampFetcher', () => {
     expect(result.get(fetcher.resultKey('100', '0xaaa'))).toBeUndefined();
   });
 
+  it('moves an existing cache entry to tail (LRU re-insert) when cacheSet is called twice for the same key', () => {
+    const fetcher = new VoteBlockTimestampFetcher();
+    const cacheSet = (fetcher as unknown as { cacheSet(k: string, v: Date): void }).cacheSet.bind(
+      fetcher,
+    );
+    const d1 = new Date(1000);
+    const d2 = new Date(2000);
+    cacheSet('key-a', d1);
+    cacheSet('key-b', new Date(3000));
+    cacheSet('key-a', d2); // re-inserts key-a at tail, covers the has() branch
+    const cache = (fetcher as unknown as { cache: Map<string, Date> }).cache;
+    // key-a should now be at the tail (most recently inserted)
+    expect([...cache.keys()].at(-1)).toBe('key-a');
+    expect(cache.get('key-a')).toBe(d2);
+  });
+
   it('evicts oldest entry when cache exceeds MAX_CACHE_ENTRIES', async () => {
     const send = vi.fn().mockResolvedValue({ hash: '0xnew', number: '0x1', timestamp: '0x1' });
     const fetcher = new VoteBlockTimestampFetcher();
