@@ -6,6 +6,21 @@ import type { DlqRetryStage } from '../dlq-retry-stage.js';
 
 const ARCHIVE_LOG_QUEUE = 'archive_log'; // pg-boss queue name (apps/indexer/src/queue/queue-names.ts)
 
+// Shared across all adapter instances in this process — created once on first retry call.
+let sharedBoss: PgBoss | null = null;
+
+async function getSharedBoss(): Promise<PgBoss> {
+  if (sharedBoss) return sharedBoss;
+  // R-EXEC-B2: migrate:false on the constructor (not start()); start() is verify-only.
+  sharedBoss = new PgBoss({
+    connectionString: process.env['DATABASE_URL'],
+    schema: 'pgboss',
+    migrate: false,
+  });
+  await sharedBoss.start();
+  return sharedBoss;
+}
+
 function toRawLogJob(dlqEntry: IngestionDlq): RawLogJob {
   const payload = dlqEntry.payload as {
     raw?: { topics?: string[]; data?: string };
@@ -52,20 +67,8 @@ export class PgBossReEnqueueAdapter implements DlqRetryAdapter {
 
   async retry(dlqEntry: IngestionDlq): Promise<RetryOutcome> {
     const job = toRawLogJob(dlqEntry);
-
-    // R-EXEC-B2: migrate:false on the constructor (not start()); start() is verify-only.
-    const boss = new PgBoss({
-      connectionString: process.env['DATABASE_URL'],
-      schema: 'pgboss',
-      migrate: false,
-    });
-    await boss.start();
-    try {
-      await boss.send(ARCHIVE_LOG_QUEUE, job);
-    } finally {
-      await boss.stop({ graceful: false });
-    }
-
+    const boss = await getSharedBoss();
+    await boss.send(ARCHIVE_LOG_QUEUE, job);
     return { status: 'resolved', reason: `re-enqueued to ${ARCHIVE_LOG_QUEUE}` };
   }
 }
