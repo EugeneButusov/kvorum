@@ -38,6 +38,7 @@ import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { VotingPowerStrategy } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
+import type { RawLogJob } from './producer/archive-producer';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
@@ -51,6 +52,8 @@ export interface SourceIngester<TConfig = unknown> {
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
+  /** Returns the consumer-path archive function for this source (optional). */
+  buildArchiveConsumer?(): ArchiveConsumeFn;
 }
 
 export interface ProjectionDeriver {
@@ -111,6 +114,17 @@ export interface SourceContext {
 
 export { makeArchiveProducer } from './producer/archive-producer';
 export type { RawLogJob, ArchiveProducerDeps } from './producer/archive-producer';
+
+/** Write context passed to the consumer's archive-consume function. */
+export interface ArchiveConsumeContext {
+  daoSourceId: string;
+  sourceType: string;
+  chainId: string;
+  sourceLabel: string;
+}
+
+/** Consumer-path archive function: decode RawLogJob → CH-first write. Throws on failure. */
+export type ArchiveConsumeFn = (ctx: ArchiveConsumeContext, raw: RawLogJob) => Promise<void>;
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,

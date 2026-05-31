@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import type { Logger } from '@libs/chain';
+import type { LogEvent, Logger } from '@libs/chain';
 import type { DlqRepository, SourceType } from '@libs/db';
-import type { BackfillRuntime, SourceIngester } from '@sources/core';
+import type { ArchiveConsumeFn, BackfillRuntime, SourceIngester } from '@sources/core';
+import { decodeCompoundLog } from '../abi/decoder';
 import { interfaceForSource } from '../abi/events';
 import { GovernorArchiveWriter } from '../ingestion/archive-writer';
 import { makeIngesterListener } from '../ingestion/ingester-listener';
@@ -78,6 +79,22 @@ function createPlugin(
       };
     },
     buildBackfillRuntime,
+    buildArchiveConsumer: (): ArchiveConsumeFn => async (ctx, raw) => {
+      const logRef: LogEvent = {
+        sourceType: ctx.sourceType,
+        chainId: raw.chainId,
+        blockNumber: BigInt(raw.blockNumber),
+        blockHash: raw.blockHash,
+        txHash: raw.txHash,
+        txIndex: 0, // unused by archive writes; synthesized per plan M4
+        logIndex: raw.logIndex,
+        address: raw.address,
+        topics: raw.topics,
+        data: raw.data,
+      };
+      const decoded = decodeCompoundLog(logRef, ctx.sourceType); // throws DecodeError
+      await deps.archiveWriter.writeCore(ctx, decoded, logRef); // throws on transient
+    },
   };
 }
 

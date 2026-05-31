@@ -93,10 +93,10 @@ describe('CompTokenArchiveWriter', () => {
     expect(archiveEventRepo.insert).not.toHaveBeenCalled();
   });
 
-  it('returns skipped_conflict on ON CONFLICT no-op insert', async () => {
+  it('ON CONFLICT no-op insert → inserted (backfill write collapses conflict into inserted per D.2)', async () => {
     const archiveEventRepo = makeArchiveEventRepo({ insert: vi.fn().mockResolvedValue(undefined) });
     const outcome = await buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('skipped_conflict');
+    expect(outcome.result).toBe('inserted');
   });
 
   it('routes persistent PG confirmation failure to delegation_archive_stage DLQ', async () => {

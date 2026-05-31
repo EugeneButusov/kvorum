@@ -141,6 +141,22 @@ export const chainMetrics = {
     description:
       'Last block committed by the backfill driver per source. Advances once per chunk; resets to 0 on fresh start.',
   }),
+  archiveLogQueueDepth: defineGauge({
+    name: 'ingestion_archive_log_queue_depth',
+    description:
+      'Count of archive_log jobs awaiting processing (created + retry). ~0 at steady state.',
+  }),
+  archiveLogQueueAgeSeconds: defineGauge({
+    name: 'ingestion_archive_log_queue_age_seconds',
+    description: 'Age of the oldest pending archive_log job in seconds. ~0 at steady state.',
+  }),
+
+  // ---- counters (pg-boss consumer) ----
+  archiveLogConsumer: defineCounter({
+    name: 'ingestion_archive_log_consumer',
+    description:
+      'archive_log consumer outcomes per source. result=inserted|decode_dlq|transient_dlq|unmapped',
+  }),
 
   // ---- histograms ----
   rpcRequestDuration: defineHistogram({

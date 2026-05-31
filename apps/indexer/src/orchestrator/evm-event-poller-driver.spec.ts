@@ -3,7 +3,7 @@ import { EventPoller } from '@libs/chain';
 import type { ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import { EvmEventPollerDriver } from './evm-event-poller-driver';
-import type { ArchiveProducerProvider } from '../queue/archive-producer.provider';
+import type { JobQueueService } from '../queue/job-queue.service';
 
 vi.mock('@libs/chain', () => ({
   ChainContextRegistry: vi.fn(),
@@ -43,8 +43,8 @@ const SPEC: Extract<IngestSpec, { kind: 'evm-event-poller' }> = {
 
 const PRODUCER_LISTENER = vi.fn();
 
-function makeArchiveProducer(): ArchiveProducerProvider {
-  return { listener: PRODUCER_LISTENER } as unknown as ArchiveProducerProvider;
+function makeJobQueue(): JobQueueService {
+  return { listener: PRODUCER_LISTENER } as JobQueueService;
 }
 
 function makeClient() {
@@ -66,7 +66,7 @@ function makeRegistryContext(client = makeClient()) {
 function makeRegistry(ctx = makeRegistryContext()): { registry: ChainContextRegistry } {
   const registry = {
     getOrCreate: vi.fn().mockResolvedValue(ctx),
-  } as unknown as ChainContextRegistry;
+  } as ChainContextRegistry;
   return { registry };
 }
 
@@ -77,8 +77,8 @@ function setupMockPoller() {
     stop: vi.fn().mockResolvedValue(undefined),
   };
   vi.mocked(EventPoller).mockImplementation(function () {
-    return instance;
-  } as never);
+    return instance as EventPoller;
+  });
   return instance;
 }
 
@@ -91,7 +91,7 @@ describe('EvmEventPollerDriver', () => {
     const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     expect(registry.getOrCreate).toHaveBeenCalledWith(CHAIN_CFG);
@@ -107,10 +107,10 @@ describe('EvmEventPollerDriver', () => {
         onEvents: vi.fn(),
         start: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
-      };
-    } as never);
+      } as EventPoller;
+    });
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     const ctx2 = { ...CTX, daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG);
@@ -124,17 +124,17 @@ describe('EvmEventPollerDriver', () => {
     const ctxB = makeRegistryContext();
     const registry = {
       getOrCreate: vi.fn().mockResolvedValueOnce(ctxA).mockResolvedValueOnce(ctxB),
-    } as unknown as ChainContextRegistry;
+    } as ChainContextRegistry;
 
     vi.mocked(EventPoller).mockImplementation(function () {
       return {
         onEvents: vi.fn(),
         start: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
-      };
-    } as never);
+      } as EventPoller;
+    });
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     const ctx2 = { ...CTX, chainId: '0x89', daoSourceId: 'src-2' };
     await driver.start(SPEC, CTX, CHAIN_CFG);
     await driver.start(SPEC, ctx2, CHAIN_CFG_137);
@@ -148,7 +148,7 @@ describe('EvmEventPollerDriver', () => {
     const { registry } = makeRegistry();
     const poller = setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     const handle = await driver.start(SPEC, CTX, CHAIN_CFG);
     await handle.stop();
 
@@ -160,7 +160,7 @@ describe('EvmEventPollerDriver', () => {
     const { registry } = makeRegistry(makeRegistryContext(client));
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     await driver.start(SPEC, CTX, CHAIN_CFG);
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as { rpcClient: typeof client };
@@ -170,10 +170,10 @@ describe('EvmEventPollerDriver', () => {
   it('#6 — registry.getOrCreate() rejects: error propagates', async () => {
     const registry = {
       getOrCreate: vi.fn().mockRejectedValue(new Error('rpc fail')),
-    } as unknown as ChainContextRegistry;
+    } as ChainContextRegistry;
     setupMockPoller();
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     await expect(driver.start(SPEC, CTX, CHAIN_CFG)).rejects.toThrow('rpc fail');
   });
 
@@ -182,7 +182,7 @@ describe('EvmEventPollerDriver', () => {
     setupMockPoller();
     const onFirstHeadComplete = vi.fn();
 
-    const driver = new EvmEventPollerDriver(registry, makeArchiveProducer());
+    const driver = new EvmEventPollerDriver(registry, makeJobQueue());
     await driver.start(SPEC, CTX, CHAIN_CFG, { onFirstHeadComplete });
 
     const pollerOpts = vi.mocked(EventPoller).mock.calls[0]?.[0] as {

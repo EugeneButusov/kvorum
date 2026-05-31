@@ -3,7 +3,7 @@ import type { Logger as ChainLogger } from '@libs/chain';
 import { EventPoller, ChainContextRegistry } from '@libs/chain';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
-import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
+import { JobQueueService } from '../queue/job-queue.service';
 
 @Injectable()
 export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
@@ -18,7 +18,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
 
   constructor(
     private readonly registry: ChainContextRegistry,
-    private readonly archiveProducer: ArchiveProducerProvider,
+    private readonly jobQueue: JobQueueService,
   ) {}
 
   async start(
@@ -48,7 +48,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
     });
 
     // Live path always uses the generic domain-blind producer (G1).
-    poller.onEvents(this.archiveProducer.listener);
+    poller.onEvents(this.jobQueue.listener);
     await poller.start();
 
     return {

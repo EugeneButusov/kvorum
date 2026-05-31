@@ -37,6 +37,45 @@ export class GovernorArchiveWriter {
     this.now = deps.now ?? (() => new Date());
   }
 
+  /**
+   * Consumer path — CH-first write, no find() pre-check, throws on any failure.
+   * Called by the archive-log consumer worker after decode.
+   */
+  async writeCore(
+    ctx: ArchiveWriteContext,
+    decoded: CompoundGovernorEvent,
+    logRef: LogEvent,
+  ): Promise<void> {
+    const receivedAt = this.now();
+    await this.eventRepo.insert({
+      daoSourceId: ctx.daoSourceId,
+      chainId: ctx.chainId,
+      blockNumber: logRef.blockNumber.toString(),
+      blockHash: logRef.blockHash,
+      txHash: logRef.txHash,
+      logIndex: logRef.logIndex,
+      eventType: decoded.type,
+      payload: JSON.stringify(decoded.payload),
+    });
+    const row: NewArchiveEvent = {
+      source_type: ctx.sourceType,
+      dao_source_id: ctx.daoSourceId,
+      chain_id: ctx.chainId,
+      block_number: logRef.blockNumber.toString(),
+      block_hash: logRef.blockHash,
+      tx_hash: logRef.txHash,
+      log_index: logRef.logIndex,
+      event_type: decoded.type,
+      received_at: receivedAt,
+      derived_at: null,
+    };
+    await this.archiveEventRepo.insert(row);
+  }
+
+  /**
+   * Backfill path — find() short-circuit preserved, inline-DLQ on failure (Q4).
+   * Live path no longer calls this; the consumer owns archiving via writeCore.
+   */
   async write(
     ctx: ArchiveWriteContext,
     decoded: CompoundGovernorEvent,
@@ -64,60 +103,18 @@ export class GovernorArchiveWriter {
     }
 
     const receivedAt = this.now();
-
     try {
-      // Step 2 — event archive insert (idempotent; CH failures route to DLQ via catch below)
-      await this.eventRepo.insert({
-        daoSourceId: ctx.daoSourceId,
-        chainId: ctx.chainId,
-        blockNumber: logRef.blockNumber.toString(),
-        blockHash: logRef.blockHash,
-        txHash: logRef.txHash,
-        logIndex: logRef.logIndex,
-        eventType: decoded.type,
-        payload: JSON.stringify(decoded.payload),
-      });
-
-      // Step 3 — confirmation insert with retry (retries managed by ArchiveEventRepository)
-      const row: NewArchiveEvent = {
-        source_type: ctx.sourceType,
-        dao_source_id: ctx.daoSourceId,
-        chain_id: ctx.chainId,
-        block_number: logRef.blockNumber.toString(),
-        block_hash: logRef.blockHash,
-        tx_hash: logRef.txHash,
-        log_index: logRef.logIndex,
-        event_type: decoded.type,
-        received_at: receivedAt,
-        derived_at: null,
-      };
-      const result = await this.archiveEventRepo.insert(row);
-
-      if (result?.id) {
-        chainMetrics.archiveWrites.add(1, {
-          source: ctx.sourceLabel,
-          event_type: decoded.type,
-          result: 'inserted',
-        });
-        this.logger.debug('confirmation_inserted', {
-          ...logRef,
-          blockNumber: logRef.blockNumber.toString(),
-          archive_id: result.id,
-        });
-        return { result: 'inserted' };
-      }
-
-      // ON CONFLICT fired — concurrent writer beat us; idempotent
+      await this.writeCore(ctx, decoded, logRef);
       chainMetrics.archiveWrites.add(1, {
         source: ctx.sourceLabel,
         event_type: decoded.type,
-        result: 'skipped_conflict',
+        result: 'inserted',
       });
-      this.logger.debug('confirmation_conflict_skip', {
+      this.logger.debug('confirmation_inserted', {
         ...logRef,
         blockNumber: logRef.blockNumber.toString(),
       });
-      return { result: 'skipped_conflict' };
+      return { result: 'inserted' };
     } catch (err) {
       return await this.routeToDlq(err, ctx, decoded, logRef, receivedAt);
     }

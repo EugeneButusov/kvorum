@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SOURCE_INGESTERS, SOURCE_PLUGINS } from '@sources/core';
-import type { SourceIngester, SourcePlugin } from '@sources/core';
+import type { ArchiveConsumeFn, SourceIngester, SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { DerivationModule } from '../derivation';
@@ -11,8 +11,13 @@ import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../orchestrator/tokens';
-import { ArchiveProducerProvider } from '../queue/archive-producer.provider';
+import { ArchiveLogDlqBridge } from '../queue/archive-log-dlq.bridge';
+import { ArchiveLogConsumer, ARCHIVE_CONSUMER_FNS } from '../queue/archive-log.consumer';
+import { JOB_QUEUE_PORT } from '../queue/job-queue-port';
+import { JobQueueService } from '../queue/job-queue.service';
+import { PgBossMetricsService } from '../queue/pgboss-metrics.service';
 import { SeenLogPruneService } from '../queue/seen-log-prune.service';
+import { SourceResolver } from '../queue/source-resolver';
 import { SnapshotModule } from '../snapshot';
 
 @Module({
@@ -41,8 +46,26 @@ import { SnapshotModule } from '../snapshot';
       ],
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
     },
-    ArchiveProducerProvider,
+    JobQueueService,
+    { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },
     SeenLogPruneService,
+    SourceResolver,
+    {
+      provide: ARCHIVE_CONSUMER_FNS,
+      useFactory: (ingesters: SourceIngester[]): Map<string, ArchiveConsumeFn> => {
+        const map = new Map<string, ArchiveConsumeFn>();
+        for (const ingester of ingesters) {
+          if (ingester.buildArchiveConsumer) {
+            map.set(ingester.sourceType, ingester.buildArchiveConsumer());
+          }
+        }
+        return map;
+      },
+      inject: [SOURCE_INGESTERS],
+    },
+    ArchiveLogConsumer,
+    ArchiveLogDlqBridge,
+    PgBossMetricsService,
     IndexerOrchestratorService,
   ],
 })
