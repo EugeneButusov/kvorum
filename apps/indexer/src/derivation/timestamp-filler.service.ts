@@ -8,6 +8,7 @@ import {
   type TimestampFillInput,
 } from '@libs/db';
 import { derivationMetrics } from './derivation-metrics';
+import { readIntervalMs } from '../app/env-helpers';
 
 const TIMESTAMP_FILL_INTERVAL_MS = readIntervalMs('TIMESTAMP_FILL_INTERVAL_MS', 15_000);
 const DEFAULT_TIMESTAMP_FILL_BATCH_SIZE = 25;
@@ -112,12 +113,4 @@ function readBlockTimestamp(block: unknown): string | null {
   if (typeof block !== 'object' || block === null || !('timestamp' in block)) return null;
   const timestamp = (block as { timestamp: unknown }).timestamp;
   return typeof timestamp === 'string' ? timestamp : null;
-}
-
-/* v8 ignore next -- unreachable-guard: module-load-time env parsing; env var is not set in unit test context */
-function readIntervalMs(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

@@ -12,6 +12,7 @@ import {
 import type { VotingPowerStrategy } from '@libs/domain';
 import type { SourcePlugin } from '@sources/core';
 import { snapshotMetrics } from './snapshot-metrics';
+import { readIntervalMs } from '../app/env-helpers';
 
 const SNAPSHOT_INTERVAL_MS = readIntervalMs('SNAPSHOT_INTERVAL_MS', 30_000);
 const SNAPSHOT_SAMPLE_SIZE = Number(process.env['SNAPSHOT_SAMPLE_SIZE'] ?? '20');
@@ -225,12 +226,4 @@ export class SnapshotWorkerService {
       last_attempt_at: new Date(),
     });
   }
-}
-
-/* v8 ignore next -- unreachable-guard: module-load-time env parsing; env var is not set in unit test context */
-function readIntervalMs(envName: string, fallback: number): number {
-  const raw = process.env[envName];
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
