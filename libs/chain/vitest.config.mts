@@ -14,8 +14,11 @@ export default defineConfig({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {
+      enabled: !!process.env['CI'],
       reportsDirectory: '../../coverage/libs/chain',
       provider: 'v8' as const,
+      reporter: ['text', 'json-summary', 'html'],
+      thresholds: { lines: 80, functions: 80, branches: 75 },
     },
   },
 });
