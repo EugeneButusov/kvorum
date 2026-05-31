@@ -65,9 +65,7 @@ export class HealthChecker {
 
     await Promise.all(
       [...this.states.entries()].map(async ([name, state]) => {
-        const provider = this.providers.get(name);
-        /* v8 ignore next -- unreachable-guard: providers map is built 1:1 from states at construction */
-        if (!provider) return;
+        const provider = this.providers.get(name)!;
 
         let verified = false;
 
@@ -126,9 +124,7 @@ export class HealthChecker {
 
     const results = await Promise.allSettled(
       eligible.map(async ([name, state]) => {
-        const provider = this.providers.get(name);
-        /* v8 ignore next -- unreachable-guard: providers map is built 1:1 from states at construction */
-        if (!provider) return;
+        const provider = this.providers.get(name)!;
         try {
           const raw = (await provider.send('eth_blockNumber', [])) as string;
           const blockNumber = BigInt(raw);
