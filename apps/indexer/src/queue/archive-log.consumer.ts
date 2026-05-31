@@ -5,7 +5,8 @@ import { DlqRepository } from '@libs/db';
 import type { NewIngestionDlq } from '@libs/db';
 import { DecodeError } from '@sources/compound';
 import type { ArchiveConsumeFn, ArchiveConsumeContext, RawLogJob } from '@sources/core';
-import { ArchiveProducerProvider } from './archive-producer.provider';
+import { JOB_QUEUE_PORT } from './job-queue-port';
+import type { JobQueuePort } from './job-queue-port';
 import { ARCHIVE_LOG_QUEUE } from './queue-names';
 import { SourceResolver } from './source-resolver';
 
@@ -16,7 +17,7 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
   private readonly logger = new Logger('ArchiveLogConsumer');
 
   constructor(
-    private readonly archiveProducer: ArchiveProducerProvider,
+    @Inject(JOB_QUEUE_PORT) private readonly queue: JobQueuePort,
     private readonly resolver: SourceResolver,
     @Inject(ARCHIVE_CONSUMER_FNS)
     private readonly consumers: Map<string, ArchiveConsumeFn>,
@@ -24,11 +25,9 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    await this.archiveProducer.whenBossReady();
-    const boss = this.archiveProducer.getBoss();
-    await boss.work(ARCHIVE_LOG_QUEUE, { localConcurrency: 1 }, async (jobs) => {
+    await this.queue.work<RawLogJob>(ARCHIVE_LOG_QUEUE, { localConcurrency: 1 }, async (jobs) => {
       for (const job of jobs) {
-        await this.handle(job.data as RawLogJob);
+        await this.handle(job.data);
       }
     });
     this.logger.log('archive_log_consumer_registered');
@@ -47,7 +46,7 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
         makeDlqRow('archive_unmapped', raw, null, new Error(`address not mapped: ${raw.address}`)),
       );
       chainMetrics.archiveLogConsumer.add(1, { source: raw.chainId, result: 'unmapped' });
-      return; // ack — config anomaly; don't burn pg-boss retries
+      return; // ack — config anomaly; don't burn retries
     }
 
     const consume = this.consumers.get(ctx.sourceType);
@@ -76,9 +75,9 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
           logIndex: raw.logIndex,
           reason: err.reason,
         });
-        return; // ack — decode is deterministic; don't burn pg-boss retries
+        return; // ack — decode is deterministic; don't burn retries
       }
-      // Transient (CH/PG) → throw → pg-boss retry → deadLetter after retryLimit.
+      // Transient (CH/PG) → throw → retry → deadLetter after retryLimit.
       chainMetrics.archiveLogConsumer.add(1, { source: ctx.sourceLabel, result: 'transient_dlq' });
       throw err;
     }
