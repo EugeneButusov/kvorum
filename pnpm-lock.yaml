@@ -352,6 +352,9 @@ importers:
 
   libs/sources/aave:
     dependencies:
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../db
       kysely:
         specifier: ^0.29.0
         version: 0.29.0

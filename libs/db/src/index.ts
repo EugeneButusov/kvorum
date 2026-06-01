@@ -87,15 +87,6 @@ export type {
   VotingPowerSnapshotRawTable,
 } from './schema/projections';
 export type {
-  AavePayloadStatus,
-  AaveProposalMetadata,
-  AaveProposalMetadataTable,
-  AaveProposalMetadataUpdate,
-  AaveProposalPayload,
-  AaveProposalPayloadTable,
-  AaveProposalPayloadUpdate,
-  NewAaveProposalMetadata,
-  NewAaveProposalPayload,
   AdminAudit,
   AdminAuditTable,
   ApiKey,

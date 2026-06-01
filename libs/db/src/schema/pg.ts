@@ -1,4 +1,3 @@
-import type { AaveProposalMetadataTable, AaveProposalPayloadTable } from './aave';
 import type { AbiCacheTable, SelectorIndexTable } from './abi';
 import type {
   ActorAddressRedirectTable,
@@ -19,17 +18,6 @@ import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } 
 import type { SeenLogTable } from './seen-log';
 import type { VotingPowerSnapshotRunTable } from './vote';
 export type { SeenLog, SeenLogTable, NewSeenLog } from './seen-log';
-export type {
-  AavePayloadStatus,
-  AaveProposalMetadata,
-  AaveProposalMetadataTable,
-  AaveProposalMetadataUpdate,
-  AaveProposalPayload,
-  AaveProposalPayloadTable,
-  AaveProposalPayloadUpdate,
-  NewAaveProposalMetadata,
-  NewAaveProposalPayload,
-} from './aave';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 export type {
@@ -127,8 +115,6 @@ export interface PgDatabase {
   proposal: ProposalTable;
   proposal_action: ProposalActionTable;
   proposal_choice: ProposalChoiceTable;
-  aave_proposal_metadata: AaveProposalMetadataTable;
-  aave_proposal_payload: AaveProposalPayloadTable;
   archive_event: ArchiveEventTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;

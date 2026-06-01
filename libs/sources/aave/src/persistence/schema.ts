@@ -1,4 +1,5 @@
 import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import type { PgDatabase } from '@libs/db';
 
 export type AavePayloadStatus =
   | 'declared'
@@ -42,3 +43,12 @@ export interface AaveProposalPayloadTable {
 export type AaveProposalPayload = Selectable<AaveProposalPayloadTable>;
 export type NewAaveProposalPayload = Insertable<AaveProposalPayloadTable>;
 export type AaveProposalPayloadUpdate = Updateable<AaveProposalPayloadTable>;
+
+declare module '@libs/db' {
+  interface PgDatabase {
+    aave_proposal_metadata: AaveProposalMetadataTable;
+    aave_proposal_payload: AaveProposalPayloadTable;
+  }
+}
+
+type _AugmentationActiveCheck = PgDatabase['aave_proposal_metadata'];
