@@ -61,7 +61,9 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
       const byDispatchKey = groupByDispatchKey(watermark);
       for (const [, rows] of byDispatchKey) {
-        const { source_type: sourceType, event_type: eventType } = rows[0]!;
+        const first = rows.at(0);
+        if (first === undefined) continue;
+        const { source_type: sourceType, event_type: eventType } = first;
         const applier = this.appliers.find(
           (candidate) =>
             candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
