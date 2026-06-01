@@ -60,8 +60,8 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const lagSeconds = computeLagSeconds(oldest.received_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
       const byDispatchKey = groupByDispatchKey(watermark);
-      for (const [dispatchKey, rows] of byDispatchKey) {
-        const [sourceType, eventType] = parseDispatchKey(dispatchKey);
+      for (const [, rows] of byDispatchKey) {
+        const { source_type: sourceType, event_type: eventType } = rows[0]!;
         const applier = this.appliers.find(
           (candidate) =>
             candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
@@ -123,7 +123,7 @@ function groupByDispatchKey(
 ): Map<string, ArchiveDerivationRow[]> {
   const grouped = new Map<string, ArchiveDerivationRow[]>();
   for (const row of rows) {
-    const key = `${row.source_type}:${row.event_type}`;
+    const key = `${row.source_type}:${row.chain_id}:${row.event_type}`;
     const rowsForDispatch = grouped.get(key);
     if (rowsForDispatch === undefined) {
       grouped.set(key, [row]);
@@ -132,12 +132,4 @@ function groupByDispatchKey(
     }
   }
   return grouped;
-}
-
-function parseDispatchKey(dispatchKey: string): [string, string] {
-  const separator = dispatchKey.lastIndexOf(':');
-  if (separator <= 0 || separator >= dispatchKey.length - 1) {
-    throw new Error(`invalid derivation dispatch key: ${dispatchKey}`);
-  }
-  return [dispatchKey.slice(0, separator), dispatchKey.slice(separator + 1)];
 }

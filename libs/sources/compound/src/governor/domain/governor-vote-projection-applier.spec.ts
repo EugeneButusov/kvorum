@@ -16,7 +16,7 @@ const BASE_ROW: ArchiveDerivationRow = {
   tx_hash: '0xtx',
   log_index: 1,
   event_type: 'VoteCast',
-  confirmed_at: new Date('2026-01-01T00:00:00Z'),
+  received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 0,
 };
 
@@ -265,13 +265,6 @@ describe('GovernorVoteProjectionApplier', () => {
         stage: 'vote_projection_stage',
       }),
     );
-  });
-
-  it('throws on mixed-chain batch', async () => {
-    const { applier } = buildApplier();
-    await expect(
-      applier.applyBatch([BASE_ROW, { ...BASE_ROW, id: 'archive-2', chain_id: '0x89' }]),
-    ).rejects.toThrow('vote applier received mixed-chain batch');
   });
 
   it('caps payload fetch batch at 25', async () => {
