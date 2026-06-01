@@ -43,6 +43,24 @@ async function hasDictionary(name: string): Promise<boolean> {
   return result.length > 0;
 }
 
+type ColumnRow = {
+  table: string;
+  name: string;
+  default_expression: string;
+};
+
+async function fetchColumn(table: string, name: string): Promise<ColumnRow | undefined> {
+  const result = await chDb
+    .selectFrom('system.columns' as never)
+    .select(['table' as never, 'name' as never, 'default_expression' as never])
+    .where('database' as never, '=', clickhouseDbName)
+    .where('table' as never, '=', table)
+    .where('name' as never, '=', name)
+    .execute();
+
+  return (result as ColumnRow[])[0];
+}
+
 describeWithCh('core_001_ch_source_of_truth migration', () => {
   it('creates raw MergeTree tables with expected engines and keys', async () => {
     const tables = await fetchTables([
@@ -81,7 +99,7 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     const votes = tables.get('vote_events_agg');
     expect(votes?.engine_full).toMatch(/^AggregatingMergeTree/);
     expect(votes?.sorting_key).toBe(
-      'dao_id, proposal_id, voter_address, block_number, log_index, vote_id',
+      'dao_id, proposal_id, voter_address, block_number, log_index, vote_id, voting_chain_id',
     );
 
     const delegations = tables.get('delegation_flow_agg');
@@ -112,6 +130,14 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     expect(tables.get('vote_events_mv')?.engine).toBe('MaterializedView');
     expect(tables.get('delegation_flow_mv')?.engine).toBe('MaterializedView');
     expect(tables.get('voting_power_snapshot_mv')?.engine).toBe('MaterializedView');
+  });
+
+  it('adds voting_chain_id to vote projection and keeps raw default', async () => {
+    const projectionColumn = await fetchColumn('vote_events_projection', 'voting_chain_id');
+    expect(projectionColumn?.name).toBe('voting_chain_id');
+
+    const rawColumn = await fetchColumn('vote_events_raw', 'voting_chain_id');
+    expect(rawColumn?.default_expression).toBe("'0x1'");
   });
 
   it('creates actor_address_redirect dictionary', async () => {

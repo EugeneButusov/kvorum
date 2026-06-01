@@ -48,3 +48,17 @@ admin-cli daos source add aave --type aave_voting_machine --chain 0x89 --config 
 ```
 
 `--chain` is mandatory and normalized via `normalizeChainId` in admin-cli.
+
+## Local ClickHouse migration note (R2)
+
+R2 edits `libs/sources/core/migrations-clickhouse/core_001_ch_source_of_truth.sql` in place.
+If `core_001` was already applied in your local ClickHouse, `clickhouse-migrations` checksum
+verification will fail on re-run.
+
+Reset path:
+
+```bash
+docker compose down -v clickhouse
+docker compose up -d clickhouse
+pnpm -w db:migrate:ch
+```

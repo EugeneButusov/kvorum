@@ -302,6 +302,7 @@ function buildVoteRows(args: {
   dao_id: string;
   proposal_id: string;
   voter_address: string;
+  voting_chain_id: string;
   primary_choice: number;
   voting_power: string;
   cast_at: Date;
@@ -317,6 +318,7 @@ function buildVoteRows(args: {
     dao_id: args.daoId,
     proposal_id: args.proposalId,
     voter_address: args.voterAddress,
+    voting_chain_id: args.row.chain_id,
     primary_choice: args.event.primaryChoice,
     voting_power: args.event.votingPowerReported,
     cast_at: args.castAt,
@@ -334,6 +336,8 @@ function buildVoteRows(args: {
       dao_id: args.daoId,
       proposal_id: args.proposalId,
       voter_address: args.voterAddress,
+      // D7 invariant: prior vote for this voter/proposal was cast on the same voting chain.
+      voting_chain_id: args.row.chain_id,
       primary_choice: args.current.primaryChoice,
       voting_power: args.current.votingPower,
       cast_at: args.current.castAt,

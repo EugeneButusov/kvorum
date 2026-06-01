@@ -312,9 +312,11 @@ describe('GovernorVoteProjectionApplier', () => {
     expect(voteWrite.insertBatch).toHaveBeenCalledTimes(1);
     const insertedRows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
       superseded: number;
+      voting_chain_id: string;
     }[];
     expect(insertedRows).toHaveLength(1);
     expect(insertedRows[0]?.superseded).toBe(0);
+    expect(insertedRows[0]?.voting_chain_id).toBe('0x1');
     expect(archive.markDerived).toHaveBeenCalledWith(BASE_ROW.id);
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
@@ -342,12 +344,15 @@ describe('GovernorVoteProjectionApplier', () => {
     const rows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
       vote_id: string;
       superseded: number;
+      voting_chain_id: string;
     }[];
     expect(rows).toHaveLength(2);
     expect(rows[0]?.vote_id).toBe(BASE_ROW.id);
     expect(rows[0]?.superseded).toBe(0);
     expect(rows[1]?.vote_id).toBe('old-vote-id');
     expect(rows[1]?.superseded).toBe(1);
+    expect(rows[0]?.voting_chain_id).toBe('0x1');
+    expect(rows[1]?.voting_chain_id).toBe('0x1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
     );
@@ -372,9 +377,11 @@ describe('GovernorVoteProjectionApplier', () => {
 
     const rows = (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
       superseded: number;
+      voting_chain_id: string;
     }[];
     expect(rows).toHaveLength(1);
     expect(rows[0]?.superseded).toBe(1);
+    expect(rows[0]?.voting_chain_id).toBe('0x1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
     );
