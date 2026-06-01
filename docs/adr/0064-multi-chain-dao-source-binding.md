@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-06-01
 - **Amends**: 0062, 0063
-- **Related**: ADR-0058, epic #239, R0 #247, R1 #248, R3 #250
+- **Related**: ADR-0058, epic #239, R0 #247, R1 #248, R2 #249, R3 #250
 
 ## Context
 
@@ -58,6 +58,23 @@ cross-DAO query semantics (proposal/vote/delegation abstractions) protected by S
 
 R1 does not rely on SPEC §2.5 extension-table pre-sanctioning for this claim. That scope is
 reserved for R2 vote-chain dimensions and Aave extension tables.
+
+### AC#4 reinterpretation (R2)
+
+R2 extends the data model in two places:
+
+- vote projection chain dimension: `vote_events_*` adds `voting_chain_id` (the chain where the
+  vote was cast)
+- Aave extension tables in PG: `aave_proposal_metadata` and `aave_proposal_payload`
+
+These are compatibility-layer additions, not core semantic changes:
+
+- the vote/proposal/delegation abstractions stay unchanged
+- chain-specific Aave metadata lives in extension tables sanctioned by SPEC §2.5
+- `voting_chain_id` is a derived projection dimension used for chain-aware reads and does not
+  alter proposal/vote identity semantics
+
+Therefore SPEC §10.5 AC#4 remains satisfied for Epic R.
 
 ## Consequences
 
