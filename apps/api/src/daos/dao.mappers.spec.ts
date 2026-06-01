@@ -6,12 +6,12 @@ describe('dao.mappers', () => {
     expect(
       curateSourceConfig({
         contract_address: '0xABCD',
-        chain_id: 1,
+        chain_id: '0x1',
         extra: 'ignored',
       }),
     ).toEqual({
       contract_address: '0xabcd',
-      chain_id: '1',
+      chain_id: '0x1',
     });
   });
 

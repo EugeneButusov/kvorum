@@ -96,10 +96,10 @@ async function main(): Promise<void> {
       id: '00000000-0000-0000-0000-000000100011',
       dao_id: '00000000-0000-0000-0000-000000100010',
       source_type: 'compound_governor',
-      chain_id: '1',
+      chain_id: '0x1',
       source_config: {
         contract_address: `0x${'d'.repeat(40)}`,
-        chain_id: '1',
+        chain_id: '0x1',
       },
       active_from_block: null,
       active_to_block: null,

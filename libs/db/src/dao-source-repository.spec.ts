@@ -21,8 +21,8 @@ describe('DaoSourceRepository', () => {
   describe('findBySourceType', () => {
     it('#1 — returns rows matching the source type', async () => {
       const rows = [
-        { id: 'src-1', dao_id: 'dao-1', source_config: {}, chain_id: 1 },
-        { id: 'src-2', dao_id: 'dao-2', source_config: {}, chain_id: 137 },
+        { id: 'src-1', dao_id: 'dao-1', source_config: {}, chain_id: '0x1' },
+        { id: 'src-2', dao_id: 'dao-2', source_config: {}, chain_id: '0x89' },
       ];
       const { selectFrom } = makeSelectChain(rows);
       const repo = new DaoSourceRepository({ selectFrom } as never);
@@ -77,14 +77,14 @@ describe('DaoSourceRepository', () => {
           dao_id: 'dao-1',
           source_type: 'compound_governor_bravo',
           source_config: {},
-          chain_id: 1,
+          chain_id: '0x1',
         },
         {
           id: 'src-2',
           dao_id: 'dao-2',
           source_type: 'aave_governor',
           source_config: {},
-          chain_id: 1,
+          chain_id: '0x1',
         },
       ];
       const { selectFrom } = makeSelectChain(rows);

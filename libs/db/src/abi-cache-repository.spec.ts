@@ -6,7 +6,7 @@ const SAMPLE_ABI = [{ type: 'function', name: 'transfer', inputs: [], outputs: [
 
 function makeCacheRow(overrides: Partial<NewAbiCache> = {}): NewAbiCache {
   return {
-    chain_id: '1',
+    chain_id: '0x1',
     address: '0xabc',
     abi: SAMPLE_ABI,
     source: 'bundled_library',
