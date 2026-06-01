@@ -22,6 +22,18 @@ describe('dao.mappers', () => {
     expect(curateSourceConfig({})).toEqual({});
   });
 
+  it('curateSourceConfig stringifies numeric chain_id', () => {
+    expect(
+      curateSourceConfig({
+        contract_address: '0xABCD',
+        chain_id: 1,
+      }),
+    ).toEqual({
+      contract_address: '0xabcd',
+      chain_id: '1',
+    });
+  });
+
   it('toDaoSourceDto preserves source_type and curated fields', () => {
     const dto = toDaoSourceDto({
       source_type: 'compound_governor_bravo',
