@@ -99,7 +99,7 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     const votes = tables.get('vote_events_agg');
     expect(votes?.engine_full).toMatch(/^AggregatingMergeTree/);
     expect(votes?.sorting_key).toBe(
-      'dao_id, proposal_id, voter_address, block_number, log_index, vote_id, voting_chain_id',
+      'dao_id, proposal_id, voter_address, block_number, log_index, vote_id',
     );
 
     const delegations = tables.get('delegation_flow_agg');

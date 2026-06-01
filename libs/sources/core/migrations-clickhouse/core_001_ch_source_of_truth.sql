@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS vote_events_agg
 )
 ENGINE = AggregatingMergeTree()
 PARTITION BY toYYYYMM(cast_at)
-ORDER BY (dao_id, proposal_id, voter_address, block_number, log_index, vote_id, voting_chain_id);
+ORDER BY (dao_id, proposal_id, voter_address, block_number, log_index, vote_id);
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS vote_events_mv TO vote_events_agg AS
 SELECT

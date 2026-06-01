@@ -18,13 +18,13 @@ The vote pipeline is the CH `vote_events_raw` -> `vote_events_mv` -> `vote_event
 - Add `voting_chain_id` to `vote_events_*`.
 - `voting_chain_id` is the archive row `chain_id` (the voting chain).
 - In `vote_events_raw`, `voting_chain_id` is `LowCardinality(String) DEFAULT '0x1'`.
-- In `vote_events_agg`, append `voting_chain_id` to the sorting key after `vote_id`.
+- Keep `vote_events_agg` sorting key unchanged (no `voting_chain_id` in key for v1.0).
 - Include `voting_chain_id` in MV/projection `GROUP BY` and `SELECT` lists.
 
 Why this is safe:
 
 - The chain is functionally dependent on each vote event.
-- Appending after `vote_id` preserves existing `(dao_id, proposal_id, voter_address)` key prefix.
+- Existing `(dao_id, proposal_id, voter_address)` sort-key/query behavior is preserved.
 - Compound remains `0x1`; dedup semantics are unchanged.
 
 `findCurrentVote` remains without a chain predicate. The invariant is one voting chain per
