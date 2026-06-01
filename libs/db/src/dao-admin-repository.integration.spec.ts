@@ -23,7 +23,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
           slug,
           name: 'Test DAO',
           primaryTokenAddress: '0x' + 'a'.repeat(40),
-          primaryChainId: '1',
+          primaryChainId: '0x1',
         });
 
         expect(dao.id).toBeDefined();
@@ -48,7 +48,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
           slug,
           name: 'Find Test',
           primaryTokenAddress: '0x' + 'b'.repeat(40),
-          primaryChainId: '1',
+          primaryChainId: '0x1',
         });
 
         const found = await repo.findDaoBySlug(slug);
@@ -71,12 +71,13 @@ describeWithDb('DaoAdminRepository (integration)', () => {
           slug: uniqueSlug(),
           name: 'Source Test',
           primaryTokenAddress: '0x' + 'c'.repeat(40),
-          primaryChainId: '1',
+          primaryChainId: '0x1',
         });
 
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '0x1',
           sourceConfig: { governor_address: '0x' + 'd'.repeat(40) },
         });
 
@@ -98,11 +99,12 @@ describeWithDb('DaoAdminRepository (integration)', () => {
           slug: uniqueSlug(),
           name: 'Update Test',
           primaryTokenAddress: '0x' + 'e'.repeat(40),
-          primaryChainId: '1',
+          primaryChainId: '0x1',
         });
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '0x1',
           sourceConfig: { governor_address: '0x' + 'f'.repeat(40) },
         });
 
@@ -129,11 +131,12 @@ describeWithDb('DaoAdminRepository (integration)', () => {
           slug: uniqueSlug(),
           name: 'Find Source',
           primaryTokenAddress: '0x' + 'a'.repeat(40),
-          primaryChainId: '1',
+          primaryChainId: '0x1',
         });
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '0x1',
           sourceConfig: { governor_address: '0x' + 'b'.repeat(40) },
         });
 

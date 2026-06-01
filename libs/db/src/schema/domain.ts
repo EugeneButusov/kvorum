@@ -48,6 +48,7 @@ export interface DaoSourceTable {
   id: Generated<string>;
   dao_id: string;
   source_type: SourceType;
+  chain_id: string;
   source_config: unknown;
   // pg driver returns bigint columns as string to preserve precision
   active_from_block: string | null;

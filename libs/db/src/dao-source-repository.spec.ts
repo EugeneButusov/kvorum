@@ -21,8 +21,8 @@ describe('DaoSourceRepository', () => {
   describe('findBySourceType', () => {
     it('#1 — returns rows matching the source type', async () => {
       const rows = [
-        { id: 'src-1', dao_id: 'dao-1', source_config: {}, primary_chain_id: 1 },
-        { id: 'src-2', dao_id: 'dao-2', source_config: {}, primary_chain_id: 137 },
+        { id: 'src-1', dao_id: 'dao-1', source_config: {}, chain_id: '0x1' },
+        { id: 'src-2', dao_id: 'dao-2', source_config: {}, chain_id: '0x89' },
       ];
       const { selectFrom } = makeSelectChain(rows);
       const repo = new DaoSourceRepository({ selectFrom } as never);
@@ -38,13 +38,13 @@ describe('DaoSourceRepository', () => {
       expect(await repo.findBySourceType('compound_governor_bravo')).toEqual([]);
     });
 
-    it('#3 — queries dao_source with dao inner join', async () => {
+    it('#3 — queries dao_source without joining dao', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
       await repo.findBySourceType('compound_governor_bravo');
 
       expect(selectFrom).toHaveBeenCalledWith('dao_source');
-      expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'dao_source.dao_id');
+      expect(chain.innerJoin).not.toHaveBeenCalled();
     });
 
     it('#4 — selects the expected columns', async () => {
@@ -56,7 +56,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.id',
         'dao_source.dao_id',
         'dao_source.source_config',
-        'dao.primary_chain_id',
+        'dao_source.chain_id',
       ]);
     });
 
@@ -77,14 +77,14 @@ describe('DaoSourceRepository', () => {
           dao_id: 'dao-1',
           source_type: 'compound_governor_bravo',
           source_config: {},
-          primary_chain_id: 1,
+          chain_id: '0x1',
         },
         {
           id: 'src-2',
           dao_id: 'dao-2',
           source_type: 'aave_governor',
           source_config: {},
-          primary_chain_id: 1,
+          chain_id: '0x1',
         },
       ];
       const { selectFrom } = makeSelectChain(rows);
@@ -100,13 +100,13 @@ describe('DaoSourceRepository', () => {
       expect(await repo.findAll()).toEqual([]);
     });
 
-    it('#3 — queries dao_source with dao inner join', async () => {
+    it('#3 — queries dao_source without joining dao', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
       await repo.findAll();
 
       expect(selectFrom).toHaveBeenCalledWith('dao_source');
-      expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'dao_source.dao_id');
+      expect(chain.innerJoin).not.toHaveBeenCalled();
     });
 
     it('#4 — selects expected columns including source_type', async () => {
@@ -119,7 +119,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.dao_id',
         'dao_source.source_type',
         'dao_source.source_config',
-        'dao.primary_chain_id',
+        'dao_source.chain_id',
       ]);
     });
 
@@ -217,7 +217,7 @@ describe('DaoSourceRepository', () => {
         active_from_block: null,
         backfill_started_at_block: '19000000',
         backfill_head_block: '19500000',
-        primary_chain_id: '0x1',
+        chain_id: '0x1',
       };
       const { selectFrom } = makeSelectTakeFirst(row);
       const repo = new DaoSourceRepository({ selectFrom } as never);

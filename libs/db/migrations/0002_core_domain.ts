@@ -46,6 +46,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('source_type', 'text', (col) =>
       col.notNull().references('source_type.value').onDelete('restrict'),
     )
+    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull().defaultTo('0x1'))
     .addColumn('source_config', 'jsonb', (col) => col.notNull())
     .addColumn('active_from_block', 'bigint')
     .addColumn('active_to_block', 'bigint')

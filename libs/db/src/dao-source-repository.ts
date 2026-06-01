@@ -13,12 +13,11 @@ export class DaoSourceRepository {
   async findBySourceType(sourceType: string) {
     return this.db
       .selectFrom('dao_source')
-      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
       .select([
         'dao_source.id',
         'dao_source.dao_id',
         'dao_source.source_config',
-        'dao.primary_chain_id',
+        'dao_source.chain_id',
       ])
       .where('dao_source.source_type', '=', sourceType)
       .execute();
@@ -41,13 +40,12 @@ export class DaoSourceRepository {
   async findAll() {
     return this.db
       .selectFrom('dao_source')
-      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
       .select([
         'dao_source.id',
         'dao_source.dao_id',
         'dao_source.source_type',
         'dao_source.source_config',
-        'dao.primary_chain_id',
+        'dao_source.chain_id',
       ])
       .orderBy('dao_source.id', 'asc')
       .execute();
@@ -66,7 +64,6 @@ export class DaoSourceRepository {
   private findWithChainWhere(column: 'dao_source.id' | 'dao_source.source_type', value: string) {
     return this.db
       .selectFrom('dao_source')
-      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
       .select([
         'dao_source.id',
         'dao_source.dao_id',
@@ -75,7 +72,7 @@ export class DaoSourceRepository {
         'dao_source.active_from_block',
         'dao_source.backfill_started_at_block',
         'dao_source.backfill_head_block',
-        'dao.primary_chain_id',
+        'dao_source.chain_id',
       ])
       .where(column, '=', value)
       .executeTakeFirst();

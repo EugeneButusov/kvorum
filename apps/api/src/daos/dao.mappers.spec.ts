@@ -6,12 +6,12 @@ describe('dao.mappers', () => {
     expect(
       curateSourceConfig({
         contract_address: '0xABCD',
-        chain_id: 1,
+        chain_id: '0x1',
         extra: 'ignored',
       }),
     ).toEqual({
       contract_address: '0xabcd',
-      chain_id: '1',
+      chain_id: '0x1',
     });
   });
 
@@ -20,6 +20,18 @@ describe('dao.mappers', () => {
     expect(curateSourceConfig(['x'])).toEqual({});
     expect(curateSourceConfig('x')).toEqual({});
     expect(curateSourceConfig({})).toEqual({});
+  });
+
+  it('curateSourceConfig stringifies numeric chain_id', () => {
+    expect(
+      curateSourceConfig({
+        contract_address: '0xABCD',
+        chain_id: 1,
+      }),
+    ).toEqual({
+      contract_address: '0xabcd',
+      chain_id: '1',
+    });
   });
 
   it('toDaoSourceDto preserves source_type and curated fields', () => {

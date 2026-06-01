@@ -7,9 +7,7 @@ import { SeenLogPruneService } from './seen-log-prune.service';
 const { seenLog, daoSourceRepo } = vi.hoisted(() => ({
   seenLog: { pruneBelow: vi.fn<[string, bigint], Promise<number>>().mockResolvedValue(0) },
   daoSourceRepo: {
-    findAll: vi
-      .fn<[], Promise<{ primary_chain_id: string }[]>>()
-      .mockResolvedValue([{ primary_chain_id: '0x1' }]),
+    findAll: vi.fn<[], Promise<{ chain_id: string }[]>>().mockResolvedValue([{ chain_id: '0x1' }]),
   },
 }));
 
@@ -55,7 +53,7 @@ describe('SeenLogPruneService', () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG] as never);
     vi.mocked(readConfirmedHead).mockResolvedValue(1000n);
     seenLog.pruneBelow.mockResolvedValue(0);
-    daoSourceRepo.findAll.mockResolvedValue([{ primary_chain_id: '0x1' }]);
+    daoSourceRepo.findAll.mockResolvedValue([{ chain_id: '0x1' }]);
     delete process.env['SEEN_LOG_PRUNE_MARGIN_BLOCKS'];
     delete process.env['SEEN_LOG_PRUNE_EVERY_N_TICKS'];
     delete process.env['EVENT_POLL_INTERVAL_MS'];
@@ -91,10 +89,7 @@ describe('SeenLogPruneService', () => {
     });
 
     it('deduplicates chains — two sources on the same chain only prune once', async () => {
-      daoSourceRepo.findAll.mockResolvedValue([
-        { primary_chain_id: '0x1' },
-        { primary_chain_id: '0x1' },
-      ]);
+      daoSourceRepo.findAll.mockResolvedValue([{ chain_id: '0x1' }, { chain_id: '0x1' }]);
 
       await prune(makeSvc());
 
@@ -102,7 +97,7 @@ describe('SeenLogPruneService', () => {
     });
 
     it('skips sources whose chain is not in CHAIN_CONFIG', async () => {
-      daoSourceRepo.findAll.mockResolvedValue([{ primary_chain_id: '0x89' }]);
+      daoSourceRepo.findAll.mockResolvedValue([{ chain_id: '0x89' }]);
 
       await prune(makeSvc());
 
@@ -114,10 +109,7 @@ describe('SeenLogPruneService', () => {
         { ...CHAIN_CFG, chainId: '0x1' },
         { ...CHAIN_CFG, chainId: '0x89' },
       ] as never);
-      daoSourceRepo.findAll.mockResolvedValue([
-        { primary_chain_id: '0x1' },
-        { primary_chain_id: '0x89' },
-      ]);
+      daoSourceRepo.findAll.mockResolvedValue([{ chain_id: '0x1' }, { chain_id: '0x89' }]);
       const registry = {
         getOrCreate: vi
           .fn()

@@ -13,7 +13,7 @@ function makeRow(overrides: Partial<DaoSourceRow> = {}): DaoSourceRow {
     dao_id: 'dao-1',
     source_type: 'compound_governor_bravo',
     source_config: { address: '0xc0da02939e1441f497fd74f78ce7decb17b66529' },
-    primary_chain_id: '1',
+    chain_id: '0x1',
     ...overrides,
   };
 }
@@ -28,7 +28,7 @@ function makeIngester(
 ): SourceIngester {
   return {
     sourceType: 'compound_governor_bravo',
-    supportedChainIds: ['1'],
+    supportedChainIds: ['0x1'],
     parseConfig: vi.fn().mockReturnValue({}),
     buildIngestSpec: vi.fn().mockReturnValue({
       kind: 'evm-event-poller',
@@ -54,12 +54,12 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([makeIngester()], [makeRow()]);
       await resolver.rebuild();
 
-      const result = resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529');
+      const result = resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529');
       expect(result).toMatchObject({
         daoSourceId: 'src-1',
         sourceType: 'compound_governor_bravo',
         sourceLabel: 'compound_governor_bravo',
-        chainId: '1',
+        chainId: '0x1',
       });
     });
 
@@ -75,8 +75,8 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([ingester], [makeRow()]);
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', addrA)).toBeDefined();
-      expect(resolver.resolve('1', addrB)).toBeDefined();
+      expect(resolver.resolve('0x1', addrA)).toBeDefined();
+      expect(resolver.resolve('0x1', addrB)).toBeDefined();
     });
 
     it('normalises addresses to lowercase so any casing resolves', async () => {
@@ -91,9 +91,9 @@ describe('SourceResolver', () => {
       await resolver.rebuild();
 
       // stored as lowercase — all three call-site casings hit the same entry
-      expect(resolver.resolve('1', checksummed.toLowerCase())).toBeDefined();
-      expect(resolver.resolve('1', checksummed.toUpperCase())).toBeDefined();
-      expect(resolver.resolve('1', checksummed)).toBeDefined();
+      expect(resolver.resolve('0x1', checksummed.toLowerCase())).toBeDefined();
+      expect(resolver.resolve('0x1', checksummed.toUpperCase())).toBeDefined();
+      expect(resolver.resolve('0x1', checksummed)).toBeDefined();
     });
 
     it('skips sources whose source_type has no registered ingester', async () => {
@@ -103,17 +103,17 @@ describe('SourceResolver', () => {
       );
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
     });
 
     it('skips sources whose chainId is not in ingester.supportedChainIds', async () => {
       const resolver = makeResolver(
-        [makeIngester({ supportedChainIds: ['137'] })],
-        [makeRow({ primary_chain_id: '1' })],
+        [makeIngester({ supportedChainIds: ['0x89'] })],
+        [makeRow({ chain_id: '0x1' })],
       );
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
     });
 
     it('skips sources where parseConfig throws', async () => {
@@ -125,7 +125,7 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([ingester], [makeRow()]);
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
     });
 
     it('skips sources whose buildIngestSpec returns a non-evm-event-poller kind', async () => {
@@ -135,7 +135,7 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([ingester], [makeRow()]);
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
     });
 
     it('atomically replaces the map on a second rebuild', async () => {
@@ -161,7 +161,7 @@ describe('SourceResolver', () => {
 
       const ingester = {
         sourceType: 'compound_governor_bravo',
-        supportedChainIds: ['1'],
+        supportedChainIds: ['0x1'],
         parseConfig: vi.fn().mockReturnValue({}),
         buildIngestSpec: vi
           .fn()
@@ -172,11 +172,11 @@ describe('SourceResolver', () => {
       const resolver = new SourceResolver([ingester], daoSourceRepo);
 
       await resolver.rebuild();
-      expect(resolver.resolve('1', addrOld)).toBeDefined();
+      expect(resolver.resolve('0x1', addrOld)).toBeDefined();
 
       await resolver.rebuild();
-      expect(resolver.resolve('1', addrOld)).toBeUndefined();
-      expect(resolver.resolve('1', addrNew)).toBeDefined();
+      expect(resolver.resolve('0x1', addrOld)).toBeUndefined();
+      expect(resolver.resolve('0x1', addrNew)).toBeDefined();
     });
 
     it('populates entries from multiple valid sources', async () => {
@@ -196,15 +196,15 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([ingester], rows);
       await resolver.rebuild();
 
-      expect(resolver.resolve('1', '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')).toBeDefined();
-      expect(resolver.resolve('1', '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')).toBeDefined();
+      expect(resolver.resolve('0x1', '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')).toBeDefined();
+      expect(resolver.resolve('0x1', '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')).toBeDefined();
     });
   });
 
   describe('resolve()', () => {
     it('returns undefined before any rebuild', () => {
       const resolver = makeResolver([makeIngester()], [makeRow()]);
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeUndefined();
     });
 
     it('is case-insensitive on the address parameter', async () => {
@@ -212,7 +212,7 @@ describe('SourceResolver', () => {
       await resolver.rebuild();
 
       const upper = '0xC0DA02939E1441F497FD74F78CE7DECB17B66529';
-      expect(resolver.resolve('1', upper)).toBeDefined();
+      expect(resolver.resolve('0x1', upper)).toBeDefined();
     });
   });
 
@@ -221,7 +221,7 @@ describe('SourceResolver', () => {
       const resolver = makeResolver([makeIngester()], [makeRow()]);
       await resolver.onApplicationBootstrap();
 
-      expect(resolver.resolve('1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeDefined();
+      expect(resolver.resolve('0x1', '0xc0da02939e1441f497fd74f78ce7decb17b66529')).toBeDefined();
     });
   });
 });

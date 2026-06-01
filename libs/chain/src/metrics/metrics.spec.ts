@@ -87,7 +87,7 @@ describe('chainMetrics gauges', () => {
   });
 
   it('underivedDepth gauge emits series', async () => {
-    chainMetrics.underivedDepth.record(42, { chain_id: '1', source_type: 'compound_governor' });
+    chainMetrics.underivedDepth.record(42, { chain_id: '0x1', source_type: 'compound_governor' });
     const text = await renderMetrics();
     expect(text).toContain('test_ingestion_underived_depth');
   });

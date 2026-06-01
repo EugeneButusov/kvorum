@@ -90,6 +90,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .values({
             dao_id: dao!.id,
             source_type: 'compound_governor_bravo',
+            chain_id: '0x1',
             source_config: { governor_address: '0x' + 'b'.repeat(40) },
           })
           .returning(['id'])
@@ -153,7 +154,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .values({
             source_type: 'compound_governor_bravo',
             dao_source_id: daoSource!.id,
-            chain_id: 1,
+            chain_id: '0x1',
             block_number: '12345678',
             block_hash: '0x' + 'e'.repeat(64),
             tx_hash: '0x' + 'f'.repeat(64),
@@ -392,6 +393,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .values({
             dao_id: dao!.id,
             source_type: 'compound_governor_bravo',
+            chain_id: '0x1',
             source_config: { governor_address: `0x${'f'.repeat(40)}` },
           })
           .returning(['id'])
@@ -402,7 +404,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .values({
             source_type: 'compound_governor_bravo',
             dao_source_id: daoSource!.id,
-            chain_id: '1',
+            chain_id: '0x1',
             block_number: '100',
             block_hash: `0x${'1'.repeat(64)}`,
             tx_hash: `0x${'2'.repeat(64)}`,

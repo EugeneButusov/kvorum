@@ -12,7 +12,7 @@ import {
 
 type DaoCommon = { format?: string };
 type DaoAddOpts = DaoCommon & { name: string; token: string; chain: string };
-type DaoSourceAddOpts = DaoCommon & { type: string; config: string };
+type DaoSourceAddOpts = DaoCommon & { type: string; chain: string; config: string };
 type DaoSourceUpdateOpts = DaoCommon & { config: string };
 
 export function registerDao(program: Command): void {
@@ -51,6 +51,7 @@ export function registerDao(program: Command): void {
     .command('add <dao_slug>')
     .description('Add a data source to a DAO')
     .requiredOption('--type <type>', 'source type')
+    .requiredOption('--chain <id>', 'chain ID')
     .requiredOption('--config <json>', 'source configuration JSON')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(daoSlug: string, opts: DaoSourceAddOpts) {
@@ -64,15 +65,18 @@ export function registerDao(program: Command): void {
 
           const config = parseJson(opts.config, '--config');
           await validateSourceConfig(opts.type, config);
+          const { normalizeChainId } = await import('@libs/chain');
           const row = await daoAdminRepository.addSource({
             daoId: dao.id,
             sourceType: opts.type,
+            chainId: normalizeChainId(opts.chain),
             sourceConfig: config,
           });
           emit(format, () => `DAO source created: ${row.id}`, {
             id: row.id,
             dao_id: row.dao_id,
             source_type: row.source_type,
+            chain_id: row.chain_id,
           });
         });
       });

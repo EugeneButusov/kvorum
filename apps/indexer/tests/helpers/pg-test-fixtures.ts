@@ -41,6 +41,7 @@ export async function insertTestDaoSource(
     .values({
       dao_id: opts.daoId,
       source_type: opts.sourceType,
+      chain_id: opts.chainId,
       source_config: { governor_address: opts.contractAddress },
       active_from_block: null,
       active_to_block: null,

@@ -82,6 +82,7 @@ describeIf('compound vote derivation integration', () => {
       .values({
         dao_id: daoId,
         source_type: SOURCE_TYPE,
+        chain_id: CHAIN_ID,
         source_config: { governor_address: '0x' + '11'.repeat(20) },
         active_from_block: null,
         active_to_block: null,

@@ -81,13 +81,13 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
           `No plugin registered for source_type="${src.source_type}" (dao_source ${src.id})`,
         );
       }
-      if (!plugin.supportedChainIds.includes(src.primary_chain_id)) {
+      if (!plugin.supportedChainIds.includes(src.chain_id)) {
         continue;
       }
-      const chainCfg = chainsByChainId.get(src.primary_chain_id);
+      const chainCfg = chainsByChainId.get(src.chain_id);
       if (!chainCfg) {
         throw new Error(
-          `No chain config for chain_id="${src.primary_chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
+          `No chain config for chain_id="${src.chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
         );
       }
       const config = plugin.parseConfig(src.source_config);
@@ -100,7 +100,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
         const ctx = {
           daoSourceId: entry.src.id,
           sourceType: entry.sourceType,
-          chainId: entry.src.primary_chain_id,
+          chainId: entry.src.chain_id,
           sourceLabel: entry.sourceType,
         };
         const spec = entry.plugin.buildIngestSpec(ctx, entry.config);

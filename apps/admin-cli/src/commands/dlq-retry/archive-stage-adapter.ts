@@ -111,7 +111,7 @@ async function resolveDaoSource(
   const { DaoSourceRepository } = await import('@libs/db');
   const repo = new DaoSourceRepository(pgDb);
   const rows = await repo.findBySourceType(sourceType);
-  const matching = rows.filter((row) => row.primary_chain_id === chainId);
+  const matching = rows.filter((row) => row.chain_id === chainId);
   if (matching.length !== 1 || matching[0] == null) {
     return null;
   }

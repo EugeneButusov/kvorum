@@ -74,7 +74,7 @@ describe('DaoController', () => {
     const sources = [
       {
         source_type: 'compound_governor_bravo',
-        source_config: { contract_address: '0xc0', chain_id: 1 },
+        source_config: { contract_address: '0xc0', chain_id: '0x1' },
       },
     ];
     const repo = {
