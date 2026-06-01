@@ -56,7 +56,7 @@ function makeDaoSourceRow(
     active_from_block: null,
     backfill_started_at_block: null,
     backfill_head_block: null,
-    primary_chain_id: CHAIN_ID,
+    chain_id: CHAIN_ID,
     ...overrides,
   };
 }
@@ -306,7 +306,7 @@ describe('BackfillDriver', () => {
             active_from_block: '100',
             backfill_started_at_block: '20000000',
             backfill_head_block: null,
-            primary_chain_id: CHAIN_ID,
+            chain_id: CHAIN_ID,
           }),
         }),
       );

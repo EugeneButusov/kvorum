@@ -38,7 +38,7 @@ export class SourceResolver implements OnApplicationBootstrap {
     for (const src of sources) {
       const ingester = ingestersByType.get(src.source_type);
       if (!ingester) continue;
-      if (!ingester.supportedChainIds.includes(src.primary_chain_id)) continue;
+      if (!ingester.supportedChainIds.includes(src.chain_id)) continue;
 
       let cfg: unknown;
       try {
@@ -50,7 +50,7 @@ export class SourceResolver implements OnApplicationBootstrap {
       const ctx: SourceContext = {
         daoSourceId: src.id,
         sourceType: src.source_type as SourceType,
-        chainId: src.primary_chain_id,
+        chainId: src.chain_id,
         sourceLabel: src.source_type as SourceType,
       };
 
@@ -65,11 +65,11 @@ export class SourceResolver implements OnApplicationBootstrap {
         sourceType: src.source_type,
         daoSourceId: src.id,
         sourceLabel: src.source_type,
-        chainId: src.primary_chain_id,
+        chainId: src.chain_id,
       };
 
       for (const addr of addresses) {
-        newMap.set(`${src.primary_chain_id}:${addr.toLowerCase()}`, resolved);
+        newMap.set(`${src.chain_id}:${addr.toLowerCase()}`, resolved);
       }
     }
 

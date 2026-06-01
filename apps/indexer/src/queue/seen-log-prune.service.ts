@@ -41,8 +41,8 @@ export class SeenLogPruneService implements OnApplicationBootstrap, OnApplicatio
       const processedChainIds = new Set<string>();
 
       for (const src of sources) {
-        if (processedChainIds.has(src.primary_chain_id)) continue;
-        const chainCfg = chains.find((c) => c.chainId === src.primary_chain_id);
+        if (processedChainIds.has(src.chain_id)) continue;
+        const chainCfg = chains.find((c) => c.chainId === src.chain_id);
         if (!chainCfg) continue;
 
         try {
@@ -62,10 +62,10 @@ export class SeenLogPruneService implements OnApplicationBootstrap, OnApplicatio
               deleted,
             });
           }
-          processedChainIds.add(src.primary_chain_id);
+          processedChainIds.add(src.chain_id);
         } catch (err) {
           this.logger.warn('seen_log_prune_chain_failed', {
-            chainId: src.primary_chain_id,
+            chainId: src.chain_id,
             error: String(err),
           });
         }

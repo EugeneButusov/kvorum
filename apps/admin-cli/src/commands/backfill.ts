@@ -56,7 +56,7 @@ export function registerBackfill(program: Command): void {
         const toBlock = parseOptionalBlock(opts.toBlock, '--to-block');
 
         const chainConfigs = parseChainConfigFromEnv(process.env);
-        const targetChainId = normalizeChainId(row.primary_chain_id);
+        const targetChainId = normalizeChainId(row.chain_id);
         const chainConfig = chainConfigs.find(
           (chain) => normalizeChainId(chain.chainId) === targetChainId,
         );
@@ -216,7 +216,7 @@ export function registerBackfill(program: Command): void {
         }
 
         const chainConfigs = parseChainConfigFromEnv(process.env);
-        const targetChainId = normalizeChainId(row.primary_chain_id);
+        const targetChainId = normalizeChainId(row.chain_id);
         const chainConfig = chainConfigs.find(
           (chain) => normalizeChainId(chain.chainId) === targetChainId,
         );

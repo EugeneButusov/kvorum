@@ -13,7 +13,7 @@ function makeRow(overrides: Partial<DaoSourceRow> = {}): DaoSourceRow {
     dao_id: 'dao-1',
     source_type: 'compound_governor_bravo',
     source_config: { address: '0xc0da02939e1441f497fd74f78ce7decb17b66529' },
-    primary_chain_id: '1',
+    chain_id: '1',
     ...overrides,
   };
 }
@@ -109,7 +109,7 @@ describe('SourceResolver', () => {
     it('skips sources whose chainId is not in ingester.supportedChainIds', async () => {
       const resolver = makeResolver(
         [makeIngester({ supportedChainIds: ['137'] })],
-        [makeRow({ primary_chain_id: '1' })],
+        [makeRow({ chain_id: '1' })],
       );
       await resolver.rebuild();
 

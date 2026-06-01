@@ -68,7 +68,7 @@ function makeSource(id: string, sourceType: string, primaryChainId: string, sour
     dao_id: 'dao-1',
     source_type: sourceType,
     source_config: sourceConfig,
-    primary_chain_id: primaryChainId,
+    chain_id: primaryChainId,
   };
 }
 
