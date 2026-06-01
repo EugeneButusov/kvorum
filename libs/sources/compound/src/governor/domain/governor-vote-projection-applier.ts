@@ -336,7 +336,6 @@ function buildVoteRows(args: {
       dao_id: args.daoId,
       proposal_id: args.proposalId,
       voter_address: args.voterAddress,
-      // D7 invariant: prior vote for this voter/proposal was cast on the same voting chain.
       voting_chain_id: args.row.chain_id,
       primary_choice: args.current.primaryChoice,
       voting_power: args.current.votingPower,
