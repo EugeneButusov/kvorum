@@ -115,7 +115,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "slug": "compound",
     "sources": [
       {
-        "chain_id": "1",
+        "chain_id": "0x1",
         "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
         "source_type": "compound_governor_bravo",
       },
@@ -214,7 +214,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 {
   "data": [
     {
-      "chain_id": "1",
+      "chain_id": "0x1",
       "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
       "source_type": "compound_governor_bravo",
     },
@@ -257,9 +257,9 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 {
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
   "cross-dao-proposals": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
-  "dao-detail": ""37VW5TmJ5WLDrG5Qn8qZuRIRGag"",
+  "dao-detail": ""HCHYuBht_32YTgbVOo6C8WJDeYU"",
   "dao-proposals-list": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
-  "dao-sources": ""bdCiJ2RaPd7Ug_k7D9A5X1M87CU"",
+  "dao-sources": ""rNVI-PNdt4l2GmoeJ5mzlE7Ua_c"",
   "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
   "proposal-detail": ""sWtY4YTOkDuEi4Hya5M_eCy0rHg"",
 }
