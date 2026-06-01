@@ -201,6 +201,54 @@ describe('DerivationWorkerService', () => {
     expect(applier.applyBatch).toHaveBeenCalledWith([ROW, row2]);
   });
 
+  it('splits a multi-chain batch into one applyBatch call per chain', async () => {
+    const rowA = { ...ROW, id: 'archive-a', chain_id: '0x1' };
+    const rowB = { ...ROW, id: 'archive-b', chain_id: '0x89' };
+    const actorResolution = { findDerivableBy: vi.fn().mockResolvedValue([rowA, rowB]) };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['test_event_created'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    expect(applier.applyBatch).toHaveBeenCalledTimes(2);
+    expect(applier.applyBatch).toHaveBeenCalledWith([rowA]);
+    expect(applier.applyBatch).toHaveBeenCalledWith([rowB]);
+  });
+
+  it('splits rows with same source and chain but different event_type', async () => {
+    const rowA = { ...ROW, id: 'archive-a', event_type: 'test_event_created' };
+    const rowB = { ...ROW, id: 'archive-b', event_type: 'test_event_closed' };
+    const actorResolution = { findDerivableBy: vi.fn().mockResolvedValue([rowA, rowB]) };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['test_event_created', 'test_event_closed'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    expect(applier.applyBatch).toHaveBeenCalledTimes(2);
+    expect(applier.applyBatch).toHaveBeenCalledWith([rowA]);
+    expect(applier.applyBatch).toHaveBeenCalledWith([rowB]);
+  });
+
   it('dispatches rows without cutoff gating', async () => {
     const highRow = { ...ROW, block_number: '300' };
     const archive = { incrementAttemptCount: vi.fn() };

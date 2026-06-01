@@ -97,12 +97,6 @@ export class GovernorVoteProjectionApplier {
       Number(process.env['VOTE_DERIVATION_BATCH_SIZE'] ?? DEFAULT_BATCH_SIZE),
     );
     const chainId = cappedRows[0]!.chain_id;
-    for (const row of cappedRows) {
-      if (row.chain_id !== chainId) {
-        throw new Error(`vote applier received mixed-chain batch: ${chainId} vs ${row.chain_id}`);
-      }
-    }
-
     const chainCtx = this.registry.peek(chainId);
     if (chainCtx === undefined) {
       for (const row of cappedRows) {
