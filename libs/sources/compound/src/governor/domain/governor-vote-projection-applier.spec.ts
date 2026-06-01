@@ -123,6 +123,17 @@ describe('GovernorVoteProjectionApplier', () => {
     expect(applier.eventTypes).toEqual(['VoteCast']);
   });
 
+  it('returns early on empty batches', async () => {
+    const { applier, archive, payloads, voteWrite } = buildApplier();
+
+    await applier.applyBatch([]);
+
+    expect(payloads.fetchPayloads).not.toHaveBeenCalled();
+    expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    expect(archive.markDerived).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
+
   it('marks row failed when chain context is missing', async () => {
     const { applier, archive, metrics } = buildApplier();
     mutable(applier).registry = { peek: vi.fn().mockReturnValue(undefined) };
