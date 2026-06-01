@@ -84,7 +84,7 @@ describeWithDb('compound_002_seed migration', () => {
 
         const rows = await tx
           .selectFrom('dao_source')
-          .select(['active_from_block'])
+          .select(['active_from_block', 'chain_id'])
           .where('source_type', '=', 'compound_governor_bravo')
           .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
           .where('dao.slug', '=', 'compound')
@@ -92,6 +92,7 @@ describeWithDb('compound_002_seed migration', () => {
 
         expect(rows).toHaveLength(1);
         expect(rows[0]!.active_from_block).toBe(String(GOVERNOR_BRAVO_DEPLOY_BLOCK));
+        expect(rows[0]!.chain_id).toBe('0x1');
 
         throw new RollbackSignal();
       }),
@@ -200,13 +201,18 @@ describeWithDb('compound_003_comp_token migration', () => {
         const rows = await tx
           .selectFrom('dao_source')
           .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
-          .select(['dao_source.active_from_block', 'dao_source.source_config'])
+          .select([
+            'dao_source.active_from_block',
+            'dao_source.source_config',
+            'dao_source.chain_id',
+          ])
           .where('dao.slug', '=', 'compound')
           .where('dao_source.source_type', '=', 'compound_comp_token')
           .execute();
 
         expect(rows).toHaveLength(1);
         expect(rows[0]!.active_from_block).toBe(String(COMP_TOKEN_DEPLOY_BLOCK));
+        expect(rows[0]!.chain_id).toBe('0x1');
         expect(rows[0]!.source_config).toEqual({
           token_address: COMP_TOKEN_ADDRESS,
         });

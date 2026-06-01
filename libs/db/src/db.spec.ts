@@ -90,6 +90,7 @@ describeWithDb('ingestion domain smoke test', () => {
           .values({
             dao_id: dao!.id,
             source_type: 'compound_governor_bravo',
+            chain_id: '1',
             source_config: { governor_address: '0x' + 'b'.repeat(40) },
           })
           .returning(['id'])
@@ -392,6 +393,7 @@ describeWithDb('J1 vote/delegation/address schema', () => {
           .values({
             dao_id: dao!.id,
             source_type: 'compound_governor_bravo',
+            chain_id: '1',
             source_config: { governor_address: `0x${'f'.repeat(40)}` },
           })
           .returning(['id'])

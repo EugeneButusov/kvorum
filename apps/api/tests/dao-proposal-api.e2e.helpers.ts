@@ -116,6 +116,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
       {
         dao_id: dao.id,
         source_type: 'compound_governor_bravo',
+        chain_id: '1',
         source_config: { contract_address: '0x1234', chain_id: '1', ignored: true },
         active_from_block: null,
         active_to_block: null,
@@ -125,6 +126,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
       {
         dao_id: dao.id,
         source_type: 'alt_governor',
+        chain_id: '0xa',
         source_config: { contract_address: '0x5678', chain_id: 10 },
         active_from_block: null,
         active_to_block: null,

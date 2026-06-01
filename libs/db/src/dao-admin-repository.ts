@@ -12,6 +12,7 @@ export interface CreateDaoInput {
 export interface AddDaoSourceInput {
   daoId: string;
   sourceType: SourceType;
+  chainId: string;
   sourceConfig: unknown;
 }
 
@@ -49,6 +50,7 @@ export class DaoAdminRepository {
       .values({
         dao_id: input.daoId,
         source_type: input.sourceType,
+        chain_id: input.chainId,
         source_config: input.sourceConfig,
       })
       .returningAll()

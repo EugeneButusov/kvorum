@@ -118,6 +118,7 @@ describe('DaoAdminRepository', () => {
       const result = await repo.addSource({
         daoId: 'dao-1',
         sourceType: 'compound_governor_bravo',
+        chainId: '0x1',
         sourceConfig: { governor_address: '0x' + 'b'.repeat(40) },
       });
       expect(result).toEqual(expected);
@@ -130,12 +131,14 @@ describe('DaoAdminRepository', () => {
       await repo.addSource({
         daoId: 'd1',
         sourceType: 'compound_governor_bravo',
+        chainId: '0x89',
         sourceConfig: { a: 1 },
       });
       expect(values).toHaveBeenCalledWith(
         expect.objectContaining({
           dao_id: 'd1',
           source_type: 'compound_governor_bravo',
+          chain_id: '0x89',
           source_config: { a: 1 },
         }),
       );

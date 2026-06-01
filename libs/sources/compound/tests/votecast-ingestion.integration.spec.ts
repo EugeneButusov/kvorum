@@ -86,6 +86,7 @@ describeIf('VoteCast ingestion integration', () => {
         .values({
           dao_id: dao.id,
           source_type: cfg.source_type,
+          chain_id: CHAIN_ID,
           source_config: { governor_address: cfg.governor_address },
           active_from_block: null,
           active_to_block: null,

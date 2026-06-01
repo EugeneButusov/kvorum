@@ -77,6 +77,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '1',
           sourceConfig: { governor_address: '0x' + 'd'.repeat(40) },
         });
 
@@ -103,6 +104,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '1',
           sourceConfig: { governor_address: '0x' + 'f'.repeat(40) },
         });
 
@@ -134,6 +136,7 @@ describeWithDb('DaoAdminRepository (integration)', () => {
         const source = await repo.addSource({
           daoId: dao.id,
           sourceType: 'compound_governor_bravo',
+          chainId: '1',
           sourceConfig: { governor_address: '0x' + 'b'.repeat(40) },
         });
 
