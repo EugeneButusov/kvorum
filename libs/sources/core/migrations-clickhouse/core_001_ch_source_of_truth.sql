@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS vote_events_raw
     superseded UInt8 DEFAULT 0,
     superseded_at Nullable(DateTime64(3)),
     superseded_by_vote_id Nullable(UUID),
+    voting_chain_id LowCardinality(String) DEFAULT '0x1',
     version DateTime64(6) DEFAULT now64(6),
     INDEX bf_voter_address voter_address TYPE bloom_filter(0.01) GRANULARITY 4
 )
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS vote_events_agg
     block_number UInt64,
     log_index UInt32,
     cast_at DateTime64(3),
+    voting_chain_id LowCardinality(String),
     primary_choice_state AggregateFunction(argMax, Int8, DateTime64(6)),
     voting_power_state AggregateFunction(argMax, UInt256, DateTime64(6)),
     superseded_state AggregateFunction(argMax, UInt8, DateTime64(6)),
@@ -51,13 +53,14 @@ SELECT
     block_number,
     log_index,
     cast_at,
+    voting_chain_id,
     argMaxState(primary_choice, version)         AS primary_choice_state,
     argMaxState(voting_power, version)           AS voting_power_state,
     argMaxState(superseded, version)             AS superseded_state,
     argMaxState(superseded_at, version)          AS superseded_at_state,
     argMaxState(superseded_by_vote_id, version)  AS superseded_by_vote_id_state
 FROM vote_events_raw
-GROUP BY vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at;
+GROUP BY vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at, voting_chain_id;
 
 CREATE VIEW IF NOT EXISTS vote_events_projection AS
 SELECT
@@ -68,13 +71,14 @@ SELECT
     block_number,
     log_index,
     cast_at,
+    voting_chain_id,
     argMaxMerge(primary_choice_state)           AS primary_choice,
     argMaxMerge(voting_power_state)             AS voting_power,
     argMaxMerge(superseded_state)               AS superseded,
     argMaxMerge(superseded_at_state)            AS superseded_at,
     argMaxMerge(superseded_by_vote_id_state)    AS superseded_by_vote_id
 FROM vote_events_agg
-GROUP BY vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at;
+GROUP BY vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at, voting_chain_id;
 
 -- ============================================================
 -- delegation_flow

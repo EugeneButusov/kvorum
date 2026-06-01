@@ -29,6 +29,7 @@ describe('VoteEventsProjectionWriter', () => {
         dao_id: 'dao-1',
         proposal_id: 'p-1',
         voter_address: '0xabc',
+        voting_chain_id: '0x1',
         primary_choice: 1,
         voting_power: '10',
         cast_at: new Date('2026-01-01T00:00:00.000Z'),

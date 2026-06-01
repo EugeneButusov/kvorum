@@ -339,7 +339,7 @@ The v1 extension tables are:
 
 - **`aave_proposal_metadata`**: `proposal_id`, `voting_chain_id` (where votes were cast), `voting_machine_address`, `voting_strategy_address`, `creation_block`. Captures Aave v3's voting-machine architecture.
 
-- **`aave_proposal_payload`**: One row per cross-chain payload. `id`, `proposal_id`, `payload_index`, `target_chain_id`, `payloads_controller_address`, `payload_id_on_chain`, `executed_at_destination`, `bridge_message_id` (nullable). Tracks the cross-chain execution graph.
+- **`aave_proposal_payload`**: One row per cross-chain payload. `id`, `proposal_id`, `payload_index`, `target_chain_id`, `payloads_controller_address`, `payload_id`, `executed_at_destination`, `bridge_message_id` (nullable). Tracks the cross-chain execution graph.
 
 - **`aragon_proposal_metadata`**: `proposal_id`, `app_address` (the Aragon Voting app instance), `voting_app_version`, `support_required_pct`, `min_accept_quorum_pct`, `executed_at`. Aragon's quorum and acceptance parameters.
 

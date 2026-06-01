@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-05-28
 - Supersedes: none
-- Amends: 0021, 0033, 0038, 0041, 0053, 0056, 0058, 0059, 0061
+- Amends: 0021, 0033, 0038, 0041, 0053, 0056, 0058, 0059, 0061, 0067
 - Related: ADR-0058 (confirmed-head ingestion — the premise), epic #216 (CH as source of truth), PRs #220 + #221 (shipped implementation)
 
 ## Context

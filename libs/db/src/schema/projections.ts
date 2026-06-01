@@ -21,6 +21,7 @@ export interface VoteEventsProjectionTable {
   dao_id: string;
   proposal_id: string;
   voter_address: string;
+  voting_chain_id: string;
   primary_choice: number;
   voting_power: string;
   cast_at: Date;

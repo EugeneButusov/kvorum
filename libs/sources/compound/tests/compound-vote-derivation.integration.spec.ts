@@ -269,6 +269,7 @@ describeIf('compound vote derivation integration', () => {
     expect(votes).toHaveLength(1);
     expect(votes[0]!.proposal_id).toBe(proposal.id);
     expect(votes[0]!.voter_address).toBe('0x' + 'ab'.repeat(20));
+    expect(votes[0]!.voting_chain_id).toBe(CHAIN_ID);
     expect(votes[0]!.voting_power).toBe('123');
     expect(votes[0]!.primary_choice).toBe(1);
     expect(votes[0]!.cast_at.getTime()).toBe(anvilBlockTimestamp.getTime());

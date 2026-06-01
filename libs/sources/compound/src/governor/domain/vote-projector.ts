@@ -27,6 +27,7 @@ export function projectVoteCast(
       dao_id: ctx.daoId,
       proposal_id: ctx.proposalId,
       voter_address: ctx.voterAddress.toLowerCase(),
+      voting_chain_id: archiveRow.chain_id,
       voting_power: payload.votingPowerReported,
       cast_at: ctx.castAt,
       block_number: archiveRow.block_number,

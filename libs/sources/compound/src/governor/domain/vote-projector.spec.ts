@@ -43,6 +43,7 @@ describe('projectVoteCast', () => {
       dao_id: 'dao-1',
       proposal_id: 'proposal-1',
       voter_address: `0x${'ab'.repeat(20)}`,
+      voting_chain_id: '0x1',
       voting_power: '123456',
       cast_at: castAt,
       block_number: '100',
