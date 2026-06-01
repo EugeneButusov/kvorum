@@ -8,6 +8,7 @@ Operational runbooks for Kvorum. Each runbook is self-contained and assumes a fr
 | [actor-merge.md](actor-merge.md)                   | Merge two actor identities safely and verify the redirect state  |
 | [caddy-deployment.md](caddy-deployment.md)         | First deploy, config reload, cert monitoring                     |
 | [gap-fill.md](gap-fill.md)                         | Startup ingestion gap behavior and manual catch-up operation     |
+| [m3-chains.md](m3-chains.md)                       | Multi-chain `CHAIN_CONFIG` and per-chain `headLag` provisioning  |
 | [secrets-rotation.md](secrets-rotation.md)         | Rotating any production credential                               |
 | [state-reconciliation.md](state-reconciliation.md) | Operating proposal state reconciler and validating backlog drain |
 

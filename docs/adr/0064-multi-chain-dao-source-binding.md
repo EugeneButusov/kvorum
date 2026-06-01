@@ -1,9 +1,9 @@
 # ADR-0064: Multi-chain dao_source binding and chain-aware derivation dispatch
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-06-01
 - **Amends**: 0062, 0063
-- **Related**: ADR-0058, epic #239, R0 #247, R1 #248
+- **Related**: ADR-0058, epic #239, R0 #247, R1 #248, R3 #250
 
 ## Context
 
@@ -14,7 +14,7 @@ model needs to become explicit for multi-chain sources.
 
 ## Decision
 
-### Chain-aware derivation dispatch (R0 — implemented here)
+### Chain-aware derivation dispatch (R0)
 
 The derivation worker dispatches underived archive rows by
 `(source_type, chain_id, event_type)`, not `(source_type, event_type)`.
@@ -23,18 +23,41 @@ Each `applyBatch` call therefore receives a single-chain batch by construction. 
 appliers may rely on this invariant. The `ProjectionDeriver` interface does not change; only
 the guarantee on each invocation is narrowed.
 
-### dao_source.chain_id binding (R1 — #248)
+### dao_source.chain_id binding (R1)
 
-Stub for R1. This section is completed in R1 with:
+R1 moves chain binding to the source row itself:
 
-- per-source chain column on `dao_source`
-- the four chain-resolution sites updated to use source-level chain binding
-- backfill default to `0x1`
+- add `dao_source.chain_id varchar(32) NOT NULL DEFAULT '0x1'`
+- backfill existing rows from `dao.primary_chain_id`
+- update all source-resolution consumers to read `dao_source.chain_id`
+- require `admin-cli daos source add --chain <id>` so operator writes are explicit
 
-### AC#4 reinterpretation (R1 — #248)
+`dao.primary_chain_id` remains the DAO home-chain attribute (API and DAO-level semantics).
+It is no longer the source-resolution authority.
 
-Stub for R1. This section is completed in R1 clarifying extension-table scope and the chain
-dimension boundary.
+R3 hand-off (recorded here intentionally):
+
+- relax `UNIQUE(dao_id, source_type)` to `UNIQUE(dao_id, source_type, chain_id)`
+- update both committed Compound seeds to match new conflict target:
+  - `libs/sources/compound/migrations-postgres/compound_002_seed.ts` (5 statements)
+  - `libs/sources/compound/migrations-postgres/compound_003_comp_token.ts` (1 statement)
+- make seed inserts explicit on `chain_id`
+- drop `dao_source.chain_id DEFAULT '0x1'`
+
+The deferral is deliberate: R1 avoids editing committed historical migrations while Compound is
+single-chain and before multi-row-per-source-type Aave seeds are introduced.
+
+### AC#4 reinterpretation (R1)
+
+R1 adds a core-entity column (`dao_source.chain_id`), and this is acknowledged directly.
+The compatibility argument is that `dao_source` is the SPEC's configuration/decoupling layer
+(SPEC §2.4.2), where binding metadata like activation windows already lives.
+
+So this change is configuration-layer metadata about where a source runs, not a change to
+cross-DAO query semantics (proposal/vote/delegation abstractions) protected by SPEC §10.5 AC#4.
+
+R1 does not rely on SPEC §2.5 extension-table pre-sanctioning for this claim. That scope is
+reserved for R2 vote-chain dimensions and Aave extension tables.
 
 ## Consequences
 
@@ -43,5 +66,6 @@ dimension boundary.
   appliers can DLQ a persistently failing row without calling `markDerived`. Under a real
   multi-chain backlog, low `chain_id` rows can repeatedly occupy `LIMIT` batches and starve
   higher chains.
-- R0 intentionally leaves `findDerivableBy` unchanged. Compound remains single-chain (`0x1`),
+- R0 intentionally left `findDerivableBy` unchanged. Compound remained single-chain (`0x1`),
   so the deferred liveness issue cannot manifest before Aave multi-chain backlog exists.
+- R1 makes per-source chain binding explicit and compiler-enforced in typed writes.
