@@ -9,6 +9,7 @@ export {
   EtherscanClient,
   readCalldataDecoderConfig,
   ChainNotReadyError,
+  ReconcileDriver,
 } from '@sources/core';
 export type {
   DecodeInput,
@@ -19,6 +20,9 @@ export type {
   EtherscanClientConfig,
   CalldataDecoderConfig,
   EtherscanConfig,
+  ReconcileBound,
+  ReconcileDriverMetrics,
+  ReconcilePerChainBound,
 } from '@sources/core';
 // Re-export the CH table type so @sources/compound is the canonical import point.
 export type {
@@ -56,7 +60,6 @@ export {
   decodeDelayResult,
   mapGovernorStateCode,
   CompoundStateReconciler,
-  CompoundReconcileDriver,
   CompoundProposalRepository,
   GovernorEventRepository,
   extractCompoundTitle,
@@ -126,11 +129,8 @@ export type {
   GovernorEventRepositoryDeps,
   CompoundGovernorConfig,
   CompoundGovernorPluginDeps,
-  ReconcilePerChainBound,
   StaleReconciliationRow,
   ReconcileStateInput,
-  ReconcileBound,
-  ReconcileDriverMetrics,
   CompoundReconcilePluginDeps,
 } from './governor/index';
 export type {

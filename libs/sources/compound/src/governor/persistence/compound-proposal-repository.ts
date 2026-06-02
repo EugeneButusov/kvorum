@@ -1,14 +1,13 @@
 import { type Kysely, sql } from 'kysely';
 import type { PgDatabase, ProposalState } from '@libs/db';
+import type {
+  ReconcilePerChainBound,
+  ReconcilableProposalRepository,
+  BaseStaleReconciliationRow,
+} from '@sources/core';
 import './schema';
 
-export interface ReconcilePerChainBound {
-  chainId: string;
-  confirmedThresholdBlock: string;
-  recheckGapBlocks: number;
-}
-
-export interface StaleReconciliationRow {
+export interface StaleReconciliationRow extends BaseStaleReconciliationRow {
   id: string;
   source_id: string;
   source_type: string;
@@ -27,7 +26,9 @@ export interface ReconcileStateInput {
   stateUpdatedAt: Date;
 }
 
-export class CompoundProposalRepository {
+export class CompoundProposalRepository
+  implements ReconcilableProposalRepository<StaleReconciliationRow>
+{
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
   async findStaleForReconciliation(

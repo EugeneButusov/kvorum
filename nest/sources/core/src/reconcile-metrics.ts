@@ -1,5 +1,5 @@
 import { defineCounter, defineGauge, defineHistogram } from '@libs/observability';
-import type { ReconcileDriverMetrics } from '@sources/compound';
+import type { ReconcileDriverMetrics } from '@sources/core';
 
 export const stateReconcilerMetrics = {
   stateReconcile: defineCounter({

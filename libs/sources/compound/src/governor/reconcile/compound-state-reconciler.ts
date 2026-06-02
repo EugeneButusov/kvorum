@@ -1,5 +1,6 @@
 import type { Logger } from '@libs/chain';
 import type { ProposalState } from '@libs/db';
+import type { ReconcileOutcome, StateReconciler } from '@sources/core';
 import {
   GovernorStateDecodeError,
   decodeDelayResult,
@@ -22,7 +23,7 @@ interface TimelockParams {
   delay: number;
 }
 
-export class CompoundStateReconciler {
+export class CompoundStateReconciler implements StateReconciler<StaleReconciliationRow> {
   private readonly timelockCache = new Map<string, TimelockParams>();
 
   constructor(
@@ -39,16 +40,7 @@ export class CompoundStateReconciler {
       client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
       chainCfg: { chainId: string };
     };
-  }): Promise<
-    | { outcome: 'corrected'; fromState: string; toState: string }
-    | {
-        outcome:
-          | 'already_consistent'
-          | 'guard_skipped'
-          | 'missed_event'
-          | 'expired_no_queued_at_block';
-      }
-  > {
+  }): Promise<ReconcileOutcome> {
     const { row, chainCtx, proposals, confirmedThreshold, confirmedThresholdTag } = args;
     const mapped = await this.readOnchainState({
       sourceId: row.source_id,

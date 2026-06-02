@@ -1,7 +1,10 @@
 import type { Logger } from '@libs/chain';
-import type { SourceIngester } from '@sources/core';
-import type { ReconcileDriverMetrics } from './compound-reconcile-driver';
-import { CompoundReconcileDriver } from './compound-reconcile-driver';
+import {
+  ReconcileDriver,
+  type ReconcileDriverConfig,
+  type ReconcileDriverMetrics,
+  type SourceIngester,
+} from '@sources/core';
 import { CompoundStateReconciler } from './compound-state-reconciler';
 import type { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
 import { SUPPORTED_CHAIN_IDS, DaoSourceConfigSchema } from '../plugin/plugin';
@@ -18,7 +21,11 @@ function createReconcilePlugin(
   deps: CompoundReconcilePluginDeps,
 ): SourceIngester {
   const reconciler = new CompoundStateReconciler(deps.logger, [targetSourceType]);
-  const driver = new CompoundReconcileDriver(reconciler, deps.proposals, deps.metrics, deps.logger);
+  const config: ReconcileDriverConfig = {
+    batchSize: Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50),
+    rpcFailEscalateAfter: Number(process.env['COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE'] ?? 5),
+  };
+  const driver = new ReconcileDriver(reconciler, deps.proposals, deps.metrics, deps.logger, config);
 
   return {
     sourceType,

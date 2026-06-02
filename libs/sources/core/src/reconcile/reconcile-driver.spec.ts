@@ -1,13 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AllProvidersFailedError } from '@libs/chain';
-import type { ReconcileDriverMetrics } from './compound-reconcile-driver';
-import { CompoundReconcileDriver } from './compound-reconcile-driver';
+import { ReconcileDriver } from './reconcile-driver';
+import type {
+  BaseStaleReconciliationRow,
+  ReconcileDriverMetrics,
+  ReconcilableProposalRepository,
+  StateReconciler,
+} from './types';
+
+interface TestRow extends BaseStaleReconciliationRow {
+  governor_address: string;
+  state: string;
+  voting_starts_block: string | null;
+  voting_ends_block: string | null;
+  queued_at_block: string | null;
+}
 
 function makeReconciler(sourceTypes = ['compound_governor_bravo', 'compound_governor_oz']) {
   return {
     sourceTypes,
     reconcileRow: vi.fn().mockResolvedValue({ outcome: 'already_consistent' }),
-  };
+  } satisfies StateReconciler<TestRow>;
 }
 
 function makeProposals() {
@@ -15,6 +28,9 @@ function makeProposals() {
     findStaleForReconciliation: vi.fn().mockResolvedValue([]),
     markReconcileChecked: vi.fn().mockResolvedValue(undefined),
     reconcileState: vi.fn().mockResolvedValue(1),
+  } satisfies ReconcilableProposalRepository<TestRow> & {
+    markReconcileChecked: ReturnType<typeof vi.fn>;
+    reconcileState: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -42,7 +58,7 @@ function makeBound(chainId = '0x1', confirmedThresholdBlock = '1988', recheckGap
   return { chainId, confirmedThresholdBlock, recheckGapBlocks, client: { send } };
 }
 
-function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
+function makeRow(overrides: Partial<TestRow> = {}): TestRow {
   return {
     id: 'p1',
     source_id: '42',
@@ -57,26 +73,26 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-describe('CompoundReconcileDriver', () => {
+describe('ReconcileDriver', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllEnvs();
   });
 
   it('skips when already inFlight', async () => {
     const proposals = makeProposals();
     let resolveFirst!: () => void;
     proposals.findStaleForReconciliation.mockReturnValue(
-      new Promise<never[]>((r) => {
-        resolveFirst = () => r([]);
+      new Promise<never[]>((resolve) => {
+        resolveFirst = () => resolve([]);
       }),
     );
 
-    const driver = new CompoundReconcileDriver(
-      makeReconciler() as never,
-      proposals as never,
+    const driver = new ReconcileDriver(
+      makeReconciler(),
+      proposals,
       makeMetrics(),
       makeLogger() as never,
+      { batchSize: 50, rpcFailEscalateAfter: 5 },
     );
     const bound = makeBound();
 
@@ -90,11 +106,12 @@ describe('CompoundReconcileDriver', () => {
 
   it('returns early when bounds is empty', async () => {
     const proposals = makeProposals();
-    const driver = new CompoundReconcileDriver(
-      makeReconciler() as never,
-      proposals as never,
+    const driver = new ReconcileDriver(
+      makeReconciler(),
+      proposals,
       makeMetrics(),
       makeLogger() as never,
+      { batchSize: 50, rpcFailEscalateAfter: 5 },
     );
 
     await driver.onConfirmedHeads([]);
@@ -104,11 +121,12 @@ describe('CompoundReconcileDriver', () => {
 
   it('queries with correct sourceTypes and bounds', async () => {
     const proposals = makeProposals();
-    const driver = new CompoundReconcileDriver(
-      makeReconciler() as never,
-      proposals as never,
+    const driver = new ReconcileDriver(
+      makeReconciler(),
+      proposals,
       makeMetrics(),
       makeLogger() as never,
+      { batchSize: 50, rpcFailEscalateAfter: 5 },
     );
     const bound = makeBound('0x1', '1988');
 
@@ -124,18 +142,19 @@ describe('CompoundReconcileDriver', () => {
           client: bound.client,
         },
       ],
-      expect.any(Number),
+      50,
     );
   });
 
   it('records backlog and tick duration', async () => {
     const proposals = makeProposals();
     const metrics = makeMetrics();
-    const driver = new CompoundReconcileDriver(
-      makeReconciler() as never,
-      proposals as never,
+    const driver = new ReconcileDriver(
+      makeReconciler(),
+      proposals,
       metrics,
       makeLogger() as never,
+      { batchSize: 50, rpcFailEscalateAfter: 5 },
     );
 
     await driver.onConfirmedHeads([makeBound()]);
@@ -145,19 +164,15 @@ describe('CompoundReconcileDriver', () => {
   });
 
   it('records batch_saturated when row count equals batch size', async () => {
-    vi.stubEnv('COMPOUND_STATE_RECONCILE_BATCH_SIZE', '2');
     const proposals = makeProposals();
     proposals.findStaleForReconciliation.mockResolvedValue([makeRow(), makeRow({ id: 'p2' })]);
     const metrics = makeMetrics();
     const reconciler = makeReconciler();
-    reconciler.reconcileRow.mockResolvedValue({ outcome: 'already_consistent' });
 
-    const driver = new CompoundReconcileDriver(
-      reconciler as never,
-      proposals as never,
-      metrics,
-      makeLogger() as never,
-    );
+    const driver = new ReconcileDriver(reconciler, proposals, metrics, makeLogger() as never, {
+      batchSize: 2,
+      rpcFailEscalateAfter: 5,
+    });
 
     await driver.onConfirmedHeads([makeBound()]);
 
@@ -175,12 +190,10 @@ describe('CompoundReconcileDriver', () => {
       toState: 'defeated',
     });
 
-    const driver = new CompoundReconcileDriver(
-      reconciler as never,
-      proposals as never,
-      metrics,
-      makeLogger() as never,
-    );
+    const driver = new ReconcileDriver(reconciler, proposals, metrics, makeLogger() as never, {
+      batchSize: 50,
+      rpcFailEscalateAfter: 5,
+    });
 
     await driver.onConfirmedHeads([makeBound()]);
 
@@ -193,19 +206,16 @@ describe('CompoundReconcileDriver', () => {
   });
 
   it('records rpc_failed and escalates after threshold', async () => {
-    vi.stubEnv('COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE', '2');
     const proposals = makeProposals();
     proposals.findStaleForReconciliation.mockResolvedValue([makeRow()]);
     const metrics = makeMetrics();
     const reconciler = makeReconciler();
     reconciler.reconcileRow.mockRejectedValue(new AllProvidersFailedError([]));
 
-    const driver = new CompoundReconcileDriver(
-      reconciler as never,
-      proposals as never,
-      metrics,
-      makeLogger() as never,
-    );
+    const driver = new ReconcileDriver(reconciler, proposals, metrics, makeLogger() as never, {
+      batchSize: 50,
+      rpcFailEscalateAfter: 2,
+    });
 
     await driver.onConfirmedHeads([makeBound()]);
     await driver.onConfirmedHeads([makeBound()]);
@@ -220,12 +230,10 @@ describe('CompoundReconcileDriver', () => {
     const reconciler = makeReconciler();
     reconciler.reconcileRow.mockRejectedValue(new Error('abi decode failed'));
 
-    const driver = new CompoundReconcileDriver(
-      reconciler as never,
-      proposals as never,
-      metrics,
-      makeLogger() as never,
-    );
+    const driver = new ReconcileDriver(reconciler, proposals, metrics, makeLogger() as never, {
+      batchSize: 50,
+      rpcFailEscalateAfter: 5,
+    });
 
     await driver.onConfirmedHeads([makeBound()]);
 
@@ -239,11 +247,12 @@ describe('CompoundReconcileDriver', () => {
     proposals.findStaleForReconciliation.mockResolvedValue([makeRow({ chain_id: '0x89' })]);
     const reconciler = makeReconciler();
 
-    const driver = new CompoundReconcileDriver(
-      reconciler as never,
-      proposals as never,
+    const driver = new ReconcileDriver(
+      reconciler,
+      proposals,
       makeMetrics(),
       makeLogger() as never,
+      { batchSize: 50, rpcFailEscalateAfter: 5 },
     );
 
     await driver.onConfirmedHeads([makeBound('0x1')]);

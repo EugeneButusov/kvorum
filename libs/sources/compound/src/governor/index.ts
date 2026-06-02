@@ -72,7 +72,6 @@ export type { GovernorArchivePayloadRow } from './persistence/governor-archive-p
 export { GovernorArchivePayloadRepository } from './persistence/governor-archive-payload-repository';
 
 export type {
-  ReconcilePerChainBound,
   StaleReconciliationRow,
   ReconcileStateInput,
 } from './persistence/compound-proposal-repository';
@@ -90,8 +89,8 @@ export { GovernorArchiveWriter } from './ingestion/archive-writer';
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';
 export { makeGovernorIngesterListener } from './ingestion/ingester-listener';
 export { CompoundStateReconciler } from './reconcile/compound-state-reconciler';
-export type { ReconcileBound, ReconcileDriverMetrics } from './reconcile/compound-reconcile-driver';
-export { CompoundReconcileDriver } from './reconcile/compound-reconcile-driver';
+export { ReconcileDriver } from '@sources/core';
+export type { ReconcileBound, ReconcileDriverMetrics, ReconcilePerChainBound } from '@sources/core';
 export type { CompoundReconcilePluginDeps } from './reconcile/compound-reconcile-plugin';
 export {
   createCompoundGovernorBravoReconcilePlugin,
