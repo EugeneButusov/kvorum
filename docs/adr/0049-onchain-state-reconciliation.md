@@ -75,3 +75,44 @@ Add a confirmed-head-driven proposal state reconciler that performs bounded on-c
 ## Amendment — 2026-05-24 (ADR-058)
 
 The "confirmed head" read by the reconciler's candidate-selection query now comes from `readConfirmedHead(rpcClient, chainConfig)` (introduced in ADR-058) rather than from promotion-sweep-driven row promotion. The reconciler's algorithm and SQL-gate logic are otherwise unchanged.
+
+## Amendment — 2026-06-02 (Aave Governance v3)
+
+Aave Governance v3 joins the reconciled source set with a narrower write surface than Compound.
+
+### Source applicability
+
+- included: `aave_governance_v3`
+- deferred: `aave_governor_v2`
+
+### Aave reconcile model
+
+1. Candidate selection is gated by local state plus reconcile watermark only.
+
+- eligible states: `pending`, `active`, `queued`
+- watermark field: `aave_proposal_metadata.last_reconcile_check_block`
+- chain scoping reads `dao_source.chain_id`
+
+2. Classification uses `getProposalState(uint256)` at the confirmed-threshold block.
+
+3. Allowed reconciler write set is `expired` only.
+
+- `active` is event-driven by `VotingActivated`
+- `defeated` is event-driven by `ProposalFailed`
+- `queued`, `executed`, and `canceled` are event-driven on mainnet
+
+4. Event-driven divergence is treated as `missed_event`.
+
+- if on-chain state disagrees with local state for any event-driven transition, emit error and metric
+- do not write reconciled state for that row
+
+5. `expired` timestamp provenance is `blockTimestamp(creation_block) + PROPOSAL_EXPIRATION_TIME`.
+
+- `creation_block` comes from `aave_proposal_metadata`
+- `PROPOSAL_EXPIRATION_TIME()` is resolved from the governance contract and cached with bounds validation
+
+### Consequences
+
+- Aave reconcile is simpler than Compound because it corrects exactly one event-silent transition.
+- A missed `VotingActivated` or `ProposalFailed` event is surfaced operationally rather than papered over by a guessed state write.
+- `aave_governance_v3_reconcile` can share the generic reconcile driver while keeping Aave-specific state semantics local.
