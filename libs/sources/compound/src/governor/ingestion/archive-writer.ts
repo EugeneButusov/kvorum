@@ -1,6 +1,7 @@
 import type { LogEvent } from '@libs/chain';
 import { BaseArchiveWriter } from '@sources/core';
-import type { ArchiveWriteContext, GovernorArchiveWriterDeps } from './archive-writer.types';
+import type { ArchiveWriteContext } from '@sources/core';
+import type { GovernorArchiveWriterDeps } from './archive-writer.types';
 import type { CompoundGovernorEvent } from '../domain/types';
 
 export class GovernorArchiveWriter extends BaseArchiveWriter<CompoundGovernorEvent> {

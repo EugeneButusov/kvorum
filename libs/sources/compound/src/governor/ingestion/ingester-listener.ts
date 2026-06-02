@@ -2,8 +2,8 @@ import type { LogEvent, EventsListener, Logger } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
 import { DecodeError } from '@sources/core';
+import type { ArchiveWriteContext } from '@sources/core';
 import { GovernorArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext } from './archive-writer.types';
 import { decodeCompoundLog } from '../abi/decoder';
 
 export interface IngesterListenerDeps {

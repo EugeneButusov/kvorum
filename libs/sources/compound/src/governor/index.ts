@@ -84,11 +84,7 @@ export type {
 } from './persistence/event-repository.types';
 export { GovernorEventRepository } from './persistence/event-repository';
 
-export type {
-  GovernorArchiveWriterDeps,
-  ArchiveWriteContext,
-  ArchiveWriteOutcome,
-} from './ingestion/archive-writer.types';
+export type { GovernorArchiveWriterDeps } from './ingestion/archive-writer.types';
 export { GovernorArchiveWriter } from './ingestion/archive-writer';
 
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';

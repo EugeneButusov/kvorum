@@ -121,8 +121,6 @@ export type {
   VoteProjectionContext,
   VoteProjectionResult,
   GovernorArchiveWriterDeps,
-  ArchiveWriteContext,
-  ArchiveWriteOutcome,
   IngesterListenerDeps,
   GovernorEventData,
   GovernorEventRepositoryDeps,
