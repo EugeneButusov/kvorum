@@ -30,6 +30,10 @@ describe('isDlqRetryableStage', () => {
     expect(isDlqRetryableStage('snapshot_compute_stage')).toBe(true);
   });
 
+  it('accepts aave ipfs title fetch stage', () => {
+    expect(isDlqRetryableStage('aave_ipfs_title_fetch')).toBe(true);
+  });
+
   it('accepts archive_log stage', () => {
     expect(isDlqRetryableStage('archive_log')).toBe(true);
   });

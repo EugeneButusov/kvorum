@@ -16,6 +16,7 @@
     "@libs/auth": "workspace:*",
     "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
+    "@sources/aave": "workspace:*",
     "@sources/compound": "workspace:*",
     "@sources/core": "workspace:*",
     "@founderpath/kysely-clickhouse": "^1.7.0",

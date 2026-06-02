@@ -19,6 +19,7 @@ import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
+import { aaveMetrics } from './aave-metrics';
 
 export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
 
@@ -72,7 +73,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           metrics: {
             batchLookupSeconds: () => undefined,
             processed: () => undefined,
-            ipfsTitleFetch: () => undefined,
+            ipfsTitleFetch: (outcome) => aaveMetrics.ipfsTitleFetch.add(1, { outcome }),
           },
           logger: toChainLogger(new Logger('AaveGovernanceProjectionApplier')),
         }),

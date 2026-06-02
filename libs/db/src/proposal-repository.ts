@@ -54,6 +54,8 @@ export interface SnapshotCandidate {
   id: string;
   dao_id: string;
   source_type: string;
+  // Aave proposals can temporarily carry the ProposalCreated block here until
+  // snapshot_block_hash is resolved to an L1 block number.
   voting_power_block: string;
 }
 

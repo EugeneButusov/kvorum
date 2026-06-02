@@ -37,6 +37,16 @@ Validation caveat:
 - Source provider secrets from vault-backed env generation flow (ADR-028). Never commit real URLs with credentials.
 - Confirm historical `eth_getLogs` availability on every configured chain before enabling live pollers.
 
+## Aave IPFS enrichment env
+
+`aave_governance_v3` proposal derivation performs a best-effort post-commit IPFS metadata fetch for title/description enrichment. Operators can override the defaults with:
+
+- `IPFS_GATEWAY_URL` — primary gateway base. Default: `https://ipfs.io/ipfs`
+- `IPFS_GATEWAY_FALLBACK_URL` — optional fallback gateway tried before leaving the row in DLQ
+- `IPFS_FETCH_TIMEOUT_MS` — per-gateway timeout in milliseconds. Default: `2500`
+
+Failures do not block proposal derivation; they leave or keep a retryable `aave_ipfs_title_fetch` DLQ row for `admin-cli dlq retry`.
+
 ## Registering sources
 
 R1 requires explicit per-source chain binding at registration time.

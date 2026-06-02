@@ -228,6 +228,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../libs/db
+      '@sources/aave':
+        specifier: workspace:*
+        version: link:../../libs/sources/aave
       '@sources/compound':
         specifier: workspace:*
         version: link:../../libs/sources/compound
@@ -583,6 +586,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../../libs/db
+      '@libs/observability':
+        specifier: workspace:*
+        version: link:../../../libs/observability
       '@nest/chain':
         specifier: workspace:*
         version: link:../../chain
