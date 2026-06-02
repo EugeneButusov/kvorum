@@ -117,7 +117,7 @@ describeIf('VoteCast ingestion integration', () => {
 
       listeners.set(
         cfg.source_type,
-        makeIngesterListener({
+        makeGovernorIngesterListener({
           archiveWriter: writer,
           context,
           logger: silentLogger,
