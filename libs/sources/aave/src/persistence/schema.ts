@@ -19,6 +19,8 @@ export interface AaveProposalMetadataTable {
   snapshot_block_number_l1: string | null;
   // pg driver returns bigint as string
   creation_block: string;
+  // pg driver returns bigint as string
+  last_reconcile_check_block: string | null;
   created_at: Generated<Date>;
 }
 

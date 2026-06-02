@@ -1,8 +1,28 @@
-import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import { type Kysely, sql } from 'kysely';
+import type { PgDatabase, ProposalState } from '@libs/db';
+import type {
+  BaseStaleReconciliationRow,
+  ReconcilePerChainBound,
+  ReconcilableProposalRepository,
+} from '@sources/core';
 import type { NewAaveProposalMetadata, NewAaveProposalPayload } from './schema';
 
-export class AaveProposalRepository {
+export interface AaveStaleReconciliationRow extends BaseStaleReconciliationRow {
+  governance_address: string;
+  state: ProposalState;
+  creation_block: string;
+}
+
+export interface AaveReconcileStateInput {
+  proposalId: string;
+  expectedStates: readonly ProposalState[];
+  targetState: Extract<ProposalState, 'expired'>;
+  stateUpdatedAt: Date;
+}
+
+export class AaveProposalRepository
+  implements ReconcilableProposalRepository<AaveStaleReconciliationRow>
+{
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
   async insertMetadata(row: NewAaveProposalMetadata): Promise<void> {
@@ -26,6 +46,78 @@ export class AaveProposalRepository {
       .insertInto('aave_proposal_payload')
       .values(row)
       .onConflict((oc) => oc.columns(['proposal_id', 'payload_index']).doNothing())
+      .execute();
+  }
+
+  async findStaleForReconciliation(
+    sourceTypes: readonly string[],
+    perChainBounds: readonly ReconcilePerChainBound[],
+    limit: number,
+  ): Promise<AaveStaleReconciliationRow[]> {
+    if (sourceTypes.length === 0 || perChainBounds.length === 0 || limit <= 0) return [];
+
+    return this.db
+      .selectFrom('proposal')
+      .innerJoin('dao_source', (join) =>
+        join
+          .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
+          .onRef('dao_source.source_type', '=', 'proposal.source_type'),
+      )
+      .innerJoin('aave_proposal_metadata', 'aave_proposal_metadata.proposal_id', 'proposal.id')
+      .select([
+        'proposal.id',
+        'proposal.source_id',
+        'proposal.source_type',
+        'dao_source.chain_id',
+        sql<string>`dao_source.source_config ->> 'governance_address'`.as('governance_address'),
+        'proposal.state',
+        'aave_proposal_metadata.creation_block',
+      ])
+      .where('proposal.source_type', 'in', sourceTypes)
+      .where('proposal.state', 'in', ['pending', 'active', 'queued'])
+      .where((eb) =>
+        eb.or(
+          perChainBounds.map((bound) =>
+            eb.and([
+              eb('dao_source.chain_id', '=', bound.chainId),
+              eb.or([
+                eb('aave_proposal_metadata.last_reconcile_check_block', 'is', null),
+                eb(
+                  'aave_proposal_metadata.last_reconcile_check_block',
+                  '<',
+                  String(BigInt(bound.confirmedThresholdBlock) - BigInt(bound.recheckGapBlocks)),
+                ),
+              ]),
+            ]),
+          ),
+        ),
+      )
+      .orderBy('proposal.created_at', 'asc')
+      .limit(limit)
+      .execute() as Promise<AaveStaleReconciliationRow[]>;
+  }
+
+  async reconcileState(input: AaveReconcileStateInput): Promise<number> {
+    const result = await this.db
+      .updateTable('proposal')
+      .set({
+        state: input.targetState,
+        state_updated_at: input.stateUpdatedAt,
+        updated_at: sql<Date>`now()`,
+      })
+      .where('id', '=', input.proposalId)
+      .where('state', 'in', input.expectedStates)
+      .where('state', '<>', input.targetState)
+      .executeTakeFirst();
+
+    return Number(result?.numUpdatedRows ?? 0n);
+  }
+
+  async markReconcileChecked(proposalId: string, confirmedThreshold: string): Promise<void> {
+    await this.db
+      .updateTable('aave_proposal_metadata')
+      .set({ last_reconcile_check_block: confirmedThreshold })
+      .where('proposal_id', '=', proposalId)
       .execute();
   }
 }
