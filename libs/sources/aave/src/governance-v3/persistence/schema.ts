@@ -1,5 +1,3 @@
-import type { ClickHouseDatabase } from '@libs/db';
-
 // UInt64 block_number exceeds JS number precision; typed as string.
 export interface EventArchiveAaveGovernanceV3Table {
   dao_source_id: string;
@@ -24,5 +22,3 @@ declare module '@libs/db' {
     archive_event_aave_governance_v3: EventArchiveAaveGovernanceV3Table;
   }
 }
-
-type _AugmentationActiveCheck = ClickHouseDatabase['archive_event_aave_governance_v3'];
