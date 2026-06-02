@@ -5,6 +5,7 @@ export const ACTOR_RESOLUTION_STAGE = 'actor_resolution_stage';
 export const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
 export const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 export const SNAPSHOT_COMPUTE_STAGE = 'snapshot_compute_stage';
+export const AAVE_IPFS_TITLE_FETCH_STAGE = 'aave_ipfs_title_fetch';
 
 // pg-boss queue stages (re-enqueue via PgBossReEnqueueAdapter)
 export const ARCHIVE_LOG_STAGE = 'archive_log';
@@ -19,6 +20,7 @@ export type DlqRetryStage =
   | typeof VOTE_PROJECTION_STAGE
   | typeof DELEGATION_PROJECTION_STAGE
   | typeof SNAPSHOT_COMPUTE_STAGE
+  | typeof AAVE_IPFS_TITLE_FETCH_STAGE
   | typeof ARCHIVE_LOG_STAGE
   | typeof ARCHIVE_DECODE_STAGE
   | typeof ARCHIVE_UNMAPPED_STAGE;
@@ -40,6 +42,7 @@ function getRetryableStageSet(): Record<string, true> {
     [VOTE_PROJECTION_STAGE]: true,
     [DELEGATION_PROJECTION_STAGE]: true,
     [SNAPSHOT_COMPUTE_STAGE]: true,
+    [AAVE_IPFS_TITLE_FETCH_STAGE]: true,
     [ARCHIVE_LOG_STAGE]: true,
     [ARCHIVE_DECODE_STAGE]: true,
     [ARCHIVE_UNMAPPED_STAGE]: true,

@@ -14,6 +14,7 @@ This document is the authoritative metric enumeration for M1, based on emitted i
 | `indexer_indexer_active_sources`                                                                                                                | gauge                        | `source_type`                                                  | count                             | `libs/chain` via `apps/indexer` | emitted       |
 | `indexer_derivation_*`                                                                                                                          | counters, gauges, histograms | `source`, `outcome`, `event_type`, reason labels               | mixed (seconds, counts, fraction) | `apps/indexer`                  | emitted       |
 | `indexer_derivation_lag_seconds`                                                                                                                | gauge                        | _none_                                                         | seconds                           | `apps/indexer`                  | emitted       |
+| `indexer_aave_ipfs_title_fetch_total`                                                                                                           | counter                      | `outcome`                                                      | fetches                           | `apps/indexer` via `nest/aave`  | emitted       |
 | `db_*`                                                                                                                                          | TBD                          | TBD                                                            | TBD                               | TBD                             | planned (M2+) |
 | `ai_*`                                                                                                                                          | TBD                          | TBD                                                            | TBD                               | `apps/ai-worker` (future)       | planned (M5)  |
 
@@ -25,6 +26,7 @@ Declared metrics are defined in:
 - `libs/chain/src/metrics/metrics.ts`
 - `apps/indexer/src/derivation/derivation-metrics.ts`
 - `apps/indexer/src/derivation/calldata-decode-metrics.ts`
+- `nest/sources/aave/src/aave-metrics.ts`
 
 Notes:
 

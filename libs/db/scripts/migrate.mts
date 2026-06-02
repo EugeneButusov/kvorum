@@ -11,6 +11,8 @@ const sourcesDir = path.join(repoRoot, 'libs/sources');
 // Merges libs/db/migrations/ with libs/sources/*/migrations-postgres/ and sorts
 // by filename. Convention: core files are 0NNN_*, source files are <source>_NNN_*,
 // so alphabetical order naturally puts core before source (e.g. 0002 < compound_001).
+// We enable allowUnorderedMigrations below because new source families can be
+// introduced after older families have already executed in persistent databases.
 class MultiDirMigrationProvider implements MigrationProvider {
   async getMigrations(): Promise<Record<string, Migration>> {
     const entries: { name: string; filePath: string }[] = [];
@@ -61,6 +63,7 @@ class MultiDirMigrationProvider implements MigrationProvider {
 const migrator = new Migrator({
   db: pgDb,
   provider: new MultiDirMigrationProvider(),
+  allowUnorderedMigrations: true,
 });
 
 async function up() {

@@ -11,8 +11,8 @@ export type AavePayloadStatus =
 
 export interface AaveProposalMetadataTable {
   proposal_id: string;
-  voting_chain_id: string;
-  voting_machine_address: string;
+  voting_chain_id: string | null;
+  voting_machine_address: string | null;
   voting_strategy_address: string | null;
   snapshot_block_hash: string | null;
   // pg driver returns bigint as string

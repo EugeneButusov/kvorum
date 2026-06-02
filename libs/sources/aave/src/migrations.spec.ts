@@ -7,6 +7,7 @@ import {
   down as downAaveSeed,
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
+import { up as upAaveMetadataNullable } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
 
 class RollbackSignal extends Error {}
 
@@ -84,6 +85,32 @@ describeWithPg('aave_002_seed migration', () => {
           chain_id: '0x1',
           active_from_block: String(AAVE_GOVERNOR_V2_DEPLOY_BLOCK),
         });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+});
+
+describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
+  it('makes voting machine metadata columns nullable', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAaveMetadataNullable(tx);
+
+        const rows = await tx
+          .selectFrom('information_schema.columns')
+          .select(['column_name', 'is_nullable'])
+          .where('table_name', '=', 'aave_proposal_metadata')
+          .where('column_name', 'in', ['voting_machine_address', 'voting_chain_id'])
+          .execute();
+
+        expect(rows).toEqual(
+          expect.arrayContaining([
+            { column_name: 'voting_chain_id', is_nullable: 'YES' },
+            { column_name: 'voting_machine_address', is_nullable: 'YES' },
+          ]),
+        );
 
         throw new RollbackSignal();
       }),

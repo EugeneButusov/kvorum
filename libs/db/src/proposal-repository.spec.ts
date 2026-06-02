@@ -243,12 +243,12 @@ describe('ProposalRepository', () => {
       ['dao_id', '=', 'dao-1'],
       ['source_type', '=', 'compound_governor_bravo'],
       ['source_id', '=', '42'],
-      ['state', 'not in', ['executed', 'canceled']],
-      ['state', 'in', ['pending', 'queued']],
+      ['state', 'not in', ['executed', 'canceled', 'defeated']],
+      ['state', 'in', ['pending', 'queued', 'active']],
     ]);
   });
 
-  it('only queues pending proposals', async () => {
+  it('queues pending or active proposals', async () => {
     const update = makeUpdateChain(0n);
     const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
 
@@ -260,12 +260,48 @@ describe('ProposalRepository', () => {
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
     });
 
-    expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending']]);
+    expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', ['pending', 'active']]);
     expect(update.set).toHaveBeenCalledWith({
       state: 'queued',
       state_updated_at: new Date('2026-01-01T00:00:00Z'),
       updated_at: expect.anything(),
     });
+  });
+
+  it.each([
+    ['active', ['pending']],
+    ['executed', ['pending', 'queued', 'active']],
+    ['canceled', ['pending', 'queued', 'active']],
+    ['defeated', ['pending', 'active']],
+  ] as const)('uses the expected allowed-from states for %s', async (targetState, expected) => {
+    const update = makeUpdateChain(0n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+
+    await repo.advanceState({
+      daoId: 'dao-1',
+      sourceType: 'aave_governance_v3',
+      sourceId: '42',
+      targetState,
+      stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', expected]);
+  });
+
+  it('updates title and description without touching description_hash', async () => {
+    const update = makeUpdateChain(1n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+
+    await repo.updateTitleDescription('proposal-1', 'Fresh title', 'Updated body');
+
+    expect(update.updateTable).toHaveBeenCalledWith('proposal');
+    expect(update.set).toHaveBeenCalledWith({
+      title: 'Fresh title',
+      description: 'Updated body',
+      updated_at: expect.anything(),
+    });
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
+    expect(update.execute).toHaveBeenCalledOnce();
   });
 
   it('finds proposals pending lazy timestamp fill', async () => {

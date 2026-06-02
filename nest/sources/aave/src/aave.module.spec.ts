@@ -34,7 +34,7 @@ describe('AaveSourceModule', () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('resolves AAVE_SOURCE_PLUGIN as a single-ingester SourcePlugin', async () => {
+  it('resolves AAVE_SOURCE_PLUGIN with the Aave derivers registered', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AaveSourceModule],
     }).compile();
@@ -43,7 +43,11 @@ describe('AaveSourceModule', () => {
     expect(plugin.name).toBe('aave');
     expect(plugin.ingesters).toHaveLength(1);
     expect(plugin.ingesters[0]?.sourceType).toBe('aave_governance_v3');
-    expect(plugin.derivers).toEqual([]);
+    expect(plugin.derivers).toHaveLength(2);
+    expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
+      'actor-address',
+      'projection',
+    ]);
     expect(plugin.snapshotStrategies).toEqual([]);
   });
 });

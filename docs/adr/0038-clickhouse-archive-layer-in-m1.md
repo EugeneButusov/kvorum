@@ -149,7 +149,7 @@ Rationale:
 
 Trade-off: a single hot table for all sources rather than N per-source tables. At v1 scale (3 DAOs, ~10 events/day post-backfill steady-state), the table is small (~10k rows/year). Revisit if a future high-volume source pushes the table past ~10M rows; partitioning by `source_type` is a one-step migration if needed.
 
-The ClickHouse archive layer remains **per-source** (one table per `source_type` — `archive_event_compound_governor_bravo`, `event_archive_aave_governor_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
+The ClickHouse archive layer remains **per-source** (one table per `source_type` — `archive_event_compound_governor_bravo`, `archive_event_aave_governance_v3`, etc.), per the original ADR. The asymmetry is deliberate: CH benefits from per-source schema specialization (different `event_type` cardinalities, different payload sizes); PG benefits from polymorphic uniformity for the small mutable control plane.
 
 ### 2026-05-10 — Cross-DB integrity contract refined by ADR-041
 

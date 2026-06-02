@@ -225,7 +225,7 @@ Essential fields: `id`, `dao_id`, `source_type`, `source_config` (JSONB — cont
 
 Rationale: Decouples DAO identity from the specific governance mechanism. Adding a fourth DAO is a `dao_source` insert, not a schema change. Tracking activation windows lets us model migrations correctly (e.g., when a DAO moves from Aragon to a custom Governor).
 
-`source_type` is an enum: `compound_governor_bravo`, `aave_governor_v3`, `aragon_voting`, `snapshot`, `dual_governance`. The enum is extended carefully; new values require a migration but signal real architectural commitment.
+`source_type` is an enum: `compound_governor_bravo`, `aave_governance_v3`, `aragon_voting`, `snapshot`, `dual_governance`. The enum is extended carefully; new values require a migration but signal real architectural commitment.
 
 #### 2.4.3 `actor`
 
@@ -247,12 +247,12 @@ Essential fields:
 - `dao_id` (FK to `dao`)
 - `source_type`, `source_id` (the native ID in the source system; together with `dao_id` these form the external identifier)
 - `proposer_actor_id` (FK to `actor`)
-- `title` (extracted from description, nullable if unparseable)
+- `title` (extracted per ADR-030; nullable if unparseable)
 - `description` (full markdown, source of truth for AI synthesis)
-- `description_hash` (sha256, used as cache key for AI features; immutable)
+- `description_hash` (sha256 for prose sources; for `aave_governance_v3`, the immutable on-chain IPFS digest)
 - `binding` (boolean — does success cause on-chain execution?)
 - `voting_starts_at`, `voting_ends_at` (timestamps)
-- `voting_power_block` (nullable — the block at which voting power is captured for this proposal; NULL for purely off-chain votes that don't reference a specific block)
+- `voting_power_block` (nullable — the block at which voting power is captured for this proposal; NULL for purely off-chain votes that don't reference a specific block. `aave_governance_v3` may temporarily expose the `ProposalCreated` L1 block as a placeholder until `snapshot_block_hash` is resolved to its L1 block number.)
 - `state` (enum: see below)
 - `state_updated_at`
 - `created_at`, `updated_at`
@@ -771,7 +771,7 @@ Resource identifiers in URLs and response payloads use stable, source-derived va
 
 ```
 /v1/daos/compound/proposals/compound_governor_bravo/42
-/v1/daos/aave/proposals/aave_governor_v3/137
+/v1/daos/aave/proposals/aave_governance_v3/137
 /v1/daos/lido/proposals/aragon_voting/89
 /v1/daos/lido/proposals/snapshot/0xa3f8...91c
 ```
@@ -994,6 +994,8 @@ Response envelopes are consistent across all endpoints.
 ```
 
 **Address fields are always lowercase strings.** Big numeric values (voting power, balances, wei amounts) are always strings to avoid JavaScript precision loss. Timestamps are always ISO 8601 with `Z` (UTC), to second precision.
+
+For `aave_governance_v3`, `voting_power_block` may be provisional immediately after proposal creation: before `snapshot_block_hash` is resolved to an L1 block number, the API can temporarily surface the `ProposalCreated` block as a placeholder.
 
 **Embedded actor information.** Where an entity references an actor (`proposer`, `voter`, `delegate`), the response includes the canonical address plus the display name, but not the full actor profile. To fetch full actor details, follow the `/v1/actors/{address}` link.
 
