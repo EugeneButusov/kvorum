@@ -1,0 +1,49 @@
+import { Test } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SourcePlugin } from '@sources/core';
+import { AAVE_SOURCE_PLUGIN, AaveSourceModule } from './aave.module';
+
+vi.mock('@libs/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@libs/db')>();
+  return {
+    ...actual,
+    pgDb: {},
+    chDb: {},
+    ArchiveEventRepository: class {
+      public find = vi.fn();
+      public insert = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DlqRepository: class {
+      public insert = vi.fn();
+      constructor(_db: unknown) {}
+    },
+  };
+});
+
+describe('AaveSourceModule', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('compiles the testing module', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [AaveSourceModule],
+    }).compile();
+
+    expect(moduleRef).toBeDefined();
+  });
+
+  it('resolves AAVE_SOURCE_PLUGIN as a single-ingester SourcePlugin', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [AaveSourceModule],
+    }).compile();
+    const plugin = moduleRef.get<SourcePlugin>(AAVE_SOURCE_PLUGIN);
+
+    expect(plugin.name).toBe('aave');
+    expect(plugin.ingesters).toHaveLength(1);
+    expect(plugin.ingesters[0]?.sourceType).toBe('aave_governance_v3');
+    expect(plugin.derivers).toEqual([]);
+    expect(plugin.snapshotStrategies).toEqual([]);
+  });
+});
