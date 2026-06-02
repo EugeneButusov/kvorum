@@ -17,4 +17,4 @@ export const COMPOUND_COMP_TOKEN_TOPICS = {
     COMPOUND_COMP_TOKEN_INTERFACE.getEvent('DelegateVotesChanged')!.topicHash.toLowerCase(),
 } as const;
 
-export type { TokenDelegationEventType as CompTokenEventType } from '@libs/domain';
+export type CompTokenEventType = 'DelegateChanged' | 'DelegateVotesChanged';

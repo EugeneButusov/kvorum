@@ -1,4 +1,4 @@
-import type { AaveGovernanceV3EventType } from '@libs/domain';
+import type { AaveGovernanceV3EventType } from '../abi/events';
 
 // UInt64 block_number exceeds JS number precision; typed as string.
 export interface EventArchiveAaveGovernanceV3Table {
