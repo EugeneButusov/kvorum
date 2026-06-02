@@ -6,6 +6,14 @@ export {
 export type { AaveGovernanceV3EventType } from './abi/events';
 export { decodeAaveGovernanceV3Log } from './abi/decoder';
 export { AAVE_V3_CHOICES } from './domain/choices';
+export { extractAaveTitle } from './domain/title-extractor';
+export { AaveGovernanceActorAddressDeriver } from './domain/actor-address-deriver';
+export { AaveIpfsTitleFetcher } from './domain/ipfs-title-fetcher';
+export { AaveGovernanceProjectionApplier } from './domain/governance-projection-applier';
+export {
+  projectAaveGovernanceV3Event,
+  AaveProposalProjectionError,
+} from './domain/proposal-projector';
 export type {
   AaveGovernanceV3Event,
   PayloadSentPayload,
@@ -23,6 +31,23 @@ export type {
 } from './persistence/schema';
 export type { AaveGovernanceArchivePayloadRow } from './persistence/archive-payload-repository';
 export { AaveGovernanceArchivePayloadRepository } from './persistence/archive-payload-repository';
+export type { AaveAddressCandidate, AaveActorAddressSource } from './domain/actor-address-deriver';
+export type { AaveIpfsFetchResult, AaveIpfsTitleFetcherDeps } from './domain/ipfs-title-fetcher';
+export type {
+  AaveProposalProjection,
+  AaveProposalCreatedProjection,
+  AaveProposalStateTransitionProjection,
+  AaveVotingActivatedProjection,
+  AavePayloadDeclaredProjection,
+  AaveProjectionArchiveRow,
+  AaveProposalWithoutResolvedRefs,
+} from './domain/proposal-projector';
+export type {
+  AaveDerivationFailureReason,
+  AaveDerivationOutcome,
+  AaveGovernanceProjectionApplierDeps,
+  AaveGovernanceProjectionMetrics,
+} from './domain/governance-projection-applier';
 export type {
   AaveGovernanceEventData,
   AaveGovernanceEventRepositoryDeps,
