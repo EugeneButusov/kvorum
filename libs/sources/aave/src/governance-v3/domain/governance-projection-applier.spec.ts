@@ -358,6 +358,54 @@ describe('AaveGovernanceProjectionApplier', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
+  it('treats duplicate ProposalCreated rows as idempotent and skips post-commit enrichment', async () => {
+    const { pgDb } = makeProjectionTx({ proposalInserted: false });
+    const metrics = makeMetrics();
+    const markRetrySucceeded = vi.fn().mockResolvedValue('resolved');
+    const fetchTitleDescription = vi.fn();
+    vi.spyOn(ProposalRepository.prototype, 'findDaoIdForSource').mockResolvedValue('dao-1');
+    vi.spyOn(ActorRepository.prototype, 'findOrCreateActorAddress').mockResolvedValue({
+      id: 'actor-1',
+    } as never);
+    vi.spyOn(ProposalRepository.prototype, 'insertProposal').mockResolvedValue({
+      inserted: false,
+    });
+    const insertMetadata = vi
+      .spyOn(AaveProposalRepository.prototype, 'insertMetadata')
+      .mockResolvedValue(undefined);
+    const ensureChoices = vi
+      .spyOn(ProposalRepository.prototype, 'ensureChoices')
+      .mockResolvedValue(undefined);
+    const markDerived = vi
+      .spyOn(ArchiveDerivationRepository.prototype, 'markDerived')
+      .mockResolvedValue(undefined);
+    const markActorResolved = vi
+      .spyOn(ArchiveActorResolutionRepository.prototype, 'markActorResolved')
+      .mockResolvedValue(undefined);
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]) } as never,
+      ipfsFetcher: { fetchTitleDescription } as never,
+      metrics,
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([ROW]);
+
+    expect(insertMetadata).not.toHaveBeenCalled();
+    expect(ensureChoices).not.toHaveBeenCalled();
+    expect(fetchTitleDescription).not.toHaveBeenCalled();
+    expect(markRetrySucceeded).not.toHaveBeenCalled();
+    expect(markDerived).toHaveBeenCalledWith('archive-1');
+    expect(markActorResolved).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
+    );
+  });
+
   it('sets snapshot hash and advances active state on VotingActivated', async () => {
     const { pgDb, calls } = makeProjectionTx({
       existingProposal: { id: 'proposal-1', source_id: '42' },
@@ -380,6 +428,38 @@ describe('AaveGovernanceProjectionApplier', () => {
     expect(calls.markedDerivedId).toBe('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),
+    );
+  });
+
+  it('records skipped_state_guard when a state transition advances zero rows', async () => {
+    const { pgDb } = makeProjectionTx({
+      existingProposal: { id: 'proposal-1', source_id: '42' },
+      advanceStateRows: 0,
+    });
+    const metrics = makeMetrics();
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([
+          {
+            ...CREATED_PAYLOAD,
+            event_type: 'ProposalQueued',
+            payload: JSON.stringify({ proposalId: '42', votesFor: '1', votesAgainst: '0' }),
+          },
+        ]),
+      } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics,
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'ProposalQueued' }]);
+
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_state_guard', reason: null }),
     );
   });
 
@@ -426,4 +506,98 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
   });
+
+  it('increments attempt count when the archive payload is missing', async () => {
+    const archive = { incrementAttemptCount: vi.fn().mockResolvedValue(undefined) };
+    const metrics = makeMetrics();
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: makeProjectionTx().pgDb as never,
+      archive: archive as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics,
+      logger: logger as never,
+    });
+
+    await applier.applyBatch([ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'aave_derivation_failed',
+      expect.objectContaining({ reason: 'payload_missing' }),
+    );
+  });
+
+  it('increments attempt count on decode errors from unsupported event types', async () => {
+    const archive = { incrementAttemptCount: vi.fn().mockResolvedValue(undefined) };
+    const metrics = makeMetrics();
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: makeProjectionTx().pgDb as never,
+      archive: archive as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi
+          .fn()
+          .mockResolvedValue([{ ...CREATED_PAYLOAD, event_type: 'UnknownEvent' as never }]),
+      } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics,
+      logger: logger as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'UnknownEvent' as never }]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'decode_error' }),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'aave_derivation_failed',
+      expect.objectContaining({ reason: 'decode_error' }),
+    );
+  });
+
+  it.each([
+    ['ProposalExecuted', { proposalId: '42' }],
+    ['ProposalCanceled', { proposalId: '42' }],
+    ['ProposalFailed', { proposalId: '42', votesFor: '1', votesAgainst: '0' }],
+  ] as const)(
+    'derives %s state transitions through the parser switch',
+    async (eventType, payload) => {
+      const { pgDb } = makeProjectionTx({
+        existingProposal: { id: 'proposal-1', source_id: '42' },
+      });
+      const metrics = makeMetrics();
+
+      const applier = new AaveGovernanceProjectionApplier({
+        pgDb: pgDb as never,
+        archive: { incrementAttemptCount: vi.fn() } as never,
+        dlq: { markRetrySucceeded: vi.fn() } as never,
+        payloads: {
+          fetchPayloads: vi.fn().mockResolvedValue([
+            {
+              ...CREATED_PAYLOAD,
+              event_type: eventType,
+              payload: JSON.stringify(payload),
+            },
+          ]),
+        } as never,
+        ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+        metrics,
+        logger: { warn: vi.fn(), error: vi.fn() } as never,
+      });
+
+      await applier.applyBatch([{ ...ROW, event_type: eventType }]);
+
+      expect(metrics.processed).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'derived', reason: null, event_type: eventType }),
+      );
+    },
+  );
 });

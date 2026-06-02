@@ -7,7 +7,7 @@ import {
   down as downAaveSeed,
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
-import { up as upAaveMetadataNullable } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
+import { up as upAaveMetadataNullable } from '../migrations-postgres/z_aave_003_metadata_voting_fields_nullable';
 
 class RollbackSignal extends Error {}
 
@@ -92,7 +92,7 @@ describeWithPg('aave_002_seed migration', () => {
   });
 });
 
-describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
+describeWithPg('z_aave_003_metadata_voting_fields_nullable migration', () => {
   it('makes voting machine metadata columns nullable', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {

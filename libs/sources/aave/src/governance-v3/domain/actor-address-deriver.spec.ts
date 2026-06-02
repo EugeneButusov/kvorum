@@ -44,4 +44,11 @@ describe('AaveGovernanceActorAddressDeriver', () => {
       deriver.extractAddresses('ProposalQueued', JSON.stringify({ proposalId: '101' })),
     ).toEqual([]);
   });
+
+  it('throws when ProposalCreated.creator is invalid', () => {
+    const deriver = new AaveGovernanceActorAddressDeriver({ fetchPayloads: vi.fn() } as never);
+    expect(() =>
+      deriver.extractAddresses('ProposalCreated', JSON.stringify({ creator: 'not-an-address' })),
+    ).toThrow('invalid ProposalCreated.creator payload field');
+  });
 });

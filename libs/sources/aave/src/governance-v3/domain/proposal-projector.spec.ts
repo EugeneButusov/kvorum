@@ -68,6 +68,27 @@ describe('projectAaveGovernanceV3Event', () => {
     });
   });
 
+  it.each([
+    ['ProposalQueued', 'queued'],
+    ['ProposalExecuted', 'executed'],
+    ['ProposalCanceled', 'canceled'],
+    ['ProposalFailed', 'defeated'],
+  ] as const)('projects %s into %s state transitions', (eventType, targetState) => {
+    const projection = projectAaveGovernanceV3Event(
+      {
+        type: eventType,
+        payload: { proposalId: '101' },
+      } as AaveGovernanceV3Event,
+      ARCHIVE_ROW,
+    );
+
+    expect(projection).toMatchObject({
+      kind: 'proposal_state_transition',
+      sourceId: '101',
+      targetState,
+    });
+  });
+
   it('projects PayloadSent into declared payload metadata', () => {
     const projection = projectAaveGovernanceV3Event(
       {
@@ -95,6 +116,25 @@ describe('projectAaveGovernanceV3Event', () => {
         status: 'declared',
       },
     });
+  });
+
+  it('throws when PayloadSent carries an invalid payload index', () => {
+    expect(() =>
+      projectAaveGovernanceV3Event(
+        {
+          type: 'PayloadSent',
+          payload: {
+            proposalId: '101',
+            payloadId: '55',
+            payloadsController: '0x' + '22'.repeat(20),
+            chainId: '137',
+            payloadNumberOnProposal: '9007199254740992',
+            numberOfPayloadsOnProposal: '3',
+          },
+        },
+        ARCHIVE_ROW,
+      ),
+    ).toThrowError(new AaveProposalProjectionError('invalid_payload_index', 'archive-1'));
   });
 
   it('throws when confirmed_at is missing', () => {
