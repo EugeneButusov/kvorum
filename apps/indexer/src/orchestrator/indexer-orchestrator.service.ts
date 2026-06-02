@@ -77,12 +77,9 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     for (const src of sources) {
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
-        this.logger.warn('seeded_source_no_plugin', {
-          source_type: src.source_type,
-          dao_source: src.id,
-        });
-        chainMetrics.seededSourceNoPlugin.add(1, { source_type: src.source_type });
-        continue;
+        throw new Error(
+          `No plugin registered for source_type="${src.source_type}" (dao_source ${src.id})`,
+        );
       }
       if (!plugin.supportedChainIds.includes(src.chain_id)) {
         continue;

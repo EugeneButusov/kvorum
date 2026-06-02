@@ -70,12 +70,6 @@ describe('chainMetrics counters', () => {
     expect(text).toContain('test_ingestion_gap_fill_failed_total');
     expect(text).toContain('test_ingestion_gap_fill_skipped_total');
   });
-
-  it('seededSourceNoPlugin counter emits _total series', async () => {
-    chainMetrics.seededSourceNoPlugin.add(1, { source_type: 'aave_governance_v3' });
-    const text = await renderMetrics();
-    expect(text).toContain('test_indexer_seeded_source_no_plugin_total');
-  });
 });
 
 describe('chainMetrics gauges', () => {
