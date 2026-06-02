@@ -106,7 +106,7 @@ Postgres migration files come from two locations, merged and sorted alphabetical
 - **Core** — `libs/db/migrations/0NNN_<name>.ts` for schema that belongs to no single source
 - **Per-source** — `libs/sources/<source>/migrations-postgres/<source>_NNN_<name>.ts` for source-specific data (e.g. inserting into the `source_type` reference table)
 
-Alphabetical ordering guarantees core migrations (`0NNN_*`) run before source migrations (`<source>_NNN_*`) since `0` < any lowercase letter. Each file exports `up(db)` and `down(db)` using the `sql` tagged-template tag. Run with:
+Alphabetical ordering guarantees core migrations (`0NNN_*`) run before source migrations (`<source>_NNN_*`) since `0` < any lowercase letter. The migrator runs with `allowUnorderedMigrations: true` because new source families may be introduced after older source families have already executed in persistent databases. Each file exports `up(db)` and `down(db)` using the `sql` tagged-template tag. Run with:
 
 ```bash
 pnpm -w db:migrate        # apply all pending migrations
