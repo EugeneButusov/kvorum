@@ -1,3 +1,4 @@
+export { BaseArchiveWriter } from './base-archive-writer';
 export { DecodeError } from './decode-error';
 export type { DecodeErrorReason } from './decode-error';
 export type { ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer-types';
