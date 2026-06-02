@@ -6,7 +6,7 @@ import type { ArchiveWriteContext } from '@sources/core';
 import type { IngesterListenerOptions } from '@sources/core';
 import { GovernorArchiveWriter } from './archive-writer';
 import type { IngesterListenerDeps } from './ingester-listener';
-import { makeIngesterListener } from './ingester-listener';
+import { makeGovernorIngesterListener } from './ingester-listener';
 import { COMPOUND_BRAVO_TOPICS } from '../abi/events';
 
 const CTX: ArchiveWriteContext = {
@@ -51,10 +51,10 @@ function makeDeps(
   };
 }
 
-describe('makeIngesterListener', () => {
+describe('makeGovernorIngesterListener', () => {
   it('#1 — single event: archiveWriter.write called once with correct context', async () => {
     const deps = makeDeps();
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     // Use a log that decodes as ProposalExecuted (topic0 matches, data is 0x but
     // ProposalExecuted only has topic-encoded id, so we need proper encoding).
@@ -84,7 +84,7 @@ describe('makeIngesterListener', () => {
       callOrder.push(callOrder.length);
       return Promise.resolve({ result: 'inserted' as const });
     });
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const encodeExecuted = (id: bigint) => {
@@ -101,7 +101,7 @@ describe('makeIngesterListener', () => {
 
   it('#3 — decode failure → DLQ inserted with stage=archive_decode, counter increments, batch continues', async () => {
     const deps = makeDeps();
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const unknownLog = makeLog({ topics: ['0x' + '00'.repeat(32)] });
@@ -131,7 +131,7 @@ describe('makeIngesterListener', () => {
       if (callCount === 1) return Promise.resolve({ result: 'unreachable' as const });
       return Promise.resolve({ result: 'inserted' as const });
     });
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
@@ -153,7 +153,7 @@ describe('makeIngesterListener', () => {
       if (callCount === 1) return Promise.reject(new Error('CH connection refused'));
       return Promise.resolve({ result: 'inserted' as const });
     });
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
@@ -170,7 +170,7 @@ describe('makeIngesterListener', () => {
 
   it('#6 — write returns skipped_existing → no error, batch continues', async () => {
     const deps = makeDeps(() => Promise.resolve({ result: 'skipped_existing' as const }));
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
@@ -193,7 +193,7 @@ describe('makeIngesterListener', () => {
       },
     );
 
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
 
     const events = [
@@ -241,7 +241,7 @@ describe('makeIngesterListener', () => {
     const recordSpy = vi.spyOn(chainMetrics.batchDuration, 'record');
 
     const deps = makeDeps();
-    const listener = makeIngesterListener(deps);
+    const listener = makeGovernorIngesterListener(deps);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
@@ -265,7 +265,7 @@ describe('makeIngesterListener', () => {
       return Promise.reject(chError);
     });
     const options: IngesterListenerOptions = { onWriteFailure: 'throw' };
-    const listener = makeIngesterListener(deps, options);
+    const listener = makeGovernorIngesterListener(deps, options);
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {
@@ -287,7 +287,7 @@ describe('makeIngesterListener', () => {
       callCount++;
       return Promise.reject(new Error('CH down'));
     });
-    const listener = makeIngesterListener(deps); // no onWriteFailure → defaults to swallow
+    const listener = makeGovernorIngesterListener(deps); // no onWriteFailure → defaults to swallow
 
     const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
     const enc = (id: bigint, idx: number) => {

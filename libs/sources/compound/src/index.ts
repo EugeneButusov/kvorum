@@ -67,7 +67,7 @@ export {
   projectCompoundProposalEvent,
   projectVoteCast,
   GovernorArchiveWriter,
-  makeIngesterListener,
+  makeGovernorIngesterListener,
   VoteBlockTimestampFetcher,
   SUPPORTED_CHAIN_IDS,
   createCompoundGovernorBravoPlugin,

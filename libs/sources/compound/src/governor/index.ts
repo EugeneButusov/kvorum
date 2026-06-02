@@ -88,7 +88,7 @@ export type { GovernorArchiveWriterDeps } from './ingestion/archive-writer.types
 export { GovernorArchiveWriter } from './ingestion/archive-writer';
 
 export type { IngesterListenerDeps } from './ingestion/ingester-listener';
-export { makeIngesterListener } from './ingestion/ingester-listener';
+export { makeGovernorIngesterListener } from './ingestion/ingester-listener';
 export { CompoundStateReconciler } from './reconcile/compound-state-reconciler';
 export type { ReconcileBound, ReconcileDriverMetrics } from './reconcile/compound-reconcile-driver';
 export { CompoundReconcileDriver } from './reconcile/compound-reconcile-driver';
