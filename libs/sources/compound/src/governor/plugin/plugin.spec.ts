@@ -117,7 +117,7 @@ describe('createCompoundGovernorBravoPlugin', () => {
     });
 
     it('#8.1 — buildBackfillRuntime listenerFactory is built with onWriteFailure=throw', () => {
-      const spy = vi.spyOn(ingesterListener, 'makeIngesterListener');
+      const spy = vi.spyOn(ingesterListener, 'makeGovernorIngesterListener');
       const plugin = makePlugin();
       const cfg = plugin.parseConfig({
         governor_address: '0xc0Da02939E1441F497fd74F78cE7Decb17B66529',

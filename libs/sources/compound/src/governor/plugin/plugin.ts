@@ -5,7 +5,7 @@ import type { ArchiveConsumeFn, BackfillRuntime, SourceIngester } from '@sources
 import { decodeCompoundLog } from '../abi/decoder';
 import { interfaceForSource } from '../abi/events';
 import { GovernorArchiveWriter } from '../ingestion/archive-writer';
-import { makeIngesterListener } from '../ingestion/ingester-listener';
+import { makeGovernorIngesterListener } from '../ingestion/ingester-listener';
 
 export const DaoSourceConfigSchema = z.object({
   governor_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -43,7 +43,7 @@ function createPlugin(
         topics: [[...proposalTopics, topics.VoteCast]],
       },
       listenerFactory: () =>
-        makeIngesterListener(
+        makeGovernorIngesterListener(
           {
             archiveWriter: deps.archiveWriter,
             context: { ...ctx },

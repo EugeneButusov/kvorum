@@ -7,7 +7,7 @@ import { chDb, ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
 import {
   ArchiveWriter,
   EventRepository,
-  makeIngesterListener,
+  makeGovernorIngesterListener,
   type ArchiveWriteContext,
 } from '@sources/compound';
 
@@ -37,7 +37,10 @@ describeIf('VoteCast ingestion integration', () => {
     compound_governor_oz: '',
   };
 
-  const listeners = new Map<FixtureLog['variant'], ReturnType<typeof makeIngesterListener>>();
+  const listeners = new Map<
+    FixtureLog['variant'],
+    ReturnType<typeof makeGovernorIngesterListener>
+  >();
 
   beforeAll(async () => {
     await pgDb
@@ -114,7 +117,7 @@ describeIf('VoteCast ingestion integration', () => {
 
       listeners.set(
         cfg.source_type,
-        makeIngesterListener({
+        makeGovernorIngesterListener({
           archiveWriter: writer,
           context,
           logger: silentLogger,

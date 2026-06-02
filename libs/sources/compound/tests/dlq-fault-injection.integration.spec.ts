@@ -5,13 +5,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
+import type { ArchiveWriteContext } from '@sources/core';
 import { CompTokenArchiveWriter } from '../src/comp-token/ingestion/archive-writer';
 import { makeCompTokenIngesterListener } from '../src/comp-token/ingestion/ingester-listener';
 import type { CompTokenEventRepository } from '../src/comp-token/persistence/event-repository';
 import type { CompoundGovernorEvent } from '../src/governor/domain/types';
 import { ArchiveWriter } from '../src/governor/ingestion/archive-writer';
-import type { ArchiveWriteContext } from '../src/governor/ingestion/archive-writer.types';
-import { makeIngesterListener } from '../src/governor/ingestion/ingester-listener';
+import { makeGovernorIngesterListener } from '../src/governor/ingestion/ingester-listener';
 import type { EventRepository } from '../src/governor/persistence/event-repository';
 
 type FixtureLog = {
@@ -123,7 +123,7 @@ describe('DLQ fault injection integration', () => {
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
-    const listener = makeIngesterListener(
+    const listener = makeGovernorIngesterListener(
       { archiveWriter: writer, context: GOV_CTX, logger: silentLogger, dlqRepo: makeDlqRepo([]) },
       { onWriteFailure: 'throw' },
     );
@@ -174,7 +174,7 @@ describe('DLQ fault injection integration', () => {
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
-    const listener = makeIngesterListener(
+    const listener = makeGovernorIngesterListener(
       { archiveWriter: writer, context: GOV_CTX, logger: silentLogger, dlqRepo: makeDlqRepo([]) },
       { onWriteFailure: 'throw' },
     );
