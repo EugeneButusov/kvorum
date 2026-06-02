@@ -3,8 +3,9 @@ import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { ArchiveWriteContext } from '@sources/core';
+import type { IngesterListenerOptions } from '@sources/core';
 import { GovernorArchiveWriter } from './archive-writer';
-import type { IngesterListenerDeps, IngesterListenerOptions } from './ingester-listener';
+import type { IngesterListenerDeps } from './ingester-listener';
 import { makeIngesterListener } from './ingester-listener';
 import { COMPOUND_BRAVO_TOPICS } from '../abi/events';
 
