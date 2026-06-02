@@ -358,6 +358,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../db
+      '@sources/core':
+        specifier: workspace:*
+        version: link:../core
       ethers:
         specifier: ^6.13.0
         version: 6.16.0
@@ -367,6 +370,9 @@ importers:
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
 
   libs/sources/compound:
     dependencies:

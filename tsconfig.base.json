@@ -24,6 +24,7 @@
       "@libs/auth": ["./libs/auth/src/index.ts"],
       "@libs/observability": ["./libs/observability/src/index.ts"],
       "@sources/core": ["./libs/sources/core/src/index.ts"],
+      "@sources/aave": ["./libs/sources/aave/src/index.ts"],
       "@sources/compound": ["./libs/sources/compound/src/index.ts"],
       "@sources/compound/governor/data-access": [
         "./libs/sources/compound/src/governor/data-access.ts"

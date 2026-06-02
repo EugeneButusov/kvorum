@@ -12,4 +12,9 @@ export type {
 
 export * from './governance-v3';
 export { DecodeError } from './shared';
-export type { DecodeErrorReason } from './shared';
+export type {
+  ArchiveWriteContext,
+  ArchiveWriteOutcome,
+  DecodeErrorReason,
+  IngesterListenerOptions,
+} from './shared';

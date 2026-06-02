@@ -15,3 +15,27 @@ export type {
   ProposalQueuedPayload,
   VotingActivatedPayload,
 } from './domain/types';
+export type {
+  EventArchiveAaveGovernanceV3,
+  EventArchiveAaveGovernanceV3Table,
+  NewEventArchiveAaveGovernanceV3,
+} from './persistence/schema';
+export type {
+  AaveGovernanceEventData,
+  AaveGovernanceEventRepositoryDeps,
+} from './persistence/event-repository.types';
+export { AaveGovernanceEventRepository } from './persistence/event-repository';
+export type {
+  AaveGovernanceArchiveWriterDeps,
+  ArchiveWriteContext,
+  ArchiveWriteOutcome,
+} from './ingestion/archive-writer.types';
+export { AaveGovernanceArchiveWriter } from './ingestion/archive-writer';
+export type { AaveGovernanceIngesterListenerDeps } from './ingestion/ingester-listener';
+export { makeAaveGovernanceIngesterListener } from './ingestion/ingester-listener';
+export type { AaveGovernanceV3Config, AaveGovernanceV3PluginDeps } from './plugin/plugin';
+export {
+  AaveGovernanceV3ConfigSchema,
+  SUPPORTED_CHAIN_IDS,
+  createAaveGovernanceV3Plugin,
+} from './plugin/plugin';
