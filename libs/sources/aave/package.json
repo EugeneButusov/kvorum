@@ -5,7 +5,9 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
+    "ethers": "^6.13.0",
     "kysely": "^0.29.0",
     "tslib": "^2.3.0"
   },
