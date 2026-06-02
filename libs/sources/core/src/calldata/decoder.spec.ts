@@ -22,6 +22,7 @@ const SELECTOR_ONLY = TRANSFER_SELECTOR; // 10 chars = length 10
 const CHAIN = '0x1';
 const ADDR = '0x' + 'ab'.repeat(20);
 const IMPL_ADDR = '0x' + 'cd'.repeat(20);
+const SOURCE_TYPE = 'compound_governor_bravo';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ function makeDeps(overrides: Partial<DecoderDependencies> = {}): DecoderDependen
       lookupBySelector: vi.fn().mockResolvedValue([]),
       bulkInsert: vi.fn().mockResolvedValue(undefined),
     },
-    bundledAbis: { bySelector: new Map() },
+    bundledAbisFor: vi.fn().mockReturnValue({ bySelector: new Map() }),
     proxyResolverFor: vi.fn().mockReturnValue({
       resolve: vi.fn().mockResolvedValue({
         implementation: null,
@@ -61,6 +62,7 @@ describe('CalldataDecoder.decode — step 1: calldata sanity', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: 'not-hex-at-all',
       functionSignature: null,
@@ -72,6 +74,7 @@ describe('CalldataDecoder.decode — step 1: calldata sanity', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: '0xabc', // odd length
       functionSignature: null,
@@ -83,6 +86,7 @@ describe('CalldataDecoder.decode — step 1: calldata sanity', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: '0x',
       functionSignature: null,
@@ -99,6 +103,7 @@ describe('CalldataDecoder.decode — step 1: calldata sanity', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: '0xabcd', // 2 bytes — not empty but < 4
       functionSignature: null,
@@ -118,6 +123,7 @@ describe('CalldataDecoder.decode — step 2: heuristic decoder', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -131,6 +137,7 @@ describe('CalldataDecoder.decode — step 2: heuristic decoder', () => {
     // No ABI, no bundled, proxy is not_a_proxy, no etherscan → miss
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -144,6 +151,7 @@ describe('CalldataDecoder.decode — step 3: event_emitted shortcut', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: SELECTOR_ONLY,
       functionSignature: 'transfer(address,uint256)',
@@ -160,6 +168,7 @@ describe('CalldataDecoder.decode — step 3: event_emitted shortcut', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: '0x00000000', // different selector
       functionSignature: 'transfer(address,uint256)',
@@ -175,6 +184,7 @@ describe('CalldataDecoder.decode — step 3: event_emitted shortcut', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: '0x00000000',
       functionSignature: 'not!!!valid())',
@@ -195,6 +205,7 @@ describe('CalldataDecoder — step 4: abi_cache', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -220,6 +231,7 @@ describe('CalldataDecoder — step 4: abi_cache', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -241,6 +253,7 @@ describe('CalldataDecoder — step 4: abi_cache', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: SELECTOR_ONLY, // no argument bytes → decodeFunctionData throws
       functionSignature: null, // skip step 3 (event_emitted) so step 4 runs
@@ -253,18 +266,19 @@ describe('CalldataDecoder — step 4: abi_cache', () => {
 describe('CalldataDecoder — step 5: bundled ABI library', () => {
   it('returns decoded bundled_library when selector is in bundled ABIs', async () => {
     const deps = makeDeps({
-      bundledAbis: {
+      bundledAbisFor: () => ({
         bySelector: new Map([
           [
             TRANSFER_SELECTOR,
             [{ iface: TRANSFER_IFACE, fragment: TRANSFER_FRAG, sourceName: 'erc20' }],
           ],
         ]),
-      },
+      }),
     });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -277,7 +291,7 @@ describe('CalldataDecoder — step 5: bundled ABI library', () => {
     const frag2 = FunctionFragment.from('transfer(address,uint256)');
     const iface2 = new Interface(['function transfer(address to, uint256 amount)']);
     const deps = makeDeps({
-      bundledAbis: {
+      bundledAbisFor: () => ({
         bySelector: new Map([
           [
             TRANSFER_SELECTOR,
@@ -287,11 +301,12 @@ describe('CalldataDecoder — step 5: bundled ABI library', () => {
             ],
           ],
         ]),
-      },
+      }),
     });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -306,18 +321,19 @@ describe('CalldataDecoder — step 5: bundled ABI library', () => {
   it('falls through to step 6 when all bundled candidates fail to decode calldata', async () => {
     // SELECTOR_ONLY has no argument bytes → decodeFunctionData throws for transfer(addr,uint256)
     const deps = makeDeps({
-      bundledAbis: {
+      bundledAbisFor: () => ({
         bySelector: new Map([
           [
             TRANSFER_SELECTOR,
             [{ iface: TRANSFER_IFACE, fragment: TRANSFER_FRAG, sourceName: 'erc20' }],
           ],
         ]),
-      },
+      }),
     });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: SELECTOR_ONLY, // only 4-byte selector, missing argument bytes → decode fails
       functionSignature: null,
@@ -337,6 +353,7 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -378,6 +395,7 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -391,14 +409,14 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     // Outer call: abiCache always returns undefined
     // Recursive call on IMPL_ADDR: bundled ABI decodes it
     const deps = makeDeps({
-      bundledAbis: {
+      bundledAbisFor: () => ({
         bySelector: new Map([
           [
             TRANSFER_SELECTOR,
             [{ iface: TRANSFER_IFACE, fragment: TRANSFER_FRAG, sourceName: 'erc20' }],
           ],
         ]),
-      },
+      }),
       abiCache: {
         findByAddress: vi.fn().mockResolvedValue(undefined), // always miss — no dual upsert
         upsert: vi.fn().mockResolvedValue(undefined),
@@ -436,10 +454,11 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     });
 
     // Now remove bundled so outer doesn't match it
-    deps.bundledAbis = { bySelector: new Map() };
+    deps.bundledAbisFor = () => ({ bySelector: new Map() });
 
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -464,6 +483,7 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -483,6 +503,7 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -499,6 +520,7 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -511,6 +533,7 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -525,6 +548,7 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -545,6 +569,7 @@ describe('CalldataDecoder — step 8: selector_index', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -563,6 +588,7 @@ describe('CalldataDecoder — step 9: miss', () => {
     const decoder = new CalldataDecoder(makeDeps());
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -583,6 +609,7 @@ describe('CalldataDecoder — serialise helper (via decoded arguments)', () => {
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
       targetAddress: ADDR,
       calldata: TRANSFER_CALLDATA,
       functionSignature: null,
@@ -593,5 +620,33 @@ describe('CalldataDecoder — serialise helper (via decoded arguments)', () => {
       expect(typeof result.decodedArguments['amount']).toBe('string');
       expect(result.decodedArguments['amount']).toBe('1');
     }
+  });
+
+  it('selects the bundled ABI library from sourceType once per decode', async () => {
+    const compoundLibrary = {
+      bySelector: new Map([
+        [
+          TRANSFER_SELECTOR,
+          [{ iface: TRANSFER_IFACE, fragment: TRANSFER_FRAG, sourceName: 'erc20' }],
+        ],
+      ]),
+    };
+    const aaveLibrary = { bySelector: new Map() };
+    const bundledAbisFor = vi.fn((sourceType: string) =>
+      sourceType === SOURCE_TYPE ? compoundLibrary : aaveLibrary,
+    );
+    const decoder = new CalldataDecoder(makeDeps({ bundledAbisFor }));
+
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: TRANSFER_CALLDATA,
+      functionSignature: null,
+    });
+
+    expect(result).toMatchObject({ kind: 'decoded', source: 'bundled_library' });
+    expect(bundledAbisFor).toHaveBeenCalledWith(SOURCE_TYPE);
+    expect(bundledAbisFor).toHaveBeenCalledTimes(1);
   });
 });

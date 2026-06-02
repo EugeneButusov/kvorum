@@ -38,7 +38,7 @@ export interface HeuristicResult {
 export interface DecoderDependencies {
   abiCache: AbiCacheRepository;
   selectorIndex: SelectorIndexRepository;
-  bundledAbis: LoadedAbiLibrary;
+  bundledAbisFor: (sourceType: string) => LoadedAbiLibrary;
   /** Source-specific heuristic decoder; omit to skip step 2. */
   decodeByHeuristic?: (calldata: string) => HeuristicResult | null;
   /** Returns the per-chain ProxyResolver, or throws ChainNotReadyError if the chain context has not been materialised yet (R5). */

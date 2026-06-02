@@ -60,6 +60,7 @@ export class CalldataDecoderWorkerService implements OnApplicationBootstrap {
       try {
         result = await this.decoder.decode({
           chainId: row.target_chain_id,
+          sourceType: row.source_type,
           targetAddress: row.target_address,
           calldata: row.calldata,
           functionSignature: row.function_signature,

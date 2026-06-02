@@ -6,16 +6,21 @@ import {
   SelectorIndexRepository,
   pgDb,
 } from '@libs/db';
-import { decodeByHeuristic, loadAbiLibrary } from '@sources/compound';
+import { loadAbiLibrary as loadAaveAbis } from '@sources/aave';
+import { decodeByHeuristic, loadAbiLibrary as loadCompoundAbis } from '@sources/compound';
 import {
   CalldataDecoder,
   ChainNotReadyError,
   EtherscanClient,
+  type LoadedAbiLibrary,
+  loadSharedAbiLibrary,
   readCalldataDecoderConfig,
 } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
+
+const bundledAbisFor = makeBundledAbiResolver();
 
 @Module({
   imports: [ChainContextModule],
@@ -42,7 +47,7 @@ import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service'
         new CalldataDecoder({
           abiCache,
           selectorIndex,
-          bundledAbis: loadAbiLibrary(),
+          bundledAbisFor,
           decodeByHeuristic,
           proxyResolverFor: (chainId) => {
             const ctx = chains.peek(chainId);
@@ -71,3 +76,20 @@ import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service'
   ],
 })
 export class CalldataDecoderModule {}
+
+function makeBundledAbiResolver(): (sourceType: string) => LoadedAbiLibrary {
+  const byFamily: Record<string, LoadedAbiLibrary> = {
+    aave: loadAaveAbis(),
+    compound: loadCompoundAbis(),
+  };
+  const sharedAbis = loadSharedAbiLibrary();
+
+  return (sourceType: string) => byFamily[sourceFamilyOf(sourceType)] ?? sharedAbis;
+}
+
+function sourceFamilyOf(sourceType: string): string {
+  const normalized = sourceType.replace(/_reconcile$/, '');
+  if (normalized.startsWith('compound_governor_')) return 'compound';
+  if (normalized.startsWith('aave_')) return 'aave';
+  return normalized.split('_', 1)[0] ?? normalized;
+}

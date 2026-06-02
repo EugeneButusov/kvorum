@@ -17,6 +17,7 @@ const ROW = {
   proposal_id: 'proposal-1',
   target_address: '0x' + 'a'.repeat(40),
   target_chain_id: '0x1',
+  source_type: 'compound_governor_bravo',
   function_signature: null as string | null,
   calldata: '0xa9059cbb' + '0'.repeat(128),
   decode_attempt_count: 0,
@@ -170,6 +171,22 @@ describe('CalldataDecoderWorkerService', () => {
       expect.objectContaining({ retryAt: expect.any(Date) }),
     );
     expect(actions.markDecoded).not.toHaveBeenCalled();
+  });
+
+  it('#8a — passes row.source_type into the decoder input', async () => {
+    const actions = makeActions();
+    const decoder = makeDecoder({ kind: 'miss' });
+    const worker = makeWorker(actions, decoder);
+
+    await worker.tick();
+
+    expect(decoder.decode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chainId: ROW.target_chain_id,
+        sourceType: ROW.source_type,
+        targetAddress: ROW.target_address,
+      }),
+    );
   });
 
   it('#8 — outer error (transaction rejects): tick resolves, inFlight resets, metric recorded', async () => {

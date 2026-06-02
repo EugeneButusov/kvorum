@@ -143,6 +143,7 @@ describeWithDb('ProposalActionRepository — filter', () => {
         expect(rows.map((r) => r.id)).not.toContain(decoded!.id);
         // The future-scheduled row is also excluded
         expect(rows).toHaveLength(1);
+        expect(rows[0]?.source_type).toBe('compound_governor_bravo');
 
         throw new RollbackSignal();
       }),
