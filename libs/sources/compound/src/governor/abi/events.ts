@@ -43,8 +43,12 @@ export type CompoundGovernorVariant =
   | 'compound_governor_bravo'
   | 'compound_governor_oz';
 
-import type { SharedGovernanceEventType } from '@libs/domain';
-export type CompoundEventType = SharedGovernanceEventType | 'VoteCast';
+export type CompoundEventType =
+  | 'ProposalCreated'
+  | 'ProposalQueued'
+  | 'ProposalExecuted'
+  | 'ProposalCanceled'
+  | 'VoteCast';
 
 export type CompoundTopics = ReturnType<typeof buildTopics>;
 

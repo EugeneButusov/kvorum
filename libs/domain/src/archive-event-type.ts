@@ -1,16 +1,12 @@
-/** Proposal lifecycle events emitted by multiple on-chain governance protocols. */
-export type SharedGovernanceEventType =
+/**
+ * Union of all event_type values written to archive_event.
+ * Add a new protocol's event strings here when registering a new source.
+ */
+export type ArchiveEventType =
   | 'ProposalCreated'
   | 'ProposalQueued'
   | 'ProposalExecuted'
-  | 'ProposalCanceled';
-
-/**
- * Union of all event_type values written to archive_event.
- * Add a new protocol's distinct event strings here when registering a new source.
- */
-export type ArchiveEventType =
-  | SharedGovernanceEventType
+  | 'ProposalCanceled'
   | 'VoteCast'
   | 'DelegateChanged'
   | 'DelegateVotesChanged'
