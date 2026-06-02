@@ -1,3 +1,9 @@
+export { DecodeError } from './decode-error';
+export type { DecodeErrorReason } from './decode-error';
+export type { ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer-types';
+export type { IngesterListenerOptions } from './listener-options';
+export { serializeError } from './serialize-error';
+
 export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
 export type { AbiEntry, LoadedAbiLibrary } from './calldata/abi-library/index';
 
