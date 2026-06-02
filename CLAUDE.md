@@ -114,7 +114,7 @@ pnpm -w db:migrate:down   # roll back the last migration
 pnpm -w db:reset          # roll back all migrations (dev only)
 ```
 
-ClickHouse migration files live at `libs/sources/<source>/migrations-clickhouse/` as plain SQL files (`<source>_NNN_<name>.sql`, e.g. `compound_001_archive.sql`). Run with:
+ClickHouse migration files live at `libs/sources/<source>/migrations-clickhouse/` as plain SQL files with a globally unique ordinal prefix (`NNNN_<source>_<name>.sql`, e.g. `0002_compound_archive.sql`). Run with:
 
 ```bash
 pnpm -w db:migrate:ch

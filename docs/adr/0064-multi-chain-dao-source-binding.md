@@ -76,6 +76,25 @@ These are compatibility-layer additions, not core semantic changes:
 
 Therefore SPEC §10.5 AC#4 remains satisfied for Epic R.
 
+### Per-source seeds and seeded-ahead skip (R3)
+
+R3 fulfills the recorded hand-off in the creation migrations:
+
+- `dao_source` is unique by `(dao_id, source_type, chain_id)`, allowing one logical DAO to bind
+  the same source type on multiple chains.
+- `dao_source.chain_id` no longer defaults to Ethereum mainnet; every seed must write it
+  explicitly.
+- the committed Compound seeds write `chain_id = '0x1'` and use the three-column conflict target.
+
+R3 also permits registry rows to land before their adapters. During orchestrator bootstrap, a
+`dao_source` row whose `source_type` has no registered ingester is skipped with a warning and the
+`indexer_seeded_source_no_plugin` counter. The `source_type` value is still FK-bound to the
+reference table, so this state represents a seeded source awaiting implementation rather than a
+free-form typo.
+
+The fail-fast for missing chain configuration remains in place for registered ingesters. Once a
+source type has code, lack of `CHAIN_CONFIG` coverage is an operator provisioning error.
+
 ## Consequences
 
 - Cross-chain head-of-line blocking is deferred to Epic Y. Mechanism:

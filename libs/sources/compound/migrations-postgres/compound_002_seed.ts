@@ -45,52 +45,55 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
     SELECT id,
            'compound_governor_bravo',
+           '0x1',
            '{"governor_address": "0xc0Da02939E1441F497fd74F78cE7Decb17B66529"}'::jsonb,
            ${sql.lit(GOVERNOR_BRAVO_DEPLOY_BLOCK)}
     FROM dao
     WHERE slug = 'compound'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
     SELECT id,
            'compound_governor_alpha',
+           '0x1',
            '{"governor_address": "0xc0dA01a04C3f3E0be433606045bB7017A7323E38"}'::jsonb,
            ${sql.lit(GOVERNOR_ALPHA_DEPLOY_BLOCK)}
     FROM dao
     WHERE slug = 'compound'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
     SELECT id,
            'compound_governor_oz',
+           '0x1',
            '{"governor_address": "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0"}'::jsonb,
            ${sql.lit(GOVERNOR_OZ_DEPLOY_BLOCK)}
     FROM dao
     WHERE slug = 'compound'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-    SELECT dao_id, 'compound_governor_bravo_reconcile', source_config, active_from_block
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
+    SELECT dao_id, 'compound_governor_bravo_reconcile', chain_id, source_config, active_from_block
     FROM dao_source
     WHERE source_type = 'compound_governor_bravo'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
-    SELECT dao_id, 'compound_governor_oz_reconcile', source_config, active_from_block
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
+    SELECT dao_id, 'compound_governor_oz_reconcile', chain_id, source_config, active_from_block
     FROM dao_source
     WHERE source_type = 'compound_governor_oz'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 }
 

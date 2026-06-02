@@ -44,6 +44,11 @@ export const chainMetrics = {
     name: 'ingestion_gap_fill_skipped',
     description: 'Count of startup/manual gap fills skipped by reason.',
   }),
+  seededSourceNoPlugin: defineCounter({
+    name: 'indexer_seeded_source_no_plugin',
+    description:
+      'Count of dao_source rows skipped at orchestrator boot because no ingester is registered for their source_type.',
+  }),
   proxyResolutions: defineCounter({
     name: 'ingestion_proxy_resolutions',
     description:

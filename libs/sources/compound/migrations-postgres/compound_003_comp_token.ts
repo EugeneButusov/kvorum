@@ -10,14 +10,15 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 
   await sql`
-    INSERT INTO dao_source (dao_id, source_type, source_config, active_from_block)
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
     SELECT id,
            'compound_comp_token',
+           '0x1',
            jsonb_build_object('token_address', ${sql.lit(COMP_TOKEN_ADDRESS)}),
            ${sql.lit(COMP_TOKEN_DEPLOY_BLOCK)}
     FROM dao
     WHERE slug = 'compound'
-    ON CONFLICT (dao_id, source_type) DO NOTHING
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 }
 

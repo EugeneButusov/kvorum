@@ -23,6 +23,7 @@ vi.mock('@libs/chain', () => ({
     indexerActiveSources: { record: vi.fn() },
     ingestionGapFillFailed: { add: vi.fn() },
     ingestionGapFillSkipped: { add: vi.fn() },
+    seededSourceNoPlugin: { add: vi.fn() },
   },
 }));
 
@@ -200,16 +201,22 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#3 — unknown source_type: throws BEFORE any driver.start()', async () => {
+  it('#3 — unknown source_type: skipped while registered sources still start', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', '0x1')]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'unknown_source', '0x1'),
+      makeSource('src-2', 'compound_governor_bravo', '0x1'),
+    ]);
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
-    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No plugin registered/);
-    expect(driver.start).not.toHaveBeenCalled();
+    await svc.onApplicationBootstrap();
+    expect(driver.start).toHaveBeenCalledTimes(1);
+    expect(chainMetrics.seededSourceNoPlugin.add).toHaveBeenCalledWith(1, {
+      source_type: 'unknown_source',
+    });
   });
 
   it('#4 — malformed source_config: throws BEFORE any driver.start()', async () => {

@@ -51,7 +51,7 @@ admin-cli daos source add aave --type aave_voting_machine --chain 0x89 --config 
 
 ## Local ClickHouse migration note (R2)
 
-R2 edits `libs/sources/core/migrations-clickhouse/core_001_ch_source_of_truth.sql` in place.
+R2 edits `libs/sources/core/migrations-clickhouse/0001_core_ch_source_of_truth.sql` in place.
 If `core_001` was already applied in your local ClickHouse, `clickhouse-migrations` checksum
 verification will fail on re-run.
 
@@ -62,3 +62,31 @@ docker compose down -v clickhouse
 docker compose up -d clickhouse
 pnpm -w db:migrate:ch
 ```
+
+## Local migration reset note (R3)
+
+R3 renames the existing ClickHouse migrations to the stable global-ordinal convention
+`NNNN_<source>_<name>.sql` and adds `0004_aave_archive.sql`. If the old ClickHouse filenames
+were already applied locally, `clickhouse-migrations` will see changed version/name/checksum
+metadata. This is the final expected ClickHouse wipe for the M3 migration-order work; future
+ClickHouse migrations should append at the next global ordinal.
+
+Reset path:
+
+```bash
+docker compose down -v clickhouse
+docker compose up -d clickhouse
+pnpm -w db:migrate:ch
+```
+
+R3 also edits the core Postgres creation migration and committed Compound seeds in place:
+`dao_source.chain_id` no longer has a default and the uniqueness constraint now includes
+`chain_id`. A populated local Postgres database needs a reset before re-running migrations.
+
+Reset path:
+
+```bash
+pnpm -w db:reset
+```
+
+Fresh CI containers are unaffected.
