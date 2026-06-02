@@ -283,6 +283,9 @@ importers:
 
   apps/indexer:
     dependencies:
+      '@nest/chain':
+        specifier: workspace:*
+        version: link:../../nest/chain
       pg-boss:
         specifier: ^12.18.2
         version: 12.18.2

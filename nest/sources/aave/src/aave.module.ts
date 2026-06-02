@@ -7,8 +7,8 @@ import {
 } from '@sources/aave';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
+import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
-import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
 

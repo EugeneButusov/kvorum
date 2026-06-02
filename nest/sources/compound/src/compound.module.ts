@@ -33,9 +33,9 @@ import {
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
+import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
 import { buildDriverMetrics } from './state-reconciler-metrics';
-import { toChainLogger } from './utils/nest-logger-adapter';
 
 export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
 
