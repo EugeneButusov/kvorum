@@ -25,7 +25,7 @@ export interface AdvanceProposalStateInput {
   daoId: string;
   sourceType: string;
   sourceId: string;
-  targetState: Extract<ProposalState, 'queued' | 'executed' | 'canceled'>;
+  targetState: Extract<ProposalState, 'active' | 'queued' | 'executed' | 'canceled' | 'defeated'>;
   stateUpdatedAt: Date;
 }
 
@@ -123,15 +123,24 @@ export class ProposalRepository {
   }
 
   async advanceState(input: AdvanceProposalStateInput): Promise<number> {
-    const allowedCurrentStates: readonly ProposalState[] =
-      input.targetState === 'queued' ? ['pending'] : ['pending', 'queued'];
+    const allowedFromByTarget: Record<
+      AdvanceProposalStateInput['targetState'],
+      readonly ProposalState[]
+    > = {
+      active: ['pending'],
+      queued: ['pending', 'active'],
+      executed: ['pending', 'queued', 'active'],
+      canceled: ['pending', 'queued', 'active'],
+      defeated: ['pending', 'active'],
+    };
+    const allowedCurrentStates = allowedFromByTarget[input.targetState];
 
     const query = this.db
       .updateTable('proposal')
       .where('dao_id', '=', input.daoId)
       .where('source_type', '=', input.sourceType)
       .where('source_id', '=', input.sourceId)
-      .where('state', 'not in', ['executed', 'canceled'])
+      .where('state', 'not in', ['executed', 'canceled', 'defeated'])
       .where('state', 'in', allowedCurrentStates);
 
     const result = await query
@@ -143,6 +152,22 @@ export class ProposalRepository {
       .executeTakeFirst();
 
     return Number(result?.numUpdatedRows ?? 0n);
+  }
+
+  async updateTitleDescription(
+    proposalId: string,
+    title: string | null,
+    description: string,
+  ): Promise<void> {
+    await this.db
+      .updateTable('proposal')
+      .set({
+        title,
+        description,
+        updated_at: sql<Date>`now()`,
+      })
+      .where('id', '=', proposalId)
+      .execute();
   }
 
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {

@@ -9,5 +9,6 @@ export type {
   NewAaveProposalMetadata,
   NewAaveProposalPayload,
 } from './persistence/schema';
+export { AaveProposalRepository } from './persistence/aave-proposal-repository';
 
 export * from './governance-v3';

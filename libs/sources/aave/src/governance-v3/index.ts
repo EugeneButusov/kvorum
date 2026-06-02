@@ -5,6 +5,7 @@ export {
 } from './abi/events';
 export type { AaveGovernanceV3EventType } from './abi/events';
 export { decodeAaveGovernanceV3Log } from './abi/decoder';
+export { AAVE_V3_CHOICES } from './domain/choices';
 export type {
   AaveGovernanceV3Event,
   PayloadSentPayload,
@@ -20,6 +21,8 @@ export type {
   EventArchiveAaveGovernanceV3Table,
   NewEventArchiveAaveGovernanceV3,
 } from './persistence/schema';
+export type { AaveGovernanceArchivePayloadRow } from './persistence/archive-payload-repository';
+export { AaveGovernanceArchivePayloadRepository } from './persistence/archive-payload-repository';
 export type {
   AaveGovernanceEventData,
   AaveGovernanceEventRepositoryDeps,
