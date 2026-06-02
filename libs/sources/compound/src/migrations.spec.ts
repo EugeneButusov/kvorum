@@ -136,6 +136,10 @@ describeWithDb('compound_002_seed migration', () => {
         `.execute(tx);
 
         await upCompoundSeed(tx);
+        // Undo migrations in reverse order: compound_003 must come down before compound_002,
+        // otherwise compound_comp_token in dao_source blocks the DAO row deletion.
+        await upCompToken(tx);
+        await downCompToken(tx);
         await downCompoundSeed(tx);
 
         const daoRows = await tx.selectFrom('dao').where('slug', '=', 'compound').execute();

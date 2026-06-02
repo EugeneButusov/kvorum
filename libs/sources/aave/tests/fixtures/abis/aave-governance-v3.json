@@ -1,0 +1,97 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": true, "internalType": "uint40", "name": "payloadId", "type": "uint40" },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "payloadsController",
+        "type": "address"
+      },
+      { "indexed": true, "internalType": "uint256", "name": "chainId", "type": "uint256" },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "payloadNumberOnProposal",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "numberOfPayloadsOnProposal",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayloadSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" }
+    ],
+    "name": "ProposalCanceled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+      {
+        "indexed": true,
+        "internalType": "enum PayloadsControllerUtils.AccessControl",
+        "name": "accessLevel",
+        "type": "uint8"
+      },
+      { "indexed": false, "internalType": "bytes32", "name": "ipfsHash", "type": "bytes32" }
+    ],
+    "name": "ProposalCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" }
+    ],
+    "name": "ProposalExecuted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint128", "name": "votesFor", "type": "uint128" },
+      { "indexed": false, "internalType": "uint128", "name": "votesAgainst", "type": "uint128" }
+    ],
+    "name": "ProposalFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint128", "name": "votesFor", "type": "uint128" },
+      { "indexed": false, "internalType": "uint128", "name": "votesAgainst", "type": "uint128" }
+    ],
+    "name": "ProposalQueued",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "snapshotBlockHash",
+        "type": "bytes32"
+      },
+      { "indexed": false, "internalType": "uint24", "name": "votingDuration", "type": "uint24" }
+    ],
+    "name": "VotingActivated",
+    "type": "event"
+  }
+]

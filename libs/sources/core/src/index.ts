@@ -1,3 +1,9 @@
+export { DecodeError } from './decode-error';
+export type { DecodeErrorReason } from './decode-error';
+export type { ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer-types';
+export type { IngesterListenerOptions } from './listener-options';
+export { serializeError } from './serialize-error';
+
 export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
 export type { AbiEntry, LoadedAbiLibrary } from './calldata/abi-library/index';
 
@@ -36,7 +42,7 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
-import type { VotingPowerStrategy } from '@libs/domain';
+import type { ArchiveEventType, VotingPowerStrategy } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 import type { RawLogJob } from './producer/archive-producer';
 
@@ -59,7 +65,7 @@ export interface SourceIngester<TConfig = unknown> {
 export interface ProjectionDeriver {
   readonly kind: 'projection';
   readonly sourceTypes: readonly string[];
-  readonly eventTypes: readonly string[];
+  readonly eventTypes: readonly ArchiveEventType[];
   applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void>;
 }
 
@@ -68,7 +74,7 @@ export interface ActorAddressPayloadRow {
   tx_hash: string;
   log_index: number;
   block_hash: string;
-  event_type: string;
+  event_type: ArchiveEventType;
   payload: string;
 }
 
@@ -80,9 +86,9 @@ export interface ActorAddressCandidate {
 export interface ActorAddressDeriver {
   readonly kind: 'actor-address';
   readonly sourceTypes: readonly string[];
-  readonly eventTypes: readonly string[];
+  readonly eventTypes: readonly ArchiveEventType[];
   fetchPayloads(rows: readonly ArchiveDerivationRow[]): Promise<readonly ActorAddressPayloadRow[]>;
-  extractAddresses(eventType: string, payload: string): readonly ActorAddressCandidate[];
+  extractAddresses(eventType: ArchiveEventType, payload: string): readonly ActorAddressCandidate[];
 }
 
 export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;

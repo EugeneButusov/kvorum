@@ -23,7 +23,7 @@ export type {
   ProposalCanceledPayload,
   VoteCastPayload,
 } from './domain/types';
-export { DecodeError } from '../shared';
+export { DecodeError } from '@sources/core';
 
 export { decodeCompoundLog } from './abi/decoder';
 export {

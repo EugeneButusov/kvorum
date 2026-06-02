@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
+import type { ArchiveWriteContext } from '@sources/core';
 import { CompTokenArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 import type { CompTokenEventRepository } from '../persistence/event-repository';
 

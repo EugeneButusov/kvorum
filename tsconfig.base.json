@@ -24,6 +24,7 @@
       "@libs/auth": ["./libs/auth/src/index.ts"],
       "@libs/observability": ["./libs/observability/src/index.ts"],
       "@sources/core": ["./libs/sources/core/src/index.ts"],
+      "@sources/aave": ["./libs/sources/aave/src/index.ts"],
       "@sources/compound": ["./libs/sources/compound/src/index.ts"],
       "@sources/compound/governor/data-access": [
         "./libs/sources/compound/src/governor/data-access.ts"
@@ -37,6 +38,7 @@
       "@nest/delegations": ["./nest/delegations/src/index.ts"],
       "@nest/proposals": ["./nest/proposals/src/index.ts"],
       "@nest/votes": ["./nest/votes/src/index.ts"],
+      "@nest/aave": ["./nest/sources/aave/src/index.ts"],
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
       "@nest/sources": ["./nest/sources/index.ts"],
       "@nest/observability": ["./nest/observability/src/index.ts"],

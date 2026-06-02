@@ -12,6 +12,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@nest/chain": "workspace:*",
     "pg-boss": "^12.18.2"
   }
 }

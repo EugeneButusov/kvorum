@@ -14,8 +14,8 @@ import {
   readCalldataDecoderConfig,
 } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
+import { toChainLogger } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
-import { toChainLogger } from '../infra/nest-logger-adapter';
 
 @Module({
   imports: [ChainContextModule],

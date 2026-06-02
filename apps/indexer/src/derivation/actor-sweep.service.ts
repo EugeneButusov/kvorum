@@ -6,6 +6,7 @@ import {
   DlqRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
+import type { ArchiveEventType } from '@libs/domain';
 import type { ActorSweepAdapter } from '@sources/core';
 import { readIntervalMs } from '../app/env-helpers';
 
@@ -20,7 +21,7 @@ type ActorAddressSource = Parameters<ActorRepository['findOrCreateActorAddress']
 export class ActorSweepService {
   private readonly logger = new Logger('ActorSweep');
   private inFlight = false;
-  private readonly eventTypes: readonly string[];
+  private readonly eventTypes: readonly ArchiveEventType[];
   private readonly adapterBySourceType: ReadonlyMap<string, ActorSweepAdapter>;
 
   constructor(

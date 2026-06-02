@@ -1,9 +1,9 @@
 import type { EventsListener, LogEvent, Logger } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
+import type { ArchiveWriteContext, IngesterListenerOptions } from '@sources/core';
+import { DecodeError } from '@sources/core';
 import type { CompTokenArchiveWriter } from './archive-writer';
-import type { ArchiveWriteContext, IngesterListenerOptions } from '../../shared';
-import { DecodeError } from '../../shared';
 import { decodeCompTokenLog } from '../abi/decoder';
 
 export interface CompTokenIngesterListenerDeps {
