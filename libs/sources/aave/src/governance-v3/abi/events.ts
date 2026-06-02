@@ -26,14 +26,7 @@ function buildTopics(iface: Interface) {
 
 export const AAVE_GOVERNANCE_V3_TOPICS = buildTopics(AAVE_GOVERNANCE_V3_INTERFACE);
 
-export type AaveGovernanceV3EventType =
-  | 'ProposalCreated'
-  | 'VotingActivated'
-  | 'ProposalQueued'
-  | 'ProposalExecuted'
-  | 'ProposalCanceled'
-  | 'ProposalFailed'
-  | 'PayloadSent';
+export type { AaveGovernanceV3EventType } from '@libs/domain';
 
 export type AaveGovernanceV3Topics = ReturnType<typeof buildTopics>;
 

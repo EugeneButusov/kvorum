@@ -1,4 +1,5 @@
 import type { ClickHouseDatabase } from '@libs/db';
+import type { TokenDelegationEventType } from '@libs/domain';
 
 // UInt64 block_number exceeds JS number precision; typed as string.
 export interface EventArchiveCompoundCompTokenTable {
@@ -8,7 +9,7 @@ export interface EventArchiveCompoundCompTokenTable {
   block_hash: string;
   tx_hash: string;
   log_index: number;
-  event_type: string;
+  event_type: TokenDelegationEventType;
   // Server-stamped via DEFAULT now(); writers MUST NOT supply this column.
   received_at: Date;
   payload: string;

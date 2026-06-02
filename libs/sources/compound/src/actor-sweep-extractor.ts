@@ -1,3 +1,5 @@
+import type { ArchiveEventType } from '@libs/domain';
+
 export type ActorAddressSource = 'voter_event' | 'delegator_event' | 'delegate_event';
 
 export interface AddressCandidate {
@@ -7,8 +9,8 @@ export interface AddressCandidate {
 
 export interface ActorSweepExtractor {
   sourceTypes: readonly string[];
-  eventTypes: readonly string[];
-  extractAddresses(eventType: string, payloadJson: string): AddressCandidate[];
+  eventTypes: readonly ArchiveEventType[];
+  extractAddresses(eventType: ArchiveEventType, payloadJson: string): AddressCandidate[];
 }
 
 export const COMPOUND_ACTOR_SWEEP_EXTRACTOR: ActorSweepExtractor = {

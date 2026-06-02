@@ -6,6 +6,7 @@ import {
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
 } from '@libs/db';
+import type { ArchiveEventType } from '@libs/domain';
 import { SOURCE_PLUGINS, type ProjectionDeriver, type SourcePlugin } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
 import { readIntervalMs } from '../app/env-helpers';
@@ -22,7 +23,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
   private readonly appliers: readonly ProjectionDeriver[];
   private inFlight = false;
   private lastProgressLogAt = 0;
-  private readonly eventTypes: readonly string[];
+  private readonly eventTypes: readonly ArchiveEventType[];
 
   constructor(
     private readonly archiveDerivation: ArchiveDerivationRepository,

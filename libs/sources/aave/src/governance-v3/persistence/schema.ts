@@ -1,3 +1,5 @@
+import type { AaveGovernanceV3EventType } from '@libs/domain';
+
 // UInt64 block_number exceeds JS number precision; typed as string.
 export interface EventArchiveAaveGovernanceV3Table {
   dao_source_id: string;
@@ -6,7 +8,7 @@ export interface EventArchiveAaveGovernanceV3Table {
   block_hash: string;
   tx_hash: string;
   log_index: number;
-  event_type: string;
+  event_type: AaveGovernanceV3EventType;
   received_at: Date;
   payload: string;
 }

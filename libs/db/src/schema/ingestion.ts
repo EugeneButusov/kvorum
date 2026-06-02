@@ -1,4 +1,5 @@
 import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
+import type { ArchiveEventType } from '@libs/domain';
 import type { SourceType } from './domain';
 
 // ── Enum string-literal unions ────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export interface ArchiveEventTable {
   block_hash: string;
   tx_hash: string;
   log_index: number;
-  event_type: string;
+  event_type: ArchiveEventType;
   received_at: Date;
   derived_at: Date | null;
   derivation_actor_resolved_at: Date | null;

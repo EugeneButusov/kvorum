@@ -358,6 +358,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
       '@sources/core':
         specifier: workspace:*
         version: link:../core
@@ -382,6 +385,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
       '@libs/observability':
         specifier: workspace:*
         version: link:../../observability
@@ -409,6 +415,9 @@ importers:
       '@libs/db':
         specifier: workspace:*
         version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
       ethers:
         specifier: ^6.13.0
         version: 6.16.0

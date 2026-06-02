@@ -43,12 +43,7 @@ export type CompoundGovernorVariant =
   | 'compound_governor_bravo'
   | 'compound_governor_oz';
 
-export type CompoundEventType =
-  | 'ProposalCreated'
-  | 'ProposalQueued'
-  | 'ProposalExecuted'
-  | 'ProposalCanceled'
-  | 'VoteCast';
+export type { CompoundGovernorEventType as CompoundEventType } from '@libs/domain';
 
 export type CompoundTopics = ReturnType<typeof buildTopics>;
 

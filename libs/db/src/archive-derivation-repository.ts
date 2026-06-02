@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import type { ArchiveEventType } from '@libs/domain';
 import type { PgDatabase } from './schema/pg';
 
 export interface ArchiveDerivationRow {
@@ -10,7 +11,7 @@ export interface ArchiveDerivationRow {
   block_hash: string;
   tx_hash: string;
   log_index: number;
-  event_type: string;
+  event_type: ArchiveEventType;
   received_at: Date;
   derivation_attempt_count: number;
 }
@@ -19,7 +20,7 @@ export class ArchiveDerivationRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
   async findUnderived(
-    eventTypes: readonly string[],
+    eventTypes: readonly ArchiveEventType[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];

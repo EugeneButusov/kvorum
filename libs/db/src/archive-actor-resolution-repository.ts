@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import type { ArchiveEventType } from '@libs/domain';
 import type { ArchiveDerivationRow } from './archive-derivation-repository';
 import type { PgDatabase } from './schema/pg';
 
@@ -6,7 +7,7 @@ export class ArchiveActorResolutionRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
   async findDerivableBy(
-    eventTypes: readonly string[],
+    eventTypes: readonly ArchiveEventType[],
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
@@ -38,7 +39,7 @@ export class ArchiveActorResolutionRepository {
   }
 
   async findUnresolvedActors(
-    eventTypes: readonly string[],
+    eventTypes: readonly ArchiveEventType[],
     attemptThreshold: number,
     limit: number,
   ): Promise<ArchiveDerivationRow[]> {
