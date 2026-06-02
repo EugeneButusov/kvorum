@@ -1,6 +1,6 @@
 import type { LogEvent } from '@libs/chain';
+import { DecodeError } from '@sources/core';
 import { interfaceForAaveGovernanceV3 } from './events';
-import { DecodeError } from '../../shared';
 import type { AaveGovernanceV3Event } from '../domain/types';
 
 export function decodeAaveGovernanceV3Log(

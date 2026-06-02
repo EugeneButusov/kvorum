@@ -6,9 +6,9 @@ import type {
   NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
+import type { ArchiveWriteContext, ArchiveWriteOutcome } from '@sources/core';
+import { serializeError } from '@sources/core';
 import type { CompTokenArchiveWriterDeps } from './archive-writer.types';
-import type { ArchiveWriteContext, ArchiveWriteOutcome } from '../../shared';
-import { serializeError } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 import type { CompTokenEventRepository } from '../persistence/event-repository';
 

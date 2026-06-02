@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
+import { DecodeError } from '@sources/core';
 import { decodeAaveGovernanceV3Log } from './decoder';
 import { AAVE_GOVERNANCE_V3_INTERFACE } from './events';
-import { DecodeError } from '../../shared';
 
 function loadFixture(name: string): { topics: string[]; data: string } {
   const path = join(__dirname, '..', '..', '..', 'tests', 'fixtures', 'logs', `${name}.json`);

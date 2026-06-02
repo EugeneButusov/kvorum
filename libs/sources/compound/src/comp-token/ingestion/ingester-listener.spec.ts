@@ -2,12 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
+import type { ArchiveWriteContext, IngesterListenerOptions } from '@sources/core';
 import { CompTokenArchiveWriter } from './archive-writer';
 import {
   makeCompTokenIngesterListener,
   type CompTokenIngesterListenerDeps,
 } from './ingester-listener';
-import type { ArchiveWriteContext, IngesterListenerOptions } from '../../shared';
 import { COMPOUND_COMP_TOKEN_INTERFACE } from '../abi/events';
 
 const CTX: ArchiveWriteContext = {

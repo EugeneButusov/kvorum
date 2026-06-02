@@ -2,6 +2,7 @@ import { keccak256, toUtf8Bytes } from 'ethers';
 import { describe, it, expect, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
+import { DecodeError } from '@sources/core';
 import { decodeCompoundLog } from './decoder';
 import {
   COMPOUND_ALPHA_TOPICS,
@@ -11,7 +12,6 @@ import {
   COMPOUND_GOVERNOR_BRAVO_INTERFACE,
   COMPOUND_GOVERNOR_OZ_INTERFACE,
 } from './events';
-import { DecodeError } from '../../shared';
 
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {

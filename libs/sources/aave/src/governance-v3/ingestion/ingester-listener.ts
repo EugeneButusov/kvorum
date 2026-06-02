@@ -1,9 +1,9 @@
 import type { EventsListener, LogEvent, Logger } from '@libs/chain';
 import { chainMetrics } from '@libs/chain';
 import type { DlqRepository, NewIngestionDlq } from '@libs/db';
+import { DecodeError, type IngesterListenerOptions, serializeError } from '@sources/core';
 import { AaveGovernanceArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import { DecodeError, type IngesterListenerOptions, serializeError } from '../../shared';
 import { decodeAaveGovernanceV3Log } from '../abi/decoder';
 
 export interface AaveGovernanceIngesterListenerDeps {

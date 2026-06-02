@@ -1,6 +1,6 @@
 import type { LogEvent } from '@libs/chain';
+import { DecodeError } from '@sources/core';
 import { COMPOUND_COMP_TOKEN_INTERFACE, COMPOUND_COMP_TOKEN_TOPICS } from './events';
-import { DecodeError } from '../../shared';
 import type { CompTokenEvent } from '../domain/types';
 
 export function decodeCompTokenLog(log: LogEvent): CompTokenEvent {

@@ -6,12 +6,12 @@ import type {
   NewArchiveEvent,
   NewIngestionDlq,
 } from '@libs/db';
+import { serializeError } from '@sources/core';
 import type {
   AaveGovernanceArchiveWriterDeps,
   ArchiveWriteContext,
   ArchiveWriteOutcome,
 } from './archive-writer.types';
-import { serializeError } from '../../shared';
 import type { AaveGovernanceV3Event } from '../domain/types';
 import type { AaveGovernanceEventRepository } from '../persistence/event-repository';
 
