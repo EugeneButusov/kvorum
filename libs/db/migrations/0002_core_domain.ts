@@ -46,14 +46,18 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('source_type', 'text', (col) =>
       col.notNull().references('source_type.value').onDelete('restrict'),
     )
-    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull().defaultTo('0x1'))
+    .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('source_config', 'jsonb', (col) => col.notNull())
     .addColumn('active_from_block', 'bigint')
     .addColumn('active_to_block', 'bigint')
     .addColumn('backfill_started_at_block', 'bigint')
     .addColumn('backfill_head_block', 'bigint')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
-    .addUniqueConstraint('dao_source_dao_id_source_type_key', ['dao_id', 'source_type'])
+    .addUniqueConstraint('dao_source_dao_id_source_type_chain_id_key', [
+      'dao_id',
+      'source_type',
+      'chain_id',
+    ])
     .execute();
 
   await db.schema

@@ -1,5 +1,5 @@
--- Mirror of compound_001_archive.sql for the COMP ERC-20 token archive.
--- All structural semantics are identical; see compound_001_archive.sql for the
+-- Mirror of 0002_compound_archive.sql for the COMP ERC-20 token archive.
+-- All structural semantics are identical; see 0002_compound_archive.sql for the
 -- block_hash / received_at / partition / TTL / codec rationale (preserved here verbatim).
 --
 -- This table will be populated by K2a's ArchiveWriter writing DelegateChanged +

@@ -1,18 +1,19 @@
 // Wrapper for clickhouse-migrations that handles the per-source directory layout.
 // Each source package keeps its ClickHouse migrations at:
-//   libs/sources/<name>/migrations-clickhouse/<source>_NNN_<name>.sql
+//   libs/sources/<name>/migrations-clickhouse/NNNN_<source>_<name>.sql
 // clickhouse-migrations takes a single --migrations-dir, so this script
-// globs all per-source dirs, sorts files by basename, copies them into a
-// single temp directory, and invokes the runner once.
+// globs all per-source dirs, validates globally unique embedded ordinals,
+// copies them into a single temp directory, and invokes the runner once.
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.join(import.meta.dirname, '../../..');
 const sourcesDir = path.join(repoRoot, 'libs/sources');
 
-async function collectMigrations(): Promise<string[]> {
+export async function collectMigrations(): Promise<string[]> {
   const files: string[] = [];
   let sourceDirs: string[];
   try {
@@ -35,9 +36,31 @@ async function collectMigrations(): Promise<string[]> {
       }
     }
   }
-  // Sort by basename so compound_001 < compound_002 regardless of directory order.
+  validateMigrationBasenames(files);
   files.sort((a, b) => path.basename(a).localeCompare(path.basename(b)));
   return files;
+}
+
+export function validateMigrationBasenames(files: string[]): void {
+  const seenOrdinals = new Map<string, string>();
+  for (const file of files) {
+    const base = path.basename(file);
+    const match = /^(\d{4})_.*\.sql$/.exec(base);
+    if (!match) {
+      throw new Error(
+        `ClickHouse migration "${base}" must start with a globally unique NNNN_ ordinal prefix`,
+      );
+    }
+
+    const ordinal = match[1]!;
+    const previous = seenOrdinals.get(ordinal);
+    if (previous != null) {
+      throw new Error(
+        `ClickHouse migration ordinal ${ordinal} is used by both "${path.basename(previous)}" and "${base}"`,
+      );
+    }
+    seenOrdinals.set(ordinal, file);
+  }
 }
 
 async function run() {
@@ -49,14 +72,9 @@ async function run() {
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kvorum-ch-migrations-'));
   try {
-    for (const [index, file] of files.entries()) {
-      // clickhouse-migrations requires filenames to start with a number and
-      // tracks applied state by that numeric prefix. We assign a global,
-      // monotonic prefix in sorted order to avoid collisions across sources
-      // (e.g. compound_001_*.sql and core_001_*.sql).
+    for (const file of files) {
       const base = path.basename(file);
-      const seq = String(index + 1).padStart(4, '0');
-      await fs.copyFile(file, path.join(tmpDir, `${seq}_${base}`));
+      await fs.copyFile(file, path.join(tmpDir, base));
     }
     console.log(`[ch-migrate] Applying ${files.length} migration(s) from ${tmpDir}`);
 
@@ -94,4 +112,6 @@ async function run() {
   }
 }
 
-await run();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await run();
+}

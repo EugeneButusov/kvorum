@@ -28,4 +28,4 @@ Application code issues duplicate inserts that ReplacingMergeTree deduplicates l
 
 - ADR-038 (CH archive layer)
 - ADR-041 §"OPTIMIZE TABLE" restriction
-- `libs/sources/compound/migrations-clickhouse/compound_001_archive.sql` — migration SQL comments
+- `libs/sources/compound/migrations-clickhouse/0002_compound_archive.sql` — migration SQL comments
