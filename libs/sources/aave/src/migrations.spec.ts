@@ -1,32 +1,53 @@
 import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
-import { up as upAaveExtensionTables } from '../migrations-postgres/aave_001_extension_tables';
+import {
+  down as downAaveExtensionTables,
+  up as upAaveExtensionTables,
+} from '../migrations-postgres/aave_001_extension_tables';
 import {
   AAVE_GOVERNANCE_V3_DEPLOY_BLOCK,
   AAVE_GOVERNOR_V2_DEPLOY_BLOCK,
   down as downAaveSeed,
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
-import { up as upAaveMetadataNullable } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
+import {
+  down as downAaveMetadataNullable,
+  up as upAaveMetadataNullable,
+} from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
 
 class RollbackSignal extends Error {}
 
 describe('aave migrations smoke (mocked db)', () => {
   function makeMockDb() {
     const executeQuery = vi.fn().mockResolvedValue({ rows: [] });
-    const makeSchemaAction = () => ({
-      addColumn: vi.fn().mockReturnThis(),
-      createTable: vi.fn().mockReturnThis(),
-      createIndex: vi.fn().mockReturnThis(),
-      on: vi.fn().mockReturnThis(),
-      column: vi.fn().mockReturnThis(),
-      addUniqueConstraint: vi.fn().mockReturnThis(),
+    const makeColumnBuilder = () => ({
       primaryKey: vi.fn().mockReturnThis(),
       references: vi.fn().mockReturnThis(),
       onDelete: vi.fn().mockReturnThis(),
       notNull: vi.fn().mockReturnThis(),
       defaultTo: vi.fn().mockReturnThis(),
+      dropNotNull: vi.fn().mockReturnThis(),
+      setNotNull: vi.fn().mockReturnThis(),
+    });
+    const makeSchemaAction = () => ({
+      addColumn: vi
+        .fn()
+        .mockImplementation((_: unknown, __: unknown, callback?: (column: unknown) => unknown) => {
+          callback?.(makeColumnBuilder());
+          return makeSchemaAction();
+        }),
+      createTable: vi.fn().mockReturnThis(),
+      createIndex: vi.fn().mockReturnThis(),
+      on: vi.fn().mockReturnThis(),
+      column: vi.fn().mockReturnThis(),
+      alterColumn: vi
+        .fn()
+        .mockImplementation((_: unknown, callback?: (column: unknown) => unknown) => {
+          callback?.(makeColumnBuilder());
+          return makeSchemaAction();
+        }),
+      addUniqueConstraint: vi.fn().mockReturnThis(),
       dropColumn: vi.fn().mockReturnThis(),
       dropTable: vi.fn().mockReturnThis(),
       execute: executeQuery,
@@ -57,6 +78,12 @@ describe('aave migrations smoke (mocked db)', () => {
     expect(db._executeQuery).toHaveBeenCalled();
   });
 
+  it('aave_001_extension_tables down fires schema queries', async () => {
+    const db = makeMockDb();
+    await downAaveExtensionTables(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
   it('aave_002_seed up fires sql.execute calls', async () => {
     const db = makeMockDb();
     await upAaveSeed(db);
@@ -66,6 +93,13 @@ describe('aave migrations smoke (mocked db)', () => {
   it('aave_002_seed down fires sql.execute calls', async () => {
     const db = makeMockDb();
     await downAaveSeed(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_003_metadata_voting_fields_nullable up/down fire schema queries', async () => {
+    const db = makeMockDb();
+    await upAaveMetadataNullable(db);
+    await downAaveMetadataNullable(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
