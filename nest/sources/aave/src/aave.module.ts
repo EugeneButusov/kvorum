@@ -107,7 +107,6 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
-        const reconcileLogger = toChainLogger(new Logger('AaveGovernanceReconcile'));
         return {
           name: 'aave',
           ingesters: [
@@ -119,7 +118,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             createAaveGovernanceV3ReconcilePlugin({
               proposals,
               metrics,
-              logger: reconcileLogger,
+              logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),
           ],
           derivers: [projectionApplier, actorAddressDeriver],
