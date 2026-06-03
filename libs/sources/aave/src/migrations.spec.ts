@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
+import { up as upAaveExtensionTables } from '../migrations-postgres/aave_001_extension_tables';
 import {
   AAVE_GOVERNANCE_V3_DEPLOY_BLOCK,
   AAVE_GOVERNOR_V2_DEPLOY_BLOCK,
@@ -8,10 +9,6 @@ import {
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
 import { up as upAaveMetadataNullable } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
-import {
-  down as downAaveReconcileWatermark,
-  up as upAaveReconcileWatermark,
-} from '../migrations-postgres/aave_004_reconcile_watermark';
 
 class RollbackSignal extends Error {}
 
@@ -20,10 +17,18 @@ describe('aave migrations smoke (mocked db)', () => {
     const executeQuery = vi.fn().mockResolvedValue({ rows: [] });
     const makeSchemaAction = () => ({
       addColumn: vi.fn().mockReturnThis(),
+      createTable: vi.fn().mockReturnThis(),
       createIndex: vi.fn().mockReturnThis(),
       on: vi.fn().mockReturnThis(),
       column: vi.fn().mockReturnThis(),
+      addUniqueConstraint: vi.fn().mockReturnThis(),
+      primaryKey: vi.fn().mockReturnThis(),
+      references: vi.fn().mockReturnThis(),
+      onDelete: vi.fn().mockReturnThis(),
+      notNull: vi.fn().mockReturnThis(),
+      defaultTo: vi.fn().mockReturnThis(),
       dropColumn: vi.fn().mockReturnThis(),
+      dropTable: vi.fn().mockReturnThis(),
       execute: executeQuery,
     });
     const executor = {
@@ -36,13 +41,21 @@ describe('aave migrations smoke (mocked db)', () => {
     return {
       getExecutor: vi.fn().mockReturnValue(executor),
       schema: {
+        createTable: vi.fn().mockImplementation(() => makeSchemaAction()),
         alterTable: vi.fn().mockImplementation(() => makeSchemaAction()),
         createIndex: vi.fn().mockImplementation(() => makeSchemaAction()),
         dropIndex: vi.fn().mockImplementation(() => makeSchemaAction()),
+        dropTable: vi.fn().mockImplementation(() => makeSchemaAction()),
       },
       _executeQuery: executeQuery,
     } as unknown as Kysely<unknown> & { _executeQuery: ReturnType<typeof vi.fn> };
   }
+
+  it('aave_001_extension_tables up fires schema queries', async () => {
+    const db = makeMockDb();
+    await upAaveExtensionTables(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
 
   it('aave_002_seed up fires sql.execute calls', async () => {
     const db = makeMockDb();
@@ -53,13 +66,6 @@ describe('aave migrations smoke (mocked db)', () => {
   it('aave_002_seed down fires sql.execute calls', async () => {
     const db = makeMockDb();
     await downAaveSeed(db);
-    expect(db._executeQuery).toHaveBeenCalled();
-  });
-
-  it('aave_004_reconcile_watermark up/down fire schema queries', async () => {
-    const db = makeMockDb();
-    await upAaveReconcileWatermark(db);
-    await downAaveReconcileWatermark(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -142,29 +148,11 @@ describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
   });
 });
 
-describeWithPg('aave_004_reconcile_watermark migration', () => {
-  it('drops and re-adds last_reconcile_check_block with its index', async () => {
+describeWithPg('aave_001_extension_tables migration', () => {
+  it('creates last_reconcile_check_block with its index', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
-        await downAaveReconcileWatermark(tx);
-
-        const columnsBefore = await tx
-          .selectFrom('information_schema.columns')
-          .select(['column_name'])
-          .where('table_name', '=', 'aave_proposal_metadata')
-          .where('column_name', '=', 'last_reconcile_check_block')
-          .execute();
-        expect(columnsBefore).toEqual([]);
-
-        const indexesBefore = await tx
-          .selectFrom('pg_indexes')
-          .select(['indexname'])
-          .where('tablename', '=', 'aave_proposal_metadata')
-          .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
-          .execute();
-        expect(indexesBefore).toEqual([]);
-
-        await upAaveReconcileWatermark(tx);
+        await upAaveExtensionTables(tx);
 
         const columns = await tx
           .selectFrom('information_schema.columns')
