@@ -143,9 +143,27 @@ describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
 });
 
 describeWithPg('aave_004_reconcile_watermark migration', () => {
-  it('adds last_reconcile_check_block and its index', async () => {
+  it('drops and re-adds last_reconcile_check_block with its index', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
+        await downAaveReconcileWatermark(tx);
+
+        const columnsBefore = await tx
+          .selectFrom('information_schema.columns')
+          .select(['column_name'])
+          .where('table_name', '=', 'aave_proposal_metadata')
+          .where('column_name', '=', 'last_reconcile_check_block')
+          .execute();
+        expect(columnsBefore).toEqual([]);
+
+        const indexesBefore = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname'])
+          .where('tablename', '=', 'aave_proposal_metadata')
+          .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
+          .execute();
+        expect(indexesBefore).toEqual([]);
+
         await upAaveReconcileWatermark(tx);
 
         const columns = await tx
