@@ -14,7 +14,6 @@
     "@libs/observability": "workspace:*",
     "@nest/chain": "workspace:*",
     "@nest/db": "workspace:*",
-    "@nest/sources-core": "workspace:*",
     "@sources/core": "workspace:*",
     "@sources/aave": "workspace:*",
     "@nestjs/common": "^11.0.0",

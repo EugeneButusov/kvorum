@@ -11,7 +11,6 @@
   "dependencies": {
     "@libs/chain": "workspace:*",
     "@nest/chain": "workspace:*",
-    "@nest/sources-core": "workspace:*",
     "@libs/db": "workspace:*",
     "@libs/observability": "workspace:*",
     "@sources/core": "workspace:*",

@@ -29,7 +29,7 @@ Declared metrics are defined in:
 - `apps/indexer/src/derivation/derivation-metrics.ts`
 - `apps/indexer/src/derivation/calldata-decode-metrics.ts`
 - `nest/sources/aave/src/aave-metrics.ts`
-- `nest/sources/core/src/reconcile-metrics.ts`
+- `nest/sources/reconcile-metrics.ts`
 
 Notes:
 

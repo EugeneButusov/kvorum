@@ -33,7 +33,6 @@ module.exports = {
       '@nest/db': path.join(root, 'nest/db/src/index.ts'),
       '@nest/aave': path.join(root, 'nest/sources/aave/src/index.ts'),
       '@nest/compound': path.join(root, 'nest/sources/compound/src/index.ts'),
-      '@nest/sources-core': path.join(root, 'nest/sources/core/src/index.ts'),
       '@nest/sources': path.join(root, 'nest/sources/index.ts'),
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
     },
