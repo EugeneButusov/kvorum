@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadAbiLibrary } from './index';
+import { loadAbiLibrary } from './load-abi-library';
 
 describe('loadAbiLibrary', () => {
   it('returns a non-empty bySelector map', () => {

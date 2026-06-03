@@ -15,7 +15,7 @@ const protocols: readonly CalldataProtocolSupport[] = [
 export const bundledAbisFor = makeBundledAbiResolver(protocols);
 export const decodeByHeuristic = makeHeuristicDecoder(protocols);
 
-function makeBundledAbiResolver(
+export function makeBundledAbiResolver(
   protocols: readonly CalldataProtocolSupport[],
 ): (sourceType: string) => LoadedAbiLibrary {
   const libraries = protocols.map((protocol) => ({
@@ -28,7 +28,7 @@ function makeBundledAbiResolver(
     libraries.find((protocol) => protocol.supportsSourceType(sourceType))?.library ?? sharedAbis;
 }
 
-function makeHeuristicDecoder(
+export function makeHeuristicDecoder(
   protocols: readonly CalldataProtocolSupport[],
 ): ((calldata: string) => HeuristicResult | null) | undefined {
   const decoders = protocols.flatMap((protocol) =>

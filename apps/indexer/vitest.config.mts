@@ -12,6 +12,7 @@ const alias = {
   '@libs/utils': resolve(root, 'libs/utils/src/index.ts'),
   '@libs/observability': resolve(root, 'libs/observability/src/index.ts'),
   '@sources/core': resolve(root, 'libs/sources/core/src/index.ts'),
+  '@sources/aave': resolve(root, 'libs/sources/aave/src/index.ts'),
   '@sources/compound': resolve(root, 'libs/sources/compound/src/index.ts'),
   '@nest/chain': resolve(root, 'nest/chain/src/index.ts'),
   '@nest/compound': resolve(root, 'nest/sources/compound/src/index.ts'),
