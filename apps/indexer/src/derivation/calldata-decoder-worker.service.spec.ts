@@ -17,7 +17,7 @@ const ROW = {
   proposal_id: 'proposal-1',
   target_address: '0x' + 'a'.repeat(40),
   target_chain_id: '0x1',
-  source_type: 'compound_governor_bravo',
+  source_type: 'test_source_alpha',
   function_signature: null as string | null,
   calldata: '0xa9059cbb' + '0'.repeat(128),
   decode_attempt_count: 0,
