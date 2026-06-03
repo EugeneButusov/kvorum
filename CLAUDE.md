@@ -72,6 +72,19 @@ pnpm -w test
 
 Lefthook enforces formatting and typecheck on staged files at `git commit`. There is no pre-push block — `lint` and `test` run manually + in CI only. Do not use `--no-verify`.
 
+## Commit and PR naming
+
+Use Conventional Commits for both commit messages and PR titles, not just commits.
+
+- Format: `<type>(<scope>): <imperative description>`
+- PR titles should describe the net effect of the PR, even if the branch contains multiple commits.
+- When a PR spans multiple areas, choose the dominant user-facing or architectural scope rather than a milestone label.
+
+Examples:
+
+- `feat(aave): add v3 state reconciler and ADR-065 draft`
+- `feat(aave): add source-aware calldata decoder and ABI library`
+
 No `sqlfluff` is configured: Kysely TS migrations contain sql-tagged template literals that sqlfluff cannot parse, and ClickHouse `.sql` migration files (under `libs/sources/*/migrations-clickhouse/`) are reviewed by hand.
 
 ### Running integration tests locally

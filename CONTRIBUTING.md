@@ -102,6 +102,8 @@ Branches that target a specific milestone or epic may include the prefix in the 
 ## Pull requests
 
 - One logical change per PR. If a PR touches unrelated things, split it.
+- PR titles must follow Conventional Commits too: `<type>(<scope>): <imperative description>`.
+- Prefer a real codebase scope like `aave`, `indexer`, `db`, or `adr` over milestone labels like `M3/S3`.
 - Fill in the PR description: what changed, why, and how to test it.
 - All four pre-commit checks must pass locally and in CI before merge:
   ```bash
