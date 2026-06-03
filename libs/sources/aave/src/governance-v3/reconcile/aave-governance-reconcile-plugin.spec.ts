@@ -54,6 +54,37 @@ describe('createAaveGovernanceV3ReconcilePlugin', () => {
     expect(plugin.supportedChainIds).toEqual(['0x1']);
   });
 
+  it('parses ingest config with the shared Aave schema', () => {
+    const plugin = createAaveGovernanceV3ReconcilePlugin(makeDeps() as never);
+
+    expect(
+      plugin.parseConfig({
+        governance_address: '0x9aee0b04504cef83a65ac3f0e838d0593bcb2bc7',
+        voting_machine_address: '0x0000000000000000000000000000000000000001',
+        payloads_controller_address: '0x0000000000000000000000000000000000000002',
+      }),
+    ).toMatchObject({
+      governance_address: '0x9aee0b04504cef83a65ac3f0e838d0593bcb2bc7',
+    });
+  });
+
+  it('does nothing when the head is below headLag', async () => {
+    const deps = makeDeps();
+    const plugin = createAaveGovernanceV3ReconcilePlugin(deps as never);
+    const spec = plugin.buildIngestSpec({} as never, {} as never);
+    if (spec.kind !== 'evm-block-head-poller') throw new Error('wrong kind');
+
+    spec.listener({
+      head: FAKE_HEAD,
+      chainCfg: makeChainCfg({ headLag: 12 }) as never,
+      headBlock: 11n,
+      client: FAKE_CLIENT as never,
+    });
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    expect(deps.proposals.findStaleForReconciliation).not.toHaveBeenCalled();
+  });
+
   it('queries event-source proposals with confirmed threshold and gap blocks', async () => {
     const deps = makeDeps();
     const plugin = createAaveGovernanceV3ReconcilePlugin(deps as never);
@@ -100,6 +131,14 @@ describe('createAaveGovernanceV3ReconcilePlugin', () => {
       expect.anything(),
       [expect.objectContaining({ recheckGapBlocks: 300 })],
       50,
+    );
+  });
+
+  it('throws when backfill runtime is requested', () => {
+    const plugin = createAaveGovernanceV3ReconcilePlugin(makeDeps() as never);
+
+    expect(() => plugin.buildBackfillRuntime({} as never, {} as never)).toThrow(
+      'source_type "aave_governance_v3_reconcile" does not support backfill runtime',
     );
   });
 });

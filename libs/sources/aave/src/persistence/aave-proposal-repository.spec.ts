@@ -124,6 +124,16 @@ describe('AaveProposalRepository', () => {
     expect(select.selectFrom).toHaveBeenCalledWith('proposal');
     expect(select.chain.execute).toHaveBeenCalledOnce();
     expect(result).toEqual([{ id: 'proposal-1', state: 'active' }]);
+    expect(select.chain.innerJoin).toHaveBeenCalledTimes(2);
+    expect(select.chain.where).toHaveBeenCalledWith('proposal.source_type', 'in', [
+      'aave_governance_v3',
+    ]);
+    expect(select.chain.where).toHaveBeenCalledWith('proposal.state', 'in', [
+      'pending',
+      'active',
+      'queued',
+    ]);
+    expect(select.chain.limit).toHaveBeenCalledWith(50);
   });
 
   it('returns [] without querying when findStaleForReconciliation inputs are empty', async () => {

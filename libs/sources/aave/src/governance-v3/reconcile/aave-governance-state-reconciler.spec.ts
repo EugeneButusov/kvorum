@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AaveGovernanceStateReconciler } from './aave-governance-state-reconciler';
-import { GOVERNANCE_STATE_INTERFACE } from '../abi/governance-state';
+import {
+  AaveGovernanceStateDecodeError,
+  GOVERNANCE_STATE_INTERFACE,
+} from '../abi/governance-state';
 
 function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
@@ -148,6 +151,69 @@ describe('AaveGovernanceStateReconciler', () => {
     });
 
     expect(result).toEqual({ outcome: 'guard_skipped' });
+  });
+
+  it('returns guard_skipped when expiration is outside accepted bounds', async () => {
+    const proposals = makeProposals();
+    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
+      'aave_governance_v3',
+    ]);
+
+    const result = await reconciler.reconcileRow({
+      row: makeRow(),
+      proposals: proposals as never,
+      confirmedThreshold: 1000n,
+      confirmedThresholdTag: '0x3e8',
+      chainCtx: makeChainCtx((method, params) => {
+        if (method === 'eth_call') {
+          const request = params[0] as { data: string };
+          if (
+            request.data.startsWith(
+              GOVERNANCE_STATE_INTERFACE.getFunction('PROPOSAL_EXPIRATION_TIME')!.selector,
+            )
+          ) {
+            return GOVERNANCE_STATE_INTERFACE.encodeFunctionResult('PROPOSAL_EXPIRATION_TIME', [
+              1n,
+            ]);
+          }
+          return GOVERNANCE_STATE_INTERFACE.encodeFunctionResult('getProposalState', [7n]);
+        }
+        return { timestamp: '0x64' };
+      }) as never,
+    });
+
+    expect(result).toEqual({ outcome: 'guard_skipped' });
+    expect(proposals.reconcileState).not.toHaveBeenCalled();
+  });
+
+  it('rethrows decode errors while resolving expiration', async () => {
+    const proposals = makeProposals();
+    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
+      'aave_governance_v3',
+    ]);
+
+    await expect(
+      reconciler.reconcileRow({
+        row: makeRow(),
+        proposals: proposals as never,
+        confirmedThreshold: 1000n,
+        confirmedThresholdTag: '0x3e8',
+        chainCtx: makeChainCtx((method, params) => {
+          if (method === 'eth_call') {
+            const request = params[0] as { data: string };
+            if (
+              request.data.startsWith(
+                GOVERNANCE_STATE_INTERFACE.getFunction('PROPOSAL_EXPIRATION_TIME')!.selector,
+              )
+            ) {
+              throw new AaveGovernanceStateDecodeError('bad expiration payload');
+            }
+            return GOVERNANCE_STATE_INTERFACE.encodeFunctionResult('getProposalState', [7n]);
+          }
+          return { timestamp: '0x64' };
+        }) as never,
+      }),
+    ).rejects.toThrow('bad expiration payload');
   });
 
   it('caches expiration time per chain and governance address', async () => {
