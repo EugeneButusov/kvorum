@@ -6,28 +6,16 @@ import {
   SelectorIndexRepository,
   pgDb,
 } from '@libs/db';
-import { aaveCalldataProtocol } from '@sources/aave';
-import { compoundCalldataProtocol } from '@sources/compound';
 import {
-  type CalldataProtocolSupport,
   CalldataDecoder,
   ChainNotReadyError,
   EtherscanClient,
-  type LoadedAbiLibrary,
-  type HeuristicResult,
-  loadSharedAbiLibrary,
   readCalldataDecoderConfig,
 } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
-
-const protocols: readonly CalldataProtocolSupport[] = [
-  aaveCalldataProtocol,
-  compoundCalldataProtocol,
-];
-const bundledAbisFor = makeBundledAbiResolver(protocols);
-const decodeByHeuristic = makeHeuristicDecoder(protocols);
+import { bundledAbisFor, decodeByHeuristic } from './calldata-decoder.helpers';
 
 @Module({
   imports: [ChainContextModule],
@@ -83,33 +71,3 @@ const decodeByHeuristic = makeHeuristicDecoder(protocols);
   ],
 })
 export class CalldataDecoderModule {}
-
-function makeBundledAbiResolver(
-  protocols: readonly CalldataProtocolSupport[],
-): (sourceType: string) => LoadedAbiLibrary {
-  const libraries = protocols.map((protocol) => ({
-    supportsSourceType: protocol.supportsSourceType,
-    library: protocol.loadAbiLibrary(),
-  }));
-  const sharedAbis = loadSharedAbiLibrary();
-
-  return (sourceType: string) =>
-    libraries.find((protocol) => protocol.supportsSourceType(sourceType))?.library ?? sharedAbis;
-}
-
-function makeHeuristicDecoder(
-  protocols: readonly CalldataProtocolSupport[],
-): ((calldata: string) => HeuristicResult | null) | undefined {
-  const decoders = protocols.flatMap((protocol) =>
-    protocol.decodeByHeuristic ? [protocol.decodeByHeuristic] : [],
-  );
-  if (decoders.length === 0) return undefined;
-
-  return (calldata: string) => {
-    for (const decode of decoders) {
-      const result = decode(calldata);
-      if (result !== null) return result;
-    }
-    return null;
-  };
-}
