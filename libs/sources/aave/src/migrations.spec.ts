@@ -150,29 +150,21 @@ describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
 
 describeWithPg('aave_001_extension_tables migration', () => {
   it('creates last_reconcile_check_block with its index', async () => {
-    await expect(
-      pgDb.transaction().execute(async (tx) => {
-        await upAaveExtensionTables(tx);
+    const columns = await pgDb
+      .selectFrom('information_schema.columns')
+      .select(['column_name'])
+      .where('table_name', '=', 'aave_proposal_metadata')
+      .where('column_name', '=', 'last_reconcile_check_block')
+      .execute();
+    expect(columns).toEqual([{ column_name: 'last_reconcile_check_block' }]);
 
-        const columns = await tx
-          .selectFrom('information_schema.columns')
-          .select(['column_name'])
-          .where('table_name', '=', 'aave_proposal_metadata')
-          .where('column_name', '=', 'last_reconcile_check_block')
-          .execute();
-        expect(columns).toEqual([{ column_name: 'last_reconcile_check_block' }]);
-
-        const indexes = await tx
-          .selectFrom('pg_indexes')
-          .select(['indexname'])
-          .where('tablename', '=', 'aave_proposal_metadata')
-          .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
-          .execute();
-        expect(indexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
-
-        throw new RollbackSignal();
-      }),
-    ).rejects.toThrow(RollbackSignal);
+    const indexes = await pgDb
+      .selectFrom('pg_indexes')
+      .select(['indexname'])
+      .where('tablename', '=', 'aave_proposal_metadata')
+      .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
+      .execute();
+    expect(indexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
   });
 });
 
