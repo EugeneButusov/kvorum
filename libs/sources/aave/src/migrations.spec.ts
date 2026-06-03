@@ -2,18 +2,56 @@ import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
 import {
+  down as downAaveExtensionTables,
+  up as upAaveExtensionTables,
+} from '../migrations-postgres/aave_001_extension_tables';
+import {
   AAVE_GOVERNANCE_V3_DEPLOY_BLOCK,
   AAVE_GOVERNOR_V2_DEPLOY_BLOCK,
   down as downAaveSeed,
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
-import { up as upAaveMetadataNullable } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
+import {
+  down as downAaveMetadataNullable,
+  up as upAaveMetadataNullable,
+} from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
 
 class RollbackSignal extends Error {}
 
 describe('aave migrations smoke (mocked db)', () => {
   function makeMockDb() {
     const executeQuery = vi.fn().mockResolvedValue({ rows: [] });
+    const makeColumnBuilder = () => ({
+      primaryKey: vi.fn().mockReturnThis(),
+      references: vi.fn().mockReturnThis(),
+      onDelete: vi.fn().mockReturnThis(),
+      notNull: vi.fn().mockReturnThis(),
+      defaultTo: vi.fn().mockReturnThis(),
+      dropNotNull: vi.fn().mockReturnThis(),
+      setNotNull: vi.fn().mockReturnThis(),
+    });
+    const makeSchemaAction = () => ({
+      addColumn: vi
+        .fn()
+        .mockImplementation((_: unknown, __: unknown, callback?: (column: unknown) => unknown) => {
+          callback?.(makeColumnBuilder());
+          return makeSchemaAction();
+        }),
+      createTable: vi.fn().mockReturnThis(),
+      createIndex: vi.fn().mockReturnThis(),
+      on: vi.fn().mockReturnThis(),
+      column: vi.fn().mockReturnThis(),
+      alterColumn: vi
+        .fn()
+        .mockImplementation((_: unknown, callback?: (column: unknown) => unknown) => {
+          callback?.(makeColumnBuilder());
+          return makeSchemaAction();
+        }),
+      addUniqueConstraint: vi.fn().mockReturnThis(),
+      dropColumn: vi.fn().mockReturnThis(),
+      dropTable: vi.fn().mockReturnThis(),
+      execute: executeQuery,
+    });
     const executor = {
       executeQuery,
       transformQuery: vi.fn().mockImplementation((node: unknown) => node),
@@ -23,9 +61,28 @@ describe('aave migrations smoke (mocked db)', () => {
     };
     return {
       getExecutor: vi.fn().mockReturnValue(executor),
+      schema: {
+        createTable: vi.fn().mockImplementation(() => makeSchemaAction()),
+        alterTable: vi.fn().mockImplementation(() => makeSchemaAction()),
+        createIndex: vi.fn().mockImplementation(() => makeSchemaAction()),
+        dropIndex: vi.fn().mockImplementation(() => makeSchemaAction()),
+        dropTable: vi.fn().mockImplementation(() => makeSchemaAction()),
+      },
       _executeQuery: executeQuery,
     } as unknown as Kysely<unknown> & { _executeQuery: ReturnType<typeof vi.fn> };
   }
+
+  it('aave_001_extension_tables up fires schema queries', async () => {
+    const db = makeMockDb();
+    await upAaveExtensionTables(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_001_extension_tables down fires schema queries', async () => {
+    const db = makeMockDb();
+    await downAaveExtensionTables(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
 
   it('aave_002_seed up fires sql.execute calls', async () => {
     const db = makeMockDb();
@@ -36,6 +93,13 @@ describe('aave migrations smoke (mocked db)', () => {
   it('aave_002_seed down fires sql.execute calls', async () => {
     const db = makeMockDb();
     await downAaveSeed(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_003_metadata_voting_fields_nullable up/down fire schema queries', async () => {
+    const db = makeMockDb();
+    await upAaveMetadataNullable(db);
+    await downAaveMetadataNullable(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -115,6 +179,26 @@ describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
         throw new RollbackSignal();
       }),
     ).rejects.toThrow(RollbackSignal);
+  });
+});
+
+describeWithPg('aave_001_extension_tables migration', () => {
+  it('creates last_reconcile_check_block with its index', async () => {
+    const columns = await pgDb
+      .selectFrom('information_schema.columns')
+      .select(['column_name'])
+      .where('table_name', '=', 'aave_proposal_metadata')
+      .where('column_name', '=', 'last_reconcile_check_block')
+      .execute();
+    expect(columns).toEqual([{ column_name: 'last_reconcile_check_block' }]);
+
+    const indexes = await pgDb
+      .selectFrom('pg_indexes')
+      .select(['indexname'])
+      .where('tablename', '=', 'aave_proposal_metadata')
+      .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
+      .execute();
+    expect(indexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
   });
 });
 

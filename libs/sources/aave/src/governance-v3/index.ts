@@ -67,3 +67,15 @@ export {
   SUPPORTED_CHAIN_IDS,
   createAaveGovernanceV3Plugin,
 } from './plugin/plugin';
+export {
+  GOVERNANCE_STATE_INTERFACE,
+  AaveGovernanceStateDecodeError,
+  decodeExpirationTimeResult,
+  decodeProposalStateResult,
+  encodeExpirationTimeCall,
+  encodeGetProposalStateCall,
+  mapAaveStateCode,
+} from './abi/governance-state';
+export { AaveGovernanceStateReconciler } from './reconcile/aave-governance-state-reconciler';
+export type { AaveGovernanceReconcilePluginDeps } from './reconcile/aave-governance-reconcile-plugin';
+export { createAaveGovernanceV3ReconcilePlugin } from './reconcile/aave-governance-reconcile-plugin';

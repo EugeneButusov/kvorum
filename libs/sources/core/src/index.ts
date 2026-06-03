@@ -8,6 +8,18 @@ export { serializeError } from './serialize-error';
 
 export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
 export type { AbiEntry, LoadedAbiLibrary } from './calldata/abi-library/index';
+export { ReconcileDriver, isTransientRpcError } from './reconcile/reconcile-driver';
+export type {
+  BaseStaleReconciliationRow,
+  ReconcileBound,
+  ReconcileDriverConfig,
+  ReconcileDriverMetrics,
+  ReconcileOutcome,
+  ReconcilePerChainBound,
+  ReconcileRpcClient,
+  ReconcilableProposalRepository,
+  StateReconciler,
+} from './reconcile/types';
 
 export { CalldataDecoder } from './calldata/decoder';
 export type { DecodeInput } from './calldata/decoder';

@@ -17,7 +17,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('snapshot_block_hash', 'text')
     .addColumn('snapshot_block_number_l1', 'bigint')
     .addColumn('creation_block', 'bigint', (col) => col.notNull())
+    .addColumn('last_reconcile_check_block', 'bigint')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
+    .execute();
+
+  await db.schema
+    .createIndex('idx_aave_proposal_metadata_recheck')
+    .on('aave_proposal_metadata')
+    .column('last_reconcile_check_block')
     .execute();
 
   await db.schema
@@ -43,6 +50,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable('aave_proposal_payload').execute();
+  await db.schema.dropIndex('idx_aave_proposal_metadata_recheck').execute();
   await db.schema.dropTable('aave_proposal_metadata').execute();
   await sql`DROP TYPE aave_payload_status`.execute(db);
 }

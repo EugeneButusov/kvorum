@@ -13,6 +13,8 @@ import {
   AaveGovernanceEventRepository,
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
+  AaveProposalRepository,
+  createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
 } from '@sources/aave';
 import type { SourcePlugin } from '@sources/core';
@@ -20,6 +22,7 @@ import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
 import { aaveMetrics } from './aave-metrics';
+import { buildDriverMetrics } from '../../reconcile-metrics';
 
 export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
 
@@ -43,6 +46,10 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
     {
       provide: AaveGovernanceArchivePayloadRepository,
       useFactory: () => new AaveGovernanceArchivePayloadRepository(chDb),
+    },
+    {
+      provide: AaveProposalRepository,
+      useFactory: () => new AaveProposalRepository(pgDb),
     },
     {
       provide: AaveIpfsTitleFetcher,
@@ -95,23 +102,33 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
         dlqRepo: DlqRepository,
+        proposals: AaveProposalRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
-      ): SourcePlugin => ({
-        name: 'aave',
-        ingesters: [
-          createAaveGovernanceV3Plugin({
-            archiveWriter,
-            dlqRepo,
-            logger: toChainLogger(new Logger('AaveGovernanceV3')),
-          }),
-        ],
-        derivers: [projectionApplier, actorAddressDeriver],
-        snapshotStrategies: [],
-      }),
+      ): SourcePlugin => {
+        const metrics = buildDriverMetrics();
+        return {
+          name: 'aave',
+          ingesters: [
+            createAaveGovernanceV3Plugin({
+              archiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('AaveGovernanceV3')),
+            }),
+            createAaveGovernanceV3ReconcilePlugin({
+              proposals,
+              metrics,
+              logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
+            }),
+          ],
+          derivers: [projectionApplier, actorAddressDeriver],
+          snapshotStrategies: [],
+        };
+      },
       inject: [
         AaveGovernanceArchiveWriter,
         DlqRepository,
+        AaveProposalRepository,
         AaveGovernanceProjectionApplier,
         AaveGovernanceActorAddressDeriver,
       ],

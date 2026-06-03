@@ -42,13 +42,27 @@ function makeInsertChain() {
 
 function makeUpdateChain() {
   const execute = vi.fn().mockResolvedValue(undefined);
+  const executeTakeFirst = vi.fn().mockResolvedValue({ numUpdatedRows: 1n });
   const where = vi.fn();
-  const chain = { set: vi.fn(), where, execute };
+  const chain = { set: vi.fn(), where, execute, executeTakeFirst };
   chain.set.mockReturnValue(chain);
   where.mockReturnValue(chain);
   const updateTable = vi.fn().mockReturnValue(chain);
 
-  return { updateTable, set: chain.set, where, execute };
+  return { updateTable, set: chain.set, where, execute, executeTakeFirst };
+}
+
+function makeSelectChain(executeResult: unknown[] = []) {
+  const chain = {
+    innerJoin: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue(executeResult),
+  };
+  const selectFrom = vi.fn().mockReturnValue(chain);
+  return { selectFrom, chain };
 }
 
 interface ConflictBuilder {
@@ -93,6 +107,82 @@ describe('AaveProposalRepository', () => {
 
     expect(update.updateTable).toHaveBeenCalledWith('aave_proposal_metadata');
     expect(update.set).toHaveBeenCalledWith({ snapshot_block_hash: '0xhash' });
+    expect(update.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
+    expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('finds stale rows for reconciliation when source types, bounds, and limit are valid', async () => {
+    const select = makeSelectChain([{ id: 'proposal-1', state: 'active' }]);
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    const result = await repo.findStaleForReconciliation(
+      ['aave_governance_v3'],
+      [{ chainId: '0x1', confirmedThresholdBlock: '1000', recheckGapBlocks: 600 }],
+      50,
+    );
+
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal');
+    expect(select.chain.execute).toHaveBeenCalledOnce();
+    expect(result).toEqual([{ id: 'proposal-1', state: 'active' }]);
+    expect(select.chain.innerJoin).toHaveBeenCalledTimes(2);
+    expect(select.chain.where).toHaveBeenCalledWith('proposal.source_type', 'in', [
+      'aave_governance_v3',
+    ]);
+    expect(select.chain.where).toHaveBeenCalledWith('proposal.state', 'in', [
+      'pending',
+      'active',
+      'queued',
+    ]);
+    expect(select.chain.limit).toHaveBeenCalledWith(50);
+  });
+
+  it('returns [] without querying when findStaleForReconciliation inputs are empty', async () => {
+    const select = makeSelectChain();
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findStaleForReconciliation([], [], 50)).resolves.toEqual([]);
+    await expect(repo.findStaleForReconciliation(['aave_governance_v3'], [], 50)).resolves.toEqual(
+      [],
+    );
+    await expect(
+      repo.findStaleForReconciliation(
+        ['aave_governance_v3'],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1000', recheckGapBlocks: 600 }],
+        0,
+      ),
+    ).resolves.toEqual([]);
+    expect(select.selectFrom).not.toHaveBeenCalled();
+  });
+
+  it('reconciles proposal state and returns updated row count', async () => {
+    const update = makeUpdateChain();
+    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
+
+    const count = await repo.reconcileState({
+      proposalId: 'proposal-1',
+      expectedStates: ['pending', 'active', 'queued'],
+      targetState: 'expired',
+      stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    expect(update.updateTable).toHaveBeenCalledWith('proposal');
+    expect(update.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: 'expired',
+        state_updated_at: new Date('2026-01-01T00:00:00Z'),
+      }),
+    );
+    expect(count).toBe(1);
+  });
+
+  it('marks reconcile watermark on metadata rows', async () => {
+    const update = makeUpdateChain();
+    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
+
+    await repo.markReconcileChecked('proposal-1', '1000');
+
+    expect(update.updateTable).toHaveBeenCalledWith('aave_proposal_metadata');
+    expect(update.set).toHaveBeenCalledWith({ last_reconcile_check_block: '1000' });
     expect(update.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
   });

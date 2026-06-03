@@ -1,36 +1,23 @@
 import { AllProvidersFailedError, ClientStoppedError, type Logger } from '@libs/chain';
-import { CompoundStateReconciler } from './compound-state-reconciler';
-import type { CompoundProposalRepository } from '../persistence/compound-proposal-repository';
+import type {
+  BaseStaleReconciliationRow,
+  ReconcileBound,
+  ReconcileDriverConfig,
+  ReconcileDriverMetrics,
+  ReconcilableProposalRepository,
+  StateReconciler,
+} from './types';
 
-export interface ReconcileBound {
-  chainId: string;
-  confirmedThresholdBlock: string;
-  recheckGapBlocks: number;
-  client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> };
-}
-
-export interface ReconcileDriverMetrics {
-  recordBacklog(size: number): void;
-  recordBatchSaturated(): void;
-  recordOutcome(attrs: {
-    source_type: string;
-    outcome: string;
-    from_state?: string;
-    to_state?: string;
-  }): void;
-  recordRpcFailEscalated(sourceType: string): void;
-  recordTickDurationSeconds(seconds: number): void;
-}
-
-export class CompoundReconcileDriver {
+export class ReconcileDriver<TRow extends BaseStaleReconciliationRow> {
   private inFlight = false;
   private readonly rpcFailedStreak = new Map<string, number>();
 
   constructor(
-    private readonly reconciler: CompoundStateReconciler,
-    private readonly proposals: CompoundProposalRepository,
+    private readonly reconciler: StateReconciler<TRow>,
+    private readonly proposals: ReconcilableProposalRepository<TRow>,
     private readonly metrics: ReconcileDriverMetrics,
     private readonly logger: Logger,
+    private readonly config: ReconcileDriverConfig,
   ) {}
 
   async onConfirmedHeads(bounds: readonly ReconcileBound[]): Promise<void> {
@@ -41,16 +28,15 @@ export class CompoundReconcileDriver {
     try {
       if (bounds.length === 0) return;
 
-      const batchSize = Number(process.env['COMPOUND_STATE_RECONCILE_BATCH_SIZE'] ?? 50);
       const rows = await this.proposals.findStaleForReconciliation(
         [...this.reconciler.sourceTypes],
         bounds,
-        batchSize,
+        this.config.batchSize,
       );
       this.metrics.recordBacklog(rows.length);
-      if (rows.length === batchSize) this.metrics.recordBatchSaturated();
+      if (rows.length === this.config.batchSize) this.metrics.recordBatchSaturated();
 
-      const boundsByChain = new Map(bounds.map((b) => [b.chainId, b]));
+      const boundsByChain = new Map(bounds.map((bound) => [bound.chainId, bound]));
       for (const row of rows) {
         const bound = boundsByChain.get(row.chain_id);
         if (!bound) continue;
@@ -69,7 +55,7 @@ export class CompoundReconcileDriver {
 
           this.rpcFailedStreak.delete(row.id);
 
-          if (result.outcome === 'corrected') {
+          if ('fromState' in result && 'toState' in result) {
             this.metrics.recordOutcome({
               source_type: row.source_type,
               outcome: 'corrected',
@@ -108,8 +94,7 @@ export class CompoundReconcileDriver {
     this.rpcFailedStreak.set(proposalId, streak);
     this.metrics.recordOutcome({ source_type: sourceType, outcome: 'rpc_failed' });
 
-    const escalateAfter = Number(process.env['COMPOUND_STATE_RECONCILE_RPC_FAIL_ESCALATE'] ?? 5);
-    if (streak >= escalateAfter) {
+    if (streak >= this.config.rpcFailEscalateAfter) {
       this.metrics.recordRpcFailEscalated(sourceType);
       this.logger.error('state_reconcile_rpc_escalated', {
         source_type: sourceType,
@@ -120,6 +105,8 @@ export class CompoundReconcileDriver {
   }
 }
 
-function isTransientRpcError(err: unknown): err is AllProvidersFailedError | ClientStoppedError {
+export function isTransientRpcError(
+  err: unknown,
+): err is AllProvidersFailedError | ClientStoppedError {
   return err instanceof AllProvidersFailedError || err instanceof ClientStoppedError;
 }
