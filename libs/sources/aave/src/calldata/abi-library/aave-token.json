@@ -1,0 +1,187 @@
+[
+  {
+    "type": "function",
+    "name": "permit",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "owner" },
+      { "type": "address", "name": "spender" },
+      { "type": "uint256", "name": "value" },
+      { "type": "uint256", "name": "deadline" },
+      { "type": "uint8", "name": "v" },
+      { "type": "bytes32", "name": "r" },
+      { "type": "bytes32", "name": "s" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "DOMAIN_SEPARATOR",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [],
+    "outputs": [{ "type": "bytes32", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "PERMIT_TYPEHASH",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [],
+    "outputs": [{ "type": "bytes32", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "delegate",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "delegatee" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "delegateByType",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegatee" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getDelegateeByType",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegator" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": [{ "type": "address", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "getDelegates",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "delegator" }],
+    "outputs": [
+      { "type": "address", "name": "" },
+      { "type": "address", "name": "" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "getPowerCurrent",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "user" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "getPowersCurrent",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "user" }],
+    "outputs": [
+      { "type": "uint256", "name": "" },
+      { "type": "uint256", "name": "" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "metaDelegateByType",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegator" },
+      { "type": "address", "name": "delegatee" },
+      { "type": "uint8", "name": "delegationType" },
+      { "type": "uint256", "name": "deadline" },
+      { "type": "uint8", "name": "v" },
+      { "type": "bytes32", "name": "r" },
+      { "type": "bytes32", "name": "s" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "metaDelegate",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegator" },
+      { "type": "address", "name": "delegatee" },
+      { "type": "uint256", "name": "deadline" },
+      { "type": "uint8", "name": "v" },
+      { "type": "bytes32", "name": "r" },
+      { "type": "bytes32", "name": "s" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "delegate",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegatee" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "delegateAll",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "delegatee" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getDelegatee",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "delegator" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": [{ "type": "address", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "getPowerAtBlock",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "user" },
+      { "type": "uint256", "name": "blockNumber" },
+      { "type": "uint8", "name": "delegationType" }
+    ],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "totalSupplyAt",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "uint256", "name": "blockNumber" }],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  }
+]

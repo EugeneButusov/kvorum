@@ -6,6 +6,8 @@ export {
 export type { AaveGovernanceV3EventType } from './abi/events';
 export { decodeAaveGovernanceV3Log } from './abi/decoder';
 export { AAVE_V3_CHOICES } from './domain/choices';
+export { loadAbiLibrary } from '../calldata/abi-library';
+export type { LoadedAbiLibrary, AbiEntry } from '../calldata/abi-library';
 export { extractAaveTitle } from './domain/title-extractor';
 export { AaveGovernanceActorAddressDeriver } from './domain/actor-address-deriver';
 export { AaveIpfsTitleFetcher } from './domain/ipfs-title-fetcher';

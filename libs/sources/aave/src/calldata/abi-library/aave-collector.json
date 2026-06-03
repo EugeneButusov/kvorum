@@ -1,0 +1,94 @@
+[
+  {
+    "type": "function",
+    "name": "approve",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "transfer",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setFundsAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "createStream",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" },
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": [{ "type": "uint256", "name": "streamId" }]
+  },
+  {
+    "type": "function",
+    "name": "getStream",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "uint256", "name": "" }],
+    "outputs": [
+      { "type": "address", "name": "sender" },
+      { "type": "address", "name": "recipient" },
+      { "type": "uint256", "name": "deposit" },
+      { "type": "address", "name": "tokenAddress" },
+      { "type": "uint256", "name": "startTime" },
+      { "type": "uint256", "name": "stopTime" },
+      { "type": "uint256", "name": "remainingBalance" },
+      { "type": "uint256", "name": "ratePerSecond" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "withdrawFromStream",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "uint256", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": [{ "type": "bool", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "cancelStream",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint256", "name": "" }],
+    "outputs": [{ "type": "bool", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "getNextStreamId",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  }
+]

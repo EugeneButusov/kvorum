@@ -1,0 +1,109 @@
+[
+  {
+    "type": "function",
+    "name": "setRoleAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "bytes32", "name": "" },
+      { "type": "bytes32", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addPoolAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removePoolAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addEmergencyAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removeEmergencyAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addRiskAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removeRiskAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addFlashBorrower",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removeFlashBorrower",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addBridge",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removeBridge",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "addAssetListingAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "removeAssetListingAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  }
+]

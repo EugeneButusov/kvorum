@@ -1,0 +1,238 @@
+[
+  {
+    "type": "function",
+    "name": "setReserveBorrowing",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "configureReserveAsCollateral",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" },
+      { "type": "uint256", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveStableRateBorrowing",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveFlashLoaning",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveActive",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveFreeze",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setBorrowableInIsolation",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReservePause",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveFactor",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReserveInterestRateStrategyAddress",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "address", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setBorrowCap",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setSupplyCap",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setLiquidationProtocolFee",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setUnbackedMintCap",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setAssetEModeCategory",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint8", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setEModeCategory",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "uint8", "name": "" },
+      { "type": "uint16", "name": "" },
+      { "type": "uint16", "name": "" },
+      { "type": "uint16", "name": "" },
+      { "type": "address", "name": "" },
+      { "type": "string", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "dropReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "updateBridgeProtocolFee",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint256", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "updateFlashloanPremiumTotal",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint128", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "updateFlashloanPremiumToProtocol",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint128", "name": "" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setDebtCeiling",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "uint256", "name": "" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setSiloedBorrowing",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "" },
+      { "type": "bool", "name": "" }
+    ],
+    "outputs": []
+  }
+]
