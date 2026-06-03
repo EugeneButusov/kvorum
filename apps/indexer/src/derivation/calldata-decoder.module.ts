@@ -6,13 +6,15 @@ import {
   SelectorIndexRepository,
   pgDb,
 } from '@libs/db';
-import { loadAbiLibrary as loadAaveAbis } from '@sources/aave';
-import { decodeByHeuristic, loadAbiLibrary as loadCompoundAbis } from '@sources/compound';
+import { aaveCalldataProtocol } from '@sources/aave';
+import { compoundCalldataProtocol } from '@sources/compound';
 import {
+  type CalldataProtocolSupport,
   CalldataDecoder,
   ChainNotReadyError,
   EtherscanClient,
   type LoadedAbiLibrary,
+  type HeuristicResult,
   loadSharedAbiLibrary,
   readCalldataDecoderConfig,
 } from '@sources/core';
@@ -20,7 +22,12 @@ import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
 
-const bundledAbisFor = makeBundledAbiResolver();
+const protocols: readonly CalldataProtocolSupport[] = [
+  aaveCalldataProtocol,
+  compoundCalldataProtocol,
+];
+const bundledAbisFor = makeBundledAbiResolver(protocols);
+const decodeByHeuristic = makeHeuristicDecoder(protocols);
 
 @Module({
   imports: [ChainContextModule],
@@ -77,19 +84,32 @@ const bundledAbisFor = makeBundledAbiResolver();
 })
 export class CalldataDecoderModule {}
 
-function makeBundledAbiResolver(): (sourceType: string) => LoadedAbiLibrary {
-  const byFamily: Record<string, LoadedAbiLibrary> = {
-    aave: loadAaveAbis(),
-    compound: loadCompoundAbis(),
-  };
+function makeBundledAbiResolver(
+  protocols: readonly CalldataProtocolSupport[],
+): (sourceType: string) => LoadedAbiLibrary {
+  const libraries = protocols.map((protocol) => ({
+    supportsSourceType: protocol.supportsSourceType,
+    library: protocol.loadAbiLibrary(),
+  }));
   const sharedAbis = loadSharedAbiLibrary();
 
-  return (sourceType: string) => byFamily[sourceFamilyOf(sourceType)] ?? sharedAbis;
+  return (sourceType: string) =>
+    libraries.find((protocol) => protocol.supportsSourceType(sourceType))?.library ?? sharedAbis;
 }
 
-function sourceFamilyOf(sourceType: string): string {
-  const normalized = sourceType.replace(/_reconcile$/, '');
-  if (normalized.startsWith('compound_governor_')) return 'compound';
-  if (normalized.startsWith('aave_')) return 'aave';
-  return normalized.split('_', 1)[0] ?? normalized;
+function makeHeuristicDecoder(
+  protocols: readonly CalldataProtocolSupport[],
+): ((calldata: string) => HeuristicResult | null) | undefined {
+  const decoders = protocols.flatMap((protocol) =>
+    protocol.decodeByHeuristic ? [protocol.decodeByHeuristic] : [],
+  );
+  if (decoders.length === 0) return undefined;
+
+  return (calldata: string) => {
+    for (const decode of decoders) {
+      const result = decode(calldata);
+      if (result !== null) return result;
+    }
+    return null;
+  };
 }

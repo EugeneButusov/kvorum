@@ -1,6 +1,7 @@
 export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices';
 export { loadAbiLibrary } from './calldata/abi-library';
 export type { LoadedAbiLibrary, AbiEntry } from './calldata/abi-library';
+export { compoundCalldataProtocol } from './calldata/protocol';
 export { decodeByHeuristic } from './calldata/heuristics';
 export type { HeuristicResult } from './calldata/heuristics';
 // Re-export from @sources/core so compound remains a single import point for consumers.

@@ -39,6 +39,7 @@ export type {
   EtherscanClientLike,
   HeuristicResult,
 } from './calldata/types';
+export type { CalldataProtocolSupport } from './calldata/protocol';
 export { ChainNotReadyError } from './calldata/types';
 
 export { BackfillDriver } from './backfill/backfill-driver';
