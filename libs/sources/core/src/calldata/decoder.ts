@@ -1,4 +1,5 @@
 import { Interface, FunctionFragment } from 'ethers';
+import type { LoadedAbiLibrary } from './abi-library';
 import type { DecodeResult, DecoderDependencies } from './types';
 
 const HEX_RE = /^0x[0-9a-f]*$/i;
@@ -28,6 +29,7 @@ function decodedArguments(
 
 export interface DecodeInput {
   chainId: string;
+  sourceType: string;
   targetAddress: string;
   calldata: string;
   /** Compound's ProposalCreated.signatures[i]; may be empty string or null. */
@@ -40,6 +42,7 @@ export class CalldataDecoder {
   async decode(input: DecodeInput): Promise<DecodeResult> {
     const { chainId, calldata, functionSignature } = input;
     const targetAddress = input.targetAddress.toLowerCase();
+    const library = this.deps.bundledAbisFor(input.sourceType);
 
     // ── Step 1: calldata sanity / empty-calldata fallback ──────────────────────
     if (!HEX_RE.test(calldata) || calldata.length % 2 !== 0) {
@@ -94,7 +97,7 @@ export class CalldataDecoder {
       }
     }
 
-    return this.decodeWithAddress(targetAddress, chainId, calldata, functionSignature);
+    return this.decodeWithAddress(targetAddress, chainId, calldata, functionSignature, library);
   }
 
   /** Steps 4–9, recursive on proxy resolution. */
@@ -103,6 +106,7 @@ export class CalldataDecoder {
     chainId: string,
     calldata: string,
     functionSignature: string | null,
+    library: LoadedAbiLibrary,
     isProxyRecurse = false,
   ): Promise<DecodeResult> {
     const selector = calldata.slice(0, 10).toLowerCase();
@@ -128,7 +132,7 @@ export class CalldataDecoder {
     }
 
     // ── Step 5: bundled ABI library ───────────────────────────────────────────
-    const bucket = this.deps.bundledAbis.bySelector.get(selector);
+    const bucket = library.bySelector.get(selector);
     if (bucket !== undefined && bucket.length > 0) {
       if (bucket.length > 1) {
         this.deps.logger.warn('selector_collision_in_library', {
@@ -180,6 +184,7 @@ export class CalldataDecoder {
           chainId,
           calldata,
           functionSignature,
+          library,
           true,
         );
 

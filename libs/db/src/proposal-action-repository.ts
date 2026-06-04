@@ -10,6 +10,7 @@ export interface PendingDecodeRow {
   function_signature: string | null;
   calldata: string;
   decode_attempt_count: number;
+  source_type: string;
 }
 
 export class ProposalActionRepository {
@@ -26,14 +27,16 @@ export class ProposalActionRepository {
     limit: number,
   ): Promise<readonly PendingDecodeRow[]> {
     const result = await sql<PendingDecodeRow>`
-      SELECT id, proposal_id, target_address, target_chain_id,
-             function_signature, calldata, decode_attempt_count
-      FROM proposal_action
-      WHERE decode_status = 'pending'
-        AND (next_decode_at IS NULL OR next_decode_at <= now())
-      ORDER BY created_at ASC
+      SELECT pa.id, pa.proposal_id, pa.target_address, pa.target_chain_id,
+             pa.function_signature, pa.calldata, pa.decode_attempt_count,
+             p.source_type
+      FROM proposal_action pa
+      JOIN proposal p ON p.id = pa.proposal_id
+      WHERE pa.decode_status = 'pending'
+        AND (pa.next_decode_at IS NULL OR pa.next_decode_at <= now())
+      ORDER BY pa.created_at ASC
       LIMIT ${sql.lit(limit)}
-      FOR UPDATE SKIP LOCKED
+      FOR UPDATE OF pa SKIP LOCKED
     `.execute(trx);
     return result.rows;
   }

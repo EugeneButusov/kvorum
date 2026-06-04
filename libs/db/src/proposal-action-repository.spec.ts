@@ -26,6 +26,12 @@ function uniqueAddress(): string {
  * then return the proposal id. Must be called inside a transaction.
  */
 async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
+  await trx
+    .insertInto('source_type')
+    .values({ value: 'test_source_alpha' })
+    .onConflict((oc) => oc.column('value').doNothing())
+    .execute();
+
   const [dao] = await trx
     .insertInto('dao')
     .values({
@@ -52,7 +58,7 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
     .insertInto('proposal')
     .values({
       dao_id: dao!.id,
-      source_type: 'compound_governor_bravo',
+      source_type: 'test_source_alpha',
       source_id: `spec-${uniqueHexId()}`,
       proposer_actor_id: actor!.id,
       description: 'test proposal',
@@ -143,6 +149,7 @@ describeWithDb('ProposalActionRepository — filter', () => {
         expect(rows.map((r) => r.id)).not.toContain(decoded!.id);
         // The future-scheduled row is also excluded
         expect(rows).toHaveLength(1);
+        expect(rows[0]?.source_type).toBe('test_source_alpha');
 
         throw new RollbackSignal();
       }),

@@ -14,6 +14,7 @@ const CHAIN = '1';
 const ADDR = '0x0000000000000000000000000000000000000001';
 const PROXY = '0x000000000000000000000000000000000000beef';
 const IMPL = '0x000000000000000000000000000000000000cafe';
+const SOURCE_TYPE = 'compound_governor_bravo';
 
 // Custom function not in heuristics or bundled library.
 const CUSTOM_SIG = 'customFn(uint256)';
@@ -43,7 +44,7 @@ function makeDeps(overrides: Partial<DecoderDependencies> = {}): DecoderDependen
       lookupBySelector: vi.fn().mockResolvedValue([]),
       bulkInsert: vi.fn().mockResolvedValue(0),
     } as unknown as DecoderDependencies['selectorIndex'],
-    bundledAbis: loadAbiLibrary(),
+    bundledAbisFor: vi.fn().mockReturnValue(loadAbiLibrary()),
     decodeByHeuristic,
     proxyResolverFor: vi.fn().mockReturnValue({
       resolve: vi.fn().mockResolvedValue({
@@ -65,6 +66,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata: '0x',
         functionSignature: null,
@@ -81,6 +83,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata: '0xgg',
         functionSignature: null,
@@ -92,6 +95,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata: '0xab12',
         functionSignature: null,
@@ -110,6 +114,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -126,6 +131,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -147,6 +153,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata: EXECUTE_CALLDATA,
         functionSignature: 'execute()',
@@ -164,6 +171,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata: EXECUTE_CALLDATA,
         functionSignature: 'vote(uint256)',
@@ -187,6 +195,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -210,6 +219,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -232,7 +242,7 @@ describe('CalldataDecoder', () => {
       const collisionMap = new Map(realLib.bySelector);
       collisionMap.set(tfSel, [...realBucket, ...realBucket]);
 
-      const deps = makeDeps({ bundledAbis: { bySelector: collisionMap } });
+      const deps = makeDeps({ bundledAbisFor: () => ({ bySelector: collisionMap }) });
       const decoder = new CalldataDecoder(deps);
       const calldata = makeCalldata(
         'transferFrom(address,address,uint256)',
@@ -241,6 +251,7 @@ describe('CalldataDecoder', () => {
       );
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -287,6 +298,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: PROXY,
         calldata,
         functionSignature: null,
@@ -328,6 +340,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -361,6 +374,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -380,6 +394,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(makeDeps());
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -397,6 +412,7 @@ describe('CalldataDecoder', () => {
       const decoder = new CalldataDecoder(deps);
       const r = await decoder.decode({
         chainId: CHAIN,
+        sourceType: SOURCE_TYPE,
         targetAddress: ADDR,
         calldata,
         functionSignature: null,
@@ -416,6 +432,7 @@ describe('CalldataDecoder', () => {
       for (const entry of FIXTURE as FixtureEntry[]) {
         const r = await decoder.decode({
           chainId: CHAIN,
+          sourceType: SOURCE_TYPE,
           targetAddress: ADDR,
           calldata: entry.calldata,
           functionSignature: null,

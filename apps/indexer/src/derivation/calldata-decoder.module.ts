@@ -6,7 +6,6 @@ import {
   SelectorIndexRepository,
   pgDb,
 } from '@libs/db';
-import { decodeByHeuristic, loadAbiLibrary } from '@sources/compound';
 import {
   CalldataDecoder,
   ChainNotReadyError,
@@ -16,6 +15,7 @@ import {
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service';
+import { bundledAbisFor, decodeByHeuristic } from './calldata-decoder.helpers';
 
 @Module({
   imports: [ChainContextModule],
@@ -42,7 +42,7 @@ import { CalldataDecoderWorkerService } from './calldata-decoder-worker.service'
         new CalldataDecoder({
           abiCache,
           selectorIndex,
-          bundledAbis: loadAbiLibrary(),
+          bundledAbisFor,
           decodeByHeuristic,
           proxyResolverFor: (chainId) => {
             const ctx = chains.peek(chainId);

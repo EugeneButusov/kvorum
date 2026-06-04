@@ -1,0 +1,91 @@
+[
+  {
+    "type": "function",
+    "name": "createPayload",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      {
+        "type": "tuple[]",
+        "name": "actions",
+        "components": [
+          { "type": "address", "name": "target" },
+          { "type": "bool", "name": "withDelegateCall" },
+          { "type": "uint8", "name": "accessLevel" },
+          { "type": "uint256", "name": "value" },
+          { "type": "string", "name": "signature" },
+          { "type": "bytes", "name": "callData" }
+        ]
+      }
+    ],
+    "outputs": [{ "type": "uint40", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "executePayload",
+    "constant": false,
+    "stateMutability": "payable",
+    "payable": true,
+    "inputs": [{ "type": "uint40", "name": "payloadId" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "cancelPayload",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint40", "name": "payloadId" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "updateExecutors",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      {
+        "type": "tuple[]",
+        "name": "executors",
+        "components": [
+          { "type": "uint8", "name": "accessLevel" },
+          {
+            "type": "tuple",
+            "name": "executorConfig",
+            "components": [
+              { "type": "address", "name": "executor" },
+              { "type": "uint40", "name": "delay" }
+            ]
+          }
+        ]
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getPayloadState",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "uint40", "name": "payloadId" }],
+    "outputs": [{ "type": "uint8", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "getExecutorSettingsByAccessControl",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "uint8", "name": "accessControl" }],
+    "outputs": [
+      {
+        "type": "tuple",
+        "name": "",
+        "components": [
+          { "type": "address", "name": "executor" },
+          { "type": "uint40", "name": "delay" }
+        ]
+      }
+    ]
+  }
+]

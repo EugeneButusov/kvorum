@@ -6,7 +6,12 @@ export type { ArchiveWriteContext, ArchiveWriteOutcome } from './archive-writer-
 export type { IngesterListenerOptions } from './listener-options';
 export { serializeError } from './serialize-error';
 
-export { ERC20_ABI, OZ_ACCESS_CONTROL_ABI, OZ_GOVERNOR_ABI } from './abi-library/index';
+export {
+  ERC20_ABI,
+  OZ_ACCESS_CONTROL_ABI,
+  OZ_GOVERNOR_ABI,
+  loadSharedAbiLibrary,
+} from './abi-library/index';
 export type { AbiEntry, LoadedAbiLibrary } from './calldata/abi-library/index';
 export { ReconcileDriver, isTransientRpcError } from './reconcile/reconcile-driver';
 export type {
@@ -34,6 +39,7 @@ export type {
   EtherscanClientLike,
   HeuristicResult,
 } from './calldata/types';
+export type { CalldataProtocolSupport } from './calldata/protocol';
 export { ChainNotReadyError } from './calldata/types';
 
 export { BackfillDriver } from './backfill/backfill-driver';

@@ -1,0 +1,17 @@
+[
+  {
+    "type": "function",
+    "name": "executeTransaction",
+    "constant": false,
+    "stateMutability": "payable",
+    "payable": true,
+    "inputs": [
+      { "type": "address", "name": "target" },
+      { "type": "uint256", "name": "value" },
+      { "type": "string", "name": "signature" },
+      { "type": "bytes", "name": "data" },
+      { "type": "bool", "name": "withDelegatecall" }
+    ],
+    "outputs": [{ "type": "bytes", "name": "" }]
+  }
+]

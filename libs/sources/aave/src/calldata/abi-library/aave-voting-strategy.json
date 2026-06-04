@@ -1,0 +1,34 @@
+[
+  {
+    "type": "function",
+    "name": "getVotingPower",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "asset" },
+      { "type": "uint128", "name": "storageSlot" },
+      { "type": "uint256", "name": "power" },
+      { "type": "bytes32", "name": "blockHash" }
+    ],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  },
+  {
+    "type": "function",
+    "name": "hasRequiredRoots",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [{ "type": "bytes32", "name": "blockHash" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "POWER_SCALE_FACTOR",
+    "constant": true,
+    "stateMutability": "view",
+    "payable": false,
+    "inputs": [],
+    "outputs": [{ "type": "uint256", "name": "" }]
+  }
+]

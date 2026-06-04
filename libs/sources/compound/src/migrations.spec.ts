@@ -136,22 +136,24 @@ describeWithDb('compound_002_seed migration', () => {
         `.execute(tx);
 
         await upCompoundSeed(tx);
+        const compoundDao = await tx
+          .selectFrom('dao')
+          .select('id')
+          .where('slug', '=', 'compound')
+          .executeTakeFirstOrThrow();
         // Undo migrations in reverse order: compound_003 must come down before compound_002,
         // otherwise compound_comp_token in dao_source blocks the DAO row deletion.
         await upCompToken(tx);
         await downCompToken(tx);
         await downCompoundSeed(tx);
 
-        const daoRows = await tx.selectFrom('dao').where('slug', '=', 'compound').execute();
+        const daoRows = await tx.selectFrom('dao').where('id', '=', compoundDao.id).execute();
         expect(daoRows).toHaveLength(0);
 
         const sourceRows = await tx
           .selectFrom('dao_source')
-          .where('source_type', 'in', [
-            'compound_governor_bravo',
-            'compound_governor_alpha',
-            'compound_governor_oz',
-          ])
+          .where('dao_id', '=', compoundDao.id)
+          .where('source_type', 'like', 'compound_%')
           .execute();
         expect(sourceRows).toHaveLength(0);
 
