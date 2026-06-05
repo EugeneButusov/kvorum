@@ -14,8 +14,11 @@ import {
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
   AaveProposalRepository,
+  AaveVotingMachineArchiveWriter,
+  AaveVotingMachineEventRepository,
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
+  createAaveVotingMachinePlugin,
 } from '@sources/aave';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
@@ -40,6 +43,17 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           archiveEventRepo,
           dlqRepo,
           logger: toChainLogger(new Logger('AaveGovernanceArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
+      provide: AaveVotingMachineArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new AaveVotingMachineArchiveWriter({
+          eventRepo: new AaveVotingMachineEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('AaveVotingMachineArchiveWriter')),
         }),
       inject: [ArchiveEventRepository, DlqRepository],
     },
@@ -101,6 +115,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       provide: AAVE_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
+        votingMachineArchiveWriter: AaveVotingMachineArchiveWriter,
         dlqRepo: DlqRepository,
         proposals: AaveProposalRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
@@ -115,6 +130,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               dlqRepo,
               logger: toChainLogger(new Logger('AaveGovernanceV3')),
             }),
+            createAaveVotingMachinePlugin({
+              archiveWriter: votingMachineArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('AaveVotingMachine')),
+            }),
             createAaveGovernanceV3ReconcilePlugin({
               proposals,
               metrics,
@@ -127,6 +147,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       },
       inject: [
         AaveGovernanceArchiveWriter,
+        AaveVotingMachineArchiveWriter,
         DlqRepository,
         AaveProposalRepository,
         AaveGovernanceProjectionApplier,

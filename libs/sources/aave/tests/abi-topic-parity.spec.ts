@@ -3,15 +3,16 @@ import { join } from 'node:path';
 import { Interface } from 'ethers';
 import { describe, expect, it } from 'vitest';
 import { AAVE_GOVERNANCE_V3_TOPICS } from '../src/governance-v3/abi/events';
+import { AAVE_VOTING_MACHINE_TOPICS } from '../src/voting-machine/abi/events';
 
-function loadAbi() {
-  const path = join(__dirname, 'fixtures', 'abis', 'aave-governance-v3.json');
+function loadAbi(name: 'aave-governance-v3' | 'aave-voting-machine') {
+  const path = join(__dirname, 'fixtures', 'abis', `${name}.json`);
   return JSON.parse(readFileSync(path, 'utf8')) as unknown[];
 }
 
 describe('aave governance v3 ABI topic parity fixture', () => {
   it('keeps all governance-v3 event topics aligned with the pinned ABI fixture', () => {
-    const iface = new Interface(loadAbi());
+    const iface = new Interface(loadAbi('aave-governance-v3'));
 
     expect(AAVE_GOVERNANCE_V3_TOPICS.ProposalCreated).toBe(
       iface.getEvent('ProposalCreated')!.topicHash.toLowerCase(),
@@ -33,6 +34,23 @@ describe('aave governance v3 ABI topic parity fixture', () => {
     );
     expect(AAVE_GOVERNANCE_V3_TOPICS.PayloadSent).toBe(
       iface.getEvent('PayloadSent')!.topicHash.toLowerCase(),
+    );
+  });
+
+  it('keeps all voting-machine event topics aligned with the pinned ABI fixture', () => {
+    const iface = new Interface(loadAbi('aave-voting-machine'));
+
+    expect(AAVE_VOTING_MACHINE_TOPICS.VoteEmitted).toBe(
+      iface.getEvent('VoteEmitted')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_VOTING_MACHINE_TOPICS.ProposalVoteStarted).toBe(
+      iface.getEvent('ProposalVoteStarted')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_VOTING_MACHINE_TOPICS.ProposalResultsSent).toBe(
+      iface.getEvent('ProposalResultsSent')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_VOTING_MACHINE_TOPICS.ProposalVoteConfigurationBridged).toBe(
+      iface.getEvent('ProposalVoteConfigurationBridged')!.topicHash.toLowerCase(),
     );
   });
 });
