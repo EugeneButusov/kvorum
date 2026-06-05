@@ -335,6 +335,7 @@ describe('GovernorVoteProjectionApplier', () => {
       logIndex: 0,
       primaryChoice: 2,
       votingPower: '99',
+      votingChainId: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -370,6 +371,7 @@ describe('GovernorVoteProjectionApplier', () => {
       logIndex: 0,
       primaryChoice: 1,
       votingPower: '200',
+      votingChainId: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
@@ -400,6 +402,7 @@ describe('GovernorVoteProjectionApplier', () => {
       logIndex: 0,
       primaryChoice: 2,
       votingPower: '99',
+      votingChainId: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -422,6 +425,7 @@ describe('GovernorVoteProjectionApplier', () => {
       logIndex: 0, // incoming logIndex=1 > 0 → incoming is newer
       primaryChoice: 2,
       votingPower: '99',
+      votingChainId: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -525,6 +529,7 @@ describe('GovernorVoteProjectionApplier', () => {
       logIndex: BASE_ROW.log_index,
       primaryChoice: 1,
       votingPower: '123',
+      votingChainId: '0x1',
     });
 
     await applier.applyBatch([BASE_ROW]);

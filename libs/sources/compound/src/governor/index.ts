@@ -66,7 +66,7 @@ export type {
 export { GovernorVoteProjectionApplier } from './domain/governor-vote-projection-applier';
 export type { VoteProjectionContext, VoteProjectionResult } from './domain/vote-projector';
 export { projectVoteCast } from './domain/vote-projector';
-export { VoteBlockTimestampFetcher } from './domain/vote-block-timestamp';
+export { VoteBlockTimestampFetcher } from '@sources/core';
 
 export type { GovernorArchivePayloadRow } from './persistence/governor-archive-payload-repository';
 export { GovernorArchivePayloadRepository } from './persistence/governor-archive-payload-repository';

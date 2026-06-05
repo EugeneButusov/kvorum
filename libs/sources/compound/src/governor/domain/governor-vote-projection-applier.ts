@@ -3,14 +3,18 @@ import { silentLogger } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   type ArchiveDerivationRow,
-  type CurrentVoteRow,
   DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
   VoteEventsProjectionWriter,
 } from '@libs/db';
+import {
+  VoteBlockTimestampFetcher,
+  ProjectionError,
+  buildVoteRows,
+  isNewerVote,
+} from '@sources/core';
 import type { VoteCastPayload } from './types';
-import { VoteBlockTimestampFetcher } from './vote-block-timestamp';
 import {
   GovernorArchivePayloadRepository,
   type GovernorArchivePayloadRow,
@@ -50,12 +54,6 @@ export interface GovernorVoteProjectionApplierDeps {
   metrics: GovernorVoteProjectionMetrics;
   registry: ChainContextRegistry;
   logger?: Logger;
-}
-
-class ProjectionError extends Error {
-  constructor(public readonly reason: 'no_proposal') {
-    super(reason);
-  }
 }
 
 export class GovernorVoteProjectionApplier {
@@ -188,7 +186,10 @@ export class GovernorVoteProjectionApplier {
         proposalId: proposal.id,
         voterAddress,
         castAt,
-        event,
+        incoming: {
+          primaryChoice: event.primaryChoice,
+          votingPower: event.votingPowerReported,
+        },
         current,
         incomingIsNewer,
       });
@@ -206,7 +207,10 @@ export class GovernorVoteProjectionApplier {
 
       this.record(row, incomingIsNewer ? 'derived' : 'skipped_idempotent', null);
     } catch (error) {
-      const reason = error instanceof ProjectionError ? error.reason : 'projection_apply_error';
+      const reason: CompoundVoteDerivationFailureReason =
+        error instanceof ProjectionError && error.reason === 'no_proposal'
+          ? 'no_proposal'
+          : 'projection_apply_error';
       await this.failAndMaybeDlq(row, reason, error);
     }
   }
@@ -270,83 +274,6 @@ export class GovernorVoteProjectionApplier {
       reason,
     });
   }
-}
-
-function isNewerVote(
-  castAt: Date,
-  blockNumber: string,
-  logIndex: number,
-  current: CurrentVoteRow | undefined,
-): boolean {
-  if (current === undefined) return true;
-  if (castAt.getTime() !== current.castAt.getTime()) return castAt > current.castAt;
-
-  const incomingBlock = BigInt(blockNumber);
-  const currentBlock = BigInt(current.blockNumber);
-  if (incomingBlock !== currentBlock) return incomingBlock > currentBlock;
-
-  return logIndex > current.logIndex;
-}
-
-function buildVoteRows(args: {
-  row: ArchiveDerivationRow;
-  daoId: string;
-  proposalId: string;
-  voterAddress: string;
-  castAt: Date;
-  event: VoteCastPayload;
-  current: CurrentVoteRow | undefined;
-  incomingIsNewer: boolean;
-}): Array<{
-  vote_id: string;
-  dao_id: string;
-  proposal_id: string;
-  voter_address: string;
-  voting_chain_id: string;
-  primary_choice: number;
-  voting_power: string;
-  cast_at: Date;
-  block_number: string;
-  log_index: number;
-  superseded: number;
-  superseded_at: Date | null;
-  superseded_by_vote_id: string | null;
-}> {
-  const incomingVoteId = args.row.id;
-  const incoming = {
-    vote_id: incomingVoteId,
-    dao_id: args.daoId,
-    proposal_id: args.proposalId,
-    voter_address: args.voterAddress,
-    voting_chain_id: args.row.chain_id,
-    primary_choice: args.event.primaryChoice,
-    voting_power: args.event.votingPowerReported,
-    cast_at: args.castAt,
-    block_number: args.row.block_number,
-    log_index: args.row.log_index,
-    superseded: args.incomingIsNewer ? 0 : 1,
-    superseded_at: args.incomingIsNewer ? null : args.castAt,
-    superseded_by_vote_id: args.incomingIsNewer ? null : (args.current?.voteId ?? null),
-  };
-  if (!args.incomingIsNewer || args.current === undefined) return [incoming];
-  return [
-    incoming,
-    {
-      vote_id: args.current.voteId,
-      dao_id: args.daoId,
-      proposal_id: args.proposalId,
-      voter_address: args.voterAddress,
-      voting_chain_id: args.row.chain_id,
-      primary_choice: args.current.primaryChoice,
-      voting_power: args.current.votingPower,
-      cast_at: args.current.castAt,
-      block_number: args.current.blockNumber,
-      log_index: args.current.logIndex,
-      superseded: 1,
-      superseded_at: args.castAt,
-      superseded_by_vote_id: incomingVoteId,
-    },
-  ];
 }
 
 function parseVoteCastPayload(payloadJson: string): VoteCastPayload {
