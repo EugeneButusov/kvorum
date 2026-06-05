@@ -56,11 +56,21 @@ describe('AaveSourceModule', () => {
     expect(votingMachineIngester).toBeDefined();
     expect(votingMachineIngester?.supportedChainIds).toEqual(['0x1', '0x89', '0xa86a']);
 
-    expect(plugin.derivers).toHaveLength(2);
+    expect(plugin.derivers).toHaveLength(3);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
       'actor-address',
       'projection',
+      'projection',
     ]);
+    expect(
+      plugin.derivers.some(
+        (deriver) =>
+          deriver.kind === 'projection' &&
+          deriver.sourceTypes.includes('aave_voting_machine') &&
+          deriver.eventTypes.includes('VoteEmitted') &&
+          deriver.eventTypes.includes('ProposalVoteStarted'),
+      ),
+    ).toBe(true);
     expect(plugin.snapshotStrategies).toEqual([]);
   });
 });

@@ -1,8 +1,12 @@
 import { Logger, Module } from '@nestjs/common';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   ArchiveEventRepository,
   DlqRepository,
+  ProposalRepository,
+  VoteEventsProjectionReadRepository,
+  VoteEventsProjectionWriter,
   chDb,
   pgDb,
 } from '@libs/db';
@@ -14,7 +18,9 @@ import {
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
   AaveProposalRepository,
+  AaveVoteProjectionApplier,
   AaveVotingMachineArchiveWriter,
+  AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
@@ -32,7 +38,14 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
 @Module({
   imports: [
     ChainContextModule,
-    DbModule.forFeature([ArchiveDerivationRepository, ArchiveEventRepository, DlqRepository]),
+    DbModule.forFeature([
+      ArchiveDerivationRepository,
+      ArchiveEventRepository,
+      DlqRepository,
+      ProposalRepository,
+      VoteEventsProjectionReadRepository,
+      VoteEventsProjectionWriter,
+    ]),
   ],
   providers: [
     {
@@ -64,6 +77,10 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
     {
       provide: AaveProposalRepository,
       useFactory: () => new AaveProposalRepository(pgDb),
+    },
+    {
+      provide: AaveVotingMachineArchivePayloadRepository,
+      useFactory: () => new AaveVotingMachineArchivePayloadRepository(chDb),
     },
     {
       provide: AaveIpfsTitleFetcher,
@@ -112,6 +129,50 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       inject: [AaveGovernanceArchivePayloadRepository],
     },
     {
+      provide: AaveVoteProjectionApplier,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlqRepo: DlqRepository,
+        payloads: AaveVotingMachineArchivePayloadRepository,
+        proposals: ProposalRepository,
+        aaveProposals: AaveProposalRepository,
+        voteRead: VoteEventsProjectionReadRepository,
+        voteWrite: VoteEventsProjectionWriter,
+        registry: ChainContextRegistry,
+      ) =>
+        new AaveVoteProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads,
+          proposals,
+          aaveProposals,
+          voteRead,
+          voteWrite,
+          registry,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            chWriteSeconds: () => undefined,
+            processed: ({ event_type, outcome, reason }) =>
+              aaveMetrics.voteDerivation.add(1, {
+                event_type,
+                outcome,
+                reason: reason ?? 'none',
+              }),
+          },
+          logger: toChainLogger(new Logger('AaveVoteProjectionApplier')),
+        }),
+      inject: [
+        ArchiveDerivationRepository,
+        DlqRepository,
+        AaveVotingMachineArchivePayloadRepository,
+        ProposalRepository,
+        AaveProposalRepository,
+        VoteEventsProjectionReadRepository,
+        VoteEventsProjectionWriter,
+        ChainContextRegistry,
+      ],
+    },
+    {
       provide: AAVE_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
@@ -120,6 +181,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         proposals: AaveProposalRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
+        voteProjectionApplier: AaveVoteProjectionApplier,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         return {
@@ -142,7 +204,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),
           ],
-          derivers: [projectionApplier, actorAddressDeriver],
+          derivers: [projectionApplier, actorAddressDeriver, voteProjectionApplier],
           snapshotStrategies: [],
         };
       },
@@ -153,6 +215,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveProposalRepository,
         AaveGovernanceProjectionApplier,
         AaveGovernanceActorAddressDeriver,
+        AaveVoteProjectionApplier,
       ],
     },
   ],

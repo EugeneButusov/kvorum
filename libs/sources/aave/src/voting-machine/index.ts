@@ -22,6 +22,16 @@ export type {
   AaveVotingMachineEventRepositoryDeps,
 } from './persistence/event-repository.types';
 export { AaveVotingMachineEventRepository } from './persistence/event-repository';
+export type { AaveVotingMachineArchivePayloadRow } from './persistence/archive-payload-repository';
+export { AaveVotingMachineArchivePayloadRepository } from './persistence/archive-payload-repository';
+export { projectAaveVote } from './domain/vote-projector';
+export type {
+  AaveVoteDerivationFailureReason,
+  AaveVoteDerivationOutcome,
+  AaveVoteProjectionApplierDeps,
+  AaveVoteProjectionMetrics,
+} from './domain/vote-projection-applier';
+export { AaveVoteProjectionApplier } from './domain/vote-projection-applier';
 export type { AaveVotingMachineArchiveWriterDeps } from './ingestion/archive-writer.types';
 export type {
   ArchiveWriteContext as AaveVotingMachineArchiveWriteContext,

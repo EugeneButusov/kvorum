@@ -41,6 +41,31 @@ export class AaveProposalRepository
       .execute();
   }
 
+  async setVotingChainBinding(
+    proposalId: string,
+    input: { votingChainId: string; votingMachineAddress: string },
+  ): Promise<void> {
+    await this.db
+      .updateTable('aave_proposal_metadata')
+      .set({
+        voting_chain_id: input.votingChainId,
+        voting_machine_address: input.votingMachineAddress,
+      })
+      .where('proposal_id', '=', proposalId)
+      .where('voting_chain_id', 'is', null)
+      .execute();
+  }
+
+  async findVotingMachineAddress(daoSourceId: string): Promise<string | undefined> {
+    const row = await this.db
+      .selectFrom('dao_source')
+      .select(sql<string>`source_config ->> 'voting_machine_address'`.as('voting_machine_address'))
+      .where('id', '=', daoSourceId)
+      .executeTakeFirst();
+
+    return row?.voting_machine_address;
+  }
+
   async insertDeclaredPayload(row: NewAaveProposalPayload): Promise<void> {
     await this.db
       .insertInto('aave_proposal_payload')
