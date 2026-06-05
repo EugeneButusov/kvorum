@@ -167,6 +167,62 @@ describe('AaveVoteProjectionApplier', () => {
     expect(dlq.insert).not.toHaveBeenCalled();
   });
 
+  it('fails the batch when voting machine address is missing', async () => {
+    const { applier, archive, proposals, aaveProposals, dlq, metrics } = buildApplier();
+    (aaveProposals.findVotingMachineAddress as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined,
+    );
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(proposals.findDaoIdForSource).not.toHaveBeenCalled();
+    expect(dlq.insert).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
+    );
+  });
+
+  it('fails the batch when chain context is missing for VoteEmitted', async () => {
+    const { applier, archive, metrics } = buildApplier({ chainCtx: undefined });
+    mutable(applier).registry = { peek: vi.fn().mockReturnValue(undefined) };
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'block_timestamp_unavailable' }),
+    );
+  });
+
+  it('fails VoteEmitted when payload lookup misses', async () => {
+    const { applier, archive, metrics } = buildApplier({ payloads: [] });
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+  });
+
+  it('fails VoteEmitted when block timestamp lookup misses', async () => {
+    const { applier, archive, proposals, metrics } = buildApplier();
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+    mutable(applier).blockTimestamps = {
+      fetchBatch: vi.fn().mockResolvedValue(new Map()),
+      resultKey: (blockNumber: string, blockHash: string) => `${blockNumber}:${blockHash}`,
+    };
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'block_timestamp_unavailable' }),
+    );
+  });
+
   it('skips re-deriving the already current row', async () => {
     const { applier, archive, proposals, voteRead, voteWrite } = buildApplier();
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
@@ -239,6 +295,82 @@ describe('AaveVoteProjectionApplier', () => {
     expect(aaveProposals.setVotingChainBinding).not.toHaveBeenCalled();
   });
 
+  it('marks older VoteEmitted rows as skipped_idempotent after insert', async () => {
+    const { applier, archive, proposals, voteRead, voteWrite, metrics } = buildApplier();
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
+      voteId: 'newer-vote',
+      castAt: new Date('2026-01-01T00:02:40Z'),
+      blockNumber: '200',
+      logIndex: 5,
+      primaryChoice: 0,
+      votingPower: '222',
+      votingChainId: '0x89',
+    });
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(voteWrite.insertBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        vote_id: 'archive-1',
+        superseded: 1,
+        superseded_by_vote_id: 'newer-vote',
+      }),
+    ]);
+    expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_idempotent', reason: null }),
+    );
+  });
+
+  it('fails VoteEmitted with projection_apply_error when dao source lookup fails', async () => {
+    const { applier, archive, proposals, metrics } = buildApplier();
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
+    );
+  });
+
+  it('fails VoteEmitted with watermark_update_error when markDerived throws', async () => {
+    const { applier, archive, proposals, voteRead, metrics } = buildApplier();
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+    (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('pg write failed'),
+    );
+
+    await applier.applyBatch([BASE_ROW]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'watermark_update_error' }),
+    );
+  });
+
+  it('writes to DLQ when VoteEmitted failures hit threshold', async () => {
+    const row = { ...BASE_ROW, derivation_attempt_count: 4 };
+    const { applier, archive, dlq, metrics } = buildApplier({ payloads: [] });
+
+    await applier.applyBatch([row]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(dlq.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'aave_vote_projection_stage',
+        payload: expect.objectContaining({ id: 'archive-1', event_type: 'VoteEmitted' }),
+      }),
+    );
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+  });
+
   it('binds voting chain for ProposalVoteStarted using the proposal UUID', async () => {
     const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
     const payload = {
@@ -288,5 +420,84 @@ describe('AaveVoteProjectionApplier', () => {
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
+  });
+
+  it('fails ProposalVoteStarted when payload decoding fails', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteStarted' as const,
+      payload: 'bad-json',
+    };
+    const { applier, archive, metrics } = buildApplier({ payloads: [payload] });
+
+    await applier.applyBatch([row]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'decode_error' }),
+    );
+  });
+
+  it('fails ProposalVoteStarted when payload lookup misses', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const { applier, archive, metrics } = buildApplier({ payloads: [] });
+
+    await applier.applyBatch([row]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+  });
+
+  it('fails ProposalVoteStarted with projection_apply_error when dao source lookup fails', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteStarted' as const,
+      payload: JSON.stringify({
+        proposalId: '42',
+        l1BlockHash: '0x' + '22'.repeat(32),
+        startTime: '1',
+        endTime: '2',
+      }),
+    };
+    const { applier, archive, proposals, metrics } = buildApplier({ payloads: [payload] });
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+    await applier.applyBatch([row]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
+    );
+  });
+
+  it('fails ProposalVoteStarted with watermark_update_error when markDerived throws', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteStarted' as const,
+      payload: JSON.stringify({
+        proposalId: '42',
+        l1BlockHash: '0x' + '22'.repeat(32),
+        startTime: '1',
+        endTime: '2',
+      }),
+    };
+    const { applier, archive, proposals, metrics } = buildApplier({ payloads: [payload] });
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+    (archive.markDerived as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('pg write failed'),
+    );
+
+    await applier.applyBatch([row]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'watermark_update_error' }),
+    );
   });
 });

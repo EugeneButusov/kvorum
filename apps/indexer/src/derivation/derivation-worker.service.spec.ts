@@ -134,18 +134,18 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
-  it('dispatches same-named events by source_type and marks unsupported foreign sources', async () => {
+  it('dispatches same-named events by source_type and marks unsupported peer sources', async () => {
     const rowA = {
       ...ROW,
       id: 'archive-a',
-      source_type: 'aave_voting_machine',
-      event_type: 'VoteEmitted',
+      source_type: 'test_source_primary',
+      event_type: 'test_event_shared',
     };
     const rowB = {
       ...ROW,
       id: 'archive-b',
-      source_type: 'foreign_vote_source',
-      event_type: 'VoteEmitted',
+      source_type: 'test_source_secondary',
+      event_type: 'test_event_shared',
     };
     const archive = {
       incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
@@ -155,8 +155,8 @@ describe('DerivationWorkerService', () => {
     };
     const applier = {
       kind: 'projection' as const,
-      sourceTypes: ['aave_voting_machine'],
-      eventTypes: ['VoteEmitted'],
+      sourceTypes: ['test_source_primary'],
+      eventTypes: ['test_event_shared'],
       applyBatch: vi.fn().mockResolvedValue(undefined),
     };
     const worker = new DerivationWorkerService(

@@ -4,14 +4,14 @@ import { buildVoteRows, isNewerVote } from './vote-rows';
 
 const BASE_ROW: ArchiveDerivationRow = {
   id: 'archive-2',
-  source_type: 'compound_governor_bravo',
+  source_type: 'test_vote_source',
   dao_source_id: 'source-1',
   chain_id: '0x89',
   block_number: '200',
   block_hash: '0xblock',
   tx_hash: '0xtx',
   log_index: 3,
-  event_type: 'VoteCast',
+  event_type: 'VoteRecorded',
   received_at: new Date('2026-01-01T00:00:00Z'),
   derivation_attempt_count: 0,
 };

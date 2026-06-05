@@ -65,6 +65,16 @@ function makeSelectChain(executeResult: unknown[] = []) {
   return { selectFrom, chain };
 }
 
+function makeSelectTakeFirstChain(executeResult: unknown) {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    executeTakeFirst: vi.fn().mockResolvedValue(executeResult),
+  };
+  const selectFrom = vi.fn().mockReturnValue(chain);
+  return { selectFrom, chain };
+}
+
 interface ConflictBuilder {
   column(column: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -109,6 +119,43 @@ describe('AaveProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith({ snapshot_block_hash: '0xhash' });
     expect(update.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('sets voting chain binding only when metadata is still unbound', async () => {
+    const update = makeUpdateChain();
+    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
+
+    await repo.setVotingChainBinding('proposal-1', {
+      votingChainId: '0x89',
+      votingMachineAddress: '0x' + '11'.repeat(20),
+    });
+
+    expect(update.updateTable).toHaveBeenCalledWith('aave_proposal_metadata');
+    expect(update.set).toHaveBeenCalledWith({
+      voting_chain_id: '0x89',
+      voting_machine_address: '0x' + '11'.repeat(20),
+    });
+    expect(update.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
+    expect(update.where).toHaveBeenCalledWith('voting_chain_id', 'is', null);
+    expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('reads voting machine address from dao_source config', async () => {
+    const select = makeSelectTakeFirstChain({
+      voting_machine_address: '0x' + '22'.repeat(20),
+    });
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findVotingMachineAddress('source-1')).resolves.toBe('0x' + '22'.repeat(20));
+    expect(select.selectFrom).toHaveBeenCalledWith('dao_source');
+    expect(select.chain.where).toHaveBeenCalledWith('id', '=', 'source-1');
+  });
+
+  it('returns undefined when dao_source has no voting machine address', async () => {
+    const select = makeSelectTakeFirstChain(undefined);
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findVotingMachineAddress('source-1')).resolves.toBeUndefined();
   });
 
   it('finds stale rows for reconciliation when source types, bounds, and limit are valid', async () => {
