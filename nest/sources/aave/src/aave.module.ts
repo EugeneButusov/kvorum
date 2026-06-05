@@ -130,6 +130,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               dlqRepo,
               logger: toChainLogger(new Logger('AaveGovernanceV3')),
             }),
+            // Y1 registers admin-cli backfill and DLQ-retry providers for this source.
             createAaveVotingMachinePlugin({
               archiveWriter: votingMachineArchiveWriter,
               dlqRepo,

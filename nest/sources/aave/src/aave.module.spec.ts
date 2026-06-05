@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SourcePlugin } from '@sources/core';
+import type { SourceIngester } from '@sources/core';
 import { AAVE_SOURCE_PLUGIN, AaveSourceModule } from './aave.module';
 
 vi.mock('@libs/db', async (importOriginal) => {
@@ -47,6 +48,14 @@ describe('AaveSourceModule', () => {
       'aave_governance_v3_reconcile',
       'aave_voting_machine',
     ]);
+
+    const votingMachineIngester = plugin.ingesters.find(
+      (ingester): ingester is SourceIngester<Record<string, unknown>> =>
+        ingester.sourceType === 'aave_voting_machine',
+    );
+    expect(votingMachineIngester).toBeDefined();
+    expect(votingMachineIngester?.supportedChainIds).toEqual(['0x1', '0x89', '0xa86a']);
+
     expect(plugin.derivers).toHaveLength(2);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
       'actor-address',
