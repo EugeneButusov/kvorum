@@ -147,6 +147,8 @@ Defined in `tsconfig.base.json`. Paths use `./` prefix (required by TS 5.9 witho
 "@libs/utils":  ["./libs/utils/src/index.ts"]
 ```
 
+When `strict` and `noUncheckedIndexedAccess` expose `undefined`, prefer explicit narrowing or helper functions that return the correctly typed value. Avoid papering over indexed access with non-null assertions like `rows[0]!` unless the invariant truly cannot be expressed to TypeScript another way.
+
 ## Where things live
 
 ```

@@ -85,6 +85,8 @@ export class AaveVoteProjectionApplier {
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     if (rows.length === 0) return;
+    const firstRow = rows[0];
+    if (firstRow === undefined) return;
 
     const lookupStartedAt = Date.now();
     const payloads = await this.payloads.fetchPayloads(rows);
@@ -92,7 +94,7 @@ export class AaveVoteProjectionApplier {
     const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
     const votingMachineAddress = await this.aaveProposals.findVotingMachineAddress(
-      rows[0]!.dao_source_id,
+      firstRow.dao_source_id,
     );
     if (votingMachineAddress === undefined) {
       for (const row of rows) {
@@ -105,7 +107,7 @@ export class AaveVoteProjectionApplier {
       return;
     }
 
-    if (rows[0]!.event_type === 'ProposalVoteStarted') {
+    if (firstRow.event_type === 'ProposalVoteStarted') {
       for (const row of rows) {
         const payload = payloadByKey.get(tupleKey(row));
         if (payload === undefined) {
@@ -117,7 +119,7 @@ export class AaveVoteProjectionApplier {
       return;
     }
 
-    const chainCtx = this.registry.peek(rows[0]!.chain_id);
+    const chainCtx = this.registry.peek(firstRow.chain_id);
     if (chainCtx === undefined) {
       for (const row of rows) {
         await this.failAndMaybeDlq(
