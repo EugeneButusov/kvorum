@@ -2,45 +2,45 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
-import { AaveGovernanceArchiveWriter } from './archive-writer';
+import { AaveVotingMachineArchiveWriter } from './archive-writer';
 import type { ArchiveWriteContext } from './archive-writer.types';
-import type { AaveGovernanceV3Event } from '../domain/types';
-import type { AaveGovernanceEventRepository } from '../persistence/event-repository';
+import type { AaveVotingMachineEvent } from '../domain/types';
+import type { AaveVotingMachineEventRepository } from '../persistence/event-repository';
 
 const CTX: ArchiveWriteContext = {
   daoSourceId: '00000000-0000-0000-0000-000000000001',
-  sourceType: 'aave_governance_v3',
-  chainId: '0x1',
-  sourceLabel: 'aave_governance_v3',
+  sourceType: 'aave_voting_machine',
+  chainId: '0x89',
+  sourceLabel: 'aave_voting_machine',
 };
 
-const DECODED: AaveGovernanceV3Event = {
-  type: 'ProposalCreated',
+const DECODED: AaveVotingMachineEvent = {
+  type: 'VoteEmitted',
   payload: {
     proposalId: '123',
-    creator: '0xabcdef1234567890abcdef1234567890abcdef12',
-    accessLevel: 1,
-    ipfsHash: '0x' + '12'.repeat(32),
+    voter: '0xabcdef1234567890abcdef1234567890abcdef12',
+    support: true,
+    votingPower: '456',
   },
 };
 
 const LOG_REF: LogEvent = {
-  sourceType: 'aave_governance_v3',
-  chainId: '0x1',
-  blockNumber: 20000000n,
+  sourceType: 'aave_voting_machine',
+  chainId: '0x89',
+  blockNumber: 69000000n,
   blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
   txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   txIndex: 0,
   logIndex: 0,
-  address: '0x9aee0b04504cef83a65ac3f0e838d0593bcb2bc7',
-  topics: ['0xcc914becfa276bbc067049bf8db2d34ebbdc1bafa851e4d4936aaed376c08dbe'],
+  address: '0x44c8b753229006a8047a05b90379a7e92185e97c',
+  topics: ['0x0c611e7b6ae0de26f4772260e1bbdb5f58cbb7c275fe2de14671968d29add8d6'],
   data: '0x' + '12'.repeat(32),
 };
 
-function makeEventRepo(): AaveGovernanceEventRepository {
+function makeEventRepo(): AaveVotingMachineEventRepository {
   return {
     insert: vi.fn().mockResolvedValue(undefined),
-  } as unknown as AaveGovernanceEventRepository;
+  } as unknown as AaveVotingMachineEventRepository;
 }
 
 function makeArchiveEventRepo(): ArchiveEventRepository {
@@ -56,10 +56,10 @@ function makeDlqRepo(): DlqRepository {
   } as unknown as DlqRepository;
 }
 
-describe('AaveGovernanceArchiveWriter.insertEvent', () => {
+describe('AaveVotingMachineArchiveWriter.insertEvent', () => {
   it('maps the decoded event into the source repository row', async () => {
     const eventRepo = makeEventRepo();
-    const writer = new AaveGovernanceArchiveWriter({
+    const writer = new AaveVotingMachineArchiveWriter({
       eventRepo,
       archiveEventRepo: makeArchiveEventRepo(),
       dlqRepo: makeDlqRepo(),
