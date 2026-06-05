@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
 import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
@@ -36,126 +36,43 @@ const LOG_REF: LogEvent = {
   data: '0x',
 };
 
-function makeEventRepo(
-  overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {},
-): CompTokenEventRepository {
-  return { insert: vi.fn().mockResolvedValue(undefined), ...overrides } as never;
+function makeEventRepo(): CompTokenEventRepository {
+  return { insert: vi.fn().mockResolvedValue(undefined) } as unknown as CompTokenEventRepository;
 }
 
-function makeArchiveEventRepo(
-  overrides: Partial<{ find: ReturnType<typeof vi.fn>; insert: ReturnType<typeof vi.fn> }> = {},
-): ArchiveEventRepository {
+function makeArchiveEventRepo(): ArchiveEventRepository {
   return {
-    find: vi.fn().mockResolvedValue(undefined),
+    find: vi.fn(),
     insert: vi.fn().mockResolvedValue({ id: 'uuid-1' }),
-    ...overrides,
-  } as never;
+  } as unknown as ArchiveEventRepository;
 }
 
-function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {}): DlqRepository {
-  return { insert: vi.fn().mockResolvedValue(undefined), ...overrides } as never;
+function makeDlqRepo(): DlqRepository {
+  return { insert: vi.fn() } as unknown as DlqRepository;
 }
 
-function buildWriter(
-  overrides: {
-    eventRepo?: CompTokenEventRepository;
-    archiveEventRepo?: ArchiveEventRepository;
-    dlqRepo?: DlqRepository;
-  } = {},
-): CompTokenArchiveWriter {
-  return new CompTokenArchiveWriter({
-    eventRepo: overrides.eventRepo ?? makeEventRepo(),
-    archiveEventRepo: overrides.archiveEventRepo ?? makeArchiveEventRepo(),
-    dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
-    logger: silentLogger,
-    now: () => new Date('2026-01-01T00:00:00Z'),
-  });
-}
-
-describe('CompTokenArchiveWriter', () => {
-  it('writes happy-path and returns inserted', async () => {
+describe('CompTokenArchiveWriter.insertEvent', () => {
+  it('maps the decoded event into the source repository row', async () => {
     const eventRepo = makeEventRepo();
-    const archiveEventRepo = makeArchiveEventRepo();
-
-    const outcome = await buildWriter({ eventRepo, archiveEventRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('inserted');
-    expect(eventRepo.insert).toHaveBeenCalledOnce();
-    expect(archiveEventRepo.insert).toHaveBeenCalledOnce();
-  });
-
-  it('skips on existing confirmation', async () => {
-    const eventRepo = makeEventRepo();
-    const archiveEventRepo = makeArchiveEventRepo({ find: vi.fn().mockResolvedValue({ id: 'x' }) });
-
-    const outcome = await buildWriter({ eventRepo, archiveEventRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('skipped_existing');
-    expect(eventRepo.insert).not.toHaveBeenCalled();
-    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
-  });
-
-  it('ON CONFLICT no-op insert → inserted (backfill write collapses conflict into inserted per D.2)', async () => {
-    const archiveEventRepo = makeArchiveEventRepo({ insert: vi.fn().mockResolvedValue(undefined) });
-    const outcome = await buildWriter({ archiveEventRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('inserted');
-  });
-
-  it('routes persistent PG confirmation failure to delegation_archive_stage DLQ', async () => {
-    let capturedDlq: unknown;
-    const archiveEventRepo = makeArchiveEventRepo({
-      insert: vi.fn().mockRejectedValue(new Error('pg')),
-    });
-    const dlqRepo = makeDlqRepo({
-      insert: vi.fn().mockImplementation((row: unknown) => {
-        capturedDlq = row;
-        return Promise.resolve();
-      }),
+    const writer = new CompTokenArchiveWriter({
+      eventRepo,
+      archiveEventRepo: makeArchiveEventRepo(),
+      dlqRepo: makeDlqRepo(),
+      logger: silentLogger,
+      now: () => new Date('2026-01-01T00:00:00Z'),
     });
 
-    const outcome = await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('dlq_routed');
-    expect((capturedDlq as Record<string, unknown>)['stage']).toBe('delegation_archive_stage');
-  });
+    await writer.writeCore(CTX, DECODED, LOG_REF);
 
-  it('returns unreachable when DLQ write fails', async () => {
-    const archiveEventRepo = makeArchiveEventRepo({
-      insert: vi.fn().mockRejectedValue(new Error('pg')),
+    expect(eventRepo.insert).toHaveBeenCalledWith({
+      daoSourceId: CTX.daoSourceId,
+      chainId: CTX.chainId,
+      blockNumber: LOG_REF.blockNumber.toString(),
+      blockHash: LOG_REF.blockHash,
+      txHash: LOG_REF.txHash,
+      logIndex: LOG_REF.logIndex,
+      eventType: DECODED.type,
+      payload: JSON.stringify(DECODED.payload),
     });
-    const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('dlq down')) });
-
-    const outcome = await buildWriter({ archiveEventRepo, dlqRepo }).write(CTX, DECODED, LOG_REF);
-    expect(outcome.result).toBe('unreachable');
-  });
-
-  it('routes CH archive insert failure to delegation_archive_stage DLQ', async () => {
-    const eventRepo = makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) });
-    const archiveEventRepo = makeArchiveEventRepo();
-    const dlqRepo = makeDlqRepo();
-
-    const outcome = await buildWriter({ eventRepo, archiveEventRepo, dlqRepo }).write(
-      CTX,
-      DECODED,
-      LOG_REF,
-    );
-    expect(outcome.result).toBe('dlq_routed');
-    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
-    expect(dlqRepo.insert).toHaveBeenCalledOnce();
-    expect(dlqRepo.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ stage: 'delegation_archive_stage' }),
-    );
-  });
-
-  it('returns unreachable when CH archive insert and DLQ write both fail', async () => {
-    const eventRepo = makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) });
-    const archiveEventRepo = makeArchiveEventRepo();
-    const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('dlq down')) });
-
-    const outcome = await buildWriter({ eventRepo, archiveEventRepo, dlqRepo }).write(
-      CTX,
-      DECODED,
-      LOG_REF,
-    );
-    expect(outcome.result).toBe('unreachable');
-    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
-    expect(dlqRepo.insert).toHaveBeenCalledOnce();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { silentLogger } from '@libs/chain';
 import type { LogEvent } from '@libs/chain';
 import type { ArchiveEventRepository, DlqRepository } from '@libs/db';
@@ -60,94 +60,170 @@ function makeWriter(
   archiveRepo = makeArchiveRepo(),
   dlqRepo = makeDlqRepo(),
   stage = 'test_stage',
+  now = () => new Date('2026-01-01T00:00:00Z'),
 ) {
-  const w = new TestWriter(archiveRepo, dlqRepo, silentLogger, stage, () => new Date('2026-01-01'));
-  w.insertSpy.mockResolvedValue(undefined);
-  return { w, archiveRepo, dlqRepo };
+  const writer = new TestWriter(archiveRepo, dlqRepo, silentLogger, stage, now);
+  writer.insertSpy.mockResolvedValue(undefined);
+  return { writer, archiveRepo, dlqRepo };
 }
 
-describe('BaseArchiveWriter.write', () => {
-  it('#1 — existing row found → returns skipped_existing, no inserts', async () => {
-    const archiveRepo = makeArchiveRepo({ find: vi.fn().mockResolvedValue({ id: 'existing' }) });
-    const { w } = makeWriter(archiveRepo);
+describe('BaseArchiveWriter.writeCore', () => {
+  it('calls insertEvent before archiveEventRepo.insert and writes the archive row', async () => {
+    const archiveRepo = makeArchiveRepo();
+    const { writer } = makeWriter(archiveRepo);
+    const calls: string[] = [];
+    const receivedAt = new Date('2026-06-01T00:00:00Z');
 
-    const out = await w.write(CTX, DECODED, LOG);
-    expect(out.result).toBe('skipped_existing');
-    expect(archiveRepo.insert).not.toHaveBeenCalled();
-    expect(w.insertSpy).not.toHaveBeenCalled();
+    writer.insertSpy.mockImplementation(async () => {
+      calls.push('ch');
+    });
+    (archiveRepo.insert as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      calls.push('pg');
+      return { id: 'ae-1' };
+    });
+
+    await writer.writeCore(CTX, DECODED, LOG, receivedAt);
+
+    expect(calls).toEqual(['ch', 'pg']);
+    expect(writer.insertSpy).toHaveBeenCalledWith(CTX, DECODED, LOG);
+    expect(archiveRepo.insert).toHaveBeenCalledWith({
+      source_type: CTX.sourceType,
+      dao_source_id: CTX.daoSourceId,
+      chain_id: CTX.chainId,
+      block_number: LOG.blockNumber.toString(),
+      block_hash: LOG.blockHash,
+      tx_hash: LOG.txHash,
+      log_index: LOG.logIndex,
+      event_type: DECODED.type,
+      received_at: receivedAt,
+      derived_at: null,
+    });
   });
 
-  it('#2 — happy path → insertEvent + archiveEventRepo.insert called, returns inserted', async () => {
-    const { w, archiveRepo } = makeWriter();
+  it('uses the injected clock when receivedAt is omitted', async () => {
+    const now = new Date('2026-07-01T00:00:00Z');
+    const { writer, archiveRepo } = makeWriter(
+      makeArchiveRepo(),
+      makeDlqRepo(),
+      'test_stage',
+      () => now,
+    );
 
-    const out = await w.write(CTX, DECODED, LOG);
-    expect(out.result).toBe('inserted');
-    expect(w.insertSpy).toHaveBeenCalledOnce();
+    await writer.writeCore(CTX, DECODED, LOG);
+
+    expect(archiveRepo.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        received_at: now,
+      }),
+    );
+  });
+
+  it('propagates insertEvent failures and does not write PG', async () => {
+    const { writer, archiveRepo } = makeWriter();
+    writer.insertSpy.mockRejectedValue(new Error('CH down'));
+
+    await expect(writer.writeCore(CTX, DECODED, LOG)).rejects.toThrow('CH down');
+    expect(archiveRepo.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('BaseArchiveWriter.write', () => {
+  it('returns skipped_existing when the archive row already exists', async () => {
+    const archiveRepo = makeArchiveRepo({ find: vi.fn().mockResolvedValue({ id: 'existing' }) });
+    const { writer } = makeWriter(archiveRepo);
+
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'skipped_existing' });
+    expect(archiveRepo.insert).not.toHaveBeenCalled();
+    expect(writer.insertSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns inserted when both writes succeed', async () => {
+    const { writer, archiveRepo } = makeWriter();
+
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'inserted' });
+    expect(writer.insertSpy).toHaveBeenCalledOnce();
     expect(archiveRepo.insert).toHaveBeenCalledOnce();
   });
 
-  it('#3 — insertEvent throws → archiveEventRepo.insert NOT called, DLQ routed', async () => {
-    const { w, archiveRepo, dlqRepo } = makeWriter();
-    w.insertSpy.mockRejectedValue(new Error('CH down'));
+  it('still returns inserted when archiveEventRepo.insert resolves undefined', async () => {
+    const archiveRepo = makeArchiveRepo({ insert: vi.fn().mockResolvedValue(undefined) });
+    const { writer } = makeWriter(archiveRepo);
 
-    const out = await w.write(CTX, DECODED, LOG);
-    expect(out.result).toBe('dlq_routed');
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'inserted' });
+  });
+
+  it('routes insertEvent failures to the DLQ', async () => {
+    const { writer, archiveRepo, dlqRepo } = makeWriter();
+    writer.insertSpy.mockRejectedValue(new Error('CH down'));
+
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'dlq_routed' });
     expect(archiveRepo.insert).not.toHaveBeenCalled();
     expect(dlqRepo.insert).toHaveBeenCalledOnce();
   });
 
-  it('#4 — archiveEventRepo.insert throws → DLQ routed', async () => {
+  it('routes archiveEventRepo.insert failures to the DLQ', async () => {
     const archiveRepo = makeArchiveRepo({
       insert: vi.fn().mockRejectedValue(new Error('PG down')),
     });
-    const { w, dlqRepo } = makeWriter(archiveRepo);
+    const { writer, dlqRepo } = makeWriter(archiveRepo);
 
-    const out = await w.write(CTX, DECODED, LOG);
-    expect(out.result).toBe('dlq_routed');
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'dlq_routed' });
     expect(dlqRepo.insert).toHaveBeenCalledOnce();
   });
 
-  it('#5 — DLQ insert also fails → returns unreachable', async () => {
+  it('returns unreachable when the DLQ insert also fails', async () => {
     const archiveRepo = makeArchiveRepo({
       insert: vi.fn().mockRejectedValue(new Error('PG down')),
     });
     const dlqRepo = makeDlqRepo({ insert: vi.fn().mockRejectedValue(new Error('DLQ down')) });
-    const { w } = makeWriter(archiveRepo, dlqRepo);
+    const { writer } = makeWriter(archiveRepo, dlqRepo);
 
-    const out = await w.write(CTX, DECODED, LOG);
-    expect(out.result).toBe('unreachable');
+    const out = await writer.write(CTX, DECODED, LOG);
+
+    expect(out).toEqual({ result: 'unreachable' });
   });
 
-  it('#6 — DLQ row contains correct stage, source, txHash, logIndex, blockHash', async () => {
+  it('writes the expected DLQ row shape', async () => {
+    const cause = Object.assign(new Error('FK violation'), { code: '23503', stack: 'stack...' });
     const archiveRepo = makeArchiveRepo({
-      insert: vi.fn().mockRejectedValue(new Error('PG fail')),
+      insert: vi.fn().mockRejectedValue(cause),
     });
     const dlqRepo = makeDlqRepo();
-    const { w } = makeWriter(archiveRepo, dlqRepo, 'my_stage');
+    const { writer } = makeWriter(archiveRepo, dlqRepo, 'my_stage');
 
-    await w.write(CTX, DECODED, LOG);
+    await writer.write(CTX, DECODED, LOG);
 
-    const row = (dlqRepo.insert as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(row.stage).toBe('my_stage');
-    expect(row.source).toBe(CTX.sourceLabel);
-    expect(row.archive_tx_hash).toBe(LOG.txHash);
-    expect(row.archive_log_index).toBe(LOG.logIndex);
-    expect(row.archive_block_hash).toBe(LOG.blockHash);
-  });
-});
-
-describe('BaseArchiveWriter.writeCore', () => {
-  it('#7 — calls insertEvent then archiveEventRepo.insert with block fields', async () => {
-    const { w, archiveRepo } = makeWriter();
-    const receivedAt = new Date('2026-06-01T00:00:00Z');
-
-    await w.writeCore(CTX, DECODED, LOG, receivedAt);
-
-    expect(w.insertSpy).toHaveBeenCalledWith(CTX, DECODED, LOG);
-    const row = (archiveRepo.insert as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(row.tx_hash).toBe(LOG.txHash);
-    expect(row.log_index).toBe(LOG.logIndex);
-    expect(row.event_type).toBe(DECODED.type);
-    expect(row.received_at).toBe(receivedAt);
+    expect(dlqRepo.insert).toHaveBeenCalledWith({
+      stage: 'my_stage',
+      source: CTX.sourceLabel,
+      payload: {
+        raw: { topics: LOG.topics, data: LOG.data },
+        block_number: LOG.blockNumber.toString(),
+      },
+      error: expect.objectContaining({
+        name: 'Error',
+        message: 'FK violation',
+        code: '23503',
+        stack: 'stack...',
+      }),
+      retries: 0,
+      first_seen_at: new Date('2026-01-01T00:00:00Z'),
+      last_attempt_at: new Date('2026-01-01T00:00:00Z'),
+      archive_source_type: CTX.sourceType,
+      archive_chain_id: CTX.chainId,
+      archive_tx_hash: LOG.txHash,
+      archive_log_index: LOG.logIndex,
+      archive_block_hash: LOG.blockHash,
+    });
   });
 });

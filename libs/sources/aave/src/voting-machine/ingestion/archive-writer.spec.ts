@@ -37,146 +37,47 @@ const LOG_REF: LogEvent = {
   data: '0x' + '12'.repeat(32),
 };
 
-function makeEventRepo(
-  overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {},
-): AaveVotingMachineEventRepository {
+function makeEventRepo(): AaveVotingMachineEventRepository {
   return {
     insert: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
   } as unknown as AaveVotingMachineEventRepository;
 }
 
-function makeArchiveEventRepo(
-  overrides: Partial<{
-    find: ReturnType<typeof vi.fn>;
-    insert: ReturnType<typeof vi.fn>;
-  }> = {},
-): ArchiveEventRepository {
+function makeArchiveEventRepo(): ArchiveEventRepository {
   return {
-    find: vi.fn().mockResolvedValue(undefined),
+    find: vi.fn(),
     insert: vi.fn().mockResolvedValue({ id: 'uuid-1' }),
-    ...overrides,
   } as unknown as ArchiveEventRepository;
 }
 
-function makeDlqRepo(overrides: Partial<{ insert: ReturnType<typeof vi.fn> }> = {}): DlqRepository {
+function makeDlqRepo(): DlqRepository {
   return {
-    insert: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
+    insert: vi.fn(),
   } as unknown as DlqRepository;
 }
 
-function buildWriter(
-  overrides: {
-    eventRepo?: AaveVotingMachineEventRepository;
-    archiveEventRepo?: ArchiveEventRepository;
-    dlqRepo?: DlqRepository;
-  } = {},
-): AaveVotingMachineArchiveWriter {
-  return new AaveVotingMachineArchiveWriter({
-    eventRepo: overrides.eventRepo ?? makeEventRepo(),
-    archiveEventRepo: overrides.archiveEventRepo ?? makeArchiveEventRepo(),
-    dlqRepo: overrides.dlqRepo ?? makeDlqRepo(),
-    logger: silentLogger,
-    now: () => new Date('2026-01-01T00:00:00Z'),
-  });
-}
-
-describe('AaveVotingMachineArchiveWriter', () => {
-  it('write returns inserted on successful CH+PG archive', async () => {
-    const result = await buildWriter().write(CTX, DECODED, LOG_REF);
-    expect(result).toEqual({ result: 'inserted' });
-  });
-
-  it('writeCore writes CH first, then PG, without received_at in CH payload', async () => {
-    const order: string[] = [];
-    let chData: unknown;
-    const eventRepo = makeEventRepo({
-      insert: vi.fn().mockImplementation((data: unknown) => {
-        order.push('ch');
-        chData = data;
-        return Promise.resolve();
-      }),
-    });
-    const archiveEventRepo = makeArchiveEventRepo({
-      insert: vi.fn().mockImplementation(() => {
-        order.push('pg');
-        return Promise.resolve({ id: 'uuid-1' });
-      }),
-    });
-
-    await buildWriter({ eventRepo, archiveEventRepo }).writeCore(CTX, DECODED, LOG_REF);
-
-    expect(order).toEqual(['ch', 'pg']);
-    expect((chData as Record<string, unknown>)['received_at']).toBeUndefined();
-  });
-
-  it('uses the default now() when none is injected', async () => {
-    const archiveEventRepo = makeArchiveEventRepo();
+describe('AaveVotingMachineArchiveWriter.insertEvent', () => {
+  it('maps the decoded event into the source repository row', async () => {
+    const eventRepo = makeEventRepo();
     const writer = new AaveVotingMachineArchiveWriter({
-      eventRepo: makeEventRepo(),
-      archiveEventRepo,
+      eventRepo,
+      archiveEventRepo: makeArchiveEventRepo(),
       dlqRepo: makeDlqRepo(),
       logger: silentLogger,
+      now: () => new Date('2026-01-01T00:00:00Z'),
     });
 
     await writer.writeCore(CTX, DECODED, LOG_REF);
-    expect(archiveEventRepo.insert).toHaveBeenCalledOnce();
-  });
 
-  it('writeCore propagates CH failures and does not write PG', async () => {
-    const archiveEventRepo = makeArchiveEventRepo();
-    const writer = buildWriter({
-      eventRepo: makeEventRepo({ insert: vi.fn().mockRejectedValue(new Error('ch down')) }),
-      archiveEventRepo,
+    expect(eventRepo.insert).toHaveBeenCalledWith({
+      daoSourceId: CTX.daoSourceId,
+      chainId: CTX.chainId,
+      blockNumber: LOG_REF.blockNumber.toString(),
+      blockHash: LOG_REF.blockHash,
+      txHash: LOG_REF.txHash,
+      logIndex: LOG_REF.logIndex,
+      eventType: DECODED.type,
+      payload: JSON.stringify(DECODED.payload),
     });
-
-    await expect(writer.writeCore(CTX, DECODED, LOG_REF)).rejects.toThrow('ch down');
-    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
-  });
-
-  it('write short-circuits when archive_event already exists', async () => {
-    const eventRepo = makeEventRepo();
-    const archiveEventRepo = makeArchiveEventRepo({
-      find: vi.fn().mockResolvedValue({ id: 'existing' }),
-    });
-
-    const result = await buildWriter({ eventRepo, archiveEventRepo }).write(CTX, DECODED, LOG_REF);
-
-    expect(result).toEqual({ result: 'skipped_existing' });
-    expect(eventRepo.insert).not.toHaveBeenCalled();
-    expect(archiveEventRepo.insert).not.toHaveBeenCalled();
-  });
-
-  it('write routes failures to archive_event_stage DLQ', async () => {
-    let captured: unknown;
-    const dlqRepo = makeDlqRepo({
-      insert: vi.fn().mockImplementation((row: unknown) => {
-        captured = row;
-        return Promise.resolve();
-      }),
-    });
-    const result = await buildWriter({
-      archiveEventRepo: makeArchiveEventRepo({
-        insert: vi.fn().mockRejectedValue(new Error('pg error')),
-      }),
-      dlqRepo,
-    }).write(CTX, DECODED, LOG_REF);
-
-    expect(result).toEqual({ result: 'dlq_routed' });
-    expect((captured as Record<string, unknown>)['stage']).toBe('archive_event_stage');
-  });
-
-  it('write returns unreachable when the DLQ insert also fails', async () => {
-    const result = await buildWriter({
-      archiveEventRepo: makeArchiveEventRepo({
-        insert: vi.fn().mockRejectedValue(new Error('pg error')),
-      }),
-      dlqRepo: makeDlqRepo({
-        insert: vi.fn().mockRejectedValue(new Error('dlq down')),
-      }),
-    }).write(CTX, DECODED, LOG_REF);
-
-    expect(result).toEqual({ result: 'unreachable' });
   });
 });
