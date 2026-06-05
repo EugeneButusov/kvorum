@@ -1,304 +1,51 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { LogEvent } from '@libs/chain';
-import { silentLogger } from '@libs/chain';
-import type { DlqRepository } from '@libs/db';
-import type { ArchiveWriteContext } from '@sources/core';
-import type { IngesterListenerOptions } from '@sources/core';
-import { GovernorArchiveWriter } from './archive-writer';
-import type { IngesterListenerDeps } from './ingester-listener';
 import { makeGovernorIngesterListener } from './ingester-listener';
-import { COMPOUND_BRAVO_TOPICS } from '../abi/events';
+import type { IngesterListenerDeps } from './ingester-listener';
 
-const CTX: ArchiveWriteContext = {
-  daoSourceId: '00000000-0000-0000-0000-000000000001',
-  sourceType: 'compound_governor_bravo',
-  chainId: 1,
-  sourceLabel: 'compound_governor_bravo',
-};
+const { makeIngesterListenerMock, decodeCompoundLogMock } = vi.hoisted(() => ({
+  makeIngesterListenerMock: vi.fn(),
+  decodeCompoundLogMock: vi.fn(),
+}));
 
-function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
+vi.mock('@sources/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@sources/core')>();
   return {
-    sourceType: 'compound_governor_bravo',
-    chainId: 1,
-    blockNumber: 20000000n,
-    blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
-    txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
-    txIndex: 0,
-    logIndex: 0,
-    address: '0xc0da02939e1441f497fd74f78ce7decb17b66529',
-    topics: [COMPOUND_BRAVO_TOPICS.ProposalExecuted],
-    data: '0x',
-    ...overrides,
+    ...actual,
+    makeIngesterListener: makeIngesterListenerMock,
   };
-}
+});
 
-function makeDlqRepo(): DlqRepository {
-  return { insert: vi.fn().mockResolvedValue(undefined) } as unknown as DlqRepository;
-}
-
-function makeDeps(
-  writeImpl?: () => ReturnType<GovernorArchiveWriter['write']>,
-): IngesterListenerDeps {
-  const archiveWriter = {
-    write: vi.fn().mockImplementation(writeImpl ?? (() => Promise.resolve({ result: 'inserted' }))),
-  } as unknown as GovernorArchiveWriter;
-
-  return {
-    archiveWriter,
-    context: CTX,
-    logger: silentLogger,
-    dlqRepo: makeDlqRepo(),
-  };
-}
+vi.mock('../abi/decoder', () => ({
+  decodeCompoundLog: decodeCompoundLogMock,
+}));
 
 describe('makeGovernorIngesterListener', () => {
-  it('#1 — single event: archiveWriter.write called once with correct context', async () => {
-    const deps = makeDeps();
-    const listener = makeGovernorIngesterListener(deps);
-
-    // Use a log that decodes as ProposalExecuted (topic0 matches, data is 0x but
-    // ProposalExecuted only has topic-encoded id, so we need proper encoding).
-    // For simplicity just test via the decode path by mocking archiveWriter directly.
-    // We use a mock that bypasses real decoding by patching the listener's decode call.
-    // Actually, we need the listener to reach archiveWriter.write, which means the decode must succeed.
-    // Use a fixture log from the decoder spec that we know decodes correctly.
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const encoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-      [42n],
-    );
-    const log = makeLog({ topics: encoded.topics as string[], data: encoded.data });
-
-    await listener([log]);
-    expect(deps.archiveWriter.write as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
-    expect(deps.archiveWriter.write as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
-      CTX,
-      expect.objectContaining({ type: 'ProposalExecuted' }),
-      log,
-    );
-  });
-
-  it('#2 — multiple events: archiveWriter.write called sequentially in order', async () => {
-    const callOrder: number[] = [];
-    const deps = makeDeps(() => {
-      callOrder.push(callOrder.length);
-      return Promise.resolve({ result: 'inserted' as const });
-    });
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const encodeExecuted = (id: bigint) => {
-      const enc = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-        COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-        [id],
-      );
-      return makeLog({ topics: enc.topics as string[], data: enc.data, logIndex: Number(id) });
-    };
-
-    await listener([encodeExecuted(1n), encodeExecuted(2n), encodeExecuted(3n)]);
-    expect(callOrder).toEqual([0, 1, 2]);
-  });
-
-  it('#3 — decode failure → DLQ inserted with stage=archive_decode, counter increments, batch continues', async () => {
-    const deps = makeDeps();
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const unknownLog = makeLog({ topics: ['0x' + '00'.repeat(32)] });
-    const validEncoded = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-      [1n],
-    );
-    const validLog = makeLog({
-      topics: validEncoded.topics as string[],
-      data: validEncoded.data,
-      logIndex: 1,
-    });
-
-    await listener([unknownLog, validLog]);
-
-    // DLQ was attempted for unknown log
-    expect((deps.dlqRepo as { insert: ReturnType<typeof vi.fn> }).insert).toHaveBeenCalledOnce();
-
-    // write was still called for the valid event (batch continued)
-    expect(deps.archiveWriter.write as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
-  });
-
-  it('#4 — write returns pg_unreachable → batch CONTINUES, next event still processed', async () => {
-    let callCount = 0;
-    const deps = makeDeps(() => {
-      callCount++;
-      if (callCount === 1) return Promise.resolve({ result: 'unreachable' as const });
-      return Promise.resolve({ result: 'inserted' as const });
-    });
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = (id: bigint, idx: number) => {
-      const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-        COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-        [id],
-      );
-      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
-    };
-
-    await listener([enc(1n, 0), enc(2n, 1)]);
-    expect(callCount).toBe(2);
-  });
-
-  it('#5 — write throws (CH failure) → counter increments, batch continues, next event processed', async () => {
-    let callCount = 0;
-    const deps = makeDeps(() => {
-      callCount++;
-      if (callCount === 1) return Promise.reject(new Error('CH connection refused'));
-      return Promise.resolve({ result: 'inserted' as const });
-    });
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = (id: bigint, idx: number) => {
-      const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-        COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-        [id],
-      );
-      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
-    };
-
-    await listener([enc(1n, 0), enc(2n, 1)]);
-    expect(callCount).toBe(2); // second event still processed
-  });
-
-  it('#6 — write returns skipped_existing → no error, batch continues', async () => {
-    const deps = makeDeps(() => Promise.resolve({ result: 'skipped_existing' as const }));
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-      [1n],
-    );
-    const log = makeLog({ topics: enc.topics as string[], data: enc.data });
-
-    await expect(listener([log])).resolves.not.toThrow();
-  });
-
-  it('#7 — all four event types decode and dispatch without error', async () => {
-    const writeCallTypes: string[] = [];
-    const deps = makeDeps();
-
-    (deps.archiveWriter.write as ReturnType<typeof vi.fn>).mockImplementation(
-      (_ctx: unknown, decoded: { type: string }) => {
-        writeCallTypes.push(decoded.type);
-        return Promise.resolve({ result: 'inserted' as const });
+  it('delegates to makeIngesterListener with a decode function bound to context.sourceType', () => {
+    const listener = vi.fn();
+    makeIngesterListenerMock.mockReturnValue(listener);
+    const deps = {
+      archiveWriter: {} as IngesterListenerDeps['archiveWriter'],
+      context: {
+        daoSourceId: 'dao-source-1',
+        sourceType: 'compound_governor_bravo',
+        chainId: 1,
+        sourceLabel: 'compound_governor_bravo',
       },
-    );
+      logger: {} as IngesterListenerDeps['logger'],
+      dlqRepo: {} as IngesterListenerDeps['dlqRepo'],
+    } satisfies IngesterListenerDeps;
+    const options = { onWriteFailure: 'throw' as const };
+    const log = { txHash: '0x1' } as LogEvent;
+    const decoded = { type: 'ProposalExecuted', payload: {} };
+    decodeCompoundLogMock.mockReturnValue(decoded);
 
-    const listener = makeGovernorIngesterListener(deps);
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
+    const result = makeGovernorIngesterListener(deps, options);
+    const decode = makeIngesterListenerMock.mock.calls[0][1] as (log: LogEvent) => unknown;
 
-    const events = [
-      (() => {
-        const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-          COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalCreated')!,
-          [1n, '0x1111111111111111111111111111111111111111', [], [], [], [], 1n, 2n, ''],
-        );
-        return makeLog({ topics: e.topics as string[], data: e.data, logIndex: 0 });
-      })(),
-      (() => {
-        const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-          COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalQueued')!,
-          [2n, 1700000000n],
-        );
-        return makeLog({ topics: e.topics as string[], data: e.data, logIndex: 1 });
-      })(),
-      (() => {
-        const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-          COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-          [3n],
-        );
-        return makeLog({ topics: e.topics as string[], data: e.data, logIndex: 2 });
-      })(),
-      (() => {
-        const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-          COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalCanceled')!,
-          [4n],
-        );
-        return makeLog({ topics: e.topics as string[], data: e.data, logIndex: 3 });
-      })(),
-    ];
-
-    await listener(events);
-    expect(writeCallTypes.sort()).toEqual([
-      'ProposalCanceled',
-      'ProposalCreated',
-      'ProposalExecuted',
-      'ProposalQueued',
-    ]);
-  });
-
-  it('#8 — batch duration histogram observes one sample per batch', async () => {
-    const { chainMetrics } = await import('@libs/chain');
-    const recordSpy = vi.spyOn(chainMetrics.batchDuration, 'record');
-
-    const deps = makeDeps();
-    const listener = makeGovernorIngesterListener(deps);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-      COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-      [1n],
-    );
-    const log = makeLog({ topics: enc.topics as string[], data: enc.data });
-
-    await listener([log]);
-    expect(recordSpy).toHaveBeenCalledOnce();
-    expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), {
-      source: 'compound_governor_bravo',
-    });
-  });
-
-  it('#9 — onWriteFailure=throw: CH failure aborts the batch (rethrows)', async () => {
-    const chError = new Error('CH connection refused');
-    let callCount = 0;
-    const deps: IngesterListenerDeps = makeDeps(() => {
-      callCount++;
-      return Promise.reject(chError);
-    });
-    const options: IngesterListenerOptions = { onWriteFailure: 'throw' };
-    const listener = makeGovernorIngesterListener(deps, options);
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = (id: bigint, idx: number) => {
-      const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-        COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-        [id],
-      );
-      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
-    };
-
-    await expect(listener([enc(1n, 0), enc(2n, 1)])).rejects.toThrow('CH connection refused');
-    // second event is never reached because the first failure rethrows
-    expect(callCount).toBe(1);
-  });
-
-  it('#10 — onWriteFailure=swallow (default): CH failure swallowed, batch continues', async () => {
-    let callCount = 0;
-    const deps = makeDeps(() => {
-      callCount++;
-      return Promise.reject(new Error('CH down'));
-    });
-    const listener = makeGovernorIngesterListener(deps); // no onWriteFailure → defaults to swallow
-
-    const { COMPOUND_GOVERNOR_BRAVO_INTERFACE } = await import('../abi/events.js');
-    const enc = (id: bigint, idx: number) => {
-      const e = COMPOUND_GOVERNOR_BRAVO_INTERFACE.encodeEventLog(
-        COMPOUND_GOVERNOR_BRAVO_INTERFACE.getEvent('ProposalExecuted')!,
-        [id],
-      );
-      return makeLog({ topics: e.topics as string[], data: e.data, logIndex: idx });
-    };
-
-    await expect(listener([enc(1n, 0), enc(2n, 1)])).resolves.not.toThrow();
-    expect(callCount).toBe(2);
+    expect(result).toBe(listener);
+    expect(makeIngesterListenerMock).toHaveBeenCalledWith(deps, expect.any(Function), options);
+    expect(decode(log)).toBe(decoded);
+    expect(decodeCompoundLogMock).toHaveBeenCalledWith(log, deps.context.sourceType);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { silentLogger } from '@libs/chain';
+import { chainMetrics, silentLogger } from '@libs/chain';
 import type { LogEvent } from '@libs/chain';
 import type { DlqRepository } from '@libs/db';
 import type { ArchiveWriteContext } from './archive-writer-types';
@@ -50,6 +50,22 @@ const DECODED: TestEvent = { type: 'VoteCast', payload: {} };
 const decode = vi.fn<[LogEvent], TestEvent>().mockReturnValue(DECODED);
 
 describe('makeIngesterListener', () => {
+  it('records one batchDuration sample per batch', async () => {
+    const writer = makeWriter();
+    const recordSpy = vi.spyOn(chainMetrics.batchDuration, 'record');
+    const listener = makeIngesterListener(
+      { archiveWriter: writer, context: CTX, logger: silentLogger, dlqRepo: makeDlqRepo() },
+      decode,
+    );
+
+    await listener([makeLog()]);
+
+    expect(recordSpy).toHaveBeenCalledOnce();
+    expect(recordSpy).toHaveBeenCalledWith(expect.any(Number), {
+      source: CTX.sourceLabel,
+    });
+  });
+
   it('#1 — decode succeeds → archiveWriter.write called with ctx and decoded event', async () => {
     const writer = makeWriter();
     const listener = makeIngesterListener(
@@ -116,10 +132,18 @@ describe('makeIngesterListener', () => {
     );
 
     await listener([makeLog()]);
-    expect(dlqRepo.insert as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
+    expect(dlqRepo.insert as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ reason: 'unknown' }),
+      }),
+    );
   });
 
   it('#5 — DLQ insert itself fails → batch still completes without throwing', async () => {
+    const logger = {
+      ...silentLogger,
+      error: vi.fn(),
+    };
     const dlqRepo = {
       insert: vi.fn().mockRejectedValue(new Error('dlq down')),
     } as unknown as DlqRepository;
@@ -127,11 +151,18 @@ describe('makeIngesterListener', () => {
       throw new Error('bad');
     });
     const listener = makeIngesterListener(
-      { archiveWriter: makeWriter(), context: CTX, logger: silentLogger, dlqRepo },
+      { archiveWriter: makeWriter(), context: CTX, logger, dlqRepo },
       badDecode,
     );
 
     await expect(listener([makeLog()])).resolves.not.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      'decode_error_dlq_insert_failed',
+      expect.objectContaining({
+        originalError: 'Error: bad',
+        dlqError: 'Error: dlq down',
+      }),
+    );
   });
 
   it('#6 — write throws, onWriteFailure=swallow (default) → batch continues', async () => {
