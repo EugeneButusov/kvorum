@@ -14,13 +14,13 @@ function loadFixture(name: string): { topics: string[]; data: string } {
 function makeLog(overrides: Partial<LogEvent> = {}): LogEvent {
   return {
     sourceType: 'aave_voting_machine',
-    chainId: '0x89',
-    blockNumber: 69000000n,
-    blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-    txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    chainId: '0xa86a',
+    blockNumber: 86324033n,
+    blockHash: '0x813a915c19b7bf1559e98d257ea357ee2490b9442c54c449c24b134fa5182281',
+    txHash: '0x89fb60c202d3a34d0bdd20ba4bd7404711ad9cd1e8a1f71059c31686fa290b92',
     txIndex: 0,
     logIndex: 0,
-    address: '0x44c8b753229006a8047a05b90379a7e92185e97c',
+    address: '0x4d1863d22d0ed8579f8999388bcc833cb057c2d6',
     topics: [],
     data: '0x',
     ...overrides,
@@ -33,10 +33,10 @@ describe('decodeAaveVotingMachineLog', () => {
     expect(decodeAaveVotingMachineLog(makeLog(fixture), 'aave_voting_machine')).toEqual({
       type: 'VoteEmitted',
       payload: {
-        proposalId: '201',
-        voter: '0x1111111111111111111111111111111111111111',
+        proposalId: '489',
+        voter: '0x4d4ac65513fee380c596ac9edfac588782831bdf',
         support: true,
-        votingPower: '1234567890123456789',
+        votingPower: '10515607793132578',
       },
     });
   });
@@ -46,10 +46,10 @@ describe('decodeAaveVotingMachineLog', () => {
     expect(decodeAaveVotingMachineLog(makeLog(fixture), 'aave_voting_machine')).toEqual({
       type: 'ProposalVoteStarted',
       payload: {
-        proposalId: '202',
-        l1BlockHash: '0x3434343434343434343434343434343434343434343434343434343434343434',
-        startTime: '1717171717',
-        endTime: '1717258117',
+        proposalId: '489',
+        l1BlockHash: '0xc56bf32463a809c7e66826526b8e43f2ef3c1efb20675e1d01abb5873deef91e',
+        startTime: '1779698667',
+        endTime: '1779957867',
       },
     });
   });
@@ -59,9 +59,9 @@ describe('decodeAaveVotingMachineLog', () => {
     expect(decodeAaveVotingMachineLog(makeLog(fixture), 'aave_voting_machine')).toEqual({
       type: 'ProposalResultsSent',
       payload: {
-        proposalId: '203',
-        forVotes: '888888888888888888',
-        againstVotes: '111111111111111111',
+        proposalId: '489',
+        forVotes: '468390242303422047538850',
+        againstVotes: '6036125569661314401',
       },
     });
   });
@@ -71,9 +71,9 @@ describe('decodeAaveVotingMachineLog', () => {
     expect(decodeAaveVotingMachineLog(makeLog(fixture), 'aave_voting_machine')).toEqual({
       type: 'ProposalVoteConfigurationBridged',
       payload: {
-        proposalId: '204',
-        blockHash: '0x5656565656565656565656565656565656565656565656565656565656565656',
-        votingDuration: 86400,
+        proposalId: '489',
+        blockHash: '0xc56bf32463a809c7e66826526b8e43f2ef3c1efb20675e1d01abb5873deef91e',
+        votingDuration: 259200,
         voteCreated: true,
       },
     });

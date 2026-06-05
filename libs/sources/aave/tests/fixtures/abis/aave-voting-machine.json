@@ -1,45 +1,60 @@
 [
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "voter", "type": "address" },
+      { "indexed": true, "internalType": "bool", "name": "support", "type": "bool" },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "votingPower",
+        "type": "uint256"
+      }
+    ],
     "name": "VoteEmitted",
-    "anonymous": false,
-    "inputs": [
-      { "name": "proposalId", "type": "uint256", "indexed": true },
-      { "name": "voter", "type": "address", "indexed": true },
-      { "name": "support", "type": "bool", "indexed": true },
-      { "name": "votingPower", "type": "uint256", "indexed": false }
-    ]
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "l1BlockHash",
+        "type": "bytes32"
+      },
+      { "indexed": false, "internalType": "uint256", "name": "startTime", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "endTime", "type": "uint256" }
+    ],
     "name": "ProposalVoteStarted",
-    "anonymous": false,
-    "inputs": [
-      { "name": "proposalId", "type": "uint256", "indexed": true },
-      { "name": "l1BlockHash", "type": "bytes32", "indexed": true },
-      { "name": "startTime", "type": "uint256", "indexed": false },
-      { "name": "endTime", "type": "uint256", "indexed": false }
-    ]
+    "type": "event"
   },
   {
-    "type": "event",
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "forVotes", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "againstVotes", "type": "uint256" }
+    ],
     "name": "ProposalResultsSent",
-    "anonymous": false,
-    "inputs": [
-      { "name": "proposalId", "type": "uint256", "indexed": true },
-      { "name": "forVotes", "type": "uint256", "indexed": false },
-      { "name": "againstVotes", "type": "uint256", "indexed": false }
-    ]
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "ProposalVoteConfigurationBridged",
     "anonymous": false,
     "inputs": [
-      { "name": "proposalId", "type": "uint256", "indexed": true },
-      { "name": "blockHash", "type": "bytes32", "indexed": true },
-      { "name": "votingDuration", "type": "uint24", "indexed": false },
-      { "name": "voteCreated", "type": "bool", "indexed": true }
-    ]
+      { "indexed": true, "internalType": "uint256", "name": "proposalId", "type": "uint256" },
+      { "indexed": true, "internalType": "bytes32", "name": "blockHash", "type": "bytes32" },
+      {
+        "indexed": false,
+        "internalType": "uint24",
+        "name": "votingDuration",
+        "type": "uint24"
+      },
+      { "indexed": true, "internalType": "bool", "name": "voteCreated", "type": "bool" }
+    ],
+    "name": "ProposalVoteConfigurationBridged",
+    "type": "event"
   }
 ]

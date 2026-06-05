@@ -14,9 +14,15 @@ const DB_URL = process.env['DATABASE_URL'];
 const CH_URL = process.env['CLICKHOUSE_URL'];
 const describeIf = DB_URL && CH_URL ? describe : describe.skip;
 
-const CHAIN_ID = '0x89';
+const CHAIN_ID = '0xa86a';
 
 type FixtureLog = {
+  chainId: string;
+  address: string;
+  blockNumber: string;
+  blockHash: string;
+  txHash: string;
+  logIndex: number;
   topics: string[];
   data: string;
 };
@@ -55,7 +61,7 @@ describeIf('Aave voting-machine ingestion integration', () => {
         dao_id: dao.id,
         source_type: 'aave_voting_machine',
         chain_id: CHAIN_ID,
-        source_config: { voting_machine_address: '0x44c8b753229006A8047A05b90379A7e92185E97C' },
+        source_config: { voting_machine_address: '0x4D1863d22D0ED8579f8999388BCC833CB057C2d6' },
         active_from_block: null,
         active_to_block: null,
         backfill_started_at_block: null,
@@ -95,12 +101,12 @@ describeIf('Aave voting-machine ingestion integration', () => {
     const fixturePath = join(__dirname, 'fixtures', 'logs', 'vote-emitted.json');
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as FixtureLog;
     const raw = {
-      chainId: CHAIN_ID,
-      blockNumber: '201',
-      blockHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-      txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      logIndex: 0,
-      address: '0x44c8b753229006a8047a05b90379a7e92185e97c',
+      chainId: fixture.chainId,
+      blockNumber: fixture.blockNumber,
+      blockHash: fixture.blockHash,
+      txHash: fixture.txHash,
+      logIndex: fixture.logIndex,
+      address: fixture.address,
       topics: fixture.topics,
       data: fixture.data,
     };
@@ -142,8 +148,8 @@ describeIf('Aave voting-machine ingestion integration', () => {
     expect(chRows[0]?.dao_source_id).toBe(daoSourceId);
     expect(chRows[0]?.event_type).toBe('VoteEmitted');
     expect(JSON.parse(chRows[0]!.payload)).toMatchObject({
-      proposalId: '201',
-      voter: '0x1111111111111111111111111111111111111111',
+      proposalId: '489',
+      voter: '0x4d4ac65513fee380c596ac9edfac588782831bdf',
       support: true,
     });
   }, 30_000);
