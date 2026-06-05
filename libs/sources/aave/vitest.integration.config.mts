@@ -12,7 +12,7 @@ export default defineConfig({
     environment: 'node',
     pool: 'forks',
     fileParallelism: false,
-    setupFiles: ['./vitest.setup.ts'],
+    setupFiles: ['./vitest.integration.setup.ts'],
     include: ['tests/**/*.integration.spec.{ts,mts}'],
     passWithNoTests: true,
     reporters: ['default'],

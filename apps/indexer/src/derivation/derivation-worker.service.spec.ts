@@ -134,6 +134,44 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
+  it('dispatches same-named events by source_type and marks unsupported peer sources', async () => {
+    const rowA = {
+      ...ROW,
+      id: 'archive-a',
+      source_type: 'test_source_primary',
+      event_type: 'test_event_shared',
+    };
+    const rowB = {
+      ...ROW,
+      id: 'archive-b',
+      source_type: 'test_source_secondary',
+      event_type: 'test_event_shared',
+    };
+    const archive = {
+      incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+    };
+    const actorResolution = {
+      findDerivableBy: vi.fn().mockResolvedValue([rowA, rowB]),
+    };
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_primary'],
+      eventTypes: ['test_event_shared'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const worker = new DerivationWorkerService(
+      archive as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    expect(applier.applyBatch).toHaveBeenCalledWith([rowA]);
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-b');
+  });
+
   it('skips tick when already in flight', async () => {
     const actorResolution = {
       findDerivableBy: vi

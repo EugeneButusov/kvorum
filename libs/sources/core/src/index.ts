@@ -158,6 +158,15 @@ export type {
   ActorSweepAddressCandidate,
   ActorSweepAdapter,
 } from './derivation';
+export { VoteBlockTimestampFetcher } from './vote/vote-block-timestamp';
+export type { VoteBlockRef } from './vote/vote-block-timestamp';
+export { ProjectionError } from './vote/vote-errors';
+export type {
+  VoteProjectionDlqReason,
+  VoteProjectionErrorReason,
+  VoteProjectionHoldReason,
+} from './vote/vote-errors';
+export { buildVoteRows, isNewerVote } from './vote/vote-rows';
 
 // Re-export CH source-of-truth table row types so @sources/core remains the
 // canonical import point. The `declare module '@libs/db'` side-effect in

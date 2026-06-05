@@ -9,6 +9,7 @@ export interface CurrentVoteRow {
   logIndex: number;
   primaryChoice: number;
   votingPower: string;
+  votingChainId: string;
 }
 
 export class VoteEventsProjectionReadRepository {
@@ -32,6 +33,7 @@ export class VoteEventsProjectionReadRepository {
         'vef.log_index as logIndex',
         'vef.primary_choice as primaryChoice',
         'vef.voting_power as votingPower',
+        'vef.voting_chain_id as votingChainId',
       ])
       .where('vef.dao_id', '=', args.daoId)
       .where('vef.proposal_id', '=', args.proposalId)
