@@ -361,13 +361,13 @@ describeIf('actor sweep integration', () => {
     expect(addressRows[0]!.source).toBe('voter_event');
     expect(resolutionRows).toEqual([
       {
-        tx_hash: resultsTxHash,
-        event_type: 'ProposalResultsSent',
+        tx_hash: voteTxHash,
+        event_type: 'VoteEmitted',
         derivation_actor_resolved_at: expect.any(Date),
       },
       {
-        tx_hash: voteTxHash,
-        event_type: 'VoteEmitted',
+        tx_hash: resultsTxHash,
+        event_type: 'ProposalResultsSent',
         derivation_actor_resolved_at: expect.any(Date),
       },
     ]);
