@@ -1,6 +1,6 @@
 # ADR-065 — Aave cross-chain stitching contract
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-06-02
 
 ---
@@ -85,8 +85,13 @@ Adopt the following stitching contract for Aave Governance v3.
 - Collapse all payload outcomes into proposal-level failure: rejected because Aave execution is independently lossy per destination payload.
 - Require `bridge_message_id` for correctness: rejected because it is useful enrichment but not necessary for deterministic stitching.
 
+## Amends (T3)
+
+- Vote derivation records `held` for indefinite `no_proposal` rows and `noop` for terminal no-op derives.
+- `ProposalResultsSent` and `ProposalVoteConfigurationBridged` are ingested but derived as terminal no-ops so `aave_voting_machine` underived backlog can clear.
+- `indexer_stitch_pending_seconds` is emitted with labels `{voting_chain_id, source_type, event_type}`.
+
 ## Operational notes
 
 - The underived-row sweep and retry carrier must be preserved when Epic T implements this contract; "indefinite hold" is not permission to leave rows without a re-drive path.
 - Alerting should key off age, not row count.
-- This ADR must move to **Accepted** before Epic T or Epic U merge.

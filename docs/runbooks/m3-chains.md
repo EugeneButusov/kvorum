@@ -100,3 +100,19 @@ pnpm -w db:reset
 ```
 
 Fresh CI containers are unaffected.
+
+## Aave stitch-hold alerting
+
+`aave_voting_machine` vote derivation can intentionally hold rows when a voting-chain event arrives before the corresponding mainnet proposal is derived. This is the ADR-065 `no_proposal` path: the row stays underived, is retried indefinitely, and surfaces via `indexer_stitch_pending_seconds`.
+
+Alert query:
+
+```promql
+max by (voting_chain_id) (indexer_stitch_pending_seconds{source_type="aave_voting_machine"})
+```
+
+Operator guidance:
+
+- A brief non-zero value is expected during normal bridge and derivation lag between mainnet proposal creation and voting-chain activity.
+- Page when the backlog age exceeds an agreed threshold, with `6h` as the default starting point.
+- Head-of-line risk is accepted: more than 50 held votes on one voting chain can block newer derivable votes on that same chain until the missing proposal lands.

@@ -19,8 +19,14 @@ import {
 const DLQ_THRESHOLD = Number(process.env['VOTE_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const VOTE_PROJECTION_STAGE = 'aave_vote_projection_stage';
 const AAVE_PROPOSAL_SOURCE_TYPE = 'aave_governance_v3';
+const HOLD_LOG_INTERVAL_MS = 30_000;
 
-export type AaveVoteDerivationOutcome = 'derived' | 'skipped_idempotent' | 'failed';
+export type AaveVoteDerivationOutcome =
+  | 'derived'
+  | 'skipped_idempotent'
+  | 'failed'
+  | 'held'
+  | 'noop';
 export type AaveVoteDerivationFailureReason =
   | 'decode_error'
   | 'payload_missing'
@@ -33,6 +39,10 @@ export type AaveVoteDerivationFailureReason =
 export interface AaveVoteProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
   chWriteSeconds(seconds: number): void;
+  stitchPendingSeconds?(
+    seconds: number,
+    labels: { voting_chain_id: string; event_type: string },
+  ): void;
   processed(labels: {
     event_type: string;
     outcome: AaveVoteDerivationOutcome;
@@ -56,7 +66,12 @@ export interface AaveVoteProjectionApplierDeps {
 export class AaveVoteProjectionApplier {
   readonly kind = 'projection' as const;
   readonly sourceTypes = ['aave_voting_machine'] as const;
-  readonly eventTypes = ['VoteEmitted', 'ProposalVoteStarted'] as const;
+  readonly eventTypes = [
+    'VoteEmitted',
+    'ProposalVoteStarted',
+    'ProposalResultsSent',
+    'ProposalVoteConfigurationBridged',
+  ] as const;
 
   private readonly archive: ArchiveDerivationRepository;
   private readonly dlq: DlqRepository;
@@ -69,6 +84,7 @@ export class AaveVoteProjectionApplier {
   private readonly registry: ChainContextRegistry;
   private readonly logger: Logger;
   private readonly blockTimestamps = new VoteBlockTimestampFetcher();
+  private readonly lastHoldLogByKey = new Map<string, number>();
 
   constructor(deps: AaveVoteProjectionApplierDeps) {
     this.archive = deps.archive;
@@ -87,6 +103,14 @@ export class AaveVoteProjectionApplier {
     if (rows.length === 0) return;
     const firstRow = rows[0];
     if (firstRow === undefined) return;
+
+    if (
+      firstRow.event_type === 'ProposalResultsSent' ||
+      firstRow.event_type === 'ProposalVoteConfigurationBridged'
+    ) {
+      for (const row of rows) await this.applyNoop(row);
+      return;
+    }
 
     const lookupStartedAt = Date.now();
     const payloads = await this.payloads.fetchPayloads(rows);
@@ -108,14 +132,17 @@ export class AaveVoteProjectionApplier {
     }
 
     if (firstRow.event_type === 'ProposalVoteStarted') {
+      let pendingMaxSeconds = 0;
       for (const row of rows) {
         const payload = payloadByKey.get(tupleKey(row));
         if (payload === undefined) {
           await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));
           continue;
         }
-        await this.applyVoteStarted(row, payload, votingMachineAddress);
+        const ageSeconds = await this.applyVoteStarted(row, payload, votingMachineAddress);
+        if (ageSeconds !== undefined) pendingMaxSeconds = Math.max(pendingMaxSeconds, ageSeconds);
       }
+      this.recordStitchPendingSeconds(firstRow, pendingMaxSeconds);
       return;
     }
 
@@ -136,6 +163,7 @@ export class AaveVoteProjectionApplier {
       rows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
     );
 
+    let pendingMaxSeconds = 0;
     for (const row of rows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
@@ -154,7 +182,27 @@ export class AaveVoteProjectionApplier {
         continue;
       }
 
-      await this.applyVote(row, payload, castAt, votingMachineAddress);
+      const ageSeconds = await this.applyVote(row, payload, castAt, votingMachineAddress);
+      if (ageSeconds !== undefined) pendingMaxSeconds = Math.max(pendingMaxSeconds, ageSeconds);
+    }
+    this.recordStitchPendingSeconds(firstRow, pendingMaxSeconds);
+  }
+
+  private async applyNoop(row: ArchiveDerivationRow): Promise<void> {
+    if (row.event_type === 'ProposalResultsSent') {
+      this.logger.info('aave_voting_results_sent', {
+        row_id: row.id,
+        chain_id: row.chain_id,
+        tx_hash: row.tx_hash,
+        log_index: row.log_index,
+      });
+    }
+
+    try {
+      await this.archive.markDerived(row.id);
+      this.record(row, 'noop', null);
+    } catch (error) {
+      await this.failAndMaybeDlq(row, 'watermark_update_error', error);
     }
   }
 
@@ -163,13 +211,13 @@ export class AaveVoteProjectionApplier {
     payloadRow: AaveVotingMachineArchivePayloadRow,
     castAt: Date,
     votingMachineAddress: string,
-  ): Promise<void> {
+  ): Promise<number | undefined> {
     let payload: VoteEmittedPayload;
     try {
       payload = JSON.parse(payloadRow.payload) as VoteEmittedPayload;
     } catch (error) {
       await this.failAndMaybeDlq(row, 'decode_error', error);
-      return;
+      return undefined;
     }
 
     try {
@@ -183,8 +231,8 @@ export class AaveVoteProjectionApplier {
         sourceId: payload.proposalId,
       });
       if (proposal === undefined) {
-        this.record(row, 'failed', 'no_proposal');
-        return;
+        this.record(row, 'held', 'no_proposal');
+        return (Date.now() - row.received_at.getTime()) / 1000;
       }
 
       const voterAddress = payload.voter.toLowerCase();
@@ -196,7 +244,7 @@ export class AaveVoteProjectionApplier {
       if (current?.voteId === row.id) {
         await this.archive.markDerived(row.id);
         this.record(row, 'skipped_idempotent', null);
-        return;
+        return undefined;
       }
       if (current !== undefined && current.votingChainId !== row.chain_id) {
         this.record(row, 'failed', 'single_voting_chain_violation');
@@ -207,7 +255,7 @@ export class AaveVoteProjectionApplier {
           current_voting_chain_id: current.votingChainId,
           incoming_voting_chain_id: row.chain_id,
         });
-        return;
+        return undefined;
       }
 
       const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
@@ -237,13 +285,15 @@ export class AaveVoteProjectionApplier {
         await this.archive.markDerived(row.id);
       } catch (watermarkError) {
         await this.failAndMaybeDlq(row, 'watermark_update_error', watermarkError);
-        return;
+        return undefined;
       }
 
       this.record(row, incomingIsNewer ? 'derived' : 'skipped_idempotent', null);
+      return undefined;
     } catch (error) {
       const reason = 'projection_apply_error';
       await this.failAndMaybeDlq(row, reason, error);
+      return undefined;
     }
   }
 
@@ -251,13 +301,13 @@ export class AaveVoteProjectionApplier {
     row: ArchiveDerivationRow,
     payloadRow: AaveVotingMachineArchivePayloadRow,
     votingMachineAddress: string,
-  ): Promise<void> {
+  ): Promise<number | undefined> {
     let payload: ProposalVoteStartedPayload;
     try {
       payload = JSON.parse(payloadRow.payload) as ProposalVoteStartedPayload;
     } catch (error) {
       await this.failAndMaybeDlq(row, 'decode_error', error);
-      return;
+      return undefined;
     }
 
     try {
@@ -271,8 +321,8 @@ export class AaveVoteProjectionApplier {
         sourceId: payload.proposalId,
       });
       if (proposal === undefined) {
-        this.record(row, 'failed', 'no_proposal');
-        return;
+        this.record(row, 'held', 'no_proposal');
+        return (Date.now() - row.received_at.getTime()) / 1000;
       }
 
       await this.aaveProposals.setVotingChainBinding(proposal.id, {
@@ -284,12 +334,14 @@ export class AaveVoteProjectionApplier {
         await this.archive.markDerived(row.id);
       } catch (watermarkError) {
         await this.failAndMaybeDlq(row, 'watermark_update_error', watermarkError);
-        return;
+        return undefined;
       }
 
       this.record(row, 'derived', null);
+      return undefined;
     } catch (error) {
       await this.failAndMaybeDlq(row, 'projection_apply_error', error);
+      return undefined;
     }
   }
 
@@ -340,6 +392,30 @@ export class AaveVoteProjectionApplier {
       archive_tx_hash: row.tx_hash,
       archive_log_index: row.log_index,
       archive_block_hash: row.block_hash,
+    });
+  }
+
+  private recordStitchPendingSeconds(row: ArchiveDerivationRow, pendingMaxSeconds: number): void {
+    this.metrics.stitchPendingSeconds?.(pendingMaxSeconds, {
+      voting_chain_id: row.chain_id,
+      event_type: row.event_type,
+    });
+    this.maybeLogHold(row, pendingMaxSeconds);
+  }
+
+  private maybeLogHold(row: ArchiveDerivationRow, pendingMaxSeconds: number): void {
+    if (pendingMaxSeconds <= 0) return;
+
+    const key = `${row.chain_id}:${row.event_type}`;
+    const nowMs = Date.now();
+    const lastLoggedAt = this.lastHoldLogByKey.get(key) ?? 0;
+    if (nowMs - lastLoggedAt < HOLD_LOG_INTERVAL_MS) return;
+
+    this.lastHoldLogByKey.set(key, nowMs);
+    this.logger.info('aave_vote_stitch_held', {
+      chain_id: row.chain_id,
+      event_type: row.event_type,
+      oldest_pending_seconds: pendingMaxSeconds,
     });
   }
 
