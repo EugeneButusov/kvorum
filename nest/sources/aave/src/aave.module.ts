@@ -19,6 +19,7 @@ import {
   AaveIpfsTitleFetcher,
   AaveProposalRepository,
   AaveVoteProjectionApplier,
+  AaveVotingMachineActorAddressDeriver,
   AaveVotingMachineArchiveWriter,
   AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
@@ -129,6 +130,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       inject: [AaveGovernanceArchivePayloadRepository],
     },
     {
+      provide: AaveVotingMachineActorAddressDeriver,
+      useFactory: (payloads: AaveVotingMachineArchivePayloadRepository) =>
+        new AaveVotingMachineActorAddressDeriver(payloads),
+      inject: [AaveVotingMachineArchivePayloadRepository],
+    },
+    {
       provide: AaveVoteProjectionApplier,
       useFactory: (
         archive: ArchiveDerivationRepository,
@@ -181,6 +188,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         proposals: AaveProposalRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
+        votingMachineActorAddressDeriver: AaveVotingMachineActorAddressDeriver,
         voteProjectionApplier: AaveVoteProjectionApplier,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
@@ -204,7 +212,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),
           ],
-          derivers: [projectionApplier, actorAddressDeriver, voteProjectionApplier],
+          derivers: [
+            projectionApplier,
+            actorAddressDeriver,
+            votingMachineActorAddressDeriver,
+            voteProjectionApplier,
+          ],
           snapshotStrategies: [],
         };
       },
@@ -215,6 +228,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveProposalRepository,
         AaveGovernanceProjectionApplier,
         AaveGovernanceActorAddressDeriver,
+        AaveVotingMachineActorAddressDeriver,
         AaveVoteProjectionApplier,
       ],
     },

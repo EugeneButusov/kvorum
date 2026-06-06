@@ -26,6 +26,11 @@ export type { AaveVotingMachineArchivePayloadRow } from './persistence/archive-p
 export { AaveVotingMachineArchivePayloadRepository } from './persistence/archive-payload-repository';
 export { projectAaveVote } from './domain/vote-projector';
 export type {
+  AaveVotingMachineActorAddressSource,
+  AaveVotingMachineAddressCandidate,
+} from './domain/actor-address-deriver';
+export { AaveVotingMachineActorAddressDeriver } from './domain/actor-address-deriver';
+export type {
   AaveVoteDerivationFailureReason,
   AaveVoteDerivationOutcome,
   AaveVoteProjectionApplierDeps,

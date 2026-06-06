@@ -56,8 +56,9 @@ describe('AaveSourceModule', () => {
     expect(votingMachineIngester).toBeDefined();
     expect(votingMachineIngester?.supportedChainIds).toEqual(['0x1', '0x89', '0xa86a']);
 
-    expect(plugin.derivers).toHaveLength(3);
+    expect(plugin.derivers).toHaveLength(4);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
+      'actor-address',
       'actor-address',
       'projection',
       'projection',
