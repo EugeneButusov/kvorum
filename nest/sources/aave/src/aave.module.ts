@@ -159,6 +159,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           metrics: {
             batchLookupSeconds: () => undefined,
             chWriteSeconds: () => undefined,
+            stitchPendingSeconds: (seconds, { voting_chain_id, event_type }) =>
+              aaveMetrics.stitchPendingSeconds.record(seconds, {
+                voting_chain_id,
+                event_type,
+                source_type: 'aave_voting_machine',
+              }),
             processed: ({ event_type, outcome, reason }) =>
               aaveMetrics.voteDerivation.add(1, {
                 event_type,

@@ -75,8 +75,13 @@ function buildApplier(options?: {
   const voteWrite: AaveVoteProjectionApplierDeps['voteWrite'] = {
     insertBatch: vi.fn().mockResolvedValue(undefined),
   } as never;
-  const metrics = { batchLookupSeconds: vi.fn(), chWriteSeconds: vi.fn(), processed: vi.fn() };
-  const logger = { error: vi.fn() };
+  const metrics = {
+    batchLookupSeconds: vi.fn(),
+    chWriteSeconds: vi.fn(),
+    stitchPendingSeconds: vi.fn(),
+    processed: vi.fn(),
+  };
+  const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
   const registry: AaveVoteProjectionApplierDeps['registry'] = {
     peek: vi
       .fn()
@@ -117,7 +122,8 @@ function buildApplier(options?: {
 
 describe('AaveVoteProjectionApplier', () => {
   it('projects VoteEmitted into vote_events rows and marks derived', async () => {
-    const { applier, archive, proposals, voteRead, voteWrite, aaveProposals } = buildApplier();
+    const { applier, archive, proposals, voteRead, voteWrite, aaveProposals, metrics } =
+      buildApplier();
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -138,6 +144,10 @@ describe('AaveVoteProjectionApplier', () => {
       votingMachineAddress: '0x' + '11'.repeat(20),
     });
     expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(metrics.stitchPendingSeconds).toHaveBeenCalledWith(0, {
+      voting_chain_id: '0x89',
+      event_type: 'VoteEmitted',
+    });
   });
 
   it('looks proposals up under aave_governance_v3 rather than row.source_type', async () => {
@@ -155,16 +165,31 @@ describe('AaveVoteProjectionApplier', () => {
   });
 
   it('holds VoteEmitted indefinitely when proposal is missing', async () => {
-    const { applier, archive, dlq, proposals, voteWrite } = buildApplier();
+    const row = { ...BASE_ROW, received_at: new Date(Date.now() - 60_000) };
+    const { applier, archive, dlq, proposals, voteWrite, metrics, logger } = buildApplier();
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
-    await applier.applyBatch([BASE_ROW]);
+    await applier.applyBatch([row]);
 
     expect(voteWrite.insertBatch).not.toHaveBeenCalled();
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'held', reason: 'no_proposal' }),
+    );
+    expect(metrics.stitchPendingSeconds).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.objectContaining({ voting_chain_id: '0x89', event_type: 'VoteEmitted' }),
+    );
+    expect(
+      (metrics.stitchPendingSeconds as ReturnType<typeof vi.fn>).mock.calls[0]?.[0],
+    ).toBeGreaterThan(0);
+    expect(logger.info).toHaveBeenCalledWith(
+      'aave_vote_stitch_held',
+      expect.objectContaining({ chain_id: '0x89', event_type: 'VoteEmitted' }),
+    );
   });
 
   it('fails the batch when voting machine address is missing', async () => {
@@ -383,7 +408,9 @@ describe('AaveVoteProjectionApplier', () => {
         endTime: '2',
       }),
     };
-    const { applier, archive, proposals, aaveProposals } = buildApplier({ payloads: [payload] });
+    const { applier, archive, proposals, aaveProposals, metrics } = buildApplier({
+      payloads: [payload],
+    });
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
 
@@ -394,10 +421,18 @@ describe('AaveVoteProjectionApplier', () => {
       votingMachineAddress: '0x' + '11'.repeat(20),
     });
     expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(metrics.stitchPendingSeconds).toHaveBeenCalledWith(0, {
+      voting_chain_id: '0x89',
+      event_type: 'ProposalVoteStarted',
+    });
   });
 
   it('holds ProposalVoteStarted indefinitely when proposal is missing', async () => {
-    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const row = {
+      ...BASE_ROW,
+      event_type: 'ProposalVoteStarted' as const,
+      received_at: new Date(Date.now() - 45_000),
+    };
     const payload = {
       ...BASE_PAYLOAD,
       event_type: 'ProposalVoteStarted' as const,
@@ -408,7 +443,7 @@ describe('AaveVoteProjectionApplier', () => {
         endTime: '2',
       }),
     };
-    const { applier, archive, dlq, proposals, aaveProposals } = buildApplier({
+    const { applier, archive, dlq, proposals, aaveProposals, metrics } = buildApplier({
       payloads: [payload],
     });
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
@@ -420,6 +455,13 @@ describe('AaveVoteProjectionApplier', () => {
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'held', reason: 'no_proposal' }),
+    );
+    expect(metrics.stitchPendingSeconds).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.objectContaining({ voting_chain_id: '0x89', event_type: 'ProposalVoteStarted' }),
+    );
   });
 
   it('fails ProposalVoteStarted when payload decoding fails', async () => {
@@ -499,5 +541,61 @@ describe('AaveVoteProjectionApplier', () => {
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'failed', reason: 'watermark_update_error' }),
     );
+  });
+
+  it('no-op derives ProposalResultsSent before voting-machine address lookup', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalResultsSent' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalResultsSent' as const,
+      payload: JSON.stringify({ proposalId: '42', forVotes: '10', againstVotes: '2' }),
+    };
+    const { applier, archive, aaveProposals, voteWrite, dlq, metrics, logger } = buildApplier({
+      payloads: [payload],
+    });
+    (aaveProposals.findVotingMachineAddress as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined,
+    );
+
+    await applier.applyBatch([row]);
+
+    expect(aaveProposals.findVotingMachineAddress).not.toHaveBeenCalled();
+    expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    expect(dlq.insert).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'noop', reason: null }),
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      'aave_voting_results_sent',
+      expect.objectContaining({ row_id: 'archive-1', chain_id: '0x89' }),
+    );
+  });
+
+  it('no-op derives ProposalVoteConfigurationBridged without emitting a log', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteConfigurationBridged' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteConfigurationBridged' as const,
+      payload: JSON.stringify({
+        proposalId: '42',
+        blockHash: '0x' + '33'.repeat(32),
+        votingDuration: 123,
+        voteCreated: true,
+      }),
+    };
+    const { applier, archive, voteWrite, dlq, metrics, logger } = buildApplier({
+      payloads: [payload],
+    });
+
+    await applier.applyBatch([row]);
+
+    expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    expect(dlq.insert).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'noop', reason: null }),
+    );
+    expect(logger.info).not.toHaveBeenCalled();
   });
 });
