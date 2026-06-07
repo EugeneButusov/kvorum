@@ -1,4 +1,4 @@
-These fixtures are pinned real on-chain Aave VotingMachine logs used by the T1 decoder and ingestion tests.
+These fixtures are pinned real on-chain Aave logs used by the decoder and ingestion tests.
 
 VotingMachine source contract:
 
@@ -12,3 +12,15 @@ Pinned provenance:
 - `proposal-vote-started.json`: tx `0x89fb60c202d3a34d0bdd20ba4bd7404711ad9cd1e8a1f71059c31686fa290b92`
 - `proposal-vote-configuration-bridged.json`: tx `0x89fb60c202d3a34d0bdd20ba4bd7404711ad9cd1e8a1f71059c31686fa290b92`
 - `proposal-results-sent.json`: tx `0xdd5b290857bf040d84ef3d1c9d60dc4b13f15656fe6f7ca5375b4d4b3c6c9b7c`
+
+PayloadsController source contracts:
+
+- Ethereum `0xdAbad81aF85554E9ae636395611C58F7eC1aAEc5`
+- OP Mainnet `0x0E1a3Af1f9cC76A62eD31eDedca291E63632e7c4`
+
+Pinned provenance:
+
+- `payload-created.json`: tx `0xa245760924ffc169314b6a47859bd9c64a32252c6aa4e664cccbf719fb500253`, block `138147943` on OP Mainnet
+- `payload-queued.json`: tx `0x75ffb25982dd8af174d4ca4c4a43f19ca0e425b9e6b68fb653063fb6e45b4fed`, block `18824730` on Ethereum
+- `payload-executed.json`: tx `0x5d781dee94e6060a3ec34aed0f9b46e1b441f9d5fb245baa2d4461d57ca2534e`, block `20412311` on Ethereum
+- `payload-cancelled.json`: tx `0x4cdb113bdcce1140e7177c90f11f23c2ac4aabf0d03ac121b2a618052cc0b0fc`, block `22368562` on Ethereum

@@ -17,12 +17,15 @@ import {
   AaveGovernanceEventRepository,
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
+  AavePayloadsControllerArchiveWriter,
+  AavePayloadsControllerEventRepository,
   AaveProposalRepository,
   AaveVoteProjectionApplier,
   AaveVotingMachineActorAddressDeriver,
   AaveVotingMachineArchiveWriter,
   AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
+  createAavePayloadsControllerPlugin,
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
   createAaveVotingMachinePlugin,
@@ -68,6 +71,17 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           archiveEventRepo,
           dlqRepo,
           logger: toChainLogger(new Logger('AaveVotingMachineArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
+      provide: AavePayloadsControllerArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new AavePayloadsControllerArchiveWriter({
+          eventRepo: new AavePayloadsControllerEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('AavePayloadsControllerArchiveWriter')),
         }),
       inject: [ArchiveEventRepository, DlqRepository],
     },
@@ -190,6 +204,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
         votingMachineArchiveWriter: AaveVotingMachineArchiveWriter,
+        payloadsControllerArchiveWriter: AavePayloadsControllerArchiveWriter,
         dlqRepo: DlqRepository,
         proposals: AaveProposalRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
@@ -212,6 +227,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               dlqRepo,
               logger: toChainLogger(new Logger('AaveVotingMachine')),
             }),
+            createAavePayloadsControllerPlugin({
+              archiveWriter: payloadsControllerArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('AavePayloadsController')),
+            }),
             createAaveGovernanceV3ReconcilePlugin({
               proposals,
               metrics,
@@ -230,6 +250,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       inject: [
         AaveGovernanceArchiveWriter,
         AaveVotingMachineArchiveWriter,
+        AavePayloadsControllerArchiveWriter,
         DlqRepository,
         AaveProposalRepository,
         AaveGovernanceProjectionApplier,

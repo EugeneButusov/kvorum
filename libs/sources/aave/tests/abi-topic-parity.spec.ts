@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { Interface } from 'ethers';
 import { describe, expect, it } from 'vitest';
 import { AAVE_GOVERNANCE_V3_TOPICS } from '../src/governance-v3/abi/events';
+import { AAVE_PAYLOADS_CONTROLLER_TOPICS } from '../src/payloads-controller/abi/events';
 import { AAVE_VOTING_MACHINE_TOPICS } from '../src/voting-machine/abi/events';
 
-function loadAbi(name: 'aave-governance-v3' | 'aave-voting-machine') {
+function loadAbi(name: 'aave-governance-v3' | 'aave-payloads-controller' | 'aave-voting-machine') {
   const path = join(__dirname, 'fixtures', 'abis', `${name}.json`);
   return JSON.parse(readFileSync(path, 'utf8')) as unknown[];
 }
@@ -51,6 +52,23 @@ describe('aave governance v3 ABI topic parity fixture', () => {
     );
     expect(AAVE_VOTING_MACHINE_TOPICS.ProposalVoteConfigurationBridged).toBe(
       iface.getEvent('ProposalVoteConfigurationBridged')!.topicHash.toLowerCase(),
+    );
+  });
+
+  it('keeps all payloads-controller event topics aligned with the pinned ABI fixture', () => {
+    const iface = new Interface(loadAbi('aave-payloads-controller'));
+
+    expect(AAVE_PAYLOADS_CONTROLLER_TOPICS.PayloadCreated).toBe(
+      iface.getEvent('PayloadCreated')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_PAYLOADS_CONTROLLER_TOPICS.PayloadQueued).toBe(
+      iface.getEvent('PayloadQueued')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_PAYLOADS_CONTROLLER_TOPICS.PayloadExecuted).toBe(
+      iface.getEvent('PayloadExecuted')!.topicHash.toLowerCase(),
+    );
+    expect(AAVE_PAYLOADS_CONTROLLER_TOPICS.PayloadCancelled).toBe(
+      iface.getEvent('PayloadCancelled')!.topicHash.toLowerCase(),
     );
   });
 });
