@@ -23,7 +23,7 @@ jobs:
   ci:
     name: Lint · Typecheck · Test · Build · Audit · Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     services:
       postgres:
