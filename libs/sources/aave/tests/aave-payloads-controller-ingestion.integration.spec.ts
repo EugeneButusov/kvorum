@@ -14,7 +14,7 @@ const DB_URL = process.env['DATABASE_URL'];
 const CH_URL = process.env['CLICKHOUSE_URL'];
 const describeIf = DB_URL && CH_URL ? describe : describe.skip;
 
-const CHAIN_ID = '0x1';
+const CHAIN_ID = '0xa';
 
 type FixtureLog = {
   chainId: string;
@@ -62,7 +62,7 @@ describeIf('Aave payloads-controller ingestion integration', () => {
         source_type: 'aave_payloads_controller',
         chain_id: CHAIN_ID,
         source_config: {
-          payloads_controller_address: '0xdAbad81aF85554E9ae636395611C58F7eC1aAEc5',
+          payloads_controller_address: '0x0E1a3Af1f9cC76A62eD31eDedca291E63632e7c4',
         },
         active_from_block: null,
         active_to_block: null,
@@ -150,10 +150,10 @@ describeIf('Aave payloads-controller ingestion integration', () => {
     expect(chRows[0]?.dao_source_id).toBe(daoSourceId);
     expect(chRows[0]?.event_type).toBe('PayloadCreated');
     expect(JSON.parse(chRows[0]!.payload)).toMatchObject({
-      payloadId: '321',
-      creator: '0x1234567890abcdef1234567890abcdef12345678',
-      maximumAccessLevelRequired: 2,
+      payloadId: '80',
+      creator: '0xe3fd707583932a99513a5c65c8463de769f5dadf',
+      maximumAccessLevelRequired: 1,
     });
-    expect(JSON.parse(chRows[0]!.payload).actions).toHaveLength(2);
+    expect(JSON.parse(chRows[0]!.payload).actions).toHaveLength(1);
   }, 30_000);
 });

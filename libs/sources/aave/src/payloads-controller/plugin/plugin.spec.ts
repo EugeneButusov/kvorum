@@ -133,24 +133,16 @@ describe('createAavePayloadsControllerPlugin', () => {
     expect((mockArchiveWriter.writeCore as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]).toEqual({
       type: 'PayloadCreated',
       payload: {
-        payloadId: '321',
-        creator: '0x1234567890abcdef1234567890abcdef12345678',
-        maximumAccessLevelRequired: 2,
+        payloadId: '80',
+        creator: '0xe3fd707583932a99513a5c65c8463de769f5dadf',
+        maximumAccessLevelRequired: 1,
         actions: [
           {
-            target: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            target: '0xc09aa853780cf5c2265560d2f0d9208522c71d36',
             withDelegateCall: true,
-            accessLevel: 2,
-            value: '9007199254741115',
-            signature: 'execute(uint256,address)',
-            callData: '0x1234abcd',
-          },
-          {
-            target: '0x00000000000000000000000000000000000000aa',
-            withDelegateCall: false,
             accessLevel: 1,
             value: '0',
-            signature: 'sweep()',
+            signature: 'execute()',
             callData: '0x',
           },
         ],
