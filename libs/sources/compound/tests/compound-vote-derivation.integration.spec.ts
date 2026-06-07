@@ -50,6 +50,7 @@ describeIf('compound vote derivation integration', () => {
   let proposerActorId = '';
   let voterActorId = '';
   let anvilBlockNumber = '0';
+  let anvilBlockHash = '';
   let anvilBlockTimestamp = new Date(0);
 
   beforeAll(async () => {
@@ -133,10 +134,11 @@ describeIf('compound vote derivation integration', () => {
       .execute();
 
     anvilBlockNumber = BigInt(await rpcSend<string>('eth_blockNumber', [])).toString();
-    const anvilBlock = await rpcSend<{ timestamp: string }>('eth_getBlockByNumber', [
+    const anvilBlock = await rpcSend<{ hash: string; timestamp: string }>('eth_getBlockByNumber', [
       `0x${BigInt(anvilBlockNumber).toString(16)}`,
       false,
     ]);
+    anvilBlockHash = anvilBlock.hash;
     anvilBlockTimestamp = new Date(Number(BigInt(anvilBlock.timestamp)) * 1000);
 
     applier = new GovernorVoteProjectionApplier({
@@ -146,7 +148,11 @@ describeIf('compound vote derivation integration', () => {
       proposals: new ProposalRepository(pgDb),
       voteRead: new VoteEventsProjectionReadRepository(chDb),
       voteWrite: new VoteEventsProjectionWriter(chDb),
-      metrics: { batchLookupSeconds: () => undefined, processed: () => undefined },
+      metrics: {
+        batchLookupSeconds: () => undefined,
+        chWriteSeconds: () => undefined,
+        processed: () => undefined,
+      },
       registry: {
         peek: (chainId: string) =>
           chainId === CHAIN_ID
@@ -180,7 +186,7 @@ describeIf('compound vote derivation integration', () => {
   async function seedConfirmedVoteCast(opts?: { txN?: number; proposalId?: string }) {
     const txN = opts?.txN ?? 1;
     const txHash = numberedHash(txN);
-    const blockHash = numberedHash(10_000 + txN);
+    const blockHash = anvilBlockHash;
     const logIndex = txN;
     const proposalId = opts?.proposalId ?? '42';
 
@@ -272,7 +278,7 @@ describeIf('compound vote derivation integration', () => {
     expect(votes[0]!.voting_chain_id).toBe(CHAIN_ID);
     expect(votes[0]!.voting_power).toBe('123');
     expect(votes[0]!.primary_choice).toBe(1);
-    expect(votes[0]!.cast_at.getTime()).toBe(anvilBlockTimestamp.getTime());
+    expect(new Date(`${votes[0]!.cast_at}Z`).getTime()).toBe(anvilBlockTimestamp.getTime());
     expect(confirmation.derived_at).not.toBeNull();
 
     await pgDb

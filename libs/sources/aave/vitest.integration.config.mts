@@ -12,6 +12,8 @@ export default defineConfig({
     environment: 'node',
     pool: 'forks',
     fileParallelism: false,
+    minWorkers: 1,
+    maxWorkers: 1,
     setupFiles: ['./vitest.integration.setup.ts'],
     include: ['tests/**/*.integration.spec.{ts,mts}'],
     passWithNoTests: true,

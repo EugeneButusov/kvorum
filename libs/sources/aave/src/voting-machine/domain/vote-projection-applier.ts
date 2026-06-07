@@ -104,6 +104,10 @@ export class AaveVoteProjectionApplier {
     const firstRow = rows[0];
     if (firstRow === undefined) return;
 
+    // KNOWN-028: The derivation worker dispatches batches by `(source_type, chain_id, event_type)`
+    // (`apps/indexer/src/derivation/derivation-worker.service.ts`), so a held `no_proposal` row at the
+    // front of one voting-chain batch can delay newer derivable votes on that same chain until the
+    // missing proposal lands. See `docs/runbooks/m3-chains.md` ("Aave stitch-hold alerting").
     if (
       firstRow.event_type === 'ProposalResultsSent' ||
       firstRow.event_type === 'ProposalVoteConfigurationBridged'

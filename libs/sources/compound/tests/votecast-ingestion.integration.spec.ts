@@ -5,8 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { silentLogger } from '@libs/chain';
 import { chDb, ArchiveEventRepository, DlqRepository, pgDb } from '@libs/db';
 import {
-  ArchiveWriter,
-  EventRepository,
+  GovernorArchiveWriter,
+  GovernorEventRepository,
   makeGovernorIngesterListener,
   type ArchiveWriteContext,
 } from '@sources/compound';
@@ -108,9 +108,9 @@ describeIf('VoteCast ingestion integration', () => {
         confirmationClassifier: () => 'confirmed',
       };
 
-      const writer = new ArchiveWriter({
-        eventRepo: new EventRepository({ chDb }),
-        confirmationRepo: new ArchiveEventRepository(pgDb),
+      const writer = new GovernorArchiveWriter({
+        eventRepo: new GovernorEventRepository({ chDb }),
+        archiveEventRepo: new ArchiveEventRepository(pgDb),
         dlqRepo: new DlqRepository(pgDb),
         logger: silentLogger,
       });

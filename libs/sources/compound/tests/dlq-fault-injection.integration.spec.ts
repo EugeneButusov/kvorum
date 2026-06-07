@@ -10,9 +10,9 @@ import { CompTokenArchiveWriter } from '../src/comp-token/ingestion/archive-writ
 import { makeCompTokenIngesterListener } from '../src/comp-token/ingestion/ingester-listener';
 import type { CompTokenEventRepository } from '../src/comp-token/persistence/event-repository';
 import type { CompoundGovernorEvent } from '../src/governor/domain/types';
-import { ArchiveWriter } from '../src/governor/ingestion/archive-writer';
+import { GovernorArchiveWriter } from '../src/governor/ingestion/archive-writer';
 import { makeGovernorIngesterListener } from '../src/governor/ingestion/ingester-listener';
-import type { EventRepository } from '../src/governor/persistence/event-repository';
+import type { GovernorEventRepository } from '../src/governor/persistence/event-repository';
 
 type FixtureLog = {
   variant: 'compound_governor_alpha' | 'compound_governor_bravo' | 'compound_governor_oz';
@@ -50,7 +50,7 @@ function makeConfirmationRepo(shouldFail: boolean): ArchiveEventRepository {
   } as unknown as ArchiveEventRepository;
 }
 
-function makeGovEventRepo(shouldFail: boolean): EventRepository {
+function makeGovEventRepo(shouldFail: boolean): GovernorEventRepository {
   return {
     insert: shouldFail ? vi.fn().mockRejectedValue(new Error('forced ch failure')) : vi.fn(),
   } as unknown as EventRepository;
@@ -117,9 +117,9 @@ function compTokenDelegateVotesChangedLog(): LogEvent {
 describe('DLQ fault injection integration', () => {
   it('routes governor VoteCast PG failure to vote_archive_write', async () => {
     const dlqRows: Array<{ stage: string; payload: unknown }> = [];
-    const writer = new ArchiveWriter({
+    const writer = new GovernorArchiveWriter({
       eventRepo: makeGovEventRepo(false),
-      confirmationRepo: makeConfirmationRepo(true),
+      archiveEventRepo: makeConfirmationRepo(true),
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
@@ -131,14 +131,14 @@ describe('DLQ fault injection integration', () => {
     await listener([fixtureVoteCastLog()]);
 
     expect(dlqRows).toHaveLength(1);
-    expect(dlqRows[0]!.stage).toBe('vote_archive_write');
+    expect(dlqRows[0]!.stage).toBe('archive_event_stage');
   });
 
   it('routes governor proposal PG failure to archive_event_write', async () => {
     const dlqRows: Array<{ stage: string; payload: unknown }> = [];
-    const writer = new ArchiveWriter({
+    const writer = new GovernorArchiveWriter({
       eventRepo: makeGovEventRepo(false),
-      confirmationRepo: makeConfirmationRepo(true),
+      archiveEventRepo: makeConfirmationRepo(true),
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
@@ -163,14 +163,14 @@ describe('DLQ fault injection integration', () => {
     const outcome = await writer.write(GOV_CTX, decoded, logRef);
     expect(outcome.result).toBe('dlq_routed');
     expect(dlqRows).toHaveLength(1);
-    expect(dlqRows[0]!.stage).toBe('archive_event_write');
+    expect(dlqRows[0]!.stage).toBe('archive_event_stage');
   });
 
   it('routes governor VoteCast CH failure to vote_archive_write', async () => {
     const dlqRows: Array<{ stage: string; payload: unknown }> = [];
-    const writer = new ArchiveWriter({
+    const writer = new GovernorArchiveWriter({
       eventRepo: makeGovEventRepo(true),
-      confirmationRepo: makeConfirmationRepo(false),
+      archiveEventRepo: makeConfirmationRepo(false),
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
@@ -182,14 +182,14 @@ describe('DLQ fault injection integration', () => {
     await listener([fixtureVoteCastLog()]);
 
     expect(dlqRows).toHaveLength(1);
-    expect(dlqRows[0]!.stage).toBe('vote_archive_write');
+    expect(dlqRows[0]!.stage).toBe('archive_event_stage');
   });
 
   it('routes comp-token archive failure to delegation_archive_write', async () => {
     const dlqRows: Array<{ stage: string; payload: unknown }> = [];
     const writer = new CompTokenArchiveWriter({
       eventRepo: makeCompEventRepo(true),
-      confirmationRepo: makeConfirmationRepo(false),
+      archiveEventRepo: makeConfirmationRepo(false),
       dlqRepo: makeDlqRepo(dlqRows),
       logger: silentLogger,
     });
@@ -201,6 +201,6 @@ describe('DLQ fault injection integration', () => {
     await listener([compTokenDelegateVotesChangedLog()]);
 
     expect(dlqRows).toHaveLength(1);
-    expect(dlqRows[0]!.stage).toBe('delegation_archive_write');
+    expect(dlqRows[0]!.stage).toBe('delegation_archive_stage');
   });
 });

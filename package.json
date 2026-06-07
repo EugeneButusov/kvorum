@@ -14,6 +14,8 @@
     "typecheck": "pnpm -r run typecheck",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
+    "test:integration": "pnpm -r --workspace-concurrency=1 --if-present run test:integration",
+    "test:integration:ci": "node scripts/run-integration-tests-ci.mjs",
     "test:bundle": "pnpm --filter admin-cli test:bundle",
     "openapi:generate": "pnpm --filter api openapi:generate",
     "db:migrate": "tsx libs/db/scripts/migrate.mts up",

@@ -23,11 +23,11 @@ jobs:
   ci:
     name: Lint · Typecheck · Test · Build · Audit · Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: mirror.gcr.io/library/postgres:18-alpine
         env:
           POSTGRES_USER: kvorum
           POSTGRES_PASSWORD: kvorum
@@ -122,6 +122,14 @@ jobs:
 
       - name: Test
         run: pnpm -w test
+        env:
+          ANVIL_RPC_URL: http://localhost:8545
+          DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
+          CLICKHOUSE_URL: http://localhost:8123
+          OTEL_SERVICE_NAMESPACE: kvorum
+
+      - name: Integration tests
+        run: pnpm -w test:integration:ci
         env:
           ANVIL_RPC_URL: http://localhost:8545
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum

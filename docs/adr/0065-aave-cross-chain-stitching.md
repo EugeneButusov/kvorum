@@ -89,6 +89,7 @@ Adopt the following stitching contract for Aave Governance v3.
 
 - Vote derivation records `held` for indefinite `no_proposal` rows and `noop` for terminal no-op derives.
 - `ProposalResultsSent` and `ProposalVoteConfigurationBridged` are ingested but derived as terminal no-ops so `aave_voting_machine` underived backlog can clear.
+- The `voting_chain_id` / `voting_machine_address` binding comes from `ProposalVoteStarted` activation plus the first `VoteEmitted` per proposal; `ProposalVoteConfigurationBridged` is not a binding source.
 - `indexer_stitch_pending_seconds` is emitted with labels `{voting_chain_id, source_type, event_type}`.
 
 ## Operational notes
