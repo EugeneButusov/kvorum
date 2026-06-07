@@ -42,10 +42,11 @@ describe('AaveSourceModule', () => {
     const plugin = moduleRef.get<SourcePlugin>(AAVE_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('aave');
-    expect(plugin.ingesters).toHaveLength(3);
+    expect(plugin.ingesters).toHaveLength(4);
     expect(plugin.ingesters.map((ingester) => ingester.sourceType).sort()).toEqual([
       'aave_governance_v3',
       'aave_governance_v3_reconcile',
+      'aave_payloads_controller',
       'aave_voting_machine',
     ]);
 
@@ -55,6 +56,28 @@ describe('AaveSourceModule', () => {
     );
     expect(votingMachineIngester).toBeDefined();
     expect(votingMachineIngester?.supportedChainIds).toEqual(['0x1', '0x89', '0xa86a']);
+
+    const payloadsControllerIngester = plugin.ingesters.find(
+      (ingester): ingester is SourceIngester<Record<string, unknown>> =>
+        ingester.sourceType === 'aave_payloads_controller',
+    );
+    expect(payloadsControllerIngester).toBeDefined();
+    expect(payloadsControllerIngester?.supportedChainIds).toEqual([
+      '0x1',
+      '0x89',
+      '0xa86a',
+      '0xa4b1',
+      '0xa',
+      '0x2105',
+      '0x64',
+      '0x38',
+      '0x82750',
+      '0xe708',
+      '0xa4ec',
+      '0x92',
+      '0x440',
+      '0x144',
+    ]);
 
     expect(plugin.derivers).toHaveLength(4);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([

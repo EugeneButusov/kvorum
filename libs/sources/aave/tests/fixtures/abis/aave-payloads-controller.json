@@ -1,0 +1,43 @@
+[
+  {
+    "type": "event",
+    "name": "PayloadCreated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "payloadId", "type": "uint40", "indexed": true },
+      { "name": "creator", "type": "address", "indexed": true },
+      {
+        "name": "actions",
+        "type": "tuple[]",
+        "indexed": false,
+        "components": [
+          { "name": "target", "type": "address" },
+          { "name": "withDelegateCall", "type": "bool" },
+          { "name": "accessLevel", "type": "uint8" },
+          { "name": "value", "type": "uint256" },
+          { "name": "signature", "type": "string" },
+          { "name": "callData", "type": "bytes" }
+        ]
+      },
+      { "name": "maximumAccessLevelRequired", "type": "uint8", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PayloadQueued",
+    "anonymous": false,
+    "inputs": [{ "name": "payloadId", "type": "uint40", "indexed": false }]
+  },
+  {
+    "type": "event",
+    "name": "PayloadExecuted",
+    "anonymous": false,
+    "inputs": [{ "name": "payloadId", "type": "uint40", "indexed": false }]
+  },
+  {
+    "type": "event",
+    "name": "PayloadCancelled",
+    "anonymous": false,
+    "inputs": [{ "name": "payloadId", "type": "uint40", "indexed": false }]
+  }
+]

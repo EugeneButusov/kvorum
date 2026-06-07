@@ -18,4 +18,5 @@ export { loadAbiLibrary } from './calldata/abi-library';
 export { aaveCalldataProtocol } from './calldata/protocol';
 
 export * from './governance-v3';
+export * from './payloads-controller';
 export * from './voting-machine';
