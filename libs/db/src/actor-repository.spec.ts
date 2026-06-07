@@ -263,13 +263,7 @@ describe('ActorRepository', () => {
   it('returns existing actor when address is already present in actor_address', async () => {
     const joinSelect = makeJoinSelectChain(ACTOR_ROW);
     const repo = new ActorRepository({
-      transaction: vi.fn(() => ({
-        execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) =>
-          fn({
-            selectFrom: joinSelect.selectFrom,
-          }),
-        ),
-      })),
+      selectFrom: joinSelect.selectFrom,
     } as never);
 
     await expect(repo.findOrCreateActorAddress('0xABCDEF', 'voter_event')).resolves.toEqual(
@@ -293,9 +287,8 @@ describe('ActorRepository', () => {
       return { values: actorAddressInsert.insertInto().values };
     });
     const repo = new ActorRepository({
-      transaction: vi.fn(() => ({
-        execute: vi.fn((fn: (trx: unknown) => Promise<unknown>) => fn({ selectFrom, insertInto })),
-      })),
+      selectFrom,
+      insertInto,
     } as never);
 
     await expect(repo.findOrCreateActorAddress('0xABCDEF', 'delegate_event')).resolves.toEqual(
