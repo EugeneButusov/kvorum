@@ -8,6 +8,7 @@ import {
 import {
   AAVE_GOVERNANCE_V3_DEPLOY_BLOCK,
   AAVE_GOVERNOR_V2_DEPLOY_BLOCK,
+  AAVE_VOTING_MACHINE_ETHEREUM_DEPLOY_BLOCK,
   down as downAaveSeed,
   up as upAaveSeed,
 } from '../migrations-postgres/aave_002_seed';
@@ -15,6 +16,7 @@ import {
   down as downAaveMetadataNullable,
   up as upAaveMetadataNullable,
 } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
+import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
 
@@ -149,6 +151,38 @@ describeWithPg('aave_002_seed migration', () => {
           chain_id: '0x1',
           active_from_block: String(AAVE_GOVERNOR_V2_DEPLOY_BLOCK),
         });
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('seeds the Ethereum backup voting machine and keeps mainnet in the supported chain set', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAaveSeed(tx);
+
+        const votingMachineRow = await tx
+          .selectFrom('dao_source')
+          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+          .select([
+            'dao_source.chain_id',
+            'dao_source.active_from_block',
+            'dao_source.source_config',
+          ])
+          .where('dao.slug', '=', 'aave')
+          .where('dao_source.source_type', '=', 'aave_voting_machine')
+          .where('dao_source.chain_id', '=', '0x1')
+          .executeTakeFirstOrThrow();
+
+        expect(votingMachineRow).toMatchObject({
+          chain_id: '0x1',
+          active_from_block: String(AAVE_VOTING_MACHINE_ETHEREUM_DEPLOY_BLOCK),
+        });
+        expect(votingMachineRow.source_config).toEqual({
+          voting_machine_address: '0x06a1795a88b82700896583e123F46BE43877bFb6',
+        });
+        expect(AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS).toContain('0x1');
 
         throw new RollbackSignal();
       }),
