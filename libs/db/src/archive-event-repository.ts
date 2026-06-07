@@ -62,7 +62,9 @@ export class ArchiveEventRepository {
         return await this.pgDb
           .insertInto('archive_event')
           .values(row)
-          .onConflict((oc) => oc.constraint('archive_event_idempotency_key').doNothing())
+          .onConflict((oc) =>
+            oc.columns(['source_type', 'chain_id', 'tx_hash', 'log_index']).doNothing(),
+          )
           .returning('id')
           .executeTakeFirst();
       } catch (err) {

@@ -104,7 +104,11 @@ describeIf('comp token delegation derivation integration', () => {
       archive,
       dlq: new DlqRepository(pgDb),
       payloads: new CompTokenArchivePayloadRepository(chDb),
-      metrics: { batchLookupSeconds: () => undefined, processed: () => undefined },
+      metrics: {
+        batchLookupSeconds: () => undefined,
+        chWriteSeconds: () => undefined,
+        processed: () => undefined,
+      },
     });
   }, 30_000);
 
@@ -193,6 +197,7 @@ describeIf('comp token delegation derivation integration', () => {
     const rows = await chDb
       .selectFrom('delegation_flow_projection')
       .selectAll()
+      .where('dao_id', '=', daoId)
       .orderBy('block_number', 'asc')
       .execute();
     expect(rows).toHaveLength(2);
@@ -215,7 +220,7 @@ describeIf('comp token delegation derivation integration', () => {
     expect(pendingRows).toHaveLength(0);
   }, 30_000);
 
-  it('routes no_delegator failure to delegation_projection_stage at threshold', async () => {
+  it('derives rows even when the delegator actor is not preseeded', async () => {
     await seedConfirmedCompEvent({
       txN: 3,
       eventType: 'DelegateChanged',
@@ -238,7 +243,7 @@ describeIf('comp token delegation derivation integration', () => {
       .selectAll()
       .where('archive_tx_hash', '=', numberedHash(3))
       .execute();
-    expect(dlqRows.length).toBeGreaterThanOrEqual(1);
-    expect(dlqRows[0]!.stage).toBe('delegation_projection_stage');
+    expect(dlqRows).toHaveLength(0);
+    expect(await archive.findUnderived(EVENT_TYPES, 50)).toHaveLength(0);
   }, 30_000);
 });

@@ -88,32 +88,29 @@ export class ActorRepository {
 
   async findOrCreateActorAddress(address: string, source: ActorAddressSource): Promise<Actor> {
     const normalized = address.toLowerCase();
+    const existing = await this.db
+      .selectFrom('actor as a')
+      .innerJoin('actor_address as aa', 'aa.actor_id', 'a.id')
+      .selectAll('a')
+      .where('aa.address', '=', normalized)
+      .executeTakeFirst();
 
-    return this.db.transaction().execute(async (trx) => {
-      const existing = await trx
-        .selectFrom('actor as a')
-        .innerJoin('actor_address as aa', 'aa.actor_id', 'a.id')
-        .selectAll('a')
-        .where('aa.address', '=', normalized)
-        .executeTakeFirst();
+    if (existing !== undefined) return existing;
 
-      if (existing !== undefined) return existing;
+    const actor = await this.findOrCreateByAddressTx(this.db, normalized);
 
-      const actor = await this.findOrCreateByAddressTx(trx, normalized);
+    await this.db
+      .insertInto('actor_address')
+      .values({
+        actor_id: actor.id,
+        address: normalized,
+        is_primary: true,
+        source,
+      })
+      .onConflict((oc) => oc.columns(['actor_id', 'address']).doNothing())
+      .execute();
 
-      await trx
-        .insertInto('actor_address')
-        .values({
-          actor_id: actor.id,
-          address: normalized,
-          is_primary: true,
-          source,
-        })
-        .onConflict((oc) => oc.columns(['actor_id', 'address']).doNothing())
-        .execute();
-
-      return actor;
-    });
+    return actor;
   }
 
   async findPrimaryAddressesByActorIds(

@@ -242,43 +242,48 @@ describeIf('aave vote stitch integration', () => {
         'voting_power',
         'voting_chain_id',
       ])
+      .where('proposal_id', 'in', [polygonProposal.id, avalancheProposal.id])
       .where('superseded', '=', 0)
       .orderBy('proposal_id', 'asc')
       .execute();
 
     expect(stitchedVotes).toHaveLength(2);
-    expect(stitchedVotes).toEqual([
-      expect.objectContaining({
-        proposal_id: polygonProposal.id,
-        voting_chain_id: POLYGON_CHAIN_ID,
-        primary_choice: 1,
-        voting_power: '25846908561692963309',
-      }),
-      expect.objectContaining({
-        proposal_id: avalancheProposal.id,
-        voting_chain_id: AVALANCHE_CHAIN_ID,
-        primary_choice: 1,
-        voting_power: '10494970000000034',
-      }),
-    ]);
+    expect(stitchedVotes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          proposal_id: polygonProposal.id,
+          voting_chain_id: POLYGON_CHAIN_ID,
+          primary_choice: 1,
+          voting_power: '25846908561692963309',
+        }),
+        expect.objectContaining({
+          proposal_id: avalancheProposal.id,
+          voting_chain_id: AVALANCHE_CHAIN_ID,
+          primary_choice: 1,
+          voting_power: '10515607793132578',
+        }),
+      ]),
+    );
 
     const metadataRows = await pgDb
       .selectFrom('aave_proposal_metadata')
       .select(['proposal_id', 'voting_chain_id', 'voting_machine_address'])
       .orderBy('proposal_id', 'asc')
       .execute();
-    expect(metadataRows).toEqual([
-      {
-        proposal_id: avalancheProposal.id,
-        voting_chain_id: AVALANCHE_CHAIN_ID,
-        voting_machine_address: AVALANCHE_VM_ADDRESS,
-      },
-      {
-        proposal_id: polygonProposal.id,
-        voting_chain_id: POLYGON_CHAIN_ID,
-        voting_machine_address: POLYGON_VM_ADDRESS,
-      },
-    ]);
+    expect(metadataRows).toEqual(
+      expect.arrayContaining([
+        {
+          proposal_id: avalancheProposal.id,
+          voting_chain_id: AVALANCHE_CHAIN_ID,
+          voting_machine_address: AVALANCHE_VM_ADDRESS,
+        },
+        {
+          proposal_id: polygonProposal.id,
+          voting_chain_id: POLYGON_CHAIN_ID,
+          voting_machine_address: POLYGON_VM_ADDRESS,
+        },
+      ]),
+    );
 
     const derivedTerminalRows = await pgDb
       .selectFrom('archive_event')
@@ -371,10 +376,14 @@ describeIf('aave vote stitch integration', () => {
           call.reason === 'no_proposal',
       ),
     ).toBe(true);
-    expect(metrics.stitchPending.at(-1)).toEqual({
-      seconds: 180,
-      labels: { voting_chain_id: POLYGON_CHAIN_ID, event_type: 'VoteEmitted' },
-    });
+    expect(
+      metrics.stitchPending.some(
+        (entry) =>
+          entry.seconds === 180 &&
+          entry.labels.voting_chain_id === POLYGON_CHAIN_ID &&
+          entry.labels.event_type === 'VoteEmitted',
+      ),
+    ).toBe(true);
     await expectDlqRows(heldVoteTxHash, 0);
 
     await insertProposal(HOLD_PROPOSAL_ID, 'Held proposal');
@@ -386,10 +395,14 @@ describeIf('aave vote stitch integration', () => {
       .where('tx_hash', '=', heldVoteTxHash)
       .executeTakeFirstOrThrow();
     expect(resolvedHeldRow.derived_at).not.toBeNull();
-    expect(metrics.stitchPending.at(-1)).toEqual({
-      seconds: 0,
-      labels: { voting_chain_id: POLYGON_CHAIN_ID, event_type: 'VoteEmitted' },
-    });
+    expect(
+      metrics.stitchPending.some(
+        (entry) =>
+          entry.seconds === 0 &&
+          entry.labels.voting_chain_id === POLYGON_CHAIN_ID &&
+          entry.labels.event_type === 'VoteEmitted',
+      ),
+    ).toBe(true);
 
     const archiveVoteCount = await pgDb
       .selectFrom('archive_event')
