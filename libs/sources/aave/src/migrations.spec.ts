@@ -24,6 +24,10 @@ import {
   down as downAavePayloadResilienceMarkers,
   up as upAavePayloadResilienceMarkers,
 } from '../migrations-postgres/aave_005_payload_resilience_markers';
+import {
+  down as downAavePayloadReconcileSeed,
+  up as upAavePayloadReconcileSeed,
+} from '../migrations-postgres/aave_006_payload_reconcile_seed';
 import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
@@ -127,6 +131,13 @@ describe('aave migrations smoke (mocked db)', () => {
     const db = makeMockDb();
     await upAavePayloadResilienceMarkers(db);
     await downAavePayloadResilienceMarkers(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_006_payload_reconcile_seed up/down fire sql.execute calls', async () => {
+    const db = makeMockDb();
+    await upAavePayloadReconcileSeed(db);
+    await downAavePayloadReconcileSeed(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -348,6 +359,50 @@ describeWithPg('aave_005_payload_resilience_markers migration', () => {
         expect(indexes[0]?.indexdef).toContain(
           "WHERE ((status = ANY (ARRAY['created'::aave_payload_status, 'queued'::aave_payload_status])))",
         );
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+});
+
+describeWithPg('aave_006_payload_reconcile_seed migration', () => {
+  it('seeds payload-controller reconcile source rows and removes them cleanly in down()', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAavePayloadReconcileSeed(tx);
+
+        const sourceTypeRows = await tx
+          .selectFrom('source_type')
+          .select(['value'])
+          .where('value', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(sourceTypeRows).toEqual([{ value: 'aave_payloads_controller_reconcile' }]);
+
+        const daoSourceRows = await tx
+          .selectFrom('dao_source')
+          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+          .select(['dao_source.source_type', 'dao_source.chain_id'])
+          .where('dao.slug', '=', 'aave')
+          .where('dao_source.source_type', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(daoSourceRows).toHaveLength(14);
+
+        await downAavePayloadReconcileSeed(tx);
+
+        const sourceTypeAfterDown = await tx
+          .selectFrom('source_type')
+          .select(['value'])
+          .where('value', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(sourceTypeAfterDown).toEqual([]);
+
+        const daoSourceAfterDown = await tx
+          .selectFrom('dao_source')
+          .select(['source_type'])
+          .where('source_type', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(daoSourceAfterDown).toEqual([]);
 
         throw new RollbackSignal();
       }),

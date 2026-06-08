@@ -18,6 +18,7 @@ import {
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
   AavePayloadStitchApplier,
+  AavePayloadReconcileRepository,
   AavePayloadsControllerActorAddressDeriver,
   AavePayloadsControllerArchivePayloadRepository,
   AavePayloadsControllerArchiveWriter,
@@ -29,6 +30,7 @@ import {
   AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
   createAavePayloadsControllerPlugin,
+  createAavePayloadsControllerReconcilePlugin,
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
   createAaveVotingMachinePlugin,
@@ -95,6 +97,10 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
     {
       provide: AaveProposalRepository,
       useFactory: () => new AaveProposalRepository(pgDb),
+    },
+    {
+      provide: AavePayloadReconcileRepository,
+      useFactory: () => new AavePayloadReconcileRepository(pgDb),
     },
     {
       provide: AaveVotingMachineArchivePayloadRepository,
@@ -270,6 +276,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         payloadsControllerArchiveWriter: AavePayloadsControllerArchiveWriter,
         dlqRepo: DlqRepository,
         proposals: AaveProposalRepository,
+        payloadReconcileProposals: AavePayloadReconcileRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
         votingMachineActorAddressDeriver: AaveVotingMachineActorAddressDeriver,
@@ -302,6 +309,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               metrics,
               logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),
+            createAavePayloadsControllerReconcilePlugin({
+              proposals: payloadReconcileProposals,
+              metrics,
+              logger: toChainLogger(new Logger('AavePayloadsControllerReconcile')),
+            }),
           ],
           derivers: [
             projectionApplier,
@@ -320,6 +332,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AavePayloadsControllerArchiveWriter,
         DlqRepository,
         AaveProposalRepository,
+        AavePayloadReconcileRepository,
         AaveGovernanceProjectionApplier,
         AaveGovernanceActorAddressDeriver,
         AaveVotingMachineActorAddressDeriver,
