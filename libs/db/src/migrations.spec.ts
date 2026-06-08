@@ -1,10 +1,7 @@
 import type { Kysely } from 'kysely';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { pgDb } from './client';
-import {
-  down as downProposalActionPayloadIndex,
-  up as upProposalActionPayloadIndex,
-} from '../migrations/0010_proposal_action_payload_index';
+import { down as downCoreDomain, up as upCoreDomain } from '../migrations/0002_core_domain';
 
 class RollbackSignal extends Error {}
 
@@ -12,18 +9,30 @@ describe('db migrations smoke (mocked db)', () => {
   function makeMockDb() {
     const executeQuery = vi.fn().mockResolvedValue({ rows: [] });
     const makeColumnBuilder = () => ({
-      notNull: vi.fn().mockReturnThis(),
+      primaryKey: vi.fn().mockReturnThis(),
       defaultTo: vi.fn().mockReturnThis(),
+      notNull: vi.fn().mockReturnThis(),
+      unique: vi.fn().mockReturnThis(),
+      check: vi.fn().mockReturnThis(),
+      references: vi.fn().mockReturnThis(),
+      onDelete: vi.fn().mockReturnThis(),
     });
-    const makeSchemaAction = () => ({
+    const makeTableBuilder = () => ({
       addColumn: vi
         .fn()
         .mockImplementation((_: unknown, __: unknown, callback?: (column: unknown) => unknown) => {
           callback?.(makeColumnBuilder());
-          return makeSchemaAction();
+          return makeTableBuilder();
         }),
       addUniqueConstraint: vi.fn().mockReturnThis(),
-      dropColumn: vi.fn().mockReturnThis(),
+      addPrimaryKeyConstraint: vi.fn().mockReturnThis(),
+      execute: executeQuery,
+    });
+    const makeIndexBuilder = () => ({
+      on: vi.fn().mockReturnThis(),
+      columns: vi.fn().mockReturnThis(),
+      column: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
       execute: executeQuery,
     });
     const executor = {
@@ -36,16 +45,18 @@ describe('db migrations smoke (mocked db)', () => {
     return {
       getExecutor: vi.fn().mockReturnValue(executor),
       schema: {
-        alterTable: vi.fn().mockImplementation(() => makeSchemaAction()),
+        createTable: vi.fn().mockImplementation(() => makeTableBuilder()),
+        createIndex: vi.fn().mockImplementation(() => makeIndexBuilder()),
+        dropTable: vi.fn().mockImplementation(() => ({ execute: executeQuery })),
       },
       _executeQuery: executeQuery,
     } as unknown as Kysely<unknown> & { _executeQuery: ReturnType<typeof vi.fn> };
   }
 
-  it('0010_proposal_action_payload_index up/down fire schema queries', async () => {
+  it('0002_core_domain up/down fire schema queries', async () => {
     const db = makeMockDb();
-    await upProposalActionPayloadIndex(db);
-    await downProposalActionPayloadIndex(db);
+    await upCoreDomain(db);
+    await downCoreDomain(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -56,75 +67,35 @@ afterAll(async () => {
   await pgDb.destroy();
 });
 
-describeWithPg('0010_proposal_action_payload_index migration', () => {
-  it('round-trips proposal_action payload_index and unique constraints', async () => {
+describeWithPg('0002_core_domain proposal_action schema', () => {
+  it('includes payload_index and the payload-scoped uniqueness constraint', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
-        const payloadIndexColumnBeforeDown = await tx
+        const payloadIndexColumn = await tx
           .selectFrom('information_schema.columns')
           .select(['column_name', 'is_nullable', 'column_default'])
           .where('table_name', '=', 'proposal_action')
           .where('column_name', '=', 'payload_index')
           .executeTakeFirstOrThrow();
-        expect(payloadIndexColumnBeforeDown.column_name).toBe('payload_index');
-        expect(payloadIndexColumnBeforeDown.is_nullable).toBe('NO');
-        expect(payloadIndexColumnBeforeDown.column_default).toContain('0');
+        expect(payloadIndexColumn.column_name).toBe('payload_index');
+        expect(payloadIndexColumn.is_nullable).toBe('NO');
+        expect(payloadIndexColumn.column_default).toContain('0');
 
-        const payloadConstraintBeforeDown = await tx
+        const payloadConstraint = await tx
           .selectFrom('pg_constraint')
           .select('conname')
           .where('conname', '=', 'proposal_action_proposal_id_payload_index_action_index_key')
           .execute();
-        expect(payloadConstraintBeforeDown).toEqual([
+        expect(payloadConstraint).toEqual([
           { conname: 'proposal_action_proposal_id_payload_index_action_index_key' },
         ]);
 
-        const legacyConstraintBeforeDown = await tx
+        const legacyConstraint = await tx
           .selectFrom('pg_constraint')
           .select('conname')
           .where('conname', '=', 'proposal_action_proposal_id_action_index_key')
           .execute();
-        expect(legacyConstraintBeforeDown).toEqual([]);
-
-        await downProposalActionPayloadIndex(tx);
-
-        const payloadIndexAfterDown = await tx
-          .selectFrom('information_schema.columns')
-          .select('column_name')
-          .where('table_name', '=', 'proposal_action')
-          .where('column_name', '=', 'payload_index')
-          .execute();
-        expect(payloadIndexAfterDown).toEqual([]);
-
-        const legacyConstraintAfterDown = await tx
-          .selectFrom('pg_constraint')
-          .select('conname')
-          .where('conname', '=', 'proposal_action_proposal_id_action_index_key')
-          .execute();
-        expect(legacyConstraintAfterDown).toEqual([
-          { conname: 'proposal_action_proposal_id_action_index_key' },
-        ]);
-
-        await upProposalActionPayloadIndex(tx);
-
-        const payloadIndexAfterUp = await tx
-          .selectFrom('information_schema.columns')
-          .select(['column_name', 'is_nullable', 'column_default'])
-          .where('table_name', '=', 'proposal_action')
-          .where('column_name', '=', 'payload_index')
-          .executeTakeFirstOrThrow();
-        expect(payloadIndexAfterUp.column_name).toBe('payload_index');
-        expect(payloadIndexAfterUp.is_nullable).toBe('NO');
-        expect(payloadIndexAfterUp.column_default).toContain('0');
-
-        const payloadConstraintAfterUp = await tx
-          .selectFrom('pg_constraint')
-          .select('conname')
-          .where('conname', '=', 'proposal_action_proposal_id_payload_index_action_index_key')
-          .execute();
-        expect(payloadConstraintAfterUp).toEqual([
-          { conname: 'proposal_action_proposal_id_payload_index_action_index_key' },
-        ]);
+        expect(legacyConstraint).toEqual([]);
 
         throw new RollbackSignal();
       }),

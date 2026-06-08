@@ -152,6 +152,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('proposal_id', 'uuid', (col) =>
       col.notNull().references('proposal.id').onDelete('cascade'),
     )
+    .addColumn('payload_index', 'integer', (col) => col.notNull().defaultTo(0))
     .addColumn('action_index', 'integer', (col) => col.notNull())
     .addColumn('target_address', 'text', (col) => col.notNull())
     .addColumn('target_chain_id', sql`varchar(32)`, (col) => col.notNull())
@@ -165,8 +166,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('decode_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
     .addColumn('next_decode_at', 'timestamptz')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
-    .addUniqueConstraint('proposal_action_proposal_id_action_index_key', [
+    .addUniqueConstraint('proposal_action_proposal_id_payload_index_action_index_key', [
       'proposal_id',
+      'payload_index',
       'action_index',
     ])
     .execute();
