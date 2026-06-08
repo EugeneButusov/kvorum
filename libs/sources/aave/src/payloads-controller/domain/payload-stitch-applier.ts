@@ -35,6 +35,10 @@ export interface AavePayloadProjectionMetrics {
     seconds: number,
     labels: { target_chain_id: string; event_type: string },
   ): void;
+  stitchUnmatchedPayloads?(
+    count: number,
+    labels: { target_chain_id: string; event_type: string },
+  ): void;
   processed(labels: {
     event_type: string;
     outcome: AavePayloadDerivationOutcome;
@@ -114,6 +118,7 @@ export class AavePayloadStitchApplier {
     }
 
     let pendingMaxSeconds = 0;
+    let heldCount = 0;
     for (const row of rows) {
       const payloadRow = payloadByKey.get(tupleKey(row));
       if (payloadRow === undefined) {
@@ -145,6 +150,7 @@ export class AavePayloadStitchApplier {
         payloadId: payload.payloadId,
       });
       if (declared === undefined) {
+        heldCount += 1;
         this.record(row, 'held', 'no_declared_payload');
         pendingMaxSeconds = Math.max(
           pendingMaxSeconds,
@@ -209,6 +215,10 @@ export class AavePayloadStitchApplier {
       }
     }
 
+    this.deps.metrics.stitchUnmatchedPayloads?.(heldCount, {
+      target_chain_id: firstRow.chain_id,
+      event_type: firstRow.event_type,
+    });
     this.recordStitchPendingSeconds(firstRow, pendingMaxSeconds);
   }
 

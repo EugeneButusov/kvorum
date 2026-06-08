@@ -42,11 +42,12 @@ describe('AaveSourceModule', () => {
     const plugin = moduleRef.get<SourcePlugin>(AAVE_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('aave');
-    expect(plugin.ingesters).toHaveLength(4);
+    expect(plugin.ingesters).toHaveLength(5);
     expect(plugin.ingesters.map((ingester) => ingester.sourceType).sort()).toEqual([
       'aave_governance_v3',
       'aave_governance_v3_reconcile',
       'aave_payloads_controller',
+      'aave_payloads_controller_reconcile',
       'aave_voting_machine',
     ]);
 

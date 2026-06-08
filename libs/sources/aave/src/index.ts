@@ -14,6 +14,8 @@ export type {
   AaveStaleReconciliationRow,
 } from './persistence/aave-proposal-repository';
 export { AaveProposalRepository } from './persistence/aave-proposal-repository';
+export type { AavePayloadStaleReconciliationRow } from './persistence/aave-payload-reconcile-repository';
+export { AavePayloadReconcileRepository } from './persistence/aave-payload-reconcile-repository';
 export { loadAbiLibrary } from './calldata/abi-library';
 export { aaveCalldataProtocol } from './calldata/protocol';
 

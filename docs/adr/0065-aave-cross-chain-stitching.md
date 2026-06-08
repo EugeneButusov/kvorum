@@ -92,6 +92,14 @@ Adopt the following stitching contract for Aave Governance v3.
 - The `voting_chain_id` / `voting_machine_address` binding comes from `ProposalVoteStarted` activation plus the first `VoteEmitted` per proposal; `ProposalVoteConfigurationBridged` is not a binding source.
 - `indexer_stitch_pending_seconds` is emitted with labels `{voting_chain_id, source_type, event_type}`.
 
+## Amends (U3)
+
+- `unindexed_target_chain` is computed at payload declaration time from active `aave_payloads_controller` `dao_source` presence for the target chain; the flag therefore reflects index coverage on first derive, not retroactive registration.
+- `aave_payloads_controller_reconcile` adds a per-payload on-chain state reconciler using `getPayloadById(payloadId)` on the destination chain. It auto-applies only the silent `expired` transition for payload rows already in `created` or `queued`.
+- Divergences that imply missed lifecycle events (`executed`, `cancelled`, or `none` while the local row is non-terminal) are surfaced as `missed_event` and left for ingestion/backfill recovery rather than self-healed from the reconcile path.
+- The payload reconcile stale-row `chain_id` is the destination `target_chain_id`, matching the per-chain bounds emitted by the payload-controller reconcile poller.
+- `indexer_stitch_unmatched_payload` records the latest held-event count per `{target_chain_id, event_type}` batch and complements the age-based `indexer_stitch_payload_pending_seconds` signal.
+
 ## Operational notes
 
 - The underived-row sweep and retry carrier must be preserved when Epic T implements this contract; "indefinite hold" is not permission to leave rows without a re-drive path.

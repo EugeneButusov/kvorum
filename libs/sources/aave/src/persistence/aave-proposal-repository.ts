@@ -93,6 +93,18 @@ export class AaveProposalRepository
     return row?.payloads_controller_address;
   }
 
+  async hasActivePayloadsControllerSource(daoId: string, targetChainId: string): Promise<boolean> {
+    const row = await this.db
+      .selectFrom('dao_source')
+      .select(sql<boolean>`true`.as('present'))
+      .where('dao_id', '=', daoId)
+      .where('source_type', '=', 'aave_payloads_controller')
+      .where('chain_id', '=', targetChainId)
+      .executeTakeFirst();
+
+    return row?.present === true;
+  }
+
   async insertDeclaredPayload(row: NewAaveProposalPayload): Promise<void> {
     await this.db
       .insertInto('aave_proposal_payload')

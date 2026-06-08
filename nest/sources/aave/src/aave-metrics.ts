@@ -23,4 +23,9 @@ export const aaveMetrics = {
     description:
       'Age of the oldest Aave payload held awaiting its declared payload row, by target chain and event type',
   }),
+  stitchUnmatchedPayload: defineGauge({
+    name: 'stitch_unmatched_payload',
+    description:
+      'Count of Aave PayloadsController events held with no declared payload row in the latest batch, by target chain and event type',
+  }),
 } as const;

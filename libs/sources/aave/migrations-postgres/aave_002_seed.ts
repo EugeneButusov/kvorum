@@ -5,6 +5,7 @@ const SOURCE_TYPES = [
   'aave_governance_v3',
   'aave_voting_machine',
   'aave_payloads_controller',
+  'aave_payloads_controller_reconcile',
   'aave_governor_v2',
   'aave_governance_v3_reconcile',
   'aave_governor_v2_reconcile',
@@ -200,6 +201,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     SELECT dao_id, 'aave_governor_v2_reconcile', chain_id, source_config, active_from_block
     FROM dao_source
     WHERE source_type = 'aave_governor_v2'
+    ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
+  `.execute(db);
+
+  await sql`
+    INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
+    SELECT dao_id, 'aave_payloads_controller_reconcile', chain_id, source_config, active_from_block
+    FROM dao_source
+    WHERE source_type = 'aave_payloads_controller'
     ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 }

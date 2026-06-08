@@ -49,3 +49,15 @@ export {
   AAVE_PAYLOADS_CONTROLLER_SUPPORTED_CHAIN_IDS,
   createAavePayloadsControllerPlugin,
 } from './plugin/plugin';
+export {
+  PAYLOAD_STATE_INTERFACE,
+  AavePayloadStateDecodeError,
+  decodePayloadStateResult,
+  encodeGetPayloadStateCall,
+  mapPayloadStateCode,
+} from './abi/payload-state';
+export type { AavePayloadStaleReconciliationRow } from '../persistence/aave-payload-reconcile-repository';
+export { AavePayloadReconcileRepository } from '../persistence/aave-payload-reconcile-repository';
+export { AavePayloadStateReconciler } from './reconcile/aave-payload-state-reconciler';
+export type { AavePayloadsControllerReconcilePluginDeps } from './reconcile/aave-payloads-controller-reconcile-plugin';
+export { createAavePayloadsControllerReconcilePlugin } from './reconcile/aave-payloads-controller-reconcile-plugin';

@@ -77,9 +77,13 @@ export class AaveGovernanceProjectionApplier {
   ] as const;
 
   private readonly logger: Logger;
+  private readonly proposals: ProposalRepository;
+  private readonly aaveProposals: AaveProposalRepository;
 
   constructor(private readonly deps: AaveGovernanceProjectionApplierDeps) {
     this.logger = deps.logger ?? silentLogger;
+    this.proposals = new ProposalRepository(deps.pgDb);
+    this.aaveProposals = new AaveProposalRepository(deps.pgDb);
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -89,6 +93,7 @@ export class AaveGovernanceProjectionApplier {
     const payloads = await this.deps.payloads.fetchPayloads(rows);
     this.deps.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
     const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
+    const indexedPayloadChainCache = new Map<string, boolean>();
 
     for (const row of rows) {
       const payload = byKey.get(tupleKey(row));
@@ -115,14 +120,22 @@ export class AaveGovernanceProjectionApplier {
           confirmed_at: row.received_at,
         });
 
-        const postCommit =
-          projection.kind === 'proposal_created'
-            ? await this.transaction((repositories, tx) =>
-                this.applyCreatedProjection(row, projection, repositories, tx),
-              )
-            : await this.transaction((repositories) =>
-                this.applyNonCreateProjection(row, projection, repositories),
-              );
+        let postCommit: () => Promise<void>;
+        if (projection.kind === 'proposal_created') {
+          postCommit = await this.transaction((repositories, tx) =>
+            this.applyCreatedProjection(row, projection, repositories, tx),
+          );
+        } else if (projection.kind === 'payload_declared') {
+          postCommit = await this.applyPayloadSentWithIndexCheck(
+            row,
+            projection,
+            indexedPayloadChainCache,
+          );
+        } else {
+          postCommit = await this.transaction((repositories) =>
+            this.applyNonCreateProjection(row, projection, repositories),
+          );
+        }
 
         await postCommit();
       } catch (error) {
@@ -234,6 +247,65 @@ export class AaveGovernanceProjectionApplier {
 
     await repositories.archive.markDerived(row.id);
     await repositories.actorResolution.markActorResolved(row.id);
+    return async () => undefined;
+  }
+
+  private async applyPayloadSentWithIndexCheck(
+    row: ArchiveDerivationRow,
+    projection: Extract<
+      ReturnType<typeof projectAaveGovernanceV3Event>,
+      { kind: 'payload_declared' }
+    >,
+    indexedPayloadChainCache: Map<string, boolean>,
+  ): Promise<() => Promise<void>> {
+    const daoId = await this.proposals.findDaoIdForSource(projection.daoSourceId);
+    if (daoId === undefined) throw new Error(`unknown dao_source ${projection.daoSourceId}`);
+
+    const cacheKey = `${daoId}:${projection.payload.target_chain_id}`;
+    let hasIndexedSource = indexedPayloadChainCache.get(cacheKey);
+    if (hasIndexedSource === undefined) {
+      hasIndexedSource = await this.aaveProposals.hasActivePayloadsControllerSource(
+        daoId,
+        projection.payload.target_chain_id,
+      );
+      indexedPayloadChainCache.set(cacheKey, hasIndexedSource);
+    }
+
+    return this.transaction((repositories) =>
+      this.applyPayloadSentProjection(row, projection, daoId, !hasIndexedSource, repositories),
+    );
+  }
+
+  private async applyPayloadSentProjection(
+    row: ArchiveDerivationRow,
+    projection: Extract<
+      ReturnType<typeof projectAaveGovernanceV3Event>,
+      { kind: 'payload_declared' }
+    >,
+    daoId: string,
+    unindexedTargetChain: boolean,
+    repositories: ProjectionRepositories,
+  ): Promise<() => Promise<void>> {
+    const proposal = await repositories.proposals.findBySource({
+      daoId,
+      sourceType: projection.sourceType,
+      sourceId: projection.sourceId,
+    });
+    if (proposal === undefined) {
+      throw new ProposalNotFoundError(projection.sourceId);
+    }
+
+    await repositories.aaveProposals.insertDeclaredPayload({
+      proposal_id: proposal.id,
+      executed_at_destination: null,
+      bridge_message_id: null,
+      unindexed_target_chain: unindexedTargetChain,
+      ...projection.payload,
+    });
+    this.record(row, 'derived', null);
+    await repositories.archive.markDerived(row.id);
+    await repositories.actorResolution.markActorResolved(row.id);
+
     return async () => undefined;
   }
 

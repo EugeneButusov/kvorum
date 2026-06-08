@@ -47,6 +47,7 @@ describe('aave migrations smoke (mocked db)', () => {
       createIndex: vi.fn().mockReturnThis(),
       on: vi.fn().mockReturnThis(),
       column: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
       columns: vi.fn().mockReturnThis(),
       unique: vi.fn().mockReturnThis(),
       alterColumn: vi
@@ -153,7 +154,7 @@ describeWithPg('aave_002_seed migration', () => {
           .where('dao.slug', '=', 'aave')
           .execute();
 
-        expect(sourceRows).toHaveLength(21);
+        expect(sourceRows).toHaveLength(35);
         expect(sourceRows).toContainEqual({
           source_type: 'aave_governance_v3',
           chain_id: '0x1',
@@ -283,22 +284,95 @@ describeWithPg('aave_004_payload_correlation_index migration', () => {
 });
 
 describeWithPg('aave_001_extension_tables migration', () => {
-  it('creates last_reconcile_check_block with its index', async () => {
-    const columns = await pgDb
+  it('creates proposal and payload reconcile columns with their indexes', async () => {
+    const proposalColumns = await pgDb
       .selectFrom('information_schema.columns')
       .select(['column_name'])
       .where('table_name', '=', 'aave_proposal_metadata')
       .where('column_name', '=', 'last_reconcile_check_block')
       .execute();
-    expect(columns).toEqual([{ column_name: 'last_reconcile_check_block' }]);
+    expect(proposalColumns).toEqual([{ column_name: 'last_reconcile_check_block' }]);
 
-    const indexes = await pgDb
+    const proposalIndexes = await pgDb
       .selectFrom('pg_indexes')
       .select(['indexname'])
       .where('tablename', '=', 'aave_proposal_metadata')
       .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
       .execute();
-    expect(indexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
+    expect(proposalIndexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
+
+    const payloadColumns = await pgDb
+      .selectFrom('information_schema.columns')
+      .select(['column_name'])
+      .where('table_name', '=', 'aave_proposal_payload')
+      .where('column_name', 'in', ['unindexed_target_chain', 'last_reconcile_check_block'])
+      .execute();
+    expect(payloadColumns).toEqual(
+      expect.arrayContaining([
+        { column_name: 'unindexed_target_chain' },
+        { column_name: 'last_reconcile_check_block' },
+      ]),
+    );
+
+    const payloadIndexes = await pgDb
+      .selectFrom('pg_indexes')
+      .select(['indexname', 'indexdef'])
+      .where('tablename', '=', 'aave_proposal_payload')
+      .where('indexname', '=', 'idx_aave_proposal_payload_recheck')
+      .execute();
+    expect(payloadIndexes).toEqual([
+      expect.objectContaining({
+        indexname: 'idx_aave_proposal_payload_recheck',
+      }),
+    ]);
+    expect(payloadIndexes[0]?.indexdef).toContain('last_reconcile_check_block');
+    expect(payloadIndexes[0]?.indexdef).toContain(
+      "status = ANY (ARRAY['created'::aave_payload_status, 'queued'::aave_payload_status])",
+    );
+  });
+});
+
+describeWithPg('aave_002_seed payload reconcile rows', () => {
+  it('seeds payload-controller reconcile source rows and removes them cleanly in down()', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAaveSeed(tx);
+
+        const sourceTypeRows = await tx
+          .selectFrom('source_type')
+          .select(['value'])
+          .where('value', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(sourceTypeRows).toEqual([{ value: 'aave_payloads_controller_reconcile' }]);
+
+        const daoSourceRows = await tx
+          .selectFrom('dao_source')
+          .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+          .select(['dao_source.source_type', 'dao_source.chain_id'])
+          .where('dao.slug', '=', 'aave')
+          .where('dao_source.source_type', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(daoSourceRows).toHaveLength(14);
+
+        await downAaveSeed(tx);
+
+        const sourceTypeAfterDown = await tx
+          .selectFrom('source_type')
+          .select(['value'])
+          .where('value', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(sourceTypeAfterDown).toEqual([]);
+
+        const daoSourceAfterDown = await tx
+          .selectFrom('dao_source')
+          .select(['source_type'])
+          .where('source_type', '=', 'aave_payloads_controller_reconcile')
+          .execute();
+        expect(daoSourceAfterDown).toEqual([]);
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
   });
 });
 
