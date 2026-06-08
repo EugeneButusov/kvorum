@@ -20,6 +20,10 @@ import {
   down as downAavePayloadCorrelationIndex,
   up as upAavePayloadCorrelationIndex,
 } from '../migrations-postgres/aave_004_payload_correlation_index';
+import {
+  down as downAavePayloadResilienceMarkers,
+  up as upAavePayloadResilienceMarkers,
+} from '../migrations-postgres/aave_005_payload_resilience_markers';
 import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
@@ -47,6 +51,7 @@ describe('aave migrations smoke (mocked db)', () => {
       createIndex: vi.fn().mockReturnThis(),
       on: vi.fn().mockReturnThis(),
       column: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
       columns: vi.fn().mockReturnThis(),
       unique: vi.fn().mockReturnThis(),
       alterColumn: vi
@@ -115,6 +120,13 @@ describe('aave migrations smoke (mocked db)', () => {
     const db = makeMockDb();
     await upAavePayloadCorrelationIndex(db);
     await downAavePayloadCorrelationIndex(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_005_payload_resilience_markers up/down fire schema queries', async () => {
+    const db = makeMockDb();
+    await upAavePayloadResilienceMarkers(db);
+    await downAavePayloadResilienceMarkers(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -299,6 +311,47 @@ describeWithPg('aave_001_extension_tables migration', () => {
       .where('indexname', '=', 'idx_aave_proposal_metadata_recheck')
       .execute();
     expect(indexes).toEqual([{ indexname: 'idx_aave_proposal_metadata_recheck' }]);
+  });
+});
+
+describeWithPg('aave_005_payload_resilience_markers migration', () => {
+  it('adds payload resilience columns and the partial recheck index', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAavePayloadResilienceMarkers(tx);
+
+        const columns = await tx
+          .selectFrom('information_schema.columns')
+          .select(['column_name'])
+          .where('table_name', '=', 'aave_proposal_payload')
+          .where('column_name', 'in', ['unindexed_target_chain', 'last_reconcile_check_block'])
+          .execute();
+        expect(columns).toEqual(
+          expect.arrayContaining([
+            { column_name: 'unindexed_target_chain' },
+            { column_name: 'last_reconcile_check_block' },
+          ]),
+        );
+
+        const indexes = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname', 'indexdef'])
+          .where('tablename', '=', 'aave_proposal_payload')
+          .where('indexname', '=', 'idx_aave_proposal_payload_recheck')
+          .execute();
+        expect(indexes).toEqual([
+          expect.objectContaining({
+            indexname: 'idx_aave_proposal_payload_recheck',
+          }),
+        ]);
+        expect(indexes[0]?.indexdef).toContain('last_reconcile_check_block');
+        expect(indexes[0]?.indexdef).toContain(
+          "WHERE ((status = ANY (ARRAY['created'::aave_payload_status, 'queued'::aave_payload_status])))",
+        );
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
   });
 });
 

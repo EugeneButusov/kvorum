@@ -232,6 +232,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           registry,
           metrics: {
             batchLookupSeconds: () => undefined,
+            stitchUnmatchedPayloads: (count, { target_chain_id, event_type }) =>
+              aaveMetrics.stitchUnmatchedPayload.record(count, {
+                target_chain_id,
+                event_type,
+                source_type: 'aave_payloads_controller',
+              }),
             stitchPendingSeconds: (seconds, { target_chain_id, event_type }) =>
               aaveMetrics.payloadStitchPendingSeconds.record(seconds, {
                 target_chain_id,

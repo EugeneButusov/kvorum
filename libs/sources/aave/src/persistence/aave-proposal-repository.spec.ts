@@ -171,6 +171,26 @@ describe('AaveProposalRepository', () => {
     expect(select.chain.where).toHaveBeenCalledWith('id', '=', 'source-1');
   });
 
+  it('detects when a payload-controller source exists for a target chain', async () => {
+    const select = makeSelectTakeFirstChain({ present: true });
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.hasActivePayloadsControllerSource('dao-1', '0xa')).resolves.toBe(true);
+    expect(select.selectFrom).toHaveBeenCalledWith('dao_source');
+    expect(select.chain.where.mock.calls).toEqual([
+      ['dao_id', '=', 'dao-1'],
+      ['source_type', '=', 'aave_payloads_controller'],
+      ['chain_id', '=', '0xa'],
+    ]);
+  });
+
+  it('returns false when a payload-controller source is absent for a target chain', async () => {
+    const select = makeSelectTakeFirstChain(undefined);
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.hasActivePayloadsControllerSource('dao-1', '0xa')).resolves.toBe(false);
+  });
+
   it('finds a declared payload by target chain, controller, and payload id', async () => {
     const select = makeSelectTakeFirstChain({
       id: 'payload-row-1',
@@ -345,6 +365,7 @@ describe('AaveProposalRepository', () => {
       status: 'declared',
       executed_at_destination: null,
       bridge_message_id: null,
+      unindexed_target_chain: true,
     });
 
     expect(insert.insertInto).toHaveBeenCalledWith('aave_proposal_payload');
@@ -357,6 +378,7 @@ describe('AaveProposalRepository', () => {
       status: 'declared',
       executed_at_destination: null,
       bridge_message_id: null,
+      unindexed_target_chain: true,
     });
     expect(insert.capturedColumns).toEqual(['proposal_id', 'payload_index']);
     expect(insert.execute).toHaveBeenCalledOnce();

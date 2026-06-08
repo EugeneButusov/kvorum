@@ -39,6 +39,9 @@ export interface AaveProposalPayloadTable {
   status: Generated<AavePayloadStatus>;
   executed_at_destination: Date | null;
   bridge_message_id: string | null;
+  unindexed_target_chain: Generated<boolean>;
+  // pg driver returns bigint as string
+  last_reconcile_check_block: string | null;
   created_at: Generated<Date>;
 }
 

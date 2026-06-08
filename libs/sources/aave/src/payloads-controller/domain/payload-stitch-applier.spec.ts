@@ -90,6 +90,7 @@ function buildApplier(options?: {
   const metrics = {
     batchLookupSeconds: vi.fn(),
     stitchPendingSeconds: vi.fn(),
+    stitchUnmatchedPayloads: vi.fn(),
     processed: vi.fn(),
   };
   const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
@@ -180,6 +181,10 @@ describe('AavePayloadStitchApplier', () => {
       target_chain_id: '0xa',
       event_type: 'PayloadCreated',
     });
+    expect(metrics.stitchUnmatchedPayloads).toHaveBeenCalledWith(0, {
+      target_chain_id: '0xa',
+      event_type: 'PayloadCreated',
+    });
   });
 
   it('sets executed_at_destination from the target-chain block timestamp', async () => {
@@ -226,6 +231,10 @@ describe('AavePayloadStitchApplier', () => {
     expect(
       (metrics.stitchPendingSeconds as ReturnType<typeof vi.fn>).mock.calls[0]?.[0],
     ).toBeGreaterThan(0);
+    expect(metrics.stitchUnmatchedPayloads).toHaveBeenCalledWith(1, {
+      target_chain_id: '0xa',
+      event_type: 'PayloadCreated',
+    });
     expect(logger.info).toHaveBeenCalledWith(
       'aave_payload_stitch_held',
       expect.objectContaining({ chain_id: '0xa', event_type: 'PayloadCreated' }),

@@ -179,6 +179,7 @@ function makeProjectionTx(
   };
 
   const pgDb = {
+    selectFrom: tx.selectFrom,
     transaction: vi.fn(() => ({
       execute: vi.fn((fn: (arg: typeof tx) => Promise<unknown>) => {
         calls.transactionCount += 1;
@@ -467,6 +468,9 @@ describe('AaveGovernanceProjectionApplier', () => {
     const { pgDb, calls } = makeProjectionTx({
       existingProposal: { id: 'proposal-1', source_id: '42' },
     });
+    const hasActivePayloadsControllerSource = vi
+      .spyOn(AaveProposalRepository.prototype, 'hasActivePayloadsControllerSource')
+      .mockResolvedValue(true);
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
       archive: { incrementAttemptCount: vi.fn() } as never,
@@ -486,8 +490,77 @@ describe('AaveGovernanceProjectionApplier', () => {
         target_chain_id: '137',
         payload_id: '9',
         status: 'declared',
+        unindexed_target_chain: false,
       }),
     );
+    expect(hasActivePayloadsControllerSource).toHaveBeenCalledWith('dao-1', '137');
+  });
+
+  it('marks declared payload rows unindexed when no payload-controller source exists', async () => {
+    const { pgDb, calls } = makeProjectionTx({
+      existingProposal: { id: 'proposal-1', source_id: '42' },
+    });
+    vi.spyOn(
+      AaveProposalRepository.prototype,
+      'hasActivePayloadsControllerSource',
+    ).mockResolvedValue(false);
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([PAYLOAD_SENT]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics: makeMetrics(),
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'PayloadSent' }]);
+
+    expect(calls.insertedPayload).toEqual(
+      expect.objectContaining({
+        proposal_id: 'proposal-1',
+        unindexed_target_chain: true,
+      }),
+    );
+  });
+
+  it('memoizes payload-controller coverage checks per dao and target chain within a batch', async () => {
+    const { pgDb } = makeProjectionTx({
+      existingProposal: { id: 'proposal-1', source_id: '42' },
+    });
+    const hasActivePayloadsControllerSource = vi
+      .spyOn(AaveProposalRepository.prototype, 'hasActivePayloadsControllerSource')
+      .mockResolvedValue(true);
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: {
+        fetchPayloads: vi.fn().mockResolvedValue([
+          PAYLOAD_SENT,
+          {
+            ...PAYLOAD_SENT,
+            tx_hash: '0xtx-2',
+            log_index: 2,
+            payload: JSON.stringify({
+              ...JSON.parse(PAYLOAD_SENT.payload),
+              payloadId: '10',
+              payloadNumberOnProposal: '1',
+            }),
+          },
+        ]),
+      } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics: makeMetrics(),
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([
+      { ...ROW, event_type: 'PayloadSent' },
+      { ...ROW, id: 'archive-2', tx_hash: '0xtx-2', log_index: 2, event_type: 'PayloadSent' },
+    ]);
+
+    expect(hasActivePayloadsControllerSource).toHaveBeenCalledTimes(1);
   });
 
   it('increments attempt count when a non-create event arrives before proposal creation', async () => {
