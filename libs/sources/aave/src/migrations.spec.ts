@@ -233,21 +233,46 @@ describeWithPg('aave_004_payload_correlation_index migration', () => {
   it('creates the declared-payload correlation index', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
-        await upAavePayloadCorrelationIndex(tx);
-
-        const indexes = await tx
+        const indexesBeforeDown = await tx
           .selectFrom('pg_indexes')
           .select(['indexname', 'indexdef'])
           .where('tablename', '=', 'aave_proposal_payload')
           .where('indexname', '=', 'aave_proposal_payload_correlation_key')
           .execute();
 
-        expect(indexes).toEqual([
+        expect(indexesBeforeDown).toEqual([
           expect.objectContaining({
             indexname: 'aave_proposal_payload_correlation_key',
           }),
         ]);
-        expect(indexes[0]?.indexdef).toContain(
+        expect(indexesBeforeDown[0]?.indexdef).toContain(
+          '(target_chain_id, payloads_controller_address, payload_id)',
+        );
+
+        await downAavePayloadCorrelationIndex(tx);
+
+        const indexesAfterDown = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname'])
+          .where('tablename', '=', 'aave_proposal_payload')
+          .where('indexname', '=', 'aave_proposal_payload_correlation_key')
+          .execute();
+        expect(indexesAfterDown).toEqual([]);
+
+        await upAavePayloadCorrelationIndex(tx);
+
+        const indexesAfterUp = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname', 'indexdef'])
+          .where('tablename', '=', 'aave_proposal_payload')
+          .where('indexname', '=', 'aave_proposal_payload_correlation_key')
+          .execute();
+        expect(indexesAfterUp).toEqual([
+          expect.objectContaining({
+            indexname: 'aave_proposal_payload_correlation_key',
+          }),
+        ]);
+        expect(indexesAfterUp[0]?.indexdef).toContain(
           '(target_chain_id, payloads_controller_address, payload_id)',
         );
 

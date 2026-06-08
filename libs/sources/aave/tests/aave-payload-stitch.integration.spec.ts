@@ -173,6 +173,7 @@ describeIf('aave payload stitch integration', () => {
     ).id;
 
     void governanceDaoSourceId;
+    void mainnetDaoSourceId;
   }, 30_000);
 
   beforeEach(async () => {
@@ -216,9 +217,19 @@ describeIf('aave payload stitch integration', () => {
     });
 
     const createdFixture = fixtureLog('payload-created.json');
-    const executedFixture = fixtureLog('payload-executed.json');
     await insertFixtureArchiveRow(baseDaoSourceId, createdFixture);
-    await insertFixtureArchiveRow(mainnetDaoSourceId, executedFixture);
+    await insertSyntheticPayloadArchive({
+      daoSourceId: baseDaoSourceId,
+      chainId: BASE_CHAIN_ID,
+      blockNumber: '20412311',
+      blockHash: '0x' + '91'.padStart(64, '0'),
+      txHash: '0x' + '92'.padStart(64, '0'),
+      logIndex: 642,
+      eventType: 'PayloadExecuted',
+      payload: {
+        payloadId: PAYLOAD_ID,
+      },
+    });
 
     await deriveBatches(applier, actorResolution, ['PayloadCreated']);
     await deriveBatches(applier, actorResolution, ['PayloadExecuted']);
@@ -254,7 +265,7 @@ describeIf('aave payload stitch integration', () => {
         action_index: 0,
         target_chain_id: BASE_CHAIN_ID,
         target_address: '0xc09aa853780cf5c2265560d2f0d9208522c71d36',
-        value_wei: '1',
+        value_wei: '0',
         function_signature: 'execute()',
         calldata: '0x',
       },
@@ -263,7 +274,7 @@ describeIf('aave payload stitch integration', () => {
     const derivedRows = await pgDb
       .selectFrom('archive_event')
       .select(['event_type', 'derived_at'])
-      .where('tx_hash', 'in', [createdFixture.txHash, executedFixture.txHash])
+      .where('tx_hash', 'in', [createdFixture.txHash, '0x' + '92'.padStart(64, '0')])
       .orderBy('event_type', 'asc')
       .execute();
     expect(derivedRows).toEqual([
@@ -538,21 +549,25 @@ describeIf('aave payload stitch integration', () => {
     blockHash: string;
     txHash: string;
     logIndex: number;
-    eventType: 'PayloadCreated';
+    eventType: 'PayloadCreated' | 'PayloadExecuted';
     receivedAt?: Date;
-    payload: {
-      payloadId: string;
-      creator: string;
-      maximumAccessLevelRequired: number;
-      actions: Array<{
-        target: string;
-        withDelegateCall: boolean;
-        accessLevel: number;
-        value: string;
-        signature: string;
-        callData: string;
-      }>;
-    };
+    payload:
+      | {
+          payloadId: string;
+          creator: string;
+          maximumAccessLevelRequired: number;
+          actions: Array<{
+            target: string;
+            withDelegateCall: boolean;
+            accessLevel: number;
+            value: string;
+            signature: string;
+            callData: string;
+          }>;
+        }
+      | {
+          payloadId: string;
+        };
   }): Promise<void> {
     await chDb
       .insertInto('archive_event_aave_payloads_controller')

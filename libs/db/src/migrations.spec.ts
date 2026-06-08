@@ -60,25 +60,22 @@ describeWithPg('0010_proposal_action_payload_index migration', () => {
   it('round-trips proposal_action payload_index and unique constraints', async () => {
     await expect(
       pgDb.transaction().execute(async (tx) => {
-        await upProposalActionPayloadIndex(tx);
-
-        const payloadIndexColumn = await tx
+        const payloadIndexColumnBeforeDown = await tx
           .selectFrom('information_schema.columns')
           .select(['column_name', 'is_nullable', 'column_default'])
           .where('table_name', '=', 'proposal_action')
           .where('column_name', '=', 'payload_index')
           .executeTakeFirstOrThrow();
+        expect(payloadIndexColumnBeforeDown.column_name).toBe('payload_index');
+        expect(payloadIndexColumnBeforeDown.is_nullable).toBe('NO');
+        expect(payloadIndexColumnBeforeDown.column_default).toContain('0');
 
-        expect(payloadIndexColumn.column_name).toBe('payload_index');
-        expect(payloadIndexColumn.is_nullable).toBe('NO');
-        expect(payloadIndexColumn.column_default).toContain('0');
-
-        const payloadConstraint = await tx
+        const payloadConstraintBeforeDown = await tx
           .selectFrom('pg_constraint')
           .select('conname')
           .where('conname', '=', 'proposal_action_proposal_id_payload_index_action_index_key')
           .execute();
-        expect(payloadConstraint).toEqual([
+        expect(payloadConstraintBeforeDown).toEqual([
           { conname: 'proposal_action_proposal_id_payload_index_action_index_key' },
         ]);
 
@@ -106,6 +103,27 @@ describeWithPg('0010_proposal_action_payload_index migration', () => {
           .execute();
         expect(legacyConstraintAfterDown).toEqual([
           { conname: 'proposal_action_proposal_id_action_index_key' },
+        ]);
+
+        await upProposalActionPayloadIndex(tx);
+
+        const payloadIndexAfterUp = await tx
+          .selectFrom('information_schema.columns')
+          .select(['column_name', 'is_nullable', 'column_default'])
+          .where('table_name', '=', 'proposal_action')
+          .where('column_name', '=', 'payload_index')
+          .executeTakeFirstOrThrow();
+        expect(payloadIndexAfterUp.column_name).toBe('payload_index');
+        expect(payloadIndexAfterUp.is_nullable).toBe('NO');
+        expect(payloadIndexAfterUp.column_default).toContain('0');
+
+        const payloadConstraintAfterUp = await tx
+          .selectFrom('pg_constraint')
+          .select('conname')
+          .where('conname', '=', 'proposal_action_proposal_id_payload_index_action_index_key')
+          .execute();
+        expect(payloadConstraintAfterUp).toEqual([
+          { conname: 'proposal_action_proposal_id_payload_index_action_index_key' },
         ]);
 
         throw new RollbackSignal();
