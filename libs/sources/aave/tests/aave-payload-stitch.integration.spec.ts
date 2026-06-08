@@ -48,6 +48,10 @@ type MetricsCapture = {
     seconds: number;
     labels: { target_chain_id: string; event_type: string };
   }>;
+  stitchUnmatched: Array<{
+    count: number;
+    labels: { target_chain_id: string; event_type: string };
+  }>;
 };
 
 function fixtureLog(name: string): FixtureLog {
@@ -339,6 +343,10 @@ describeIf('aave payload stitch integration', () => {
           entry.labels.event_type === 'PayloadCreated',
       ),
     ).toBe(true);
+    expect(metrics.stitchUnmatched).toContainEqual({
+      count: 1,
+      labels: { target_chain_id: BASE_CHAIN_ID, event_type: 'PayloadCreated' },
+    });
     await expectDlqRows(heldCreatedTxHash, 0);
 
     const heldProposal = await insertProposal(HOLD_SOURCE_ID, 'Held payload proposal');
@@ -369,6 +377,10 @@ describeIf('aave payload stitch integration', () => {
           entry.labels.event_type === 'PayloadCreated',
       ),
     ).toBe(true);
+    expect(metrics.stitchUnmatched).toContainEqual({
+      count: 0,
+      labels: { target_chain_id: BASE_CHAIN_ID, event_type: 'PayloadCreated' },
+    });
 
     const heldActions = await pgDb
       .selectFrom('proposal_action')
@@ -404,6 +416,9 @@ describeIf('aave payload stitch integration', () => {
         batchLookupSeconds: () => undefined,
         stitchPendingSeconds: (seconds, labels) => {
           metrics.stitchPending.push({ seconds, labels });
+        },
+        stitchUnmatchedPayloads: (count, labels) => {
+          metrics.stitchUnmatched.push({ count, labels });
         },
         processed: (labels) => {
           metrics.processed.push(labels);
@@ -614,5 +629,5 @@ describeIf('aave payload stitch integration', () => {
 });
 
 function createMetricsCapture(): MetricsCapture {
-  return { processed: [], stitchPending: [] };
+  return { processed: [], stitchPending: [], stitchUnmatched: [] };
 }
