@@ -17,6 +17,9 @@ import {
   AaveGovernanceEventRepository,
   AaveGovernanceProjectionApplier,
   AaveIpfsTitleFetcher,
+  AavePayloadStitchApplier,
+  AavePayloadsControllerActorAddressDeriver,
+  AavePayloadsControllerArchivePayloadRepository,
   AavePayloadsControllerArchiveWriter,
   AavePayloadsControllerEventRepository,
   AaveProposalRepository,
@@ -98,6 +101,10 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       useFactory: () => new AaveVotingMachineArchivePayloadRepository(chDb),
     },
     {
+      provide: AavePayloadsControllerArchivePayloadRepository,
+      useFactory: () => new AavePayloadsControllerArchivePayloadRepository(chDb),
+    },
+    {
       provide: AaveIpfsTitleFetcher,
       useFactory: () =>
         new AaveIpfsTitleFetcher({
@@ -150,6 +157,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       inject: [AaveVotingMachineArchivePayloadRepository],
     },
     {
+      provide: AavePayloadsControllerActorAddressDeriver,
+      useFactory: (payloads: AavePayloadsControllerArchivePayloadRepository) =>
+        new AavePayloadsControllerActorAddressDeriver(payloads),
+      inject: [AavePayloadsControllerArchivePayloadRepository],
+    },
+    {
       provide: AaveVoteProjectionApplier,
       useFactory: (
         archive: ArchiveDerivationRepository,
@@ -200,6 +213,50 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       ],
     },
     {
+      provide: AavePayloadStitchApplier,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlqRepo: DlqRepository,
+        payloads: AavePayloadsControllerArchivePayloadRepository,
+        proposals: ProposalRepository,
+        aaveProposals: AaveProposalRepository,
+        registry: ChainContextRegistry,
+      ) =>
+        new AavePayloadStitchApplier({
+          pgDb,
+          archive,
+          dlq: dlqRepo,
+          payloads,
+          proposals,
+          aaveProposals,
+          registry,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            stitchPendingSeconds: (seconds, { target_chain_id, event_type }) =>
+              aaveMetrics.payloadStitchPendingSeconds.record(seconds, {
+                target_chain_id,
+                event_type,
+                source_type: 'aave_payloads_controller',
+              }),
+            processed: ({ event_type, outcome, reason }) =>
+              aaveMetrics.payloadDerivation.add(1, {
+                event_type,
+                outcome,
+                reason: reason ?? 'none',
+              }),
+          },
+          logger: toChainLogger(new Logger('AavePayloadStitchApplier')),
+        }),
+      inject: [
+        ArchiveDerivationRepository,
+        DlqRepository,
+        AavePayloadsControllerArchivePayloadRepository,
+        ProposalRepository,
+        AaveProposalRepository,
+        ChainContextRegistry,
+      ],
+    },
+    {
       provide: AAVE_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
@@ -211,6 +268,8 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
         votingMachineActorAddressDeriver: AaveVotingMachineActorAddressDeriver,
         voteProjectionApplier: AaveVoteProjectionApplier,
+        payloadsControllerActorAddressDeriver: AavePayloadsControllerActorAddressDeriver,
+        payloadStitchApplier: AavePayloadStitchApplier,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         return {
@@ -243,6 +302,8 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             actorAddressDeriver,
             votingMachineActorAddressDeriver,
             voteProjectionApplier,
+            payloadsControllerActorAddressDeriver,
+            payloadStitchApplier,
           ],
           snapshotStrategies: [],
         };
@@ -257,6 +318,8 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveGovernanceActorAddressDeriver,
         AaveVotingMachineActorAddressDeriver,
         AaveVoteProjectionApplier,
+        AavePayloadsControllerActorAddressDeriver,
+        AavePayloadStitchApplier,
       ],
     },
   ],

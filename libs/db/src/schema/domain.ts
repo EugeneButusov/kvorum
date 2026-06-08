@@ -106,6 +106,7 @@ export type ProposalUpdate = Updateable<ProposalTable>;
 export interface ProposalActionTable {
   id: Generated<string>;
   proposal_id: string;
+  payload_index: Generated<number>;
   action_index: number;
   target_address: string;
   target_chain_id: string;

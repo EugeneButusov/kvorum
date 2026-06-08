@@ -158,6 +158,62 @@ describe('AaveProposalRepository', () => {
     await expect(repo.findVotingMachineAddress('source-1')).resolves.toBeUndefined();
   });
 
+  it('reads payloads controller address from dao_source config', async () => {
+    const select = makeSelectTakeFirstChain({
+      payloads_controller_address: '0x' + '33'.repeat(20),
+    });
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findPayloadsControllerAddress('source-1')).resolves.toBe(
+      '0x' + '33'.repeat(20),
+    );
+    expect(select.selectFrom).toHaveBeenCalledWith('dao_source');
+    expect(select.chain.where).toHaveBeenCalledWith('id', '=', 'source-1');
+  });
+
+  it('finds a declared payload by target chain, controller, and payload id', async () => {
+    const select = makeSelectTakeFirstChain({
+      id: 'payload-row-1',
+      proposal_id: 'proposal-1',
+      payload_index: 2,
+      status: 'created',
+    });
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(
+      repo.findDeclaredPayload({
+        targetChainId: '0xa',
+        payloadsControllerAddress: '0xABCDEF',
+        payloadId: '17',
+      }),
+    ).resolves.toEqual({
+      id: 'payload-row-1',
+      proposal_id: 'proposal-1',
+      payload_index: 2,
+      status: 'created',
+    });
+
+    expect(select.selectFrom).toHaveBeenCalledWith('aave_proposal_payload');
+    expect(select.chain.where.mock.calls).toEqual([
+      ['target_chain_id', '=', '0xa'],
+      ['payloads_controller_address', '=', '0xabcdef'],
+      ['payload_id', '=', '17'],
+    ]);
+  });
+
+  it('returns undefined when a declared payload is absent', async () => {
+    const select = makeSelectTakeFirstChain(undefined);
+    const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(
+      repo.findDeclaredPayload({
+        targetChainId: '0xa',
+        payloadsControllerAddress: '0xabcdef',
+        payloadId: '17',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it('finds stale rows for reconciliation when source types, bounds, and limit are valid', async () => {
     const select = makeSelectChain([{ id: 'proposal-1', state: 'active' }]);
     const repo = new AaveProposalRepository({ selectFrom: select.selectFrom } as never);
@@ -220,6 +276,48 @@ describe('AaveProposalRepository', () => {
       }),
     );
     expect(count).toBe(1);
+  });
+
+  it('advances payload status monotonically and returns updated row count', async () => {
+    const update = makeUpdateChain();
+    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
+
+    await expect(
+      repo.advancePayloadStatus({
+        id: 'payload-row-1',
+        targetStatus: 'queued',
+        allowedFrom: ['declared', 'created'],
+      }),
+    ).resolves.toBe(1);
+
+    expect(update.updateTable).toHaveBeenCalledWith('aave_proposal_payload');
+    expect(update.set).toHaveBeenCalledWith({
+      status: 'queued',
+      executed_at_destination: undefined,
+    });
+    expect(update.where.mock.calls).toEqual([
+      ['id', '=', 'payload-row-1'],
+      ['status', 'in', ['declared', 'created']],
+      ['status', '<>', 'queued'],
+    ]);
+  });
+
+  it('stores executed_at_destination when advancing to executed', async () => {
+    const update = makeUpdateChain();
+    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
+    const executedAt = new Date('2026-01-01T00:00:00Z');
+
+    await repo.advancePayloadStatus({
+      id: 'payload-row-1',
+      targetStatus: 'executed',
+      allowedFrom: ['declared', 'created', 'queued'],
+      executedAtDestination: executedAt,
+    });
+
+    expect(update.set).toHaveBeenCalledWith({
+      status: 'executed',
+      executed_at_destination: executedAt,
+    });
   });
 
   it('marks reconcile watermark on metadata rows', async () => {

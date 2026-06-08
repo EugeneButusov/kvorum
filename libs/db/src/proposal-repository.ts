@@ -94,11 +94,16 @@ export class ProposalRepository {
     return { inserted: true, proposalId: inserted.id };
   }
 
-  async insertActions(proposalId: string, actions: readonly ProposalActionInput[]): Promise<void> {
-    if (actions.length === 0) return;
+  async insertActions(
+    proposalId: string,
+    actions: readonly ProposalActionInput[],
+    payloadIndex = 0,
+  ): Promise<number> {
+    if (actions.length === 0) return 0;
 
     const rows: NewProposalAction[] = actions.map((action, index) => ({
       proposal_id: proposalId,
+      payload_index: payloadIndex,
       action_index: index,
       target_address: action.targetAddress.toLowerCase(),
       target_chain_id: action.targetChainId,
@@ -107,11 +112,13 @@ export class ProposalRepository {
       calldata: action.calldata,
     }));
 
-    await this.db
+    const result = await this.db
       .insertInto('proposal_action')
       .values(rows)
-      .onConflict((oc) => oc.columns(['proposal_id', 'action_index']).doNothing())
-      .execute();
+      .onConflict((oc) => oc.columns(['proposal_id', 'payload_index', 'action_index']).doNothing())
+      .executeTakeFirst();
+
+    return Number(result?.numInsertedOrUpdatedRows ?? 0n);
   }
 
   async ensureChoices(proposalId: string, choices: readonly NewProposalChoice[]): Promise<void> {
