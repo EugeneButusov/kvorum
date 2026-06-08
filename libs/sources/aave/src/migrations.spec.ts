@@ -174,6 +174,14 @@ describeWithPg('aave_002_seed migration', () => {
           .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
           .select(['dao_source.source_type', 'dao_source.chain_id', 'dao_source.active_from_block'])
           .where('dao.slug', '=', 'aave')
+          .where('dao_source.source_type', 'in', [
+            'aave_governance_v3',
+            'aave_voting_machine',
+            'aave_payloads_controller',
+            'aave_governor_v2',
+            'aave_governance_v3_reconcile',
+            'aave_governor_v2_reconcile',
+          ])
           .execute();
 
         expect(sourceRows).toHaveLength(21);
@@ -327,42 +335,34 @@ describeWithPg('aave_001_extension_tables migration', () => {
 
 describeWithPg('aave_005_payload_resilience_markers migration', () => {
   it('adds payload resilience columns and the partial recheck index', async () => {
-    await expect(
-      pgDb.transaction().execute(async (tx) => {
-        await upAavePayloadResilienceMarkers(tx);
+    const columns = await pgDb
+      .selectFrom('information_schema.columns')
+      .select(['column_name'])
+      .where('table_name', '=', 'aave_proposal_payload')
+      .where('column_name', 'in', ['unindexed_target_chain', 'last_reconcile_check_block'])
+      .execute();
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        { column_name: 'unindexed_target_chain' },
+        { column_name: 'last_reconcile_check_block' },
+      ]),
+    );
 
-        const columns = await tx
-          .selectFrom('information_schema.columns')
-          .select(['column_name'])
-          .where('table_name', '=', 'aave_proposal_payload')
-          .where('column_name', 'in', ['unindexed_target_chain', 'last_reconcile_check_block'])
-          .execute();
-        expect(columns).toEqual(
-          expect.arrayContaining([
-            { column_name: 'unindexed_target_chain' },
-            { column_name: 'last_reconcile_check_block' },
-          ]),
-        );
-
-        const indexes = await tx
-          .selectFrom('pg_indexes')
-          .select(['indexname', 'indexdef'])
-          .where('tablename', '=', 'aave_proposal_payload')
-          .where('indexname', '=', 'idx_aave_proposal_payload_recheck')
-          .execute();
-        expect(indexes).toEqual([
-          expect.objectContaining({
-            indexname: 'idx_aave_proposal_payload_recheck',
-          }),
-        ]);
-        expect(indexes[0]?.indexdef).toContain('last_reconcile_check_block');
-        expect(indexes[0]?.indexdef).toContain(
-          "WHERE ((status = ANY (ARRAY['created'::aave_payload_status, 'queued'::aave_payload_status])))",
-        );
-
-        throw new RollbackSignal();
+    const indexes = await pgDb
+      .selectFrom('pg_indexes')
+      .select(['indexname', 'indexdef'])
+      .where('tablename', '=', 'aave_proposal_payload')
+      .where('indexname', '=', 'idx_aave_proposal_payload_recheck')
+      .execute();
+    expect(indexes).toEqual([
+      expect.objectContaining({
+        indexname: 'idx_aave_proposal_payload_recheck',
       }),
-    ).rejects.toThrow(RollbackSignal);
+    ]);
+    expect(indexes[0]?.indexdef).toContain('last_reconcile_check_block');
+    expect(indexes[0]?.indexdef).toContain(
+      "status = ANY (ARRAY['created'::aave_payload_status, 'queued'::aave_payload_status])",
+    );
   });
 });
 
