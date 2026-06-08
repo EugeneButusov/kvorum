@@ -79,10 +79,12 @@ describe('AaveSourceModule', () => {
       '0x144',
     ]);
 
-    expect(plugin.derivers).toHaveLength(4);
+    expect(plugin.derivers).toHaveLength(6);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
       'actor-address',
       'actor-address',
+      'actor-address',
+      'projection',
       'projection',
       'projection',
     ]);
@@ -93,6 +95,24 @@ describe('AaveSourceModule', () => {
           deriver.sourceTypes.includes('aave_voting_machine') &&
           deriver.eventTypes.includes('VoteEmitted') &&
           deriver.eventTypes.includes('ProposalVoteStarted'),
+      ),
+    ).toBe(true);
+    expect(
+      plugin.derivers.some(
+        (deriver) =>
+          deriver.kind === 'projection' &&
+          deriver.sourceTypes.includes('aave_payloads_controller') &&
+          deriver.eventTypes.includes('PayloadCreated') &&
+          deriver.eventTypes.includes('PayloadExecuted'),
+      ),
+    ).toBe(true);
+    expect(
+      plugin.derivers.some(
+        (deriver) =>
+          deriver.kind === 'actor-address' &&
+          deriver.sourceTypes.includes('aave_payloads_controller') &&
+          deriver.eventTypes.includes('PayloadCreated') &&
+          deriver.eventTypes.includes('PayloadCancelled'),
       ),
     ).toBe(true);
     expect(plugin.snapshotStrategies).toEqual([]);
