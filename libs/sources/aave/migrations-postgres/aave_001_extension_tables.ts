@@ -40,15 +40,25 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('status', sql`aave_payload_status`, (col) => col.notNull().defaultTo('declared'))
     .addColumn('executed_at_destination', 'timestamptz')
     .addColumn('bridge_message_id', 'text')
+    .addColumn('unindexed_target_chain', 'boolean', (col) => col.notNull().defaultTo(false))
+    .addColumn('last_reconcile_check_block', 'bigint')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .addUniqueConstraint('aave_proposal_payload_proposal_id_payload_index_key', [
       'proposal_id',
       'payload_index',
     ])
     .execute();
+
+  await db.schema
+    .createIndex('idx_aave_proposal_payload_recheck')
+    .on('aave_proposal_payload')
+    .column('last_reconcile_check_block')
+    .where(sql<boolean>`status in ('created', 'queued')`)
+    .execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
+  await db.schema.dropIndex('idx_aave_proposal_payload_recheck').execute();
   await db.schema.dropTable('aave_proposal_payload').execute();
   await db.schema.dropIndex('idx_aave_proposal_metadata_recheck').execute();
   await db.schema.dropTable('aave_proposal_metadata').execute();
