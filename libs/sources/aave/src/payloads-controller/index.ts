@@ -23,6 +23,15 @@ export type {
 export { AavePayloadsControllerEventRepository } from './persistence/event-repository';
 export type { AavePayloadsControllerArchivePayloadRow } from './persistence/archive-payload-repository';
 export { AavePayloadsControllerArchivePayloadRepository } from './persistence/archive-payload-repository';
+export { AavePayloadsControllerActorAddressDeriver } from './domain/actor-address-deriver';
+export { projectPayloadActions, statusTransitionFor } from './domain/payload-status-projector';
+export { AavePayloadStitchApplier } from './domain/payload-stitch-applier';
+export type {
+  AavePayloadDerivationFailureReason,
+  AavePayloadDerivationOutcome,
+  AavePayloadProjectionMetrics,
+  AavePayloadStitchApplierDeps,
+} from './domain/payload-stitch-applier';
 export type { AavePayloadsControllerArchiveWriterDeps } from './ingestion/archive-writer.types';
 export type {
   ArchiveWriteContext as AavePayloadsControllerArchiveWriteContext,
