@@ -21,6 +21,8 @@ export type {
   AavePayloadsControllerEventRepositoryDeps,
 } from './persistence/event-repository.types';
 export { AavePayloadsControllerEventRepository } from './persistence/event-repository';
+export type { AavePayloadsControllerArchivePayloadRow } from './persistence/archive-payload-repository';
+export { AavePayloadsControllerArchivePayloadRepository } from './persistence/archive-payload-repository';
 export type { AavePayloadsControllerArchiveWriterDeps } from './ingestion/archive-writer.types';
 export type {
   ArchiveWriteContext as AavePayloadsControllerArchiveWriteContext,

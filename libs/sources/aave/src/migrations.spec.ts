@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import { vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { chDb, pgDb } from '@libs/db';
 import {
   down as downAaveExtensionTables,
@@ -16,6 +16,10 @@ import {
   down as downAaveMetadataNullable,
   up as upAaveMetadataNullable,
 } from '../migrations-postgres/aave_003_metadata_voting_fields_nullable';
+import {
+  down as downAavePayloadCorrelationIndex,
+  up as upAavePayloadCorrelationIndex,
+} from '../migrations-postgres/aave_004_payload_correlation_index';
 import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
@@ -43,6 +47,8 @@ describe('aave migrations smoke (mocked db)', () => {
       createIndex: vi.fn().mockReturnThis(),
       on: vi.fn().mockReturnThis(),
       column: vi.fn().mockReturnThis(),
+      columns: vi.fn().mockReturnThis(),
+      unique: vi.fn().mockReturnThis(),
       alterColumn: vi
         .fn()
         .mockImplementation((_: unknown, callback?: (column: unknown) => unknown) => {
@@ -102,6 +108,13 @@ describe('aave migrations smoke (mocked db)', () => {
     const db = makeMockDb();
     await upAaveMetadataNullable(db);
     await downAaveMetadataNullable(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('aave_004_payload_correlation_index up/down fire schema queries', async () => {
+    const db = makeMockDb();
+    await upAavePayloadCorrelationIndex(db);
+    await downAavePayloadCorrelationIndex(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -208,6 +221,34 @@ describeWithPg('aave_003_metadata_voting_fields_nullable migration', () => {
             { column_name: 'voting_chain_id', is_nullable: 'YES' },
             { column_name: 'voting_machine_address', is_nullable: 'YES' },
           ]),
+        );
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+});
+
+describeWithPg('aave_004_payload_correlation_index migration', () => {
+  it('creates the declared-payload correlation index', async () => {
+    await expect(
+      pgDb.transaction().execute(async (tx) => {
+        await upAavePayloadCorrelationIndex(tx);
+
+        const indexes = await tx
+          .selectFrom('pg_indexes')
+          .select(['indexname', 'indexdef'])
+          .where('tablename', '=', 'aave_proposal_payload')
+          .where('indexname', '=', 'aave_proposal_payload_correlation_key')
+          .execute();
+
+        expect(indexes).toEqual([
+          expect.objectContaining({
+            indexname: 'aave_proposal_payload_correlation_key',
+          }),
+        ]);
+        expect(indexes[0]?.indexdef).toContain(
+          '(target_chain_id, payloads_controller_address, payload_id)',
         );
 
         throw new RollbackSignal();

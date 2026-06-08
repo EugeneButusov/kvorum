@@ -5,7 +5,7 @@ import type {
   ReconcilePerChainBound,
   ReconcilableProposalRepository,
 } from '@sources/core';
-import type { NewAaveProposalMetadata, NewAaveProposalPayload } from './schema';
+import type { AavePayloadStatus, NewAaveProposalMetadata, NewAaveProposalPayload } from './schema';
 
 export interface AaveStaleReconciliationRow extends BaseStaleReconciliationRow {
   governance_address: string;
@@ -18,6 +18,19 @@ export interface AaveReconcileStateInput {
   expectedStates: readonly ProposalState[];
   targetState: Extract<ProposalState, 'expired'>;
   stateUpdatedAt: Date;
+}
+
+export interface FindDeclaredPayloadInput {
+  targetChainId: string;
+  payloadsControllerAddress: string;
+  payloadId: string;
+}
+
+export interface AdvancePayloadStatusInput {
+  id: string;
+  targetStatus: Exclude<AavePayloadStatus, 'expired'>;
+  allowedFrom: readonly AavePayloadStatus[];
+  executedAtDestination?: Date;
 }
 
 export class AaveProposalRepository
@@ -66,12 +79,59 @@ export class AaveProposalRepository
     return row?.voting_machine_address;
   }
 
+  async findPayloadsControllerAddress(daoSourceId: string): Promise<string | undefined> {
+    const row = await this.db
+      .selectFrom('dao_source')
+      .select(
+        sql<string>`lower(source_config ->> 'payloads_controller_address')`.as(
+          'payloads_controller_address',
+        ),
+      )
+      .where('id', '=', daoSourceId)
+      .executeTakeFirst();
+
+    return row?.payloads_controller_address;
+  }
+
   async insertDeclaredPayload(row: NewAaveProposalPayload): Promise<void> {
     await this.db
       .insertInto('aave_proposal_payload')
       .values(row)
       .onConflict((oc) => oc.columns(['proposal_id', 'payload_index']).doNothing())
       .execute();
+  }
+
+  async findDeclaredPayload(input: FindDeclaredPayloadInput): Promise<
+    | {
+        id: string;
+        proposal_id: string;
+        payload_index: number;
+        status: AavePayloadStatus;
+      }
+    | undefined
+  > {
+    return this.db
+      .selectFrom('aave_proposal_payload')
+      .select(['id', 'proposal_id', 'payload_index', 'status'])
+      .where('target_chain_id', '=', input.targetChainId)
+      .where('payloads_controller_address', '=', input.payloadsControllerAddress.toLowerCase())
+      .where('payload_id', '=', input.payloadId)
+      .executeTakeFirst();
+  }
+
+  async advancePayloadStatus(input: AdvancePayloadStatusInput): Promise<number> {
+    const result = await this.db
+      .updateTable('aave_proposal_payload')
+      .set({
+        status: input.targetStatus,
+        executed_at_destination: input.executedAtDestination,
+      })
+      .where('id', '=', input.id)
+      .where('status', 'in', input.allowedFrom)
+      .where('status', '<>', input.targetStatus)
+      .executeTakeFirst();
+
+    return Number(result?.numUpdatedRows ?? 0n);
   }
 
   async findStaleForReconciliation(

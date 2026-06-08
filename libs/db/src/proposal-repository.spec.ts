@@ -31,14 +31,14 @@ function makeInsertChain(returnValue?: unknown) {
     fn({
       constraint: (name) => {
         capturedConstraint = name;
-        return { doNothing: () => ({ returning, execute }) };
+        return { doNothing: () => ({ returning, execute, executeTakeFirst }) };
       },
       columns: (columns) => {
         capturedColumns = columns;
-        return { doNothing: () => ({ returning, execute }) };
+        return { doNothing: () => ({ returning, execute, executeTakeFirst }) };
       },
     });
-    return { returning, execute };
+    return { returning, execute, executeTakeFirst };
   });
   const values = vi.fn().mockImplementation((value: unknown) => {
     capturedValues = value;
@@ -167,24 +167,27 @@ describe('ProposalRepository', () => {
     await expect(repo.insertProposal(NEW_PROPOSAL)).resolves.toEqual({ inserted: false });
   });
 
-  it('inserts normalized proposal actions with action_index conflict handling', async () => {
-    const insert = makeInsertChain();
+  it('inserts normalized proposal actions with payload-aware conflict handling', async () => {
+    const insert = makeInsertChain({ numInsertedOrUpdatedRows: 1n });
     const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
 
-    await repo.insertActions('proposal-1', [
-      {
-        targetAddress: '0xABCDEF',
-        targetChainId: '0x1',
-        valueWei: '10',
-        functionSignature: '_setPendingAdmin(address)',
-        calldata: '0x1234',
-      },
-    ]);
+    await expect(
+      repo.insertActions('proposal-1', [
+        {
+          targetAddress: '0xABCDEF',
+          targetChainId: '0x1',
+          valueWei: '10',
+          functionSignature: '_setPendingAdmin(address)',
+          calldata: '0x1234',
+        },
+      ]),
+    ).resolves.toBe(1);
 
     expect(insert.insertInto).toHaveBeenCalledWith('proposal_action');
     expect(insert.capturedValues).toEqual([
       {
         proposal_id: 'proposal-1',
+        payload_index: 0,
         action_index: 0,
         target_address: '0xabcdef',
         target_chain_id: '0x1',
@@ -193,14 +196,65 @@ describe('ProposalRepository', () => {
         calldata: '0x1234',
       },
     ]);
-    expect(insert.capturedColumns).toEqual(['proposal_id', 'action_index']);
+    expect(insert.capturedColumns).toEqual(['proposal_id', 'payload_index', 'action_index']);
+  });
+
+  it('supports multiple payload-local action streams for one proposal', async () => {
+    const insert = makeInsertChain({ numInsertedOrUpdatedRows: 2n });
+    const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
+
+    await expect(
+      repo.insertActions(
+        'proposal-1',
+        [
+          {
+            targetAddress: '0xABCDEF',
+            targetChainId: '0xa',
+            valueWei: '10',
+            functionSignature: null,
+            calldata: '0x1234',
+          },
+          {
+            targetAddress: '0x123456',
+            targetChainId: '0xa',
+            valueWei: '11',
+            functionSignature: 'foo()',
+            calldata: '0xabcd',
+          },
+        ],
+        1,
+      ),
+    ).resolves.toBe(2);
+
+    expect(insert.capturedValues).toEqual([
+      {
+        proposal_id: 'proposal-1',
+        payload_index: 1,
+        action_index: 0,
+        target_address: '0xabcdef',
+        target_chain_id: '0xa',
+        value_wei: '10',
+        function_signature: null,
+        calldata: '0x1234',
+      },
+      {
+        proposal_id: 'proposal-1',
+        payload_index: 1,
+        action_index: 1,
+        target_address: '0x123456',
+        target_chain_id: '0xa',
+        value_wei: '11',
+        function_signature: 'foo()',
+        calldata: '0xabcd',
+      },
+    ]);
   });
 
   it('does not issue an insert for empty action batches', async () => {
     const insert = makeInsertChain();
     const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
 
-    await repo.insertActions('proposal-1', []);
+    await expect(repo.insertActions('proposal-1', [])).resolves.toBe(0);
 
     expect(insert.insertInto).not.toHaveBeenCalled();
   });
