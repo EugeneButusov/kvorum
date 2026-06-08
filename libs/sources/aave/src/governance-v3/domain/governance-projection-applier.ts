@@ -120,16 +120,22 @@ export class AaveGovernanceProjectionApplier {
           confirmed_at: row.received_at,
         });
 
-        const postCommit =
-          projection.kind === 'proposal_created'
-            ? await this.transaction((repositories, tx) =>
-                this.applyCreatedProjection(row, projection, repositories, tx),
-              )
-            : projection.kind === 'payload_declared'
-              ? await this.applyPayloadSentWithIndexCheck(row, projection, indexedPayloadChainCache)
-              : await this.transaction((repositories) =>
-                  this.applyNonCreateProjection(row, projection, repositories),
-                );
+        let postCommit: () => Promise<void>;
+        if (projection.kind === 'proposal_created') {
+          postCommit = await this.transaction((repositories, tx) =>
+            this.applyCreatedProjection(row, projection, repositories, tx),
+          );
+        } else if (projection.kind === 'payload_declared') {
+          postCommit = await this.applyPayloadSentWithIndexCheck(
+            row,
+            projection,
+            indexedPayloadChainCache,
+          );
+        } else {
+          postCommit = await this.transaction((repositories) =>
+            this.applyNonCreateProjection(row, projection, repositories),
+          );
+        }
 
         await postCommit();
       } catch (error) {
