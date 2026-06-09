@@ -116,6 +116,32 @@ describe('Aave voting power reconciliation fixture', () => {
     }
   });
 
+  it('computed three-token power is at least the protocol-reported power for all sampled voters', () => {
+    const fixture = loadFixture();
+
+    for (const sample of fixture.samples) {
+      const reads = {
+        aave: BigInt(sample.reads.aave),
+        stkAave: BigInt(sample.reads.stkAave),
+        aAave: BigInt(sample.reads.aAave),
+      };
+
+      // reported = VoteEmitted.votingPower — the protocol's proof-validated power for the
+      // submitted storage-slot proofs (own balance only, no received delegations).
+      // computed = Σ getPowerCurrent@block over all three tokens — includes received
+      // delegations, so computed >= reported always.  Equality holds only when the
+      // voter has no incoming delegations (voter 3 in this fixture).
+      expect(aggregateVotingPower(reads)).toBeGreaterThanOrEqual(BigInt(sample.reported));
+
+      // The submitted-asset subset power also bounds reported from above for the same
+      // reason: even a subset of getPowerCurrent values includes delegation-to-voter
+      // while the proof reconstructs from the voter's own storage slot.
+      expect(aggregateSubmittedVotingPower(reads, sample.submittedAssets)).toBeGreaterThanOrEqual(
+        BigInt(sample.reported),
+      );
+    }
+  });
+
   it('replays the fixture through AaveGovernancePowerReader', async () => {
     const fixture = loadFixture();
     const powerByKey = new Map<string, bigint>();
