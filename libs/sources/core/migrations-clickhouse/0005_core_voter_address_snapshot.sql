@@ -18,7 +18,7 @@ SELECT
 FROM voting_power_snapshot_raw
 GROUP BY dao_id, proposal_id, actor_address;
 
-ALTER TABLE voting_power_snapshot_projection MODIFY QUERY
+CREATE OR REPLACE VIEW voting_power_snapshot_projection AS
 SELECT
     dao_id,
     proposal_id,

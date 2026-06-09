@@ -63,6 +63,78 @@ describe('AaveVotingPowerStrategy', () => {
     );
   });
 
+  it('throws when proposalId is absent in computeSnapshot', async () => {
+    const strategy = new AaveVotingPowerStrategy(
+      {} as VoteEventsProjectionReadRepository,
+      {} as ActorRepository,
+      {} as AaveGovernancePowerReader,
+    );
+
+    await expect(strategy.computeSnapshot(1n, { daoId: 'dao-1', proposalId: '' })).rejects.toThrow(
+      'proposalId is required',
+    );
+
+    await expect(strategy.computeSnapshot(1n, { daoId: 'dao-1' })).rejects.toThrow(
+      'proposalId is required',
+    );
+  });
+
+  it('skips voters whose primary address resolution is missing', async () => {
+    const logger = { warn: vi.fn() } as unknown as Logger;
+    const strategy = new AaveVotingPowerStrategy(
+      {
+        listVotersForProposal: vi
+          .fn()
+          .mockResolvedValue([{ voterAddress: '0xabc', votingPower: '7' }]),
+      } as unknown as VoteEventsProjectionReadRepository,
+      {
+        findActorIdsByAddresses: vi
+          .fn()
+          .mockResolvedValue([{ actor_id: 'actor-1', address: '0xabc' }]),
+        findPrimaryAddressesByActorIds: vi.fn().mockResolvedValue([]), // no primary
+      } as unknown as ActorRepository,
+      { read: vi.fn() } as unknown as AaveGovernancePowerReader,
+      logger,
+    );
+
+    await expect(
+      strategy.computeSnapshot(1n, { daoId: 'dao-1', proposalId: 'p-1' }),
+    ).resolves.toEqual([]);
+    expect((logger.warn as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe(
+      'aave_snapshot_actor_primary_address_missing',
+    );
+  });
+
+  it('throws when proposalId is absent in verifyOnChain', async () => {
+    const strategy = new AaveVotingPowerStrategy(
+      {} as VoteEventsProjectionReadRepository,
+      {} as ActorRepository,
+      {} as AaveGovernancePowerReader,
+    );
+
+    await expect(
+      strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1', proposalId: '' }),
+    ).rejects.toThrow('proposalId is required');
+
+    await expect(strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1' })).rejects.toThrow(
+      'proposalId is required',
+    );
+  });
+
+  it('throws when no matching vote is found in verifyOnChain', async () => {
+    const strategy = new AaveVotingPowerStrategy(
+      {
+        findCurrentVote: vi.fn().mockResolvedValue(undefined),
+      } as unknown as VoteEventsProjectionReadRepository,
+      {} as ActorRepository,
+      {} as AaveGovernancePowerReader,
+    );
+
+    await expect(
+      strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1', proposalId: 'p-1' }),
+    ).rejects.toThrow('vote not found');
+  });
+
   it('returns stored reported power from the vote projection', async () => {
     const voteRead = {
       findCurrentVote: vi.fn().mockResolvedValue({

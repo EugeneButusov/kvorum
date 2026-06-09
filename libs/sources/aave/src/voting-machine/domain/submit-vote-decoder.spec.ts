@@ -35,6 +35,15 @@ describe('decodeSubmitVoteCalldata', () => {
     ]);
   });
 
+  it('throws on calldata that does not match any known submitVote function', () => {
+    expect(() => decodeSubmitVoteCalldata('0xdeadbeef00000000')).toThrow(
+      'unsupported Aave submitVote calldata',
+    );
+    expect(() => decodeSubmitVoteProofs('0xdeadbeef00000000')).toThrow(
+      'unsupported Aave submitVote calldata',
+    );
+  });
+
   it('supports representative vote submissions too', () => {
     const calldata = iface.encodeFunctionData('submitVoteAsRepresentative', [
       42n,

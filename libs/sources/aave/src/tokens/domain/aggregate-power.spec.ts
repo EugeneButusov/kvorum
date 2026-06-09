@@ -94,6 +94,61 @@ describe('aggregateVotingPower', () => {
       }),
     ).toThrow('stkAave slashing exchange rate must be non-zero');
   });
+
+  it('uses only received-delegation power when AAVE slot has FULL_POWER_DELEGATED mode', () => {
+    // When the account has delegated both voting + proposition power away, only the
+    // delegatedVotingPower (received from others) contributes — own balance is excluded.
+    const aaveSlot = encodeAaveLikeBaseBalanceSlot({
+      balance: 100n,
+      delegatedVotingPower: 7n,
+      delegationMode: 3n, // FULL_POWER_DELEGATED
+    });
+
+    expect(
+      reconstructVotingPowerFromRawSlots({
+        aaveBaseBalanceSlot: aaveSlot,
+        stkAaveBaseBalanceSlot: 0n,
+        aAaveBaseBalanceSlot: 0n,
+        aAaveDelegatedStateSlot: 0n,
+        stkAaveSlashingExchangeRate: 1_000_000_000_000_000_000n,
+      }),
+    ).toBe(7n * 10_000_000_000n); // delegatedVotingPower * POWER_SCALE_FACTOR
+  });
+
+  it('uses only received-delegation power when aAAVE slot has VOTING_DELEGATED or FULL_POWER_DELEGATED mode', () => {
+    const delegatedVotingPower = 5n;
+    const aAaveDelegatedState = encodeAAaveDelegatedStateSlot({ delegatedVotingPower });
+
+    // VOTING_DELEGATED (1): own balance excluded, received delegations only
+    const aAaveVotingDelegated = encodeAAaveBaseBalanceSlot({
+      balance: 200n,
+      delegationMode: 1n,
+    });
+    expect(
+      reconstructVotingPowerFromRawSlots({
+        aaveBaseBalanceSlot: 0n,
+        stkAaveBaseBalanceSlot: 0n,
+        aAaveBaseBalanceSlot: aAaveVotingDelegated,
+        aAaveDelegatedStateSlot: aAaveDelegatedState,
+        stkAaveSlashingExchangeRate: 1_000_000_000_000_000_000n,
+      }),
+    ).toBe(delegatedVotingPower * 10_000_000_000n);
+
+    // FULL_POWER_DELEGATED (3): same — only received delegations
+    const aAaveFullDelegated = encodeAAaveBaseBalanceSlot({
+      balance: 200n,
+      delegationMode: 3n,
+    });
+    expect(
+      reconstructVotingPowerFromRawSlots({
+        aaveBaseBalanceSlot: 0n,
+        stkAaveBaseBalanceSlot: 0n,
+        aAaveBaseBalanceSlot: aAaveFullDelegated,
+        aAaveDelegatedStateSlot: aAaveDelegatedState,
+        stkAaveSlashingExchangeRate: 1_000_000_000_000_000_000n,
+      }),
+    ).toBe(delegatedVotingPower * 10_000_000_000n);
+  });
 });
 
 function encodeAaveLikeBaseBalanceSlot(args: {
