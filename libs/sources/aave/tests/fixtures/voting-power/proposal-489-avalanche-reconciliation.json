@@ -1,0 +1,58 @@
+{
+  "proposalId": "489",
+  "snapshotBlockNumber": "25171123",
+  "snapshotBlockHash": "0xc56bf32463a809c7e66826526b8e43f2ef3c1efb20675e1d01abb5873deef91e",
+  "tokenAddresses": {
+    "aave": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+    "stkAave": "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+    "aAave": "0xa700b4eb416be35b2911fd5dee80678ff64ff6c9"
+  },
+  "samples": [
+    {
+      "txHash": "0x205dc5e8cfc1930aa4a3580d7421c1ec04af33a6dc7de19939fde17623346dca",
+      "voter": "0xb933aee47c438f22de0747d57fc239fe37878dd1",
+      "submitMethod": "submitVoteBySignature",
+      "submittedAssets": [
+        "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+        "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+        "0xa700b4eb416be35b2911fd5dee80678ff64ff6c9"
+      ],
+      "reported": "21272353869271954314240",
+      "reads": {
+        "aave": "11008426051330000000000",
+        "stkAave": "43129366029040000000000",
+        "aAave": "7497606440000000000"
+      },
+      "computed": "54145289686810000000000"
+    },
+    {
+      "txHash": "0xd878c8039fe2fc6a4c791f15eb7e23d30810162f0ef08fe1b9624dac21742e41",
+      "voter": "0xdf71d2d39175ac4ec6e46584fd6ad3a945f9a51f",
+      "submitMethod": "submitVote",
+      "submittedAssets": [
+        "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+        "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"
+      ],
+      "reported": "4564585778228838230873",
+      "reads": {
+        "aave": "15467371940425582",
+        "stkAave": "11711653823612825102827",
+        "aAave": "0"
+      },
+      "computed": "11711669290984765528409"
+    },
+    {
+      "txHash": "0x5fa7ed64910fb5182b71631607f0db9e77ff08229c7f9ab9bc2fa28c15f29d70",
+      "voter": "0x4d4ac65513fee380c596ac9edfac588782831bdf",
+      "submitMethod": "submitVote",
+      "submittedAssets": ["0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"],
+      "reported": "10515607793132578",
+      "reads": {
+        "aave": "10515607793132578",
+        "stkAave": "0",
+        "aAave": "0"
+      },
+      "computed": "10515607793132578"
+    }
+  ]
+}
