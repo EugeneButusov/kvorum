@@ -216,12 +216,12 @@ export class ProposalRepository {
           voting_starts_at:
             row.voting_starts_at === null
               ? eb.ref('voting_starts_at')
-              : sql`coalesce(voting_starts_at, ${row.voting_starts_at})`,
+              : eb.fn('coalesce', [eb.ref('voting_starts_at'), eb.val(row.voting_starts_at)]),
           voting_ends_at:
             row.voting_ends_at === null
               ? eb.ref('voting_ends_at')
-              : sql`coalesce(voting_ends_at, ${row.voting_ends_at})`,
-          updated_at: sql`now()`,
+              : eb.fn('coalesce', [eb.ref('voting_ends_at'), eb.val(row.voting_ends_at)]),
+          updated_at: sql<Date>`now()`,
         }))
         .where('id', '=', row.id)
         .execute();
@@ -235,6 +235,8 @@ export class ProposalRepository {
   ): Promise<SnapshotCandidate | undefined> {
     if (supportedSourceTypes.length === 0) return undefined;
 
+    // Raw SQL: aave_proposal_metadata is not in PgDatabase here — it enters via module
+    // augmentation declared in @sources/aave, which libs/db cannot import per module boundaries.
     const result = await sql<SnapshotCandidate>`
       SELECT
         p.id,
