@@ -103,6 +103,25 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
+function makeRawQueryDb(returnValue: unknown[]) {
+  const executeQuery = vi.fn().mockResolvedValue({ rows: returnValue });
+  const executor = {
+    executeQuery,
+    transformQuery: vi.fn().mockImplementation((node: unknown) => node),
+    compileQuery: vi.fn().mockImplementation((node: unknown) => ({
+      sql: JSON.stringify(node),
+      parameters: [],
+      queryId: { queryId: '1' },
+    })),
+  };
+
+  return {
+    getExecutor: vi.fn().mockReturnValue(executor),
+    _executeQuery: executeQuery,
+    _compileQuery: executor.compileQuery,
+  };
+}
+
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -392,5 +411,37 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('finds the next snapshot candidate with the standard ordering and filters', async () => {
+    const candidate = {
+      id: 'proposal-1',
+      dao_id: 'dao-1',
+      source_type: 'compound_governor_bravo',
+      voting_power_block: '123',
+    };
+    const db = makeRawQueryDb([candidate]);
+    const repo = new ProposalRepository(db as never);
+
+    await expect(
+      repo.findNextSnapshotCandidate(
+        ['compound_governor_bravo', 'aave_governance_v3'],
+        ['active', 'queued'],
+        5,
+      ),
+    ).resolves.toEqual(candidate);
+
+    expect(db._executeQuery).toHaveBeenCalledTimes(1);
+    const compiledSql = db._executeQuery.mock.calls[0]?.[0]?.sql as string;
+    expect(compiledSql).toContain('aave_proposal_metadata');
+    expect(compiledSql).toContain('snapshot_block_number_l1');
+    expect(compiledSql).toContain('voting_power_snapshot_run');
+    expect(compiledSql).toContain('voting_power_block');
+  });
+
+  it('returns undefined when no snapshot strategies are registered', async () => {
+    const repo = new ProposalRepository({ selectFrom: vi.fn() } as never);
+
+    await expect(repo.findNextSnapshotCandidate([], ['active'], 5)).resolves.toBeUndefined();
   });
 });

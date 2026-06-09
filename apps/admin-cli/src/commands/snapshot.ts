@@ -79,7 +79,10 @@ class SnapshotDrainRunner {
       }
 
       const block = BigInt(candidate.voting_power_block);
-      const computed = await strategy.computeSnapshot(block, { daoId: candidate.dao_id });
+      const computed = await strategy.computeSnapshot(block, {
+        daoId: candidate.dao_id,
+        proposalId: candidate.id,
+      });
       if (computed.length === 0) {
         await this.runs.markCompleted(candidate.id, {
           rows_inserted: 0,
@@ -96,6 +99,7 @@ class SnapshotDrainRunner {
           dao_id: candidate.dao_id,
           proposal_id: candidate.id,
           actor_address: row.address,
+          voter_address: row.votingAddress ?? row.address,
           voting_power: row.power.toString(),
           actor_id_hint: row.actorId,
           computed_at: new Date(),
@@ -110,6 +114,7 @@ class SnapshotDrainRunner {
         sample.map(async (row) => {
           const onChain = await strategy.verifyOnChain(row.address, block, {
             daoId: candidate.dao_id,
+            proposalId: candidate.id,
           });
           if (onChain.toString() !== row.power) mismatch = true;
         }),
@@ -171,7 +176,10 @@ class SnapshotDrainRunner {
       const chunk = rows.slice(i, i + 25);
       const results = await Promise.all(
         chunk.map(async (row) => {
-          const power = await strategy.verifyOnChain(row.address, block, { daoId });
+          const power = await strategy.verifyOnChain(row.address, block, {
+            daoId,
+            proposalId,
+          });
           return { address: row.address, actorId: row.actorId, power: power.toString() };
         }),
       );
@@ -184,6 +192,7 @@ class SnapshotDrainRunner {
         dao_id: daoId,
         proposal_id: proposalId,
         actor_address: row.address,
+        voter_address: row.address,
         voting_power: row.power,
         actor_id_hint: row.actorId || null,
         computed_at: new Date(),

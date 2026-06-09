@@ -7,6 +7,7 @@ export interface NewVotingPowerSnapshotProjectionRow {
   dao_id: string;
   proposal_id: string;
   actor_address: string;
+  voter_address: string;
   voting_power: string;
   actor_id_hint: string | null;
   computed_at: Date;

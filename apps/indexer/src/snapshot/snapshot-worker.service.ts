@@ -107,7 +107,10 @@ export class SnapshotWorkerService {
       }
 
       const block = BigInt(candidate.voting_power_block);
-      const computed = await strategy.computeSnapshot(block, { daoId: candidate.dao_id });
+      const computed = await strategy.computeSnapshot(block, {
+        daoId: candidate.dao_id,
+        proposalId: candidate.id,
+      });
       snapshotMetrics.populationSize.record(computed.length);
 
       if (computed.length === 0) {
@@ -134,6 +137,7 @@ export class SnapshotWorkerService {
             dao_id: candidate.dao_id,
             proposal_id: candidate.id,
             actor_address: primaryAddress,
+            voter_address: row.votingAddress ?? primaryAddress,
             voting_power: row.power.toString(),
             actor_id_hint: row.actorId,
             computed_at: new Date(),

@@ -235,24 +235,34 @@ export class ProposalRepository {
   ): Promise<SnapshotCandidate | undefined> {
     if (supportedSourceTypes.length === 0) return undefined;
 
-    return this.db
-      .selectFrom('proposal as p')
-      .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
-      .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
-      .where('p.source_type', 'in', [...supportedSourceTypes])
-      .where('p.state', 'in', [...eligibleStates])
-      .where((eb) =>
-        eb.or([
-          eb('vpsr.status', 'is', null),
-          eb.and([
-            eb('vpsr.status', '=', 'in_progress'),
-            eb('vpsr.snapshot_attempt_count', '<', snapshotDlqThreshold),
-          ]),
-        ]),
-      )
-      .orderBy('p.voting_power_block', 'asc')
-      .orderBy('p.id', 'asc')
-      .limit(1)
-      .executeTakeFirst();
+    const result = await sql<SnapshotCandidate>`
+      SELECT
+        p.id,
+        p.dao_id,
+        p.source_type,
+        p.voting_power_block
+      FROM proposal AS p
+      LEFT JOIN aave_proposal_metadata AS apm
+        ON apm.proposal_id = p.id
+      LEFT JOIN voting_power_snapshot_run AS vpsr
+        ON vpsr.proposal_id = p.id
+      WHERE p.source_type IN (${sql.join([...supportedSourceTypes])})
+        AND p.state IN (${sql.join([...eligibleStates])})
+        AND (
+          p.source_type <> 'aave_governance_v3'
+          OR apm.snapshot_block_number_l1 IS NOT NULL
+        )
+        AND (
+          vpsr.status IS NULL
+          OR (
+            vpsr.status = 'in_progress'
+            AND vpsr.snapshot_attempt_count < ${snapshotDlqThreshold}
+          )
+        )
+      ORDER BY p.voting_power_block ASC, p.id ASC
+      LIMIT 1
+    `.execute(this.db);
+
+    return result.rows[0];
   }
 }

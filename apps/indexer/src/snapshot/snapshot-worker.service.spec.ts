@@ -121,12 +121,17 @@ describe('SnapshotWorkerService', () => {
       outcome: 'verified',
       proposalId: candidate.id,
     });
+    expect(strategy.computeSnapshot).toHaveBeenCalledWith(123n, {
+      daoId: 'dao-1',
+      proposalId: 'proposal-1',
+    });
     expect(repos.actorRepo.findPrimaryAddressesByActorIds).toHaveBeenCalledWith(['actor-1']);
     expect(repos.snapshotRepo.bulkInsert).toHaveBeenCalledWith([
       expect.objectContaining({
         dao_id: 'dao-1',
         proposal_id: 'proposal-1',
         actor_address: '0xabc',
+        voter_address: '0xabc',
         voting_power: '10',
         actor_id_hint: 'actor-1',
       }),
@@ -227,6 +232,41 @@ describe('SnapshotWorkerService', () => {
       proposalId: candidate.id,
     });
     expect(repos.snapshotRepo.bulkInsert).not.toHaveBeenCalled();
+  });
+
+  it('stores a distinct voter_address when strategy returns votingAddress', async () => {
+    const repos = makeRepos();
+    const candidate = { ...makeCandidate(), source_type: 'aave_governance_v3' };
+    repos.proposalRepo.findNextSnapshotCandidate.mockResolvedValue(candidate);
+    repos.runRepo.findByProposalId.mockResolvedValue(undefined);
+    repos.actorRepo.findPrimaryAddressesByActorIds.mockResolvedValue([
+      { actor_id: 'actor-1', address: '0xprimary' },
+    ]);
+
+    const strategy: VotingPowerStrategy = {
+      computeSnapshot: vi
+        .fn()
+        .mockResolvedValue([{ actorId: 'actor-1', votingAddress: '0xvote', power: 10n }]),
+      verifyOnChain: vi.fn(),
+    };
+
+    const svc = new SnapshotWorkerService(
+      repos.proposalRepo as never,
+      repos.snapshotRepo as never,
+      repos.actorRepo as never,
+      repos.runRepo as never,
+      repos.dlqRepo as never,
+      new Map<string, VotingPowerStrategy>([['aave_governance_v3', strategy]]),
+    );
+
+    await svc.tickOnce();
+
+    expect(repos.snapshotRepo.bulkInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        actor_address: '0xprimary',
+        voter_address: '0xvote',
+      }),
+    ]);
   });
 
   it('skips actors with no primary address (flatMap returns [])', async () => {
