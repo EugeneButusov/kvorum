@@ -1,6 +1,6 @@
 import { Interface } from 'ethers';
 import { describe, expect, it } from 'vitest';
-import { decodeSubmitVoteCalldata } from './submit-vote-decoder';
+import { decodeSubmitVoteCalldata, decodeSubmitVoteProofs } from './submit-vote-decoder';
 
 const iface = new Interface([
   'function submitVote(uint256 proposalId, bool support, tuple(address underlyingAsset, uint128 slot, bytes proof)[] votingBalanceProofs)',
@@ -21,6 +21,17 @@ describe('decodeSubmitVoteCalldata', () => {
     expect(decodeSubmitVoteCalldata(calldata)).toEqual([
       '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
       '0x4da27a545c0c5b758a6ba100e3a049001de870f5',
+    ]);
+
+    expect(decodeSubmitVoteProofs(calldata)).toEqual([
+      {
+        underlyingAsset: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
+        slot: 0n,
+      },
+      {
+        underlyingAsset: '0x4da27a545c0c5b758a6ba100e3a049001de870f5',
+        slot: 1n,
+      },
     ]);
   });
 

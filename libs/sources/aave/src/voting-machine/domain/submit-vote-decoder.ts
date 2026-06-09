@@ -9,9 +9,15 @@ const SUBMIT_VOTE_INTERFACE = new Interface([
 
 interface VotingBalanceProofLike {
   underlyingAsset: string;
+  slot: bigint;
 }
 
-export function decodeSubmitVoteCalldata(calldata: string): string[] {
+export interface SubmittedVotingBalanceProof {
+  underlyingAsset: string;
+  slot: bigint;
+}
+
+export function decodeSubmitVoteProofs(calldata: string): SubmittedVotingBalanceProof[] {
   const parsed = SUBMIT_VOTE_INTERFACE.parseTransaction({ data: calldata });
   if (parsed == null) {
     throw new Error('unsupported Aave submitVote calldata');
@@ -22,5 +28,12 @@ export function decodeSubmitVoteCalldata(calldata: string): string[] {
     throw new Error(`submitVote calldata missing votingBalanceProofs for ${parsed.name}`);
   }
 
-  return proofs.map((proof) => proof.underlyingAsset.toLowerCase());
+  return proofs.map((proof) => ({
+    underlyingAsset: proof.underlyingAsset.toLowerCase(),
+    slot: proof.slot,
+  }));
+}
+
+export function decodeSubmitVoteCalldata(calldata: string): string[] {
+  return decodeSubmitVoteProofs(calldata).map((proof) => proof.underlyingAsset);
 }

@@ -10,13 +10,19 @@ import {
   aggregateVotingPower,
   STK_AAVE_TOKEN_ADDRESS,
 } from '@sources/aave';
-import { decodeSubmitVoteCalldata } from '@sources/aave';
+import { decodeSubmitVoteCalldata, decodeSubmitVoteProofs } from '@sources/aave';
+
+interface SubmittedProofFixture {
+  underlyingAsset: string;
+  slot: string;
+}
 
 interface ReconciliationSample {
   txHash: string;
   voter: string;
   submitMethod: string;
-  calldata?: string;
+  calldata: string;
+  submittedProofs: SubmittedProofFixture[];
   submittedAssets: string[];
   reported: string;
   reads: {
@@ -77,8 +83,20 @@ describe('Aave voting power reconciliation fixture', () => {
     const fixture = loadFixture();
 
     for (const sample of fixture.samples) {
-      if (sample.calldata == null) continue;
       expect(decodeSubmitVoteCalldata(sample.calldata)).toEqual(sample.submittedAssets);
+    }
+  });
+
+  it('matches submitted proof slots decoded from pinned calldata', () => {
+    const fixture = loadFixture();
+
+    for (const sample of fixture.samples) {
+      expect(decodeSubmitVoteProofs(sample.calldata)).toEqual(
+        sample.submittedProofs.map((proof) => ({
+          underlyingAsset: proof.underlyingAsset,
+          slot: BigInt(proof.slot),
+        })),
+      );
     }
   });
 
