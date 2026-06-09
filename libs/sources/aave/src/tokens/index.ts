@@ -8,7 +8,11 @@ export {
   STK_AAVE_TOKEN_ADDRESS,
 } from './constants';
 export { GOVERNANCE_POWER_TOKEN_ABI } from './abi/governance-power-token-abi';
-export type { TokenPowerReads } from './domain/types';
-export { aggregateSubmittedVotingPower, aggregateVotingPower } from './domain/aggregate-power';
+export type { RawSlotTokenPowers, TokenPowerReads } from './domain/types';
+export {
+  aggregateSubmittedVotingPower,
+  aggregateVotingPower,
+  reconstructVotingPowerFromRawSlots,
+} from './domain/aggregate-power';
 export { AaveGovernancePowerReader } from './read/aave-governance-power-reader';
 export { AaveVotingPowerStrategy } from './strategy/aave-voting-power-strategy';
