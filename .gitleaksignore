@@ -6,3 +6,6 @@ fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/pl
 fa81ceefb54a1d1524bb0086576b6f8406d25283:libs/sources/compound/src/comp-token/plugin/plugin.spec.ts:generic-api-key:135
 ce52baa77cfe8e2d0a7e1353ba28ab7d7369e281:libs/db/src/dao-source-repository.spec.ts:generic-api-key:147
 7da3bd6920f6c6d96b04c832ca451cfc28183f09:apps/api/src/daos/dao.controller.spec.ts:generic-api-key:25
+e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:3
+e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:4
+e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:5
