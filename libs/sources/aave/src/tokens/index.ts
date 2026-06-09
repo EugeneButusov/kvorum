@@ -9,6 +9,6 @@ export {
 } from './constants';
 export { GOVERNANCE_POWER_TOKEN_ABI } from './abi/governance-power-token-abi';
 export type { TokenPowerReads } from './domain/types';
-export { aggregateVotingPower } from './domain/aggregate-power';
+export { aggregateSubmittedVotingPower, aggregateVotingPower } from './domain/aggregate-power';
 export { AaveGovernancePowerReader } from './read/aave-governance-power-reader';
 export { AaveVotingPowerStrategy } from './strategy/aave-voting-power-strategy';

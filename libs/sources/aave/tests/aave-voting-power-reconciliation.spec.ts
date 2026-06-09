@@ -6,14 +6,17 @@ import {
   AaveGovernancePowerReader,
   A_AAVE_TOKEN_ADDRESS,
   AAVE_TOKEN_ADDRESS,
+  aggregateSubmittedVotingPower,
   aggregateVotingPower,
   STK_AAVE_TOKEN_ADDRESS,
 } from '@sources/aave';
+import { decodeSubmitVoteCalldata } from '@sources/aave';
 
 interface ReconciliationSample {
   txHash: string;
   voter: string;
   submitMethod: string;
+  calldata?: string;
   submittedAssets: string[];
   reported: string;
   reads: {
@@ -67,6 +70,31 @@ describe('Aave voting power reconciliation fixture', () => {
       });
 
       expect(computed).toBe(BigInt(sample.computed));
+    }
+  });
+
+  it('matches submitted assets decoded from pinned calldata', () => {
+    const fixture = loadFixture();
+
+    for (const sample of fixture.samples) {
+      if (sample.calldata == null) continue;
+      expect(decodeSubmitVoteCalldata(sample.calldata)).toEqual(sample.submittedAssets);
+    }
+  });
+
+  it('pins submitted-asset totals separately from the full three-token sum', () => {
+    const fixture = loadFixture();
+
+    for (const sample of fixture.samples) {
+      const reads = {
+        aave: BigInt(sample.reads.aave),
+        stkAave: BigInt(sample.reads.stkAave),
+        aAave: BigInt(sample.reads.aAave),
+      };
+
+      expect(aggregateSubmittedVotingPower(reads, sample.submittedAssets)).toBeLessThanOrEqual(
+        aggregateVotingPower(reads),
+      );
     }
   });
 
