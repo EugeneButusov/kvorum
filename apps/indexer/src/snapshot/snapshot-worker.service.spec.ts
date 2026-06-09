@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VotingPowerStrategy } from '@libs/domain';
+import type { SourceSnapshotStrategy } from '@sources/core';
 import { SnapshotWorkerService } from './snapshot-worker.service';
+
+function makeEntry(strategy: VotingPowerStrategy): SourceSnapshotStrategy {
+  return { sourceTypes: [], strategy };
+}
 
 vi.mock('./snapshot-metrics', () => ({
   snapshotMetrics: {
@@ -56,8 +61,11 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([
-        ['compound_governor_bravo', { computeSnapshot: vi.fn(), verifyOnChain: vi.fn() } as never],
+      new Map([
+        [
+          'compound_governor_bravo',
+          makeEntry({ computeSnapshot: vi.fn(), verifyOnChain: vi.fn() }),
+        ],
       ]),
     );
 
@@ -66,6 +74,7 @@ describe('SnapshotWorkerService', () => {
       ['compound_governor_bravo'],
       ['active', 'succeeded', 'defeated', 'queued', 'executed', 'expired', 'vetoed'],
       5,
+      [],
     );
   });
 
@@ -114,7 +123,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
@@ -198,7 +207,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await svc.tickOnce();
@@ -224,7 +233,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
@@ -256,7 +265,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([['aave_governance_v3', strategy]]),
+      new Map([['aave_governance_v3', makeEntry(strategy)]]),
     );
 
     await svc.tickOnce();
@@ -287,7 +296,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await svc.tickOnce();
@@ -313,7 +322,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
@@ -357,8 +366,8 @@ describe('SnapshotWorkerService', () => {
     };
     const result = SnapshotWorkerService.buildStrategies([plugin]);
     expect(result.size).toBe(2);
-    expect(result.get('compound_governor_bravo')).toBe(strategy);
-    expect(result.get('compound_governor_alpha')).toBe(strategy);
+    expect(result.get('compound_governor_bravo')?.strategy).toBe(strategy);
+    expect(result.get('compound_governor_alpha')?.strategy).toBe(strategy);
   });
 
   it('readIntervalMs uses env var when set to a positive number', () => {
@@ -405,7 +414,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({

@@ -103,25 +103,6 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
-function makeRawQueryDb(returnValue: unknown[]) {
-  const executeQuery = vi.fn().mockResolvedValue({ rows: returnValue });
-  const executor = {
-    executeQuery,
-    transformQuery: vi.fn().mockImplementation((node: unknown) => node),
-    compileQuery: vi.fn().mockImplementation((node: unknown) => ({
-      sql: JSON.stringify(node),
-      parameters: [],
-      queryId: { queryId: '1' },
-    })),
-  };
-
-  return {
-    getExecutor: vi.fn().mockReturnValue(executor),
-    _executeQuery: executeQuery,
-    _compileQuery: executor.compileQuery,
-  };
-}
-
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -420,8 +401,12 @@ describe('ProposalRepository', () => {
       source_type: 'compound_governor_bravo',
       voting_power_block: '123',
     };
-    const db = makeRawQueryDb([candidate]);
-    const repo = new ProposalRepository(db as never);
+    const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+    const methods = ['leftJoin', 'select', 'where', 'orderBy', 'limit'];
+    for (const m of methods) chain[m] = vi.fn().mockReturnValue(chain);
+    chain['executeTakeFirst'] = vi.fn().mockResolvedValue(candidate);
+    const selectFrom = vi.fn().mockReturnValue(chain);
+    const repo = new ProposalRepository({ selectFrom } as never);
 
     await expect(
       repo.findNextSnapshotCandidate(
@@ -431,12 +416,13 @@ describe('ProposalRepository', () => {
       ),
     ).resolves.toEqual(candidate);
 
-    expect(db._executeQuery).toHaveBeenCalledTimes(1);
-    const compiledSql = db._executeQuery.mock.calls[0]?.[0]?.sql as string;
-    expect(compiledSql).toContain('aave_proposal_metadata');
-    expect(compiledSql).toContain('snapshot_block_number_l1');
-    expect(compiledSql).toContain('voting_power_snapshot_run');
-    expect(compiledSql).toContain('voting_power_block');
+    expect(selectFrom).toHaveBeenCalledWith('proposal as p');
+    expect(chain['leftJoin']).toHaveBeenCalledWith(
+      'voting_power_snapshot_run as vpsr',
+      'vpsr.proposal_id',
+      'p.id',
+    );
+    expect(chain['orderBy']).toHaveBeenCalledWith('p.voting_power_block', 'asc');
   });
 
   it('returns undefined when no snapshot strategies are registered', async () => {

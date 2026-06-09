@@ -340,6 +340,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             {
               sourceTypes: ['aave_governance_v3'],
               strategy: snapshotStrategy,
+              getBlockedProposalIds: () => proposals.findProposalIdsWithoutL1SnapshotBlock(),
             },
           ],
         };
