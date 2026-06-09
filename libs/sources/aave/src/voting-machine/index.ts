@@ -25,6 +25,7 @@ export { AaveVotingMachineEventRepository } from './persistence/event-repository
 export type { AaveVotingMachineArchivePayloadRow } from './persistence/archive-payload-repository';
 export { AaveVotingMachineArchivePayloadRepository } from './persistence/archive-payload-repository';
 export { projectAaveVote } from './domain/vote-projector';
+export { decodeSubmitVoteCalldata } from './domain/submit-vote-decoder';
 export type {
   AaveVotingMachineActorAddressSource,
   AaveVotingMachineAddressCandidate,

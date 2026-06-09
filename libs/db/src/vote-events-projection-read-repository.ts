@@ -12,8 +12,36 @@ export interface CurrentVoteRow {
   votingChainId: string;
 }
 
+export interface ProposalVoterRow {
+  voterAddress: string;
+  votingPower: string;
+}
+
 export class VoteEventsProjectionReadRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
+
+  async listVotersForProposal(args: {
+    daoId: string;
+    proposalId: string;
+  }): Promise<ProposalVoterRow[]> {
+    return this.chDb
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
+      .select([
+        'vef.voter_address as voterAddress',
+        sql<string>`
+          argMax(
+            vef.voting_power,
+            tuple(vef.cast_at, vef.block_number, vef.log_index)
+          )
+        `.as('votingPower'),
+      ])
+      .where('vef.dao_id', '=', args.daoId)
+      .where('vef.proposal_id', '=', args.proposalId)
+      .where('vef.superseded', '=', 0)
+      .groupBy('vef.voter_address')
+      .orderBy('vef.voter_address', 'asc')
+      .execute() as Promise<ProposalVoterRow[]>;
+  }
 
   async findCurrentVote(args: {
     daoId: string;

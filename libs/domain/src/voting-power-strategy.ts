@@ -1,10 +1,12 @@
 export interface VotingPowerStrategyContext {
   daoId: string;
+  proposalId?: string;
 }
 
 export interface ComputedActorPower {
   actorId: string;
   address: string;
+  votingAddress?: string;
   power: bigint;
 }
 

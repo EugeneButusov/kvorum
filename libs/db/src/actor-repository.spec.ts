@@ -160,6 +160,22 @@ describe('ActorRepository', () => {
     expect(wherePrimary).toHaveBeenCalledWith('is_primary', '=', true);
   });
 
+  it('lists actor ids keyed by address', async () => {
+    const execute = vi.fn().mockResolvedValue([{ actor_id: 'actor-1', address: '0xabc' }]);
+    const whereAddresses = vi.fn().mockReturnValue({ execute });
+    const select = vi.fn().mockReturnValue({ where: whereAddresses });
+    const selectFrom = vi.fn().mockReturnValue({ select });
+    const repo = new ActorRepository({ selectFrom } as never);
+
+    await expect(repo.findActorIdsByAddresses(['0xabc', '0xdef'])).resolves.toEqual([
+      { actor_id: 'actor-1', address: '0xabc' },
+    ]);
+
+    expect(selectFrom).toHaveBeenCalledWith('actor_address');
+    expect(select).toHaveBeenCalledWith(['actor_id', 'address']);
+    expect(whereAddresses).toHaveBeenCalledWith('address', 'in', ['0xabc', '0xdef']);
+  });
+
   it('finds ENS refresh candidates with ttlSeconds=0 without stale filter', async () => {
     const execute = vi.fn().mockResolvedValue([{ id: 'actor-1', primary_address: '0xabc' }]);
     const limit = vi.fn().mockReturnValue({ execute });
