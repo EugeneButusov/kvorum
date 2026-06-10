@@ -4,7 +4,7 @@ import type { NewProposal, NewProposalChoice } from './schema/pg';
 
 const NEW_PROPOSAL: NewProposal = {
   dao_id: 'dao-1',
-  source_type: 'compound_governor_bravo',
+  source_type: 'source_a',
   source_id: '42',
   proposer_actor_id: 'actor-1',
   description: 'proposal body',
@@ -134,14 +134,14 @@ describe('ProposalRepository', () => {
     const repo = new ProposalRepository({ selectFrom } as never);
 
     await expect(
-      repo.findBySource({ daoId: 'dao-1', sourceType: 'compound_governor_bravo', sourceId: '42' }),
+      repo.findBySource({ daoId: 'dao-1', sourceType: 'source_a', sourceId: '42' }),
     ).resolves.toMatchObject({ id: 'proposal-1' });
 
     expect(selectFrom).toHaveBeenCalledWith('proposal');
     expect(chain.selectAll).toHaveBeenCalled();
     expect(where.mock.calls).toEqual([
       ['dao_id', '=', 'dao-1'],
-      ['source_type', '=', 'compound_governor_bravo'],
+      ['source_type', '=', 'source_a'],
       ['source_id', '=', '42'],
     ]);
   });
@@ -285,7 +285,7 @@ describe('ProposalRepository', () => {
     await expect(
       repo.advanceState({
         daoId: 'dao-1',
-        sourceType: 'compound_governor_bravo',
+        sourceType: 'source_a',
         sourceId: '42',
         targetState: 'executed',
         stateUpdatedAt,
@@ -295,7 +295,7 @@ describe('ProposalRepository', () => {
     expect(update.updateTable).toHaveBeenCalledWith('proposal');
     expect(update.where.mock.calls).toEqual([
       ['dao_id', '=', 'dao-1'],
-      ['source_type', '=', 'compound_governor_bravo'],
+      ['source_type', '=', 'source_a'],
       ['source_id', '=', '42'],
       ['state', 'not in', ['executed', 'canceled', 'defeated']],
       ['state', 'in', ['pending', 'queued', 'active']],
@@ -308,7 +308,7 @@ describe('ProposalRepository', () => {
 
     await repo.advanceState({
       daoId: 'dao-1',
-      sourceType: 'compound_governor_bravo',
+      sourceType: 'source_a',
       sourceId: '42',
       targetState: 'queued',
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -333,7 +333,7 @@ describe('ProposalRepository', () => {
 
     await repo.advanceState({
       daoId: 'dao-1',
-      sourceType: 'aave_governance_v3',
+      sourceType: 'source_b',
       sourceId: '42',
       targetState,
       stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -398,7 +398,7 @@ describe('ProposalRepository', () => {
     const candidate = {
       id: 'proposal-1',
       dao_id: 'dao-1',
-      source_type: 'compound_governor_bravo',
+      source_type: 'source_a',
       voting_power_block: '123',
     };
     const chain: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -409,11 +409,7 @@ describe('ProposalRepository', () => {
     const repo = new ProposalRepository({ selectFrom } as never);
 
     await expect(
-      repo.findNextSnapshotCandidate(
-        ['compound_governor_bravo', 'aave_governance_v3'],
-        ['active', 'queued'],
-        5,
-      ),
+      repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
     ).resolves.toEqual(candidate);
 
     expect(selectFrom).toHaveBeenCalledWith('proposal as p');
