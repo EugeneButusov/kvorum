@@ -8,8 +8,8 @@ describe('AaveVotingPowerStrategy', () => {
   it('computes power for proposal voters and keeps the voting address', async () => {
     const voteRead = {
       listVotersForProposal: vi.fn().mockResolvedValue([
-        { voterAddress: '0xabc', votingPower: '12' },
-        { voterAddress: '0xdef', votingPower: '34' },
+        { voter_address: '0xabc', voting_power: '12' },
+        { voter_address: '0xdef', voting_power: '34' },
       ]),
     } as unknown as VoteEventsProjectionReadRepository;
     const actors = {
@@ -45,7 +45,7 @@ describe('AaveVotingPowerStrategy', () => {
       {
         listVotersForProposal: vi
           .fn()
-          .mockResolvedValue([{ voterAddress: '0xabc', votingPower: '7' }]),
+          .mockResolvedValue([{ voter_address: '0xabc', voting_power: '7' }]),
       } as unknown as VoteEventsProjectionReadRepository,
       {
         findActorIdsByAddresses: vi.fn().mockResolvedValue([]),
@@ -85,7 +85,7 @@ describe('AaveVotingPowerStrategy', () => {
       {
         listVotersForProposal: vi
           .fn()
-          .mockResolvedValue([{ voterAddress: '0xabc', votingPower: '7' }]),
+          .mockResolvedValue([{ voter_address: '0xabc', voting_power: '7' }]),
       } as unknown as VoteEventsProjectionReadRepository,
       {
         findActorIdsByAddresses: vi
@@ -138,13 +138,13 @@ describe('AaveVotingPowerStrategy', () => {
   it('returns stored reported power from the vote projection', async () => {
     const voteRead = {
       findCurrentVote: vi.fn().mockResolvedValue({
-        voteId: 'vote-1',
-        castAt: new Date(),
-        blockNumber: '100',
-        logIndex: 0,
-        primaryChoice: 1,
-        votingPower: '42',
-        votingChainId: '0x89',
+        vote_id: 'vote-1',
+        cast_at: new Date(),
+        block_number: '100',
+        log_index: 0,
+        primary_choice: 1,
+        voting_power: '42',
+        voting_chain_id: '0x89',
       }),
     } as unknown as VoteEventsProjectionReadRepository;
     const strategy = new AaveVotingPowerStrategy(

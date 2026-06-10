@@ -32,7 +32,7 @@ export class AaveVotingPowerStrategy implements VotingPowerStrategy {
     if (voters.length === 0) return [];
 
     const actorMatches = await this.actors.findActorIdsByAddresses(
-      voters.map((row) => row.voterAddress.toLowerCase()),
+      voters.map((row) => row.voter_address.toLowerCase()),
     );
     const actorIdByAddress = new Map(actorMatches.map((row) => [row.address, row.actor_id]));
     const primaryRows = await this.actors.findPrimaryAddressesByActorIds([
@@ -42,7 +42,7 @@ export class AaveVotingPowerStrategy implements VotingPowerStrategy {
 
     const computed = await Promise.all(
       voters.map(async (row) => {
-        const votingAddress = row.voterAddress.toLowerCase();
+        const votingAddress = row.voter_address.toLowerCase();
         const actorId = actorIdByAddress.get(votingAddress);
         if (actorId === undefined) {
           this.logger.warn('aave_snapshot_actor_missing_for_voter', {
@@ -88,6 +88,6 @@ export class AaveVotingPowerStrategy implements VotingPowerStrategy {
       throw new Error(`vote not found for dao_id=${ctx.daoId} proposal_id=${ctx.proposalId}`);
     }
 
-    return BigInt(vote.votingPower);
+    return BigInt(vote.voting_power);
   }
 }
