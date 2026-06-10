@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS voting_power_snapshot_raw
     dao_id UUID,
     proposal_id UUID,
     actor_address FixedString(42),
+    voter_address FixedString(42) DEFAULT actor_address,
     voting_power UInt256 CODEC(ZSTD(1)),
     actor_id_hint Nullable(UUID),
     computed_at DateTime64(3),
@@ -169,6 +170,7 @@ CREATE TABLE IF NOT EXISTS voting_power_snapshot_agg
     dao_id UUID,
     proposal_id UUID,
     actor_address FixedString(42),
+    voter_address_state AggregateFunction(argMax, FixedString(42), DateTime64(6)),
     voting_power_state AggregateFunction(argMax, UInt256, DateTime64(6)),
     actor_id_hint_state AggregateFunction(argMax, Nullable(UUID), DateTime64(6)),
     computed_at_state AggregateFunction(argMax, DateTime64(3), DateTime64(6))
@@ -181,6 +183,7 @@ SELECT
     dao_id,
     proposal_id,
     actor_address,
+    argMaxState(voter_address, version)  AS voter_address_state,
     argMaxState(voting_power, version)   AS voting_power_state,
     argMaxState(actor_id_hint, version)  AS actor_id_hint_state,
     argMaxState(computed_at, version)    AS computed_at_state
@@ -192,6 +195,7 @@ SELECT
     dao_id,
     proposal_id,
     actor_address,
+    argMaxMerge(voter_address_state)   AS voter_address,
     argMaxMerge(voting_power_state)    AS voting_power,
     argMaxMerge(actor_id_hint_state)   AS actor_id_hint,
     argMaxMerge(computed_at_state)     AS computed_at
