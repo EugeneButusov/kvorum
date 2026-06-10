@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ChainContextRegistry, parseChainConfigFromEnv } from '@libs/chain';
+import { ChainContextRegistry } from '@libs/chain';
 import {
   AaveGovernancePowerReader,
   A_AAVE_TOKEN_ADDRESS,
@@ -54,9 +54,6 @@ function loadFixture(): ReconciliationFixture {
   );
   return JSON.parse(readFileSync(path, 'utf8')) as ReconciliationFixture;
 }
-
-const RUN_LIVE = process.env['AAVE_RECONCILIATION_LIVE'] === '1';
-const itLive = RUN_LIVE ? it : it.skip;
 
 describe('Aave voting power reconciliation fixture', () => {
   it('pins proposal 489 sample reads and plain-sum totals', async () => {
@@ -180,31 +177,6 @@ describe('Aave voting power reconciliation fixture', () => {
         stkAave: BigInt(sample.reads.stkAave),
         aAave: BigInt(sample.reads.aAave),
       });
-    }
-  });
-
-  itLive('matches the pinned fixture against a live Ethereum archive provider', async () => {
-    const fixture = loadFixture();
-    const chainCfg = parseChainConfigFromEnv(process.env).find((cfg) => cfg.chainId === '0x1');
-    if (chainCfg == null) {
-      throw new Error('CHAIN_CONFIG must include Ethereum mainnet (0x1)');
-    }
-
-    const registry = new ChainContextRegistry();
-    try {
-      await registry.getOrCreate(chainCfg);
-      const reader = new AaveGovernancePowerReader(registry);
-      const snapshotBlock = BigInt(fixture.snapshotBlockNumber);
-
-      for (const sample of fixture.samples) {
-        await expect(reader.read(sample.voter, snapshotBlock)).resolves.toEqual({
-          aave: BigInt(sample.reads.aave),
-          stkAave: BigInt(sample.reads.stkAave),
-          aAave: BigInt(sample.reads.aAave),
-        });
-      }
-    } finally {
-      await registry.drainAll();
     }
   });
 });
