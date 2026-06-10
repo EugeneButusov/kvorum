@@ -210,6 +210,15 @@ export class AaveProposalRepository
     return Number(result?.numUpdatedRows ?? 0n);
   }
 
+  async findProposalIdsWithoutL1SnapshotBlock(): Promise<string[]> {
+    const rows = await this.db
+      .selectFrom('aave_proposal_metadata')
+      .select('proposal_id')
+      .where('snapshot_block_number_l1', 'is', null)
+      .execute();
+    return rows.map((r) => r.proposal_id);
+  }
+
   async markReconcileChecked(proposalId: string, confirmedThreshold: string): Promise<void> {
     await this.db
       .updateTable('aave_proposal_metadata')

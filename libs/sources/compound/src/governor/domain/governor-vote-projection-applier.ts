@@ -174,7 +174,7 @@ export class GovernorVoteProjectionApplier {
       // Re-deriving the row that is already current is a no-op, not a supersession.
       // Without this guard, buildVoteRows emits a self-superseding row (superseded=1,
       // superseded_by=self), which collapses the vote to zero superseded=0 rows under FINAL.
-      if (current !== undefined && current.voteId === row.id) {
+      if (current !== undefined && current.vote_id === row.id) {
         await this.archive.markDerived(row.id);
         this.record(row, 'skipped_idempotent', null);
         return;

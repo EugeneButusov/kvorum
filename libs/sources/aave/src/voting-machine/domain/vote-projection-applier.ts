@@ -245,18 +245,18 @@ export class AaveVoteProjectionApplier {
         proposalId: proposal.id,
         voterAddress,
       });
-      if (current?.voteId === row.id) {
+      if (current?.vote_id === row.id) {
         await this.archive.markDerived(row.id);
         this.record(row, 'skipped_idempotent', null);
         return undefined;
       }
-      if (current !== undefined && current.votingChainId !== row.chain_id) {
+      if (current !== undefined && current.voting_chain_id !== row.chain_id) {
         this.record(row, 'failed', 'single_voting_chain_violation');
         this.logger.error('aave_vote_single_voting_chain_violation', {
           row_id: row.id,
           proposal_id: proposal.id,
           voter_address: voterAddress,
-          current_voting_chain_id: current.votingChainId,
+          current_voting_chain_id: current.voting_chain_id,
           incoming_voting_chain_id: row.chain_id,
         });
         return undefined;

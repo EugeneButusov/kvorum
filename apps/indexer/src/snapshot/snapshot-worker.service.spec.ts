@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VotingPowerStrategy } from '@libs/domain';
+import type { SourceSnapshotStrategy } from '@sources/core';
 import { SnapshotWorkerService } from './snapshot-worker.service';
+
+function makeEntry(strategy: VotingPowerStrategy): SourceSnapshotStrategy {
+  return { sourceTypes: [], strategy };
+}
 
 vi.mock('./snapshot-metrics', () => ({
   snapshotMetrics: {
@@ -56,8 +61,11 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([
-        ['compound_governor_bravo', { computeSnapshot: vi.fn(), verifyOnChain: vi.fn() } as never],
+      new Map([
+        [
+          'compound_governor_bravo',
+          makeEntry({ computeSnapshot: vi.fn(), verifyOnChain: vi.fn() }),
+        ],
       ]),
     );
 
@@ -66,6 +74,7 @@ describe('SnapshotWorkerService', () => {
       ['compound_governor_bravo'],
       ['active', 'succeeded', 'defeated', 'queued', 'executed', 'expired', 'vetoed'],
       5,
+      [],
     );
   });
 
@@ -114,12 +123,16 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
       outcome: 'verified',
       proposalId: candidate.id,
+    });
+    expect(strategy.computeSnapshot).toHaveBeenCalledWith(123n, {
+      daoId: 'dao-1',
+      proposalId: 'proposal-1',
     });
     expect(repos.actorRepo.findPrimaryAddressesByActorIds).toHaveBeenCalledWith(['actor-1']);
     expect(repos.snapshotRepo.bulkInsert).toHaveBeenCalledWith([
@@ -127,6 +140,7 @@ describe('SnapshotWorkerService', () => {
         dao_id: 'dao-1',
         proposal_id: 'proposal-1',
         actor_address: '0xabc',
+        voter_address: '0xabc',
         voting_power: '10',
         actor_id_hint: 'actor-1',
       }),
@@ -193,7 +207,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await svc.tickOnce();
@@ -219,7 +233,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
@@ -227,6 +241,41 @@ describe('SnapshotWorkerService', () => {
       proposalId: candidate.id,
     });
     expect(repos.snapshotRepo.bulkInsert).not.toHaveBeenCalled();
+  });
+
+  it('stores a distinct voter_address when strategy returns votingAddress', async () => {
+    const repos = makeRepos();
+    const candidate = { ...makeCandidate(), source_type: 'aave_governance_v3' };
+    repos.proposalRepo.findNextSnapshotCandidate.mockResolvedValue(candidate);
+    repos.runRepo.findByProposalId.mockResolvedValue(undefined);
+    repos.actorRepo.findPrimaryAddressesByActorIds.mockResolvedValue([
+      { actor_id: 'actor-1', address: '0xprimary' },
+    ]);
+
+    const strategy: VotingPowerStrategy = {
+      computeSnapshot: vi
+        .fn()
+        .mockResolvedValue([{ actorId: 'actor-1', votingAddress: '0xvote', power: 10n }]),
+      verifyOnChain: vi.fn(),
+    };
+
+    const svc = new SnapshotWorkerService(
+      repos.proposalRepo as never,
+      repos.snapshotRepo as never,
+      repos.actorRepo as never,
+      repos.runRepo as never,
+      repos.dlqRepo as never,
+      new Map([['aave_governance_v3', makeEntry(strategy)]]),
+    );
+
+    await svc.tickOnce();
+
+    expect(repos.snapshotRepo.bulkInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        actor_address: '0xprimary',
+        voter_address: '0xvote',
+      }),
+    ]);
   });
 
   it('skips actors with no primary address (flatMap returns [])', async () => {
@@ -247,7 +296,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await svc.tickOnce();
@@ -273,7 +322,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({
@@ -317,8 +366,8 @@ describe('SnapshotWorkerService', () => {
     };
     const result = SnapshotWorkerService.buildStrategies([plugin]);
     expect(result.size).toBe(2);
-    expect(result.get('compound_governor_bravo')).toBe(strategy);
-    expect(result.get('compound_governor_alpha')).toBe(strategy);
+    expect(result.get('compound_governor_bravo')?.strategy).toBe(strategy);
+    expect(result.get('compound_governor_alpha')?.strategy).toBe(strategy);
   });
 
   it('readIntervalMs uses env var when set to a positive number', () => {
@@ -365,7 +414,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map<string, VotingPowerStrategy>([['compound_governor_bravo', strategy]]),
+      new Map([['compound_governor_bravo', makeEntry(strategy)]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({

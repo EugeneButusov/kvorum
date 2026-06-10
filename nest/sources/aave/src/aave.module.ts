@@ -1,6 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
+  ActorRepository,
   ArchiveDerivationRepository,
   ArchiveEventRepository,
   DlqRepository,
@@ -11,6 +12,7 @@ import {
   pgDb,
 } from '@libs/db';
 import {
+  AaveGovernancePowerReader,
   AaveGovernanceActorAddressDeriver,
   AaveGovernanceArchiveWriter,
   AaveGovernanceArchivePayloadRepository,
@@ -25,6 +27,7 @@ import {
   AavePayloadsControllerEventRepository,
   AaveProposalRepository,
   AaveVoteProjectionApplier,
+  AaveVotingPowerStrategy,
   AaveVotingMachineActorAddressDeriver,
   AaveVotingMachineArchiveWriter,
   AaveVotingMachineArchivePayloadRepository,
@@ -48,6 +51,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
   imports: [
     ChainContextModule,
     DbModule.forFeature([
+      ActorRepository,
       ArchiveDerivationRepository,
       ArchiveEventRepository,
       DlqRepository,
@@ -283,8 +287,17 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         voteProjectionApplier: AaveVoteProjectionApplier,
         payloadsControllerActorAddressDeriver: AavePayloadsControllerActorAddressDeriver,
         payloadStitchApplier: AavePayloadStitchApplier,
+        actorRepository: ActorRepository,
+        voteReadRepository: VoteEventsProjectionReadRepository,
+        registry: ChainContextRegistry,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
+        const snapshotStrategy = new AaveVotingPowerStrategy(
+          voteReadRepository,
+          actorRepository,
+          new AaveGovernancePowerReader(registry),
+          toChainLogger(new Logger('AaveVotingPowerStrategy')),
+        );
         return {
           name: 'aave',
           ingesters: [
@@ -323,7 +336,13 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             payloadsControllerActorAddressDeriver,
             payloadStitchApplier,
           ],
-          snapshotStrategies: [],
+          snapshotStrategies: [
+            {
+              sourceTypes: ['aave_governance_v3'],
+              strategy: snapshotStrategy,
+              getBlockedProposalIds: () => proposals.findProposalIdsWithoutL1SnapshotBlock(),
+            },
+          ],
         };
       },
       inject: [
@@ -339,6 +358,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveVoteProjectionApplier,
         AavePayloadsControllerActorAddressDeriver,
         AavePayloadStitchApplier,
+        ActorRepository,
+        VoteEventsProjectionReadRepository,
+        ChainContextRegistry,
       ],
     },
   ],

@@ -5,12 +5,15 @@ function makeChain<T>(result: T) {
   const chain = {
     select: vi.fn(),
     where: vi.fn(),
+    groupBy: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
+    execute: vi.fn().mockResolvedValue(result),
     executeTakeFirst: vi.fn().mockResolvedValue(result),
   };
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
+  chain.groupBy.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
   chain.limit.mockReturnValue(chain);
   return chain;
@@ -73,5 +76,24 @@ describe('VoteEventsProjectionReadRepository', () => {
       ['vef.log_index', 'desc'],
     ]);
     expect(chChain.limit).toHaveBeenCalledWith(1);
+  });
+
+  it('lists proposal voters with one row per voter address', async () => {
+    const rows = [
+      { voterAddress: '0xabc', votingPower: '42' },
+      { voterAddress: '0xdef', votingPower: '11' },
+    ];
+    const chChain = makeChain(rows);
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+    const repo = new VoteEventsProjectionReadRepository(ch as never);
+
+    await expect(
+      repo.listVotersForProposal({ daoId: 'dao-1', proposalId: 'p-1' }),
+    ).resolves.toEqual(rows);
+    expect(chChain.where).toHaveBeenCalledWith('vef.dao_id', '=', 'dao-1');
+    expect(chChain.where).toHaveBeenCalledWith('vef.proposal_id', '=', 'p-1');
+    expect(chChain.where).toHaveBeenCalledWith('vef.superseded', '=', 0);
+    expect(chChain.groupBy).toHaveBeenCalledWith('vef.voter_address');
+    expect(chChain.orderBy).toHaveBeenCalledWith('vef.voter_address', 'asc');
   });
 });

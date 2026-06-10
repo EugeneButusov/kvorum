@@ -27,6 +27,7 @@ describe('VotingPowerSnapshotProjectionWriter', () => {
       dao_id: 'dao-1',
       proposal_id: 'p-1',
       actor_address: `0x${i.toString(16)}`,
+      voter_address: `0x${i.toString(16)}`,
       voting_power: String(i),
       actor_id_hint: null,
       computed_at: new Date('2026-01-01T00:00:00.000Z'),

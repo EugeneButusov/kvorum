@@ -8,13 +8,13 @@ export function isNewerVote(
   current: CurrentVoteRow | undefined,
 ): boolean {
   if (current === undefined) return true;
-  if (castAt.getTime() !== current.castAt.getTime()) return castAt > current.castAt;
+  if (castAt.getTime() !== current.cast_at.getTime()) return castAt > current.cast_at;
 
   const incomingBlock = BigInt(blockNumber);
-  const currentBlock = BigInt(current.blockNumber);
+  const currentBlock = BigInt(current.block_number);
   if (incomingBlock !== currentBlock) return incomingBlock > currentBlock;
 
-  return logIndex > current.logIndex;
+  return logIndex > current.log_index;
 }
 
 export function buildVoteRows(args: {
@@ -41,23 +41,23 @@ export function buildVoteRows(args: {
     log_index: args.row.log_index,
     superseded: args.incomingIsNewer ? 0 : 1,
     superseded_at: args.incomingIsNewer ? null : args.castAt,
-    superseded_by_vote_id: args.incomingIsNewer ? null : (args.current?.voteId ?? null),
+    superseded_by_vote_id: args.incomingIsNewer ? null : (args.current?.vote_id ?? null),
   };
   if (!args.incomingIsNewer || args.current === undefined) return [incoming];
 
   return [
     incoming,
     {
-      vote_id: args.current.voteId,
+      vote_id: args.current.vote_id,
       dao_id: args.daoId,
       proposal_id: args.proposalId,
       voter_address: args.voterAddress,
-      voting_chain_id: args.current.votingChainId,
-      primary_choice: args.current.primaryChoice,
-      voting_power: args.current.votingPower,
-      cast_at: args.current.castAt,
-      block_number: args.current.blockNumber,
-      log_index: args.current.logIndex,
+      voting_chain_id: args.current.voting_chain_id,
+      primary_choice: args.current.primary_choice,
+      voting_power: args.current.voting_power,
+      cast_at: args.current.cast_at,
+      block_number: args.current.block_number,
+      log_index: args.current.log_index,
       superseded: 1,
       superseded_at: args.castAt,
       superseded_by_vote_id: incomingVoteId,

@@ -216,12 +216,12 @@ export class ProposalRepository {
           voting_starts_at:
             row.voting_starts_at === null
               ? eb.ref('voting_starts_at')
-              : sql`coalesce(voting_starts_at, ${row.voting_starts_at})`,
+              : eb.fn('coalesce', [eb.ref('voting_starts_at'), eb.val(row.voting_starts_at)]),
           voting_ends_at:
             row.voting_ends_at === null
               ? eb.ref('voting_ends_at')
-              : sql`coalesce(voting_ends_at, ${row.voting_ends_at})`,
-          updated_at: sql`now()`,
+              : eb.fn('coalesce', [eb.ref('voting_ends_at'), eb.val(row.voting_ends_at)]),
+          updated_at: sql<Date>`now()`,
         }))
         .where('id', '=', row.id)
         .execute();
@@ -232,15 +232,16 @@ export class ProposalRepository {
     supportedSourceTypes: readonly string[],
     eligibleStates: readonly ProposalState[],
     snapshotDlqThreshold: number,
+    excludeIds: readonly string[] = [],
   ): Promise<SnapshotCandidate | undefined> {
     if (supportedSourceTypes.length === 0) return undefined;
 
-    return this.db
+    const base = this.db
       .selectFrom('proposal as p')
       .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
       .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
-      .where('p.source_type', 'in', [...supportedSourceTypes])
-      .where('p.state', 'in', [...eligibleStates])
+      .where('p.source_type', 'in', supportedSourceTypes)
+      .where('p.state', 'in', eligibleStates)
       .where((eb) =>
         eb.or([
           eb('vpsr.status', 'is', null),
@@ -249,7 +250,9 @@ export class ProposalRepository {
             eb('vpsr.snapshot_attempt_count', '<', snapshotDlqThreshold),
           ]),
         ]),
-      )
+      );
+
+    return (excludeIds.length > 0 ? base.where('p.id', 'not in', excludeIds) : base)
       .orderBy('p.voting_power_block', 'asc')
       .orderBy('p.id', 'asc')
       .limit(1)

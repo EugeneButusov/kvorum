@@ -68,7 +68,7 @@ export {
 export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
 export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
-export type { CurrentVoteRow } from './vote-events-projection-read-repository';
+export type { CurrentVoteRow, ProposalVoterRow } from './vote-events-projection-read-repository';
 export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
 export type { NewVoteEventsProjectionRow } from './vote-events-projection-writer';
 export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';

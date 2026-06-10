@@ -17,13 +17,13 @@ const BASE_ROW: ArchiveDerivationRow = {
 };
 
 const CURRENT: CurrentVoteRow = {
-  voteId: 'archive-1',
-  castAt: new Date('2026-01-01T00:01:39Z'),
-  blockNumber: '199',
-  logIndex: 2,
-  primaryChoice: 0,
-  votingPower: '100',
-  votingChainId: '0x89',
+  vote_id: 'archive-1',
+  cast_at: new Date('2026-01-01T00:01:39Z'),
+  block_number: '199',
+  log_index: 2,
+  primary_choice: 0,
+  voting_power: '100',
+  voting_chain_id: '0x89',
 };
 
 describe('isNewerVote', () => {

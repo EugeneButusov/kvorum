@@ -3,17 +3,45 @@ import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { VoteEventsProjectionTable } from './schema/projections';
 
 export interface CurrentVoteRow {
-  voteId: string;
-  castAt: Date;
-  blockNumber: string;
-  logIndex: number;
-  primaryChoice: number;
-  votingPower: string;
-  votingChainId: string;
+  vote_id: string;
+  cast_at: Date;
+  block_number: string;
+  log_index: number;
+  primary_choice: number;
+  voting_power: string;
+  voting_chain_id: string;
+}
+
+export interface ProposalVoterRow {
+  voter_address: string;
+  voting_power: string;
 }
 
 export class VoteEventsProjectionReadRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
+
+  async listVotersForProposal(args: {
+    daoId: string;
+    proposalId: string;
+  }): Promise<ProposalVoterRow[]> {
+    return this.chDb
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
+      .select([
+        'vef.voter_address',
+        sql<string>`
+          argMax(
+            vef.voting_power,
+            tuple(vef.cast_at, vef.block_number, vef.log_index)
+          )
+        `.as('voting_power'),
+      ])
+      .where('vef.dao_id', '=', args.daoId)
+      .where('vef.proposal_id', '=', args.proposalId)
+      .where('vef.superseded', '=', 0)
+      .groupBy('vef.voter_address')
+      .orderBy('vef.voter_address', 'asc')
+      .execute() as Promise<ProposalVoterRow[]>;
+  }
 
   async findCurrentVote(args: {
     daoId: string;
@@ -27,13 +55,13 @@ export class VoteEventsProjectionReadRepository {
     return this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
       .select([
-        'vef.vote_id as voteId',
-        'vef.cast_at as castAt',
-        'vef.block_number as blockNumber',
-        'vef.log_index as logIndex',
-        'vef.primary_choice as primaryChoice',
-        'vef.voting_power as votingPower',
-        'vef.voting_chain_id as votingChainId',
+        'vef.vote_id',
+        'vef.cast_at',
+        'vef.block_number',
+        'vef.log_index',
+        'vef.primary_choice',
+        'vef.voting_power',
+        'vef.voting_chain_id',
       ])
       .where('vef.dao_id', '=', args.daoId)
       .where('vef.proposal_id', '=', args.proposalId)

@@ -116,6 +116,7 @@ export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
 export interface SourceSnapshotStrategy {
   readonly sourceTypes: readonly string[];
   readonly strategy: VotingPowerStrategy;
+  getBlockedProposalIds?(): Promise<readonly string[]>;
 }
 
 export interface SourcePlugin {

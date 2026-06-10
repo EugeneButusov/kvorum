@@ -9,8 +9,7 @@ import {
   VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
-import type { VotingPowerStrategy } from '@libs/domain';
-import type { SourcePlugin } from '@sources/core';
+import type { SourcePlugin, SourceSnapshotStrategy } from '@sources/core';
 import { snapshotMetrics } from './snapshot-metrics';
 import { readIntervalMs } from '../app/env-helpers';
 
@@ -43,7 +42,7 @@ export interface TickOutcome {
   proposalId?: string;
 }
 
-type SnapshotStrategies = Map<string, VotingPowerStrategy>;
+type SnapshotStrategies = Map<string, SourceSnapshotStrategy>;
 
 @Injectable()
 export class SnapshotWorkerService {
@@ -60,11 +59,11 @@ export class SnapshotWorkerService {
   ) {}
 
   static buildStrategies(plugins: readonly SourcePlugin[]): SnapshotStrategies {
-    const strategies = new Map<string, VotingPowerStrategy>();
+    const strategies = new Map<string, SourceSnapshotStrategy>();
     for (const plugin of plugins) {
       for (const entry of plugin.snapshotStrategies) {
         for (const sourceType of entry.sourceTypes) {
-          strategies.set(sourceType, entry.strategy);
+          strategies.set(sourceType, entry);
         }
       }
     }
@@ -89,8 +88,8 @@ export class SnapshotWorkerService {
       activeCandidate = candidate;
       if (candidate === undefined) return { outcome: 'idle' };
 
-      const strategy = this.strategies.get(candidate.source_type);
-      if (strategy === undefined) {
+      const strategyEntry = this.strategies.get(candidate.source_type);
+      if (strategyEntry === undefined) {
         await this.ensureNoStrategyFailure(candidate.id, candidate.voting_power_block);
         return { outcome: 'no_strategy', proposalId: candidate.id };
       }
@@ -107,7 +106,10 @@ export class SnapshotWorkerService {
       }
 
       const block = BigInt(candidate.voting_power_block);
-      const computed = await strategy.computeSnapshot(block, { daoId: candidate.dao_id });
+      const computed = await strategyEntry.strategy.computeSnapshot(block, {
+        daoId: candidate.dao_id,
+        proposalId: candidate.id,
+      });
       snapshotMetrics.populationSize.record(computed.length);
 
       if (computed.length === 0) {
@@ -134,6 +136,7 @@ export class SnapshotWorkerService {
             dao_id: candidate.dao_id,
             proposal_id: candidate.id,
             actor_address: primaryAddress,
+            voter_address: row.votingAddress ?? primaryAddress,
             voting_power: row.power.toString(),
             actor_id_hint: row.actorId,
             computed_at: new Date(),
@@ -202,10 +205,18 @@ export class SnapshotWorkerService {
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
     const supportedSourceTypes = [...this.strategies.keys()];
+    const blockedIds = (
+      await Promise.all(
+        [...new Set(this.strategies.values())].map(
+          (entry) => entry.getBlockedProposalIds?.() ?? Promise.resolve([]),
+        ),
+      )
+    ).flat();
     return this.proposalRepo.findNextSnapshotCandidate(
       supportedSourceTypes,
       ELIGIBLE_STATES,
       SNAPSHOT_DLQ_THRESHOLD,
+      blockedIds,
     );
   }
 

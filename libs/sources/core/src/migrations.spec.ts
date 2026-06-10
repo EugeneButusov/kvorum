@@ -140,6 +140,14 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     expect(rawColumn?.default_expression).toBe("'0x1'");
   });
 
+  it('adds voter_address to voting power snapshots with actor_address default on raw table', async () => {
+    const projectionColumn = await fetchColumn('voting_power_snapshot_projection', 'voter_address');
+    expect(projectionColumn?.name).toBe('voter_address');
+
+    const rawColumn = await fetchColumn('voting_power_snapshot_raw', 'voter_address');
+    expect(rawColumn?.default_expression).toBe('actor_address');
+  });
+
   it('creates actor_address_redirect dictionary', async () => {
     await expect(hasDictionary('actor_address_redirect')).resolves.toBe(true);
   });

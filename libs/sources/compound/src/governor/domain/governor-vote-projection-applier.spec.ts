@@ -329,13 +329,13 @@ describe('GovernorVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'old-vote-id',
-      castAt: new Date('2025-12-31T00:00:00Z'), // older than the incoming 2026-01-01T00:01:40Z
-      blockNumber: '50',
-      logIndex: 0,
-      primaryChoice: 2,
-      votingPower: '99',
-      votingChainId: '0x1',
+      vote_id: 'old-vote-id',
+      cast_at: new Date('2025-12-31T00:00:00Z'), // older than the incoming 2026-01-01T00:01:40Z
+      block_number: '50',
+      log_index: 0,
+      primary_choice: 2,
+      voting_power: '99',
+      voting_chain_id: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -365,13 +365,13 @@ describe('GovernorVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'newer-vote-id',
-      castAt: new Date('2026-06-01T00:00:00Z'), // newer than incoming
-      blockNumber: '200',
-      logIndex: 0,
-      primaryChoice: 1,
-      votingPower: '200',
-      votingChainId: '0x1',
+      vote_id: 'newer-vote-id',
+      cast_at: new Date('2026-06-01T00:00:00Z'), // newer than incoming
+      block_number: '200',
+      log_index: 0,
+      primary_choice: 1,
+      voting_power: '200',
+      voting_chain_id: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
@@ -396,13 +396,13 @@ describe('GovernorVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'old-vote-id',
-      castAt: tiedCastAt,
-      blockNumber: '50', // incoming block '100' > '50' → incoming is newer
-      logIndex: 0,
-      primaryChoice: 2,
-      votingPower: '99',
-      votingChainId: '0x1',
+      vote_id: 'old-vote-id',
+      cast_at: tiedCastAt,
+      block_number: '50', // incoming block '100' > '50' → incoming is newer
+      log_index: 0,
+      primary_choice: 2,
+      voting_power: '99',
+      voting_chain_id: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -419,13 +419,13 @@ describe('GovernorVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'old-vote-id',
-      castAt: tiedCastAt,
-      blockNumber: BASE_ROW.block_number, // same block
-      logIndex: 0, // incoming logIndex=1 > 0 → incoming is newer
-      primaryChoice: 2,
-      votingPower: '99',
-      votingChainId: '0x1',
+      vote_id: 'old-vote-id',
+      cast_at: tiedCastAt,
+      block_number: BASE_ROW.block_number, // same block
+      log_index: 0, // incoming logIndex=1 > 0 → incoming is newer
+      primary_choice: 2,
+      voting_power: '99',
+      voting_chain_id: '0x1',
     });
     (voteWrite.insertBatch as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     (archive.markDerived as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -523,13 +523,13 @@ describe('GovernorVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-1' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: BASE_ROW.id, // same id as the row being processed — identity case
-      castAt: new Date('2026-01-01T00:01:40Z'),
-      blockNumber: BASE_ROW.block_number,
-      logIndex: BASE_ROW.log_index,
-      primaryChoice: 1,
-      votingPower: '123',
-      votingChainId: '0x1',
+      vote_id: BASE_ROW.id, // same id as the row being processed — identity case
+      cast_at: new Date('2026-01-01T00:01:40Z'),
+      block_number: BASE_ROW.block_number,
+      log_index: BASE_ROW.log_index,
+      primary_choice: 1,
+      voting_power: '123',
+      voting_chain_id: '0x1',
     });
 
     await applier.applyBatch([BASE_ROW]);

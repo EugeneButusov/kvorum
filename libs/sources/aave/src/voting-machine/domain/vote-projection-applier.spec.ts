@@ -253,13 +253,13 @@ describe('AaveVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'archive-1',
-      castAt: new Date('2026-01-01T00:01:40Z'),
-      blockNumber: '100',
-      logIndex: 1,
-      primaryChoice: 1,
-      votingPower: '123',
-      votingChainId: '0x89',
+      vote_id: 'archive-1',
+      cast_at: new Date('2026-01-01T00:01:40Z'),
+      block_number: '100',
+      log_index: 1,
+      primary_choice: 1,
+      voting_power: '123',
+      voting_chain_id: '0x89',
     });
 
     await applier.applyBatch([BASE_ROW]);
@@ -274,13 +274,13 @@ describe('AaveVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'existing-vote',
-      castAt: new Date('2026-01-01T00:01:39Z'),
-      blockNumber: '99',
-      logIndex: 0,
-      primaryChoice: 0,
-      votingPower: '100',
-      votingChainId: '0xa86a',
+      vote_id: 'existing-vote',
+      cast_at: new Date('2026-01-01T00:01:39Z'),
+      block_number: '99',
+      log_index: 0,
+      primary_choice: 0,
+      voting_power: '100',
+      voting_chain_id: '0xa86a',
     });
 
     await applier.applyBatch([BASE_ROW]);
@@ -306,13 +306,13 @@ describe('AaveVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'existing-vote',
-      castAt: new Date('2026-01-01T00:01:39Z'),
-      blockNumber: '99',
-      logIndex: 0,
-      primaryChoice: 0,
-      votingPower: '100',
-      votingChainId: '0x89',
+      vote_id: 'existing-vote',
+      cast_at: new Date('2026-01-01T00:01:39Z'),
+      block_number: '99',
+      log_index: 0,
+      primary_choice: 0,
+      voting_power: '100',
+      voting_chain_id: '0x89',
     });
 
     await applier.applyBatch([BASE_ROW]);
@@ -325,13 +325,13 @@ describe('AaveVoteProjectionApplier', () => {
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
     (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
     (voteRead.findCurrentVote as ReturnType<typeof vi.fn>).mockResolvedValue({
-      voteId: 'newer-vote',
-      castAt: new Date('2026-01-01T00:02:40Z'),
-      blockNumber: '200',
-      logIndex: 5,
-      primaryChoice: 0,
-      votingPower: '222',
-      votingChainId: '0x89',
+      vote_id: 'newer-vote',
+      cast_at: new Date('2026-01-01T00:02:40Z'),
+      block_number: '200',
+      log_index: 5,
+      primary_choice: 0,
+      voting_power: '222',
+      voting_chain_id: '0x89',
     });
 
     await applier.applyBatch([BASE_ROW]);
