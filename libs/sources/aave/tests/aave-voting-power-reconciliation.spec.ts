@@ -125,7 +125,7 @@ describe('Aave voting power reconciliation fixture', () => {
 
       // reported = VoteEmitted.votingPower — the protocol's proof-validated power for the
       // submitted storage-slot proofs (own balance only, no received delegations).
-      // computed = Σ getPowerCurrent@block over all three tokens — includes received
+      // computed = sum of getPowerCurrent@block over all three tokens — includes received
       // delegations, so computed >= reported always.  Equality holds only when the
       // voter has no incoming delegations (voter 3 in this fixture).
       expect(aggregateVotingPower(reads)).toBeGreaterThanOrEqual(BigInt(sample.reported));
