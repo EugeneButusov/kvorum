@@ -7,7 +7,6 @@ import {
   pgDb,
   type SourceType,
 } from '@libs/db';
-import type { VotingPowerStrategy } from '@libs/domain';
 import {
   CompTokenDelegationSnapshotRepository,
   CompoundCompTokenVotingPowerStrategy,
@@ -22,7 +21,7 @@ import {
   type CompTokenPluginDeps,
   type CompTokenSourceConfig,
 } from '@sources/compound';
-import type { BackfillRuntime, SourceIngester } from '@sources/core';
+import type { BackfillRuntime, SourceIngester, SourceSnapshotStrategy } from '@sources/core';
 
 export type BackfillSourcePlugin =
   | SourceIngester<CompoundGovernorConfig>
@@ -56,15 +55,19 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
   });
 }
 
-export function buildSnapshotStrategyMap(): Map<string, VotingPowerStrategy> {
+export function buildSnapshotStrategyMap(): Map<string, SourceSnapshotStrategy> {
   const strategy = new CompoundCompTokenVotingPowerStrategy(
     new CompTokenDelegationSnapshotRepository(chDb),
     new ActorRepository(pgDb),
   );
-  return new Map<string, VotingPowerStrategy>([
-    ['compound_governor_alpha', strategy],
-    ['compound_governor_bravo', strategy],
-    ['compound_governor_oz', strategy],
+  const entry: SourceSnapshotStrategy = {
+    sourceTypes: ['compound_governor_alpha', 'compound_governor_bravo', 'compound_governor_oz'],
+    strategy,
+  };
+  return new Map<string, SourceSnapshotStrategy>([
+    ['compound_governor_alpha', entry],
+    ['compound_governor_bravo', entry],
+    ['compound_governor_oz', entry],
   ]);
 }
 

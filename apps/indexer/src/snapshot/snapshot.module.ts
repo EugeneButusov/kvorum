@@ -1,16 +1,21 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import {
-  ActorRepository,
   DlqRepository,
   ProposalRepository,
   VotingPowerSnapshotProjectionWriter,
   VotingPowerSnapshotRunRepository,
 } from '@libs/db';
-import { SOURCE_PLUGINS, type SourcePlugin } from '@sources/core';
-import { ChainContextModule } from '@nest/chain';
+import {
+  buildSnapshotStrategies,
+  SnapshotTickRunner,
+  SOURCE_PLUGINS,
+  type SourcePlugin,
+} from '@sources/core';
+import { ChainContextModule, toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
 import { SourcesModule } from '@nest/sources';
+import { snapshotMetrics } from './snapshot-metrics';
 import { SnapshotWorkerService } from './snapshot-worker.service';
 
 @Module({
@@ -20,7 +25,6 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
     SourcesModule,
     DbModule.forFeature([
       VotingPowerSnapshotProjectionWriter,
-      ActorRepository,
       ProposalRepository,
       VotingPowerSnapshotRunRepository,
       DlqRepository,
@@ -32,23 +36,28 @@ import { SnapshotWorkerService } from './snapshot-worker.service';
       useFactory: (
         proposals: ProposalRepository,
         snapshots: VotingPowerSnapshotProjectionWriter,
-        actors: ActorRepository,
         runs: VotingPowerSnapshotRunRepository,
         dlq: DlqRepository,
         plugins: readonly SourcePlugin[],
       ) =>
         new SnapshotWorkerService(
-          proposals,
-          snapshots,
-          actors,
-          runs,
-          dlq,
-          SnapshotWorkerService.buildStrategies(plugins),
+          new SnapshotTickRunner({
+            proposalRepo: proposals,
+            snapshotRepo: snapshots,
+            runRepo: runs,
+            dlqRepo: dlq,
+            strategies: buildSnapshotStrategies(plugins),
+            logger: toChainLogger(new Logger('SnapshotTickRunner')),
+            metrics: {
+              populationSize: (size) => snapshotMetrics.populationSize.record(size),
+              proposalsProcessed: (outcome) =>
+                snapshotMetrics.proposalsProcessed.add(1, { outcome }),
+            },
+          }),
         ),
       inject: [
         ProposalRepository,
         VotingPowerSnapshotProjectionWriter,
-        ActorRepository,
         VotingPowerSnapshotRunRepository,
         DlqRepository,
         SOURCE_PLUGINS,

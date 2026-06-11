@@ -58,6 +58,19 @@ export { BootCatchUpShutdownError } from './backfill/errors/boot-catch-up-shutdo
 export { BackfillAlreadyStartedError } from './backfill/errors/backfill-already-started.error';
 export { BackfillNotResumableError } from './backfill/errors/backfill-not-resumable.error';
 export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.error';
+export {
+  buildSnapshotStrategies,
+  SNAPSHOT_DLQ_STAGE,
+  SNAPSHOT_DLQ_THRESHOLD,
+  SNAPSHOT_ELIGIBLE_STATES,
+  SnapshotTickRunner,
+} from './snapshot/snapshot-tick-runner';
+export type {
+  SnapshotTickMetrics,
+  SnapshotTickOutcome,
+  SnapshotTickOutcomeType,
+  SnapshotTickRunnerDeps,
+} from './snapshot/snapshot-tick-runner';
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
