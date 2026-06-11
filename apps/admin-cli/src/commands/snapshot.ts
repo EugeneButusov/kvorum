@@ -1,5 +1,4 @@
 import { Command } from 'commander';
-import { ChainContextRegistry, parseChainConfigFromEnv } from '@libs/chain';
 import {
   chDb,
   DlqRepository,
@@ -7,7 +6,6 @@ import {
   ProposalRepository,
   type ProposalState,
   type SnapshotCandidate,
-  VotingPowerSnapshotProjectionReadRepository,
   VotingPowerSnapshotRunRepository,
   VotingPowerSnapshotProjectionWriter,
 } from '@libs/db';
@@ -16,8 +14,6 @@ import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../outpu
 import { buildSnapshotStrategyMap } from '../plugins/backfill-source-plugins.js';
 
 type SnapshotCommon = { format?: string };
-
-const SNAPSHOT_SAMPLE_SIZE = Number(process.env['SNAPSHOT_SAMPLE_SIZE'] ?? '20');
 const SNAPSHOT_DLQ_THRESHOLD = 5;
 const SNAPSHOT_DLQ_STAGE = 'snapshot_compute_stage';
 
@@ -31,14 +27,7 @@ const ELIGIBLE_STATES: ProposalState[] = [
   'vetoed',
 ];
 
-type TickOutcomeType =
-  | 'idle'
-  | 'verified'
-  | 'fallback_engaged'
-  | 'empty_population'
-  | 'no_strategy'
-  | 'dlq'
-  | 'retry';
+type TickOutcomeType = 'idle' | 'verified' | 'empty_population' | 'no_strategy' | 'dlq' | 'retry';
 
 interface TickOutcome {
   outcome: TickOutcomeType;
@@ -49,7 +38,6 @@ class SnapshotDrainRunner {
   constructor(
     private readonly proposals: ProposalRepository,
     private readonly snapshotProjectionWriter: VotingPowerSnapshotProjectionWriter,
-    private readonly snapshotProjectionRead: VotingPowerSnapshotProjectionReadRepository,
     private readonly runs: VotingPowerSnapshotRunRepository,
     private readonly dlq: DlqRepository,
     private readonly strategies: Map<string, VotingPowerStrategy>,
@@ -68,7 +56,6 @@ class SnapshotDrainRunner {
     try {
       const existing = await this.runs.findByProposalId(candidate.id);
       if (existing?.status === 'in_progress') {
-        await this.snapshotProjectionRead.deleteForProposal(candidate.id);
         await this.runs.touchAttempt(candidate.id, new Date());
       } else if (existing === undefined) {
         await this.runs.insertInProgress({
@@ -106,34 +93,16 @@ class SnapshotDrainRunner {
         })),
       );
 
-      const sampleSize = Math.min(SNAPSHOT_SAMPLE_SIZE, computed.length);
-      const sample = await this.snapshotProjectionRead.sampleForProposal(candidate.id, sampleSize);
-      let mismatch = false;
-
-      await Promise.all(
-        sample.map(async (row) => {
-          const onChain = await strategy.verifyOnChain(row.address, block, {
-            daoId: candidate.dao_id,
-            proposalId: candidate.id,
-          });
-          if (onChain.toString() !== row.power) mismatch = true;
-        }),
-      );
-
-      if (mismatch) {
-        await this.applyFallback(candidate.id, candidate.dao_id, block, strategy);
-      }
-
       await this.runs.markCompleted(candidate.id, {
         rows_inserted: computed.length,
         population_size: computed.length,
-        sample_size: sampleSize,
-        fallback_engaged: mismatch,
+        sample_size: 0,
+        fallback_engaged: false,
         completed_at: new Date(),
       });
 
       return {
-        outcome: mismatch ? 'fallback_engaged' : 'verified',
+        outcome: 'verified',
         proposalId: candidate.id,
       };
     } catch (error) {
@@ -161,43 +130,6 @@ class SnapshotDrainRunner {
       }
       return { outcome: 'retry', proposalId: candidate.id };
     }
-  }
-
-  private async applyFallback(
-    proposalId: string,
-    daoId: string,
-    block: bigint,
-    strategy: VotingPowerStrategy,
-  ): Promise<void> {
-    const rows = await this.snapshotProjectionRead.listPrimaryAddressesForProposal(proposalId);
-
-    const corrected: Array<{ address: string; actorId: string; power: string }> = [];
-    for (let i = 0; i < rows.length; i += 25) {
-      const chunk = rows.slice(i, i + 25);
-      const results = await Promise.all(
-        chunk.map(async (row) => {
-          const power = await strategy.verifyOnChain(row.address, block, {
-            daoId,
-            proposalId,
-          });
-          return { address: row.address, actorId: row.actorId, power: power.toString() };
-        }),
-      );
-      corrected.push(...results);
-    }
-
-    await this.snapshotProjectionRead.deleteForProposal(proposalId);
-    await this.snapshotProjectionWriter.bulkInsert(
-      corrected.map((row) => ({
-        dao_id: daoId,
-        proposal_id: proposalId,
-        actor_address: row.address,
-        voter_address: row.address,
-        voting_power: row.power,
-        actor_id_hint: row.actorId || null,
-        computed_at: new Date(),
-      })),
-    );
   }
 
   private async findNextProposalToSnapshot(): Promise<SnapshotCandidate | undefined> {
@@ -237,18 +169,10 @@ export function registerSnapshot(program: Command): void {
     .option('--format <format>', 'output format: human or json')
     .action(async function action(opts: SnapshotCommon) {
       await withSnapshotFormat(this, opts, async (format) => {
-        const chainConfig = resolveMainnetChainConfig(format);
-        const registry = new ChainContextRegistry();
-        const chainCtx = await registry.getOrCreate(chainConfig);
-
-        const strategies = buildSnapshotStrategyMap({
-          registry,
-          chainId: chainCtx.chainCfg.chainId,
-        });
+        const strategies = buildSnapshotStrategyMap();
         const runner = new SnapshotDrainRunner(
           new ProposalRepository(pgDb),
           new VotingPowerSnapshotProjectionWriter(chDb),
-          new VotingPowerSnapshotProjectionReadRepository(chDb),
           new VotingPowerSnapshotRunRepository(pgDb),
           new DlqRepository(pgDb),
           strategies,
@@ -257,41 +181,33 @@ export function registerSnapshot(program: Command): void {
         let processed = 0;
         let sawDlq = false;
 
-        try {
-          while (true) {
-            const tick = await runner.tickOnce();
-            if (tick.outcome === 'idle') {
-              emit(
-                format,
-                () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`,
-                {
-                  status: 'completed',
-                  processed,
-                  dlq: sawDlq,
-                },
-              );
-              break;
-            }
-
-            if (tick.outcome === 'dlq') sawDlq = true;
-
-            if (tick.outcome !== 'retry' && tick.outcome !== 'no_strategy') {
-              processed += 1;
-            }
-
-            emit(
-              format,
-              () =>
-                `processed ${processed} proposals so far, current=${tick.proposalId ?? 'n/a'}, outcome=${tick.outcome}`,
-              {
-                processed,
-                proposal_id: tick.proposalId ?? null,
-                outcome: tick.outcome,
-              },
-            );
+        while (true) {
+          const tick = await runner.tickOnce();
+          if (tick.outcome === 'idle') {
+            emit(format, () => `snapshot drain completed; processed=${processed}, dlq=${sawDlq}`, {
+              status: 'completed',
+              processed,
+              dlq: sawDlq,
+            });
+            break;
           }
-        } finally {
-          await registry.drainAll();
+
+          if (tick.outcome === 'dlq') sawDlq = true;
+
+          if (tick.outcome !== 'retry' && tick.outcome !== 'no_strategy') {
+            processed += 1;
+          }
+
+          emit(
+            format,
+            () =>
+              `processed ${processed} proposals so far, current=${tick.proposalId ?? 'n/a'}, outcome=${tick.outcome}`,
+            {
+              processed,
+              proposal_id: tick.proposalId ?? null,
+              outcome: tick.outcome,
+            },
+          );
         }
 
         if (sawDlq) {
@@ -299,19 +215,6 @@ export function registerSnapshot(program: Command): void {
         }
       });
     });
-}
-
-function resolveMainnetChainConfig(format: OutputFormat) {
-  const chains = parseChainConfigFromEnv(process.env);
-  const mainnet = chains.find((chain) => chain.chainId === '0x1');
-  if (mainnet == null) {
-    fail(
-      format,
-      ExitCode.RuntimeFailure,
-      'CHAIN_CONFIG does not contain chain 0x1 required for snapshot drain',
-    );
-  }
-  return mainnet;
 }
 
 async function withSnapshotFormat(

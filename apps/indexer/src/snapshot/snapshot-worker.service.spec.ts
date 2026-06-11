@@ -61,12 +61,7 @@ describe('SnapshotWorkerService', () => {
       repos.actorRepo as never,
       repos.runRepo as never,
       repos.dlqRepo as never,
-      new Map([
-        [
-          'compound_governor_bravo',
-          makeEntry({ computeSnapshot: vi.fn(), verifyOnChain: vi.fn() }),
-        ],
-      ]),
+      new Map([['compound_governor_bravo', makeEntry({ computeSnapshot: vi.fn() })]]),
     );
 
     await expect(svc.tickOnce()).resolves.toEqual({ outcome: 'idle' });
@@ -114,7 +109,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockResolvedValue([{ actorId: 'actor-1', power: 10n }]),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -198,7 +192,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockResolvedValue([{ actorId: 'actor-1', power: 5n }]),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -224,7 +217,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockResolvedValue([]),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -256,7 +248,6 @@ describe('SnapshotWorkerService', () => {
       computeSnapshot: vi
         .fn()
         .mockResolvedValue([{ actorId: 'actor-1', votingAddress: '0xvote', power: 10n }]),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -287,7 +278,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockResolvedValue([{ actorId: 'actor-1', power: 10n }]),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -313,7 +303,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockRejectedValue(new Error('transient')),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(
@@ -355,7 +344,7 @@ describe('SnapshotWorkerService', () => {
   });
 
   it('buildStrategies maps snapshotStrategies from plugins', () => {
-    const strategy = { computeSnapshot: vi.fn(), verifyOnChain: vi.fn() };
+    const strategy = { computeSnapshot: vi.fn() };
     const plugin = {
       name: 'test',
       ingesters: [],
@@ -405,7 +394,6 @@ describe('SnapshotWorkerService', () => {
 
     const strategy: VotingPowerStrategy = {
       computeSnapshot: vi.fn().mockRejectedValue(new Error('boom')),
-      verifyOnChain: vi.fn(),
     };
 
     const svc = new SnapshotWorkerService(

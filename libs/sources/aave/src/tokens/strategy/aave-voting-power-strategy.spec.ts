@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Logger } from '@libs/chain';
 import type { ActorRepository, VoteEventsProjectionReadRepository } from '@libs/db';
 import { AaveVotingPowerStrategy } from './aave-voting-power-strategy';
-import type { AaveGovernancePowerReader } from '../read/aave-governance-power-reader';
 
 describe('AaveVotingPowerStrategy', () => {
-  it('computes power for proposal voters and keeps the voting address', async () => {
+  it('stores reported power for proposal voters and keeps the voting address', async () => {
     const voteRead = {
       listVotersForProposal: vi.fn().mockResolvedValue([
         { voter_address: '0xabc', voting_power: '12' },
@@ -22,20 +21,14 @@ describe('AaveVotingPowerStrategy', () => {
         { actor_id: 'actor-2', address: '0xbbb' },
       ]),
     } as unknown as ActorRepository;
-    const reader = {
-      read: vi
-        .fn()
-        .mockResolvedValueOnce({ aave: 10n, stkAave: 20n, aAave: 30n })
-        .mockResolvedValueOnce({ aave: 1n, stkAave: 2n, aAave: 3n }),
-    } as unknown as AaveGovernancePowerReader;
 
-    const strategy = new AaveVotingPowerStrategy(voteRead, actors, reader);
+    const strategy = new AaveVotingPowerStrategy(voteRead, actors);
 
     await expect(
       strategy.computeSnapshot(123n, { daoId: 'dao-1', proposalId: 'proposal-1' }),
     ).resolves.toEqual([
-      { actorId: 'actor-1', address: '0xaaa', votingAddress: '0xabc', power: 60n },
-      { actorId: 'actor-2', address: '0xbbb', votingAddress: '0xdef', power: 6n },
+      { actorId: 'actor-1', address: '0xaaa', votingAddress: '0xabc', power: 12n },
+      { actorId: 'actor-2', address: '0xbbb', votingAddress: '0xdef', power: 34n },
     ]);
   });
 
@@ -51,7 +44,6 @@ describe('AaveVotingPowerStrategy', () => {
         findActorIdsByAddresses: vi.fn().mockResolvedValue([]),
         findPrimaryAddressesByActorIds: vi.fn().mockResolvedValue([]),
       } as unknown as ActorRepository,
-      { read: vi.fn() } as unknown as AaveGovernancePowerReader,
       logger,
     );
 
@@ -67,7 +59,6 @@ describe('AaveVotingPowerStrategy', () => {
     const strategy = new AaveVotingPowerStrategy(
       {} as VoteEventsProjectionReadRepository,
       {} as ActorRepository,
-      {} as AaveGovernancePowerReader,
     );
 
     await expect(strategy.computeSnapshot(1n, { daoId: 'dao-1', proposalId: '' })).rejects.toThrow(
@@ -93,7 +84,6 @@ describe('AaveVotingPowerStrategy', () => {
           .mockResolvedValue([{ actor_id: 'actor-1', address: '0xabc' }]),
         findPrimaryAddressesByActorIds: vi.fn().mockResolvedValue([]), // no primary
       } as unknown as ActorRepository,
-      { read: vi.fn() } as unknown as AaveGovernancePowerReader,
       logger,
     );
 
@@ -105,61 +95,28 @@ describe('AaveVotingPowerStrategy', () => {
     );
   });
 
-  it('throws when proposalId is absent in verifyOnChain', async () => {
-    const strategy = new AaveVotingPowerStrategy(
-      {} as VoteEventsProjectionReadRepository,
-      {} as ActorRepository,
-      {} as AaveGovernancePowerReader,
-    );
-
-    await expect(
-      strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1', proposalId: '' }),
-    ).rejects.toThrow('proposalId is required');
-
-    await expect(strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1' })).rejects.toThrow(
-      'proposalId is required',
-    );
-  });
-
-  it('throws when no matching vote is found in verifyOnChain', async () => {
-    const strategy = new AaveVotingPowerStrategy(
-      {
-        findCurrentVote: vi.fn().mockResolvedValue(undefined),
-      } as unknown as VoteEventsProjectionReadRepository,
-      {} as ActorRepository,
-      {} as AaveGovernancePowerReader,
-    );
-
-    await expect(
-      strategy.verifyOnChain('0xabc', 1n, { daoId: 'dao-1', proposalId: 'p-1' }),
-    ).rejects.toThrow('vote not found');
-  });
-
-  it('returns stored reported power from the vote projection', async () => {
+  it('does not consult token readers when computing reported power', async () => {
     const voteRead = {
-      findCurrentVote: vi.fn().mockResolvedValue({
-        vote_id: 'vote-1',
-        cast_at: new Date(),
-        block_number: '100',
-        log_index: 0,
-        primary_choice: 1,
-        voting_power: '42',
-        voting_chain_id: '0x89',
-      }),
+      listVotersForProposal: vi
+        .fn()
+        .mockResolvedValue([{ voter_address: '0xabc', voting_power: '42' }]),
     } as unknown as VoteEventsProjectionReadRepository;
-    const strategy = new AaveVotingPowerStrategy(
-      voteRead,
-      {} as ActorRepository,
-      {} as AaveGovernancePowerReader,
-    );
+    const actors = {
+      findActorIdsByAddresses: vi
+        .fn()
+        .mockResolvedValue([{ actor_id: 'actor-1', address: '0xabc' }]),
+      findPrimaryAddressesByActorIds: vi
+        .fn()
+        .mockResolvedValue([{ actor_id: 'actor-1', address: '0xaaa' }]),
+    } as unknown as ActorRepository;
 
     await expect(
-      strategy.verifyOnChain('0xAbC', 123n, { daoId: 'dao-1', proposalId: 'proposal-1' }),
-    ).resolves.toBe(42n);
-    expect(voteRead.findCurrentVote).toHaveBeenCalledWith({
-      daoId: 'dao-1',
-      proposalId: 'proposal-1',
-      voterAddress: '0xabc',
-    });
+      new AaveVotingPowerStrategy(voteRead, actors).computeSnapshot(123n, {
+        daoId: 'dao-1',
+        proposalId: 'proposal-1',
+      }),
+    ).resolves.toEqual([
+      { actorId: 'actor-1', address: '0xaaa', votingAddress: '0xabc', power: 42n },
+    ]);
   });
 });

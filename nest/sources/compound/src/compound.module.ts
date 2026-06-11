@@ -174,8 +174,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
         delegationSnapshotRepo: CompTokenDelegationSnapshotRepository,
         actorRepo: ActorRepository,
-        daoSourceRepo: DaoSourceRepository,
-        registry: ChainContextRegistry,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -186,9 +184,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
           delegationSnapshotRepo,
           actorRepo,
-          daoSourceRepo,
-          registry,
-          '0x1',
         );
 
         return {
@@ -263,8 +258,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         CompTokenDelegationProjectionApplier,
         CompTokenDelegationSnapshotRepository,
         ActorRepository,
-        DaoSourceRepository,
-        ChainContextRegistry,
       ],
     },
   ],

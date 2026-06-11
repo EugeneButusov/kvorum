@@ -1,26 +1,17 @@
-import { Interface } from 'ethers';
-import type { ChainContextRegistry, Logger } from '@libs/chain';
+import type { Logger } from '@libs/chain';
 import { silentLogger } from '@libs/chain';
-import { ActorRepository, DaoSourceRepository } from '@libs/db';
+import { ActorRepository } from '@libs/db';
 import type {
   ComputedActorPower,
   VotingPowerStrategy,
   VotingPowerStrategyContext,
 } from '@libs/domain';
-import { COMP_TOKEN_VOTING_POWER_ABI } from './comp-token-abi';
 import type { CompTokenDelegationSnapshotRepository } from '../persistence/delegation-snapshot-repository';
 
-const iface = new Interface(COMP_TOKEN_VOTING_POWER_ABI);
-
 export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy {
-  private readonly tokenAddressByDaoId = new Map<string, string>();
-
   constructor(
     private readonly delegations: CompTokenDelegationSnapshotRepository,
     private readonly actors: ActorRepository,
-    private readonly daoSources: DaoSourceRepository,
-    private readonly chainContextRegistry: ChainContextRegistry,
-    private readonly chainId: string,
     private readonly logger: Logger = silentLogger,
   ) {}
 
@@ -66,45 +57,6 @@ export class CompoundCompTokenVotingPowerStrategy implements VotingPowerStrategy
     }
 
     return output;
-  }
-
-  async verifyOnChain(
-    address: string,
-    block: bigint,
-    ctx: VotingPowerStrategyContext,
-  ): Promise<bigint> {
-    const tokenAddress = await this.resolveCompTokenAddress(ctx.daoId);
-    const chainCtx = this.chainContextRegistry.peek(this.chainId);
-    if (chainCtx === undefined) {
-      throw new Error(`chain context missing for ${this.chainId}`);
-    }
-
-    const data = iface.encodeFunctionData('getPriorVotes', [address, block]);
-    const result = await chainCtx.client.send<string>('eth_call', [
-      { to: tokenAddress, data },
-      `0x${block.toString(16)}`,
-    ]);
-
-    const [votes] = iface.decodeFunctionResult('getPriorVotes', result);
-    return votes as bigint;
-  }
-
-  private async resolveCompTokenAddress(daoId: string): Promise<string> {
-    const cached = this.tokenAddressByDaoId.get(daoId);
-    if (cached !== undefined) return cached;
-
-    const tokenAddress = await this.daoSources.findTokenAddressByDaoAndSourceType(
-      daoId,
-      'compound_comp_token',
-    );
-
-    if (tokenAddress == null || tokenAddress.length === 0) {
-      throw new Error(`compound_comp_token token address missing for dao_id=${daoId}`);
-    }
-
-    const address = tokenAddress.toLowerCase();
-    this.tokenAddressByDaoId.set(daoId, address);
-    return address;
   }
 }
 

@@ -1,9 +1,8 @@
-import type { ChainContextRegistry, Logger } from '@libs/chain';
+import type { Logger } from '@libs/chain';
 import {
   ActorRepository,
   ArchiveEventRepository,
   chDb,
-  DaoSourceRepository,
   DlqRepository,
   pgDb,
   type SourceType,
@@ -57,16 +56,10 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
   });
 }
 
-export function buildSnapshotStrategyMap(input: {
-  registry: ChainContextRegistry;
-  chainId: string;
-}): Map<string, VotingPowerStrategy> {
+export function buildSnapshotStrategyMap(): Map<string, VotingPowerStrategy> {
   const strategy = new CompoundCompTokenVotingPowerStrategy(
     new CompTokenDelegationSnapshotRepository(chDb),
     new ActorRepository(pgDb),
-    new DaoSourceRepository(pgDb),
-    input.registry,
-    input.chainId,
   );
   return new Map<string, VotingPowerStrategy>([
     ['compound_governor_alpha', strategy],

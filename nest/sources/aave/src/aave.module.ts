@@ -12,7 +12,6 @@ import {
   pgDb,
 } from '@libs/db';
 import {
-  AaveGovernancePowerReader,
   AaveGovernanceActorAddressDeriver,
   AaveGovernanceArchiveWriter,
   AaveGovernanceArchivePayloadRepository,
@@ -289,13 +288,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         payloadStitchApplier: AavePayloadStitchApplier,
         actorRepository: ActorRepository,
         voteReadRepository: VoteEventsProjectionReadRepository,
-        registry: ChainContextRegistry,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         const snapshotStrategy = new AaveVotingPowerStrategy(
           voteReadRepository,
           actorRepository,
-          new AaveGovernancePowerReader(registry),
           toChainLogger(new Logger('AaveVotingPowerStrategy')),
         );
         return {
@@ -360,7 +357,6 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AavePayloadStitchApplier,
         ActorRepository,
         VoteEventsProjectionReadRepository,
-        ChainContextRegistry,
       ],
     },
   ],

@@ -35,10 +35,7 @@ describe('buildBackfillSourcePlugins', () => {
   });
 
   it('builds source-agnostic snapshot strategy map for compound governor source types', () => {
-    const map = buildSnapshotStrategyMap({
-      registry: { peek: vi.fn() } as never,
-      chainId: '0x1',
-    });
+    const map = buildSnapshotStrategyMap();
 
     expect([...map.keys()].sort()).toEqual([
       'compound_governor_alpha',
