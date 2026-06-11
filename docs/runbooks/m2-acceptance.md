@@ -74,8 +74,8 @@ The `dlq retry` command is stage-aware in M2 and supports:
 
 Typical runtime envelope for full historical snapshot drain:
 
-- Warm path (sample verify only): tens of minutes.
-- With fallback engagement (rare): can extend toward multi-hour windows due to large per-proposal RPC volume.
+- Warm path: tens of minutes.
+- Retries are now compute-failure retries only; there is no sample-verify/fallback expansion path.
 
 ## Acceptance sanity queries
 
