@@ -18,8 +18,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('last_attempt_at', 'timestamptz')
     .addColumn('rows_inserted', 'integer', (col) => col.notNull().defaultTo(0))
     .addColumn('population_size', 'integer', (col) => col.notNull().defaultTo(0))
-    .addColumn('sample_size', 'integer', (col) => col.notNull().defaultTo(0))
-    .addColumn('fallback_engaged', 'boolean', (col) => col.notNull().defaultTo(false))
     .addColumn('started_at', 'timestamptz', (col) => col.notNull())
     .addColumn('completed_at', 'timestamptz')
     .execute();
