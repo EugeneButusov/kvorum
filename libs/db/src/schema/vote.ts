@@ -11,8 +11,6 @@ export interface VotingPowerSnapshotRunTable {
   last_attempt_at: Date | null;
   rows_inserted: Generated<number>;
   population_size: Generated<number>;
-  sample_size: Generated<number>;
-  fallback_engaged: Generated<boolean>;
   started_at: Date;
   completed_at: Date | null;
 }

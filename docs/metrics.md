@@ -33,6 +33,7 @@ Declared metrics are defined in:
 - `apps/indexer/src/derivation/calldata-decode-metrics.ts`
 - `nest/sources/aave/src/aave-metrics.ts`
 - `nest/sources/reconcile-metrics.ts`
+- `apps/indexer/src/snapshot/snapshot-metrics.ts`
 
 Notes:
 
@@ -45,3 +46,4 @@ Notes:
 - `indexer_stitch_pending_seconds` records the oldest held Aave stitch age per voting chain and event type; alert on backlog age rather than retry count.
 - `indexer_stitch_payload_pending_seconds` records the oldest held Aave payload stitch age per destination chain and event type.
 - `indexer_stitch_unmatched_payload` records the latest batch-scoped held-count for payload-controller events that arrived before their declared payload rows.
+- `indexer_snapshot_worker_proposals`, `indexer_snapshot_worker_duration_seconds`, and `indexer_snapshot_worker_population_size` are the only emitted snapshot-worker metrics; earlier verify-era counters were removed in M3 V2.

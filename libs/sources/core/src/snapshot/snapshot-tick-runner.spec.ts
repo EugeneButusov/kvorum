@@ -31,6 +31,7 @@ function makeCandidate() {
   return {
     id: 'proposal-1',
     dao_id: 'dao-1',
+    chain_id: '0x1',
     source_type: 'compound_governor_bravo',
     voting_power_block: '123',
   };
@@ -130,7 +131,7 @@ describe('SnapshotTickRunner', () => {
     ]);
     expect(repos.runRepo.markCompleted).toHaveBeenCalledWith(
       candidate.id,
-      expect.objectContaining({ fallback_engaged: false, rows_inserted: 1, sample_size: 0 }),
+      expect.objectContaining({ rows_inserted: 1, population_size: 1 }),
     );
     expect(metrics.populationSize).toHaveBeenCalledWith(1);
     expect(metrics.proposalsProcessed).toHaveBeenCalledWith('verified');
@@ -258,6 +259,35 @@ describe('SnapshotTickRunner', () => {
       proposalId: candidate.id,
     });
     expect(repos.dlqRepo.insert).not.toHaveBeenCalled();
+  });
+
+  it('sources the DLQ chain id from the snapshot candidate', async () => {
+    const repos = makeRepos();
+    const candidate = { ...makeCandidate(), chain_id: '0xa' };
+    repos.proposalRepo.findNextSnapshotCandidate.mockResolvedValue(candidate);
+    repos.runRepo.findByProposalId.mockResolvedValue(undefined);
+    repos.runRepo.incrementAttempt.mockResolvedValue({ attempts: 5 });
+
+    const runner = new SnapshotTickRunner({
+      proposalRepo: repos.proposalRepo as never,
+      snapshotRepo: repos.snapshotRepo as never,
+      runRepo: repos.runRepo as never,
+      dlqRepo: repos.dlqRepo as never,
+      strategies: new Map([
+        [
+          'compound_governor_bravo',
+          makeEntry({ computeSnapshot: vi.fn().mockRejectedValue(new Error('permanent')) }),
+        ],
+      ]),
+    });
+
+    await expect(runner.tickOnce()).resolves.toEqual({
+      outcome: 'dlq',
+      proposalId: candidate.id,
+    });
+    expect(repos.dlqRepo.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ archive_chain_id: '0xa' }),
+    );
   });
 
   it('returns retry without proposalId when error occurs before candidate is fetched', async () => {

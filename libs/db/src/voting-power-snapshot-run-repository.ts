@@ -10,8 +10,6 @@ interface InsertInProgressInput {
 interface CompletionInput {
   rows_inserted: number;
   population_size: number;
-  sample_size: number;
-  fallback_engaged: boolean;
   completed_at: Date;
 }
 
@@ -32,8 +30,6 @@ export class VotingPowerSnapshotRunRepository {
       last_attempt_at: null,
       rows_inserted: 0,
       population_size: 0,
-      sample_size: 0,
-      fallback_engaged: false,
       completed_at: null,
     };
 
@@ -66,8 +62,6 @@ export class VotingPowerSnapshotRunRepository {
         status: 'completed',
         rows_inserted: completion.rows_inserted,
         population_size: completion.population_size,
-        sample_size: completion.sample_size,
-        fallback_engaged: completion.fallback_engaged,
         completed_at: completion.completed_at,
         last_error: null,
       })

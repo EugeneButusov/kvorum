@@ -119,18 +119,17 @@ Expected: no proposals missing snapshot rows.
 ```sql
 SELECT
   count(*) FILTER (WHERE status = 'failed') AS failed_runs,
-  count(*) FILTER (WHERE fallback_engaged = true AND status = 'completed') AS completed_with_fallback
+  count(*) FILTER (WHERE status = 'completed') AS completed_runs
 FROM voting_power_snapshot_run;
 ```
 
 Expected:
 
 - `failed_runs = 0`
-- Completed fallback rows are acceptable; they indicate mismatch recovery succeeded.
+- `completed_runs` grows as snapshot work succeeds.
 
 ## Notes
 
-- AC #3 (fallback path exercised) is verified by integration tests in M2; no production fault injection is required in acceptance operations.
 - Snapshot retry semantics are crash-safe: retries re-enter from `in_progress` and recompute proposal rows from scratch.
 
 ## O3 analytical endpoints

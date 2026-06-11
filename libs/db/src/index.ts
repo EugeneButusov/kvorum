@@ -73,7 +73,6 @@ export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
 export type { NewVoteEventsProjectionRow } from './vote-events-projection-writer';
 export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
 export type { NewVotingPowerSnapshotProjectionRow } from './voting-power-snapshot-projection-writer';
-export { VotingPowerSnapshotProjectionReadRepository } from './voting-power-snapshot-projection-read-repository';
 export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
 export type { NewDelegationFlowProjectionRow } from './delegation-flow-projection-writer';
 export type { PgDatabase } from './schema/pg';

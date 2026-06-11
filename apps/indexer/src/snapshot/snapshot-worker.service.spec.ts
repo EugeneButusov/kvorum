@@ -6,8 +6,6 @@ vi.mock('./snapshot-metrics', () => ({
   snapshotMetrics: {
     populationSize: { record: vi.fn() },
     proposalsProcessed: { add: vi.fn() },
-    rpcCalls: { add: vi.fn() },
-    sampleMismatch: { add: vi.fn() },
     durationSeconds: { record: vi.fn() },
   },
 }));

@@ -103,6 +103,28 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
+function makeSnapshotCandidateSelectChain(returnValue: unknown) {
+  const executeTakeFirst = vi.fn().mockResolvedValue(returnValue);
+  const chain = {
+    innerJoin: vi.fn(),
+    leftJoin: vi.fn(),
+    select: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    executeTakeFirst,
+  };
+  chain.innerJoin.mockReturnValue(chain);
+  chain.leftJoin.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  const selectFrom = vi.fn().mockReturnValue(chain);
+
+  return { selectFrom, ...chain };
+}
+
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -247,6 +269,42 @@ describe('ProposalRepository', () => {
         function_signature: 'foo()',
         calldata: '0xabcd',
       },
+    ]);
+  });
+
+  it('selects snapshot candidates with dao chain context', async () => {
+    const select = makeSnapshotCandidateSelectChain({
+      id: 'proposal-1',
+      dao_id: 'dao-1',
+      chain_id: '0x1',
+      source_type: 'source_a',
+      voting_power_block: '123',
+    });
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(
+      repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
+    ).resolves.toEqual({
+      id: 'proposal-1',
+      dao_id: 'dao-1',
+      chain_id: '0x1',
+      source_type: 'source_a',
+      voting_power_block: '123',
+    });
+
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal as p');
+    expect(select.innerJoin).toHaveBeenCalledWith('dao as d', 'd.id', 'p.dao_id');
+    expect(select.leftJoin).toHaveBeenCalledWith(
+      'voting_power_snapshot_run as vpsr',
+      'vpsr.proposal_id',
+      'p.id',
+    );
+    expect(select.select).toHaveBeenCalledWith([
+      'p.id',
+      'p.dao_id',
+      'd.primary_chain_id as chain_id',
+      'p.source_type',
+      'p.voting_power_block',
     ]);
   });
 
@@ -398,27 +456,33 @@ describe('ProposalRepository', () => {
     const candidate = {
       id: 'proposal-1',
       dao_id: 'dao-1',
+      chain_id: '0x1',
       source_type: 'source_a',
       voting_power_block: '123',
     };
-    const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-    const methods = ['leftJoin', 'select', 'where', 'orderBy', 'limit'];
-    for (const m of methods) chain[m] = vi.fn().mockReturnValue(chain);
-    chain['executeTakeFirst'] = vi.fn().mockResolvedValue(candidate);
-    const selectFrom = vi.fn().mockReturnValue(chain);
-    const repo = new ProposalRepository({ selectFrom } as never);
+    const select = makeSnapshotCandidateSelectChain(candidate);
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
 
     await expect(
       repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
     ).resolves.toEqual(candidate);
 
-    expect(selectFrom).toHaveBeenCalledWith('proposal as p');
-    expect(chain['leftJoin']).toHaveBeenCalledWith(
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal as p');
+    expect(select.innerJoin).toHaveBeenCalledWith('dao as d', 'd.id', 'p.dao_id');
+    expect(select.leftJoin).toHaveBeenCalledWith(
       'voting_power_snapshot_run as vpsr',
       'vpsr.proposal_id',
       'p.id',
     );
-    expect(chain['orderBy']).toHaveBeenCalledWith('p.voting_power_block', 'asc');
+    expect(select.select).toHaveBeenCalledWith([
+      'p.id',
+      'p.dao_id',
+      'd.primary_chain_id as chain_id',
+      'p.source_type',
+      'p.voting_power_block',
+    ]);
+    expect(select.orderBy).toHaveBeenNthCalledWith(1, 'p.voting_power_block', 'asc');
+    expect(select.orderBy).toHaveBeenNthCalledWith(2, 'p.id', 'asc');
   });
 
   it('returns undefined when no snapshot strategies are registered', async () => {

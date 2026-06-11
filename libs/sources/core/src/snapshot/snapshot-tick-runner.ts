@@ -129,8 +129,6 @@ export class SnapshotTickRunner {
         await this.deps.runRepo.markCompleted(candidate.id, {
           rows_inserted: 0,
           population_size: 0,
-          sample_size: 0,
-          fallback_engaged: false,
           completed_at: new Date(),
         });
         this.metrics.proposalsProcessed('empty_population');
@@ -152,8 +150,6 @@ export class SnapshotTickRunner {
       await this.deps.runRepo.markCompleted(candidate.id, {
         rows_inserted: computed.length,
         population_size: computed.length,
-        sample_size: 0,
-        fallback_engaged: false,
         completed_at: new Date(),
       });
       this.metrics.proposalsProcessed('verified');
@@ -184,7 +180,7 @@ export class SnapshotTickRunner {
           first_seen_at: new Date(),
           last_attempt_at: new Date(),
           archive_source_type: proposal.source_type,
-          archive_chain_id: '0x1',
+          archive_chain_id: proposal.chain_id,
           archive_tx_hash: null,
           archive_log_index: null,
           archive_block_hash: null,

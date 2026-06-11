@@ -53,6 +53,7 @@ export interface ProposalSourceLookupInput {
 export interface SnapshotCandidate {
   id: string;
   dao_id: string;
+  chain_id: string;
   source_type: string;
   // Aave proposals can temporarily carry the ProposalCreated block here until
   // snapshot_block_hash is resolved to an L1 block number.
@@ -238,8 +239,15 @@ export class ProposalRepository {
 
     const base = this.db
       .selectFrom('proposal as p')
+      .innerJoin('dao as d', 'd.id', 'p.dao_id')
       .leftJoin('voting_power_snapshot_run as vpsr', 'vpsr.proposal_id', 'p.id')
-      .select(['p.id', 'p.dao_id', 'p.source_type', 'p.voting_power_block'])
+      .select([
+        'p.id',
+        'p.dao_id',
+        'd.primary_chain_id as chain_id',
+        'p.source_type',
+        'p.voting_power_block',
+      ])
       .where('p.source_type', 'in', supportedSourceTypes)
       .where('p.state', 'in', eligibleStates)
       .where((eb) =>

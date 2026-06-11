@@ -101,4 +101,4 @@ Future ADR amenders follow the same pattern.
 - Cursor stability across in-flight actor merges (deferred per epic #216 §"Open follow-ups").
 - Materialised views for hot-read O3 aggregations (deferred).
 - Point-in-time reads with `?as-of=<ts>` query parameter (deferred).
-- Rewriting `voting-power-snapshot-projection-read-repository.ts` to drop `ALTER TABLE … DELETE/UPDATE` and use version-overwrite + FINAL (tracked in a follow-up issue per ADR-0053 amendment).
+- Snapshot verification/fallback read helpers were removed in issue #261; snapshot recompute now relies on version-overwrite writes only.
