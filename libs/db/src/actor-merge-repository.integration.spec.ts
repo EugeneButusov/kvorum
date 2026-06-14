@@ -96,7 +96,6 @@ async function seedMergeFixture(
       voting_ends_at: null,
       voting_starts_block: '1',
       voting_ends_block: '2',
-      voting_power_block: '1',
       state: 'active',
       state_updated_at: now,
       updated_at: now,

@@ -90,8 +90,6 @@ describe('AaveProposalRepository', () => {
       voting_chain_id: null,
       voting_machine_address: null,
       voting_strategy_address: null,
-      snapshot_block_hash: null,
-      snapshot_block_number_l1: null,
       creation_block: '123',
     });
 
@@ -101,24 +99,10 @@ describe('AaveProposalRepository', () => {
       voting_chain_id: null,
       voting_machine_address: null,
       voting_strategy_address: null,
-      snapshot_block_hash: null,
-      snapshot_block_number_l1: null,
       creation_block: '123',
     });
     expect(insert.capturedColumn).toBe('proposal_id');
     expect(insert.execute).toHaveBeenCalledOnce();
-  });
-
-  it('updates snapshot block hash by proposal id', async () => {
-    const update = makeUpdateChain();
-    const repo = new AaveProposalRepository({ updateTable: update.updateTable } as never);
-
-    await repo.setSnapshotBlockHash('proposal-1', '0xhash');
-
-    expect(update.updateTable).toHaveBeenCalledWith('aave_proposal_metadata');
-    expect(update.set).toHaveBeenCalledWith({ snapshot_block_hash: '0xhash' });
-    expect(update.where).toHaveBeenCalledWith('proposal_id', '=', 'proposal-1');
-    expect(update.execute).toHaveBeenCalledOnce();
   });
 
   it('sets voting chain binding only when metadata is still unbound', async () => {

@@ -19,7 +19,6 @@ export { AavePayloadReconcileRepository } from './persistence/aave-payload-recon
 export { loadAbiLibrary } from './calldata/abi-library';
 export { aaveCalldataProtocol } from './calldata/protocol';
 
-export * from './tokens';
 export * from './governance-v3';
 export * from './payloads-controller';
 export * from './voting-machine';

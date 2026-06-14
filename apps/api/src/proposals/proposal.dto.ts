@@ -87,13 +87,6 @@ export class ProposalListItemDto {
   @ApiProperty({ nullable: true })
   declare voting_ends_at: string | null;
 
-  @ApiProperty({
-    type: String,
-    description:
-      'Snapshot block number as string. Interpretation chain may differ from the DAO primary chain (ADR-022).',
-  })
-  declare voting_power_block: string;
-
   @ApiProperty({ type: ProposerDto })
   declare proposer: ProposerDto;
 

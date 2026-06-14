@@ -14,9 +14,6 @@ export interface AaveProposalMetadataTable {
   voting_chain_id: string | null;
   voting_machine_address: string | null;
   voting_strategy_address: string | null;
-  snapshot_block_hash: string | null;
-  // pg driver returns bigint as string
-  snapshot_block_number_l1: string | null;
   // pg driver returns bigint as string
   creation_block: string;
   // pg driver returns bigint as string

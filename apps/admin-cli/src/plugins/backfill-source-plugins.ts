@@ -1,15 +1,6 @@
 import type { Logger } from '@libs/chain';
+import { ArchiveEventRepository, chDb, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
-  ActorRepository,
-  ArchiveEventRepository,
-  chDb,
-  DlqRepository,
-  pgDb,
-  type SourceType,
-} from '@libs/db';
-import {
-  CompTokenDelegationSnapshotRepository,
-  CompoundCompTokenVotingPowerStrategy,
   GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
@@ -21,7 +12,7 @@ import {
   type CompTokenPluginDeps,
   type CompTokenSourceConfig,
 } from '@sources/compound';
-import type { BackfillRuntime, SourceIngester, SourceSnapshotStrategy } from '@sources/core';
+import type { BackfillRuntime, SourceIngester } from '@sources/core';
 
 export type BackfillSourcePlugin =
   | SourceIngester<CompoundGovernorConfig>
@@ -53,22 +44,6 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
     compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
   });
-}
-
-export function buildSnapshotStrategyMap(): Map<string, SourceSnapshotStrategy> {
-  const strategy = new CompoundCompTokenVotingPowerStrategy(
-    new CompTokenDelegationSnapshotRepository(chDb),
-    new ActorRepository(pgDb),
-  );
-  const entry: SourceSnapshotStrategy = {
-    sourceTypes: ['compound_governor_alpha', 'compound_governor_bravo', 'compound_governor_oz'],
-    strategy,
-  };
-  return new Map<string, SourceSnapshotStrategy>([
-    ['compound_governor_alpha', entry],
-    ['compound_governor_bravo', entry],
-    ['compound_governor_oz', entry],
-  ]);
 }
 
 export interface BackfillSourceRuntimeInput {

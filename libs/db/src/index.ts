@@ -55,7 +55,6 @@ export type {
   PendingTimestampFillRow,
   ProposalActionInput,
   TimestampFillInput,
-  SnapshotCandidate,
 } from './proposal-repository';
 export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
@@ -71,9 +70,6 @@ export { VoteEventsProjectionReadRepository } from './vote-events-projection-rea
 export type { CurrentVoteRow, ProposalVoterRow } from './vote-events-projection-read-repository';
 export { VoteEventsProjectionWriter } from './vote-events-projection-writer';
 export type { NewVoteEventsProjectionRow } from './vote-events-projection-writer';
-export { VotingPowerSnapshotProjectionWriter } from './voting-power-snapshot-projection-writer';
-export type { NewVotingPowerSnapshotProjectionRow } from './voting-power-snapshot-projection-writer';
-export { VotingPowerSnapshotRunRepository } from './voting-power-snapshot-run-repository';
 export type { NewDelegationFlowProjectionRow } from './delegation-flow-projection-writer';
 export type { PgDatabase } from './schema/pg';
 export type { ClickHouseDatabase } from './schema/clickhouse';
@@ -82,8 +78,6 @@ export type {
   VoteEventsRawTable,
   DelegationFlowProjectionTable,
   DelegationFlowRawTable,
-  VotingPowerSnapshotProjectionTable,
-  VotingPowerSnapshotRawTable,
 } from './schema/projections';
 export type {
   AdminAudit,
@@ -141,9 +135,6 @@ export type {
   NewIngestionDlq,
   NewIngestionDlqResolved,
   NewSelectorIndex,
-  NewVotingPowerSnapshotRun,
   SelectorIndex,
   SelectorIndexTable,
-  VotingPowerSnapshotRun,
-  VotingPowerSnapshotRunStatus,
 } from './schema/pg';

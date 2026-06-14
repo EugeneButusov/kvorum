@@ -148,7 +148,6 @@ describeIf('aave vote derivation integration', () => {
         voting_ends_at: null,
         voting_starts_block: '10',
         voting_ends_block: '20',
-        voting_power_block: '10',
         state: 'pending',
         state_updated_at: new Date(),
         updated_at: new Date(),
@@ -163,8 +162,6 @@ describeIf('aave vote derivation integration', () => {
         voting_chain_id: null,
         voting_machine_address: null,
         voting_strategy_address: null,
-        snapshot_block_hash: null,
-        snapshot_block_number_l1: null,
         creation_block: '10',
         last_reconcile_check_block: null,
       })

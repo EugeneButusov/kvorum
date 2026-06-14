@@ -32,16 +32,6 @@ export interface VoteEventsProjectionTable {
   superseded_by_vote_id: string | null;
 }
 
-export interface VotingPowerSnapshotProjectionTable {
-  dao_id: string;
-  proposal_id: string;
-  actor_address: string;
-  voter_address: string;
-  voting_power: string;
-  actor_id_hint: string | null;
-  computed_at: Date;
-}
-
 // Raw table interfaces — used only by projection writers for insert.
 // Same columns as the corresponding VIEW plus version (DEFAULT now64(6)).
 
@@ -53,20 +43,14 @@ export interface DelegationFlowRawTable extends DelegationFlowProjectionTable {
   version: Generated<Date>;
 }
 
-export interface VotingPowerSnapshotRawTable extends VotingPowerSnapshotProjectionTable {
-  version: Generated<Date>;
-}
-
 declare module './clickhouse' {
   interface ClickHouseDatabase {
     // Views (reads)
     delegation_flow_projection: DelegationFlowProjectionTable;
     vote_events_projection: VoteEventsProjectionTable;
-    voting_power_snapshot_projection: VotingPowerSnapshotProjectionTable;
     // Raw forensic tables (writes)
     vote_events_raw: VoteEventsRawTable;
     delegation_flow_raw: DelegationFlowRawTable;
-    voting_power_snapshot_raw: VotingPowerSnapshotRawTable;
   }
 }
 

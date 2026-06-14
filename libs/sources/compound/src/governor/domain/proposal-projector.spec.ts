@@ -52,7 +52,6 @@ describe('projectCompoundProposalEvent', () => {
       voting_ends_at: null,
       voting_starts_block: '200',
       voting_ends_block: '300',
-      voting_power_block: '200',
       state: 'pending',
       state_updated_at: CONFIRMED_AT,
       updated_at: CONFIRMED_AT,

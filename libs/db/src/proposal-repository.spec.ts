@@ -14,7 +14,6 @@ const NEW_PROPOSAL: NewProposal = {
   voting_ends_at: null,
   voting_starts_block: '123',
   voting_ends_block: '456',
-  voting_power_block: '123',
   state: 'pending',
   state_updated_at: new Date('2026-01-01T00:00:00Z'),
   updated_at: new Date('2026-01-01T00:00:00Z'),
@@ -94,28 +93,6 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
     execute,
   };
   chain.innerJoin.mockReturnValue(chain);
-  chain.select.mockReturnValue(chain);
-  chain.where.mockReturnValue(chain);
-  chain.orderBy.mockReturnValue(chain);
-  chain.limit.mockReturnValue(chain);
-  const selectFrom = vi.fn().mockReturnValue(chain);
-
-  return { selectFrom, ...chain };
-}
-
-function makeSnapshotCandidateSelectChain(returnValue: unknown) {
-  const executeTakeFirst = vi.fn().mockResolvedValue(returnValue);
-  const chain = {
-    innerJoin: vi.fn(),
-    leftJoin: vi.fn(),
-    select: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    executeTakeFirst,
-  };
-  chain.innerJoin.mockReturnValue(chain);
-  chain.leftJoin.mockReturnValue(chain);
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
@@ -272,42 +249,6 @@ describe('ProposalRepository', () => {
     ]);
   });
 
-  it('selects snapshot candidates with dao chain context', async () => {
-    const select = makeSnapshotCandidateSelectChain({
-      id: 'proposal-1',
-      dao_id: 'dao-1',
-      chain_id: '0x1',
-      source_type: 'source_a',
-      voting_power_block: '123',
-    });
-    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
-
-    await expect(
-      repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
-    ).resolves.toEqual({
-      id: 'proposal-1',
-      dao_id: 'dao-1',
-      chain_id: '0x1',
-      source_type: 'source_a',
-      voting_power_block: '123',
-    });
-
-    expect(select.selectFrom).toHaveBeenCalledWith('proposal as p');
-    expect(select.innerJoin).toHaveBeenCalledWith('dao as d', 'd.id', 'p.dao_id');
-    expect(select.leftJoin).toHaveBeenCalledWith(
-      'voting_power_snapshot_run as vpsr',
-      'vpsr.proposal_id',
-      'p.id',
-    );
-    expect(select.select).toHaveBeenCalledWith([
-      'p.id',
-      'p.dao_id',
-      'd.primary_chain_id as chain_id',
-      'p.source_type',
-      'p.voting_power_block',
-    ]);
-  });
-
   it('does not issue an insert for empty action batches', async () => {
     const insert = makeInsertChain();
     const repo = new ProposalRepository({ insertInto: insert.insertInto } as never);
@@ -450,44 +391,5 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
-  });
-
-  it('finds the next snapshot candidate with the standard ordering and filters', async () => {
-    const candidate = {
-      id: 'proposal-1',
-      dao_id: 'dao-1',
-      chain_id: '0x1',
-      source_type: 'source_a',
-      voting_power_block: '123',
-    };
-    const select = makeSnapshotCandidateSelectChain(candidate);
-    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
-
-    await expect(
-      repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
-    ).resolves.toEqual(candidate);
-
-    expect(select.selectFrom).toHaveBeenCalledWith('proposal as p');
-    expect(select.innerJoin).toHaveBeenCalledWith('dao as d', 'd.id', 'p.dao_id');
-    expect(select.leftJoin).toHaveBeenCalledWith(
-      'voting_power_snapshot_run as vpsr',
-      'vpsr.proposal_id',
-      'p.id',
-    );
-    expect(select.select).toHaveBeenCalledWith([
-      'p.id',
-      'p.dao_id',
-      'd.primary_chain_id as chain_id',
-      'p.source_type',
-      'p.voting_power_block',
-    ]);
-    expect(select.orderBy).toHaveBeenNthCalledWith(1, 'p.voting_power_block', 'asc');
-    expect(select.orderBy).toHaveBeenNthCalledWith(2, 'p.id', 'asc');
-  });
-
-  it('returns undefined when no snapshot strategies are registered', async () => {
-    const repo = new ProposalRepository({ selectFrom: vi.fn() } as never);
-
-    await expect(repo.findNextSnapshotCandidate([], ['active'], 5)).resolves.toBeUndefined();
   });
 });

@@ -31,8 +31,6 @@ export interface AaveProposalCreatedProjection {
     voting_chain_id: null;
     voting_machine_address: null;
     voting_strategy_address: null;
-    snapshot_block_hash: null;
-    snapshot_block_number_l1: null;
     creation_block: string;
   };
   choices: readonly AaveProposalChoiceTemplate[];
@@ -44,7 +42,6 @@ export interface AaveVotingActivatedProjection {
   daoSourceId: string;
   sourceType: string;
   sourceId: string;
-  snapshotBlockHash: string;
   targetState: Extract<ProposalState, 'active'>;
   stateUpdatedAt: Date;
 }
@@ -140,8 +137,6 @@ function projectProposalCreated(
       voting_ends_at: null,
       voting_starts_block: null,
       voting_ends_block: null,
-      // Epic V3 overwrites this placeholder with the resolved L1 snapshot block number.
-      voting_power_block: archiveRow.block_number,
       state: 'pending',
       state_updated_at: confirmedAt,
       updated_at: confirmedAt,
@@ -150,8 +145,6 @@ function projectProposalCreated(
       voting_chain_id: null,
       voting_machine_address: null,
       voting_strategy_address: null,
-      snapshot_block_hash: null,
-      snapshot_block_number_l1: null,
       creation_block: archiveRow.block_number,
     },
     choices: AAVE_V3_CHOICES,
@@ -169,7 +162,6 @@ function projectVotingActivated(
     daoSourceId: archiveRow.dao_source_id,
     sourceType: archiveRow.source_type,
     sourceId: payload.proposalId,
-    snapshotBlockHash: payload.snapshotBlockHash,
     targetState: 'active',
     stateUpdatedAt: confirmedAt,
   };

@@ -12,7 +12,6 @@ type ProposalListRow = {
   binding: boolean;
   voting_starts_at: Date | null;
   voting_ends_at: Date | null;
-  voting_power_block: string;
   state_updated_at: Date;
   created_at: Date;
   proposer_address: string;
@@ -61,7 +60,6 @@ export function toProposalDetailDto(
     binding: row.binding,
     voting_starts_at: isoSeconds(row.voting_starts_at),
     voting_ends_at: isoSeconds(row.voting_ends_at),
-    voting_power_block: row.voting_power_block,
     proposer: {
       address: row.proposer_address.toLowerCase(),
       display_name: row.proposer_display_name,
@@ -85,7 +83,6 @@ export function toProposalListItemDto(row: ProposalListRow): ProposalListItemDto
     binding: row.binding,
     voting_starts_at: isoSeconds(row.voting_starts_at),
     voting_ends_at: isoSeconds(row.voting_ends_at),
-    voting_power_block: row.voting_power_block,
     proposer: {
       address: row.proposer_address.toLowerCase(),
       display_name: row.proposer_display_name,

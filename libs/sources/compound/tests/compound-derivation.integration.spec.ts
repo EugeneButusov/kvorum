@@ -154,7 +154,6 @@ describeIf('compound governor derivation', () => {
     const proposal = proposals[0]!;
     expect(proposal.source_type).toBe('compound_governor_bravo');
     expect(proposal.source_id).toBe('1');
-    expect(proposal.voting_power_block).toBe('100');
     expect(proposal.voting_starts_block).toBe('100');
     expect(proposal.voting_ends_block).toBe('200');
     expect(proposal.state).toBe('pending');

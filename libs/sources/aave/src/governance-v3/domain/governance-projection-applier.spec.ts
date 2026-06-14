@@ -85,7 +85,6 @@ function makeProjectionTx(
     insertedDlq: undefined as unknown,
     markedDerivedId: undefined as string | undefined,
     markedActorResolvedId: undefined as string | undefined,
-    updatedSnapshotHash: undefined as unknown,
     transactionCount: 0,
   };
   const proposalInserted = options.proposalInserted ?? true;
@@ -158,7 +157,6 @@ function makeProjectionTx(
             if ('derivation_actor_resolved_at' in values) lastArchiveSet = 'actor_resolved';
             if ('derived_at' in values) lastArchiveSet = 'derived';
           }
-          if (table === 'aave_proposal_metadata') calls.updatedSnapshotHash = values;
           return updateChain;
         }),
         where: vi.fn((_column: string, _operator: string, value: unknown) => {
@@ -407,7 +405,7 @@ describe('AaveGovernanceProjectionApplier', () => {
     );
   });
 
-  it('sets snapshot hash and advances active state on VotingActivated', async () => {
+  it('advances active state on VotingActivated', async () => {
     const { pgDb, calls } = makeProjectionTx({
       existingProposal: { id: 'proposal-1', source_id: '42' },
     });
@@ -425,7 +423,6 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     await applier.applyBatch([{ ...ROW, event_type: 'VotingActivated' }]);
 
-    expect(calls.updatedSnapshotHash).toEqual({ snapshot_block_hash: '0x' + '34'.repeat(32) });
     expect(calls.markedDerivedId).toBe('archive-1');
     expect(metrics.processed).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'derived', reason: null }),

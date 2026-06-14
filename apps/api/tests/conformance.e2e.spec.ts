@@ -59,8 +59,6 @@ function assertProposalShape(proposal: Record<string, unknown>) {
     expect(proposal['title']).toBeNull();
   }
 
-  expect(typeof proposal['voting_power_block']).toBe('string');
-
   if (proposal['voting_starts_at'] !== null) {
     expect(proposal['voting_starts_at']).toMatch(TS_SECONDS_UTC_RE);
   }
