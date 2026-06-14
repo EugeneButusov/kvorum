@@ -22,7 +22,6 @@ export class ProposalReadRepository {
       voting_ends_at: Date | null;
       voting_starts_block: string | null;
       voting_ends_block: string | null;
-      voting_power_block: string;
       state_updated_at: Date;
       created_at: Date;
       proposer_address: string;
@@ -47,7 +46,6 @@ export class ProposalReadRepository {
         'proposal.voting_ends_at',
         'proposal.voting_starts_block',
         'proposal.voting_ends_block',
-        'proposal.voting_power_block',
         'proposal.state_updated_at',
         'proposal.created_at',
         'actor.primary_address as proposer_address',
@@ -95,7 +93,6 @@ export class ProposalReadRepository {
         'proposal.voting_ends_at as proposal_voting_ends_at',
         'proposal.voting_starts_block as proposal_voting_starts_block',
         'proposal.voting_ends_block as proposal_voting_ends_block',
-        'proposal.voting_power_block as proposal_voting_power_block',
         'proposal.state as proposal_state',
         'proposal.state_updated_at as proposal_state_updated_at',
         'proposal.created_at as proposal_created_at',
@@ -137,7 +134,6 @@ export class ProposalReadRepository {
       voting_ends_at: row.proposal_voting_ends_at,
       voting_starts_block: row.proposal_voting_starts_block,
       voting_ends_block: row.proposal_voting_ends_block,
-      voting_power_block: row.proposal_voting_power_block,
       state: row.proposal_state,
       state_updated_at: row.proposal_state_updated_at,
       created_at: row.proposal_created_at,

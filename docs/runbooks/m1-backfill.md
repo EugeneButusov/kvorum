@@ -350,7 +350,6 @@ Cross-check vs Tally/Etherscan:
 | ----------------------------------------------------------------- | --------------------------------------------------- | ------ |
 | `proposer`                                                        |                                                     |        |
 | `state`                                                           |                                                     |        |
-| `voting_power_block` (= `startBlock`)                             |                                                     |        |
 | `voting_starts_block` (= `startBlock`)                            |                                                     |        |
 | `voting_ends_block` (= `endBlock`)                                |                                                     |        |
 | `voting_starts_at` / `voting_ends_at`                             | NULL (M1 — ADR-043)                                 |        |

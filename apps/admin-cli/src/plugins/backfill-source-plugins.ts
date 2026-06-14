@@ -1,17 +1,6 @@
-import type { ChainContextRegistry, Logger } from '@libs/chain';
+import type { Logger } from '@libs/chain';
+import { ArchiveEventRepository, chDb, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
-  ActorRepository,
-  ArchiveEventRepository,
-  chDb,
-  DaoSourceRepository,
-  DlqRepository,
-  pgDb,
-  type SourceType,
-} from '@libs/db';
-import type { VotingPowerStrategy } from '@libs/domain';
-import {
-  CompTokenDelegationSnapshotRepository,
-  CompoundCompTokenVotingPowerStrategy,
   GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
@@ -55,24 +44,6 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
     compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
   });
-}
-
-export function buildSnapshotStrategyMap(input: {
-  registry: ChainContextRegistry;
-  chainId: string;
-}): Map<string, VotingPowerStrategy> {
-  const strategy = new CompoundCompTokenVotingPowerStrategy(
-    new CompTokenDelegationSnapshotRepository(chDb),
-    new ActorRepository(pgDb),
-    new DaoSourceRepository(pgDb),
-    input.registry,
-    input.chainId,
-  );
-  return new Map<string, VotingPowerStrategy>([
-    ['compound_governor_alpha', strategy],
-    ['compound_governor_bravo', strategy],
-    ['compound_governor_oz', strategy],
-  ]);
 }
 
 export interface BackfillSourceRuntimeInput {

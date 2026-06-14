@@ -163,7 +163,6 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
       voting_ends_at: null,
       voting_starts_block: null,
       voting_ends_block: null,
-      voting_power_block: '19854210',
       state: 'active',
       state_updated_at: new Date('2026-05-15T11:00:00.456Z'),
       updated_at: new Date('2026-05-15T11:00:00.456Z'),

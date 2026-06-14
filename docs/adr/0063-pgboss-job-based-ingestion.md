@@ -38,7 +38,7 @@ Replace the real-time write path with a **producer/consumer pipeline** built on 
 
 ### pg-boss wiring (D-EXEC-3)
 
-- A `PgBossLifecycle` provider owns `new PgBoss({ …, migrate: false })` + `start()` (verify-only). pg-boss schema applied as a Kysely migration step (`0009_pgboss_schema.ts`); `migrate: false` on the constructor ensures `start()` only verifies, never auto-migrates.
+- A `PgBossLifecycle` provider owns `new PgBoss({ …, migrate: false })` + `start()` (verify-only). pg-boss schema applied as a Kysely migration step (`0006_pgboss_schema.ts`); `migrate: false` on the constructor ensures `start()` only verifies, never auto-migrates.
 - Separate provider(s) register `work()` handlers (consumer + DLQ-bridge) and await `lifecycle.whenReady()` before registering.
 - pg-boss version pinned at `^12.18.2`. Key API notes: `getConstructionPlans(schema)` and `getMigrationPlans(schema, version)` are **module-level named exports**, not static `PgBoss.*` methods. `getQueueStats(name).queuedCount` is the depth API; `getQueueSize` does not exist in v12. Queue creation via `createQueue` (required before `send`/`work` on v12).
 

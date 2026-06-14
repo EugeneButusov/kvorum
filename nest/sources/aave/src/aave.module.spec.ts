@@ -116,9 +116,5 @@ describe('AaveSourceModule', () => {
           deriver.eventTypes.includes('PayloadCancelled'),
       ),
     ).toBe(true);
-    expect(plugin.snapshotStrategies).toHaveLength(1);
-    expect(plugin.snapshotStrategies[0]).toMatchObject({
-      sourceTypes: ['aave_governance_v3'],
-    });
   });
 });

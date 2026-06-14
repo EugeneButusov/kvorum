@@ -12,7 +12,6 @@ describe('proposal.mappers', () => {
     binding: true,
     voting_starts_at: new Date('2026-05-15T10:00:00.123Z'),
     voting_ends_at: null,
-    voting_power_block: '19854210',
     state_updated_at: new Date('2026-05-15T11:00:00.456Z'),
     created_at: new Date('2026-05-15T09:00:00.789Z'),
     proposer_address: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -23,7 +22,6 @@ describe('proposal.mappers', () => {
     const dto = toProposalListItemDto(row);
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('ProposalListItemDto');
     expect(dto.proposer.address).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-    expect(dto.voting_power_block).toBe('19854210');
     expect((dto as Record<string, unknown>)['description']).toBeUndefined();
     expect((dto as Record<string, unknown>)['actions']).toBeUndefined();
     expect((dto as Record<string, unknown>)['choices']).toBeUndefined();

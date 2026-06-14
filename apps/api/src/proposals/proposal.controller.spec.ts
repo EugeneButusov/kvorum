@@ -29,7 +29,6 @@ const baseProposalRow = {
   voting_ends_at: new Date('2026-02-01'),
   voting_starts_block: '1',
   voting_ends_block: '2',
-  voting_power_block: '1',
   state_updated_at: new Date('2026-01-01'),
   created_at: new Date('2025-12-31'),
   proposer_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',

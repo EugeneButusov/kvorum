@@ -17,8 +17,6 @@ export type {
   CompTokenDelegationProjectionApplierDeps,
   CompTokenDelegationProjectionMetrics,
 } from './domain/comp-token-delegation-projection-applier';
-export { CompoundCompTokenVotingPowerStrategy } from './strategy/compound-comp-token-voting-power-strategy';
-export { COMP_TOKEN_VOTING_POWER_ABI } from './strategy/comp-token-abi';
 export {
   projectDelegateChanged,
   projectDelegateVotesChanged,
@@ -32,8 +30,6 @@ export type {
 export { CompTokenEventRepository } from './persistence/event-repository';
 export type { CompTokenArchivePayloadRow } from './persistence/comp-token-archive-payload-repository';
 export { CompTokenArchivePayloadRepository } from './persistence/comp-token-archive-payload-repository';
-export type { DelegationSnapshotEventRow } from './persistence/delegation-snapshot-repository';
-export { CompTokenDelegationSnapshotRepository } from './persistence/delegation-snapshot-repository';
 
 export type { CompTokenArchiveWriterDeps } from './ingestion/archive-writer.types';
 export { CompTokenArchiveWriter } from './ingestion/archive-writer';

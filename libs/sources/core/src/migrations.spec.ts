@@ -63,11 +63,7 @@ async function fetchColumn(table: string, name: string): Promise<ColumnRow | und
 
 describeWithCh('core_001_ch_source_of_truth migration', () => {
   it('creates raw MergeTree tables with expected engines and keys', async () => {
-    const tables = await fetchTables([
-      'vote_events_raw',
-      'delegation_flow_raw',
-      'voting_power_snapshot_raw',
-    ]);
+    const tables = await fetchTables(['vote_events_raw', 'delegation_flow_raw']);
 
     const votes = tables.get('vote_events_raw');
     expect(votes?.engine_full).toMatch(/^MergeTree/);
@@ -82,19 +78,10 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
       'dao_id, delegator_address, block_number, log_index, delegation_id',
     );
     expect(delegations?.partition_key).toBe('toYYYYMM(created_at)');
-
-    const snapshots = tables.get('voting_power_snapshot_raw');
-    expect(snapshots?.engine_full).toMatch(/^MergeTree/);
-    expect(snapshots?.sorting_key).toBe('dao_id, proposal_id, actor_address');
-    expect(snapshots?.partition_key).toBe('toYYYYMM(computed_at)');
   });
 
   it('creates AggregatingMergeTree tables with expected keys', async () => {
-    const tables = await fetchTables([
-      'vote_events_agg',
-      'delegation_flow_agg',
-      'voting_power_snapshot_agg',
-    ]);
+    const tables = await fetchTables(['vote_events_agg', 'delegation_flow_agg']);
 
     const votes = tables.get('vote_events_agg');
     expect(votes?.engine_full).toMatch(/^AggregatingMergeTree/);
@@ -107,29 +94,21 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     expect(delegations?.sorting_key).toBe(
       'dao_id, delegator_address, block_number, log_index, delegation_id',
     );
-
-    const snapshots = tables.get('voting_power_snapshot_agg');
-    expect(snapshots?.engine_full).toMatch(/^AggregatingMergeTree/);
-    expect(snapshots?.sorting_key).toBe('dao_id, proposal_id, actor_address');
   });
 
   it('creates projection VIEWs and materialized views', async () => {
     const tables = await fetchTables([
       'vote_events_projection',
       'delegation_flow_projection',
-      'voting_power_snapshot_projection',
       'vote_events_mv',
       'delegation_flow_mv',
-      'voting_power_snapshot_mv',
     ]);
 
     // Use engine (not engine_full) — ClickHouse returns '' for engine_full on views/MVs
     expect(tables.get('vote_events_projection')?.engine).toBe('View');
     expect(tables.get('delegation_flow_projection')?.engine).toBe('View');
-    expect(tables.get('voting_power_snapshot_projection')?.engine).toBe('View');
     expect(tables.get('vote_events_mv')?.engine).toBe('MaterializedView');
     expect(tables.get('delegation_flow_mv')?.engine).toBe('MaterializedView');
-    expect(tables.get('voting_power_snapshot_mv')?.engine).toBe('MaterializedView');
   });
 
   it('adds voting_chain_id to vote projection and keeps raw default', async () => {
@@ -138,14 +117,6 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
 
     const rawColumn = await fetchColumn('vote_events_raw', 'voting_chain_id');
     expect(rawColumn?.default_expression).toBe("'0x1'");
-  });
-
-  it('adds voter_address to voting power snapshots with actor_address default on raw table', async () => {
-    const projectionColumn = await fetchColumn('voting_power_snapshot_projection', 'voter_address');
-    expect(projectionColumn?.name).toBe('voter_address');
-
-    const rawColumn = await fetchColumn('voting_power_snapshot_raw', 'voter_address');
-    expect(rawColumn?.default_expression).toBe('actor_address');
   });
 
   it('creates actor_address_redirect dictionary', async () => {

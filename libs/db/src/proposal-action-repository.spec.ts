@@ -68,7 +68,6 @@ async function insertMinimalProposal(trx: typeof pgDb): Promise<string> {
       voting_ends_at: null,
       voting_starts_block: '1000',
       voting_ends_block: '2000',
-      voting_power_block: '1000',
       state: 'active',
       state_updated_at: now,
       updated_at: now,

@@ -16,7 +16,6 @@ import type {
 } from './domain';
 import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
 import type { SeenLogTable } from './seen-log';
-import type { VotingPowerSnapshotRunTable } from './vote';
 export type { SeenLog, SeenLogTable, NewSeenLog } from './seen-log';
 
 export type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
@@ -97,13 +96,6 @@ export type {
   NewActorAddressRedirect,
   NewActorAddressSource,
 } from './actor-address';
-export type {
-  VotingPowerSnapshotRun,
-  VotingPowerSnapshotRunStatus,
-  VotingPowerSnapshotRunTable,
-  NewVotingPowerSnapshotRun,
-} from './vote';
-
 export interface PgDatabase {
   users: UsersTable;
   api_key: ApiKeyTable;
@@ -120,7 +112,6 @@ export interface PgDatabase {
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
-  voting_power_snapshot_run: VotingPowerSnapshotRunTable;
   actor_address: ActorAddressTable;
   actor_address_redirect: ActorAddressRedirectTable;
   actor_address_source: ActorAddressSourceTable;

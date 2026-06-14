@@ -7,7 +7,6 @@ export interface ProposalCreatedPayload {
 
 export interface VotingActivatedPayload {
   proposalId: string;
-  snapshotBlockHash: string;
   votingDuration: number;
 }
 

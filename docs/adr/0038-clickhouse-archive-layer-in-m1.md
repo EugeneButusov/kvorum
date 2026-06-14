@@ -84,7 +84,7 @@ ADR-026's deferral applies **only to the analytical mirror layer**. SPEC §4.6.2
 
 When triggered, the analytical-mirror activation work consists of: defining `vote_events_analytics` and `delegation_flow_analytics` materialized views in ClickHouse, populating from Postgres via a daily ETL job, repointing the §4.6.2 endpoint handlers. The archive layer is already there from M1.~~
 
-**Superseded 2026-05-28 by ADR-0062**: CH analytical projections (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`) ship as source of truth, not a deferred layer.
+**Superseded 2026-05-28 by ADR-0062**: CH analytical projections (`vote_events_projection`, `delegation_flow_projection`) ship as source of truth, not a deferred layer. (`voting_power_snapshot_projection` retired in M3 V3 #262.)
 
 ### Deployment
 
@@ -177,4 +177,4 @@ All other activation conditions (data-plane operational triggers, cost envelope,
 
 ### 2026-05-28 — CH cutover per ADR-0062
 
-The analytical mirror layer is no longer a separate concept. CH is source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`) from first derivation tick post-PR-1 #220. The `archive_event` PG tracker retains the 4-tuple idempotency cache + `derived_at` watermark per ADR-058. See ADR-0062 §Decision.
+The analytical mirror layer is no longer a separate concept. CH is source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`) from first derivation tick post-PR-1 #220. (`voting_power_snapshot_projection` retired in M3 V3 #262.) The `archive_event` PG tracker retains the 4-tuple idempotency cache + `derived_at` watermark per ADR-058. See ADR-0062 §Decision.

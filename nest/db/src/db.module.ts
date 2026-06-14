@@ -17,8 +17,6 @@ import {
   VoteEventsProjectionReadRepository,
   VoteEventsProjectionWriter,
   VoteReadRepository,
-  VotingPowerSnapshotProjectionWriter,
-  VotingPowerSnapshotRunRepository,
   SeenLogRepository,
 } from '@libs/db';
 
@@ -38,8 +36,6 @@ const FACTORIES = new Map<Type, () => unknown>([
   [VoteEventsProjectionReadRepository, () => new VoteEventsProjectionReadRepository(chDb)],
   [VoteEventsProjectionWriter, () => new VoteEventsProjectionWriter(chDb)],
   [VoteReadRepository, () => new VoteReadRepository(pgDb, chDb)],
-  [VotingPowerSnapshotProjectionWriter, () => new VotingPowerSnapshotProjectionWriter(chDb)],
-  [VotingPowerSnapshotRunRepository, () => new VotingPowerSnapshotRunRepository(pgDb)],
   [SeenLogRepository, () => new SeenLogRepository(pgDb)],
 ]);
 

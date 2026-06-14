@@ -93,7 +93,6 @@ async function seedAuth() {
       voting_ends_at: null,
       voting_starts_block: '1',
       voting_ends_block: '2',
-      voting_power_block: '1',
       state: 'active',
       state_updated_at: new Date('2026-05-20T00:00:00Z'),
       updated_at: new Date('2026-05-20T00:00:00Z'),

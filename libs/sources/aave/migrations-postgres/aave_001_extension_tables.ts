@@ -14,8 +14,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('voting_chain_id', sql`varchar(32)`, (col) => col.notNull())
     .addColumn('voting_machine_address', 'text', (col) => col.notNull())
     .addColumn('voting_strategy_address', 'text')
-    .addColumn('snapshot_block_hash', 'text')
-    .addColumn('snapshot_block_number_l1', 'bigint')
     .addColumn('creation_block', 'bigint', (col) => col.notNull())
     .addColumn('last_reconcile_check_block', 'bigint')
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))

@@ -1,10 +1,8 @@
 import { Module, Logger } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
-  ActorRepository,
   ArchiveEventRepository,
   ArchiveDerivationRepository,
-  DaoSourceRepository,
   DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
@@ -14,8 +12,6 @@ import {
 } from '@libs/db';
 import {
   COMPOUND_ACTOR_SWEEP_EXTRACTOR,
-  CompoundCompTokenVotingPowerStrategy,
-  CompTokenDelegationSnapshotRepository,
   CompTokenArchiveWriter,
   CompTokenArchivePayloadRepository,
   CompTokenEventRepository,
@@ -43,10 +39,8 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
   imports: [
     ChainContextModule,
     DbModule.forFeature([
-      ActorRepository,
       ArchiveDerivationRepository,
       ArchiveEventRepository,
-      DaoSourceRepository,
       DlqRepository,
       ProposalRepository,
       VoteEventsProjectionReadRepository,
@@ -159,10 +153,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
       inject: [ArchiveDerivationRepository, DlqRepository],
     },
     {
-      provide: CompTokenDelegationSnapshotRepository,
-      useFactory: () => new CompTokenDelegationSnapshotRepository(chDb),
-    },
-    {
       provide: COMPOUND_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: GovernorArchiveWriter,
@@ -172,10 +162,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
-        delegationSnapshotRepo: CompTokenDelegationSnapshotRepository,
-        actorRepo: ActorRepository,
-        daoSourceRepo: DaoSourceRepository,
-        registry: ChainContextRegistry,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -183,13 +169,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         const metrics = buildDriverMetrics();
         const logger = new Logger('CompoundSourceModule');
         logger.log('compound_comp_token plugin registered');
-        const snapshotStrategy = new CompoundCompTokenVotingPowerStrategy(
-          delegationSnapshotRepo,
-          actorRepo,
-          daoSourceRepo,
-          registry,
-          '0x1',
-        );
 
         return {
           name: 'compound',
@@ -241,16 +220,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
               extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
             },
           ],
-          snapshotStrategies: [
-            {
-              sourceTypes: [
-                'compound_governor_alpha',
-                'compound_governor_bravo',
-                'compound_governor_oz',
-              ],
-              strategy: snapshotStrategy,
-            },
-          ],
         };
       },
       inject: [
@@ -261,10 +230,6 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
         CompTokenDelegationProjectionApplier,
-        CompTokenDelegationSnapshotRepository,
-        ActorRepository,
-        DaoSourceRepository,
-        ChainContextRegistry,
       ],
     },
   ],

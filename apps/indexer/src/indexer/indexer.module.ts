@@ -18,14 +18,12 @@ import { JobQueueService } from '../queue/job-queue.service';
 import { PgBossMetricsService } from '../queue/pgboss-metrics.service';
 import { SeenLogPruneService } from '../queue/seen-log-prune.service';
 import { SourceResolver } from '../queue/source-resolver';
-import { SnapshotModule } from '../snapshot';
 
 @Module({
   imports: [
     IndexerInfraModule,
     ChainContextModule,
     DerivationModule,
-    SnapshotModule,
     EnsResolverModule,
     SourcesModule,
   ],

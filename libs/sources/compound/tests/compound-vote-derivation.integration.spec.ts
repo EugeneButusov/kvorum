@@ -248,7 +248,6 @@ describeIf('compound vote derivation integration', () => {
         voting_ends_at: null,
         voting_starts_block: '10',
         voting_ends_block: '20',
-        voting_power_block: '10',
         state: 'pending',
         state_updated_at: new Date(),
         updated_at: new Date(),

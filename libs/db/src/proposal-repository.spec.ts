@@ -14,7 +14,6 @@ const NEW_PROPOSAL: NewProposal = {
   voting_ends_at: null,
   voting_starts_block: '123',
   voting_ends_block: '456',
-  voting_power_block: '123',
   state: 'pending',
   state_updated_at: new Date('2026-01-01T00:00:00Z'),
   updated_at: new Date('2026-01-01T00:00:00Z'),
@@ -392,38 +391,5 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
-  });
-
-  it('finds the next snapshot candidate with the standard ordering and filters', async () => {
-    const candidate = {
-      id: 'proposal-1',
-      dao_id: 'dao-1',
-      source_type: 'source_a',
-      voting_power_block: '123',
-    };
-    const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-    const methods = ['leftJoin', 'select', 'where', 'orderBy', 'limit'];
-    for (const m of methods) chain[m] = vi.fn().mockReturnValue(chain);
-    chain['executeTakeFirst'] = vi.fn().mockResolvedValue(candidate);
-    const selectFrom = vi.fn().mockReturnValue(chain);
-    const repo = new ProposalRepository({ selectFrom } as never);
-
-    await expect(
-      repo.findNextSnapshotCandidate(['source_a', 'source_b'], ['active', 'queued'], 5),
-    ).resolves.toEqual(candidate);
-
-    expect(selectFrom).toHaveBeenCalledWith('proposal as p');
-    expect(chain['leftJoin']).toHaveBeenCalledWith(
-      'voting_power_snapshot_run as vpsr',
-      'vpsr.proposal_id',
-      'p.id',
-    );
-    expect(chain['orderBy']).toHaveBeenCalledWith('p.voting_power_block', 'asc');
-  });
-
-  it('returns undefined when no snapshot strategies are registered', async () => {
-    const repo = new ProposalRepository({ selectFrom: vi.fn() } as never);
-
-    await expect(repo.findNextSnapshotCandidate([], ['active'], 5)).resolves.toBeUndefined();
   });
 });

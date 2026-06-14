@@ -62,7 +62,7 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
-import type { ArchiveEventType, VotingPowerStrategy } from '@libs/domain';
+import type { ArchiveEventType } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 import type { RawLogJob } from './producer/archive-producer';
 
@@ -113,17 +113,10 @@ export interface ActorAddressDeriver {
 
 export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
 
-export interface SourceSnapshotStrategy {
-  readonly sourceTypes: readonly string[];
-  readonly strategy: VotingPowerStrategy;
-  getBlockedProposalIds?(): Promise<readonly string[]>;
-}
-
 export interface SourcePlugin {
   readonly name: string;
   readonly ingesters: readonly SourceIngester[];
   readonly derivers: readonly SourceDeriver[];
-  readonly snapshotStrategies: readonly SourceSnapshotStrategy[];
 }
 
 export type IngestSpec =
@@ -178,6 +171,4 @@ export type {
   NewVoteEventsProjectionRow,
   DelegationFlowProjectionRow,
   NewDelegationFlowProjectionRow,
-  VotingPowerSnapshotProjectionRow,
-  NewVotingPowerSnapshotProjectionRow,
 } from './persistence/schema';

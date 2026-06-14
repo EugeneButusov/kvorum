@@ -37,7 +37,6 @@ export function decodeAaveGovernanceV3Log(
         type: 'VotingActivated',
         payload: {
           proposalId: (parsed.args['proposalId'] as bigint).toString(),
-          snapshotBlockHash: parsed.args['snapshotBlockHash'] as string,
           votingDuration: Number(parsed.args['votingDuration']),
         },
       };

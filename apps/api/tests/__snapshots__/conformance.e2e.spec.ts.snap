@@ -40,7 +40,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "active",
       "title": "Paged proposal",
       "voting_ends_at": "2026-05-16T18:00:00Z",
-      "voting_power_block": "19854212",
       "voting_starts_at": "2026-05-15T18:00:00Z",
     },
     {
@@ -63,7 +62,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "pending",
       "title": null,
       "voting_ends_at": null,
-      "voting_power_block": "19854211",
       "voting_starts_at": null,
     },
     {
@@ -86,7 +84,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "executed",
       "title": "Executed proposal",
       "voting_ends_at": "2026-05-15T15:00:00Z",
-      "voting_power_block": "19854210",
       "voting_starts_at": "2026-05-15T09:00:00Z",
     },
   ],
@@ -152,7 +149,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "active",
       "title": "Paged proposal",
       "voting_ends_at": "2026-05-16T18:00:00Z",
-      "voting_power_block": "19854212",
       "voting_starts_at": "2026-05-15T18:00:00Z",
     },
     {
@@ -175,7 +171,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "pending",
       "title": null,
       "voting_ends_at": null,
-      "voting_power_block": "19854211",
       "voting_starts_at": null,
     },
     {
@@ -198,7 +193,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "state": "executed",
       "title": "Executed proposal",
       "voting_ends_at": "2026-05-15T15:00:00Z",
-      "voting_power_block": "19854210",
       "voting_starts_at": "2026-05-15T09:00:00Z",
     },
   ],
@@ -256,12 +250,12 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
 {
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
-  "cross-dao-proposals": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
+  "cross-dao-proposals": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-detail": ""HCHYuBht_32YTgbVOo6C8WJDeYU"",
-  "dao-proposals-list": ""aCc6bz68L5wVq0-XYBKIQDaoyCs"",
+  "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-sources": ""rNVI-PNdt4l2GmoeJ5mzlE7Ua_c"",
   "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
-  "proposal-detail": ""sWtY4YTOkDuEi4Hya5M_eCy0rHg"",
+  "proposal-detail": ""_0IBfhcd6pJ1pJlUHxvWNuLtDBI"",
 }
 `;
 
@@ -326,7 +320,6 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "state": "executed",
     "title": "Executed proposal",
     "voting_ends_at": "2026-05-15T15:00:00Z",
-    "voting_power_block": "19854210",
     "voting_starts_at": "2026-05-15T09:00:00Z",
   },
 }

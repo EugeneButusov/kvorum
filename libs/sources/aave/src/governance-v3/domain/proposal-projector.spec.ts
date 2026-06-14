@@ -32,13 +32,11 @@ describe('projectAaveGovernanceV3Event', () => {
       title: 'Proposal #101',
       description: '',
       description_hash: '12'.repeat(32),
-      voting_power_block: '123',
       state: 'pending',
     });
     expect(projection.metadata).toMatchObject({
       voting_chain_id: null,
       voting_machine_address: null,
-      snapshot_block_hash: null,
       creation_block: '123',
     });
     expect(projection.choices).toEqual([
@@ -47,13 +45,12 @@ describe('projectAaveGovernanceV3Event', () => {
     ]);
   });
 
-  it('projects VotingActivated into active state with snapshot hash', () => {
+  it('projects VotingActivated into active state', () => {
     const projection = projectAaveGovernanceV3Event(
       {
         type: 'VotingActivated',
         payload: {
           proposalId: '101',
-          snapshotBlockHash: '0x' + '34'.repeat(32),
           votingDuration: 86400,
         },
       },
@@ -63,7 +60,6 @@ describe('projectAaveGovernanceV3Event', () => {
     expect(projection).toMatchObject({
       kind: 'voting_activated',
       sourceId: '101',
-      snapshotBlockHash: '0x' + '34'.repeat(32),
       targetState: 'active',
     });
   });

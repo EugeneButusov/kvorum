@@ -22,9 +22,6 @@ vi.mock('@libs/db', async (importOriginal) => {
     DaoSourceRepository: class {
       constructor(_db: unknown) {}
     },
-    CompTokenDelegationSnapshotRepository: class {
-      constructor(_db?: unknown) {}
-    },
     DelegationFlowProjectionWriter: class {
       constructor(_db: unknown) {}
     },
@@ -39,9 +36,6 @@ vi.mock('@libs/db', async (importOriginal) => {
       constructor(_db: unknown) {}
     },
     VoteEventsProjectionReadRepository: class {
-      constructor(_db: unknown) {}
-    },
-    VotingPowerSnapshotProjectionWriter: class {
       constructor(_db: unknown) {}
     },
   };

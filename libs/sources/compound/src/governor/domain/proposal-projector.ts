@@ -106,7 +106,6 @@ function projectProposalCreated(
       voting_ends_at: null,
       voting_starts_block: payload.startBlock,
       voting_ends_block: payload.endBlock,
-      voting_power_block: payload.startBlock,
       state: 'pending',
       state_updated_at: confirmedAt,
       updated_at: confirmedAt,

@@ -214,10 +214,6 @@ export class AaveGovernanceProjectionApplier {
     }
 
     if (projection.kind === 'voting_activated') {
-      await repositories.aaveProposals.setSnapshotBlockHash(
-        proposal.id,
-        projection.snapshotBlockHash,
-      );
       const advanced = await repositories.proposals.advanceState({
         daoId,
         sourceType: projection.sourceType,

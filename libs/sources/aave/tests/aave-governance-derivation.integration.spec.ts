@@ -24,7 +24,6 @@ const SOURCE_TYPE = 'aave_governance_v3';
 const PROPOSAL_ID = '101';
 const PROPOSER = '0x1111111111111111111111111111111111111111';
 const DESCRIPTION_HASH = '12'.repeat(32);
-const SNAPSHOT_BLOCK_HASH = '0x' + '34'.repeat(32);
 
 function numberedHash(n: number): string {
   return '0x' + n.toString(16).padStart(64, '0');
@@ -211,7 +210,6 @@ describeIf('aave governance derivation integration', () => {
       blockHash: numberedHash(1003),
       payload: {
         proposalId: PROPOSAL_ID,
-        snapshotBlockHash: SNAPSHOT_BLOCK_HASH,
         votingDuration: 86400,
       },
     });
@@ -273,7 +271,6 @@ describeIf('aave governance derivation integration', () => {
       description: 'Loaded body',
       description_hash: DESCRIPTION_HASH,
       binding: true,
-      voting_power_block: '100',
       voting_starts_block: null,
       voting_ends_block: null,
       state: 'executed',
@@ -289,8 +286,6 @@ describeIf('aave governance derivation integration', () => {
       voting_chain_id: null,
       voting_machine_address: null,
       voting_strategy_address: null,
-      snapshot_block_hash: SNAPSHOT_BLOCK_HASH,
-      snapshot_block_number_l1: null,
       creation_block: '100',
     });
 

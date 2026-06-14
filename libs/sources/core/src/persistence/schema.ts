@@ -5,11 +5,6 @@
 export type {
   VoteEventsProjectionTable as VoteEventsProjectionRow,
   DelegationFlowProjectionTable as DelegationFlowProjectionRow,
-  VotingPowerSnapshotProjectionTable as VotingPowerSnapshotProjectionRow,
 } from '@libs/db';
 
-export type {
-  NewVoteEventsProjectionRow,
-  NewDelegationFlowProjectionRow,
-  NewVotingPowerSnapshotProjectionRow,
-} from '@libs/db';
+export type { NewVoteEventsProjectionRow, NewDelegationFlowProjectionRow } from '@libs/db';

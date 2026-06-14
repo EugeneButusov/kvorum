@@ -47,7 +47,6 @@ describe('decodeAaveGovernanceV3Log', () => {
       type: 'VotingActivated',
       payload: {
         proposalId: '102',
-        snapshotBlockHash: '0x3434343434343434343434343434343434343434343434343434343434343434',
         votingDuration: 86400,
       },
     });
