@@ -97,7 +97,7 @@ The original Decision section is silent on what happens to the secondary `actor`
 
 **Decision.** The `actor` table gains a `merged_into_actor_id UUID NULL FK REFERENCES actor(id)` column (lands in M2's J1 migration `libs/db/migrations/0005_vote_delegation.ts`). On merge:
 
-1. Rewrite FKs (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`, `proposal.proposer_actor_id`) from secondary to survivor.
+1. Rewrite FKs (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `proposal.proposer_actor_id`) from secondary to survivor. (`voting_power_snapshot.actor_id` removed — table retired in M3 V3 #262.)
 2. Move secondary's `actor_address` rows under survivor (re-pointing `actor_id` FK; setting `is_primary=false` on the former-primary).
 3. Insert `actor_address_redirect(from_address = secondary.primary_address, to_actor_id = survivor.id)`.
 4. Flatten any existing redirects pointing at secondary (per §2 above).
@@ -140,7 +140,7 @@ M2's `admin-cli actors merge` implementation adds a required `--reason <text>` f
 
 ## Amendment — 2026-05-28 (FK rewrite cascade withdrawn, redirect-flatten retained)
 
-The Rider §3 step 1 ("Rewrite FKs (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`, `proposal.proposer_actor_id`) from secondary to survivor") is **partially withdrawn**: the three derivation-FK rewrites (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`) are gone because those tables are gone. PG tables were **removed in PR-2 #221** (in-place edit to migration `0005_vote_delegation.ts`, not a separate drop migration). The fourth (`proposal.proposer_actor_id`) **survives** because `proposal` is still PG-resident (state machine, not chain-derived).
+The Rider §3 step 1 ("Rewrite FKs (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`, `voting_power_snapshot.actor_id`, `proposal.proposer_actor_id`) from secondary to survivor") is **partially withdrawn**: the derivation-FK rewrites (`vote.voter_actor_id`, `delegation.{delegator,delegate}_actor_id`) are gone because those PG tables are gone (moved to CH, then retired in M3 V3 #262 for `voting_power_snapshot`). PG tables were **removed in PR-2 #221** (in-place edit to migration `0005_vote_delegation.ts`, not a separate drop migration). The fourth (`proposal.proposer_actor_id`) **survives** because `proposal` is still PG-resident (state machine, not chain-derived).
 
 The Rider §3 steps 2–5 (move `actor_address` rows; insert redirect; flatten existing redirects; flip `merged_into_actor_id`) are **unchanged and load-bearing**. The flatten step (`UPDATE actor_address_redirect SET to_actor_id = survivor WHERE to_actor_id = secondary`) keeps the redirect graph at depth 1 by construction; the read-path single LEFT JOIN at `/v1/actors/{address}` only resolves correctly because of this invariant. Multi-hop merges (A→B→C) flatten to A→C in the same transaction.
 

@@ -119,8 +119,6 @@ The `name` field is used as a Prometheus `provider` label — keep it stable acr
 
 **1Password item naming**: `RPC_<CHAIN_NAME>_<PROVIDER_NAME>` (e.g., `RPC_ETHEREUM_ALCHEMY`). Store the full URL (including the API key path segment) as the item password field.
 
-**Archive-node requirement**: The voting power snapshot job (L3) calls `getPriorVotes(address, historicalBlock)` on the COMP token contract. This requires the RPC provider to retain full historical state at the target block. Free-tier Alchemy and Ankr both offer archive-node access; verify this is enabled on the key being provisioned. A non-archive endpoint returns an error for blocks older than ~128 (fast-sync window), which causes the snapshot job to route the proposal to `snapshot_compute_stage` DLQ.
-
 **Zero-downtime rotation procedure**:
 
 1. Generate a new key in the provider's dashboard (keep the old key active).

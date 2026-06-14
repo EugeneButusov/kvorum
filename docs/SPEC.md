@@ -200,9 +200,7 @@ The following diagram shows the core entities and their relationships. Extension
 │         │ delegator│              │
 │         │ /delegate└──────────────┘
 │         │
-│         │ N        ┌──────────────────────┐
-│         │◀─────────│ voting_power_snapshot│ per-proposal snapshots
-└─────────┘          └──────────────────────┘
+└─────────┘
 ```
 
 ### 2.4 Core entities
@@ -252,7 +250,6 @@ Essential fields:
 - `description_hash` (sha256 for prose sources; for `aave_governance_v3`, the immutable on-chain IPFS digest)
 - `binding` (boolean — does success cause on-chain execution?)
 - `voting_starts_at`, `voting_ends_at` (timestamps)
-- `voting_power_block` (nullable — the block at which voting power is captured for this proposal; NULL for purely off-chain votes that don't reference a specific block. `aave_governance_v3` may temporarily expose the `ProposalCreated` L1 block as a placeholder until `snapshot_block_hash` is resolved to its L1 block number.)
 - `state` (enum: see below)
 - `state_updated_at`
 - `created_at`, `updated_at`
@@ -285,7 +282,7 @@ Represents a single vote cast on a proposal. One row per voter per proposal.
 
 Essential fields: `id`, `proposal_id`, `voter_actor_id`, `voting_power_reported` (numeric, full precision — the voting power as reported by the source: Governor contract for on-chain votes, Snapshot API for Snapshot votes), `voting_power_computed` (numeric, nullable — populated when Kvorum independently verifies voting power; NULL in v1), `voting_power_verified` (boolean — `true` when computed and reported agree within tolerance; `false` otherwise; always `false` in v1), `voting_power_discrepancy` (numeric, nullable — the absolute difference when verification was attempted but failed; NULL when verification was not attempted), `cast_at`, `block_number` (nullable for Snapshot votes), `tx_hash` (nullable for Snapshot votes), `source_id` (the native vote ID where applicable), `reason` (nullable text — vote rationale where provided), `primary_choice` (denormalized — the highest-weight choice index for this vote, used for fast aggregation).
 
-The three-field voting power model anticipates the v1.1 Snapshot strategy verifier (see Section 3.9). For v1, `voting_power_reported` is the operational field — the source's reported value is used everywhere, equivalent to a single `voting_power` column. The additional fields are reserved for v1.1+ when independent verification populates them. For on-chain votes (Governor-based), `voting_power_reported` is verifiable by definition (Kvorum's derivation is the source); the verification fields are populated as part of the snapshot job's existing on-chain verification path.
+The three-field voting power model anticipates the v1.1 Snapshot strategy verifier (see Section 3.9). For v1, `voting_power_reported` is the operational field — the source's reported value is used everywhere, equivalent to a single `voting_power` column. The additional fields are reserved for v1.1+ when independent verification populates them.
 
 Vote choices are expressed via the `vote_choice` table rather than a column on `vote` itself. This is necessary because Snapshot supports ranked-choice and weighted voting types where a single `choice` column cannot represent the vote correctly.
 
@@ -309,17 +306,7 @@ Rationale: Append-only is correct. Historical state is never overwritten. Curren
 
 For Snapshot — which uses delegation strategies that may be off-chain or vary per space — delegation events are extracted from the Snapshot delegation contract on supported chains and from the Snapshot Hub API, normalized into the same table shape.
 
-#### 2.4.10 `voting_power_snapshot`
-
-Per-proposal snapshots of voting power for every actor that may participate in that proposal's vote. Populated lazily when a proposal enters the `active` state.
-
-Essential fields: `id`, `actor_id`, `dao_id`, `proposal_id`, `block_number`, `power` (numeric, full precision), `computed_at`.
-
-Rationale: Eager snapshotting (every block, every delegate) explodes storage for marginal benefit. Lazy snapshotting (per proposal) bounds the cost: hundreds to thousands of rows per proposal, which is trivial. The tradeoff is that arbitrary historical voting-power queries (for blocks that aren't proposal snapshots) require on-demand computation from delegation history — slow, but rarely needed for dashboard use cases.
-
-The unique constraint on `(actor_id, proposal_id)` enforces immutability: once snapshotted, voting power for a proposal does not change. This is one of Kvorum's invariants.
-
-#### 2.4.11 `forum_thread` and `proposal_forum_link`
+#### 2.4.10 `forum_thread` and `proposal_forum_link`
 
 Off-chain context lives in DAO forums (Discourse instances for Compound, Aave, and Lido). Threads are ingested separately and linked to proposals when a correspondence can be established.
 
@@ -377,7 +364,7 @@ The model is implemented across three storage systems, each chosen for fit.
 
 **Postgres (source of truth, all transactional state):**
 
-- All core entities (`dao`, `dao_source`, `actor`, `proposal`, `proposal_action`, `proposal_choice`, `vote`, `vote_choice`, `delegation`, `voting_power_snapshot`, `forum_thread`, `proposal_forum_link`)
+- All core entities (`dao`, `dao_source`, `actor`, `proposal`, `proposal_action`, `proposal_choice`, `vote`, `vote_choice`, `delegation`, `forum_thread`, `proposal_forum_link`)
 - All extension tables
 - All raw event archive tables
 - `pgvector` indexes on proposal description embeddings, forum thread embeddings, and vote rationale embeddings
@@ -405,7 +392,7 @@ _(Ingestion and derivation job queuing uses **pg-boss** on Postgres, not Redis/B
 
 The following invariants are enforced by the model and must be preserved by all code paths that mutate state:
 
-1. **Voting power at the voting-power block is immutable once set.** Once a proposal has entered the `active` state and `voting_power_snapshot` rows have been written for that proposal, those values are never updated. (The "voting-power block" — sometimes called the snapshot block in EVM governance literature — is the block at which a voter's power is frozen for the purpose of this specific vote.)
+1. **Vote rows are append-only once confirmed.** Once a vote enters `vote_events_projection`, the `voting_power` reported for that vote is never changed. Supersession (a voter re-casting) is expressed by inserting a new row with `superseded=1` on the old one, not by updating the old row.
 2. **Vote rows are append-only after final confirmation.** Once a vote is past reorg-confirmation depth, it is never modified or deleted. (Pre-confirmation, votes may be deleted if a reorg invalidates them; this is handled by the ingestion pipeline before promotion to confirmed state.)
 3. **Delegation rows are append-only.** Every delegation event creates a new row. "Current delegation" is a derived view, never a stored value.
 4. **Actor identities are mergeable, never deletable.** When two actors are identified as the same entity, a merge operation rewrites foreign keys and consolidates them into one. Direct deletion is forbidden.
@@ -619,38 +606,13 @@ power(address, block) = self_balance(address, block)
                       + sum(delegated_in - delegated_out applied through block)
 ```
 
-Two implementation paths:
+**Voter power is read-only from vote rows.** Voting power for a proposal lives on the vote row: `vote_events_projection.voting_power` records exactly the power the protocol accepted for each cast vote. No separate snapshot computation step exists.
 
-**On-chain read path.** For correctness verification and edge cases, Kvorum can call `getPriorVotes(address, block)` (Compound) or `getVotingPowerAt(address, block, strategy)` (Aave) directly via the RPC. This is authoritative but requires an archive-node-equivalent RPC endpoint and is rate-limited. Used sparingly for verification.
+For Compound, `VoteCast` carries the `votes` field (ERC-20 token weight delegated to the voter at the proposal's start block). For Aave, `VoteEmitted` carries `votingPower` (the proof-validated weight submitted to the voting machine). Both are ingested directly into `vote_events_projection.voting_power`.
 
-**Derived path.** Kvorum maintains a derived view of voting power by processing `DelegateChanged` and `DelegateVotesChanged` events from the delegation history. This is fast and uses only data Kvorum already has. The derived path is the default; it is verified against the on-chain read path for a sample of (address, block) pairs per proposal as part of the snapshot job.
+**Snapshot voting power — v1 decision.** (See KNOWN-002.) For Snapshot proposals, `voting_power_reported` is taken directly from Snapshot's API; `voting_power_computed` and `voting_power_verified` remain unset. This is a deliberate trust boundary documented in KNOWN-002.
 
-**Snapshot job.** When a proposal enters the `active` state, a job is enqueued to compute voting power for that proposal's `voting_power_block`:
-
-1. Identify all addresses that have ever delegated to or self-delegated within this DAO (a query against `delegation`).
-2. For each address, compute voting power at `voting_power_block` using the derived path.
-3. Write `voting_power_snapshot` rows in a single transaction.
-4. Sample 20 random addresses; verify against the on-chain read path. On mismatch, log an error, fall back to on-chain reads for the entire proposal, and emit a critical alert. (Mismatches indicate a bug in derivation; they are bugs to fix, not noise to tolerate.)
-
-For Aave, voting power involves the strategy (AAVE + stkAAVE + aAAVE), and the snapshot block is on the _voting chain_, not mainnet. The same job structure applies; the strategy-specific aggregation is handled by an Aave-specific computation module.
-
-**Snapshot voting power — v1 decision.** (See KNOWN-002.) For Snapshot proposals, voting power is determined by the proposal's `strategies` array (which can be arbitrary — token balance, ERC721 ownership, custom contracts, with-delegation aggregations, multichain sums). Snapshot v1 ships **trusting Snapshot's reported voting power**: the `vote.voting_power_reported` field is taken directly from Snapshot's API, which performs the strategy evaluation itself, and `voting_power_computed` and `voting_power_verified` remain unset. This is a real trust boundary — Kvorum has no independent verification that Snapshot's reported power is correct.
-
-The justification for this v1 choice:
-
-- The three v1 DAOs use roughly 3–4 distinct Snapshot strategies between them. Implementing them is tractable but adds approximately a week of focused work plus ongoing maintenance when strategies evolve.
-- v1's core technical claim is the unified cross-DAO schema. Adding independent Snapshot verification stacks a second substantial claim that risks neither being well-executed.
-- The audience that cares about this verification (sophisticated researchers, governance auditors) is a small subset of v1 users.
-
-**Forward-compatibility commitments.** To keep the upgrade path cheap, v1 commits to schema that anticipates verification:
-
-- The `vote` table includes both `voting_power_reported` (from the Governor contract for on-chain votes, from Snapshot's API for off-chain votes) and `voting_power_computed` (nullable; NULL in v1, populated by Kvorum's verifier in v1.1+).
-- A `voting_power_verified` boolean field indicates whether Kvorum has independently verified the value. Always `false` in v1; set to `true` in v1.1+ when computed and reported agree within tolerance.
-- A `voting_power_discrepancy` numeric field records the absolute difference when `verified` is `false` despite a computation being attempted. NULL when verification is not attempted.
-
-**v1.1 scope (planned, not committed).** A Snapshot strategy resolver implementing the strategies used by Compound, Aave, and Lido Snapshot spaces, with a graceful fallback to trust-Snapshot semantics for any strategy not implemented. Verification populates the `voting_power_computed` and `voting_power_verified` fields. Discrepancies are surfaced both in the API and as their own analytical view ("Snapshot voting power discrepancies detected by Kvorum"). This is a strong differentiator and natural v1.1 launch beat.
-
-For v1, trust here is bounded but acknowledged: Snapshot is the authoritative source for Snapshot votes by definition, until Kvorum can verify otherwise.
+**Forward-compatibility commitments.** The `vote` table includes `voting_power_reported`, `voting_power_computed` (nullable, NULL in v1), `voting_power_verified` (boolean, always false in v1), and `voting_power_discrepancy` (nullable) to preserve upgrade paths for independent verification at v1.1+.
 
 ### 3.10 Backfill strategy
 
@@ -972,7 +934,6 @@ Response envelopes are consistent across all endpoints.
     "state": "executed",
     "voting_starts_at": "2026-04-12T00:00:00Z",
     "voting_ends_at": "2026-04-19T00:00:00Z",
-    "voting_power_block": 19854210,
     "binding": true,
     "proposer": {
       "address": "0xabc...123",
@@ -994,8 +955,6 @@ Response envelopes are consistent across all endpoints.
 ```
 
 **Address fields are always lowercase strings.** Big numeric values (voting power, balances, wei amounts) are always strings to avoid JavaScript precision loss. Timestamps are always ISO 8601 with `Z` (UTC), to second precision.
-
-For `aave_governance_v3`, `voting_power_block` may be provisional immediately after proposal creation: before `snapshot_block_hash` is resolved to an L1 block number, the API can temporarily surface the `ProposalCreated` block as a placeholder.
 
 **Embedded actor information.** Where an entity references an actor (`proposer`, `voter`, `delegate`), the response includes the canonical address plus the display name, but not the full actor profile. To fetch full actor details, follow the `/v1/actors/{address}` link.
 
@@ -1533,7 +1492,7 @@ Five principles guide every dashboard decision. They override one-off design cho
 
 **Legibility over comprehensiveness.** A user reading any page should immediately understand what they are looking at, what is happening, and what to do next. If a view requires a legend, three caveats, or a footnote to interpret correctly, it is failing. This principle implies dropping data we cannot present clearly, even when it is technically available.
 
-**Source visibility.** Every assertion the dashboard makes is traceable to its source. Every AI-generated summary is one click from the original content. Every analytical metric is one click from the underlying entities that compose it. Every voting power figure shows its `voting_power_block`. This is the operational form of Kvorum's trust posture.
+**Source visibility.** Every assertion the dashboard makes is traceable to its source. Every AI-generated summary is one click from the original content. Every analytical metric is one click from the underlying entities that compose it. This is the operational form of Kvorum's trust posture.
 
 **Operator-first when in tension.** When a design choice trades operator clarity for casual-browser polish, operators win. Concretely: dense data displays are preferred over breathing-room layouts on dashboards; technical accuracy is preferred over simplification; cross-references between governance tracks (Lido especially) are preserved rather than collapsed.
 
@@ -2140,7 +2099,7 @@ Kvorum v1 deploys six service classes plus three supporting infrastructure compo
 - **`dashboard`** — Next.js application serving the user-facing dashboard. SSR-enabled, runs as a container alongside the API.
 - **`indexer`** — NestJS worker running EVM source ingesters, Snapshot polling, and forum crawling. One process per `dao_source`, multiplexed within a single container.
 - **`ai-worker`** — NestJS worker running the AI feature pipeline (summarization, mismatch detection, forum synthesis, embeddings). Consumes from BullMQ.
-- **`derivation`** — NestJS worker running the projection from event archive to core entities. Listens for confirmed events; runs the snapshot job for voting power; runs ABI decoding.
+- **`derivation`** — NestJS worker running the projection from event archive to core entities. Listens for confirmed events; runs ABI decoding.
 - **`scheduler`** — NestJS process running cron-based jobs: forum crawl (every 30 minutes), backup triggers (daily), maintenance cleanups.
 
 **Supporting infrastructure:**
@@ -2234,7 +2193,7 @@ Each Kvorum service exposes a `/metrics` endpoint with structured Prometheus met
 **Committed metric families for v1:**
 
 - `kvorum_ingestion_*` — head block age, underived event depth, archive write rate, archive write lag, archive duplicate skip (reason=rescan_window|true_duplicate)
-- `kvorum_derivation_*` — projection lag, snapshot job duration, ABI decode success rate
+- `kvorum_derivation_*` — projection lag, ABI decode success rate
 - `kvorum_ai_*` — generation latency, cache hit rate, cost (USD), feature enabled status
 - `kvorum_api_*` — request count, latency histogram, error rate by status code
 - `kvorum_rate_limit_*` — request count by tier, rejected request count
@@ -3344,7 +3303,6 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 
 - `VoteCast` event ingestion → `vote` core entity
 - `DelegateVotesChanged` event ingestion → `delegation` event log
-- Voting power snapshot job per Section 2.4.10 (computes `voting_power_snapshot` rows at proposal `voting_power_block`)
 - API endpoints: `GET /v1/daos/{slug}/proposals/{type}/{id}/votes`, `GET /v1/daos/{slug}/delegates/{address}`
 - `actor` entity merging logic (per Section 2.4.3)
 - ENS resolution for actor display names (cached, periodic refresh)

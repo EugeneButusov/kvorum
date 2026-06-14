@@ -33,3 +33,9 @@ A clarifying note is added to §2.4.4's field description and to the OpenAPI sch
 - The cross-source query "list all proposals that snapshot voting power on Ethereum mainnet at blocks 19,000,000–19,100,000" works uniformly.
 - Care needed in client code: the chain on which `voting_power_block` is interpreted is not always the DAO's primary chain. The OpenAPI documentation calls this out.
 - One-line migration: backfill `voting_power_block` for existing Snapshot proposals from `snapshot_proposal_metadata.snapshot`.
+
+## Amendment — 2026-06-14 (column dropped in M3 V3)
+
+`proposal.voting_power_block` is dropped from the schema in M3 V3 (#262, pre-deployment). The Snapshot.org source (§3.6) that motivated this column has not shipped yet; when it ships in M4, re-add the column per the original decision. Until then the column does not exist.
+
+Spec sections §2.4.4 and §4.7 are updated accordingly.

@@ -5,7 +5,7 @@
 - **Spec sections affected**: 2.7, 7.1
 - **Related**: DR-014, ADR-038 (supersedes)
 
-> **Superseded note (2026-05-10):** ADR-038 splits the original blanket deferral into two layers — the **raw event archive layer** ships in M1 on ClickHouse; the **analytical mirror layer** (`vote_events_projection`, `delegation_flow_projection`) remains deferred per this ADR's activation triggers. The activation-trigger language below is preserved verbatim by ADR-038 and continues to apply to the analytical mirror layer only. **Further superseded 2026-05-28 by ADR-0062** — ClickHouse is now source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection`); it is no longer deferred.
+> **Superseded note (2026-05-10):** ADR-038 splits the original blanket deferral into two layers — the **raw event archive layer** ships in M1 on ClickHouse; the **analytical mirror layer** (`vote_events_projection`, `delegation_flow_projection`) remains deferred per this ADR's activation triggers. The activation-trigger language below is preserved verbatim by ADR-038 and continues to apply to the analytical mirror layer only. **Further superseded 2026-05-28 by ADR-0062** — ClickHouse is now source of truth for chain-event-derived data (`vote_events_projection`, `delegation_flow_projection`; `voting_power_snapshot_projection` retired M3 V3 #262); it is no longer deferred.
 
 ## Context
 

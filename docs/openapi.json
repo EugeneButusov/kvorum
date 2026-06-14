@@ -2774,10 +2774,6 @@
             "type": "object",
             "nullable": true
           },
-          "voting_power_block": {
-            "type": "string",
-            "description": "Snapshot block number as string. Interpretation chain may differ from the DAO primary chain (ADR-022)."
-          },
           "proposer": {
             "$ref": "#/components/schemas/ProposerDto"
           },
@@ -2794,7 +2790,6 @@
           "binding",
           "voting_starts_at",
           "voting_ends_at",
-          "voting_power_block",
           "proposer",
           "_meta"
         ]
@@ -2889,10 +2884,6 @@
             "type": "object",
             "nullable": true
           },
-          "voting_power_block": {
-            "type": "string",
-            "description": "Snapshot block number as string. Interpretation chain may differ from the DAO primary chain (ADR-022)."
-          },
           "proposer": {
             "$ref": "#/components/schemas/ProposerDto"
           },
@@ -2924,7 +2915,6 @@
           "binding",
           "voting_starts_at",
           "voting_ends_at",
-          "voting_power_block",
           "proposer",
           "_meta",
           "description",

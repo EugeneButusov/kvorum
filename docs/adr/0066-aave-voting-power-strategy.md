@@ -1,6 +1,6 @@
 # ADR-0066: Aave voting power strategy
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0062
 - **Date**: 2026-06-09
 - **Amends**: 0053
 - **Related**: 0022, 0243, 0260, 0261, 0262
@@ -94,6 +94,10 @@ Issue #261 withdraws ADR-066's token-read-and-verify design for the M3 snapshot 
 - The earlier token-read computation (`getPowerCurrent` / asset aggregation / full-proof reasoning)
   is no longer the production snapshot mechanism.
 - No Ethereum archive read is required for Aave snapshot power in M3.
+
+## Amendment — 2026-06-14 (feature retired)
+
+The Aave voting-power snapshot strategy is retired in M3 V3 (#262). `AaveVotingPowerStrategy`, its `libs/sources/aave/src/tokens/` module, and all CH `voting_power_snapshot_*` tables are removed. Voter power lives on the vote row (`vote_events_projection.voting_power`); the snapshot population was voters-only so the information is fully preserved there. This ADR is superseded by ADR-0062 for all practical purposes; it is preserved for historical record only.
 
 ## Out of scope
 

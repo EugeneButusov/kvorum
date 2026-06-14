@@ -1,6 +1,6 @@
 # ADR-053 - Voting power snapshot derivation contract
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0062
 - **Date**: 2026-05-23
 - **Amends**: 0062
 - **Related**: ADR-022, ADR-041
@@ -43,6 +43,10 @@ Epic L requires a deterministic worker that writes one row into CH `voting_power
 **Atomicity contract revised.** Decision §1's "atomic per-proposal snapshot row write" becomes per-`(actor_address, proposal_id)` row atomicity (CH INSERT is atomic per row). The whole-proposal atomicity is rebuilt at the worker level: compute all addresses' rows in memory, then bulk insert; on partial failure the run row stays `in_progress` and the retry recomputes with a fresher `version` over all rows.
 
 Cite ADR-0062 + PR #220 + PR #221 + issue #261 + follow-up issue #<NNN>.
+
+## Amendment — 2026-06-14 (feature retired)
+
+The voting-power snapshot feature is retired in M3 V3 (#262). `VotingPowerStrategy`, the `voting_power_snapshot_run` PG table, and all CH `voting_power_snapshot_*` tables are removed. Voter power now lives on the vote row (`vote_events_projection.voting_power`); cross-DAO analytics read votes/delegation directly. This ADR is superseded by ADR-0062 for all practical purposes; it is preserved for historical record only.
 
 ## Amendment — 2026-06-11 (sample verification withdrawn)
 

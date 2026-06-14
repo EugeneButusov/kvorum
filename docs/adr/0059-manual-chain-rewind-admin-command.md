@@ -41,7 +41,7 @@ The command is intentionally manual: no scheduler, no auto-trigger, no daemon. O
 1. `archive_event` — `DELETE WHERE chain_id = X AND block_number > N`
 2. Derived per-event tables (votes, delegation events, etc.) — cascade via FK on `archive_event.id`, or explicit `DELETE WHERE block_number > N` for tables that do not FK to archive
 3. Aggregate-derived tables (delegation balance projections, vote tallies) — invalidate by resetting the per-source derivation watermark; the derivation worker re-derives on next tick from the now-correct `archive_event`
-4. Voting-power snapshots (ADR-053) — `DELETE FROM voting_power_snapshot_run WHERE target_block_number > N AND chain_id = X` (snapshot worker re-runs via existing retry path)
+4. ~~Voting-power snapshots (ADR-053) — `DELETE FROM voting_power_snapshot_run WHERE target_block_number > N AND chain_id = X` (snapshot worker re-runs via existing retry path)~~ (Retired M3 V3 #262; `voting_power_snapshot_run` table and snapshot worker removed.)
 5. Proposal lifecycle rows — leave untouched; the on-chain state reconciler (ADR-049) self-heals from archive + current chain state on its next tick
 6. Cursors — `UPDATE dao_source SET backfill_head_block = N WHERE chain_id = X` (and `--source` filter if given)
 7. DLQ — `DELETE FROM ingestion_dlq WHERE payload->>'chain_id' = X AND (payload->>'block_number')::bigint > N`; same for `ingestion_dlq_resolved`
@@ -104,7 +104,7 @@ Handlers are aggregated centrally (e.g. via a `REWIND_HANDLERS` DI token) so add
 
 ## Amendment — 2026-05-28 (CH projections explicit cleanup)
 
-The rewind handler registry must now include CH projection cleanup explicitly: `vote_events_projection`, `delegation_flow_projection`, `voting_power_snapshot_projection` — operator-driven `ALTER TABLE … DELETE WHERE block_number > N` per chain rewind. This is **scope-noting only**, not a contract change: the actual rewind handler implementation remains deferred per ADR-059's Proposed status.
+The rewind handler registry must now include CH projection cleanup explicitly: `vote_events_projection`, `delegation_flow_projection` — operator-driven `ALTER TABLE … DELETE WHERE block_number > N` per chain rewind. (`voting_power_snapshot_projection` retired M3 V3 #262.) This is **scope-noting only**, not a contract change: the actual rewind handler implementation remains deferred per ADR-059's Proposed status.
 
 ## Amendment — 2026-05-30 (pg-boss jobs and seen_log must be purged on rewind — ADR-0063)
 

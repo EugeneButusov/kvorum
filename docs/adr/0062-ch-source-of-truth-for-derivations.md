@@ -29,14 +29,14 @@ ADR-0058's confirmed-head-only model (read-at-`confirmedHead`, eliminate reorg m
 - `archive_event_*` (raw chain events, append-only per ADR-0058)
 - `vote_events_projection` (CH, derived from vote events)
 - `delegation_flow_projection` (CH, derived from delegation events)
-- `voting_power_snapshot_projection` (CH, derived from delegation + proposal state)
+- ~~`voting_power_snapshot_projection` (CH, derived from delegation + proposal state)~~ (Retired M3 V3 #262.)
 
 **PG is source of truth for everything else:**
 
 - **Identity:** `actor` (entity identity), `actor_address` (chain addresses), `actor_address_redirect` (actor merges; depth-1 redirect graph)
 - **Configuration:** `dao` (DAO metadata), `dao_source` (source registry), `source_type` (enum)
 - **Proposal state machine:** `proposal`, `proposal_action`, `proposal_choice`
-- **Derivation tracking:** `archive_event` (4-tuple idempotency cache + `derived_at` watermark per ADR-0058), `voting_power_snapshot_run` (per-proposal run status: `in_progress` / `completed` / `failed`)
+- **Derivation tracking:** `archive_event` (4-tuple idempotency cache + `derived_at` watermark per ADR-0058), ~~`voting_power_snapshot_run` (per-proposal run status: `in_progress` / `completed` / `failed`)~~ (Retired M3 V3 #262.)
 - **Operator surface:** `ingestion_dlq` (dead-letter queue for irrecoverable ingestion errors)
 
 Derivation appliers insert rows directly into CH projections with server-side `version DateTime64(6) DEFAULT now64(6)`. The `ReplacingMergeTree(version)` engine collapses duplicate keys on read via `FINAL`. After CH insert succeeds, the PG `archive_event.derived_at` watermark is updated. If the watermark fails, the next derivation tick re-runs the applier; CH absorbs the duplicate insert via version-overwrite.
