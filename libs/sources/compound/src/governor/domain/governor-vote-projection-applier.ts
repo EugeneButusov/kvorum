@@ -20,7 +20,6 @@ import {
   type GovernorArchivePayloadRow,
 } from '../persistence/governor-archive-payload-repository';
 
-const DEFAULT_BATCH_SIZE = 25;
 const DLQ_THRESHOLD = Number(process.env['VOTE_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
 
@@ -90,14 +89,10 @@ export class GovernorVoteProjectionApplier {
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     if (rows.length === 0) return;
-    const cappedRows = rows.slice(
-      0,
-      Number(process.env['VOTE_DERIVATION_BATCH_SIZE'] ?? DEFAULT_BATCH_SIZE),
-    );
-    const chainId = cappedRows[0]!.chain_id;
+    const chainId = rows[0]!.chain_id;
     const chainCtx = this.registry.peek(chainId);
     if (chainCtx === undefined) {
-      for (const row of cappedRows) {
+      for (const row of rows) {
         await this.failAndMaybeDlq(
           row,
           'block_timestamp_unavailable',
@@ -108,16 +103,16 @@ export class GovernorVoteProjectionApplier {
     }
 
     const lookupStartedAt = Date.now();
-    const payloads = await this.payloads.fetchPayloads(cappedRows);
+    const payloads = await this.payloads.fetchPayloads(rows);
     this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
     const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
     const timestamps = await this.blockTimestamps.fetchBatch(
       chainCtx,
-      cappedRows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
+      rows.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
     );
 
-    for (const row of cappedRows) {
+    for (const row of rows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
         await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));

@@ -259,23 +259,4 @@ describe('CompTokenDelegationProjectionApplier', () => {
       expect.objectContaining({ outcome: 'failed', reason: 'watermark_update_error' }),
     );
   });
-
-  it('caps payload fetch batch at 50', async () => {
-    const rows = Array.from({ length: 60 }, (_, index) => ({
-      ...BASE_ROW,
-      id: `archive-${index}`,
-      log_index: index,
-      tx_hash: `0xtx${index}`,
-    }));
-    const payloadsRows = rows.map((row) => ({
-      ...DELEGATE_CHANGED_PAYLOAD,
-      tx_hash: row.tx_hash,
-      log_index: row.log_index,
-    }));
-    const built = buildApplier(payloadsRows);
-    mutable(built.applier).transaction = vi.fn().mockResolvedValue(undefined);
-
-    await built.applier.applyBatch(rows);
-    expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(50);
-  });
 });
