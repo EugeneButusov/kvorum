@@ -39,3 +39,11 @@ export type AaveGovernorV2Event =
   | { type: 'ProposalQueued'; payload: V2ProposalQueuedPayload }
   | { type: 'ProposalExecuted'; payload: V2ProposalExecutedPayload }
   | { type: 'ProposalCanceled'; payload: V2ProposalCanceledPayload };
+
+export const AAVE_GOVERNOR_V2_EVENT_TYPES = [
+  'ProposalCreated',
+  'VoteEmitted',
+  'ProposalQueued',
+  'ProposalExecuted',
+  'ProposalCanceled',
+] as const satisfies readonly AaveGovernorV2Event['type'][];

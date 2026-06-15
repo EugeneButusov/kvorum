@@ -1,6 +1,7 @@
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
 import type { ActorAddressDeriver } from '@sources/core';
+import { AAVE_GOVERNOR_V2_EVENT_TYPES } from './types';
 import type { AaveGovernorV2ArchivePayloadRow } from '../persistence/archive-payload-repository';
 import { AaveGovernorV2ArchivePayloadRepository } from '../persistence/archive-payload-repository';
 
@@ -10,14 +11,6 @@ export interface AaveV2AddressCandidate {
   address: string;
   source: AaveV2ActorAddressSource;
 }
-
-const AAVE_GOVERNOR_V2_EVENT_TYPES = [
-  'ProposalCreated',
-  'VoteEmitted',
-  'ProposalQueued',
-  'ProposalExecuted',
-  'ProposalCanceled',
-] as const satisfies readonly ArchiveEventType[];
 
 export class AaveGovernorV2ActorAddressDeriver implements ActorAddressDeriver {
   readonly kind = 'actor-address' as const;

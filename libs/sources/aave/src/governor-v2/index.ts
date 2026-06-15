@@ -28,6 +28,7 @@ export type {
   V2ProposalStateTransitionProjection,
   AaveGovernorV2Projection,
 } from './domain/proposal-projector';
+export { AAVE_GOVERNOR_V2_EVENT_TYPES } from './domain/types';
 export type {
   AaveGovernorV2Event,
   V2ProposalCreatedPayload,
