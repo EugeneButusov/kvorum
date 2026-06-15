@@ -63,7 +63,7 @@ class ProposalNotFoundError extends Error {
   }
 }
 
-const IPFS_DLQ_SOURCE = 'indexer.aave_governor_v2';
+const DLQ_SOURCE = 'indexer.aave_governor_v2';
 
 export class AaveGovernorV2ProjectionApplier {
   readonly kind = 'projection' as const;
@@ -238,7 +238,7 @@ export class AaveGovernorV2ProjectionApplier {
       await this.deps.dlq.markRetrySucceeded(
         dlqId,
         'ipfs title resolved during projection',
-        IPFS_DLQ_SOURCE,
+        DLQ_SOURCE,
       );
       this.deps.metrics.ipfsTitleFetch?.('resolved');
       return;
@@ -248,7 +248,7 @@ export class AaveGovernorV2ProjectionApplier {
       await this.deps.dlq.markRetrySucceeded(
         dlqId,
         'ipfs fetch completed without usable title; placeholder retained',
-        IPFS_DLQ_SOURCE,
+        DLQ_SOURCE,
       );
       this.deps.metrics.ipfsTitleFetch?.('fallback_title');
       return;
@@ -340,7 +340,7 @@ async function insertIpfsTitleDlq(
     .insertInto('ingestion_dlq')
     .values({
       stage: 'aave_ipfs_title_fetch',
-      source: IPFS_DLQ_SOURCE,
+      source: DLQ_SOURCE,
       payload: {
         proposal_id: proposalId,
         ipfs_hash: descriptionHash,
