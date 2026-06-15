@@ -1,6 +1,13 @@
 import type { Logger } from '@libs/chain';
 import { ArchiveEventRepository, chDb, DlqRepository, pgDb, type SourceType } from '@libs/db';
 import {
+  AaveGovernorV2ArchiveWriter,
+  AaveGovernorV2EventRepository,
+  createAaveGovernorV2Plugin,
+  type AaveGovernorV2Config,
+  type AaveGovernorV2PluginDeps,
+} from '@sources/aave';
+import {
   GovernorArchiveWriter,
   CompTokenArchiveWriter,
   CompTokenEventRepository,
@@ -16,13 +23,19 @@ import type { BackfillRuntime, SourceIngester } from '@sources/core';
 
 export type BackfillSourcePlugin =
   | SourceIngester<CompoundGovernorConfig>
-  | SourceIngester<CompTokenSourceConfig>;
+  | SourceIngester<CompTokenSourceConfig>
+  | SourceIngester<AaveGovernorV2Config>;
 
 export function buildBackfillSourcePlugins(deps: {
   governor: CompoundGovernorPluginDeps;
   compToken: CompTokenPluginDeps;
+  aaveGovernorV2: AaveGovernorV2PluginDeps;
 }): readonly BackfillSourcePlugin[] {
-  return [...createCompoundPlugins(deps.governor), createCompTokenPlugin(deps.compToken)];
+  return [
+    ...createCompoundPlugins(deps.governor),
+    createCompTokenPlugin(deps.compToken),
+    createAaveGovernorV2Plugin(deps.aaveGovernorV2),
+  ];
 }
 
 export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly BackfillSourcePlugin[] {
@@ -38,11 +51,18 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     dlqRepo: new DlqRepository(pgDb),
     logger,
   });
+  const aaveGovernorV2ArchiveWriter = new AaveGovernorV2ArchiveWriter({
+    eventRepo: new AaveGovernorV2EventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo: new DlqRepository(pgDb),
+    logger,
+  });
   const dlqRepo = new DlqRepository(pgDb);
 
   return buildBackfillSourcePlugins({
     governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
     compToken: { archiveWriter: compTokenArchiveWriter, dlqRepo, logger },
+    aaveGovernorV2: { archiveWriter: aaveGovernorV2ArchiveWriter, dlqRepo, logger },
   });
 }
 
@@ -61,25 +81,20 @@ export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): B
     throw new Error(`unsupported source_type: ${input.sourceType}`);
   }
 
-  return resolved.kind === 'comp_token'
-    ? resolved.plugin.buildBackfillRuntime(
-        {
-          daoSourceId: input.daoSourceId,
-          sourceType: resolved.plugin.sourceType,
-          chainId: input.chainId,
-          sourceLabel: resolved.plugin.sourceType,
-        },
-        resolved.parsedConfig,
-      )
-    : resolved.plugin.buildBackfillRuntime(
-        {
-          daoSourceId: input.daoSourceId,
-          sourceType: resolved.plugin.sourceType,
-          chainId: input.chainId,
-          sourceLabel: resolved.plugin.sourceType,
-        },
-        resolved.parsedConfig,
-      );
+  const ctx = {
+    daoSourceId: input.daoSourceId,
+    sourceType: resolved.plugin.sourceType,
+    chainId: input.chainId,
+    sourceLabel: resolved.plugin.sourceType,
+  };
+
+  if (resolved.kind === 'comp_token') {
+    return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
+  }
+  if (resolved.kind === 'aave_governor_v2') {
+    return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
+  }
+  return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
 }
 
 type ResolvedPlugin =
@@ -92,9 +107,14 @@ type ResolvedPlugin =
       kind: 'comp_token';
       plugin: SourceIngester<CompTokenSourceConfig>;
       parsedConfig: CompTokenSourceConfig;
+    }
+  | {
+      kind: 'aave_governor_v2';
+      plugin: SourceIngester<AaveGovernorV2Config>;
+      parsedConfig: AaveGovernorV2Config;
     };
 
-function resolvePluginAndConfig(
+export function resolvePluginAndConfig(
   sourceType: SourceType,
   raw: unknown,
   plugins: readonly BackfillSourcePlugin[],
@@ -107,6 +127,14 @@ function resolvePluginAndConfig(
           kind: 'comp_token',
           plugin: compTokenPlugin,
           parsedConfig: compTokenPlugin.parseConfig(raw),
+        };
+      }
+      if (plugin.sourceType === 'aave_governor_v2') {
+        const aavePlugin = plugin as SourceIngester<AaveGovernorV2Config>;
+        return {
+          kind: 'aave_governor_v2',
+          plugin: aavePlugin,
+          parsedConfig: aavePlugin.parseConfig(raw),
         };
       }
       const governorPlugin = plugin as SourceIngester<CompoundGovernorConfig>;
