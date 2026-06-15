@@ -67,13 +67,13 @@ export class AaveGovernorV2StateReconciler implements StateReconciler<AaveStaleR
     let stateUpdatedAt: Date | null = null;
 
     if (mapped === 'active') {
-      stateUpdatedAt = await this.tsIfConfirmed(
+      stateUpdatedAt = await this.confirmedBlockTimestamp(
         row.voting_starts_block,
         confirmedThreshold,
         chainCtx,
       );
     } else if (mapped === 'defeated') {
-      stateUpdatedAt = await this.tsIfConfirmed(
+      stateUpdatedAt = await this.confirmedBlockTimestamp(
         row.voting_ends_block,
         confirmedThreshold,
         chainCtx,
@@ -101,7 +101,7 @@ export class AaveGovernorV2StateReconciler implements StateReconciler<AaveStaleR
       : { outcome: 'guard_skipped' };
   }
 
-  private async tsIfConfirmed(
+  private async confirmedBlockTimestamp(
     blockNumber: string | null,
     confirmedThreshold: bigint,
     chainCtx: { client: { send<T = unknown>(method: string, params: unknown[]): Promise<T> } },
