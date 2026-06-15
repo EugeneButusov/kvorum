@@ -1,0 +1,69 @@
+[
+  {
+    "type": "function",
+    "name": "enableBorrowingOnReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "address", "name": "asset" },
+      { "type": "bool", "name": "stableRateEnabled" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "disableBorrowingOnReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "freezeReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "unfreezeReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "activateReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "deactivateReserve",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setPoolPause",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "bool", "name": "val" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "disableReserveCollateral",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "asset" }],
+    "outputs": []
+  }
+]

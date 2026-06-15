@@ -1,0 +1,80 @@
+[
+  {
+    "type": "function",
+    "name": "setLendingPoolImpl",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "pool" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setLendingPoolConfiguratorImpl",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "configurator" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setLendingPoolCollateralManager",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "manager" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setPoolAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "admin" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setEmergencyAdmin",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "admin" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setPriceOracle",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "priceOracle" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setLendingRateOracle",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address", "name": "lendingRateOracle" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setAddress",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "bytes32", "name": "id" },
+      { "type": "address", "name": "newAddress" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setAddressAsProxy",
+    "constant": false,
+    "payable": false,
+    "inputs": [
+      { "type": "bytes32", "name": "id" },
+      { "type": "address", "name": "implementationAddress" }
+    ],
+    "outputs": []
+  }
+]
