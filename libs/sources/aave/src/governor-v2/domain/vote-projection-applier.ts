@@ -14,17 +14,18 @@ import {
   buildVoteRows,
   isNewerVote,
 } from '@sources/core';
-import type { VoteCastPayload } from './types';
-import {
-  GovernorArchivePayloadRepository,
-  type GovernorArchivePayloadRow,
-} from '../persistence/governor-archive-payload-repository';
+import type { V2VoteEmittedPayload } from './types';
+import type {
+  AaveGovernorV2ArchivePayloadRepository,
+  AaveGovernorV2ArchivePayloadRow,
+} from '../persistence/archive-payload-repository';
 
 const DLQ_THRESHOLD = Number(process.env['VOTE_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const VOTE_PROJECTION_STAGE = 'vote_projection_stage';
+const DLQ_SOURCE = 'indexer.aave_governor_v2';
 
-export type CompoundVoteDerivationOutcome = 'derived' | 'skipped_idempotent' | 'failed';
-export type CompoundVoteDerivationFailureReason =
+export type AaveV2VoteDerivationOutcome = 'derived' | 'skipped_idempotent' | 'failed';
+export type AaveV2VoteDerivationFailureReason =
   | 'payload_missing'
   | 'decode_error'
   | 'projection_apply_error'
@@ -32,50 +33,46 @@ export type CompoundVoteDerivationFailureReason =
   | 'no_proposal'
   | 'block_timestamp_unavailable';
 
-export interface GovernorVoteProjectionMetrics {
+export interface AaveGovernorV2VoteProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
   chWriteSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
     event_type: string;
-    outcome: CompoundVoteDerivationOutcome;
-    reason: CompoundVoteDerivationFailureReason | null;
+    outcome: AaveV2VoteDerivationOutcome;
+    reason: AaveV2VoteDerivationFailureReason | null;
   }): void;
 }
 
-export interface GovernorVoteProjectionApplierDeps {
+export interface AaveGovernorV2VoteProjectionApplierDeps {
   archive: ArchiveDerivationRepository;
   dlq: DlqRepository;
-  payloads: GovernorArchivePayloadRepository;
+  payloads: AaveGovernorV2ArchivePayloadRepository;
   proposals: ProposalRepository;
   voteRead: VoteEventsProjectionReadRepository;
   voteWrite: VoteEventsProjectionWriter;
-  metrics: GovernorVoteProjectionMetrics;
+  metrics: AaveGovernorV2VoteProjectionMetrics;
   registry: ChainContextRegistry;
   logger?: Logger;
 }
 
-export class GovernorVoteProjectionApplier {
+export class AaveGovernorV2VoteProjectionApplier {
   readonly kind = 'projection' as const;
-  readonly sourceTypes = [
-    'compound_governor_bravo',
-    'compound_governor_alpha',
-    'compound_governor_oz',
-  ] as const;
-  readonly eventTypes = ['VoteCast'] as const;
+  readonly sourceTypes = ['aave_governor_v2'] as const;
+  readonly eventTypes = ['VoteEmitted'] as const;
 
   private readonly archive: ArchiveDerivationRepository;
   private readonly dlq: DlqRepository;
-  private readonly payloads: GovernorArchivePayloadRepository;
+  private readonly payloads: AaveGovernorV2ArchivePayloadRepository;
   private readonly proposals: ProposalRepository;
-  private readonly metrics: GovernorVoteProjectionMetrics;
+  private readonly metrics: AaveGovernorV2VoteProjectionMetrics;
   private readonly registry: ChainContextRegistry;
   private readonly logger: Logger;
   private readonly voteEventsProjectionReadRepository: VoteEventsProjectionReadRepository;
   private readonly voteEventsProjectionWriter: VoteEventsProjectionWriter;
   private readonly blockTimestamps = new VoteBlockTimestampFetcher();
 
-  constructor(deps: GovernorVoteProjectionApplierDeps) {
+  constructor(deps: AaveGovernorV2VoteProjectionApplierDeps) {
     this.archive = deps.archive;
     this.dlq = deps.dlq;
     this.payloads = deps.payloads;
@@ -137,12 +134,12 @@ export class GovernorVoteProjectionApplier {
 
   private async apply(
     row: ArchiveDerivationRow,
-    payload: GovernorArchivePayloadRow,
+    payload: AaveGovernorV2ArchivePayloadRow,
     castAt: Date,
   ): Promise<void> {
-    let event: VoteCastPayload;
+    let event: V2VoteEmittedPayload;
     try {
-      event = parseVoteCastPayload(payload.payload);
+      event = parseVoteEmittedPayload(payload.payload);
     } catch (error) {
       await this.failAndMaybeDlq(row, 'decode_error', error);
       return;
@@ -156,7 +153,7 @@ export class GovernorVoteProjectionApplier {
       const proposal = await this.proposals.findBySource({
         daoId,
         sourceType: row.source_type,
-        sourceId: event.proposalId,
+        sourceId: event.id,
       });
       if (proposal === undefined) throw new ProjectionError('no_proposal');
 
@@ -166,9 +163,8 @@ export class GovernorVoteProjectionApplier {
         proposalId: proposal.id,
         voterAddress,
       });
-      // Re-deriving the row that is already current is a no-op, not a supersession.
-      // Without this guard, buildVoteRows emits a self-superseding row (superseded=1,
-      // superseded_by=self), which collapses the vote to zero superseded=0 rows under FINAL.
+      // Re-deriving the already-current row is a no-op; without this guard, buildVoteRows
+      // emits a self-superseding row that collapses the vote under FINAL.
       if (current !== undefined && current.vote_id === row.id) {
         await this.archive.markDerived(row.id);
         this.record(row, 'skipped_idempotent', null);
@@ -182,8 +178,8 @@ export class GovernorVoteProjectionApplier {
         voterAddress,
         castAt,
         incoming: {
-          primaryChoice: event.primaryChoice,
-          votingPower: event.votingPowerReported,
+          primaryChoice: event.support ? 1 : 0,
+          votingPower: event.votingPower,
         },
         current,
         incomingIsNewer,
@@ -202,7 +198,7 @@ export class GovernorVoteProjectionApplier {
 
       this.record(row, incomingIsNewer ? 'derived' : 'skipped_idempotent', null);
     } catch (error) {
-      const reason: CompoundVoteDerivationFailureReason =
+      const reason: AaveV2VoteDerivationFailureReason =
         error instanceof ProjectionError && error.reason === 'no_proposal'
           ? 'no_proposal'
           : 'projection_apply_error';
@@ -212,13 +208,13 @@ export class GovernorVoteProjectionApplier {
 
   private async failAndMaybeDlq(
     row: ArchiveDerivationRow,
-    reason: CompoundVoteDerivationFailureReason,
+    reason: AaveV2VoteDerivationFailureReason,
     error: unknown,
   ): Promise<void> {
     this.record(row, 'failed', reason);
     await this.archive.incrementAttemptCount(row.id);
     const attempt = row.derivation_attempt_count + 1;
-    this.logger.error('vote_derivation_failed', {
+    this.logger.error('aave_v2_vote_derivation_failed', {
       row_id: row.id,
       source_type: row.source_type,
       event_type: row.event_type,
@@ -235,7 +231,7 @@ export class GovernorVoteProjectionApplier {
 
     await this.dlq.insert({
       stage: VOTE_PROJECTION_STAGE,
-      source: 'indexer.vote_projection',
+      source: DLQ_SOURCE,
       payload: {
         id: row.id,
         source_type: row.source_type,
@@ -259,8 +255,8 @@ export class GovernorVoteProjectionApplier {
 
   private record(
     row: ArchiveDerivationRow,
-    outcome: CompoundVoteDerivationOutcome,
-    reason: CompoundVoteDerivationFailureReason | null,
+    outcome: AaveV2VoteDerivationOutcome,
+    reason: AaveV2VoteDerivationFailureReason | null,
   ): void {
     this.metrics.processed({
       source_type: row.source_type,
@@ -271,14 +267,14 @@ export class GovernorVoteProjectionApplier {
   }
 }
 
-function parseVoteCastPayload(payloadJson: string): VoteCastPayload {
-  return JSON.parse(payloadJson) as VoteCastPayload;
+function parseVoteEmittedPayload(payloadJson: string): V2VoteEmittedPayload {
+  return JSON.parse(payloadJson) as V2VoteEmittedPayload;
 }
 
 function tupleKey(
   row:
     | ArchiveDerivationRow
-    | Pick<GovernorArchivePayloadRow, 'chain_id' | 'tx_hash' | 'log_index' | 'block_hash'>,
+    | Pick<AaveGovernorV2ArchivePayloadRow, 'chain_id' | 'tx_hash' | 'log_index' | 'block_hash'>,
 ): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

@@ -17,7 +17,6 @@ import {
   type CompTokenArchivePayloadRow,
 } from '../persistence/comp-token-archive-payload-repository';
 
-const DEFAULT_BATCH_SIZE = 50;
 const DLQ_THRESHOLD = Number(process.env['DELEGATION_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const DELEGATION_PROJECTION_STAGE = 'delegation_projection_stage';
 
@@ -82,17 +81,12 @@ export class CompTokenDelegationProjectionApplier {
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
     if (rows.length === 0) return;
-    const cappedRows = rows.slice(
-      0,
-      Number(process.env['DELEGATION_PROJECTION_BATCH_SIZE'] ?? DEFAULT_BATCH_SIZE),
-    );
-
     const lookupStartedAt = Date.now();
-    const payloads = await this.payloads.fetchPayloads(cappedRows);
+    const payloads = await this.payloads.fetchPayloads(rows);
     this.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
     const payloadByKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
 
-    for (const row of cappedRows) {
+    for (const row of rows) {
       const payload = payloadByKey.get(tupleKey(row));
       if (payload === undefined) {
         await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));

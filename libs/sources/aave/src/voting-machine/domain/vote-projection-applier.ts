@@ -44,6 +44,7 @@ export interface AaveVoteProjectionMetrics {
     labels: { voting_chain_id: string; event_type: string },
   ): void;
   processed(labels: {
+    source_type: string;
     event_type: string;
     outcome: AaveVoteDerivationOutcome;
     reason: AaveVoteDerivationFailureReason | null;
@@ -429,6 +430,7 @@ export class AaveVoteProjectionApplier {
     reason: AaveVoteDerivationFailureReason | null,
   ): void {
     this.metrics.processed({
+      source_type: row.source_type,
       event_type: row.event_type,
       outcome,
       reason,

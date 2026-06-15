@@ -16,6 +16,12 @@ import {
   AaveGovernanceArchivePayloadRepository,
   AaveGovernanceEventRepository,
   AaveGovernanceProjectionApplier,
+  AaveGovernorV2ActorAddressDeriver,
+  AaveGovernorV2ArchivePayloadRepository,
+  AaveGovernorV2ArchiveWriter,
+  AaveGovernorV2EventRepository,
+  AaveGovernorV2ProjectionApplier,
+  AaveGovernorV2VoteProjectionApplier,
   AaveIpfsTitleFetcher,
   AavePayloadStitchApplier,
   AavePayloadReconcileRepository,
@@ -29,6 +35,8 @@ import {
   AaveVotingMachineArchiveWriter,
   AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
+  createAaveGovernorV2Plugin,
+  createAaveGovernorV2ReconcilePlugin,
   createAavePayloadsControllerPlugin,
   createAavePayloadsControllerReconcilePlugin,
   createAaveGovernanceV3ReconcilePlugin,
@@ -109,6 +117,21 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
     {
       provide: AavePayloadsControllerArchivePayloadRepository,
       useFactory: () => new AavePayloadsControllerArchivePayloadRepository(chDb),
+    },
+    {
+      provide: AaveGovernorV2ArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new AaveGovernorV2ArchiveWriter({
+          eventRepo: new AaveGovernorV2EventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('AaveGovernorV2ArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
+      provide: AaveGovernorV2ArchivePayloadRepository,
+      useFactory: () => new AaveGovernorV2ArchivePayloadRepository(chDb),
     },
     {
       provide: AaveIpfsTitleFetcher,
@@ -198,8 +221,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
                 event_type,
                 source_type: 'aave_voting_machine',
               }),
-            processed: ({ event_type, outcome, reason }) =>
+            processed: ({ source_type, event_type, outcome, reason }) =>
               aaveMetrics.voteDerivation.add(1, {
+                source_type,
                 event_type,
                 outcome,
                 reason: reason ?? 'none',
@@ -269,9 +293,86 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       ],
     },
     {
+      provide: AaveGovernorV2ProjectionApplier,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlqRepo: DlqRepository,
+        payloads: AaveGovernorV2ArchivePayloadRepository,
+        ipfsFetcher: AaveIpfsTitleFetcher,
+      ) =>
+        new AaveGovernorV2ProjectionApplier({
+          pgDb,
+          archive,
+          dlq: dlqRepo,
+          payloads,
+          ipfsFetcher,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            processed: () => undefined,
+            ipfsTitleFetch: (outcome) => aaveMetrics.ipfsTitleFetch.add(1, { outcome }),
+          },
+          logger: toChainLogger(new Logger('AaveGovernorV2ProjectionApplier')),
+        }),
+      inject: [
+        ArchiveDerivationRepository,
+        DlqRepository,
+        AaveGovernorV2ArchivePayloadRepository,
+        AaveIpfsTitleFetcher,
+      ],
+    },
+    {
+      provide: AaveGovernorV2ActorAddressDeriver,
+      useFactory: (payloads: AaveGovernorV2ArchivePayloadRepository) =>
+        new AaveGovernorV2ActorAddressDeriver(payloads),
+      inject: [AaveGovernorV2ArchivePayloadRepository],
+    },
+    {
+      provide: AaveGovernorV2VoteProjectionApplier,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlqRepo: DlqRepository,
+        payloads: AaveGovernorV2ArchivePayloadRepository,
+        proposals: ProposalRepository,
+        voteRead: VoteEventsProjectionReadRepository,
+        voteWrite: VoteEventsProjectionWriter,
+        registry: ChainContextRegistry,
+      ) =>
+        new AaveGovernorV2VoteProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads,
+          proposals,
+          voteRead,
+          voteWrite,
+          registry,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            chWriteSeconds: () => undefined,
+            processed: ({ event_type, outcome, reason }) =>
+              aaveMetrics.voteDerivation.add(1, {
+                source_type: 'aave_governor_v2',
+                event_type,
+                outcome,
+                reason: reason ?? 'none',
+              }),
+          },
+          logger: toChainLogger(new Logger('AaveGovernorV2VoteProjectionApplier')),
+        }),
+      inject: [
+        ArchiveDerivationRepository,
+        DlqRepository,
+        AaveGovernorV2ArchivePayloadRepository,
+        ProposalRepository,
+        VoteEventsProjectionReadRepository,
+        VoteEventsProjectionWriter,
+        ChainContextRegistry,
+      ],
+    },
+    {
       provide: AAVE_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
+        governorV2ArchiveWriter: AaveGovernorV2ArchiveWriter,
         votingMachineArchiveWriter: AaveVotingMachineArchiveWriter,
         payloadsControllerArchiveWriter: AavePayloadsControllerArchiveWriter,
         dlqRepo: DlqRepository,
@@ -279,6 +380,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         payloadReconcileProposals: AavePayloadReconcileRepository,
         projectionApplier: AaveGovernanceProjectionApplier,
         actorAddressDeriver: AaveGovernanceActorAddressDeriver,
+        governorV2ProjectionApplier: AaveGovernorV2ProjectionApplier,
+        governorV2VoteProjectionApplier: AaveGovernorV2VoteProjectionApplier,
+        governorV2ActorAddressDeriver: AaveGovernorV2ActorAddressDeriver,
         votingMachineActorAddressDeriver: AaveVotingMachineActorAddressDeriver,
         voteProjectionApplier: AaveVoteProjectionApplier,
         payloadsControllerActorAddressDeriver: AavePayloadsControllerActorAddressDeriver,
@@ -292,6 +396,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               archiveWriter,
               dlqRepo,
               logger: toChainLogger(new Logger('AaveGovernanceV3')),
+            }),
+            createAaveGovernorV2Plugin({
+              archiveWriter: governorV2ArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('AaveGovernorV2')),
             }),
             // Y1 registers admin-cli backfill and DLQ-retry providers for this source.
             createAaveVotingMachinePlugin({
@@ -309,6 +418,11 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               metrics,
               logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),
+            createAaveGovernorV2ReconcilePlugin({
+              proposals,
+              metrics,
+              logger: toChainLogger(new Logger('AaveGovernorV2Reconcile')),
+            }),
             createAavePayloadsControllerReconcilePlugin({
               proposals: payloadReconcileProposals,
               metrics,
@@ -318,6 +432,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           derivers: [
             projectionApplier,
             actorAddressDeriver,
+            governorV2ProjectionApplier,
+            governorV2VoteProjectionApplier,
+            governorV2ActorAddressDeriver,
             votingMachineActorAddressDeriver,
             voteProjectionApplier,
             payloadsControllerActorAddressDeriver,
@@ -327,6 +444,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       },
       inject: [
         AaveGovernanceArchiveWriter,
+        AaveGovernorV2ArchiveWriter,
         AaveVotingMachineArchiveWriter,
         AavePayloadsControllerArchiveWriter,
         DlqRepository,
@@ -334,6 +452,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AavePayloadReconcileRepository,
         AaveGovernanceProjectionApplier,
         AaveGovernanceActorAddressDeriver,
+        AaveGovernorV2ProjectionApplier,
+        AaveGovernorV2VoteProjectionApplier,
+        AaveGovernorV2ActorAddressDeriver,
         AaveVotingMachineActorAddressDeriver,
         AaveVoteProjectionApplier,
         AavePayloadsControllerActorAddressDeriver,

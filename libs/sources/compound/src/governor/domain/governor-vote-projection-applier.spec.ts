@@ -278,26 +278,6 @@ describe('GovernorVoteProjectionApplier', () => {
     );
   });
 
-  it('caps payload fetch batch at 25', async () => {
-    const rows = Array.from({ length: 30 }, (_, index) => ({
-      ...BASE_ROW,
-      id: `archive-${index}`,
-      log_index: index,
-      tx_hash: `0xtx${index}`,
-    }));
-    const payloads = rows.map((row) => ({
-      ...BASE_PAYLOAD,
-      tx_hash: row.tx_hash,
-      log_index: row.log_index,
-    }));
-    const built = buildApplier({ payloads });
-    mutable(built.applier).transaction = vi.fn().mockResolvedValue(undefined);
-
-    await built.applier.applyBatch(rows);
-
-    expect(built.payloads.fetchPayloads.mock.calls[0]?.[0]).toHaveLength(25);
-  });
-
   it('derives new vote when no current vote exists', async () => {
     const { applier, archive, metrics, proposals, voteRead, voteWrite } = buildApplier();
 

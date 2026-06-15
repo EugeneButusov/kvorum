@@ -11,12 +11,16 @@ export interface AaveStaleReconciliationRow extends BaseStaleReconciliationRow {
   governance_address: string;
   state: ProposalState;
   creation_block: string;
+  voting_starts_block: string | null;
+  voting_ends_block: string | null;
 }
+
+export type AaveV2StaleReconciliationRow = AaveStaleReconciliationRow;
 
 export interface AaveReconcileStateInput {
   proposalId: string;
   expectedStates: readonly ProposalState[];
-  targetState: Extract<ProposalState, 'expired'>;
+  targetState: Extract<ProposalState, 'expired' | 'active' | 'defeated'>;
   stateUpdatedAt: Date;
 }
 
@@ -158,9 +162,13 @@ export class AaveProposalRepository
         'proposal.source_id',
         'proposal.source_type',
         'dao_source.chain_id',
-        sql<string>`dao_source.source_config ->> 'governance_address'`.as('governance_address'),
+        sql<string>`coalesce(dao_source.source_config ->> 'governance_address', dao_source.source_config ->> 'governor_address')`.as(
+          'governance_address',
+        ),
         'proposal.state',
         'aave_proposal_metadata.creation_block',
+        'proposal.voting_starts_block',
+        'proposal.voting_ends_block',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'queued'])
