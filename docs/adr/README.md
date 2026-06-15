@@ -38,18 +38,19 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-048](0048-compound-governor-alpha.md)                   | Index Compound Governor Alpha as `compound_governor_alpha`                        | Accepted                      | 2.4.4, 3.3, 3.10                        |
 | [ADR-049](0049-onchain-state-reconciliation.md)              | On-chain state reconciliation for event-silent governor transitions               | Accepted                      | 2.4.4, 3.10, 3.12                       |
 | [ADR-050](0050-compound-governor-oz.md)                      | Index Compound Governor OZ as `compound_governor_oz`                              | Accepted                      | 2.4.4, 3.3, 3.10                        |
-| [ADR-053](0053-voting-power-snapshot-derivation-contract.md) | Voting power snapshot derivation contract                                         | Superseded by ADR-0062        | 2.4.10, 3.9                             |
+| [ADR-053](0053-voting-power-snapshot-derivation-contract.md) | Voting power snapshot derivation contract                                         | Withdrawn (M3 V3 #262)        | —                                       |
 | [ADR-058](0058-confirmed-head-only-ingestion.md)             | Confirmed-head-only ingestion (drop reorg handling plane)                         | Accepted                      | 2.6, 3.2, 3.3, 3.10, 3.12               |
 | [ADR-059](0059-manual-chain-rewind-admin-command.md)         | Manual chain rewind admin command (recovery path)                                 | Proposed                      | 6.20.1, 7.x                             |
 | [ADR-065](0065-aave-cross-chain-stitching.md)                | Aave cross-chain stitching contract                                               | Proposed                      | 3.5, 3.10                               |
 | [ADR-0062](0062-ch-source-of-truth-for-derivations.md)       | ClickHouse as source of truth for chain-event-derived data                        | Accepted                      | 2.6, 3.2, 3.3, 3.10, 4.6.2              |
 | [ADR-0063](0063-pgboss-job-based-ingestion.md)               | pg-boss job-based ingestion orchestration                                         | Accepted                      | 3.3, 3.10, 6.20.1                       |
 | [ADR-0064](0064-multi-chain-dao-source-binding.md)           | Multi-chain dao_source binding and chain-aware derivation dispatch                | Accepted                      | 2.5, 3.5, 10.5                          |
-| [ADR-0066](0066-aave-voting-power-strategy.md)               | Aave voting power strategy                                                        | Superseded by ADR-0062        | —                                       |
+| [ADR-0066](0066-aave-voting-power-strategy.md)               | Aave voting power strategy                                                        | Withdrawn (M3 V3 #262)        | —                                       |
 
 ## Status legend
 
 - **Proposed** — under consideration; not yet implemented.
 - **Accepted** — agreed upon and reflected in the system.
 - **Superseded by ADR-NNN** — replaced by a later decision; preserved for historical context.
+- **Withdrawn** — decision reversed and the feature removed; preserved for historical context.
 - **Deprecated** — no longer relevant; not implemented.

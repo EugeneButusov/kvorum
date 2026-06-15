@@ -140,7 +140,6 @@ async function main(): Promise<void> {
       voting_ends_at: hasNullWindow ? null : ts(created, 120),
       voting_starts_block: hasNullWindow ? null : String(19_850_000 + i),
       voting_ends_block: hasNullWindow ? null : String(19_850_500 + i),
-      voting_power_block: String(19_854_000 + i),
       state: PROPOSAL_STATES[i % PROPOSAL_STATES.length]!,
       state_updated_at: stateUpdated,
       created_at: created,

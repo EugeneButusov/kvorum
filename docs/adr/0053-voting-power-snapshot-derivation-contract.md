@@ -1,10 +1,10 @@
 # ADR-053 - Voting power snapshot derivation contract
 
-- **Status**: Superseded by ADR-0062
+- **Status**: Withdrawn (M3 V3 #262 — feature retired)
 - **Date**: 2026-05-23
 - **Amends**: 0062
 - **Related**: ADR-022, ADR-041
-- **Issue**: #174, #261
+- **Issue**: #174, #261, #262
 
 ## Context
 
@@ -44,10 +44,6 @@ Epic L requires a deterministic worker that writes one row into CH `voting_power
 
 Cite ADR-0062 + PR #220 + PR #221 + issue #261 + follow-up issue #<NNN>.
 
-## Amendment — 2026-06-14 (feature retired)
-
-The voting-power snapshot feature is retired in M3 V3 (#262). `VotingPowerStrategy`, the `voting_power_snapshot_run` PG table, and all CH `voting_power_snapshot_*` tables are removed. Voter power now lives on the vote row (`vote_events_projection.voting_power`); cross-DAO analytics read votes/delegation directly. This ADR is superseded by ADR-0062 for all practical purposes; it is preserved for historical record only.
-
 ## Amendment — 2026-06-11 (sample verification withdrawn)
 
 Issue #261 withdraws the sample-verification design introduced above.
@@ -56,3 +52,7 @@ Issue #261 withdraws the sample-verification design introduced above.
 - `voting_power_snapshot_run` keeps `status`, `snapshot_attempt_count`, `last_error`, and row-count bookkeeping for compute retry/DLQ only. Verify-era columns `sample_size` and `fallback_engaged` are dropped.
 - Correctness now rests on authoritative vote-reported power for voter-derived strategies and deterministic event-derived snapshot computation for Compound, plus ingestion completeness guards and integration coverage.
 - DLQ routing still applies to compute failures, but `archive_chain_id` is sourced from the proposal's DAO chain context instead of a hardcoded value.
+
+## Amendment — 2026-06-14 (feature retired)
+
+The voting-power snapshot feature is retired in M3 V3 (#262). `VotingPowerStrategy`, the `voting_power_snapshot_run` PG table, and all CH `voting_power_snapshot_*` tables are removed. Voter power now lives on the vote row (`vote_events_projection.voting_power`); cross-DAO analytics read votes/delegation directly. This ADR is withdrawn (feature retired); it is preserved for historical record only.
