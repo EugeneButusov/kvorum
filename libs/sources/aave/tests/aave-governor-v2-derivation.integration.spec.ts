@@ -1,16 +1,6 @@
 import { sql } from 'kysely';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockedFunction,
-} from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silentLogger } from '@libs/chain';
-import type { ChainContext } from '@libs/chain';
 import {
   ActorRepository,
   ArchiveActorResolutionRepository,
@@ -52,26 +42,6 @@ function makeMetrics() {
     processed: vi.fn(),
     ipfsTitleFetch: vi.fn(),
   };
-}
-
-function makeMockRegistry(blockTimestamp: Date): {
-  peek: MockedFunction<ChainContext['client']['send']>;
-} {
-  const mockClient = {
-    send: vi.fn().mockResolvedValue({
-      hash: numberedHash(1),
-      number: '0xb71b00',
-      timestamp: `0x${Math.floor(blockTimestamp.getTime() / 1000).toString(16)}`,
-    }),
-  };
-  return {
-    peek: vi.fn().mockReturnValue({
-      client: mockClient,
-      chainCfg: { chainId: CHAIN_ID, name: 'mainnet', rpcUrls: [] },
-      headTracker: {},
-      proxyResolver: {},
-    } as unknown as ChainContext),
-  } as unknown as { peek: MockedFunction<ChainContext['client']['send']> };
 }
 
 describeIf('aave governor-v2 derivation integration', () => {
@@ -136,9 +106,7 @@ describeIf('aave governor-v2 derivation integration', () => {
     await sql`ALTER TABLE archive_event_aave_governor_v2 DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
-    await sql`ALTER TABLE vote_events_projection DELETE WHERE chain_id = ${CHAIN_ID} AND source_type = ${SOURCE_TYPE}`.execute(
-      chDb,
-    );
+    await sql`ALTER TABLE vote_events_raw DELETE WHERE voting_chain_id = ${CHAIN_ID}`.execute(chDb);
   });
 
   afterAll(async () => {
@@ -148,9 +116,7 @@ describeIf('aave governor-v2 derivation integration', () => {
     await sql`ALTER TABLE archive_event_aave_governor_v2 DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
       chDb,
     );
-    await sql`ALTER TABLE vote_events_projection DELETE WHERE chain_id = ${CHAIN_ID} AND source_type = ${SOURCE_TYPE}`.execute(
-      chDb,
-    );
+    await sql`ALTER TABLE vote_events_raw DELETE WHERE voting_chain_id = ${CHAIN_ID}`.execute(chDb);
   });
 
   async function insertArchivedEvent(opts: {
@@ -340,8 +306,11 @@ describeIf('aave governor-v2 derivation integration', () => {
       creation_block: '11500000',
     });
 
-    // Vote projection — runs AaveGovernorV2VoteProjectionApplier with a mock registry
-    const mockRegistry = makeMockRegistry(new Date('2026-01-01T00:00:02Z'));
+    // Vote projection — bypass VoteBlockTimestampFetcher (it validates block hash round-trip
+    // against eth_getBlockByHash which we cannot satisfy in integration tests without a real
+    // RPC node). Replace blockTimestamps with a pre-built map keyed by the VoteEmitted block.
+    const VOTE_BLOCK_NUMBER = '11520000';
+    const VOTE_BLOCK_HASH = numberedHash(1002); // matches blockHash used in insertArchivedEvent above
     const voteApplier = new AaveGovernorV2VoteProjectionApplier({
       archive,
       dlq,
@@ -350,17 +319,33 @@ describeIf('aave governor-v2 derivation integration', () => {
       voteRead: new VoteEventsProjectionReadRepository(chDb),
       voteWrite: new VoteEventsProjectionWriter(chDb),
       metrics: makeMetrics(),
-      registry: mockRegistry as never,
+      registry: { peek: vi.fn().mockReturnValue({ chainCfg: { chainId: CHAIN_ID } }) } as never,
       logger: silentLogger,
     });
+    (
+      voteApplier as unknown as {
+        blockTimestamps: {
+          fetchBatch: () => Promise<Map<string, Date>>;
+          resultKey: (blockNumber: string, blockHash: string) => string;
+        };
+      }
+    ).blockTimestamps = {
+      fetchBatch: async () =>
+        new Map([
+          [
+            `${VOTE_BLOCK_NUMBER}:${VOTE_BLOCK_HASH.toLowerCase()}`,
+            new Date('2026-01-01T00:00:01Z'),
+          ],
+        ]),
+      resultKey: (blockNumber: string, blockHash: string) =>
+        `${blockNumber}:${blockHash.toLowerCase()}`,
+    };
 
     await voteApplier.applyBatch(await actorResolution.findDerivableBy(voteApplier.eventTypes, 20));
 
     const voteRows = await chDb
       .selectFrom('vote_events_projection')
       .selectAll()
-      .where('chain_id', '=', CHAIN_ID)
-      .where('source_type', '=', SOURCE_TYPE)
       .where('proposal_id', '=', proposal.id)
       .execute();
 
