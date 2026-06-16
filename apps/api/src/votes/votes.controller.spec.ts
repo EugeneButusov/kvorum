@@ -1,19 +1,10 @@
 import type { Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-import type { SourceApiRegistry } from '@nest/source-api';
 import { VotesController } from './votes.controller';
 import { ProblemException } from '../http/problem-exception';
 
 function mockResponse(): Response {
   return { status: vi.fn(), setHeader: vi.fn() } as unknown as Response;
-}
-
-function makeRegistry(overrides?: Partial<SourceApiRegistry>): SourceApiRegistry {
-  return {
-    choiceBounds: vi.fn().mockReturnValue({ min: 0, max: 2 }),
-    getProposalExtension: vi.fn().mockResolvedValue(null),
-    ...overrides,
-  } as unknown as SourceApiRegistry;
 }
 
 function makeVoteRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -54,7 +45,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -82,7 +72,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
     const res = mockResponse();
 
@@ -105,7 +94,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     await expect(
@@ -125,7 +113,6 @@ describe('VotesController', () => {
       { listForProposal: vi.fn() } as never,
       notFoundProposalRepo as never,
       { resolveAddress: vi.fn() } as never,
-      makeRegistry(),
     );
 
     await expect(
@@ -145,7 +132,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
     const res = mockResponse();
 
@@ -170,7 +156,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -207,7 +192,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -239,7 +223,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     const out = await controller.detail(
@@ -264,7 +247,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -290,7 +272,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     await expect(
@@ -311,7 +292,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -330,7 +310,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
-      makeRegistry(),
     );
 
     const out = await controller.list(
@@ -351,7 +330,6 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
-      makeRegistry(),
     );
 
     const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
@@ -384,50 +362,10 @@ describe('VotesController', () => {
       { findOneByVoter: vi.fn() } as never,
       notFoundProposalRepo as never,
       routing as never,
-      makeRegistry(),
     );
 
     await expect(
       controller.detail('compound', 'comp', '1', '0xaaaa', mockResponse()),
     ).rejects.toBeInstanceOf(ProblemException);
-  });
-
-  it('throws validation error when primary_choice exceeds Aave max (0–1)', async () => {
-    const voteRepo = { listForProposal: vi.fn().mockResolvedValue([]) };
-    const controller = new VotesController(
-      voteRepo as never,
-      proposalRepo as never,
-      { resolveAddress: vi.fn() } as never,
-      makeRegistry({ choiceBounds: vi.fn().mockReturnValue({ min: 0, max: 1 }) }),
-    );
-
-    await expect(
-      controller.list(
-        'aave',
-        'aave_governance_v3',
-        '1',
-        { primary_choice: '2' } as never,
-        mockResponse(),
-      ),
-    ).rejects.toBeInstanceOf(ProblemException);
-  });
-
-  it('allows primary_choice=2 for Compound (max=2)', async () => {
-    const voteRepo = { listForProposal: vi.fn().mockResolvedValue([]) };
-    const controller = new VotesController(
-      voteRepo as never,
-      proposalRepo as never,
-      { resolveAddress: vi.fn() } as never,
-      makeRegistry({ choiceBounds: vi.fn().mockReturnValue({ min: 0, max: 2 }) }),
-    );
-
-    const out = await controller.list(
-      'compound',
-      'compound_governor_bravo',
-      '1',
-      { primary_choice: '2' } as never,
-      mockResponse(),
-    );
-    expect(out?.data).toHaveLength(0);
   });
 });

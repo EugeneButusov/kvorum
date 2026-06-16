@@ -10,7 +10,6 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
-import { SourceApiRegistry } from '@nest/source-api';
 import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
 import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
 import { VOTE_QUERY } from './vote.query';
@@ -36,7 +35,6 @@ export class VotesController {
     private readonly voteRepo: VoteReadRepository,
     private readonly proposalRepo: ProposalReadRepository,
     private readonly routing: ActorRoutingService,
-    private readonly sourceApiRegistry: SourceApiRegistry,
   ) {}
 
   @Get()
@@ -63,17 +61,6 @@ export class VotesController {
     const query = rawQuery as Record<string, unknown>;
     const parsed = parseQuery(query, VOTE_QUERY);
     const limit = parseLimit(query['limit']);
-
-    const primaryChoiceRaw = parsed.filters['primary_choice']?.value as number[] | undefined;
-    if (primaryChoiceRaw !== undefined && primaryChoiceRaw.length > 0) {
-      const bounds = this.sourceApiRegistry.choiceBounds(sourceType);
-      const outOfRange = primaryChoiceRaw.find((c) => c < bounds.min || c > bounds.max);
-      if (outOfRange !== undefined) {
-        throw problemException('validation', {
-          detail: `primary_choice ${outOfRange} is out of range for source_type ${sourceType} (valid: ${bounds.min}–${bounds.max})`,
-        });
-      }
-    }
 
     let voterActorId: string | undefined;
     if (typeof query['voter'] === 'string') {
