@@ -132,7 +132,7 @@ export class ProposalPayloadGroupDto {
   @ApiProperty()
   declare target_chain_id: string;
 
-  @ApiProperty({ type: () => [ProposalPayloadDto] })
+  @ApiProperty({ type: [ProposalPayloadDto] })
   declare payloads: ProposalPayloadDto[];
 }
 
@@ -152,7 +152,7 @@ export class ProposalDetailDto extends ProposalListItemDto {
   @ApiPropertyOptional({ nullable: true, type: ProposalVotingDto })
   declare voting?: ProposalVotingDto | null;
 
-  @ApiPropertyOptional({ nullable: true, type: () => [ProposalPayloadGroupDto] })
+  @ApiPropertyOptional({ nullable: true, type: [ProposalPayloadGroupDto] })
   declare payloads?: ProposalPayloadGroupDto[] | null;
 }
 

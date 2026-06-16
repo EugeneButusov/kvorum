@@ -4,7 +4,9 @@ import {
   ProposalActionDto,
   ProposalDetailDto,
   ProposalListItemDto,
+  ProposalPayloadDto,
   ProposalPayloadGroupDto,
+  ProposalVotingDto,
 } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -82,7 +84,8 @@ export function toProposalDetailDto(
   });
 
   if (extension !== null) {
-    dto.voting = extension.voting;
+    dto.voting =
+      extension.voting === null ? null : Object.assign(new ProposalVotingDto(), extension.voting);
     dto.payloads = groupPayloads(extension.payloads);
   }
 
@@ -100,14 +103,16 @@ function groupPayloads(payloads: readonly ProposalPayloadView[]): ProposalPayloa
       });
       groups.set(p.target_chain_id, group);
     }
-    group.payloads.push({
-      payload_index: p.payload_index,
-      payload_id: p.payload_id,
-      payloads_controller_address: p.payloads_controller_address,
-      status: p.status,
-      executed_at_destination: p.executed_at_destination,
-      unindexed_target_chain: p.unindexed_target_chain,
-    });
+    group.payloads.push(
+      Object.assign(new ProposalPayloadDto(), {
+        payload_index: p.payload_index,
+        payload_id: p.payload_id,
+        payloads_controller_address: p.payloads_controller_address,
+        status: p.status,
+        executed_at_destination: p.executed_at_destination,
+        unindexed_target_chain: p.unindexed_target_chain,
+      }),
+    );
   }
   return Array.from(groups.values());
 }
