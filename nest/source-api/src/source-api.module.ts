@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { pgDb } from '@libs/db';
 import type { SourceApiContribution } from '@libs/domain';
 import { makeAaveApiContribution } from '@sources/aave/api';
 import { compoundApiContribution } from '@sources/compound/api';
@@ -10,7 +11,7 @@ import { SOURCE_API_CONTRIBUTIONS, SourceApiRegistry } from './source-api.regist
       provide: SOURCE_API_CONTRIBUTIONS,
       useFactory: (): SourceApiContribution[] => [
         compoundApiContribution,
-        makeAaveApiContribution(),
+        makeAaveApiContribution(pgDb),
       ],
     },
     SourceApiRegistry,

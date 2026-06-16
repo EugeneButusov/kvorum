@@ -94,6 +94,48 @@ export class ProposalListItemDto {
   declare _meta: ProposalMetaDto;
 }
 
+export class ProposalVotingDto {
+  @ApiPropertyOptional({ nullable: true })
+  declare voting_chain_id: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  declare voting_machine_address: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  declare voting_strategy_address: string | null;
+
+  @ApiProperty()
+  declare creation_block: string;
+}
+
+export class ProposalPayloadDto {
+  @ApiProperty()
+  declare payload_index: number;
+
+  @ApiProperty()
+  declare payload_id: string;
+
+  @ApiProperty()
+  declare payloads_controller_address: string;
+
+  @ApiProperty()
+  declare status: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  declare executed_at_destination: string | null;
+
+  @ApiProperty()
+  declare unindexed_target_chain: boolean;
+}
+
+export class ProposalPayloadGroupDto {
+  @ApiProperty()
+  declare target_chain_id: string;
+
+  @ApiProperty({ type: () => [ProposalPayloadDto] })
+  declare payloads: ProposalPayloadDto[];
+}
+
 export class ProposalDetailDto extends ProposalListItemDto {
   @ApiProperty()
   declare description: string;
@@ -103,6 +145,15 @@ export class ProposalDetailDto extends ProposalListItemDto {
 
   @ApiProperty({ type: () => [ProposalChoiceDto] })
   declare choices: ProposalChoiceDto[];
+
+  @ApiProperty()
+  declare origin_chain_id: string;
+
+  @ApiPropertyOptional({ nullable: true, type: ProposalVotingDto })
+  declare voting?: ProposalVotingDto | null;
+
+  @ApiPropertyOptional({ nullable: true, type: () => [ProposalPayloadGroupDto] })
+  declare payloads?: ProposalPayloadGroupDto[] | null;
 }
 
 export class ProposalDetailResponseDto {

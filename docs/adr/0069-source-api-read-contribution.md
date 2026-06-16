@@ -1,6 +1,6 @@
 # ADR-0069 — Source API read-contribution contract
 
-**Status:** Proposed (accepted before PR2 merges)
+**Status:** Accepted
 **Date:** 2026-06-16
 **Deciders:** Eugene
 **Cross-refs:** Amends ADR-0057 (adds read-side sibling); resolves ADR-0067 "API surfacing of `voting_chain_id` deferred to Epic T" (lands in M3 X1)

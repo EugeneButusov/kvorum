@@ -1,7 +1,10 @@
+import type { Kysely } from 'kysely';
+import type { PgDatabase } from '@libs/db';
 import type { SourceApiContribution } from '@libs/domain';
+import { AaveProposalExtensionReadRepository } from '../persistence/aave-proposal-extension-read-repository';
 
-// PR1 stub: getProposalExtension implemented in PR2 via AaveProposalExtensionReadRepository.
-export function makeAaveApiContribution(): SourceApiContribution {
+export function makeAaveApiContribution(db: Kysely<PgDatabase>): SourceApiContribution {
+  const repo = new AaveProposalExtensionReadRepository(db);
   return {
     sourceTypes: [
       'aave_governance_v3',
@@ -12,8 +15,8 @@ export function makeAaveApiContribution(): SourceApiContribution {
     choiceBounds(_sourceType) {
       return { min: 0, max: 1 };
     },
-    getProposalExtension(_proposalId, _sourceType) {
-      return Promise.resolve(null);
+    getProposalExtension(proposalId, _sourceType) {
+      return repo.getExtension(proposalId);
     },
   };
 }
