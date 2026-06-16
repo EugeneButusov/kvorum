@@ -255,7 +255,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-sources": ""rNVI-PNdt4l2GmoeJ5mzlE7Ua_c"",
   "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
-  "proposal-detail": ""_0IBfhcd6pJ1pJlUHxvWNuLtDBI"",
+  "proposal-detail": ""Qf6Ew8lQW1CJkouc44B5bjsfCEg"",
 }
 `;
 
@@ -311,6 +311,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     ],
     "dao_slug": "compound",
     "description": "Executed proposal body",
+    "origin_chain_id": "0x1",
     "proposer": {
       "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "display_name": null,

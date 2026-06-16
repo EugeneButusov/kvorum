@@ -2201,6 +2201,9 @@
           "vote_id": {
             "type": "string"
           },
+          "voting_chain_id": {
+            "type": "string"
+          },
           "proposal": {
             "$ref": "#/components/schemas/EmbeddedProposalDto"
           },
@@ -2219,7 +2222,14 @@
             "$ref": "#/components/schemas/ActorVoteMetaDto"
           }
         },
-        "required": ["vote_id", "proposal", "voting_power_reported", "cast_at", "_meta"]
+        "required": [
+          "vote_id",
+          "voting_chain_id",
+          "proposal",
+          "voting_power_reported",
+          "cast_at",
+          "_meta"
+        ]
       },
       "ActorVoteListResponseDto": {
         "type": "object",
@@ -2285,6 +2295,9 @@
           "vote_id": {
             "type": "string"
           },
+          "voting_chain_id": {
+            "type": "string"
+          },
           "voter": {
             "$ref": "#/components/schemas/VoterDto"
           },
@@ -2312,6 +2325,7 @@
         },
         "required": [
           "vote_id",
+          "voting_chain_id",
           "voter",
           "voting_power_reported",
           "voting_power_verified",
@@ -2353,6 +2367,9 @@
           "vote_id": {
             "type": "string"
           },
+          "voting_chain_id": {
+            "type": "string"
+          },
           "voter": {
             "$ref": "#/components/schemas/VoterDto"
           },
@@ -2386,6 +2403,7 @@
         },
         "required": [
           "vote_id",
+          "voting_chain_id",
           "voter",
           "voting_power_reported",
           "voting_power_verified",
@@ -2854,6 +2872,73 @@
         },
         "required": ["choice_index", "value"]
       },
+      "ProposalVotingDto": {
+        "type": "object",
+        "properties": {
+          "voting_chain_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_machine_address": {
+            "type": "object",
+            "nullable": true
+          },
+          "voting_strategy_address": {
+            "type": "object",
+            "nullable": true
+          },
+          "creation_block": {
+            "type": "string"
+          }
+        },
+        "required": ["creation_block"]
+      },
+      "ProposalPayloadDto": {
+        "type": "object",
+        "properties": {
+          "payload_index": {
+            "type": "number"
+          },
+          "payload_id": {
+            "type": "string"
+          },
+          "payloads_controller_address": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "executed_at_destination": {
+            "type": "object",
+            "nullable": true
+          },
+          "unindexed_target_chain": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "payload_index",
+          "payload_id",
+          "payloads_controller_address",
+          "status",
+          "unindexed_target_chain"
+        ]
+      },
+      "ProposalPayloadGroupDto": {
+        "type": "object",
+        "properties": {
+          "target_chain_id": {
+            "type": "string"
+          },
+          "payloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalPayloadDto"
+            }
+          }
+        },
+        "required": ["target_chain_id", "payloads"]
+      },
       "ProposalDetailDto": {
         "type": "object",
         "properties": {
@@ -2904,6 +2989,25 @@
             "items": {
               "$ref": "#/components/schemas/ProposalChoiceDto"
             }
+          },
+          "origin_chain_id": {
+            "type": "string"
+          },
+          "voting": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProposalVotingDto"
+              }
+            ]
+          },
+          "payloads": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalPayloadGroupDto"
+            }
           }
         },
         "required": [
@@ -2919,7 +3023,8 @@
           "_meta",
           "description",
           "actions",
-          "choices"
+          "choices",
+          "origin_chain_id"
         ]
       },
       "ProposalDetailResponseDto": {
