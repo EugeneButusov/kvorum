@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { DaoReadRepository, ProposalReadRepository } from '@libs/db';
 import type { SourceApiRegistry } from '@nest/source-api';
 import { ProposalController } from './proposal.controller';
 import { ProblemException } from '../http/problem-exception';
+import type { ApiListQueryDto } from '../openapi/query.dto';
 
 function makeRegistry(overrides?: Partial<SourceApiRegistry>): SourceApiRegistry {
   return {
@@ -52,18 +54,26 @@ describe('ProposalController', () => {
       const qb = makeQb([baseProposalRow]);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
-      const out = await controller.listByDao('compound', {} as never);
+      const out = await controller.listByDao('compound', {} as ApiListQueryDto);
       expect(out.data).toHaveLength(1);
     });
 
     it('throws not-found when dao is missing', async () => {
       const repo = { listBaseQuery: vi.fn() };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(undefined) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
-      await expect(controller.listByDao('unknown', {} as never)).rejects.toBeInstanceOf(
+      await expect(controller.listByDao('unknown', {} as ApiListQueryDto)).rejects.toBeInstanceOf(
         ProblemException,
       );
     });
@@ -72,7 +82,11 @@ describe('ProposalController', () => {
       const qb = makeQb([]);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
       const { parseQuery } = await import('../query/query-parser');
@@ -87,7 +101,7 @@ describe('ProposalController', () => {
         q: canonical,
       });
 
-      const out = await controller.listByDao('compound', { cursor: cursorStr } as never);
+      const out = await controller.listByDao('compound', { cursor: cursorStr } as ApiListQueryDto);
       expect(out.data).toHaveLength(0);
     });
 
@@ -99,12 +113,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: 'voting_starts_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -116,12 +134,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: '-voting_ends_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -133,12 +155,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: '-voting_starts_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -150,12 +176,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: '-state_updated_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -167,12 +197,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: '-voting_starts_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -184,12 +218,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: 'voting_ends_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
 
@@ -201,12 +239,16 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const out = await controller.listByDao('compound', {
-        limit: '1',
+        limit: 1,
         sort: '-voting_ends_at',
-      } as never);
+      } as ApiListQueryDto);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
   });
@@ -221,7 +263,11 @@ describe('ProposalController', () => {
       };
       const daoRepo = { findDaoBySlug: vi.fn() };
       const registry = makeRegistry({ getProposalExtension: vi.fn().mockResolvedValue(null) });
-      const controller = new ProposalController(repo as never, daoRepo as never, registry);
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        registry,
+      );
 
       const out = await controller.detail('compound', 'compound_governor_bravo', '42');
       expect(out.data.source_id).toBe('42');
@@ -279,7 +325,11 @@ describe('ProposalController', () => {
       const registry = makeRegistry({
         getProposalExtension: vi.fn().mockResolvedValue(extension),
       });
-      const controller = new ProposalController(repo as never, daoRepo as never, registry);
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        registry,
+      );
 
       const out = await controller.detail('aave', 'aave_governance_v3', '42');
       expect(out.data.origin_chain_id).toBe('0x1');
@@ -296,7 +346,11 @@ describe('ProposalController', () => {
     it('throws not-found when proposal is missing', async () => {
       const repo = { findOne: vi.fn().mockResolvedValue(undefined) };
       const daoRepo = { findDaoBySlug: vi.fn() };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       await expect(controller.detail('compound', 'comp', '999')).rejects.toBeInstanceOf(
         ProblemException,
@@ -313,9 +367,13 @@ describe('ProposalController', () => {
       const qb = makeQb(rows);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn() };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
-      const out = await controller.listCrossDao({ limit: '1' } as never);
+      const out = await controller.listCrossDao({ limit: 1 } as ApiListQueryDto);
       expect(out.data).toHaveLength(1);
       expect(out.pagination.next_cursor).not.toBeNull();
     });
@@ -324,7 +382,11 @@ describe('ProposalController', () => {
       const qb = makeQb([]);
       const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
       const daoRepo = { findDaoBySlug: vi.fn() };
-      const controller = new ProposalController(repo as never, daoRepo as never, makeRegistry());
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        makeRegistry(),
+      );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
       const { parseQuery } = await import('../query/query-parser');
@@ -339,7 +401,7 @@ describe('ProposalController', () => {
         q: canonical,
       });
 
-      const out = await controller.listCrossDao({ cursor: cursorStr } as never);
+      const out = await controller.listCrossDao({ cursor: cursorStr } as ApiListQueryDto);
       expect(out.data).toHaveLength(0);
     });
   });

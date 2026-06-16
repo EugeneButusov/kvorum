@@ -1,13 +1,11 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
 import type { ProposalExtension, ProposalPayloadView } from '@libs/domain';
 import {
-  ProposalActionDto,
-  ProposalDetailDto,
-  ProposalListItemDto,
   ProposalPayloadDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
-} from './proposal.dto';
+} from './proposal-extension.dto';
+import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
 type ProposalListRow = {
