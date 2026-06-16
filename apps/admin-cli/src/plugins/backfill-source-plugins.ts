@@ -88,13 +88,10 @@ export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): B
     sourceLabel: resolved.plugin.sourceType,
   };
 
-  if (resolved.kind === 'comp_token') {
-    return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
-  }
-  if (resolved.kind === 'aave_governor_v2') {
-    return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
-  }
-  return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
+  return (resolved.plugin as SourceIngester<unknown>).buildBackfillRuntime(
+    ctx,
+    resolved.parsedConfig,
+  );
 }
 
 type ResolvedPlugin =
