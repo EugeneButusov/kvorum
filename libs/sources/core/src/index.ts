@@ -28,6 +28,14 @@ export type {
 
 export { CalldataDecoder } from './calldata/decoder';
 export type { DecodeInput } from './calldata/decoder';
+
+export type {
+  ChoiceBounds,
+  ProposalExtension,
+  ProposalPayloadView,
+  ProposalVotingView,
+  SourceApiContribution,
+} from '@libs/domain';
 export { EtherscanClient } from './calldata/etherscan-client';
 export type { EtherscanClientConfig } from './calldata/etherscan-client';
 export { readCalldataDecoderConfig } from './calldata/config';

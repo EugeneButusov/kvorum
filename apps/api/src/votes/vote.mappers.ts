@@ -17,6 +17,7 @@ function toEmbeddedVoter(row: VoteReadRow) {
 export function toVoteListItemDto(row: VoteReadRow): VoteListItemDto {
   return Object.assign(new VoteListItemDto(), {
     vote_id: row.id,
+    voting_chain_id: row.voting_chain_id,
     voter: toEmbeddedVoter(row),
     voting_power_reported: row.voting_power_reported,
     voting_power_verified: row.voting_power_verified,

@@ -39,6 +39,9 @@ export class VoteListItemDto {
   @ApiProperty()
   declare vote_id: string;
 
+  @ApiProperty()
+  declare voting_chain_id: string;
+
   @ApiProperty({ type: VoterDto })
   declare voter: VoterDto;
 

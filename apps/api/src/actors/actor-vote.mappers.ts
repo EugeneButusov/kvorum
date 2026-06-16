@@ -5,6 +5,7 @@ import { isoSeconds } from '../http/iso';
 export function toActorVoteListItemDto(row: VoteReadRow): ActorVoteListItemDto {
   return Object.assign(new ActorVoteListItemDto(), {
     vote_id: row.id,
+    voting_chain_id: row.voting_chain_id,
     proposal: {
       proposal_id: row.proposal_source_id,
       source_type: row.proposal_source_type,

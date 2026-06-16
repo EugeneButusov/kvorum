@@ -12,6 +12,7 @@ packages:
   - 'nest/logging'
   - 'nest/observability'
   - 'nest/proposals'
+  - 'nest/source-api'
   - 'nest/sources/*'
   - 'nest/votes'
 allowBuilds:

@@ -46,6 +46,9 @@ export class ActorVoteListItemDto {
   @ApiProperty()
   declare vote_id: string;
 
+  @ApiProperty()
+  declare voting_chain_id: string;
+
   @ApiProperty({ type: EmbeddedProposalDto })
   declare proposal: EmbeddedProposalDto;
 

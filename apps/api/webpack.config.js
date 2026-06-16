@@ -34,6 +34,9 @@ module.exports = {
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
       '@nest/proposals': path.join(root, 'nest/proposals/src/index.ts'),
       '@nest/votes': path.join(root, 'nest/votes/src/index.ts'),
+      '@nest/source-api': path.join(root, 'nest/source-api/src/index.ts'),
+      '@sources/aave/api': path.join(root, 'libs/sources/aave/src/api/index.ts'),
+      '@sources/compound/api': path.join(root, 'libs/sources/compound/src/api/index.ts'),
     },
   },
   module: {
@@ -48,12 +51,16 @@ module.exports = {
   },
   externals: [
     ({ request }, callback) => {
+      // Allow the light /api subpath entries — they must be bundled (not externalized)
+      // to avoid pulling in the heavy @sources/* barrels at runtime.
+      const bundledSourcePaths = ['@sources/aave/api', '@sources/compound/api'];
       if (
         request &&
         !request.startsWith('.') &&
         !path.isAbsolute(request) &&
         !request.startsWith('@libs/') &&
-        !request.startsWith('@nest/')
+        !request.startsWith('@nest/') &&
+        !bundledSourcePaths.includes(request)
       ) {
         return callback(null, `commonjs ${request}`);
       }
