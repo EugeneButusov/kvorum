@@ -5,6 +5,7 @@ import type { PgDatabase } from './schema/pg';
 
 export type VoteReadRow = {
   id: string;
+  voting_chain_id: string;
   voting_power_reported: string;
   voting_power_verified: boolean;
   primary_choice: number | null;
@@ -34,6 +35,7 @@ type VoteEventsProjectionTable = {
   voter_address: string;
   primary_choice: number;
   voting_power: string;
+  voting_chain_id: string;
   cast_at: Date;
   superseded: number;
 };
@@ -61,6 +63,7 @@ export class VoteReadRepository {
         'v.vote_id as id',
         'v.voting_power as voting_power_reported',
         'v.primary_choice',
+        'v.voting_chain_id',
         'v.cast_at',
         'v.proposal_id',
         'v.voter_address',
@@ -88,6 +91,7 @@ export class VoteReadRepository {
       return [
         {
           id: row.id,
+          voting_chain_id: row.voting_chain_id,
           voting_power_reported: row.voting_power_reported,
           voting_power_verified: false,
           primary_choice: row.primary_choice,
@@ -123,6 +127,7 @@ export class VoteReadRepository {
         'v.vote_id as id',
         'v.voting_power as voting_power_reported',
         'v.primary_choice',
+        'v.voting_chain_id',
         'v.cast_at',
         'v.proposal_id',
         'v.voter_address',
@@ -164,6 +169,7 @@ export class VoteReadRepository {
       return [
         {
           id: row.id,
+          voting_chain_id: row.voting_chain_id,
           voting_power_reported: row.voting_power_reported,
           voting_power_verified: false,
           primary_choice: row.primary_choice,

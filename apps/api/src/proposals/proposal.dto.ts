@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ProposalPayloadGroupDto, ProposalVotingDto } from './proposal-extension.dto';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class ProposalLinksDto {
@@ -103,6 +104,15 @@ export class ProposalDetailDto extends ProposalListItemDto {
 
   @ApiProperty({ type: () => [ProposalChoiceDto] })
   declare choices: ProposalChoiceDto[];
+
+  @ApiProperty()
+  declare origin_chain_id: string;
+
+  @ApiPropertyOptional({ nullable: true, type: ProposalVotingDto })
+  declare voting?: ProposalVotingDto | null;
+
+  @ApiPropertyOptional({ nullable: true, type: [ProposalPayloadGroupDto] })
+  declare payloads?: ProposalPayloadGroupDto[] | null;
 }
 
 export class ProposalDetailResponseDto {

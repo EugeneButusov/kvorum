@@ -8,6 +8,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
+import { SourceApiRegistry } from '@nest/source-api';
 import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
@@ -32,6 +33,7 @@ export class ProposalController {
   constructor(
     private readonly repo: ProposalReadRepository,
     private readonly daoRepo: DaoReadRepository,
+    private readonly sourceApiRegistry: SourceApiRegistry,
   ) {}
 
   @ApiParam({ name: 'slug', type: String })
@@ -99,10 +101,14 @@ export class ProposalController {
       });
     }
 
-    const actions = await this.repo.findActions(row.id);
-    const choices = await this.repo.findChoices(row.id);
+    const [actions, choices, originChainId, extension] = await Promise.all([
+      this.repo.findActions(row.id),
+      this.repo.findChoices(row.id),
+      this.repo.resolveOriginChainId(row.id, sourceType),
+      this.sourceApiRegistry.getProposalExtension(row.id, sourceType),
+    ]);
 
-    return { data: toProposalDetailDto(row, actions, choices) };
+    return { data: toProposalDetailDto(row, actions, choices, originChainId, extension) };
   }
 
   @ApiOkResponse({ type: ProposalListResponseDto })

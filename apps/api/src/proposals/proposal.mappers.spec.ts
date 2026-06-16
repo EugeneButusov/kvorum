@@ -29,7 +29,7 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['forum']).toBeUndefined();
   });
 
-  it('maps detail with actions/choices and second precision timestamps', () => {
+  it('maps Compound detail without voting/payloads and second precision timestamps', () => {
     const dto = toProposalDetailDto(
       row,
       [
@@ -52,6 +52,8 @@ describe('proposal.mappers', () => {
         },
       ],
       [{ proposal_id: 'p1', choice_index: 0, value: 'For' }],
+      '0x1',
+      null,
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
@@ -59,7 +61,59 @@ describe('proposal.mappers', () => {
     expect(dto._meta.confirmed).toBe(true);
     expect(dto.actions[0]?.target_address).toBe('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
     expect(dto.choices[0]?.value).toBe('For');
+    expect(dto.origin_chain_id).toBe('0x1');
+    expect((dto as Record<string, unknown>)['voting']).toBeUndefined();
+    expect((dto as Record<string, unknown>)['payloads']).toBeUndefined();
     expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+  });
+
+  it('maps Aave detail with voting and grouped payloads', () => {
+    const extension = {
+      voting: {
+        voting_chain_id: '0x89',
+        voting_machine_address: '0xmachine',
+        voting_strategy_address: null,
+        creation_block: '100',
+      },
+      payloads: [
+        {
+          payload_index: 0,
+          target_chain_id: '0x1',
+          payloads_controller_address: '0xctrl',
+          payload_id: '1',
+          status: 'executed' as const,
+          executed_at_destination: '2026-01-01T00:00:00Z',
+          unindexed_target_chain: false,
+        },
+        {
+          payload_index: 1,
+          target_chain_id: '0x1',
+          payloads_controller_address: '0xctrl',
+          payload_id: '2',
+          status: 'queued' as const,
+          executed_at_destination: null,
+          unindexed_target_chain: false,
+        },
+        {
+          payload_index: 2,
+          target_chain_id: '0x89',
+          payloads_controller_address: '0xctrl2',
+          payload_id: '3',
+          status: 'created' as const,
+          executed_at_destination: null,
+          unindexed_target_chain: false,
+        },
+      ],
+    };
+
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension);
+    expect(dto.origin_chain_id).toBe('0x1');
+    expect(dto.voting).toEqual(extension.voting);
+    expect(dto.payloads).toHaveLength(2);
+    const mainnetGroup = dto.payloads?.find((g) => g.target_chain_id === '0x1');
+    expect(mainnetGroup?.payloads).toHaveLength(2);
+    const polygonGroup = dto.payloads?.find((g) => g.target_chain_id === '0x89');
+    expect(polygonGroup?.payloads).toHaveLength(1);
   });
 
   it('keeps nullable title as null and does not leak undefined own-properties', () => {

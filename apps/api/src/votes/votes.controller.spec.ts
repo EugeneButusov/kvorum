@@ -7,6 +7,30 @@ function mockResponse(): Response {
   return { status: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 }
 
+function makeVoteRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'v1',
+    voting_chain_id: '0x1',
+    voting_power_reported: '100',
+    voting_power_verified: true,
+    primary_choice: 1,
+    cast_at: new Date('2026-01-01T00:00:00Z'),
+    reason: null,
+    proposal_id: 'p1',
+    voter_actor_id: 'a1',
+    voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    voter_display_name: null,
+    proposal_source_type: 'compound_governor_bravo',
+    proposal_source_id: '1',
+    proposal_title: 'T',
+    proposal_state: 'active',
+    proposal_created_at: new Date('2025-12-31T00:00:00Z'),
+    proposal_voting_ends_at: null,
+    dao_slug: 'compound',
+    ...overrides,
+  };
+}
+
 describe('VotesController', () => {
   const proposalRepo = {
     findOneWithDao: vi.fn().mockResolvedValue({ proposal: { id: 'p1' } }),
@@ -14,27 +38,7 @@ describe('VotesController', () => {
 
   it('returns paginated vote list', async () => {
     const voteRepo = {
-      listForProposal: vi.fn().mockResolvedValue([
-        {
-          id: 'v1',
-          voting_power_reported: '100',
-          voting_power_verified: true,
-          primary_choice: 1,
-          cast_at: new Date('2026-01-01T00:00:00Z'),
-          reason: null,
-          proposal_id: 'p1',
-          voter_actor_id: 'a1',
-          voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          voter_display_name: 'Alice',
-          proposal_source_type: 'compound_governor_bravo',
-          proposal_source_id: '1',
-          proposal_title: 'Title',
-          proposal_state: 'active',
-          proposal_created_at: new Date('2025-12-31T00:00:00Z'),
-          proposal_voting_ends_at: null,
-          dao_slug: 'compound',
-        },
-      ]),
+      listForProposal: vi.fn().mockResolvedValue([makeVoteRow({ voter_display_name: 'Alice' })]),
     };
     const routing = { resolveAddress: vi.fn() };
     const controller = new VotesController(
@@ -53,6 +57,7 @@ describe('VotesController', () => {
 
     expect(out?.data).toHaveLength(1);
     expect(out?.data[0]?.vote_id).toBe('v1');
+    expect(out?.data[0]?.voting_chain_id).toBe('0x1');
   });
 
   it('returns 301 on merged voter path', async () => {
@@ -167,44 +172,20 @@ describe('VotesController', () => {
   it('returns paginated list sorted by voting_power_reported', async () => {
     const voteRepo = {
       listForProposal: vi.fn().mockResolvedValue([
-        {
+        makeVoteRow({
           id: 'v1',
           voting_power_reported: '200',
-          voting_power_verified: true,
-          primary_choice: 1,
-          cast_at: new Date('2026-01-01'),
-          reason: null,
-          proposal_id: 'p1',
           voter_actor_id: 'a1',
           voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          voter_display_name: null,
-          proposal_source_type: 'comp',
-          proposal_source_id: '1',
-          proposal_title: 'T',
-          proposal_state: 'active',
-          proposal_created_at: new Date('2025-12-31'),
-          proposal_voting_ends_at: null,
-          dao_slug: 'compound',
-        },
-        {
+        }),
+        makeVoteRow({
           id: 'v2',
           voting_power_reported: '100',
-          voting_power_verified: false,
           primary_choice: 0,
           cast_at: new Date('2026-01-02'),
-          reason: null,
-          proposal_id: 'p1',
           voter_actor_id: 'a2',
           voter_address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          voter_display_name: null,
-          proposal_source_type: 'comp',
-          proposal_source_id: '1',
-          proposal_title: 'T',
-          proposal_state: 'active',
-          proposal_created_at: new Date('2025-12-31'),
-          proposal_voting_ends_at: null,
-          dao_slug: 'compound',
-        },
+        }),
       ]),
     };
     const controller = new VotesController(
@@ -226,25 +207,11 @@ describe('VotesController', () => {
   });
 
   it('returns vote detail for known voter', async () => {
-    const vote = {
-      id: 'v1',
-      voting_power_reported: '100',
-      voting_power_verified: true,
-      primary_choice: 1,
-      cast_at: new Date('2026-01-01'),
+    const vote = makeVoteRow({
       reason: 'good',
-      proposal_id: 'p1',
-      voter_actor_id: 'a1',
-      voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       voter_display_name: 'Alice',
       proposal_source_type: 'comp',
-      proposal_source_id: '1',
-      proposal_title: 'T',
-      proposal_state: 'active',
-      proposal_created_at: new Date('2025-12-31'),
-      proposal_voting_ends_at: null,
-      dao_slug: 'compound',
-    };
+    });
     const voteRepo = {
       findOneByVoter: vi.fn().mockResolvedValue(vote),
       findChoicesForVote: vi.fn().mockResolvedValue([{ choice_index: 0, weight: '1' }]),
@@ -267,30 +234,12 @@ describe('VotesController', () => {
     );
 
     expect(out?.data.vote_id).toBe('v1');
+    expect(out?.data.voting_chain_id).toBe('0x1');
     expect(out?.data.choices).toHaveLength(1);
   });
 
   it('returns votes when voter resolves to ok (covers voterActorId assignment)', async () => {
-    const voteRow = {
-      id: 'v1',
-      voting_power_reported: '100',
-      voting_power_verified: true,
-      primary_choice: 1,
-      cast_at: new Date('2026-01-01'),
-      reason: null,
-      proposal_id: 'p1',
-      voter_actor_id: 'a1',
-      voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      voter_display_name: null,
-      proposal_source_type: 'comp',
-      proposal_source_id: '1',
-      proposal_title: 'T',
-      proposal_state: 'active',
-      proposal_created_at: new Date('2025-12-31'),
-      proposal_voting_ends_at: null,
-      dao_slug: 'compound',
-    };
-    const voteRepo = { listForProposal: vi.fn().mockResolvedValue([voteRow]) };
+    const voteRepo = { listForProposal: vi.fn().mockResolvedValue([makeVoteRow()]) };
     const routing = {
       resolveAddress: vi.fn().mockResolvedValue({ kind: 'ok', actor: { id: 'a1' } }),
     };
@@ -331,29 +280,13 @@ describe('VotesController', () => {
   });
 
   it('paginates with cast_at sort (covers time branch in buildPagination callback)', async () => {
-    const voteRow = {
-      id: 'v1',
-      voting_power_reported: '100',
-      voting_power_verified: true,
-      primary_choice: 1,
-      cast_at: new Date('2026-01-02'),
-      reason: null,
-      proposal_id: 'p1',
-      voter_actor_id: 'a1',
-      voter_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      voter_display_name: null,
-      proposal_source_type: 'comp',
-      proposal_source_id: '1',
-      proposal_title: 'T',
-      proposal_state: 'active',
-      proposal_created_at: new Date('2025-12-31'),
-      proposal_voting_ends_at: null,
-      dao_slug: 'compound',
-    };
     const voteRepo = {
       listForProposal: vi
         .fn()
-        .mockResolvedValue([voteRow, { ...voteRow, id: 'v2', cast_at: new Date('2026-01-01') }]),
+        .mockResolvedValue([
+          makeVoteRow({ id: 'v1', cast_at: new Date('2026-01-02') }),
+          makeVoteRow({ id: 'v2', cast_at: new Date('2026-01-01') }),
+        ]),
     };
     const controller = new VotesController(
       voteRepo as never,

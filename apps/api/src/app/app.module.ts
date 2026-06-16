@@ -6,6 +6,7 @@ import { DaoModule } from '@nest/daos';
 import { DelegationsModule } from '@nest/delegations';
 import { OpsServer } from '@nest/observability';
 import { ProposalModule } from '@nest/proposals';
+import { SourceApiModule } from '@nest/source-api';
 import { VotesModule } from '@nest/votes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -37,6 +38,7 @@ import { VotesController } from '../votes/votes.controller';
     ObservabilityModule,
     ProposalModule,
     RateLimitModule,
+    SourceApiModule,
     VotesModule,
   ],
   controllers: [

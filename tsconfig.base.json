@@ -42,7 +42,10 @@
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
       "@nest/sources": ["./nest/sources/index.ts"],
       "@nest/observability": ["./nest/observability/src/index.ts"],
-      "@nest/logging": ["./nest/logging/src/index.ts"]
+      "@nest/logging": ["./nest/logging/src/index.ts"],
+      "@nest/source-api": ["./nest/source-api/src/index.ts"],
+      "@sources/aave/api": ["./libs/sources/aave/src/api/index.ts"],
+      "@sources/compound/api": ["./libs/sources/compound/src/api/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

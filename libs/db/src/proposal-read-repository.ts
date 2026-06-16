@@ -160,4 +160,20 @@ export class ProposalReadRepository {
       .orderBy('choice_index', 'asc')
       .execute();
   }
+
+  async resolveOriginChainId(proposalId: string, sourceType: string): Promise<string> {
+    const row = await this.db
+      .selectFrom('proposal')
+      .innerJoin('dao', 'dao.id', 'proposal.dao_id')
+      .leftJoin('dao_source', (join) =>
+        join
+          .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
+          .on('dao_source.source_type', '=', sourceType),
+      )
+      .select(['dao.primary_chain_id', 'dao_source.chain_id as source_chain_id'])
+      .where('proposal.id', '=', proposalId)
+      .executeTakeFirst();
+
+    return row?.source_chain_id ?? row?.primary_chain_id ?? '0x1';
+  }
 }

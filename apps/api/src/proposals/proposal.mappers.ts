@@ -1,4 +1,10 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
+import type { ProposalExtension, ProposalPayloadView } from '@libs/domain';
+import {
+  ProposalPayloadDto,
+  ProposalPayloadGroupDto,
+  ProposalVotingDto,
+} from './proposal-extension.dto';
 import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -49,8 +55,10 @@ export function toProposalDetailDto(
   row: ProposalDetailRow,
   actions: ProposalAction[],
   choices: ProposalChoice[],
+  originChainId: string,
+  extension: ProposalExtension | null,
 ): ProposalDetailDto {
-  return Object.assign(new ProposalDetailDto(), {
+  const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
     source_type: row.source_type,
     source_id: row.source_id,
@@ -69,8 +77,42 @@ export function toProposalDetailDto(
       choice_index: choice.choice_index,
       value: choice.value,
     })),
+    origin_chain_id: originChainId,
     _meta: proposalMeta(row),
   });
+
+  if (extension !== null) {
+    dto.voting =
+      extension.voting === null ? null : Object.assign(new ProposalVotingDto(), extension.voting);
+    dto.payloads = groupPayloads(extension.payloads);
+  }
+
+  return dto;
+}
+
+function groupPayloads(payloads: readonly ProposalPayloadView[]): ProposalPayloadGroupDto[] {
+  const groups = new Map<string, ProposalPayloadGroupDto>();
+  for (const p of payloads) {
+    let group = groups.get(p.target_chain_id);
+    if (group === undefined) {
+      group = Object.assign(new ProposalPayloadGroupDto(), {
+        target_chain_id: p.target_chain_id,
+        payloads: [],
+      });
+      groups.set(p.target_chain_id, group);
+    }
+    group.payloads.push(
+      Object.assign(new ProposalPayloadDto(), {
+        payload_index: p.payload_index,
+        payload_id: p.payload_id,
+        payloads_controller_address: p.payloads_controller_address,
+        status: p.status,
+        executed_at_destination: p.executed_at_destination,
+        unindexed_target_chain: p.unindexed_target_chain,
+      }),
+    );
+  }
+  return Array.from(groups.values());
 }
 
 export function toProposalListItemDto(row: ProposalListRow): ProposalListItemDto {

@@ -9,7 +9,7 @@ export const VOTE_QUERY: EndpointQuery = {
       op: 'eq',
     },
     primary_choice: {
-      zod: z.coerce.number().int().min(0).max(2),
+      zod: z.coerce.number().int().nonnegative(),
       column: 'vote.primary_choice',
       op: 'in',
       multi: true,
