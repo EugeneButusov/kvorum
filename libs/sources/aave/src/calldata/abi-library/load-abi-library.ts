@@ -5,8 +5,12 @@ import type { AbiEntry, LoadedAbiLibrary } from '@sources/core';
 import aaveAclManager from './aave-acl-manager.json' with { type: 'json' };
 import aaveCollector from './aave-collector.json' with { type: 'json' };
 import aaveExecutor from './aave-executor.json' with { type: 'json' };
+import aaveGovernorV2 from './aave-governor-v2.json' with { type: 'json' };
+import aaveLendingPoolAddressesProvider from './aave-lending-pool-addresses-provider.json' with { type: 'json' };
+import aaveLendingPoolConfigurator from './aave-lending-pool-configurator.json' with { type: 'json' };
 import aavePayloadsController from './aave-payloads-controller.json' with { type: 'json' };
 import aavePoolConfigurator from './aave-pool-configurator.json' with { type: 'json' };
+import aaveStakedToken from './aave-staked-token.json' with { type: 'json' };
 import aaveToken from './aave-token.json' with { type: 'json' };
 import aaveVotingStrategy from './aave-voting-strategy.json' with { type: 'json' };
 
@@ -17,8 +21,12 @@ const SOURCES = [
   { name: 'aave-acl-manager', abi: aaveAclManager },
   { name: 'aave-collector', abi: aaveCollector },
   { name: 'aave-executor', abi: aaveExecutor },
+  { name: 'aave-governor-v2', abi: aaveGovernorV2 },
+  { name: 'aave-lending-pool-addresses-provider', abi: aaveLendingPoolAddressesProvider },
+  { name: 'aave-lending-pool-configurator', abi: aaveLendingPoolConfigurator },
   { name: 'aave-payloads-controller', abi: aavePayloadsController },
   { name: 'aave-pool-configurator', abi: aavePoolConfigurator },
+  { name: 'aave-staked-token', abi: aaveStakedToken },
   { name: 'aave-token', abi: aaveToken },
   { name: 'aave-voting-strategy', abi: aaveVotingStrategy },
 ] as const;

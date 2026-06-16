@@ -1,0 +1,26 @@
+[
+  {
+    "type": "function",
+    "name": "authorizeExecutors",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address[]", "name": "executors" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "unauthorizeExecutors",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "address[]", "name": "executors" }],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setVotingDelay",
+    "constant": false,
+    "payable": false,
+    "inputs": [{ "type": "uint256", "name": "votingDelay" }],
+    "outputs": []
+  }
+]

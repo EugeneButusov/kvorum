@@ -23,6 +23,14 @@ This document is the authoritative metric enumeration for M1, based on emitted i
 | `db_*`                                                                                                                                                                                                                                                 | TBD                          | TBD                                                            | TBD                               | TBD                                             | planned (M2+) |
 | `ai_*`                                                                                                                                                                                                                                                 | TBD                          | TBD                                                            | TBD                               | `apps/ai-worker` (future)                       | planned (M5)  |
 
+## DLQ stage names
+
+| Stage                            | Source                     | Description                                                       |
+| -------------------------------- | -------------------------- | ----------------------------------------------------------------- |
+| `aave_governor_v2_archive_write` | `indexer.aave_governor_v2` | CH or PG write failure during v2 governor event ingestion         |
+| `aave_ipfs_title_fetch`          | `indexer.aave_governor_v2` | IPFS title fetch pending for a v2 proposal (retried by AI worker) |
+| `vote_projection_stage`          | `indexer.aave_governor_v2` | Vote projection failure for a v2 VoteEmitted event                |
+
 ## Source of truth
 
 Declared metrics are defined in:
