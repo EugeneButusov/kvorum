@@ -30,12 +30,18 @@ import {
   AavePayloadsControllerArchiveWriter,
   AavePayloadsControllerEventRepository,
   AaveProposalRepository,
+  AaveTokenActorAddressDeriver,
+  AaveTokenArchivePayloadRepository,
+  AaveTokenArchiveWriter,
+  AaveTokenDelegationProjectionApplier,
+  AaveTokenEventRepository,
   AaveVoteProjectionApplier,
   AaveVotingMachineActorAddressDeriver,
   AaveVotingMachineArchiveWriter,
   AaveVotingMachineArchivePayloadRepository,
   AaveVotingMachineEventRepository,
   createAaveGovernorV2Plugin,
+  createAaveTokenPlugin,
   createAaveGovernorV2ReconcilePlugin,
   createAavePayloadsControllerPlugin,
   createAavePayloadsControllerReconcilePlugin,
@@ -369,6 +375,55 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
       ],
     },
     {
+      provide: AaveTokenArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new AaveTokenArchiveWriter({
+          eventRepo: new AaveTokenEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('AaveTokenArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
+      provide: AaveTokenArchivePayloadRepository,
+      useFactory: () => new AaveTokenArchivePayloadRepository(chDb),
+    },
+    {
+      provide: AaveTokenActorAddressDeriver,
+      useFactory: (payloads: AaveTokenArchivePayloadRepository) =>
+        new AaveTokenActorAddressDeriver(payloads),
+      inject: [AaveTokenArchivePayloadRepository],
+    },
+    {
+      provide: AaveTokenDelegationProjectionApplier,
+      useFactory: (
+        archive: ArchiveDerivationRepository,
+        dlqRepo: DlqRepository,
+        payloads: AaveTokenArchivePayloadRepository,
+      ) =>
+        new AaveTokenDelegationProjectionApplier({
+          pgDb,
+          chDb,
+          archive,
+          dlq: dlqRepo,
+          payloads,
+          metrics: {
+            batchLookupSeconds: () => undefined,
+            chWriteSeconds: () => undefined,
+            processed: ({ source_type, event_type, outcome, reason }) =>
+              aaveMetrics.delegationDerivation.add(1, {
+                source_type,
+                event_type,
+                outcome,
+                reason: reason ?? 'none',
+              }),
+          },
+          logger: toChainLogger(new Logger('AaveTokenDelegationProjectionApplier')),
+        }),
+      inject: [ArchiveDerivationRepository, DlqRepository, AaveTokenArchivePayloadRepository],
+    },
+    {
       provide: AAVE_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: AaveGovernanceArchiveWriter,
@@ -387,6 +442,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         voteProjectionApplier: AaveVoteProjectionApplier,
         payloadsControllerActorAddressDeriver: AavePayloadsControllerActorAddressDeriver,
         payloadStitchApplier: AavePayloadStitchApplier,
+        aaveTokenArchiveWriter: AaveTokenArchiveWriter,
+        aaveTokenDelegationProjectionApplier: AaveTokenDelegationProjectionApplier,
+        aaveTokenActorAddressDeriver: AaveTokenActorAddressDeriver,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         return {
@@ -412,6 +470,12 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               archiveWriter: payloadsControllerArchiveWriter,
               dlqRepo,
               logger: toChainLogger(new Logger('AavePayloadsController')),
+            }),
+            // Y1 registers admin-cli backfill and DLQ-retry providers for this source.
+            createAaveTokenPlugin({
+              archiveWriter: aaveTokenArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('AaveToken')),
             }),
             createAaveGovernanceV3ReconcilePlugin({
               proposals,
@@ -439,6 +503,8 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             voteProjectionApplier,
             payloadsControllerActorAddressDeriver,
             payloadStitchApplier,
+            aaveTokenDelegationProjectionApplier,
+            aaveTokenActorAddressDeriver,
           ],
         };
       },
@@ -459,6 +525,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveVoteProjectionApplier,
         AavePayloadsControllerActorAddressDeriver,
         AavePayloadStitchApplier,
+        AaveTokenArchiveWriter,
+        AaveTokenDelegationProjectionApplier,
+        AaveTokenActorAddressDeriver,
       ],
     },
   ],

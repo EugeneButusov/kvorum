@@ -13,6 +13,10 @@ export const aaveMetrics = {
     name: 'aave_payload_derivation',
     description: 'Aave payload derivation outcomes during payload-controller projection',
   }),
+  delegationDerivation: defineCounter({
+    name: 'aave_delegation_derivation',
+    description: 'Aave token delegation derivation outcomes during aave_token projection',
+  }),
   stitchPendingSeconds: defineGauge({
     name: 'stitch_pending_seconds',
     description:

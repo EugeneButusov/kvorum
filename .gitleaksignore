@@ -9,3 +9,4 @@ ce52baa77cfe8e2d0a7e1353ba28ab7d7369e281:libs/db/src/dao-source-repository.spec.
 e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:3
 e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:4
 e5d3494dbb75ba0eb0b79c793e03a7f95d8b6c71:libs/sources/aave/src/tokens/constants.ts:generic-api-key:5
+ba32f224b73c95697c2c46c366cd6f7c5fd7fee3:libs/sources/aave/src/aave-token/constants.ts:generic-api-key:4
