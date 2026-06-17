@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import { chTimestampToDate } from './ch-timestamp';
 import { chDb, pgDb } from './client';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
@@ -228,7 +229,7 @@ export class DelegationReadRepository {
         block_number: row.block_number,
         tx_hash: row.tx_hash,
         event_type: row.event_type as 'delegate_changed' | 'votes_changed',
-        created_at: row.created_at,
+        created_at: chTimestampToDate(row.created_at),
         dao_slug: daoSlug,
         delegator_actor_id: delegator?.id ?? '',
         delegator_address: delegatorAddress,

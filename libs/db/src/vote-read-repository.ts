@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import { chTimestampToDate } from './ch-timestamp';
 import { chDb, pgDb } from './client';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
@@ -95,7 +96,7 @@ export class VoteReadRepository {
           voting_power_reported: row.voting_power_reported,
           voting_power_verified: false,
           primary_choice: row.primary_choice,
-          cast_at: row.cast_at,
+          cast_at: chTimestampToDate(row.cast_at),
           reason: null,
           proposal_id: row.proposal_id,
           voter_actor_id: actor?.id ?? '',
@@ -173,7 +174,7 @@ export class VoteReadRepository {
           voting_power_reported: row.voting_power_reported,
           voting_power_verified: false,
           primary_choice: row.primary_choice,
-          cast_at: row.cast_at,
+          cast_at: chTimestampToDate(row.cast_at),
           reason: null,
           proposal_id: row.proposal_id,
           voter_actor_id: actorId,

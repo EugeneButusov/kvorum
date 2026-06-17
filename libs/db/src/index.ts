@@ -60,6 +60,7 @@ export { ProposalRepository } from './proposal-repository';
 export { ProposalReadRepository } from './proposal-read-repository';
 export { VoteReadRepository } from './vote-read-repository';
 export { DelegationReadRepository } from './delegation-read-repository';
+export { chTimestampToDate } from './ch-timestamp';
 export {
   DelegationFlowProjectionWriter,
   ZERO_DELEGATE_ADDRESS,
