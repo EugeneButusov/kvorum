@@ -34,3 +34,15 @@ Read logic stays deterministic and precision-safe. ~~Clients can distinguish emp
 Rules 1–5 unchanged: `SELECT … FINAL`; sentinel reconstitution at mapper boundaries; UInt256-as-string at DB boundary; no Float64 casts in CH SQL; bucket helpers for date aggregation.
 
 Cite ADR-0062 + PR #220.
+
+## Amendment — 2026-06-17 (concentration 204 for zero-power windows)
+
+**New rule 8 — Return `204 No Content` when the entire requested window has no power-bearing delegation.**
+
+The concentration endpoint (`GET /v1/daos/:slug/analytics/concentration`) queries `delegation_flow_projection` and computes Gini / top-N share over `voting_power` values. For relationship-only-delegation sources (e.g. Aave governance, ADR-0070), all delegation rows carry `voting_power='0'`. Returning a 200 with all-zero Gini and `top_share.n_1=0` is misleading — it reads as "perfect equality" rather than "no power data."
+
+**Gate:** window-level, data-driven. Return 204 if and only if `window total_voting_power === 0` for the full requested date range — not per bucket. A window containing any power-bearing row returns 200 with **all** buckets unchanged (including zero-power buckets from `delegate_changed` events). Never gate by DAO slug or source type — the condition must be generic.
+
+**Implementation:** `@Res({ passthrough: true })` + `res.status(204)` + `return undefined`. The `EtagInterceptor` skips the ETag header on null/undefined body and still emits `Cache-Control` per rule 7.
+
+**Scope:** The rule applies to the concentration endpoint only. Other analytics endpoints always return 200 with an empty `data: []` array for empty windows.

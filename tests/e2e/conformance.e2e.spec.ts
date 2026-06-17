@@ -1,8 +1,10 @@
 import request, { type Response } from 'supertest';
+import { seedAaveData } from './aave.seed';
 import { seedConformanceData } from './conformance.seed';
 import {
   createRealApp,
   describeHttpIf,
+  resetClickhouse,
   resetDaoProposalApiTables,
 } from '../../apps/api/tests/dao-proposal-api.e2e.helpers';
 
@@ -12,7 +14,21 @@ const TS_SECONDS_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 type EndpointCase = {
   name: string;
   path: string;
+  expectedStatus?: number;
 };
+
+// Normalize non-deterministic CH watermark timestamps before snapshot.
+// vote_events_raw.version defaults to now64(6) on insert, so derived_through changes every run.
+function normalizeAnalyticsMeta(body: Record<string, unknown>): Record<string, unknown> {
+  const meta = body['_meta'];
+  if (meta !== null && typeof meta === 'object') {
+    const m = meta as Record<string, unknown>;
+    if ('derived_through' in m && m['derived_through'] !== null) {
+      return { ...body, _meta: { ...m, derived_through: '<datetime>' } };
+    }
+  }
+  return body;
+}
 
 const ENDPOINTS: EndpointCase[] = [
   { name: 'daos-list', path: '/v1/daos' },
@@ -21,6 +37,22 @@ const ENDPOINTS: EndpointCase[] = [
   { name: 'dao-proposals-list', path: '/v1/daos/compound/proposals' },
   { name: 'proposal-detail', path: '/v1/daos/compound/proposals/compound_governor_bravo/42' },
   { name: 'cross-dao-proposals', path: '/v1/proposals?dao=compound' },
+  // Aave entity endpoints (X3 PR1 harness)
+  { name: 'aave-proposals-list', path: '/v1/daos/aave/proposals' },
+  {
+    name: 'aave-proposal-detail',
+    path: `/v1/daos/aave/proposals/aave_governance_v3/${1}`,
+  },
+  { name: 'cross-dao-proposals-multi', path: '/v1/proposals?dao=compound,aave' },
+  // Analytics endpoints (X3 PR2 — analytics correct for Aave + cross-DAO)
+  { name: 'compound-proposal-pass-rate', path: '/v1/daos/compound/analytics/proposal-pass-rate' },
+  { name: 'aave-proposal-pass-rate', path: '/v1/daos/aave/analytics/proposal-pass-rate' },
+  // concentration: Aave returns 204 (no power-bearing delegation, ADR-061 rule 8)
+  {
+    name: 'aave-concentration',
+    path: '/v1/daos/aave/analytics/concentration',
+    expectedStatus: 204,
+  },
 ];
 
 function assertProblemShape(res: Response, expectedStatus: number) {
@@ -84,19 +116,29 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
 
     try {
       const seeded = await seedConformanceData();
+      await seedAaveData(); // additive: Aave DAO + CH votes/delegations
       const server = app.getHttpServer();
 
       const etagByEndpoint: Record<string, string | null> = {};
 
       for (const endpoint of ENDPOINTS) {
+        const expectedStatus = endpoint.expectedStatus ?? 200;
         const res = await request(server)
           .get(endpoint.path)
           .set('Authorization', seeded.bearer)
-          .expect(200);
+          .expect(expectedStatus);
 
-        expect(res.body).toMatchSnapshot(endpoint.name);
-        etagByEndpoint[endpoint.name] =
-          typeof res.headers['etag'] === 'string' ? res.headers['etag'] : null;
+        if (expectedStatus === 204) {
+          // 204 has no body — only assert ETag absent and Cache-Control present
+          expect(res.headers['etag']).toBeUndefined();
+          expect(res.headers['cache-control']).toMatch(/max-age=60/);
+          etagByEndpoint[endpoint.name] = null;
+        } else {
+          const body = normalizeAnalyticsMeta(res.body as Record<string, unknown>);
+          expect(body).toMatchSnapshot(endpoint.name);
+          etagByEndpoint[endpoint.name] =
+            typeof res.headers['etag'] === 'string' ? res.headers['etag'] : null;
+        }
       }
 
       const actorRes = await request(server)
@@ -111,6 +153,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
     } finally {
       await app.close();
       await resetDaoProposalApiTables();
+      await resetClickhouse();
     }
   });
 
@@ -119,6 +162,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
 
     try {
       const seeded = await seedConformanceData();
+      await seedAaveData(); // additive: Aave DAO + CH votes/delegations
       const server = app.getHttpServer();
 
       const daoList = await request(server)
@@ -239,9 +283,42 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
         assertProblemShape(mismatch, 400);
         expect(mismatch.body.type).toBe('urn:error:cursor-parameter-mismatch');
       }
+
+      // ADR-061 rule 8: concentration returns 204 for a DAO with no power-bearing delegation.
+      // Aave uses relationship-only delegation (voting_power='0'), so the entire window sums to 0.
+      const aaveConcentration = await request(server)
+        .get('/v1/daos/aave/analytics/concentration')
+        .set('Authorization', seeded.bearer)
+        .expect(204);
+      expect(aaveConcentration.headers['etag']).toBeUndefined();
+      expect(aaveConcentration.headers['cache-control']).toMatch(/max-age=60/);
+
+      // proposal-pass-rate is PG-backed; derived_through is always null (no CH watermark).
+      const aavePassRate = await request(server)
+        .get('/v1/daos/aave/analytics/proposal-pass-rate')
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+      expect(aavePassRate.body._meta.derived_through).toBeNull();
+      const passRateSourceTypes = (aavePassRate.body.data as { source_type: string }[]).map(
+        (r) => r.source_type,
+      );
+      expect(passRateSourceTypes).toContain('aave_governance_v3');
+      expect(passRateSourceTypes).toContain('aave_governor_v2');
+
+      // cross-DAO proposals filter must include both DAOs.
+      const multiDaoProposals = await request(server)
+        .get('/v1/proposals?dao=compound,aave')
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+      const slugs = [
+        ...new Set((multiDaoProposals.body.data as { dao_slug: string }[]).map((p) => p.dao_slug)),
+      ];
+      expect(slugs).toContain('compound');
+      expect(slugs).toContain('aave');
     } finally {
       await app.close();
       await resetDaoProposalApiTables();
+      await resetClickhouse();
     }
   });
 });
