@@ -15,6 +15,9 @@ export function makeAaveApiContribution(db: Kysely<PgDatabase>): SourceApiContri
     choiceBounds(_sourceType) {
       return { min: 0, max: 1 };
     },
+    delegationModel(_sourceType) {
+      return 'relationship-only';
+    },
     getProposalExtension(proposalId, _sourceType) {
       return repo.getExtension(proposalId);
     },

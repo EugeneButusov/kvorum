@@ -5,6 +5,9 @@ export const compoundApiContribution: SourceApiContribution = {
   choiceBounds(_sourceType) {
     return { min: 0, max: 2 };
   },
+  delegationModel(_sourceType) {
+    return 'power-bearing';
+  },
   getProposalExtension(_proposalId, _sourceType) {
     return Promise.resolve(null);
   },
