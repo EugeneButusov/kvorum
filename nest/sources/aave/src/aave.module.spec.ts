@@ -104,6 +104,9 @@ describe('AaveSourceModule', () => {
       'projection',
       'projection',
     ]);
+
+    expect(plugin.apiContribution.sourceTypes).toContain('aave_governance_v3');
+    expect(plugin.apiContribution.delegationModel('aave_governance_v3')).toBe('relationship-only');
     expect(
       plugin.derivers.some(
         (deriver) =>

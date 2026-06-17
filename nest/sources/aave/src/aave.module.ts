@@ -48,6 +48,7 @@ import {
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
   createAaveVotingMachinePlugin,
+  makeAaveApiContribution,
 } from '@sources/aave';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
@@ -506,6 +507,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             aaveTokenDelegationProjectionApplier,
             aaveTokenActorAddressDeriver,
           ],
+          apiContribution: makeAaveApiContribution(pgDb),
         };
       },
       inject: [

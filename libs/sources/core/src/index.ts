@@ -70,7 +70,7 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
-import type { ArchiveEventType } from '@libs/domain';
+import type { ArchiveEventType, SourceApiContribution } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 import type { RawLogJob } from './producer/archive-producer';
 
@@ -125,6 +125,7 @@ export interface SourcePlugin {
   readonly name: string;
   readonly ingesters: readonly SourceIngester[];
   readonly derivers: readonly SourceDeriver[];
+  readonly apiContribution: SourceApiContribution;
 }
 
 export type IngestSpec =
