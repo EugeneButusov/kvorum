@@ -19,6 +19,7 @@ export { AavePayloadReconcileRepository } from './persistence/aave-payload-recon
 export { loadAbiLibrary } from './calldata/abi-library';
 export { aaveCalldataProtocol } from './calldata/protocol';
 
+export * from './aave-token';
 export * from './governance-v3';
 export * from './governor-v2';
 export * from './payloads-controller';

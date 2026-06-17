@@ -42,7 +42,7 @@ describe('AaveSourceModule', () => {
     const plugin = moduleRef.get<SourcePlugin>(AAVE_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('aave');
-    expect(plugin.ingesters).toHaveLength(7);
+    expect(plugin.ingesters).toHaveLength(8);
     expect(plugin.ingesters.map((ingester) => ingester.sourceType).sort()).toEqual([
       'aave_governance_v3',
       'aave_governance_v3_reconcile',
@@ -50,8 +50,16 @@ describe('AaveSourceModule', () => {
       'aave_governor_v2_reconcile',
       'aave_payloads_controller',
       'aave_payloads_controller_reconcile',
+      'aave_token',
       'aave_voting_machine',
     ]);
+
+    const aaveTokenIngester = plugin.ingesters.find(
+      (ingester): ingester is SourceIngester<Record<string, unknown>> =>
+        ingester.sourceType === 'aave_token',
+    );
+    expect(aaveTokenIngester).toBeDefined();
+    expect(aaveTokenIngester?.supportedChainIds).toEqual(['0x1']);
 
     const votingMachineIngester = plugin.ingesters.find(
       (ingester): ingester is SourceIngester<Record<string, unknown>> =>
@@ -82,12 +90,14 @@ describe('AaveSourceModule', () => {
       '0x144',
     ]);
 
-    expect(plugin.derivers).toHaveLength(9);
+    expect(plugin.derivers).toHaveLength(11);
     expect(plugin.derivers.map((deriver) => deriver.kind).sort()).toEqual([
       'actor-address',
       'actor-address',
       'actor-address',
       'actor-address',
+      'actor-address',
+      'projection',
       'projection',
       'projection',
       'projection',
@@ -145,6 +155,22 @@ describe('AaveSourceModule', () => {
           deriver.sourceTypes.includes('aave_governor_v2') &&
           deriver.eventTypes.includes('ProposalCreated') &&
           deriver.eventTypes.includes('VoteEmitted'),
+      ),
+    ).toBe(true);
+    expect(
+      plugin.derivers.some(
+        (deriver) =>
+          deriver.kind === 'projection' &&
+          deriver.sourceTypes.includes('aave_token') &&
+          deriver.eventTypes.includes('DelegateChanged'),
+      ),
+    ).toBe(true);
+    expect(
+      plugin.derivers.some(
+        (deriver) =>
+          deriver.kind === 'actor-address' &&
+          deriver.sourceTypes.includes('aave_token') &&
+          deriver.eventTypes.includes('DelegateChanged'),
       ),
     ).toBe(true);
   });
