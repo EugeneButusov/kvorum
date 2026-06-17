@@ -20,6 +20,10 @@ import {
   down as downAavePayloadCorrelationIndex,
   up as upAavePayloadCorrelationIndex,
 } from '../migrations-postgres/aave_004_payload_correlation_index';
+import {
+  down as downAaveTokenSeed,
+  up as upAaveTokenSeed,
+} from '../migrations-postgres/aave_005_token';
 import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
@@ -118,6 +122,13 @@ describe('aave migrations smoke (mocked db)', () => {
     await downAavePayloadCorrelationIndex(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
+
+  it('aave_005_token up/down fire sql.execute calls', async () => {
+    const db = makeMockDb();
+    await upAaveTokenSeed(db);
+    await downAaveTokenSeed(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
 });
 
 const describeWithPg = process.env['DATABASE_URL'] != null ? describe : describe.skip;
@@ -154,7 +165,9 @@ describeWithPg('aave_002_seed migration', () => {
           .where('dao.slug', '=', 'aave')
           .execute();
 
-        expect(sourceRows).toHaveLength(35);
+        // 35 from aave_002_seed + 1 aave_token dao_source from aave_005_token (both committed
+        // by the CI `db:migrate` step that runs before the test suite).
+        expect(sourceRows).toHaveLength(36);
         expect(sourceRows).toContainEqual({
           source_type: 'aave_governance_v3',
           chain_id: '0x1',
@@ -354,6 +367,10 @@ describeWithPg('aave_002_seed payload reconcile rows', () => {
           .execute();
         expect(daoSourceRows).toHaveLength(14);
 
+        // aave_005_token seeds an aave_token dao_source FK-referencing the aave dao. In real
+        // rollback order aave_005 down() runs before aave_002 down(); replicate that here, else
+        // downAaveSeed's `DELETE FROM dao` hits a foreign-key violation from the committed row.
+        await downAaveTokenSeed(tx);
         await downAaveSeed(tx);
 
         const sourceTypeAfterDown = await tx
