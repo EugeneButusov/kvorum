@@ -71,4 +71,47 @@ describe('toConcentrationRowDto', () => {
     expect(dto.top_share.n_1).toBe(0);
     expect(dto.effective_delegate_count).toBe(0);
   });
+
+  it('mixed-event-type bucket — pins current behaviour: zero-power delegate_changed rows are included in weights', () => {
+    // Compound emits both votes_changed (real power) and delegate_changed (power='0').
+    // The per-bucket output is NOT filtered — zero rows stay in weights[] and inflate delegate_count.
+    // This test pins the current behaviour so a future change to exclude zero-power rows is intentional.
+    const row: ConcentrationBucketRow = {
+      bucket: BUCKET,
+      // 2 real votes_changed rows + 3 zero-power delegate_changed rows
+      weights: ['0', '0', '0', '1000', '2000'],
+      delegate_count: 5,
+      total_voting_power: '3000',
+    };
+    const dto = toConcentrationRowDto(row);
+
+    // The real power rows dominate; zeros deflate effective_delegate_count slightly
+    expect(dto.total_voting_power).toBe('3000');
+    expect(dto.delegate_count).toBe(5); // includes the zero-power rows
+    expect(dto.effective_delegate_count).toBeGreaterThan(0);
+    expect(dto.top_share.n_1).toBeCloseTo(2000 / 3000, 4);
+  });
+
+  it('union of v2+v3 buckets — two source-type rows map to separate DTOs correctly', () => {
+    const v2Row: ConcentrationBucketRow = {
+      bucket: new Date('2025-06-01'),
+      weights: ['500', '500', '1000'],
+      delegate_count: 3,
+      total_voting_power: '2000',
+    };
+    const v3Row: ConcentrationBucketRow = {
+      bucket: new Date('2025-07-01'),
+      weights: ['100', '200', '300', '50000'],
+      delegate_count: 4,
+      total_voting_power: '50600',
+    };
+    const [dto2, dto3] = [v2Row, v3Row].map(toConcentrationRowDto);
+
+    // v2: roughly equal weights → low Gini
+    expect(dto2!.gini).toBeLessThan(0.3);
+    // v3: one dominant delegate → high Gini
+    expect(dto3!.gini).toBeGreaterThan(0.7);
+    expect(dto2!.bucket).toBe('2025-06-01T00:00:00Z');
+    expect(dto3!.bucket).toBe('2025-07-01T00:00:00Z');
+  });
 });

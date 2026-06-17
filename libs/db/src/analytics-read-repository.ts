@@ -1,4 +1,5 @@
 import { sql, type Kysely, type RawBuilder } from 'kysely';
+import { chTimestampToDate } from './ch-timestamp';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
 import type {
@@ -83,7 +84,7 @@ export class AnalyticsReadRepository {
       .select((eb) => eb.fn.min('dfa.created_at').as('earliest'))
       .where('dfa.dao_id', '=', daoId)
       .executeTakeFirst();
-    return row?.earliest ?? null;
+    return row?.earliest != null ? chTimestampToDate(row.earliest as unknown as string) : null;
   }
 
   async findGlobalEtlWatermark(): Promise<Date | null> {
@@ -92,7 +93,7 @@ export class AnalyticsReadRepository {
       .selectFrom(sql<VoteEventsRawTable>`vote_events_raw`.as('vea'))
       .select((eb) => eb.fn.max('vea.version').as('watermark'))
       .executeTakeFirst();
-    return row?.watermark ?? null;
+    return row?.watermark != null ? chTimestampToDate(row.watermark as unknown as string) : null;
   }
 
   async passRateByBucket(args: {
@@ -163,14 +164,19 @@ export class AnalyticsReadRepository {
       .select(sql<number>`count(*)`.as('delegate_count'))
       .select(sql<string>`toString(sum(toUInt256(dfa.voting_power)))`.as('total_voting_power'))
       .where('dfa.dao_id', '=', args.daoId)
-      .where('dfa.created_at', '>=', args.from)
-      .where('dfa.created_at', '<=', args.to)
+      .where(sql<boolean>`dfa.created_at >= fromUnixTimestamp64Milli(${args.from.getTime()})`)
+      .where(sql<boolean>`dfa.created_at <= fromUnixTimestamp64Milli(${args.to.getTime()})`)
       .groupBy('bucket')
       .orderBy('bucket', 'asc')
       .execute();
 
-    const mirrorLastEtl = rows.length === 0 ? null : (rows[rows.length - 1]?.bucket ?? null);
-    return { rows, mirrorLastEtl };
+    const convertedRows: ConcentrationBucketRow[] = rows.map((row) => ({
+      ...row,
+      bucket: chTimestampToDate(row.bucket as unknown as string),
+      delegate_count: Number(row.delegate_count),
+    }));
+    const lastBucket = convertedRows[convertedRows.length - 1]?.bucket ?? null;
+    return { rows: convertedRows, mirrorLastEtl: lastBucket };
   }
 
   async delegationFlowEdges(args: {
@@ -194,8 +200,8 @@ export class AnalyticsReadRepository {
         'dfa.created_at',
       ])
       .where('dfa.dao_id', '=', args.daoId)
-      .where('dfa.created_at', '>=', args.from)
-      .where('dfa.created_at', '<=', args.to)
+      .where(sql<boolean>`dfa.created_at >= fromUnixTimestamp64Milli(${args.from.getTime()})`)
+      .where(sql<boolean>`dfa.created_at <= fromUnixTimestamp64Milli(${args.to.getTime()})`)
       .orderBy('dfa.created_at', 'asc');
 
     if (args.minVotingPowerWei !== undefined) {
@@ -204,9 +210,13 @@ export class AnalyticsReadRepository {
       );
     }
 
-    const rows = await qb.execute();
-    const mirrorLastEtl = rows.length === 0 ? null : (rows[rows.length - 1]?.created_at ?? null);
-    return { rows, mirrorLastEtl };
+    const rawRows = await qb.execute();
+    const rows: DelegationFlowEdgeRow[] = rawRows.map((row) => ({
+      ...row,
+      created_at: chTimestampToDate(row.created_at as unknown as string),
+    }));
+    const lastCreatedAt = rows[rows.length - 1]?.created_at ?? null;
+    return { rows, mirrorLastEtl: lastCreatedAt };
   }
 
   async currentVotingPowerByActor(
@@ -270,8 +280,14 @@ export class AnalyticsReadRepository {
             sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${args.focalActorId}`,
           )
           .where('v.superseded', '=', 0);
-        if (args.from !== undefined) inner = inner.where('v.cast_at', '>=', args.from);
-        if (args.to !== undefined) inner = inner.where('v.cast_at', '<=', args.to);
+        if (args.from !== undefined)
+          inner = inner.where(
+            sql<boolean>`v.cast_at >= fromUnixTimestamp64Milli(${args.from.getTime()})`,
+          );
+        if (args.to !== undefined)
+          inner = inner.where(
+            sql<boolean>`v.cast_at <= fromUnixTimestamp64Milli(${args.to.getTime()})`,
+          );
         return inner;
       })
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v2'))
@@ -298,10 +314,33 @@ export class AnalyticsReadRepository {
       .execute();
 
     const mirrorLastEtl = await this.findGlobalEtlWatermark();
-    return { rows, mirrorLastEtl };
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        vote_count: Number(row.vote_count),
+        shared_proposals: Number(row.shared_proposals),
+        matched_choices: Number(row.matched_choices),
+      })),
+      mirrorLastEtl,
+    };
   }
 
-  async crossDaoSummaryForActor(rawAddress: string): Promise<MirrorEnvelope<CrossDaoSummaryRow>> {
+  async crossDaoSummaryForActor(actorId: string): Promise<MirrorEnvelope<CrossDaoSummaryRow>> {
+    // Fetch ALL addresses for this actor (primary + absorbed-and-rewritten from merges).
+    // Using actor_address keyed by actor_id ensures votes cast under any historical address
+    // are counted — not just the current primary_address.
+    const addressRows = await this.pgDb
+      .selectFrom('actor_address')
+      .select('address')
+      .where('actor_id', '=', actorId)
+      .execute();
+    const addresses = addressRows.map((r) => r.address);
+
+    if (addresses.length === 0) {
+      const mirrorLastEtl = await this.findGlobalEtlWatermark();
+      return { rows: [], mirrorLastEtl };
+    }
+
     const chRows = await this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
@@ -312,7 +351,7 @@ export class AnalyticsReadRepository {
       ])
       .select(sql<number>`count(*)`.as('votes_cast'))
       .select((eb) => eb.fn.max('v.cast_at').as('last_active_at'))
-      .where('v.voter_address', '=', rawAddress.toLowerCase())
+      .where('v.voter_address', 'in', addresses)
       .where('v.superseded', '=', 0)
       .groupBy(['v.dao_id', 'voter_actor_id'])
       .execute();
@@ -331,8 +370,11 @@ export class AnalyticsReadRepository {
       dao_id: row.dao_id,
       dao_slug: daoSlugById.get(row.dao_id) ?? '',
       voter_actor_id: row.voter_actor_id,
-      votes_cast: row.votes_cast,
-      last_active_at: row.last_active_at,
+      votes_cast: Number(row.votes_cast),
+      last_active_at:
+        row.last_active_at != null
+          ? chTimestampToDate(row.last_active_at as unknown as string)
+          : null,
     }));
 
     const mirrorLastEtl = await this.findGlobalEtlWatermark();

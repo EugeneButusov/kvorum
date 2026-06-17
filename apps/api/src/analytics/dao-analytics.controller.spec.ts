@@ -92,12 +92,109 @@ describe('DaoAnalyticsController', () => {
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
-      const out = await controller.concentration('compound', {
-        from: new Date('2025-06-01'),
-        to: new Date('2026-01-01'),
-        bucket: 'monthly',
-      } as never);
-      expect(out.data).toHaveLength(1);
+      const out = await controller.concentration(
+        'compound',
+        {
+          from: new Date('2025-06-01'),
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        mockResponse(),
+      );
+      expect(out!.data).toHaveLength(1);
+    });
+
+    it('returns 204 when window has no power-bearing delegation', async () => {
+      const repo = makeRepo({
+        concentrationByBucket: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              bucket: new Date('2026-01-01'),
+              weights: ['0', '0'],
+              total_voting_power: '0',
+              delegate_count: 2,
+            },
+          ],
+          ...baseMeta,
+        }),
+      });
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+      const res = mockResponse();
+
+      const out = await controller.concentration(
+        'compound',
+        {
+          from: new Date('2025-06-01'),
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        res,
+      );
+      expect(out).toBeUndefined();
+      expect(res.status).toHaveBeenCalledWith(204);
+    });
+
+    it('returns 204 for empty window (no rows)', async () => {
+      const repo = makeRepo({
+        concentrationByBucket: vi.fn().mockResolvedValue({ rows: [], ...baseMeta }),
+      });
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+      const res = mockResponse();
+
+      const out = await controller.concentration(
+        'compound',
+        {
+          from: new Date('2025-06-01'),
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        res,
+      );
+      expect(out).toBeUndefined();
+      expect(res.status).toHaveBeenCalledWith(204);
+    });
+
+    it('returns all buckets unchanged when any bucket has power (Compound regression — no per-bucket exclusion)', async () => {
+      // Compound emits both votes_changed (real power) and delegate_changed (power='0').
+      // A window with mixed buckets must return ALL buckets; the zero-power bucket is NOT dropped.
+      const repo = makeRepo({
+        concentrationByBucket: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              bucket: new Date('2025-12-01'),
+              weights: ['0', '0'],
+              total_voting_power: '0',
+              delegate_count: 2,
+            },
+            {
+              bucket: new Date('2026-01-01'),
+              weights: ['1000', '500'],
+              total_voting_power: '1500',
+              delegate_count: 2,
+            },
+          ],
+          ...baseMeta,
+        }),
+      });
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+      const res = mockResponse();
+
+      const out = await controller.concentration(
+        'compound',
+        {
+          from: new Date('2025-12-01'),
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        res,
+      );
+      // Window has power → 200, both buckets returned
+      expect(out).not.toBeUndefined();
+      expect(out!.data).toHaveLength(2);
+      expect(res.status).not.toHaveBeenCalledWith(204);
     });
 
     it('throws not-found when dao is missing', async () => {
@@ -105,9 +202,9 @@ describe('DaoAnalyticsController', () => {
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(undefined) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
-      await expect(controller.concentration('unknown', {} as never)).rejects.toBeInstanceOf(
-        ProblemException,
-      );
+      await expect(
+        controller.concentration('unknown', {} as never, mockResponse()),
+      ).rejects.toBeInstanceOf(ProblemException);
     });
 
     it('throws 400 when bucket count exceeds 1000', async () => {
@@ -116,11 +213,15 @@ describe('DaoAnalyticsController', () => {
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
       await expect(
-        controller.concentration('compound', {
-          from: new Date('2020-01-01'),
-          to: new Date('2026-01-01'),
-          bucket: 'daily',
-        } as never),
+        controller.concentration(
+          'compound',
+          {
+            from: new Date('2020-01-01'),
+            to: new Date('2026-01-01'),
+            bucket: 'daily',
+          } as never,
+          mockResponse(),
+        ),
       ).rejects.toBeInstanceOf(ProblemException);
     });
 
@@ -131,12 +232,19 @@ describe('DaoAnalyticsController', () => {
       });
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+      const res = mockResponse();
 
-      const out = await controller.concentration('compound', {
-        to: new Date('2026-01-01'),
-        bucket: 'monthly',
-      } as never);
-      expect(out.data).toHaveLength(0);
+      const out = await controller.concentration(
+        'compound',
+        {
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        res,
+      );
+      // No rows → 204
+      expect(out).toBeUndefined();
+      expect(res.status).toHaveBeenCalledWith(204);
       expect(
         (repo as ReturnType<typeof makeRepo>).findEarliestDelegationEventAt,
       ).toHaveBeenCalled();
@@ -149,12 +257,19 @@ describe('DaoAnalyticsController', () => {
       });
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+      const res = mockResponse();
 
-      const out = await controller.concentration('compound', {
-        to: new Date('2026-01-01'),
-        bucket: 'monthly',
-      } as never);
-      expect(out.data).toHaveLength(0);
+      const out = await controller.concentration(
+        'compound',
+        {
+          to: new Date('2026-01-01'),
+          bucket: 'monthly',
+        } as never,
+        res,
+      );
+      // No rows → 204
+      expect(out).toBeUndefined();
+      expect(res.status).toHaveBeenCalledWith(204);
     });
 
     it('throws 400 for invalid concentration query', async () => {
@@ -163,7 +278,7 @@ describe('DaoAnalyticsController', () => {
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
       await expect(
-        controller.concentration('compound', { bucket: 'not-a-grain' } as never),
+        controller.concentration('compound', { bucket: 'not-a-grain' } as never, mockResponse()),
       ).rejects.toBeInstanceOf(ProblemException);
     });
   });
