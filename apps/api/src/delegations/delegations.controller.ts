@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, Res } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -11,6 +11,12 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
+import {
+  SOURCE_API_CONTRIBUTIONS,
+  type DelegationModel,
+  type SourceApiContribution,
+  delegationModelFor,
+} from '@libs/domain';
 import {
   ActorDelegationResponseDto,
   CurrentDelegatorsResponseDto,
@@ -41,7 +47,19 @@ export class DelegationsController {
     private readonly delegationRepo: DelegationReadRepository,
     private readonly daoRepo: DaoReadRepository,
     private readonly routing: ActorRoutingService,
+    @Inject(SOURCE_API_CONTRIBUTIONS)
+    private readonly contributions: readonly SourceApiContribution[],
   ) {}
+
+  // A DAO's delegation model is source-wide. Resolve it from any of the DAO's source
+  // types that a contribution claims; defaults to 'power-bearing' for unknown sources.
+  private async resolveDelegationModel(daoId: string): Promise<DelegationModel> {
+    const sources = await this.daoRepo.listSourcesForDao(daoId);
+    const known = sources.find((s) =>
+      this.contributions.some((c) => c.sourceTypes.includes(s.source_type)),
+    );
+    return delegationModelFor(this.contributions, known?.source_type ?? '');
+  }
 
   @Get('delegations')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
@@ -100,8 +118,9 @@ export class DelegationsController {
       q: canonical,
     }));
 
+    const model = await this.resolveDelegationModel(dao.id);
     return {
-      data: page.data.map(toDelegationListItemDto),
+      data: page.data.map((row) => toDelegationListItemDto(row, model)),
       pagination: page.pagination,
     };
   }
@@ -164,8 +183,9 @@ export class DelegationsController {
       q: 'current_delegators_v1',
     }));
 
+    const model = await this.resolveDelegationModel(dao.id);
     return {
-      data: page.data.map(toDelegationListItemDto),
+      data: page.data.map((row) => toDelegationListItemDto(row, model)),
       pagination: page.pagination,
       _meta: { as_of_block_number: asOf },
     };
@@ -204,7 +224,9 @@ export class DelegationsController {
     }
 
     const row = await this.delegationRepo.findCurrentDelegationForActor(dao.id, resolved.actor.id);
-    return { data: row === undefined ? null : toDelegationListItemDto(row) };
+    if (row === undefined) return { data: null };
+    const model = await this.resolveDelegationModel(dao.id);
+    return { data: toDelegationListItemDto(row, model) };
   }
 }
 

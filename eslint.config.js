@@ -56,35 +56,11 @@ export default tseslint.config(
     },
   },
   {
-    // apps/api must stay source-blind: reach sources only via @nest/source-api.
+    // apps/api must stay source-blind: reach source plugins (incl. API contributions)
+    // via @nest/sources, and dispatch helpers/types via @libs/domain — never @sources/*.
     files: ['apps/api/src/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: ['@sources/*'] }],
-    },
-  },
-  {
-    // @nest/source-api may only import the light /api subpaths, not the heavy barrels.
-    files: ['nest/source-api/src/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: '@sources/aave',
-              message: 'Import from @sources/aave/api instead of the barrel.',
-            },
-            {
-              name: '@sources/compound',
-              message: 'Import from @sources/compound/api instead of the barrel.',
-            },
-            {
-              name: '@sources/core',
-              message: 'Use @libs/domain for shared types instead of the barrel.',
-            },
-          ],
-        },
-      ],
     },
   },
 );

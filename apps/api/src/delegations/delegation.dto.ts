@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { DelegationModel } from '@libs/domain';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class DelegationActorLinksDto {
@@ -40,6 +41,11 @@ export class DelegationListItemDto {
 
   @ApiProperty()
   declare event_type: 'delegate_changed' | 'votes_changed';
+
+  // Source-wide delegation semantics (ADR-0069). 'relationship-only' sources (e.g. Aave)
+  // carry voting_power='0' by design; 'power-bearing' sources (e.g. Compound) report power.
+  @ApiProperty({ enum: ['relationship-only', 'power-bearing'] })
+  declare model: DelegationModel;
 
   @ApiProperty()
   declare tx_hash: string;

@@ -24,7 +24,6 @@
     "@nest/delegations": "workspace:*",
     "@nest/observability": "workspace:*",
     "@nest/proposals": "workspace:*",
-    "@nest/source-api": "workspace:*",
     "@nest/votes": "workspace:*"
   }
 }

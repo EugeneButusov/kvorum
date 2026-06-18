@@ -1,4 +1,5 @@
 import type { DelegationReadRow } from '@libs/db';
+import type { DelegationModel } from '@libs/domain';
 import { DelegationListItemDto } from './delegation.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -15,7 +16,10 @@ function toEmbeddedActor(address: string, displayName: string | null) {
   };
 }
 
-export function toDelegationListItemDto(row: DelegationReadRow): DelegationListItemDto {
+export function toDelegationListItemDto(
+  row: DelegationReadRow,
+  model: DelegationModel,
+): DelegationListItemDto {
   return Object.assign(new DelegationListItemDto(), {
     delegation_id: row.id,
     delegator: toEmbeddedActor(row.delegator_address, row.delegator_display_name),
@@ -26,6 +30,7 @@ export function toDelegationListItemDto(row: DelegationReadRow): DelegationListI
     voting_power: row.voting_power,
     block_number: row.block_number,
     event_type: row.event_type,
+    model,
     tx_hash: row.tx_hash,
     created_at: isoSeconds(row.created_at),
   });

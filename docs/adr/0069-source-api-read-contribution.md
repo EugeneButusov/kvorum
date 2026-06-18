@@ -78,3 +78,41 @@ apps/api ──▶ @nest/source-api ──▶ @sources/aave/api  ──▶ kysel
 - New sources (e.g. Lido in M4) add an `api/` entry + register with `SourceApiModule`; no API code changes required.
 - The interface is **additive-only**: `getProposalExtension` returns `null` for sources with no extension; the proposal endpoint omits `voting`/`payloads` when null.
 - The wide default in `choiceBounds` means unknown source types are never rejected by the semantic guard — they fall back to the broadest valid range.
+
+---
+
+## Amendment — 2026-06-18 (folded into the unified `SourcePlugin`; registry removed; scope broadened)
+
+This amendment supersedes the **Registry**, **Bundle-hygiene control**, and **Dependency direction** sections above, lifts the **Scope guard**, and revises the contract.
+
+**1. One plugin per source.** API behavior is no longer a parallel mechanism. `SourceApiContribution` is now a required field on the ingestion-side `SourcePlugin` (`libs/sources/core`); each `nest/sources/<source>` module attaches it (`compoundApiContribution` / `makeAaveApiContribution(pgDb)`) to the same object that carries `ingesters`/`derivers`. The bespoke `@nest/source-api` package — `SourceApiRegistry` + `SourceApiModule` — is **deleted**.
+
+**2. No registry class.** Dispatch is now pure, source-blind helpers in `@libs/domain` (`resolveContribution`, `choiceBoundsFor`, `delegationModelFor`, `getProposalExtensionFor`) over the injected `SOURCE_API_CONTRIBUTIONS` array. Defaults preserve the never-500-on-unknown-source guarantee. `apps/api` injects the array via a generic flatten provider over `SOURCE_PLUGINS` (`plugins.map(p => p.apiContribution)`), reaching `SOURCE_PLUGINS` through a `@nest/sources` re-export so it never imports `@sources/*`.
+
+**3. Scope guard lifted.** The contract now spans proposals, votes, and delegations:
+
+```ts
+export type DelegationModel = 'relationship-only' | 'power-bearing';
+export interface SourceApiContribution {
+  readonly sourceTypes: readonly string[];
+  choiceBounds(sourceType: string): ChoiceBounds;
+  delegationModel(sourceType: string): DelegationModel; // NEW
+  getProposalExtension(proposalId, sourceType): Promise<ProposalExtension | null>;
+  getVoteExtension?(voteId, sourceType): Promise<VoteExtension | null>; // reserved
+  getDelegationExtension?(delegationId, sourceType): Promise<DelegationExtension | null>; // reserved
+}
+```
+
+Live consumers shipped with this change:
+
+- **Delegations** — the delegation read mapper annotates each row with `model: DelegationModel` (Aave `relationship-only`, Compound `power-bearing`), resolved per-DAO from the DAO's source types.
+- **Votes** — `choiceBounds` validates the `primary_choice` **query-input** filter (400 on out-of-range). This is input validation, not read-time re-verification of stored values (per the project's verification-≠-correctness rule).
+
+**4. Bundle hygiene changes.** D1 deliberately accepts the heavy `@sources/*` barrels entering the API bundle (apps/api imports `SourcesModule`). The `bundledSourcePaths` allowlist and the `! grep ethers` bundle gate are **removed**; `apps/api/webpack.config.js` now mirrors the indexer (aliases for `@nest/sources`, `@nest/{aave,compound,chain}`, `@sources/{core,aave,compound}`, `.js`→`.ts` extensionAlias, and `@sources/*` bundled not externalized). ESLint still bans `@sources/*` under `apps/api/src` — the source-blindness invariant is preserved at the import boundary even though the bundle now contains source code.
+
+**New dependency direction:**
+
+```
+apps/api ──▶ @nest/sources ──▶ nest/sources/<source> ──▶ @sources/<source> (barrel, heavy)
+        └──▶ @libs/domain (contract + SOURCE_API_CONTRIBUTIONS token + resolve helpers)
+```

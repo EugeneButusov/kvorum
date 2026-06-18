@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, Res } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -10,12 +10,17 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
+import {
+  SOURCE_API_CONTRIBUTIONS,
+  type SourceApiContribution,
+  choiceBoundsFor,
+} from '@libs/domain';
 import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
 import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
 import { VOTE_QUERY } from './vote.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
-import { problemException } from '../http/problem-exception';
+import { badRequestProblem, problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -35,6 +40,8 @@ export class VotesController {
     private readonly voteRepo: VoteReadRepository,
     private readonly proposalRepo: ProposalReadRepository,
     private readonly routing: ActorRoutingService,
+    @Inject(SOURCE_API_CONTRIBUTIONS)
+    private readonly contributions: readonly SourceApiContribution[],
   ) {}
 
   @Get()
@@ -94,6 +101,26 @@ export class VotesController {
       parsed.filters['primary_choice']?.value == null
         ? undefined
         : (parsed.filters['primary_choice'].value as number[]);
+
+    // Validate the primary_choice filter INPUT against the source's choice bounds
+    // (input validation, not stored-value re-verification).
+    if (primaryChoices !== undefined) {
+      const { min, max } = choiceBoundsFor(this.contributions, sourceType);
+      const outOfRange = primaryChoices.filter((c) => c < min || c > max);
+      if (outOfRange.length > 0) {
+        throw badRequestProblem(
+          'validation',
+          [
+            {
+              field: 'primary_choice',
+              message: `choice index must be in [${min}, ${max}] for source ${sourceType}`,
+            },
+          ],
+          `Invalid primary_choice value(s): ${outOfRange.join(', ')}`,
+        );
+      }
+    }
+
     const rows = await this.voteRepo.listForProposal({
       proposalId: found.proposal.id,
       voterActorId,

@@ -2646,6 +2646,10 @@
           "event_type": {
             "type": "string"
           },
+          "model": {
+            "type": "string",
+            "enum": ["relationship-only", "power-bearing"]
+          },
           "tx_hash": {
             "type": "string"
           },
@@ -2661,6 +2665,7 @@
           "voting_power",
           "block_number",
           "event_type",
+          "model",
           "tx_hash",
           "created_at"
         ]

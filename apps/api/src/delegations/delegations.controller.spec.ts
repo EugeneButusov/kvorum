@@ -10,9 +10,21 @@ function mockResponse(): Response {
   return { status: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 }
 
+const contributions = [
+  {
+    sourceTypes: ['compound_governor_bravo'],
+    choiceBounds: () => ({ min: 0, max: 2 }),
+    delegationModel: () => 'power-bearing' as const,
+    getProposalExtension: () => Promise.resolve(null),
+  },
+];
+
 describe('DelegationsController', () => {
   const daoRepo = {
     findDaoBySlug: vi.fn().mockResolvedValue({ id: 'dao-1', slug: 'compound' }),
+    listSourcesForDao: vi
+      .fn()
+      .mockResolvedValue([{ source_type: 'compound_governor_bravo', source_config: {} }]),
   };
 
   it('returns delegation list', async () => {
@@ -41,11 +53,13 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.list('compound', { limit: 1 } as never);
     expect(out.data).toHaveLength(1);
     expect(out.data[0]?.delegation_id).toBe('d1');
+    expect(out.data[0]?.model).toBe('power-bearing');
   });
 
   it('redirects current delegators route for merged delegate', async () => {
@@ -60,6 +74,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
     const res = mockResponse();
 
@@ -88,6 +103,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.actorDelegation(
@@ -108,6 +124,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     await expect(
@@ -125,6 +142,7 @@ describe('DelegationsController', () => {
       { listForDao: vi.fn() } as never,
       notFoundDaoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
     await expect(controller.list('unknown', {} as never)).rejects.toBeInstanceOf(ProblemException);
   });
@@ -167,6 +185,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const out = await controller.list('compound', { limit: '1', sort: 'block_number' } as never);
@@ -180,6 +199,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const out = await controller.list('compound', {
@@ -232,6 +252,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const canonical = canonicalQuery(parseQuery({}, DELEGATION_QUERY));
@@ -282,6 +303,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     // cursor at row2 (2026-01-02, dir=desc) → only row3 (earlier time) passes isAfterCursor
@@ -330,6 +352,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     // Pass a valid cursor (covers cursor tiebreak != null branch)
@@ -365,6 +388,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.current(
@@ -389,6 +413,7 @@ describe('DelegationsController', () => {
       { findCurrentDelegationForActor: vi.fn() } as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
     const res = mockResponse();
 
@@ -426,6 +451,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.actorDelegation(
