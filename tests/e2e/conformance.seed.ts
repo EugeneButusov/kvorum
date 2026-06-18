@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
-import { resetDaoProposalApiTables } from './dao-proposal-api.e2e.helpers';
-import { hashApiKey } from '../../../libs/auth/src/hash';
-import { pgDb } from '../../../libs/db/src/client';
+import { resetDaoProposalApiTables } from '../../apps/api/tests/dao-proposal-api.e2e.helpers';
+import { hashApiKey } from '../../libs/auth/src/hash';
+import { pgDb } from '../../libs/db/src/client';
 
 const TEST_PEPPER = Buffer.alloc(32, 7);
 const TEST_BEARER_KEY = `${'kv_live_'}${'a'.repeat(32)}`;

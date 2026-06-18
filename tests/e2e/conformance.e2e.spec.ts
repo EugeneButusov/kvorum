@@ -4,7 +4,7 @@ import {
   createRealApp,
   describeHttpIf,
   resetDaoProposalApiTables,
-} from './dao-proposal-api.e2e.helpers';
+} from '../../apps/api/tests/dao-proposal-api.e2e.helpers';
 
 const ADDRESS_RE = /^0x[0-9a-f]{40}$/;
 const TS_SECONDS_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
