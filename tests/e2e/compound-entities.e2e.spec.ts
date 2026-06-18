@@ -13,7 +13,7 @@ import {
   describeHttpIf,
   resetClickhouse,
   resetDaoProposalApiTables,
-} from './dao-proposal-api.e2e.helpers';
+} from '../../apps/api/tests/dao-proposal-api.e2e.helpers';
 
 describeHttpIf('Compound entity endpoints e2e (X3 PR1 parity)', () => {
   let app: INestApplication;
