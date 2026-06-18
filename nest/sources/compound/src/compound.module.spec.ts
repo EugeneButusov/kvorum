@@ -83,8 +83,8 @@ describe('CompoundSourceModule', () => {
       'projection',
     ]);
 
-    expect(plugin.apiContribution.sourceTypes).toContain('compound_governor_bravo');
-    expect(plugin.apiContribution.delegationModel('compound_governor_bravo')).toBe('power-bearing');
+    expect(plugin.readExtension.sourceTypes).toContain('compound_governor_bravo');
+    expect(plugin.readExtension.delegationModel('compound_governor_bravo')).toBe('power-bearing');
   });
 
   it('M5 logs comp-token registration exactly once', async () => {
@@ -111,7 +111,7 @@ describe('CompoundSourceModule', () => {
         name: 'noop',
         ingesters: [],
         derivers: [],
-        apiContribution: {
+        readExtension: {
           sourceTypes: [],
           choiceBounds: () => ({ min: 0, max: 2 }),
           delegationModel: () => 'power-bearing' as const,

@@ -81,19 +81,19 @@ apps/api ──▶ @nest/source-api ──▶ @sources/aave/api  ──▶ kysel
 
 ---
 
-## Amendment — 2026-06-18 (folded into the unified `SourcePlugin`; registry removed; scope broadened)
+## Amendment — 2026-06-18 (folded into the unified `SourcePlugin`; registry removed; scope broadened; renamed)
 
-This amendment supersedes the **Registry**, **Bundle-hygiene control**, and **Dependency direction** sections above, lifts the **Scope guard**, and revises the contract.
+This amendment supersedes the **Registry**, **Bundle-hygiene control**, and **Dependency direction** sections above, lifts the **Scope guard**, and revises the contract. The interface is also **renamed** `SourceApiContribution` → `SourceReadExtension` (it spans the read side, not just an "API contribution"); the `SourcePlugin` field is `readExtension`, the DI token is `SOURCE_READ_EXTENSIONS`, and the per-source impls are `compoundReadExtension` / `makeAaveReadExtension`.
 
-**1. One plugin per source.** API behavior is no longer a parallel mechanism. `SourceApiContribution` is now a required field on the ingestion-side `SourcePlugin` (`libs/sources/core`); each `nest/sources/<source>` module attaches it (`compoundApiContribution` / `makeAaveApiContribution(pgDb)`) to the same object that carries `ingesters`/`derivers`. The bespoke `@nest/source-api` package — `SourceApiRegistry` + `SourceApiModule` — is **deleted**.
+**1. One plugin per source.** API behavior is no longer a parallel mechanism. `SourceReadExtension` is now a required field (`readExtension`) on the ingestion-side `SourcePlugin` (`libs/sources/core`); each `nest/sources/<source>` module attaches it (`compoundReadExtension` / `makeAaveReadExtension(pgDb)`) to the same object that carries `ingesters`/`derivers`. The bespoke `@nest/source-api` package — `SourceApiRegistry` + `SourceApiModule` — is **deleted**.
 
-**2. No registry class.** Dispatch is now pure, source-blind helpers in `@libs/domain` (`resolveContribution`, `choiceBoundsFor`, `delegationModelFor`, `getProposalExtensionFor`) over the injected `SOURCE_API_CONTRIBUTIONS` array. Defaults preserve the never-500-on-unknown-source guarantee. `apps/api` injects the array via a generic flatten provider over `SOURCE_PLUGINS` (`plugins.map(p => p.apiContribution)`), reaching `SOURCE_PLUGINS` through a `@nest/sources` re-export so it never imports `@sources/*`.
+**2. No registry class.** Dispatch is now pure, source-blind helpers in `@libs/domain` (`resolveReadExtension`, `choiceBoundsFor`, `delegationModelFor`, `getProposalExtensionFor`) over the injected `SOURCE_READ_EXTENSIONS` array. Defaults preserve the never-500-on-unknown-source guarantee. `apps/api` injects the array via a generic flatten provider over `SOURCE_PLUGINS` (`plugins.map(p => p.readExtension)`), reaching `SOURCE_PLUGINS` through a `@nest/sources` re-export so it never imports `@sources/*`.
 
 **3. Scope guard lifted.** The contract now spans proposals, votes, and delegations:
 
 ```ts
 export type DelegationModel = 'relationship-only' | 'power-bearing';
-export interface SourceApiContribution {
+export interface SourceReadExtension {
   readonly sourceTypes: readonly string[];
   choiceBounds(sourceType: string): ChoiceBounds;
   delegationModel(sourceType: string): DelegationModel; // NEW
@@ -114,5 +114,5 @@ Live consumers shipped with this change:
 
 ```
 apps/api ──▶ @nest/sources ──▶ nest/sources/<source> ──▶ @sources/<source> (barrel, heavy)
-        └──▶ @libs/domain (contract + SOURCE_API_CONTRIBUTIONS token + resolve helpers)
+        └──▶ @libs/domain (contract + SOURCE_READ_EXTENSIONS token + resolve helpers)
 ```

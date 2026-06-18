@@ -329,7 +329,7 @@ function bundleWith(applier: {
     name: 'test',
     ingesters: [],
     derivers: [applier],
-    apiContribution: {
+    readExtension: {
       sourceTypes: [],
       choiceBounds: () => ({ min: 0, max: 2 }),
       delegationModel: () => 'power-bearing' as const,

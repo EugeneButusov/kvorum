@@ -9,9 +9,9 @@ import {
 } from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
 import {
-  SOURCE_API_CONTRIBUTIONS,
+  SOURCE_READ_EXTENSIONS,
   getProposalExtensionFor,
-  type SourceApiContribution,
+  type SourceReadExtension,
 } from '@libs/domain';
 import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
@@ -37,8 +37,8 @@ export class ProposalController {
   constructor(
     private readonly repo: ProposalReadRepository,
     private readonly daoRepo: DaoReadRepository,
-    @Inject(SOURCE_API_CONTRIBUTIONS)
-    private readonly contributions: readonly SourceApiContribution[],
+    @Inject(SOURCE_READ_EXTENSIONS)
+    private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
   @ApiParam({ name: 'slug', type: String })
@@ -110,7 +110,7 @@ export class ProposalController {
       this.repo.findActions(row.id),
       this.repo.findChoices(row.id),
       this.repo.resolveOriginChainId(row.id, sourceType),
-      getProposalExtensionFor(this.contributions, row.id, sourceType),
+      getProposalExtensionFor(this.extensions, row.id, sourceType),
     ]);
 
     return { data: toProposalDetailDto(row, actions, choices, originChainId, extension) };

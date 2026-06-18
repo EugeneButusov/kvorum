@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DaoReadRepository, ProposalReadRepository } from '@libs/db';
-import type { SourceApiContribution } from '@libs/domain';
+import type { SourceReadExtension } from '@libs/domain';
 import { ProposalController } from './proposal.controller';
 import { ProblemException } from '../http/problem-exception';
 import type { ApiListQueryDto } from '../openapi/query.dto';
 
 // One contribution covering every source type the detail tests exercise, so the
 // getProposalExtensionFor helper resolves it by source type (not the null default).
-function makeContributions(overrides?: Partial<SourceApiContribution>): SourceApiContribution[] {
+function makeExtensions(overrides?: Partial<SourceReadExtension>): SourceReadExtension[] {
   return [
     {
       sourceTypes: ['compound_governor_bravo', 'aave_governance_v3'],
@@ -63,7 +63,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {} as ApiListQueryDto);
@@ -76,7 +76,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       await expect(controller.listByDao('unknown', {} as ApiListQueryDto)).rejects.toBeInstanceOf(
@@ -91,7 +91,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
@@ -122,7 +122,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -143,7 +143,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -164,7 +164,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -185,7 +185,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -206,7 +206,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -227,7 +227,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -248,7 +248,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listByDao('compound', {
@@ -268,13 +268,13 @@ describe('ProposalController', () => {
         resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
       };
       const daoRepo = { findDaoBySlug: vi.fn() };
-      const contributions = makeContributions({
+      const extensions = makeExtensions({
         getProposalExtension: vi.fn().mockResolvedValue(null),
       });
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        contributions,
+        extensions,
       );
 
       const out = await controller.detail('compound', 'compound_governor_bravo', '42');
@@ -330,13 +330,13 @@ describe('ProposalController', () => {
         resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
       };
       const daoRepo = { findDaoBySlug: vi.fn() };
-      const contributions = makeContributions({
+      const extensions = makeExtensions({
         getProposalExtension: vi.fn().mockResolvedValue(extension),
       });
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        contributions,
+        extensions,
       );
 
       const out = await controller.detail('aave', 'aave_governance_v3', '42');
@@ -357,7 +357,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       await expect(controller.detail('compound', 'comp', '999')).rejects.toBeInstanceOf(
@@ -378,7 +378,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const out = await controller.listCrossDao({ limit: 1 } as ApiListQueryDto);
@@ -393,7 +393,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
-        makeContributions(),
+        makeExtensions(),
       );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');

@@ -1,9 +1,9 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
-import type { SourceApiContribution } from '@libs/domain';
+import type { SourceReadExtension } from '@libs/domain';
 import { AaveProposalExtensionReadRepository } from '../persistence/aave-proposal-extension-read-repository';
 
-export function makeAaveApiContribution(db: Kysely<PgDatabase>): SourceApiContribution {
+export function makeAaveReadExtension(db: Kysely<PgDatabase>): SourceReadExtension {
   const repo = new AaveProposalExtensionReadRepository(db);
   return {
     sourceTypes: [

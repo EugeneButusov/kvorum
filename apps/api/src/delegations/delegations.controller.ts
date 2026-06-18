@@ -12,9 +12,9 @@ import {
 import type { Response } from 'express';
 import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
 import {
-  SOURCE_API_CONTRIBUTIONS,
+  SOURCE_READ_EXTENSIONS,
   type DelegationModel,
-  type SourceApiContribution,
+  type SourceReadExtension,
   delegationModelFor,
 } from '@libs/domain';
 import {
@@ -47,8 +47,8 @@ export class DelegationsController {
     private readonly delegationRepo: DelegationReadRepository,
     private readonly daoRepo: DaoReadRepository,
     private readonly routing: ActorRoutingService,
-    @Inject(SOURCE_API_CONTRIBUTIONS)
-    private readonly contributions: readonly SourceApiContribution[],
+    @Inject(SOURCE_READ_EXTENSIONS)
+    private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
   // A DAO's delegation model is source-wide. Resolve it from any of the DAO's source
@@ -56,9 +56,9 @@ export class DelegationsController {
   private async resolveDelegationModel(daoId: string): Promise<DelegationModel> {
     const sources = await this.daoRepo.listSourcesForDao(daoId);
     const known = sources.find((s) =>
-      this.contributions.some((c) => c.sourceTypes.includes(s.source_type)),
+      this.extensions.some((c) => c.sourceTypes.includes(s.source_type)),
     );
-    return delegationModelFor(this.contributions, known?.source_type ?? '');
+    return delegationModelFor(this.extensions, known?.source_type ?? '');
   }
 
   @Get('delegations')

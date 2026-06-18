@@ -10,11 +10,7 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
-import {
-  SOURCE_API_CONTRIBUTIONS,
-  type SourceApiContribution,
-  choiceBoundsFor,
-} from '@libs/domain';
+import { SOURCE_READ_EXTENSIONS, type SourceReadExtension, choiceBoundsFor } from '@libs/domain';
 import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
 import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
 import { VOTE_QUERY } from './vote.query';
@@ -40,8 +36,8 @@ export class VotesController {
     private readonly voteRepo: VoteReadRepository,
     private readonly proposalRepo: ProposalReadRepository,
     private readonly routing: ActorRoutingService,
-    @Inject(SOURCE_API_CONTRIBUTIONS)
-    private readonly contributions: readonly SourceApiContribution[],
+    @Inject(SOURCE_READ_EXTENSIONS)
+    private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
   @Get()
@@ -105,7 +101,7 @@ export class VotesController {
     // Validate the primary_choice filter INPUT against the source's choice bounds
     // (input validation, not stored-value re-verification).
     if (primaryChoices !== undefined) {
-      const { min, max } = choiceBoundsFor(this.contributions, sourceType);
+      const { min, max } = choiceBoundsFor(this.extensions, sourceType);
       const outOfRange = primaryChoices.filter((c) => c < min || c > max);
       if (outOfRange.length > 0) {
         throw badRequestProblem(

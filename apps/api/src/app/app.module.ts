@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SOURCE_API_CONTRIBUTIONS, type SourceApiContribution } from '@libs/domain';
+import { SOURCE_READ_EXTENSIONS, type SourceReadExtension } from '@libs/domain';
 import { ActorsModule } from '@nest/actors';
 import { AnalyticsModule } from '@nest/analytics';
 import { AuthModule } from '@nest/auth';
@@ -59,12 +59,12 @@ import { VotesController } from '../votes/votes.controller';
     AppService,
     OpsServer,
     ActorRoutingService,
-    // Source-blind: flatten each source plugin's apiContribution into the collection
+    // Source-blind: flatten each source plugin's readExtension into the collection
     // that controllers dispatch over via the @libs/domain resolve helpers.
     {
-      provide: SOURCE_API_CONTRIBUTIONS,
-      useFactory: (plugins: readonly SourcePlugin[]): SourceApiContribution[] =>
-        plugins.map((p) => p.apiContribution),
+      provide: SOURCE_READ_EXTENSIONS,
+      useFactory: (plugins: readonly SourcePlugin[]): SourceReadExtension[] =>
+        plugins.map((p) => p.readExtension),
       inject: [SOURCE_PLUGINS],
     },
   ],

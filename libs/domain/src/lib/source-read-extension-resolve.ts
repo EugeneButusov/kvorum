@@ -2,13 +2,13 @@ import type {
   ChoiceBounds,
   DelegationModel,
   ProposalExtension,
-  SourceApiContribution,
-} from './source-api-contribution';
+  SourceReadExtension,
+} from './source-read-extension';
 
-// DI token for the aggregated array of per-source API contributions. Lives in
+// DI token for the aggregated array of per-source API extensions. Lives in
 // @libs/domain (not a @nest/* or @sources/* package) so apps/api may inject it
 // while staying source-blind (eslint bans @sources/* imports under apps/api/src).
-export const SOURCE_API_CONTRIBUTIONS = 'SOURCE_API_CONTRIBUTIONS';
+export const SOURCE_READ_EXTENSIONS = 'SOURCE_READ_EXTENSIONS';
 
 // Defaults preserve the old SourceApiRegistry guarantee: unknown source types never
 // 500 — they resolve to the widest choice bounds, the common delegation model, and a
@@ -16,39 +16,38 @@ export const SOURCE_API_CONTRIBUTIONS = 'SOURCE_API_CONTRIBUTIONS';
 const DEFAULT_CHOICE_BOUNDS: ChoiceBounds = { min: 0, max: 2 };
 const DEFAULT_DELEGATION_MODEL: DelegationModel = 'power-bearing';
 
-export function resolveContribution(
-  contributions: readonly SourceApiContribution[],
+export function resolveReadExtension(
+  extensions: readonly SourceReadExtension[],
   sourceType: string,
-): SourceApiContribution | undefined {
-  return contributions.find((c) => c.sourceTypes.includes(sourceType));
+): SourceReadExtension | undefined {
+  return extensions.find((c) => c.sourceTypes.includes(sourceType));
 }
 
 export function choiceBoundsFor(
-  contributions: readonly SourceApiContribution[],
+  extensions: readonly SourceReadExtension[],
   sourceType: string,
 ): ChoiceBounds {
   return (
-    resolveContribution(contributions, sourceType)?.choiceBounds(sourceType) ??
-    DEFAULT_CHOICE_BOUNDS
+    resolveReadExtension(extensions, sourceType)?.choiceBounds(sourceType) ?? DEFAULT_CHOICE_BOUNDS
   );
 }
 
 export function delegationModelFor(
-  contributions: readonly SourceApiContribution[],
+  extensions: readonly SourceReadExtension[],
   sourceType: string,
 ): DelegationModel {
   return (
-    resolveContribution(contributions, sourceType)?.delegationModel(sourceType) ??
+    resolveReadExtension(extensions, sourceType)?.delegationModel(sourceType) ??
     DEFAULT_DELEGATION_MODEL
   );
 }
 
 export function getProposalExtensionFor(
-  contributions: readonly SourceApiContribution[],
+  extensions: readonly SourceReadExtension[],
   proposalId: string,
   sourceType: string,
 ): Promise<ProposalExtension | null> {
-  const contribution = resolveContribution(contributions, sourceType);
+  const contribution = resolveReadExtension(extensions, sourceType);
   if (contribution === undefined) return Promise.resolve(null);
   return contribution.getProposalExtension(proposalId, sourceType);
 }

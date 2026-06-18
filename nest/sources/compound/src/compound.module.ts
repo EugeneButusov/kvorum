@@ -26,7 +26,7 @@ import {
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
   createCompoundPlugins,
-  compoundApiContribution,
+  compoundReadExtension,
 } from '@sources/compound';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
@@ -221,7 +221,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
               extractAddresses: COMPOUND_ACTOR_SWEEP_EXTRACTOR.extractAddresses,
             },
           ],
-          apiContribution: compoundApiContribution,
+          readExtension: compoundReadExtension,
         };
       },
       inject: [

@@ -35,11 +35,11 @@ export type DelegationModel = 'relationship-only' | 'power-bearing';
 export type VoteExtension = Record<string, never>;
 export type DelegationExtension = Record<string, never>;
 
-// Per-source read contributions spanning proposals, votes, and delegations (ADR-0069,
+// Per-source read extensions spanning proposals, votes, and delegations (ADR-0069,
 // amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
-// and aggregated into the SOURCE_API_CONTRIBUTIONS collection; dispatched via the pure
-// source-blind helpers in ./source-api-resolve.
-export interface SourceApiContribution {
+// and aggregated into the SOURCE_READ_EXTENSIONS collection; dispatched via the pure
+// source-blind helpers in ./source-read-extension-resolve.
+export interface SourceReadExtension {
   readonly sourceTypes: readonly string[];
   choiceBounds(sourceType: string): ChoiceBounds;
   delegationModel(sourceType: string): DelegationModel;
