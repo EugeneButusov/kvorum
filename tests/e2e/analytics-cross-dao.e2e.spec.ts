@@ -15,8 +15,8 @@ import {
   resetDaoProposalApiTables,
   type SeedContext,
   seedDaoProposalApiData,
-} from './dao-proposal-api.e2e.helpers';
-import { chDb } from '../../../libs/db/src/client';
+} from '../../apps/api/tests/dao-proposal-api.e2e.helpers';
+import { chDb } from '../../libs/db/src/client';
 
 // Deterministic IDs / addresses added for the analytics fixture
 const COMP_DELEGATION_ID = '00000000-0000-0000-cccc-000000000001';
