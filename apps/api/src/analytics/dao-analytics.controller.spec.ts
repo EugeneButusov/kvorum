@@ -7,7 +7,7 @@ function mockResponse(): Response {
   return { status: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 }
 
-const baseDao = { id: 'dao-1', slug: 'compound' };
+const baseDao = { id: 'dao-1', slug: 'test-dao' };
 const baseMeta = { mirrorLastEtl: new Date('2026-01-15') };
 
 function makeRepo(overrides: Record<string, unknown> = {}) {
@@ -29,7 +29,7 @@ describe('DaoAnalyticsController', () => {
       const repo = makeRepo({
         passRateByBucket: vi.fn().mockResolvedValue([
           {
-            source_type: 'compound_governor_bravo',
+            source_type: 'test_source_type',
             bucket: new Date('2026-01-01'),
             passed: 3,
             failed: 1,
@@ -45,7 +45,7 @@ describe('DaoAnalyticsController', () => {
         routing as never,
       );
 
-      const out = await controller.passRate('compound', {
+      const out = await controller.passRate('test-dao', {
         bucket: 'monthly',
         from: new Date('2025-01-01'),
         to: new Date('2026-01-01'),
@@ -69,7 +69,7 @@ describe('DaoAnalyticsController', () => {
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
       await expect(
-        controller.passRate('compound', { bucket: 'invalid-grain' } as never),
+        controller.passRate('test-dao', { bucket: 'invalid-grain' } as never),
       ).rejects.toBeInstanceOf(ProblemException);
     });
   });
@@ -93,7 +93,7 @@ describe('DaoAnalyticsController', () => {
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           from: new Date('2025-06-01'),
           to: new Date('2026-01-01'),
@@ -123,7 +123,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           from: new Date('2025-06-01'),
           to: new Date('2026-01-01'),
@@ -144,7 +144,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           from: new Date('2025-06-01'),
           to: new Date('2026-01-01'),
@@ -156,8 +156,8 @@ describe('DaoAnalyticsController', () => {
       expect(res.status).toHaveBeenCalledWith(204);
     });
 
-    it('returns all buckets unchanged when any bucket has power (Compound regression — no per-bucket exclusion)', async () => {
-      // Compound emits both votes_changed (real power) and delegate_changed (power='0').
+    it('returns all buckets unchanged when any bucket has power (no per-bucket exclusion)', async () => {
+      // A source may emit events with mixed power (real power in some buckets, zero in others).
       // A window with mixed buckets must return ALL buckets; the zero-power bucket is NOT dropped.
       const repo = makeRepo({
         concentrationByBucket: vi.fn().mockResolvedValue({
@@ -183,7 +183,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           from: new Date('2025-12-01'),
           to: new Date('2026-01-01'),
@@ -214,7 +214,7 @@ describe('DaoAnalyticsController', () => {
 
       await expect(
         controller.concentration(
-          'compound',
+          'test-dao',
           {
             from: new Date('2020-01-01'),
             to: new Date('2026-01-01'),
@@ -235,7 +235,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           to: new Date('2026-01-01'),
           bucket: 'monthly',
@@ -260,7 +260,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.concentration(
-        'compound',
+        'test-dao',
         {
           to: new Date('2026-01-01'),
           bucket: 'monthly',
@@ -278,7 +278,7 @@ describe('DaoAnalyticsController', () => {
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
       await expect(
-        controller.concentration('compound', { bucket: 'not-a-grain' } as never, mockResponse()),
+        controller.concentration('test-dao', { bucket: 'not-a-grain' } as never, mockResponse()),
       ).rejects.toBeInstanceOf(ProblemException);
     });
   });
@@ -309,7 +309,7 @@ describe('DaoAnalyticsController', () => {
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
-      const out = await controller.delegationFlow('compound', {
+      const out = await controller.delegationFlow('test-dao', {
         from: new Date('2025-10-01'),
         to: new Date('2026-01-01'),
         min_voting_power: '1000',
@@ -340,7 +340,7 @@ describe('DaoAnalyticsController', () => {
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
 
-      const out = await controller.delegationFlow('compound', {
+      const out = await controller.delegationFlow('test-dao', {
         from: new Date('2025-10-01'),
         to: new Date('2026-01-01'),
       } as never);
@@ -369,7 +369,7 @@ describe('DaoAnalyticsController', () => {
       );
 
       await expect(
-        controller.delegationFlow('compound', { min_voting_power: 'not-a-number' } as never),
+        controller.delegationFlow('test-dao', { min_voting_power: 'not-a-number' } as never),
       ).rejects.toBeInstanceOf(ProblemException);
     });
   });
@@ -421,7 +421,7 @@ describe('DaoAnalyticsController', () => {
       );
 
       const out = await controller.delegateAlignment(
-        'compound',
+        'test-dao',
         {
           delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           sort: '-vote_count',
@@ -455,7 +455,7 @@ describe('DaoAnalyticsController', () => {
       );
 
       const out = await controller.delegateAlignment(
-        'compound',
+        'test-dao',
         {
           delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           sort: 'alignment_score',
@@ -492,7 +492,7 @@ describe('DaoAnalyticsController', () => {
 
       await expect(
         controller.delegateAlignment(
-          'compound',
+          'test-dao',
           { delegate: 'not-an-address' } as never,
           mockResponse(),
         ),
@@ -509,7 +509,7 @@ describe('DaoAnalyticsController', () => {
 
       await expect(
         controller.delegateAlignment(
-          'compound',
+          'test-dao',
           {
             delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             from: '2026-02-01',
@@ -536,7 +536,7 @@ describe('DaoAnalyticsController', () => {
       const res = mockResponse();
 
       const out = await controller.delegateAlignment(
-        'compound',
+        'test-dao',
         {
           delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         } as never,
@@ -559,7 +559,7 @@ describe('DaoAnalyticsController', () => {
 
       await expect(
         controller.delegateAlignment(
-          'compound',
+          'test-dao',
           {
             delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           } as never,
@@ -592,7 +592,7 @@ describe('DaoAnalyticsController', () => {
 
       await expect(
         controller.delegateAlignment(
-          'compound',
+          'test-dao',
           {
             delegate: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             cursor: mismatchCursor,
