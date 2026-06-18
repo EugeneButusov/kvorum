@@ -82,6 +82,9 @@ describe('CompoundSourceModule', () => {
       'projection',
       'projection',
     ]);
+
+    expect(plugin.readExtension.sourceTypes).toContain('compound_governor_bravo');
+    expect(plugin.readExtension.delegationModel('compound_governor_bravo')).toBe('power-bearing');
   });
 
   it('M5 logs comp-token registration exactly once', async () => {
@@ -104,7 +107,17 @@ describe('CompoundSourceModule', () => {
       imports: [CompoundSourceModule],
     })
       .overrideProvider(COMPOUND_SOURCE_PLUGIN)
-      .useValue({ name: 'noop', ingesters: [], derivers: [] })
+      .useValue({
+        name: 'noop',
+        ingesters: [],
+        derivers: [],
+        readExtension: {
+          sourceTypes: [],
+          choiceBounds: () => ({ min: 0, max: 2 }),
+          delegationModel: () => 'power-bearing' as const,
+          getProposalExtension: () => Promise.resolve(null),
+        },
+      })
       .compile();
 
     const count = spy.mock.calls.filter(

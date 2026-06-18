@@ -41,6 +41,13 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
               },
             ],
             derivers: [],
+            // Not exercised on the ingestion path; minimal stub to satisfy SourcePlugin.
+            readExtension: {
+              sourceTypes: ['evm_test_emitter'],
+              choiceBounds: () => ({ min: 0, max: 2 }),
+              delegationModel: () => 'power-bearing',
+              getProposalExtension: () => Promise.resolve(null),
+            },
           },
         ];
       },

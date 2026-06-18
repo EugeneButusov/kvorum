@@ -16,6 +16,10 @@ module.exports = {
   },
   resolve: {
     extensions: ['.ts', '.js'],
+    // Source libs (e.g. @libs/chain) use .js ESM-style relative imports; map them to .ts.
+    extensionAlias: {
+      '.js': ['.ts', '.js'],
+    },
     alias: {
       '@libs/domain': path.join(root, 'libs/domain/src/index.ts'),
       '@libs/db': path.join(root, 'libs/db/src/index.ts'),
@@ -34,9 +38,14 @@ module.exports = {
       '@nest/observability': path.join(root, 'nest/observability/src/index.ts'),
       '@nest/proposals': path.join(root, 'nest/proposals/src/index.ts'),
       '@nest/votes': path.join(root, 'nest/votes/src/index.ts'),
-      '@nest/source-api': path.join(root, 'nest/source-api/src/index.ts'),
-      '@sources/aave/api': path.join(root, 'libs/sources/aave/src/api/index.ts'),
-      '@sources/compound/api': path.join(root, 'libs/sources/compound/src/api/index.ts'),
+      // Source plugins (incl. API contributions) reach apps/api via @nest/sources (D1).
+      '@nest/chain': path.join(root, 'nest/chain/src/index.ts'),
+      '@nest/aave': path.join(root, 'nest/sources/aave/src/index.ts'),
+      '@nest/compound': path.join(root, 'nest/sources/compound/src/index.ts'),
+      '@nest/sources': path.join(root, 'nest/sources/index.ts'),
+      '@sources/core': path.join(root, 'libs/sources/core/src/index.ts'),
+      '@sources/aave': path.join(root, 'libs/sources/aave/src/index.ts'),
+      '@sources/compound': path.join(root, 'libs/sources/compound/src/index.ts'),
     },
   },
   module: {
@@ -51,16 +60,16 @@ module.exports = {
   },
   externals: [
     ({ request }, callback) => {
-      // Allow the light /api subpath entries — they must be bundled (not externalized)
-      // to avoid pulling in the heavy @sources/* barrels at runtime.
-      const bundledSourcePaths = ['@sources/aave/api', '@sources/compound/api'];
+      // Bundle workspace aliases (@libs/*, @sources/*, @nest/*); externalize real
+      // node_modules. @sources/* is bundled because SourcesModule pulls the source
+      // barrels in (D1) — they resolve only via the aliases above, not node_modules.
       if (
         request &&
         !request.startsWith('.') &&
         !path.isAbsolute(request) &&
         !request.startsWith('@libs/') &&
-        !request.startsWith('@nest/') &&
-        !bundledSourcePaths.includes(request)
+        !request.startsWith('@sources/') &&
+        !request.startsWith('@nest/')
       ) {
         return callback(null, `commonjs ${request}`);
       }

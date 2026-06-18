@@ -98,13 +98,6 @@
     "zod": "^4.0.0"
   },
   "pnpm": {
-    "overrides": {
-      "next>postcss": "8.5.10",
-      "ws": "8.21.0",
-      "express>qs": "6.15.2",
-      "body-parser>qs": "6.15.2",
-      "superagent>qs": "6.15.2"
-    },
     "onlyBuiltDependencies": [
       "esbuild"
     ]

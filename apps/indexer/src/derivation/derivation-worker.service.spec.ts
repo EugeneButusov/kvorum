@@ -325,5 +325,15 @@ function bundleWith(applier: {
   eventTypes: string[];
   applyBatch: (rows: readonly ArchiveDerivationRow[]) => Promise<void>;
 }) {
-  return { name: 'test', ingesters: [], derivers: [applier] };
+  return {
+    name: 'test',
+    ingesters: [],
+    derivers: [applier],
+    readExtension: {
+      sourceTypes: [],
+      choiceBounds: () => ({ min: 0, max: 2 }),
+      delegationModel: () => 'power-bearing' as const,
+      getProposalExtension: () => Promise.resolve(null),
+    },
+  };
 }

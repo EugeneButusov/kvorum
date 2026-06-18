@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SOURCE_READ_EXTENSIONS, type SourceReadExtension } from '@libs/domain';
 import { ActorsModule } from '@nest/actors';
 import { AnalyticsModule } from '@nest/analytics';
 import { AuthModule } from '@nest/auth';
@@ -6,7 +7,7 @@ import { DaoModule } from '@nest/daos';
 import { DelegationsModule } from '@nest/delegations';
 import { OpsServer } from '@nest/observability';
 import { ProposalModule } from '@nest/proposals';
-import { SourceApiModule } from '@nest/source-api';
+import { SOURCE_PLUGINS, SourcesModule, type SourcePlugin } from '@nest/sources';
 import { VotesModule } from '@nest/votes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -38,7 +39,7 @@ import { VotesController } from '../votes/votes.controller';
     ObservabilityModule,
     ProposalModule,
     RateLimitModule,
-    SourceApiModule,
+    SourcesModule,
     VotesModule,
   ],
   controllers: [
@@ -54,6 +55,18 @@ import { VotesController } from '../votes/votes.controller';
     ActorAnalyticsController,
     DaoAnalyticsController,
   ],
-  providers: [AppService, OpsServer, ActorRoutingService],
+  providers: [
+    AppService,
+    OpsServer,
+    ActorRoutingService,
+    // Source-blind: flatten each source plugin's readExtension into the collection
+    // that controllers dispatch over via the @libs/domain resolve helpers.
+    {
+      provide: SOURCE_READ_EXTENSIONS,
+      useFactory: (plugins: readonly SourcePlugin[]): SourceReadExtension[] =>
+        plugins.map((p) => p.readExtension),
+      inject: [SOURCE_PLUGINS],
+    },
+  ],
 })
 export class AppModule {}

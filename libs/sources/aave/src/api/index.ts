@@ -1,1 +1,1 @@
-export { makeAaveApiContribution } from './aave-api-contribution';
+export { makeAaveReadExtension } from './aave-read-extension';

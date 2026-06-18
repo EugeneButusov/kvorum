@@ -24,3 +24,4 @@ export * from './governance-v3';
 export * from './governor-v2';
 export * from './payloads-controller';
 export * from './voting-machine';
+export { makeAaveReadExtension } from './api';

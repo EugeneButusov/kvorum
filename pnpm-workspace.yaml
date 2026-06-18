@@ -12,9 +12,19 @@ packages:
   - 'nest/logging'
   - 'nest/observability'
   - 'nest/proposals'
-  - 'nest/source-api'
   - 'nest/sources/*'
   - 'nest/votes'
+overrides:
+  # pnpm 11 reads overrides from here, not package.json#pnpm.overrides.
+  # ws: ethers pins 8.17.1 (vulnerable, GHSA-96hv-2xvq-fx4p); pin to the patched line.
+  'next>postcss': '8.5.10'
+  'ws': '8.21.0'
+  # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j);
+  # 2.2.0 is API-compatible for our usage (read API uses no file uploads).
+  'multer': '^2.2.0'
+  'express>qs': '6.15.2'
+  'body-parser>qs': '6.15.2'
+  'superagent>qs': '6.15.2'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true

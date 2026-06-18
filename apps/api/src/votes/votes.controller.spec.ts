@@ -7,6 +7,16 @@ function mockResponse(): Response {
   return { status: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 }
 
+// Compound choice bounds (0..2) so primary_choice input validation passes for 1.
+const contributions = [
+  {
+    sourceTypes: ['compound_governor_bravo'],
+    choiceBounds: () => ({ min: 0, max: 2 }),
+    delegationModel: () => 'power-bearing' as const,
+    getProposalExtension: () => Promise.resolve(null),
+  },
+];
+
 function makeVoteRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'v1',
@@ -45,6 +55,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -72,6 +83,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
     const res = mockResponse();
 
@@ -94,6 +106,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     await expect(
@@ -113,6 +126,7 @@ describe('VotesController', () => {
       { listForProposal: vi.fn() } as never,
       notFoundProposalRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     await expect(
@@ -132,6 +146,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
     const res = mockResponse();
 
@@ -156,6 +171,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -192,6 +208,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -223,6 +240,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.detail(
@@ -247,6 +265,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -272,6 +291,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     await expect(
@@ -292,6 +312,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -310,6 +331,7 @@ describe('VotesController', () => {
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const out = await controller.list(
@@ -324,12 +346,35 @@ describe('VotesController', () => {
     expect(call.primaryChoices).toBeDefined();
   });
 
+  it('rejects primary_choice input outside the source choice bounds (400)', async () => {
+    const voteRepo = { listForProposal: vi.fn() };
+    const controller = new VotesController(
+      voteRepo as never,
+      proposalRepo as never,
+      { resolveAddress: vi.fn() } as never,
+      contributions as never,
+    );
+
+    // compound_governor_bravo bounds are 0..2; choice 5 is out of range → 400.
+    await expect(
+      controller.list(
+        'compound',
+        'compound_governor_bravo',
+        '1',
+        { primary_choice: '5' } as never,
+        mockResponse(),
+      ),
+    ).rejects.toBeInstanceOf(ProblemException);
+    expect(voteRepo.listForProposal).not.toHaveBeenCalled();
+  });
+
   it('passes cursor through assertCursorMatchesQuery in votes list', async () => {
     const voteRepo = { listForProposal: vi.fn().mockResolvedValue([]) };
     const controller = new VotesController(
       voteRepo as never,
       proposalRepo as never,
       { resolveAddress: vi.fn() } as never,
+      contributions as never,
     );
 
     const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
@@ -362,6 +407,7 @@ describe('VotesController', () => {
       { findOneByVoter: vi.fn() } as never,
       notFoundProposalRepo as never,
       routing as never,
+      contributions as never,
     );
 
     await expect(

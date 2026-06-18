@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiNotFoundResponse,
@@ -8,7 +8,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
-import { SourceApiRegistry } from '@nest/source-api';
+import {
+  SOURCE_READ_EXTENSIONS,
+  getProposalExtensionFor,
+  type SourceReadExtension,
+} from '@libs/domain';
 import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
@@ -33,7 +37,8 @@ export class ProposalController {
   constructor(
     private readonly repo: ProposalReadRepository,
     private readonly daoRepo: DaoReadRepository,
-    private readonly sourceApiRegistry: SourceApiRegistry,
+    @Inject(SOURCE_READ_EXTENSIONS)
+    private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
   @ApiParam({ name: 'slug', type: String })
@@ -105,7 +110,7 @@ export class ProposalController {
       this.repo.findActions(row.id),
       this.repo.findChoices(row.id),
       this.repo.resolveOriginChainId(row.id, sourceType),
-      this.sourceApiRegistry.getProposalExtension(row.id, sourceType),
+      getProposalExtensionFor(this.extensions, row.id, sourceType),
     ]);
 
     return { data: toProposalDetailDto(row, actions, choices, originChainId, extension) };

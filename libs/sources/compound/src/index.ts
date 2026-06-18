@@ -1,4 +1,5 @@
 export { COMPOUND_PROPOSAL_CHOICES } from './proposal-choices';
+export { compoundReadExtension } from './api';
 export { loadAbiLibrary } from './calldata/abi-library';
 export type { LoadedAbiLibrary, AbiEntry } from './calldata/abi-library';
 export { compoundCalldataProtocol } from './calldata/protocol';
