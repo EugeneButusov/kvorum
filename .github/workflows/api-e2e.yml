@@ -42,6 +42,16 @@ jobs:
           --health-timeout=3s
           --health-retries=10
 
+      clickhouse:
+        image: clickhouse/clickhouse-server:24
+        ports:
+          - 8123:8123
+        options: >-
+          --health-cmd="wget -q -O- http://localhost:8123/ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -71,6 +81,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
 
+      - name: Run ClickHouse migrations
+        run: pnpm -w db:migrate:ch
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+
       - name: E2e tests
         run: pnpm -w test:e2e
         env:
@@ -78,3 +93,4 @@ jobs:
           CURSOR_SECRET: ci-dev-secret
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
           REDIS_URL: redis://localhost:6379
+          CLICKHOUSE_URL: http://localhost:8123

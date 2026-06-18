@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { sql } from 'kysely';
 import { hashApiKey } from '../../../libs/auth/src/hash';
-import { pgDb } from '../../../libs/db/src/client';
+import { chDb, pgDb } from '../../../libs/db/src/client';
 import { AppModule } from '../src/app/app.module';
 import { configureOpenApi } from '../src/openapi/openapi';
 import { RateLimiterService } from '../src/rate-limit/rate-limiter.service';
@@ -58,6 +58,13 @@ export async function resetDaoProposalApiTables(): Promise<void> {
       users
     RESTART IDENTITY CASCADE
   `.execute(pgDb);
+}
+
+export async function resetClickhouse(): Promise<void> {
+  await sql`TRUNCATE TABLE vote_events_raw`.execute(chDb);
+  await sql`TRUNCATE TABLE vote_events_agg`.execute(chDb);
+  await sql`TRUNCATE TABLE delegation_flow_raw`.execute(chDb);
+  await sql`TRUNCATE TABLE delegation_flow_agg`.execute(chDb);
 }
 
 export async function seedDaoProposalApiData(): Promise<SeedContext> {
