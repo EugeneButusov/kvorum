@@ -53,9 +53,7 @@ export class ActorAnalyticsController {
       });
     }
 
-    const { rows, mirrorLastEtl } = await this.repo.crossDaoSummaryForActor(
-      resolved.actor.primary_address,
-    );
+    const { rows, mirrorLastEtl } = await this.repo.crossDaoSummaryForActor(resolved.actor.id);
     const alignment = await this.repo.alignmentWithMajorityForActor(
       resolved.actor.id,
       rows.map((row) => row.dao_id),

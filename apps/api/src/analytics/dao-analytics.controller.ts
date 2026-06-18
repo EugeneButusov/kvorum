@@ -76,13 +76,18 @@ export class DaoAnalyticsController {
   @Get('concentration')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: ConcentrationResponseDto })
+  @ApiResponse({
+    status: 204,
+    description: 'No power-bearing delegation events in the requested window',
+  })
   @ApiBadRequestResponse({ type: ProblemDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
   async concentration(
     @Param('slug') slug: string,
     @Query() raw: ConcentrationQueryDto,
-  ): Promise<ConcentrationResponseDto> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ConcentrationResponseDto | undefined> {
     const dao = await this.daoRepo.findDaoBySlug(slug);
     if (dao === undefined) {
       throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
@@ -101,6 +106,16 @@ export class DaoAnalyticsController {
     }
 
     const result = await this.repo.concentrationByBucket({ daoId: dao.id, from, to, bucket });
+
+    // ADR-061 rule 8: return 204 when the entire window has no power-bearing delegation.
+    // Window-level gate — individual zero-power buckets inside a power-bearing window are
+    // returned unchanged (Compound carries delegate_changed rows with voting_power='0').
+    const hasPower = result.rows.some((r) => BigInt(r.total_voting_power) > 0n);
+    if (!hasPower) {
+      res.status(204);
+      return undefined;
+    }
+
     return {
       data: result.rows.map(toConcentrationRowDto),
       _meta: toAnalyticsMeta(result.mirrorLastEtl),

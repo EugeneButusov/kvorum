@@ -1718,6 +1718,9 @@
               }
             }
           },
+          "204": {
+            "description": "No power-bearing delegation events in the requested window"
+          },
           "400": {
             "description": "",
             "content": {
