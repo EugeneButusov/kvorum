@@ -1,5 +1,164 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-proposal-detail 1`] = `
+{
+  "data": {
+    "_meta": {
+      "confirmed": true,
+      "last_updated_at": "2026-01-15T12:00:00Z",
+      "links": {
+        "self": "/v1/daos/aave/proposals/aave_governance_v3/1",
+        "votes": "/v1/daos/aave/proposals/aave_governance_v3/1/votes",
+      },
+    },
+    "actions": [],
+    "binding": true,
+    "choices": [
+      {
+        "choice_index": 0,
+        "value": "Against",
+      },
+      {
+        "choice_index": 1,
+        "value": "For",
+      },
+      {
+        "choice_index": 2,
+        "value": "Abstain",
+      },
+    ],
+    "dao_slug": "aave",
+    "description": "A v3 governance proposal",
+    "origin_chain_id": "0x1",
+    "payloads": [
+      {
+        "payloads": [
+          {
+            "executed_at_destination": "2026-01-16T00:00:00Z",
+            "payload_id": "42",
+            "payload_index": 0,
+            "payloads_controller_address": "0xffffffffffffffffffffffffffffffffffffffff",
+            "status": "executed",
+            "unindexed_target_chain": false,
+          },
+        ],
+        "target_chain_id": "0x1",
+      },
+      {
+        "payloads": [
+          {
+            "executed_at_destination": null,
+            "payload_id": "7",
+            "payload_index": 1,
+            "payloads_controller_address": "0xfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfd",
+            "status": "queued",
+            "unindexed_target_chain": false,
+          },
+        ],
+        "target_chain_id": "0x89",
+      },
+    ],
+    "proposer": {
+      "address": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+      "display_name": null,
+    },
+    "source_id": "1",
+    "source_type": "aave_governance_v3",
+    "state": "executed",
+    "title": "Aave v3 Test Proposal",
+    "voting": {
+      "creation_block": "19900000",
+      "voting_chain_id": "0x89",
+      "voting_machine_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "voting_strategy_address": null,
+    },
+    "voting_ends_at": "2026-01-14T00:00:00Z",
+    "voting_starts_at": "2026-01-10T00:00:00Z",
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-proposal-pass-rate 1`] = `
+{
+  "_meta": {
+    "confirmed": true,
+    "derived_through": null,
+  },
+  "data": [
+    {
+      "bucket": "2025-11-01T00:00:00Z",
+      "failed": 0,
+      "pass_rate": 1,
+      "passed": 1,
+      "source_type": "aave_governor_v2",
+    },
+    {
+      "bucket": "2026-01-01T00:00:00Z",
+      "failed": 0,
+      "pass_rate": 1,
+      "passed": 1,
+      "source_type": "aave_governance_v3",
+    },
+  ],
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-proposals-list 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-01-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/aave/proposals/aave_governance_v3/1",
+          "votes": "/v1/daos/aave/proposals/aave_governance_v3/1/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "aave",
+      "proposer": {
+        "address": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "display_name": null,
+      },
+      "source_id": "1",
+      "source_type": "aave_governance_v3",
+      "state": "executed",
+      "title": "Aave v3 Test Proposal",
+      "voting_ends_at": "2026-01-14T00:00:00Z",
+      "voting_starts_at": "2026-01-10T00:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2025-12-06T00:00:00Z",
+        "links": {
+          "self": "/v1/daos/aave/proposals/aave_governor_v2/100",
+          "votes": "/v1/daos/aave/proposals/aave_governor_v2/100/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "aave",
+      "proposer": {
+        "address": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "display_name": null,
+      },
+      "source_id": "100",
+      "source_type": "aave_governor_v2",
+      "state": "executed",
+      "title": "Aave v2 Test Proposal",
+      "voting_ends_at": "2025-12-05T00:00:00Z",
+      "voting_starts_at": "2025-12-01T00:00:00Z",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > actor-detail 1`] = `
 {
   "data": {
@@ -14,6 +173,24 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "display_name": null,
     "primary_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > compound-proposal-pass-rate 1`] = `
+{
+  "_meta": {
+    "confirmed": true,
+    "derived_through": null,
+  },
+  "data": [
+    {
+      "bucket": "2026-05-01T00:00:00Z",
+      "failed": 0,
+      "pass_rate": 1,
+      "passed": 1,
+      "source_type": "compound_governor_bravo",
+    },
+  ],
 }
 `;
 
@@ -85,6 +262,128 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "title": "Executed proposal",
       "voting_ends_at": "2026-05-15T15:00:00Z",
       "voting_starts_at": "2026-05-15T09:00:00Z",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > cross-dao-proposals-multi 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T18:30:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/44",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/44/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "display_name": "Second Proposer",
+      },
+      "source_id": "44",
+      "source_type": "compound_governor_bravo",
+      "state": "active",
+      "title": "Paged proposal",
+      "voting_ends_at": "2026-05-16T18:00:00Z",
+      "voting_starts_at": "2026-05-15T18:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T17:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/43",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/43/votes",
+        },
+      },
+      "binding": false,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "43",
+      "source_type": "compound_governor_bravo",
+      "state": "pending",
+      "title": null,
+      "voting_ends_at": null,
+      "voting_starts_at": null,
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-05-15T16:00:00Z",
+        "links": {
+          "self": "/v1/daos/compound/proposals/compound_governor_bravo/42",
+          "votes": "/v1/daos/compound/proposals/compound_governor_bravo/42/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "compound",
+      "proposer": {
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": null,
+      },
+      "source_id": "42",
+      "source_type": "compound_governor_bravo",
+      "state": "executed",
+      "title": "Executed proposal",
+      "voting_ends_at": "2026-05-15T15:00:00Z",
+      "voting_starts_at": "2026-05-15T09:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-01-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/aave/proposals/aave_governance_v3/1",
+          "votes": "/v1/daos/aave/proposals/aave_governance_v3/1/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "aave",
+      "proposer": {
+        "address": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "display_name": null,
+      },
+      "source_id": "1",
+      "source_type": "aave_governance_v3",
+      "state": "executed",
+      "title": "Aave v3 Test Proposal",
+      "voting_ends_at": "2026-01-14T00:00:00Z",
+      "voting_starts_at": "2026-01-10T00:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2025-12-06T00:00:00Z",
+        "links": {
+          "self": "/v1/daos/aave/proposals/aave_governor_v2/100",
+          "votes": "/v1/daos/aave/proposals/aave_governor_v2/100/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "aave",
+      "proposer": {
+        "address": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "display_name": null,
+      },
+      "source_id": "100",
+      "source_type": "aave_governor_v2",
+      "state": "executed",
+      "title": "Aave v2 Test Proposal",
+      "voting_ends_at": "2025-12-05T00:00:00Z",
+      "voting_starts_at": "2025-12-01T00:00:00Z",
     },
   ],
   "pagination": {
@@ -225,6 +524,21 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "data": [
     {
       "_meta": {
+        "last_updated_at": "2026-01-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/aave",
+        },
+      },
+      "description": "Aave DAO (e2e)",
+      "forum_url": "https://governance.aave.com",
+      "name": "Aave",
+      "primary_chain_id": "1",
+      "primary_token_address": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+      "slug": "aave",
+      "website_url": "https://aave.com",
+    },
+    {
+      "_meta": {
         "last_updated_at": "2026-05-16T10:00:00Z",
         "links": {
           "self": "/v1/daos/compound",
@@ -249,12 +563,18 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
 {
+  "aave-concentration": null,
+  "aave-proposal-detail": ""o7sDqdb4qNywdURsGLgrYvyadaw"",
+  "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
+  "aave-proposals-list": ""6VNz40HEqnp73-lX-YTeM_ayZdQ"",
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
+  "compound-proposal-pass-rate": ""OyYzMyAo8QXs3BZnj2YUzhj2RJg"",
   "cross-dao-proposals": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
+  "cross-dao-proposals-multi": ""1JyV4opb7TzGUwIn6Q4L5wPNDH8"",
   "dao-detail": ""HCHYuBht_32YTgbVOo6C8WJDeYU"",
   "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-sources": ""rNVI-PNdt4l2GmoeJ5mzlE7Ua_c"",
-  "daos-list": ""qWBHppTs-WuJ0F21l5DB7FEEn1I"",
+  "daos-list": ""UCRJDY9f6hfyOYGiDB36sDVrxo8"",
   "proposal-detail": ""Qf6Ew8lQW1CJkouc44B5bjsfCEg"",
 }
 `;
