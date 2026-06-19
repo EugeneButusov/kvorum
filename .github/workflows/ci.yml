@@ -74,6 +74,8 @@ jobs:
             ${{ runner.os }}-pnpm-
 
       - name: Install Foundry
+        # docker-compose.yml pins the same Foundry era via image digest.
+        # When upgrading, update the digest there and the `version:` nightly tag here together.
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
