@@ -150,6 +150,9 @@ Cross-chain stitch holds (a vote/payload that arrived before its mainnet proposa
 `docs/runbooks/m3-chains.md` for the alerting query. These are derivation-time concerns; the
 backfill itself never blocks on them.
 
+Once the underived backlog reaches zero and the DLQ is clear, proceed to
+`docs/runbooks/m3-acceptance.md` to validate AC #1–#8 against on-chain truth and sign off the M3 gate.
+
 ---
 
 ## DLQ
