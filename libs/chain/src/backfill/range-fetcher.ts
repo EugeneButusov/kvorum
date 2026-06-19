@@ -33,7 +33,7 @@ const DEFAULT_CHUNK_SIZE = 10_000;
 const CHUNK_FLOOR = 1_000;
 
 /** Returns true if the eth_getLogs error signals that the result set is too large. */
-function isTooManyResults(err: unknown): boolean {
+export function isTooManyResults(err: unknown): boolean {
   if (err === null || typeof err !== 'object') return false;
   const e = err as Record<string, unknown>;
 

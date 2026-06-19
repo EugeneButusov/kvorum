@@ -4,6 +4,8 @@ import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
 import { validateFromBlockGate } from './backfill-gate.js';
+import { runBackfillOrchestration } from './backfill-orchestrator.js';
+import { runSourceBackfill } from './backfill-run-source.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
 
 type BackfillCommonOptions = {
@@ -21,6 +23,13 @@ type BackfillStartOptions = BackfillCommonOptions & {
 type BackfillCatchUpOptions = BackfillCommonOptions & {
   chain?: string;
   confirm?: boolean;
+  dryRun?: boolean;
+};
+
+type BackfillRunOptions = BackfillCommonOptions & {
+  concurrency?: string;
+  skipDeprecated?: boolean;
+  skipLogDepthCheck?: boolean;
   dryRun?: boolean;
 };
 
@@ -51,7 +60,7 @@ export function registerBackfill(program: Command): void {
           },
           core,
         ] = await Promise.all([import('@libs/chain'), import('@sources/core')]);
-        const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
+        const { BackfillAlreadyStartedError, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
         const row = await resolveSourceRow(daoSourceRepository, sourceType, opts.chain, format);
@@ -147,26 +156,20 @@ export function registerBackfill(program: Command): void {
             process.once('SIGTERM', onSignal);
 
             try {
-              const driver = new BackfillDriver({
+              const outcome = await runSourceBackfill({
                 rpcClient,
                 daoSourceRepo: daoSourceRepository,
                 chainConfig,
-                filter: sourceRuntime.filter,
-                listenerFactory: sourceRuntime.listenerFactory,
+                runtime: sourceRuntime,
                 logger: progressLogger,
+                run: {
+                  daoSourceId: row.id,
+                  fromBlock: resolvedFromBlock,
+                  toBlock: toBlock ?? undefined,
+                  mode,
+                  signal: controller.signal,
+                },
               });
-
-              const outcome = await driver.run({
-                daoSourceId: row.id,
-                fromBlock: resolvedFromBlock,
-                toBlock: toBlock ?? undefined,
-                mode,
-                signal: controller.signal,
-              });
-
-              if (outcome.status === 'completed') {
-                await daoSourceRepository.clearBackfillState(row.id);
-              }
 
               emit(format, () => `Backfill ${outcome.status} for ${sourceType}`, {
                 source_type: sourceType,
@@ -286,6 +289,56 @@ export function registerBackfill(program: Command): void {
         }
       });
     });
+
+  backfill
+    .command('run <dao_slug>')
+    .description(
+      'Orchestrate the full multi-chain backfill for a DAO (mainnet-first, then bounded-parallel)',
+    )
+    .option('--concurrency <n>', 'max concurrent sources in the parallel phase (default 3)')
+    .option('--skip-deprecated', 'skip sources on deprecated chains (backfill-only)')
+    .option('--skip-log-depth-check', 'skip the pre-flight eth_getLogs depth probe')
+    .option('--dry-run', 'show the ordered plan + readiness gate without making changes')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(daoSlug: string, opts: BackfillRunOptions) {
+      await withBackfillFormat(this, opts, async (format) => {
+        const concurrency = parseConcurrency(opts.concurrency);
+        const controller = new AbortController();
+        const onSignal = (signal: NodeJS.Signals) => controller.abort(signal);
+        process.once('SIGINT', onSignal);
+        process.once('SIGTERM', onSignal);
+        const runInput = {
+          daoSlug,
+          concurrency,
+          skipDeprecated: opts.skipDeprecated === true,
+          skipLogDepthCheck: opts.skipLogDepthCheck === true,
+          dryRun: opts.dryRun === true,
+          format,
+          signal: controller.signal,
+        };
+        try {
+          if (opts.dryRun === true) {
+            await runBackfillOrchestration(runInput);
+          } else {
+            await withAudit('backfill run', { daoSlug, ...opts }, async () => {
+              await runBackfillOrchestration(runInput);
+            });
+          }
+        } finally {
+          process.off('SIGINT', onSignal);
+          process.off('SIGTERM', onSignal);
+        }
+      });
+    });
+}
+
+function parseConcurrency(value: string | undefined): number {
+  if (value == null) return 3;
+  if (!/^\d+$/.test(value)) {
+    throw new Error('--concurrency must be an unsigned integer');
+  }
+  const n = Number(value);
+  return n > 0 ? n : 1;
 }
 
 function serializeOutcome(

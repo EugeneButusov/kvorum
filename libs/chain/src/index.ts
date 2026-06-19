@@ -52,6 +52,8 @@ export type {
   BackfillRangeFetcherResult,
 } from './backfill/range-fetcher.js';
 export { BackfillChunkTooSmallError } from './backfill/errors/backfill-chunk-too-small.error.js';
+export { probeLogDepth } from './backfill/probe-log-depth.js';
+export type { LogDepthProbeInput, LogDepthProbeResult } from './backfill/probe-log-depth.js';
 
 export type { ChainContext } from './chain-context-registry.js';
 export { ChainContextRegistry } from './chain-context-registry.js';
