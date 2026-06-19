@@ -1,5 +1,5 @@
 import request, { type Response } from 'supertest';
-import { seedAaveData } from './aave.seed';
+import { AAVE_VOTER_ADDRESS, seedAaveData } from './aave.seed';
 import { seedConformanceData } from './conformance.seed';
 import {
   createRealApp,
@@ -52,6 +52,12 @@ const ENDPOINTS: EndpointCase[] = [
     name: 'aave-concentration',
     path: '/v1/daos/aave/analytics/concentration',
     expectedStatus: 204,
+  },
+  // Aave analytics endpoints (X3 PR4 — conformance completeness)
+  { name: 'aave-delegation-flow', path: '/v1/daos/aave/analytics/delegation-flow' },
+  {
+    name: 'aave-delegate-alignment',
+    path: `/v1/daos/aave/analytics/delegate-alignment?delegate=${AAVE_VOTER_ADDRESS}`,
   },
 ];
 
