@@ -121,11 +121,29 @@ function makeFakeRegistry(headers: BlockHeaders) {
     peek(chainId: string) {
       const chainHeaders = headers[chainId];
       if (chainHeaders == null) return undefined;
+
+      // Inverted map: blockHash (lowercase) → { blockNum, timestamp }
+      // Used to serve eth_getBlockByHash calls from VoteBlockTimestampFetcher.
+      const byHash = new Map<string, { blockNum: string; timestamp: number }>();
+      for (const [blockNum, entry] of Object.entries(chainHeaders)) {
+        byHash.set(entry.hash.toLowerCase(), { blockNum, timestamp: entry.timestamp });
+      }
+
       return {
         client: {
           send: (_method: string, params: unknown[]) => {
-            // Called as eth_getBlockByNumber(blockHex, false)
-            const blockHex = (params as [string])[0];
+            if (_method === 'eth_getBlockByHash') {
+              const blockHash = ((params as [string])[0] ?? '').toLowerCase();
+              const found = byHash.get(blockHash);
+              if (found == null) return Promise.resolve(null);
+              return Promise.resolve({
+                number: `0x${BigInt(found.blockNum).toString(16)}`,
+                hash: blockHash,
+                timestamp: `0x${found.timestamp.toString(16)}`,
+              });
+            }
+            // eth_getBlockByNumber(blockHex, false)
+            const blockHex = (params as [string])[0] ?? '';
             const blockNum = BigInt(blockHex).toString();
             const entry = chainHeaders[blockNum];
             if (entry == null) return Promise.resolve(null);
