@@ -353,6 +353,11 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
 
   afterAll(async () => {
     if (!daoId) return;
+    // archive_event.dao_source_id is RESTRICT — must clear before dao_source
+    await sql`DELETE FROM archive_event WHERE 1=1`.execute(pgDb);
+    await sql`DELETE FROM proposal WHERE 1=1`.execute(pgDb);
+    await sql`DELETE FROM actor_address WHERE 1=1`.execute(pgDb);
+    await sql`DELETE FROM actor WHERE 1=1`.execute(pgDb);
     await pgDb.deleteFrom('dao_source').where('dao_id', '=', daoId).execute();
     await pgDb.deleteFrom('dao').where('id', '=', daoId).execute();
   });
