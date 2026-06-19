@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { silentLogger } from '@libs/chain';
+import { normalizeChainId, silentLogger } from '@libs/chain';
 import { withAudit } from '../audit.js';
 import { buildContainer } from '../bootstrap.js';
 import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../output.js';
@@ -11,6 +11,7 @@ type BackfillCommonOptions = {
 };
 
 type BackfillStartOptions = BackfillCommonOptions & {
+  chain?: string;
   fromBlock?: string;
   toBlock?: string;
   dryRun?: boolean;
@@ -18,6 +19,7 @@ type BackfillStartOptions = BackfillCommonOptions & {
 };
 
 type BackfillCatchUpOptions = BackfillCommonOptions & {
+  chain?: string;
   confirm?: boolean;
   dryRun?: boolean;
 };
@@ -28,6 +30,10 @@ export function registerBackfill(program: Command): void {
   backfill
     .command('start <source_type>')
     .description('Start a backfill for a DAO source')
+    .option(
+      '--chain <id>',
+      'chain id (required when the source_type is registered on multiple chains)',
+    )
     .option('--from-block <N>', 'starting block number')
     .option('--to-block <N>', 'ending block number')
     .option('--confirm-replay', 'confirm re-running blocks below current backfill head')
@@ -48,10 +54,7 @@ export function registerBackfill(program: Command): void {
         const { BackfillAlreadyStartedError, BackfillDriver, BackfillNotResumableError } = core;
 
         const { daoSourceRepository } = buildContainer();
-        const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
-        if (row == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
-        }
+        const row = await resolveSourceRow(daoSourceRepository, sourceType, opts.chain, format);
         const fromBlock = parseOptionalBlock(opts.fromBlock, '--from-block');
         const toBlock = parseOptionalBlock(opts.toBlock, '--to-block');
 
@@ -192,6 +195,10 @@ export function registerBackfill(program: Command): void {
   backfill
     .command('catch-up <source_type>')
     .description('Run startup-style gap fill for an existing DAO source')
+    .option(
+      '--chain <id>',
+      'chain id (required when the source_type is registered on multiple chains)',
+    )
     .option('--confirm', 'confirm execution (required unless --dry-run)')
     .option('--dry-run', 'show computed gap without running backfill')
     .option('--format <format>', 'output format: human or json')
@@ -210,10 +217,7 @@ export function registerBackfill(program: Command): void {
         const { runBootCatchUp, computeGap } = core;
         const { daoSourceRepository } = buildContainer();
 
-        const row = await daoSourceRepository.findBySourceTypeWithChain(sourceType);
-        if (row == null) {
-          fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
-        }
+        const row = await resolveSourceRow(daoSourceRepository, sourceType, opts.chain, format);
 
         const chainConfigs = parseChainConfigFromEnv(process.env);
         const targetChainId = normalizeChainId(row.chain_id);
@@ -312,6 +316,78 @@ function serializeOutcome(
       ? { attempts: (err as Record<string, unknown>)['attempts'] }
       : {}),
   };
+}
+
+export type SourceChainSelection =
+  | { kind: 'ok'; id: string }
+  | { kind: 'none' }
+  | { kind: 'not_on_chain'; chain: string; registered: string[] }
+  | { kind: 'ambiguous'; registered: string[] };
+
+/**
+ * Pure chain-aware selection of one dao_source among the rows sharing a source_type. A
+ * source_type may be registered on several chains (e.g. aave_payloads_controller); `chain`
+ * disambiguates. Without `chain`, a single match resolves and an ambiguous one is rejected.
+ */
+export function selectDaoSourceForChain(
+  matches: ReadonlyArray<{ id: string; chain_id: string }>,
+  chain: string | undefined,
+): SourceChainSelection {
+  if (matches.length === 0) {
+    return { kind: 'none' };
+  }
+  if (chain != null) {
+    const target = normalizeChainId(chain);
+    const match = matches.find((m) => normalizeChainId(m.chain_id) === target);
+    return match != null
+      ? { kind: 'ok', id: match.id }
+      : { kind: 'not_on_chain', chain: target, registered: matches.map((m) => m.chain_id) };
+  }
+  if (matches.length > 1) {
+    return { kind: 'ambiguous', registered: matches.map((m) => m.chain_id) };
+  }
+  const [only] = matches;
+  return only != null ? { kind: 'ok', id: only.id } : { kind: 'none' };
+}
+
+/**
+ * Resolves a source_type to a single dao_source row with full backfill columns, chain-aware.
+ * Exits the process via `fail` on any unrecoverable case.
+ */
+async function resolveSourceRow(
+  repo: ReturnType<typeof buildContainer>['daoSourceRepository'],
+  sourceType: string,
+  chainOpt: string | undefined,
+  format: OutputFormat,
+) {
+  const matches = await repo.findBySourceType(sourceType);
+  const selection = selectDaoSourceForChain(matches, chainOpt);
+
+  if (selection.kind === 'none') {
+    fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
+  }
+  if (selection.kind === 'not_on_chain') {
+    fail(
+      format,
+      ExitCode.NotFound,
+      `source_type ${sourceType} is not registered on chain ${selection.chain} ` +
+        `(registered on: ${selection.registered.join(', ')})`,
+    );
+  }
+  if (selection.kind === 'ambiguous') {
+    fail(
+      format,
+      ExitCode.ValidationFailure,
+      `source_type ${sourceType} is registered on multiple chains ` +
+        `(${selection.registered.join(', ')}); pass --chain <id> to select one`,
+    );
+  }
+
+  const row = await repo.findByIdWithChain(selection.id);
+  if (row == null) {
+    fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
+  }
+  return row;
 }
 
 function parseOptionalBlock(value: string | undefined, optionName: string): bigint | undefined {
