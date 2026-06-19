@@ -15,6 +15,9 @@ type EndpointCase = {
   name: string;
   path: string;
   expectedStatus?: number;
+  // ETag computed from raw body (includes non-normalized derived_through); skip pinning
+  // for CH-backed endpoints whose watermark changes every seed run.
+  skipEtag?: boolean;
 };
 
 // Normalize non-deterministic CH watermark timestamps before snapshot.
@@ -58,6 +61,7 @@ const ENDPOINTS: EndpointCase[] = [
   {
     name: 'aave-delegate-alignment',
     path: `/v1/daos/aave/analytics/delegate-alignment?delegate=${AAVE_VOTER_ADDRESS}`,
+    skipEtag: true,
   },
 ];
 
@@ -142,8 +146,11 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
         } else {
           const body = normalizeAnalyticsMeta(res.body as Record<string, unknown>);
           expect(body).toMatchSnapshot(endpoint.name);
-          etagByEndpoint[endpoint.name] =
-            typeof res.headers['etag'] === 'string' ? res.headers['etag'] : null;
+          etagByEndpoint[endpoint.name] = endpoint.skipEtag
+            ? null
+            : typeof res.headers['etag'] === 'string'
+              ? res.headers['etag']
+              : null;
         }
       }
 
