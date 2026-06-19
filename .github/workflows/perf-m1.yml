@@ -1,4 +1,4 @@
-name: M1 Perf Gate
+name: Perf Gate
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   perf-m1:
-    name: M1 load test gate
+    name: Perf gate (M1 entity + M3 analytics)
     if: |
       github.event_name == 'workflow_dispatch' ||
       (
@@ -47,6 +47,16 @@ jobs:
           --health-timeout=3s
           --health-retries=10
 
+      clickhouse:
+        image: clickhouse/clickhouse-server:24
+        ports:
+          - 8123:8123
+        options: >-
+          --health-cmd="wget -q -O- http://localhost:8123/ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +86,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
 
+      - name: Run ClickHouse migrations
+        run: pnpm -w db:migrate:ch
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+
       - name: Seed load-test data
         run: pnpm -w db:seed:loadtest
         env:
@@ -94,6 +109,7 @@ jobs:
           HMAC_PEPPER_CURRENT: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
           DATABASE_URL: postgresql://kvorum:kvorum@localhost:5432/kvorum
           REDIS_URL: redis://localhost:6379
+          CLICKHOUSE_URL: http://localhost:8123
           OTEL_SERVICE_NAMESPACE: ci
           OTEL_SERVICE_NAME: api
 
@@ -109,7 +125,7 @@ jobs:
           cat /tmp/api.log || true
           exit 1
 
-      - name: Assert p95 < 500ms (200-path)
+      - name: Assert p95 < 500ms entity (M1)
         run: pnpm -w loadtest:m1
         env:
           API_URL: http://127.0.0.1:3001
@@ -118,6 +134,12 @@ jobs:
           LOADTEST_DURATION_SECONDS: '30'
           LOADTEST_WARMUP_SECONDS: '10'
           LOADTEST_P95_THRESHOLD_MS: '500'
+
+      - name: Assert p95/p99 analytics (M3)
+        run: pnpm -w loadtest:analytics
+        env:
+          API_BASE_URL: http://127.0.0.1:3001
+          API_KEY: kv_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
       - name: Show API log on failure
         if: failure()

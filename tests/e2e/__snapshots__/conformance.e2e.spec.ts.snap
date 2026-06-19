@@ -1,5 +1,36 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-delegate-alignment 1`] = `
+{
+  "_meta": {
+    "confirmed": true,
+    "derived_through": "<datetime>",
+  },
+  "focal_delegate": {
+    "actor_id": "00000000-0000-0000-aaaa-000000000021",
+    "address": "0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+    "display_name": "Aave Voter",
+  },
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+  "peers": [],
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-delegation-flow 1`] = `
+{
+  "_meta": {
+    "confirmed": true,
+    "derived_through": null,
+  },
+  "edges": [],
+  "nodes": [],
+}
+`;
+
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > aave-proposal-detail 1`] = `
 {
   "data": {
@@ -564,6 +595,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > etag-by-endpoint 1`] = `
 {
   "aave-concentration": null,
+  "aave-delegate-alignment": null,
+  "aave-delegation-flow": ""7E6lin7FRPEAF115ug5y1Pv2KXI"",
   "aave-proposal-detail": ""o7sDqdb4qNywdURsGLgrYvyadaw"",
   "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
   "aave-proposals-list": ""6VNz40HEqnp73-lX-YTeM_ayZdQ"",
