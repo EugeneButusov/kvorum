@@ -61,6 +61,31 @@ export class DaoSourceRepository {
     return this.findWithChainWhere('dao_source.source_type', sourceType);
   }
 
+  /**
+   * Every dao_source row for a DAO (by slug), with the full backfill shape. Returns all source
+   * types including reconcile variants; the backfill orchestrator filters those out (a reconcile
+   * source has no eth_getLogs range to fetch). Ordered deterministically for plan reproducibility.
+   */
+  async findSourcesByDaoSlug(slug: string) {
+    return this.db
+      .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
+      .select([
+        'dao_source.id',
+        'dao_source.dao_id',
+        'dao_source.source_type',
+        'dao_source.source_config',
+        'dao_source.active_from_block',
+        'dao_source.backfill_started_at_block',
+        'dao_source.backfill_head_block',
+        'dao_source.chain_id',
+      ])
+      .where('dao.slug', '=', slug)
+      .orderBy('dao_source.source_type', 'asc')
+      .orderBy('dao_source.chain_id', 'asc')
+      .execute();
+  }
+
   private findWithChainWhere(column: 'dao_source.id' | 'dao_source.source_type', value: string) {
     return this.db
       .selectFrom('dao_source')
