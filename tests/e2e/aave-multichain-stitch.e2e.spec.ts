@@ -353,7 +353,7 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
 
   afterAll(async () => {
     if (!daoId) return;
-    // Cascade deletes dao_source, then archive_event rows for this DAO's sources, etc.
+    await pgDb.deleteFrom('dao_source').where('dao_id', '=', daoId).execute();
     await pgDb.deleteFrom('dao').where('id', '=', daoId).execute();
   });
 
@@ -389,9 +389,16 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
     applyBatch(rows: Parameters<AaveGovernanceProjectionApplier['applyBatch']>[0]): Promise<void>;
   }): Promise<void> {
     const rows = await actorResolution.findDerivableBy(applier.eventTypes, 500);
-    if (rows.length > 0) {
+    // Group by event_type — applyBatch expects a homogeneous batch (KNOWN-028)
+    const byEventType = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const group = byEventType.get(row.event_type) ?? [];
+      group.push(row);
+      byEventType.set(row.event_type, group);
+    }
+    for (const group of byEventType.values()) {
       await applier.applyBatch(
-        rows as Parameters<AaveGovernanceProjectionApplier['applyBatch']>[0],
+        group as Parameters<AaveGovernanceProjectionApplier['applyBatch']>[0],
       );
     }
   }
