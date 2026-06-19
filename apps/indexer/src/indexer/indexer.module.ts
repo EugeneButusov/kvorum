@@ -10,7 +10,9 @@ import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
-import { FETCH_DRIVERS } from '../orchestrator/tokens';
+import { makePollEnqueueStub } from '../orchestrator/poll-enqueue.port';
+import { PollFetchDriver } from '../orchestrator/poll-fetch-driver';
+import { FETCH_DRIVERS, POLL_ENQUEUE_PORT } from '../orchestrator/tokens';
 import { ArchiveLogDlqBridge } from '../queue/archive-log-dlq.bridge';
 import { ArchiveLogConsumer, ARCHIVE_CONSUMER_FNS } from '../queue/archive-log.consumer';
 import { JOB_QUEUE_PORT } from '../queue/job-queue-port';
@@ -36,13 +38,16 @@ import { SourceResolver } from '../queue/source-resolver';
     },
     EvmEventPollerDriver,
     EvmBlockHeadPollerDriver,
+    PollFetchDriver,
+    { provide: POLL_ENQUEUE_PORT, useFactory: makePollEnqueueStub },
     {
       provide: FETCH_DRIVERS,
-      useFactory: (ep: EvmEventPollerDriver, bhp: EvmBlockHeadPollerDriver): FetchDriver[] => [
-        ep,
-        bhp,
-      ],
-      inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver],
+      useFactory: (
+        ep: EvmEventPollerDriver,
+        bhp: EvmBlockHeadPollerDriver,
+        pd: PollFetchDriver,
+      ): FetchDriver[] => [ep, bhp, pd],
+      inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver, PollFetchDriver],
     },
     JobQueueService,
     { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },

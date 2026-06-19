@@ -7,7 +7,7 @@ import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
-import { FETCH_DRIVERS } from './tokens';
+import { FETCH_DRIVERS, POLL_ENQUEUE_PORT } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -124,6 +124,8 @@ const mockRegistry = {
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
+const STUB_POLL_ENQUEUE_PORT = { enqueue: vi.fn().mockResolvedValue(undefined) };
+
 async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
     return mockRegistry;
@@ -134,11 +136,43 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
       IndexerOrchestratorService,
       { provide: SOURCE_INGESTERS, useValue: plugins },
       { provide: FETCH_DRIVERS, useValue: [driver] },
+      { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
     ],
   }).compile();
+}
+
+function makeFakePollPlugin(sourceType: string): SourceIngester {
+  return {
+    sourceType,
+    supportedChainIds: ['off-chain'],
+    parseConfig: (raw: unknown) => raw,
+    buildBackfillRuntime: () => {
+      throw new Error('poll sources do not support backfill runtime');
+    },
+    buildIngestSpec: (): IngestSpec => ({
+      kind: 'poll',
+      listener: {
+        intervalMs: 60_000,
+        poll: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+      },
+    }),
+  };
+}
+
+function makeFakePollDriver(): FetchDriver<'poll'> & { _handles: FetchDriverHandle[] } {
+  const handles: FetchDriverHandle[] = [];
+  return {
+    kind: 'poll',
+    _handles: handles,
+    start: vi.fn().mockImplementation(async () => {
+      const h = makeFakeHandle();
+      handles.push(h);
+      return h;
+    }),
+  };
 }
 
 beforeEach(() => {
@@ -495,5 +529,124 @@ describe('IndexerOrchestratorService', () => {
     await svc.onApplicationBootstrap();
 
     expect(driver.start).toHaveBeenCalledTimes(1);
+  });
+
+  describe('poll source routing (Z0)', () => {
+    it('#P1 — poll source starts via poll driver without requiring a chainConfig', async () => {
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([]); // no EVM chains configured
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-poll-1', 'snapshot', 'off-chain'),
+      ]);
+
+      const evmDriver = makeFakeDriver();
+      const pollDriver = makeFakePollDriver();
+
+      vi.mocked(ChainContextRegistry).mockImplementation(function () {
+        return mockRegistry;
+      } as never);
+
+      const module = await Test.createTestingModule({
+        providers: [
+          IndexerOrchestratorService,
+          { provide: SOURCE_INGESTERS, useValue: [makeFakePollPlugin('snapshot')] },
+          { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
+          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+          { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
+          { provide: ChainContextRegistry, useValue: mockRegistry },
+        ],
+      }).compile();
+
+      const svc = module.get(IndexerOrchestratorService);
+      await expect(svc.onApplicationBootstrap()).resolves.not.toThrow();
+
+      expect(pollDriver.start).toHaveBeenCalledTimes(1);
+      expect(evmDriver.start).not.toHaveBeenCalled();
+
+      await svc.drain();
+    });
+
+    it('#P2 — poll source is excluded from activeSources (lag gauge); EVM source is included', async () => {
+      vi.useFakeTimers();
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-1', 'compound_governor_bravo', '0x1'),
+        makeSource('src-poll-1', 'snapshot', 'off-chain'),
+      ]);
+
+      const evmDriver = makeFakeDriver();
+      const pollDriver = makeFakePollDriver();
+
+      vi.mocked(ChainContextRegistry).mockImplementation(function () {
+        return mockRegistry;
+      } as never);
+
+      const module = await Test.createTestingModule({
+        providers: [
+          IndexerOrchestratorService,
+          {
+            provide: SOURCE_INGESTERS,
+            useValue: [makeFakePlugin('compound_governor_bravo'), makeFakePollPlugin('snapshot')],
+          },
+          { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
+          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+          { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
+          { provide: ChainContextRegistry, useValue: mockRegistry },
+        ],
+      }).compile();
+
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      // Clear calls made during boot catch-up, isolate the gauge interval
+      mockRegistry.getOrCreate.mockClear();
+
+      // Advance gauge interval — registry.getOrCreate should be called once (EVM only)
+      await vi.advanceTimersByTimeAsync(10_000);
+      // The EVM dao_source triggers getOrCreate; the poll source must NOT
+      expect(mockRegistry.getOrCreate).toHaveBeenCalledTimes(1);
+      expect(mockRegistry.getOrCreate).not.toHaveBeenCalledWith(
+        expect.objectContaining({ chainId: 'off-chain' }),
+      );
+
+      vi.useRealTimers();
+      await svc.drain();
+    });
+
+    it('#P3 — missing chainConfig for EVM still throws even when a poll source is present', async () => {
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([]); // no chains
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-1', 'compound_governor_bravo', '0x1'), // EVM, no chain cfg
+        makeSource('src-poll-1', 'snapshot', 'off-chain'),
+      ]);
+
+      const evmDriver = makeFakeDriver();
+      const pollDriver = makeFakePollDriver();
+
+      vi.mocked(ChainContextRegistry).mockImplementation(function () {
+        return mockRegistry;
+      } as never);
+
+      const module = await Test.createTestingModule({
+        providers: [
+          IndexerOrchestratorService,
+          {
+            provide: SOURCE_INGESTERS,
+            useValue: [makeFakePlugin('compound_governor_bravo'), makeFakePollPlugin('snapshot')],
+          },
+          { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
+          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+          { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
+          { provide: ChainContextRegistry, useValue: mockRegistry },
+        ],
+      }).compile();
+
+      const svc = module.get(IndexerOrchestratorService);
+      await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
+      expect(evmDriver.start).not.toHaveBeenCalled();
+      expect(pollDriver.start).not.toHaveBeenCalled();
+    });
   });
 });

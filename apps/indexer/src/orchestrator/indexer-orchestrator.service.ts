@@ -16,6 +16,8 @@ import {
   BootCatchUpShutdownError,
   SOURCE_INGESTERS,
   type SourceIngester,
+  type SourceContext,
+  type IngestSpec,
 } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { FETCH_DRIVERS } from './tokens';
@@ -65,12 +67,16 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       return;
     }
 
-    // Pre-validate ALL rows before starting any driver (fail-fast, no partial startup leaks)
+    // Pre-validate ALL rows before starting any driver (fail-fast, no partial startup leaks).
+    // buildIngestSpec is called here so we can gate the chain-config lookup on spec.kind.
     const validated: Array<{
       sourceType: string;
       config: unknown;
       plugin: SourceIngester;
-      chainCfg: ChainConfig;
+      /** undefined for poll specs — they carry no chain context. */
+      chainCfg: ChainConfig | undefined;
+      spec: IngestSpec;
+      ctx: SourceContext;
       src: (typeof sources)[number];
     }> = [];
 
@@ -84,48 +90,67 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       if (!plugin.supportedChainIds.includes(src.chain_id)) {
         continue;
       }
-      const chainCfg = chainsByChainId.get(src.chain_id);
-      if (!chainCfg) {
-        throw new Error(
-          `No chain config for chain_id="${src.chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
-        );
-      }
       const config = plugin.parseConfig(src.source_config);
-      validated.push({ sourceType: src.source_type, config, plugin, chainCfg, src });
+      const ctx: SourceContext = {
+        daoSourceId: src.id,
+        sourceType: src.source_type,
+        chainId: src.chain_id,
+        sourceLabel: src.source_type,
+      };
+      const spec = plugin.buildIngestSpec(ctx, config);
+
+      // Poll specs carry no chain context — skip the ChainConfig gate for them.
+      let chainCfg: ChainConfig | undefined;
+      if (spec.kind !== 'poll') {
+        chainCfg = chainsByChainId.get(src.chain_id);
+        if (!chainCfg) {
+          throw new Error(
+            `No chain config for chain_id="${src.chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
+          );
+        }
+      }
+
+      validated.push({ sourceType: src.source_type, config, plugin, chainCfg, spec, ctx, src });
     }
 
     // Start drivers; on failure drain everything already started
     try {
       for (const entry of validated) {
-        const ctx = {
-          daoSourceId: entry.src.id,
-          sourceType: entry.sourceType,
-          chainId: entry.src.chain_id,
-          sourceLabel: entry.sourceType,
-        };
-        const spec = entry.plugin.buildIngestSpec(ctx, entry.config);
+        const { spec, ctx } = entry;
         const driver = driversByKind.get(spec.kind);
         if (!driver) {
           throw new Error(`No FetchDriver registered for IngestSpec.kind="${spec.kind}"`);
         }
-        let resolveFirstTick: ((head: bigint) => void) | undefined;
-        const firstTickPromise = new Promise<bigint>((resolve) => {
-          resolveFirstTick = resolve;
-        });
-        const handle = await (driver as FetchDriver<typeof spec.kind>).start(
-          spec as never,
-          ctx,
-          entry.chainCfg,
-          spec.kind === 'evm-event-poller' ? { onFirstHeadComplete: resolveFirstTick } : undefined,
-        );
+
+        let handle: FetchDriverHandle;
+        if (spec.kind === 'poll') {
+          handle = await (driver as FetchDriver<'poll'>).start(spec, ctx);
+        } else {
+          let resolveFirstTick: ((head: bigint) => void) | undefined;
+          const firstTickPromise = new Promise<bigint>((resolve) => {
+            resolveFirstTick = resolve;
+          });
+          handle = await (driver as FetchDriver<typeof spec.kind>).start(
+            spec as never,
+            ctx,
+            entry.chainCfg!,
+            spec.kind === 'evm-event-poller'
+              ? { onFirstHeadComplete: resolveFirstTick }
+              : undefined,
+          );
+          if (spec.kind === 'evm-event-poller') {
+            const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
+            const task = this.runParallelCatchUp(
+              entry as typeof entry & { chainCfg: ChainConfig },
+              runtime,
+              firstTickPromise,
+            );
+            this.catchUpTasks.push(task);
+          }
+        }
+
         this.handles.push(handle);
         this.activeSourceTypes.add(entry.sourceType);
-
-        if (spec.kind === 'evm-event-poller') {
-          const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
-          const task = this.runParallelCatchUp(entry, runtime, firstTickPromise);
-          this.catchUpTasks.push(task);
-        }
       }
     } catch (err) {
       this.logger.error('bootstrap_failed_cleanup', { error: String(err) });
@@ -142,11 +167,13 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     for (const [sourceType, count] of countBySourceType(validated.map((v) => v.sourceType))) {
       chainMetrics.indexerActiveSources.record(count, { source_type: sourceType });
     }
-    this.logger.log(
-      `started ${validated.length} source(s) across ${new Set(validated.map((v) => v.chainCfg.chainId)).size} chain(s)`,
-    );
+    const evmChainIds = new Set(validated.flatMap((v) => (v.chainCfg ? [v.chainCfg.chainId] : [])));
+    this.logger.log(`started ${validated.length} source(s) across ${evmChainIds.size} chain(s)`);
 
-    this.activeSources = validated.map((v) => ({ daoSourceId: v.src.id, chainCfg: v.chainCfg }));
+    // Only EVM sources contribute to the confirmed-head lag gauge (requires a chain context).
+    this.activeSources = validated
+      .filter((v): v is typeof v & { chainCfg: ChainConfig } => v.chainCfg != null)
+      .map((v) => ({ daoSourceId: v.src.id, chainCfg: v.chainCfg }));
     this.startPendingDepthGauge();
   }
 
