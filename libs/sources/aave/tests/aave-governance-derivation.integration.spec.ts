@@ -197,7 +197,7 @@ describeIf('aave governance derivation integration', () => {
         proposalId: PROPOSAL_ID,
         payloadId: '55',
         payloadsController: '0x2222222222222222222222222222222222222222',
-        chainId: '137',
+        chainId: '0x89',
         payloadNumberOnProposal: '0',
         numberOfPayloadsOnProposal: '1',
       },
@@ -299,7 +299,7 @@ describeIf('aave governance derivation integration', () => {
       expect.objectContaining({
         proposal_id: proposal.id,
         payload_index: 0,
-        target_chain_id: '137',
+        target_chain_id: '0x89',
         payloads_controller_address: '0x2222222222222222222222222222222222222222',
         payload_id: '55',
         status: 'declared',

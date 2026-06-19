@@ -1,0 +1,55 @@
+{
+  "proposal": {
+    "source_id": "200",
+    "proposer": "0xd73a92be73efbfcf3854433a5fcbabf9c1316073",
+    "state": "executed",
+    "voting_chain_id": "0x89"
+  },
+  "votes": [
+    {
+      "voter": "0xa0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+      "support": true,
+      "voting_power": "3000000000000000000000000"
+    },
+    {
+      "voter": "0xb0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+      "support": false,
+      "voting_power": "100000000000000000000000"
+    }
+  ],
+  "payloads": [
+    {
+      "target_chain_id": "0x1",
+      "payloads_controller": "0xdabad81af85554e9ae636395611c58f7ec1aaec5",
+      "payload_id": "10",
+      "status": "executed",
+      "executed_at_destination_block": "20007000",
+      "actions": [
+        {
+          "target": "0xc09aa853780cf5c2265560d2f0d9208522c71d36",
+          "function_signature": "execute()",
+          "calldata": "0x",
+          "value_wei": "0",
+          "target_chain_id": "0x1"
+        }
+      ]
+    },
+    {
+      "target_chain_id": "0xa",
+      "payloads_controller": "0x0e1a3af1f9cc76a62ed31ededca291e63632e7c4",
+      "payload_id": "5",
+      "status": "queued",
+      "executed_at_destination_block": null,
+      "actions": [
+        {
+          "target": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419",
+          "function_signature": "execute()",
+          "calldata": "0x",
+          "value_wei": "0",
+          "target_chain_id": "0xa"
+        }
+      ]
+    }
+  ],
+  "api_proposal_id_source": "aave_governance_v3"
+}

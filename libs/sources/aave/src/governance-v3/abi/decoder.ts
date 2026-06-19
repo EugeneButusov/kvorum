@@ -79,7 +79,7 @@ export function decodeAaveGovernanceV3Log(
           proposalId: (parsed.args['proposalId'] as bigint).toString(),
           payloadId: (parsed.args['payloadId'] as bigint).toString(),
           payloadsController: (parsed.args['payloadsController'] as string).toLowerCase(),
-          chainId: (parsed.args['chainId'] as bigint).toString(),
+          chainId: `0x${(parsed.args['chainId'] as bigint).toString(16)}`,
           payloadNumberOnProposal: (parsed.args['payloadNumberOnProposal'] as bigint).toString(),
           numberOfPayloadsOnProposal: (
             parsed.args['numberOfPayloadsOnProposal'] as bigint

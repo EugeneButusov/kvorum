@@ -40,10 +40,11 @@ services:
     restart: unless-stopped
 
   anvil:
-    # stable is mutable; current digest (2026-05-09, verified arm64+amd64):
-    # sha256:043752653d5be351c71709091b3db97c4421c907eb40ea294195e7f532aadf46
-    # Pin to immutable digest in M7 when hardening. cast is on PATH in this image.
-    image: ghcr.io/foundry-rs/foundry:stable
+    # Pinned to immutable digest (2026-05-09, verified arm64+amd64).
+    # To upgrade: run `docker pull ghcr.io/foundry-rs/foundry:nightly-<tag>`,
+    # note the new sha256 digest, and update here + in .github/workflows/ci.yml.
+    # cast is on PATH in this image.
+    image: ghcr.io/foundry-rs/foundry@sha256:043752653d5be351c71709091b3db97c4421c907eb40ea294195e7f532aadf46
     entrypoint: ['anvil']
     command: ['--host', '0.0.0.0']
     ports:

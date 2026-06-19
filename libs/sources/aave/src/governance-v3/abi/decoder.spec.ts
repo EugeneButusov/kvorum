@@ -100,7 +100,7 @@ describe('decodeAaveGovernanceV3Log', () => {
         proposalId: '107',
         payloadId: '55',
         payloadsController: '0x2222222222222222222222222222222222222222',
-        chainId: '137',
+        chainId: '0x89',
         payloadNumberOnProposal: '1',
         numberOfPayloadsOnProposal: '3',
       },
