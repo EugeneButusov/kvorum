@@ -16,6 +16,33 @@ export interface ArchiveDerivationRow {
   derivation_attempt_count: number;
 }
 
+/** Off-chain derivation row: identified by external_id, ordered by derivation_ordinal
+ *  (no block coords). The off-chain analogue of ArchiveDerivationRow (ADR-071). */
+export interface OffchainArchiveRow {
+  id: string;
+  source_type: string;
+  dao_source_id: string;
+  chain_id: string;
+  external_id: string;
+  /** Source-native ordinal (bigint as string); null until the consumer sets it. */
+  derivation_ordinal: string | null;
+  event_type: ArchiveEventType;
+  received_at: Date;
+  derivation_attempt_count: number;
+}
+
+const OFFCHAIN_COLUMNS = [
+  'id',
+  'source_type',
+  'dao_source_id',
+  'chain_id',
+  'external_id',
+  'derivation_ordinal',
+  'event_type',
+  'received_at',
+  'derivation_attempt_count',
+] as const;
+
 export class ArchiveDerivationRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
@@ -28,7 +55,7 @@ export class ArchiveDerivationRepository {
     // external_id IS NULL restricts to EVM rows; together with the
     // archive_event_identity_shape CHECK this guarantees non-null block/tx coords,
     // so the nullable table type narrows to the non-null ArchiveDerivationRow.
-    // Off-chain derivation reads get their own method when a consumer lands (AD2/AD4).
+    // Off-chain rows are served by findUnderivedOffchain.
     const rows = await this.pgDb
       .selectFrom('archive_event')
       .select([
@@ -54,6 +81,30 @@ export class ArchiveDerivationRepository {
       .limit(limit)
       .execute();
     return rows as ArchiveDerivationRow[];
+  }
+
+  /** Off-chain counterpart of findUnderived: external_id rows ordered by the
+   *  source-native derivation_ordinal (degenerate (block_number, log_index) off-chain).
+   *  derivation_ordinal NULLS LAST, then external_id, then id — fully deterministic. */
+  async findUnderivedOffchain(
+    eventTypes: readonly ArchiveEventType[],
+    limit: number,
+  ): Promise<OffchainArchiveRow[]> {
+    if (eventTypes.length === 0) return [];
+
+    const rows = await this.pgDb
+      .selectFrom('archive_event')
+      .select(OFFCHAIN_COLUMNS)
+      .where('external_id', 'is not', null)
+      .where('derived_at', 'is', null)
+      .where('event_type', 'in', eventTypes)
+      .orderBy('chain_id', 'asc')
+      .orderBy('derivation_ordinal', 'asc')
+      .orderBy('external_id', 'asc')
+      .orderBy('id', 'asc')
+      .limit(limit)
+      .execute();
+    return rows as OffchainArchiveRow[];
   }
 
   async markDerived(id: string): Promise<void> {

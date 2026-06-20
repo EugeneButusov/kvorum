@@ -111,16 +111,33 @@ the three EVM-shaped read queries (`findUnderived`, `findDerivableBy`, `findUnre
 `WHERE external_id IS NULL` predicate. Combined with the CHECK, that **guarantees** the returned rows
 have non-null coords, so `ArchiveDerivationRow` stays non-null and **zero** EVM consumers change. The
 nullable table type narrows to the non-null row type via a single documented cast co-located with each
-predicate. Off-chain derivation/actor-sweep read methods are added when a consumer exists (AD2/AD4).
+predicate.
+
+### Decision — off-chain ordering and the actor-sweep join key
+
+Off-chain rows get a **parallel read path** mirroring the segregation above, so they never collide with
+the non-null EVM type:
+
+- A nullable `derivation_ordinal bigint` column carries the **source-native ordinal** that gives
+  blockless rows a deterministic derivation order (the EVM `(block_number, log_index)` key is
+  degenerate off-chain). It is NULL for EVM rows. The off-chain read methods (`findUnderivedOffchain`,
+  `findDerivableByOffchain`, `findUnresolvedActorsOffchain`) select `external_id IS NOT NULL` and order
+  by `(chain_id, derivation_ordinal, external_id, id)`, returning the `OffchainArchiveRow` shape.
+- The actor-sweep correlation key (`archiveRowKey`) is **external-id-aware**: off-chain rows key on
+  `${chain_id}:ext:${external_id}`, EVM rows keep the `${chain_id}:${tx_hash}:${log_index}:${block_hash}`
+  4-tuple (byte-for-byte unchanged). This prevents the degenerate `...:null:null:null` collision across
+  off-chain rows of one source.
+
+The **value semantics** of `derivation_ordinal` (e.g. Snapshot vote-hash + `created`) are defined in
+ADR-072; Z1 provides the column, the ordering, and the key. **Wiring** these read methods into the
+derivation worker / actor-sweep service dispatch (and the per-source off-chain adapters) lands with the
+off-chain derivers (AD2/AD4) — Z1 ships the infrastructure, not the protocol consumers.
 
 ### Deferrals (scope boundary)
 
 - **Mutable-latest** re-archive on `(external_id, contentHash)` change → the consumer section below.
-- **Off-chain derivation ordinal** (deterministic proposal/vote order; the EVM `(block_number,
-log_index)` key is degenerate off-chain) → **ADR-072 / Z4**, which defines the Snapshot vote
-  ordering key (vote-hash + `created`). Z1 only guarantees the existing EVM ordering is unperturbed.
-- **Off-chain derivation / actor-sweep read path** (off-chain row type + queries + an external-id join
-  key) → **AD2 / AD4**, where a real off-chain deriver consumes them.
+- **Off-chain consumer wiring** (derivation-worker dispatch + per-source actor-sweep adapters that call
+  the off-chain read methods) → **AD2 / AD4**, where a real off-chain deriver consumes them.
 - **Off-chain DLQ shape** (an `archive_external_id` column on `ingestion_dlq`) → the consumer section;
   `ingestion_dlq` is untouched here.
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { ActorSweepAdapter } from '@sources/core';
-import { ActorSweepService } from './actor-sweep.service';
+import { ActorSweepService, archiveRowKey } from './actor-sweep.service';
 
 vi.mock('./derivation-metrics', () => ({
   derivationMetrics: {
@@ -326,5 +326,31 @@ describe('ActorSweepService', () => {
     await service.tick();
 
     expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith(ROW.id);
+  });
+});
+
+describe('archiveRowKey', () => {
+  it('keys EVM rows on the block/tx 4-tuple (unchanged from the prior tuple key)', () => {
+    expect(
+      archiveRowKey({ chain_id: '0x1', tx_hash: '0xtx', log_index: 3, block_hash: '0xblk' }),
+    ).toBe('0x1:0xtx:3:0xblk');
+  });
+
+  it('keys off-chain rows on external_id, ignoring null coords', () => {
+    expect(
+      archiveRowKey({
+        chain_id: 'off-chain',
+        tx_hash: null,
+        log_index: null,
+        block_hash: null,
+        external_id: 'proposal-0xabc',
+      }),
+    ).toBe('off-chain:ext:proposal-0xabc');
+  });
+
+  it('distinguishes two off-chain rows of the same source by external_id', () => {
+    const a = archiveRowKey({ chain_id: 'off-chain', external_id: 'p1' });
+    const b = archiveRowKey({ chain_id: 'off-chain', external_id: 'p2' });
+    expect(a).not.toBe(b);
   });
 });

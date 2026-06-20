@@ -75,10 +75,10 @@ export class ActorSweepService {
         throw new Error(`no actor sweep adapter for source_type ${sourceType}`);
       }
       const payloads = await adapter.fetchPayloads(rows);
-      const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
+      const byKey = new Map(payloads.map((payload) => [archiveRowKey(payload), payload]));
 
       for (const row of rows) {
-        const payload = byKey.get(tupleKey(row));
+        const payload = byKey.get(archiveRowKey(row));
         if (payload === undefined) {
           await this.handleFailure(row, new Error('archive payload missing'));
           continue;
@@ -162,11 +162,16 @@ function groupBySourceType(
   return grouped;
 }
 
-function tupleKey(row: {
+/** Correlation key between an archive row and its CH payload. Off-chain rows
+ *  (external_id set) key on external_id; EVM rows key on the block/tx 4-tuple.
+ *  EVM output is unchanged from the prior tuple key. */
+export function archiveRowKey(row: {
   chain_id: string;
-  tx_hash: string;
-  log_index: number;
-  block_hash: string;
+  tx_hash?: string | null;
+  log_index?: number | null;
+  block_hash?: string | null;
+  external_id?: string | null;
 }): string {
+  if (row.external_id != null) return `${row.chain_id}:ext:${row.external_id}`;
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }
