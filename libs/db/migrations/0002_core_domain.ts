@@ -215,6 +215,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     // order by block coords). Populated by the off-chain consumer; value semantics
     // are defined in ADR-072.
     .addColumn('derivation_ordinal', 'bigint')
+    // Mutable-latest fields for off-chain rows (ADR-071 §off-chain consumer):
+    // content_hash = hash of the latest archived payload slice; version = PG-maintained
+    // monotonic counter bumped only when content_hash changes, used as the CH
+    // ReplacingMergeTree(version) sort key so the latest edit wins deterministically.
+    // Both NULL for EVM rows (append-only, no edits).
+    .addColumn('content_hash', 'text')
+    .addColumn('version', 'integer')
     .addColumn('event_type', 'text', (col) => col.notNull())
     .addColumn('received_at', 'timestamptz', (col) => col.notNull())
     .addColumn('derived_at', 'timestamptz')

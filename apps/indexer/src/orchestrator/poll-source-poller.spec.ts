@@ -1,4 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type { JsonValue } from '@libs/domain';
 import type { PollListener, QueueProducerPort, SourceContext, PollItem } from '@sources/core';
 import { PollSourcePoller } from './poll-source-poller';
 
@@ -18,27 +19,40 @@ const FAKE_SOURCE: SourceContext = {
 };
 
 function makePollItem(id: string): PollItem {
-  return { externalId: id, contentHash: `hash-${id}`, payload: { id } };
+  return {
+    externalId: id,
+    eventType: 'ProposalCreated',
+    contentHash: `hash-${id}`,
+    ordinal: null,
+    payload: { id },
+  };
 }
 
-function makePort(): QueueProducerPort & { calls: Array<[SourceContext, PollItem]> } {
-  const calls: Array<[SourceContext, PollItem]> = [];
+function makePort(): QueueProducerPort & {
+  commits: Array<{ items: readonly PollItem[]; nextCursor: unknown }>;
+} {
+  const commits: Array<{ items: readonly PollItem[]; nextCursor: unknown }> = [];
   return {
-    calls,
-    enqueue: vi.fn().mockImplementation(async (source: SourceContext, item: PollItem) => {
-      calls.push([source, item]);
-    }),
+    commits,
+    loadCursor: vi.fn().mockResolvedValue(null),
+    commitTick: vi
+      .fn()
+      .mockImplementation(
+        async (_source: SourceContext, items: readonly PollItem[], nextCursor: unknown) => {
+          commits.push({ items, nextCursor });
+        },
+      ),
   };
 }
 
 function makePoller(
-  listener: PollListener<unknown>,
+  listener: PollListener<JsonValue>,
   opts?: Partial<ConstructorParameters<typeof PollSourcePoller>[0]>,
 ) {
   return new PollSourcePoller({
     source: FAKE_SOURCE,
     listener,
-    enqueuePort: makePort(),
+    queuePort: makePort(),
     tickTimeoutMs: 5_000,
     stopTimeoutMs: 500,
     minIntervalMs: 0, // disable clamping so test intervalMs values work as-is
@@ -101,7 +115,7 @@ describe('PollSourcePoller', () => {
     expect(cursors[2]).toBe(2);
   });
 
-  it('forwards all items to the enqueue port', async () => {
+  it('commits the tick (items + nextCursor) to the queue port in one call', async () => {
     const items = [makePollItem('a'), makePollItem('b')];
     const listener: PollListener<null> = {
       intervalMs: 60_000,
@@ -111,16 +125,16 @@ describe('PollSourcePoller', () => {
         .mockResolvedValue({ items: [], nextCursor: null }),
     };
     const port = makePort();
-    const poller = makePoller(listener, { enqueuePort: port });
+    const poller = makePoller(listener, { queuePort: port });
 
     const sp = poller.start();
     await vi.runAllTicks();
     await sp;
     await poller.stop();
 
-    expect(port.calls).toHaveLength(2);
-    expect(port.calls[0]?.[1].externalId).toBe('a');
-    expect(port.calls[1]?.[1].externalId).toBe('b');
+    expect(port.commits).toHaveLength(1);
+    expect(port.commits[0]?.items.map((i) => i.externalId)).toEqual(['a', 'b']);
+    expect(port.commits[0]?.nextCursor).toBeNull();
   });
 
   it('single-flight: a slow poll does not start the next tick concurrently', async () => {

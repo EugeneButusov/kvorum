@@ -157,6 +157,11 @@ export const chainMetrics = {
     description:
       'archive_log consumer outcomes per source. result=inserted|decode_dlq|transient_dlq|unmapped',
   }),
+  offChainArchiveConsumer: defineCounter({
+    name: 'ingestion_off_chain_archive_consumer',
+    description:
+      'off-chain archive consumer outcomes per source. result=inserted|re_archived|skip_unchanged|transient_dlq|unmapped',
+  }),
 
   // ---- histograms ----
   rpcRequestDuration: defineHistogram({

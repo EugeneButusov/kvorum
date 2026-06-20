@@ -1,5 +1,6 @@
 import { AbstractPoller } from '@libs/chain';
 import type { AbstractPollerOptions, Logger } from '@libs/chain';
+import type { JsonValue } from '@libs/domain';
 import { raceWithAbort } from '@libs/utils';
 import type {
   SourceContext,
@@ -14,8 +15,8 @@ const DEFAULT_MIN_INTERVAL_MS = 5_000;
 
 export interface PollSourcePollerOpts {
   source: SourceContext;
-  listener: PollListener<unknown>;
-  enqueuePort: QueueProducerPort;
+  listener: PollListener<JsonValue>;
+  queuePort: QueueProducerPort;
   /** Per-tick deadline before giving up and recording result=timeout. Defaults to POLL_TICK_TIMEOUT_MS env or 30s. */
   tickTimeoutMs?: number;
   /** Minimum allowed poll interval regardless of listener.intervalMs. Defaults to POLL_MIN_INTERVAL_MS env or 5s. */
@@ -33,10 +34,10 @@ export interface PollSourcePollerOpts {
  *  block drain()/onApplicationShutdown() beyond stopTimeoutMs. */
 export class PollSourcePoller extends AbstractPoller {
   private readonly source: SourceContext;
-  private readonly listener: PollListener<unknown>;
-  private readonly enqueuePort: QueueProducerPort;
+  private readonly listener: PollListener<JsonValue>;
+  private readonly queuePort: QueueProducerPort;
   private readonly tickTimeoutMs: number;
-  private cursor: unknown = null;
+  private cursor: JsonValue | null = null;
 
   constructor(opts: PollSourcePollerOpts) {
     const minIntervalMs =
@@ -49,7 +50,7 @@ export class PollSourcePoller extends AbstractPoller {
     });
     this.source = opts.source;
     this.listener = opts.listener;
-    this.enqueuePort = opts.enqueuePort;
+    this.queuePort = opts.queuePort;
     this.tickTimeoutMs =
       opts.tickTimeoutMs ?? Number(process.env['POLL_TICK_TIMEOUT_MS'] ?? DEFAULT_TICK_TIMEOUT_MS);
   }
@@ -58,12 +59,18 @@ export class PollSourcePoller extends AbstractPoller {
     return `[poll:${this.source.sourceType}:${this.source.daoSourceId}]`;
   }
 
+  /** Resume from the persisted cursor before the immediate first tick. */
+  async start(): Promise<void> {
+    this.cursor = await this.queuePort.loadCursor(this.source);
+    await super.start();
+  }
+
   protected async runTick(): Promise<void> {
     const tickAbort = new AbortController();
     const timeoutId = setTimeout(() => tickAbort.abort('tick-timeout'), this.tickTimeoutMs);
     const ctx: PollPollContext = { source: this.source, signal: tickAbort.signal };
 
-    let result: Awaited<ReturnType<PollListener<unknown>['poll']>>;
+    let result: Awaited<ReturnType<PollListener<JsonValue>['poll']>>;
     try {
       result = await raceWithAbort(this.listener.poll(ctx, this.cursor), tickAbort.signal);
       clearTimeout(timeoutId);
@@ -77,8 +84,13 @@ export class PollSourcePoller extends AbstractPoller {
       return;
     }
 
-    for (const item of result.items) {
-      await this.enqueuePort.enqueue(this.source, item);
+    // Atomic commit: enqueue all items + advance the persisted cursor in one txn.
+    // On failure the in-memory cursor is left unchanged so the next tick retries.
+    try {
+      await this.queuePort.commitTick(this.source, result.items, result.nextCursor);
+    } catch {
+      pollMetrics.pollTick.add(1, { source_type: this.source.sourceType, result: 'error' });
+      return;
     }
     this.cursor = result.nextCursor;
 

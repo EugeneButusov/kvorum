@@ -124,7 +124,10 @@ const mockRegistry = {
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
-const STUB_QUEUE_PRODUCER_PORT = { enqueue: vi.fn().mockResolvedValue(undefined) };
+const STUB_QUEUE_PRODUCER_PORT = {
+  loadCursor: vi.fn().mockResolvedValue(null),
+  commitTick: vi.fn().mockResolvedValue(undefined),
+};
 
 async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {

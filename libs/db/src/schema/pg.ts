@@ -14,7 +14,12 @@ import type {
   ProposalTable,
   SourceTypeTable,
 } from './domain';
-import type { ArchiveEventTable, IngestionDlqResolvedTable, IngestionDlqTable } from './ingestion';
+import type {
+  ArchiveEventTable,
+  IngestionDlqResolvedTable,
+  IngestionDlqTable,
+  OffChainCursorTable,
+} from './ingestion';
 import type { SeenLogTable } from './seen-log';
 export type { SeenLog, SeenLogTable, NewSeenLog } from './seen-log';
 
@@ -82,6 +87,10 @@ export type {
   NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,
+  OffChainCursor,
+  OffChainCursorTable,
+  NewOffChainCursor,
+  OffChainCursorUpdate,
 } from './ingestion';
 export type {
   ActorAddress,
@@ -110,6 +119,7 @@ export interface PgDatabase {
   archive_event: ArchiveEventTable;
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
+  off_chain_cursor: OffChainCursorTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
   actor_address: ActorAddressTable;

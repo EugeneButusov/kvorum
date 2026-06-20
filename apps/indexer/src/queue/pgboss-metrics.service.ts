@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { chainMetrics } from '@libs/chain';
-import { ARCHIVE_LOG_QUEUE } from './queue-names';
+import { ARCHIVE_LOG_QUEUE, OFF_CHAIN_ARCHIVE_QUEUE } from './queue-names';
 import { QUEUE_WORKER_PORT } from './queue-worker-port';
 import type { QueueWorkerPort } from './queue-worker-port';
 
@@ -32,11 +32,13 @@ export class PgBossMetricsService implements OnApplicationBootstrap, OnApplicati
 
   private async tick(): Promise<void> {
     try {
-      const stats = await this.queue.getQueueStats(ARCHIVE_LOG_QUEUE);
-      chainMetrics.archiveLogQueueDepth.record(stats?.queuedCount ?? 0);
+      for (const queue of [ARCHIVE_LOG_QUEUE, OFF_CHAIN_ARCHIVE_QUEUE]) {
+        const stats = await this.queue.getQueueStats(queue);
+        chainMetrics.archiveLogQueueDepth.record(stats?.queuedCount ?? 0, { queue });
 
-      const ageSeconds = await this.queue.getOldestJobAgeSeconds(ARCHIVE_LOG_QUEUE);
-      chainMetrics.archiveLogQueueAgeSeconds.record(ageSeconds ?? 0);
+        const ageSeconds = await this.queue.getOldestJobAgeSeconds(queue);
+        chainMetrics.archiveLogQueueAgeSeconds.record(ageSeconds ?? 0, { queue });
+      }
     } catch (err) {
       this.logger.warn('pgboss_metrics_tick_failed', { error: String(err) });
     }
