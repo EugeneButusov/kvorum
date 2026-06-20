@@ -7,7 +7,7 @@ import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
-import { FETCH_DRIVERS, POLL_ENQUEUE_PORT } from './tokens';
+import { FETCH_DRIVERS, POLL_QUEUE_PORT } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
 vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -124,7 +124,7 @@ const mockRegistry = {
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
 
-const STUB_POLL_ENQUEUE_PORT = { enqueue: vi.fn().mockResolvedValue(undefined) };
+const STUB_POLL_QUEUE_PORT = { enqueue: vi.fn().mockResolvedValue(undefined) };
 
 async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Promise<TestingModule> {
   vi.mocked(ChainContextRegistry).mockImplementation(function () {
@@ -136,7 +136,7 @@ async function buildModule(plugins: SourceIngester[], driver: FetchDriver): Prom
       IndexerOrchestratorService,
       { provide: SOURCE_INGESTERS, useValue: plugins },
       { provide: FETCH_DRIVERS, useValue: [driver] },
-      { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+      { provide: POLL_QUEUE_PORT, useValue: STUB_POLL_QUEUE_PORT },
       { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
       { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
       { provide: ChainContextRegistry, useValue: mockRegistry },
@@ -550,7 +550,7 @@ describe('IndexerOrchestratorService', () => {
           IndexerOrchestratorService,
           { provide: SOURCE_INGESTERS, useValue: [makeFakePollPlugin('snapshot')] },
           { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
-          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: POLL_QUEUE_PORT, useValue: STUB_POLL_QUEUE_PORT },
           { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
           { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
           { provide: ChainContextRegistry, useValue: mockRegistry },
@@ -589,7 +589,7 @@ describe('IndexerOrchestratorService', () => {
             useValue: [makeFakePlugin('compound_governor_bravo'), makeFakePollPlugin('snapshot')],
           },
           { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
-          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: POLL_QUEUE_PORT, useValue: STUB_POLL_QUEUE_PORT },
           { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
           { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
           { provide: ChainContextRegistry, useValue: mockRegistry },
@@ -636,7 +636,7 @@ describe('IndexerOrchestratorService', () => {
             useValue: [makeFakePlugin('compound_governor_bravo'), makeFakePollPlugin('snapshot')],
           },
           { provide: FETCH_DRIVERS, useValue: [evmDriver, pollDriver] },
-          { provide: POLL_ENQUEUE_PORT, useValue: STUB_POLL_ENQUEUE_PORT },
+          { provide: POLL_QUEUE_PORT, useValue: STUB_POLL_QUEUE_PORT },
           { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
           { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
           { provide: ChainContextRegistry, useValue: mockRegistry },

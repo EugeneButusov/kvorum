@@ -6,7 +6,7 @@ export const pollMetrics = {
     name: 'poll_tick',
     description: 'Poll-source tick outcomes per source_type. result=ok|error|timeout',
   }),
-  /** Items forwarded to PollEnqueuePort per source_type. */
+  /** Items forwarded to PollQueuePort per source_type. */
   pollItemsEnqueued: defineCounter({
     name: 'poll_items_enqueued',
     description: 'Items forwarded to the enqueue port per source_type.',

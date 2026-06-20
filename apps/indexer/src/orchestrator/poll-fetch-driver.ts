@@ -1,14 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { IngestSpec, SourceContext, PollEnqueuePort } from '@sources/core';
+import type { IngestSpec, SourceContext, PollQueuePort } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { PollSourcePoller } from './poll-source-poller';
-import { POLL_ENQUEUE_PORT } from './tokens';
+import { POLL_QUEUE_PORT } from './tokens';
 
 @Injectable()
 export class PollFetchDriver implements FetchDriver<'poll'> {
   readonly kind = 'poll' as const;
 
-  constructor(@Inject(POLL_ENQUEUE_PORT) private readonly enqueuePort: PollEnqueuePort) {}
+  constructor(@Inject(POLL_QUEUE_PORT) private readonly enqueuePort: PollQueuePort) {}
 
   async start(
     spec: Extract<IngestSpec, { kind: 'poll' }>,

@@ -1,8 +1,8 @@
 # ADR-071 — Non-EVM ingestion contract
 
-**Status:** Z0 section Accepted; Z1/Z2 sections Directional (to be ratified at implementation)
+**Status:** Poll transport section Accepted; identity and consumer sections Directional (to be ratified at implementation)
 **Date:** 2026-06-20
-**Issue:** [#317](https://github.com/EugeneButusov/kvorum/issues/317) (Z0), [#318](https://github.com/EugeneButusov/kvorum/issues/318) (Z1), [#319](https://github.com/EugeneButusov/kvorum/issues/319) (Z2)
+**Issue:** [#317](https://github.com/EugeneButusov/kvorum/issues/317), [#318](https://github.com/EugeneButusov/kvorum/issues/318), [#319](https://github.com/EugeneButusov/kvorum/issues/319)
 
 ---
 
@@ -17,11 +17,11 @@ M4 introduces Snapshot (GraphQL polling) and Discourse (HTTP polling) as off-cha
 - **Confirmed-head / headLag (ADR-0058):** assumes block-lattice coordinates with possible reorgs. Off-chain APIs have no reorg concept. The `confirmedHead = tip − headLag` model has no analogue.
 - **`seen_log` two-layer idempotency (ADR-0063):** `seen_log` records `(chainId, txHash, logIndex, blockNumber, blockHash)` — EVM-only coordinates. Off-chain entities are identified by source-native string ids, not tx coordinates.
 - **4-tuple `ON CONFLICT` (ADR-0041):** `(source_type, chain_id, tx_hash, log_index)` is the unique identity key in `archive_event`. Off-chain events have no tx_hash or log_index.
-- **Single-worker-per-`(chain_id, source_type)` invariant (ADR-0058 amendment):** still holds — each poll source has its own driver/timer, and the Z2 consumer will use `localConcurrency = 1`.
+- **Single-worker-per-`(chain_id, source_type)` invariant (ADR-0058 amendment):** still holds — each poll source has its own driver/timer, and the off-chain consumer will use `localConcurrency = 1`.
 
 ---
 
-## Z0 — Poll transport scaffold (Accepted)
+## Poll transport scaffold (Accepted)
 
 ### Decision
 
@@ -56,19 +56,19 @@ Each `runTick()` creates a per-tick `AbortController`, starts a `POLL_TICK_TIMEO
 
 ### `contentHash` constraint
 
-`PollItem.contentHash` is computed in the plugin's `poll()` over the **raw poll-response slice** for that item. The poll/list query therefore **MUST select every field that Z2's mutable-latest edit-detection diffs on**. If an edit-salient field is only available via a per-item detail fetch, the `contentHash`-at-list-time model breaks and the driver would need an additional fetch stage.
+`PollItem.contentHash` is computed in the plugin's `poll()` over the **raw poll-response slice** for that item. The poll/list query therefore **MUST select every field that the off-chain consumer's mutable-latest edit-detection diffs on**. If an edit-salient field is only available via a per-item detail fetch, the `contentHash`-at-list-time model breaks and the driver would need an additional fetch stage.
 
-- This constraint is **owned by AD1 and AE1** when they implement their `PollListener`.
+- This constraint is **owned by the Snapshot and Discourse ingester implementations**.
 - ADR-071 states it; they must honour it.
 
 ### In-memory cursor + enqueue-port guardrail
 
-`PollSourcePoller` holds `cursor` in memory only. On restart the cursor resets to `null`, causing re-fetch from genesis. This is safe **only** because Z0 binds a no-op stub for `PollEnqueuePort`. The real enqueue port **MUST NOT be bound** until:
+`PollSourcePoller` holds `cursor` in memory only. On restart the cursor resets to `null`, causing re-fetch from genesis. This is safe **only** because `PollEnqueuePort` is currently bound to a no-op stub. The real enqueue port **MUST NOT be bound** until:
 
-1. **Z1** — `archive_event` gains `external_id` + nullable block coords + the `(source_type, external_id)` partial unique index (the idempotency layer that makes re-fetch from genesis harmless).
-2. **Z2** — cursor persistence lands (off-chain watermark), so restarts resume rather than re-fetch.
+1. `archive_event` gains `external_id` + nullable block coords + the `(source_type, external_id)` partial unique index (the idempotency layer that makes re-fetch from genesis harmless).
+2. Cursor persistence lands (off-chain watermark), so restarts resume rather than re-fetch.
 
-Binding the real port before Z1+Z2 would cause a duplicate-enqueue flood on every restart.
+Binding the real port before both of those land would cause a duplicate-enqueue flood on every restart.
 
 ### `FetchDriver<K>` per-kind `chainCfg` typing
 
@@ -80,9 +80,9 @@ Binding the real port before Z1+Z2 would cause a duplicate-enqueue flood on ever
 
 ---
 
-## Z1 — Off-chain `archive_event` identity (Directional — to be ratified in Z1)
+## Off-chain `archive_event` identity (Directional — to be ratified at implementation)
 
-> This section records intent only. The exact DDL, migration strategy, and actor-sweep interaction will be finalised when Z1 ([#318](https://github.com/EugeneButusov/kvorum/issues/318)) is implemented.
+> This section records intent only. The exact DDL, migration strategy, and actor-sweep interaction will be finalised when [#318](https://github.com/EugeneButusov/kvorum/issues/318) is implemented.
 
 - `archive_event.block_number`, `block_hash`, `tx_hash`, `log_index` become **nullable**.
 - New column `external_id TEXT` — source-native id (Snapshot proposal hash, Discourse topic id).
@@ -93,16 +93,16 @@ Binding the real port before Z1+Z2 would cause a duplicate-enqueue flood on ever
 
 ---
 
-## Z2 — Off-chain consumer and mutable-latest semantics (Directional — to be ratified in Z2)
+## Off-chain consumer and mutable-latest semantics (Directional — to be ratified at implementation)
 
-> This section records intent only. The exact payload shape, consumer dispatch, and CH write logic will be finalised when Z2 ([#319](https://github.com/EugeneButusov/kvorum/issues/319)) is implemented.
+> This section records intent only. The exact payload shape, consumer dispatch, and CH write logic will be finalised when [#319](https://github.com/EugeneButusov/kvorum/issues/319) is implemented.
 
 - The off-chain consumer resolves by `daoSourceId` (not `(chain, address)` — off-chain sources have no contract address).
 - No ABI decode step; the raw `PollItem.payload` is the archive payload.
 - **Mutable-latest semantics:** re-archive on `(external_id, contentHash)` change. An off-chain entity (Snapshot proposal) can be edited; the archive must reflect the latest version. Unlike EVM events (`ON CONFLICT DO NOTHING`), off-chain writes update on content change.
 - CH-first then PG watermark write, following the ADR-041 protocol where applicable.
 - Cursor is persisted (off-chain watermark table or `dao_source.source_config` amendment) so restarts resume rather than re-fetch.
-- `localConcurrency: 1` on the off-chain consumer queue — the single-worker invariant holds.
+- `localConcurrency: 1` on the off-chain consumer queue — the single-worker-per-source invariant holds.
 
 ---
 

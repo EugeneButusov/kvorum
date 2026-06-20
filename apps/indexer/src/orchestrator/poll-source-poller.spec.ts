@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { PollListener, PollEnqueuePort, SourceContext, PollItem } from '@sources/core';
+import type { PollListener, PollQueuePort, SourceContext, PollItem } from '@sources/core';
 import { PollSourcePoller } from './poll-source-poller';
 
 vi.mock('./poll-metrics', () => ({
@@ -21,7 +21,7 @@ function makePollItem(id: string): PollItem {
   return { externalId: id, contentHash: `hash-${id}`, payload: { id } };
 }
 
-function makePort(): PollEnqueuePort & { calls: Array<[SourceContext, PollItem]> } {
+function makePort(): PollQueuePort & { calls: Array<[SourceContext, PollItem]> } {
   const calls: Array<[SourceContext, PollItem]> = [];
   return {
     calls,

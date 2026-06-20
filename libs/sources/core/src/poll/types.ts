@@ -27,6 +27,6 @@ export interface PollListener<TCursor = unknown> {
 }
 
 /** App-level seam between the domain-blind poll driver and the off-chain consumer. */
-export interface PollEnqueuePort {
+export interface PollQueuePort {
   enqueue(source: SourceContext, item: PollItem): Promise<void>;
 }
