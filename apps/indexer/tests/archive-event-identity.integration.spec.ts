@@ -71,12 +71,13 @@ describeIf('archive_event off-chain identity', () => {
     };
   }
 
-  function offchainRow(externalId: string) {
+  function offchainRow(externalId: string, derivationOrdinal?: number) {
     return {
       source_type: OFFCHAIN_SOURCE_TYPE,
       dao_source_id: offchainDaoSourceId,
       chain_id: OFFCHAIN_CHAIN_ID,
       external_id: externalId,
+      derivation_ordinal: derivationOrdinal != null ? String(derivationOrdinal) : null,
       event_type: 'ProposalCreated' as const,
       received_at: new Date(),
       derived_at: null,
@@ -176,6 +177,30 @@ describeIf('archive_event off-chain identity', () => {
         })
         .execute(),
     ).rejects.toThrow(/archive_event_identity_shape/);
+  });
+
+  it('off-chain derivation reads order by derivation_ordinal, not insertion order', async () => {
+    // Insert out of ordinal order; expect them back sorted by derivation_ordinal.
+    await repo.insert(offchainRow('proposal-c', 30));
+    await repo.insert(offchainRow('proposal-a', 10));
+    await repo.insert(offchainRow('proposal-b', 20));
+
+    const derivation = new ArchiveDerivationRepository(pgDb);
+    const offchain = await derivation.findUnderivedOffchain(['ProposalCreated'], 50);
+    expect(offchain.map((r) => r.external_id)).toEqual(['proposal-a', 'proposal-b', 'proposal-c']);
+    expect(offchain.map((r) => r.derivation_ordinal)).toEqual(['10', '20', '30']);
+    // These rows have no block coords — only the off-chain shape is returned here.
+    expect(offchain.every((r) => r.external_id != null)).toBe(true);
+  });
+
+  it('off-chain reads exclude EVM rows (mirror of the EVM guard)', async () => {
+    await repo.insert(evmRow(1));
+    await repo.insert(offchainRow('proposal-a', 10));
+
+    const derivation = new ArchiveDerivationRepository(pgDb);
+    const offchain = await derivation.findUnderivedOffchain(['ProposalCreated'], 50);
+    expect(offchain).toHaveLength(1);
+    expect(offchain[0]?.source_type).toBe(OFFCHAIN_SOURCE_TYPE);
   });
 
   it('EVM derivation reads exclude off-chain rows even with a shared event_type', async () => {

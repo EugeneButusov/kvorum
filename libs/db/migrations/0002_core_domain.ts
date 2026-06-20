@@ -209,6 +209,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('tx_hash', 'text')
     .addColumn('log_index', 'integer')
     .addColumn('external_id', 'text')
+    // Off-chain ordering key: the source-native ordinal (e.g. Snapshot proposal/vote
+    // `created`) that gives blockless rows a deterministic derivation order, since
+    // (block_number, log_index) is degenerate off-chain. NULL for EVM rows (which
+    // order by block coords). Populated by the off-chain consumer; value semantics
+    // are defined in ADR-072.
+    .addColumn('derivation_ordinal', 'bigint')
     .addColumn('event_type', 'text', (col) => col.notNull())
     .addColumn('received_at', 'timestamptz', (col) => col.notNull())
     .addColumn('derived_at', 'timestamptz')

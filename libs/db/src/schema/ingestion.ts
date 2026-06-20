@@ -23,6 +23,8 @@ export interface ArchiveEventTable {
   log_index: number | null;
   /** Source-native id for off-chain rows (Snapshot proposal hash, Discourse topic id); null for EVM. */
   external_id: string | null;
+  /** Off-chain ordering key (source-native ordinal); null for EVM rows. See ADR-071/ADR-072. */
+  derivation_ordinal: string | null;
   event_type: ArchiveEventType;
   received_at: Date;
   derived_at: Date | null;
