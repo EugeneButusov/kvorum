@@ -72,7 +72,18 @@ import type { SourceType } from '@libs/db';
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { ArchiveEventType, SourceReadExtension } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
+import type { PollListener } from './poll/types';
 import type { RawLogJob } from './producer/archive-producer';
+import type { SourceContext } from './source-context';
+
+export type { SourceContext } from './source-context';
+export type {
+  PollItem,
+  PollResult,
+  PollPollContext,
+  PollListener,
+  QueueProducerPort,
+} from './poll/types';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */
 export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
@@ -132,14 +143,8 @@ export type IngestSpec =
   // listener is optional: the driver injects the generic archive producer for the live path.
   // Backfill supplies its own listener via buildBackfillRuntime().listenerFactory().
   | { kind: 'evm-event-poller'; filter: LogFilter; listener?: EventsListener<LogEvent> }
-  | { kind: 'evm-block-head-poller'; listener: HeadListener };
-
-export interface SourceContext {
-  daoSourceId: string;
-  sourceType: SourceType;
-  chainId: string;
-  sourceLabel: SourceType;
-}
+  | { kind: 'evm-block-head-poller'; listener: HeadListener }
+  | { kind: 'poll'; listener: PollListener };
 
 export { makeArchiveProducer } from './producer/archive-producer';
 export type { RawLogJob, ArchiveProducerDeps } from './producer/archive-producer';

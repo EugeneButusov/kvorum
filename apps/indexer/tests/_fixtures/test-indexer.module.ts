@@ -12,8 +12,8 @@ import { EvmEventPollerDriver } from '../../src/orchestrator/evm-event-poller-dr
 import type { FetchDriver } from '../../src/orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../../src/orchestrator/indexer-orchestrator.service';
 import { FETCH_DRIVERS } from '../../src/orchestrator/tokens';
-import { JOB_QUEUE_PORT } from '../../src/queue/job-queue-port';
 import { JobQueueService } from '../../src/queue/job-queue.service';
+import { QUEUE_WORKER_PORT } from '../../src/queue/queue-worker-port';
 
 @Module({
   imports: [IndexerInfraModule, ChainContextModule, TestEvmSourceModule],
@@ -26,7 +26,7 @@ import { JobQueueService } from '../../src/queue/job-queue.service';
       inject: [SOURCE_PLUGINS],
     },
     JobQueueService,
-    { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },
+    { provide: QUEUE_WORKER_PORT, useExisting: JobQueueService },
     EvmEventPollerDriver,
     {
       provide: FETCH_DRIVERS,

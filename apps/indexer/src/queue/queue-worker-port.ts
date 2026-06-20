@@ -1,8 +1,8 @@
-export const JOB_QUEUE_PORT = 'JOB_QUEUE_PORT';
+export const QUEUE_WORKER_PORT = 'QUEUE_WORKER_PORT';
 
 export type QueueJob<T> = { readonly id: string; readonly data: T };
 
-export interface JobQueuePort {
+export interface QueueWorkerPort {
   work<T>(
     queue: string,
     opts: { localConcurrency: number },

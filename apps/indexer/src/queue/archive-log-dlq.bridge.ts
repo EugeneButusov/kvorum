@@ -2,9 +2,9 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { DlqRepository } from '@libs/db';
 import type { RawLogJob } from '@sources/core';
-import { JOB_QUEUE_PORT } from './job-queue-port';
-import type { JobQueuePort } from './job-queue-port';
 import { ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
+import { QUEUE_WORKER_PORT } from './queue-worker-port';
+import type { QueueWorkerPort } from './queue-worker-port';
 
 /** Drains dead-lettered jobs into ingestion_dlq so the dashboard and admin-cli surface them. */
 @Injectable()
@@ -12,7 +12,7 @@ export class ArchiveLogDlqBridge implements OnApplicationBootstrap {
   private readonly logger = new Logger('ArchiveLogDlqBridge');
 
   constructor(
-    @Inject(JOB_QUEUE_PORT) private readonly queue: JobQueuePort,
+    @Inject(QUEUE_WORKER_PORT) private readonly queue: QueueWorkerPort,
     private readonly dlqRepo: DlqRepository,
   ) {}
 

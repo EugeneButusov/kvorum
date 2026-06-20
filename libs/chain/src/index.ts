@@ -44,6 +44,8 @@ export type {
 } from './poller/types.js';
 export { EventPoller } from './poller/event-poller.js';
 export { HeadTracker } from './poller/head-tracker.js';
+export { AbstractPoller } from './poller/abstract-poller.js';
+export type { AbstractPollerOptions } from './poller/abstract-poller.js';
 export { buildIdempotencyKey } from './poller/utils/idempotency.utils.js';
 
 export { BackfillRangeFetcher } from './backfill/range-fetcher.js';
