@@ -22,7 +22,7 @@ export interface PollSourcePollerOpts {
 /** AbstractPoller subclass that drives one off-chain poll source.
  *
  *  Inherits from AbstractPoller: single-flight re-entry guard, terminal-after-stop,
- *  immediate first tick, and the hard stopTimeoutMs race on shutdown (ADR-071 §Z0).
+ *  immediate first tick, and the hard stopTimeoutMs race on shutdown (ADR-071).
  *
  *  runTick() races poll() against a per-tick deadline so a hung HTTP call cannot
  *  block drain()/onApplicationShutdown() beyond stopTimeoutMs. */

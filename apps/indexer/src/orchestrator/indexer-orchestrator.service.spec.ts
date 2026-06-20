@@ -531,7 +531,7 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
-  describe('poll source routing (Z0)', () => {
+  describe('poll source routing', () => {
     it('#P1 — poll source starts via poll driver without requiring a chainConfig', async () => {
       vi.mocked(parseChainConfigFromEnv).mockReturnValue([]); // no EVM chains configured
       mockDaoSourceRepo.findAll.mockResolvedValue([

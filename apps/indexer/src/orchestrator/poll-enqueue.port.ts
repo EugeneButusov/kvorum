@@ -1,14 +1,15 @@
 import { Logger } from '@nestjs/common';
 import type { PollEnqueuePort } from '@sources/core';
 
-/** Z0 stub: no-op enqueue that warns on every call.
- *  Replace with a real pg-boss enqueue in Z2 once external_id idempotency (Z1)
- *  and cursor persistence (Z2) are in place. */
+/** No-op stub bound until the real pg-boss enqueue lands.
+ *  The real port must not be bound until archive_event gains external_id idempotency
+ *  and cursor persistence is in place — binding earlier causes a duplicate-enqueue flood
+ *  on every restart (in-memory cursor resets to null). */
 export function makePollEnqueueStub(): PollEnqueuePort {
   const logger = new Logger('PollEnqueueStub');
   return {
     async enqueue(source, item): Promise<void> {
-      logger.warn('poll_enqueue_stub_drop — real enqueue arrives in Z2', {
+      logger.warn('poll_enqueue_stub_drop — real enqueue not yet bound', {
         sourceType: source.sourceType,
         externalId: item.externalId,
       });

@@ -26,8 +26,7 @@ export interface PollListener<TCursor = unknown> {
   poll(ctx: PollPollContext, cursor: TCursor | null): Promise<PollResult<TCursor>>;
 }
 
-/** App-level seam between the domain-blind poll driver and the off-chain consumer.
- *  Z0 binds a no-op stub; Z2 rebinds with the real pg-boss enqueue + off-chain payload. */
+/** App-level seam between the domain-blind poll driver and the off-chain consumer. */
 export interface PollEnqueuePort {
   enqueue(source: SourceContext, item: PollItem): Promise<void>;
 }
