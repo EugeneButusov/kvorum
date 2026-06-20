@@ -5,9 +5,9 @@ import { DlqRepository } from '@libs/db';
 import type { NewIngestionDlq } from '@libs/db';
 import { DecodeError } from '@sources/compound';
 import type { ArchiveConsumeFn, ArchiveConsumeContext, RawLogJob } from '@sources/core';
-import { JOB_QUEUE_PORT } from './job-queue-port';
-import type { JobQueuePort } from './job-queue-port';
 import { ARCHIVE_LOG_QUEUE } from './queue-names';
+import { QUEUE_WORKER_PORT } from './queue-worker-port';
+import type { QueueWorkerPort } from './queue-worker-port';
 import { SourceResolver } from './source-resolver';
 
 export const ARCHIVE_CONSUMER_FNS = 'ARCHIVE_CONSUMER_FNS';
@@ -17,7 +17,7 @@ export class ArchiveLogConsumer implements OnApplicationBootstrap {
   private readonly logger = new Logger('ArchiveLogConsumer');
 
   constructor(
-    @Inject(JOB_QUEUE_PORT) private readonly queue: JobQueuePort,
+    @Inject(QUEUE_WORKER_PORT) private readonly queue: QueueWorkerPort,
     private readonly resolver: SourceResolver,
     @Inject(ARCHIVE_CONSUMER_FNS)
     private readonly consumers: Map<string, ArchiveConsumeFn>,

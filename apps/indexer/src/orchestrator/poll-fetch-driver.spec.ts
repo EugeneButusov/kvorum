@@ -1,5 +1,5 @@
 import { vi, describe, it, expect } from 'vitest';
-import type { IngestSpec, SourceContext, PollQueuePort } from '@sources/core';
+import type { IngestSpec, SourceContext, QueueProducerPort } from '@sources/core';
 import { PollFetchDriver } from './poll-fetch-driver';
 
 vi.mock('./poll-metrics', () => ({
@@ -17,7 +17,7 @@ const FAKE_CTX: SourceContext = {
   sourceLabel: 'snapshot' as never,
 };
 
-const STUB_PORT: PollQueuePort = {
+const STUB_PORT: QueueProducerPort = {
   enqueue: vi.fn().mockResolvedValue(undefined),
 };
 

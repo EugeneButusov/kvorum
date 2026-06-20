@@ -82,7 +82,7 @@ export type {
   PollResult,
   PollPollContext,
   PollListener,
-  PollQueuePort,
+  QueueProducerPort,
 } from './poll/types';
 
 /** Nest injection token for the multi-provider array of registered source plugins. */

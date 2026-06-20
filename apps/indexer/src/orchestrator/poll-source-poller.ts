@@ -1,7 +1,12 @@
 import { AbstractPoller } from '@libs/chain';
 import type { AbstractPollerOptions, Logger } from '@libs/chain';
 import { raceWithAbort } from '@libs/utils';
-import type { SourceContext, PollListener, PollQueuePort, PollPollContext } from '@sources/core';
+import type {
+  SourceContext,
+  PollListener,
+  QueueProducerPort,
+  PollPollContext,
+} from '@sources/core';
 import { pollMetrics } from './poll-metrics';
 
 const DEFAULT_TICK_TIMEOUT_MS = 30_000;
@@ -10,7 +15,7 @@ const DEFAULT_MIN_INTERVAL_MS = 5_000;
 export interface PollSourcePollerOpts {
   source: SourceContext;
   listener: PollListener<unknown>;
-  enqueuePort: PollQueuePort;
+  enqueuePort: QueueProducerPort;
   /** Per-tick deadline before giving up and recording result=timeout. Defaults to POLL_TICK_TIMEOUT_MS env or 30s. */
   tickTimeoutMs?: number;
   /** Minimum allowed poll interval regardless of listener.intervalMs. Defaults to POLL_MIN_INTERVAL_MS env or 5s. */
@@ -29,7 +34,7 @@ export interface PollSourcePollerOpts {
 export class PollSourcePoller extends AbstractPoller {
   private readonly source: SourceContext;
   private readonly listener: PollListener<unknown>;
-  private readonly enqueuePort: PollQueuePort;
+  private readonly enqueuePort: QueueProducerPort;
   private readonly tickTimeoutMs: number;
   private cursor: unknown = null;
 

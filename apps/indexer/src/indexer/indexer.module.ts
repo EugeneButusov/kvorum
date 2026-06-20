@@ -11,13 +11,13 @@ import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
 import type { FetchDriver } from '../orchestrator/fetch-driver';
 import { IndexerOrchestratorService } from '../orchestrator/indexer-orchestrator.service';
 import { PollFetchDriver } from '../orchestrator/poll-fetch-driver';
-import { makePollQueueStub } from '../orchestrator/poll-queue.port';
-import { FETCH_DRIVERS, POLL_QUEUE_PORT } from '../orchestrator/tokens';
+import { makeQueueProducerStub } from '../orchestrator/queue-producer.port';
+import { FETCH_DRIVERS, QUEUE_PRODUCER_PORT } from '../orchestrator/tokens';
 import { ArchiveLogDlqBridge } from '../queue/archive-log-dlq.bridge';
 import { ArchiveLogConsumer, ARCHIVE_CONSUMER_FNS } from '../queue/archive-log.consumer';
-import { JOB_QUEUE_PORT } from '../queue/job-queue-port';
 import { JobQueueService } from '../queue/job-queue.service';
 import { PgBossMetricsService } from '../queue/pgboss-metrics.service';
+import { QUEUE_WORKER_PORT } from '../queue/queue-worker-port';
 import { SeenLogPruneService } from '../queue/seen-log-prune.service';
 import { SourceResolver } from '../queue/source-resolver';
 
@@ -39,7 +39,7 @@ import { SourceResolver } from '../queue/source-resolver';
     EvmEventPollerDriver,
     EvmBlockHeadPollerDriver,
     PollFetchDriver,
-    { provide: POLL_QUEUE_PORT, useFactory: makePollQueueStub },
+    { provide: QUEUE_PRODUCER_PORT, useFactory: makeQueueProducerStub },
     {
       provide: FETCH_DRIVERS,
       useFactory: (
@@ -50,7 +50,7 @@ import { SourceResolver } from '../queue/source-resolver';
       inject: [EvmEventPollerDriver, EvmBlockHeadPollerDriver, PollFetchDriver],
     },
     JobQueueService,
-    { provide: JOB_QUEUE_PORT, useExisting: JobQueueService },
+    { provide: QUEUE_WORKER_PORT, useExisting: JobQueueService },
     SeenLogPruneService,
     SourceResolver,
     {

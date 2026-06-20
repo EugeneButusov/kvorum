@@ -5,15 +5,15 @@ import { PgBoss, fromKysely } from 'pg-boss';
 import type { EventsListener, LogEvent } from '@libs/chain';
 import { pgDb, SeenLogRepository } from '@libs/db';
 import { makeArchiveProducer, type RawLogJob } from '@sources/core';
-import type { JobQueuePort, QueueJob } from './job-queue-port';
 import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
+import type { QueueWorkerPort, QueueJob } from './queue-worker-port';
 
 /** Default forensics window: 7 days. Overridable via ARCHIVE_LOG_JOB_TTL_SECONDS. */
 const DEFAULT_JOB_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 @Injectable()
 export class JobQueueService
-  implements JobQueuePort, OnApplicationBootstrap, OnApplicationShutdown
+  implements QueueWorkerPort, OnApplicationBootstrap, OnApplicationShutdown
 {
   private readonly logger = new Logger('ArchiveProducer');
   private boss: PgBoss | null = null;
