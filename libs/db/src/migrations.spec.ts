@@ -26,6 +26,7 @@ describe('db migrations smoke (mocked db)', () => {
         }),
       addUniqueConstraint: vi.fn().mockReturnThis(),
       addPrimaryKeyConstraint: vi.fn().mockReturnThis(),
+      addCheckConstraint: vi.fn().mockReturnThis(),
       execute: executeQuery,
     });
     const makeIndexBuilder = () => ({

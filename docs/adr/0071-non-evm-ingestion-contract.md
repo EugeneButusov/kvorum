@@ -1,6 +1,6 @@
 # ADR-071 — Non-EVM ingestion contract
 
-**Status:** Poll transport section Accepted; identity and consumer sections Directional (to be ratified at implementation)
+**Status:** Poll transport + off-chain identity sections Accepted; consumer section Directional (to be ratified at implementation)
 **Date:** 2026-06-20
 **Issue:** [#317](https://github.com/EugeneButusov/kvorum/issues/317), [#318](https://github.com/EugeneButusov/kvorum/issues/318), [#319](https://github.com/EugeneButusov/kvorum/issues/319)
 
@@ -80,16 +80,49 @@ Binding the real port before both of those land would cause a duplicate-enqueue 
 
 ---
 
-## Off-chain `archive_event` identity (Directional — to be ratified at implementation)
+## Off-chain `archive_event` identity (Accepted)
 
-> This section records intent only. The exact DDL, migration strategy, and actor-sweep interaction will be finalised when [#318](https://github.com/EugeneButusov/kvorum/issues/318) is implemented.
+Ratified and implemented in [#318](https://github.com/EugeneButusov/kvorum/issues/318). Since the project is pre-production, the `archive_event` schema carries the final shape directly in `0002_core_domain` rather than via an ALTER migration.
 
-- `archive_event.block_number`, `block_hash`, `tx_hash`, `log_index` become **nullable**.
-- New column `external_id TEXT` — source-native id (Snapshot proposal hash, Discourse topic id).
-- New partial unique index on `(source_type, external_id) WHERE external_id IS NOT NULL` — the idempotency constraint for off-chain writes.
-- Sentinel `chain_id` for off-chain sources (e.g. `'off-chain'`) to satisfy the non-null constraint.
-- The actor-sweep join key must be updated to include `external_id`-based rows.
-- The derivation ordinal (`derivation_order`) must remain meaningful for off-chain events.
+### Decision — two identity shapes, one table
+
+`archive_event` carries both EVM and off-chain rows, distinguished by a single nullable column:
+
+- `block_number` / `block_hash` / `tx_hash` / `log_index` become **nullable**.
+- New column `external_id text` — the source-native id (Snapshot proposal hash, Discourse topic id).
+- A **CHECK** (`archive_event_identity_shape`) enforces exactly one shape: an EVM row has the full
+  4-tuple and `external_id IS NULL`; an off-chain row has `external_id` set and all four coords NULL.
+- The idempotency index splits into **two partial unique indexes**:
+  - `archive_event_idempotency_key (source_type, chain_id, tx_hash, log_index) WHERE external_id IS NULL` (EVM, unchanged columns + predicate).
+  - `archive_event_external_id_key (source_type, chain_id, external_id) WHERE external_id IS NOT NULL` (off-chain).
+- Off-chain rows carry the sentinel `chain_id = 'off-chain'` (consistent with Z0; part of the
+  off-chain unique tuple; keeps `countUnderivedBySourceType`'s `GROUP BY chain_id, source_type` valid).
+- `insert()` binds the matching index predicate in its `ON CONFLICT` target so Postgres infers the
+  correct partial index per shape. Both shapes use `DO NOTHING` — **mutable-latest re-archive on
+  content change is the consumer's job (below), not Z1's.**
+
+### Decision — query-level segregation keeps the EVM read path untouched (D1)
+
+`ArchiveDerivationRow` (the projection/actor-sweep read shape) types its coords as **non-null** and is
+consumed by ~30 EVM projection appliers + the actor-sweep service, each building a join key
+`` `${chain_id}:${tx_hash}:${log_index}:${block_hash}` ``. Rather than widen those coords to nullable
+(which would force a narrowing into all ~30 load-bearing sites for a path off-chain rows never take),
+the three EVM-shaped read queries (`findUnderived`, `findDerivableBy`, `findUnresolvedActors`) gain a
+`WHERE external_id IS NULL` predicate. Combined with the CHECK, that **guarantees** the returned rows
+have non-null coords, so `ArchiveDerivationRow` stays non-null and **zero** EVM consumers change. The
+nullable table type narrows to the non-null row type via a single documented cast co-located with each
+predicate. Off-chain derivation/actor-sweep read methods are added when a consumer exists (AD2/AD4).
+
+### Deferrals (scope boundary)
+
+- **Mutable-latest** re-archive on `(external_id, contentHash)` change → the consumer section below.
+- **Off-chain derivation ordinal** (deterministic proposal/vote order; the EVM `(block_number,
+log_index)` key is degenerate off-chain) → **ADR-072 / Z4**, which defines the Snapshot vote
+  ordering key (vote-hash + `created`). Z1 only guarantees the existing EVM ordering is unperturbed.
+- **Off-chain derivation / actor-sweep read path** (off-chain row type + queries + an external-id join
+  key) → **AD2 / AD4**, where a real off-chain deriver consumes them.
+- **Off-chain DLQ shape** (an `archive_external_id` column on `ingestion_dlq`) → the consumer section;
+  `ingestion_dlq` is untouched here.
 
 ---
 

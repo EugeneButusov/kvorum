@@ -201,21 +201,44 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.notNull().references('dao_source.id').onDelete('restrict'),
     )
     .addColumn('chain_id', sql`varchar(32)`, (col) => col.notNull())
-    .addColumn('block_number', 'bigint', (col) => col.notNull())
-    .addColumn('block_hash', 'text', (col) => col.notNull())
-    .addColumn('tx_hash', 'text', (col) => col.notNull())
-    .addColumn('log_index', 'integer', (col) => col.notNull())
+    // Block/tx coords are non-null for EVM rows and null for off-chain rows
+    // (identified by external_id). The identity-shape CHECK below enforces exactly
+    // one shape; the sentinel chain_id 'off-chain' marks blockless sources (ADR-071).
+    .addColumn('block_number', 'bigint')
+    .addColumn('block_hash', 'text')
+    .addColumn('tx_hash', 'text')
+    .addColumn('log_index', 'integer')
+    .addColumn('external_id', 'text')
     .addColumn('event_type', 'text', (col) => col.notNull())
     .addColumn('received_at', 'timestamptz', (col) => col.notNull())
     .addColumn('derived_at', 'timestamptz')
     .addColumn('derivation_actor_resolved_at', 'timestamptz')
     .addColumn('derivation_attempt_count', 'smallint', (col) => col.notNull().defaultTo(0))
     .addColumn('actor_resolution_attempt_count', 'integer', (col) => col.notNull().defaultTo(0))
+    .addCheckConstraint(
+      'archive_event_identity_shape',
+      sql`(external_id IS NULL
+             AND block_number IS NOT NULL AND block_hash IS NOT NULL
+             AND tx_hash IS NOT NULL AND log_index IS NOT NULL)
+          OR
+          (external_id IS NOT NULL
+             AND block_number IS NULL AND block_hash IS NULL
+             AND tx_hash IS NULL AND log_index IS NULL)`,
+    )
     .execute();
 
+  // Two partial unique indexes, one per identity shape: EVM rows key on the 4-tuple,
+  // off-chain rows key on external_id.
   await sql`
     CREATE UNIQUE INDEX archive_event_idempotency_key
     ON archive_event (source_type, chain_id, tx_hash, log_index)
+    WHERE external_id IS NULL
+  `.execute(db);
+
+  await sql`
+    CREATE UNIQUE INDEX archive_event_external_id_key
+    ON archive_event (source_type, chain_id, external_id)
+    WHERE external_id IS NOT NULL
   `.execute(db);
 
   await db.schema

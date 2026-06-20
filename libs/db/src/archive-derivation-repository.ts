@@ -25,7 +25,11 @@ export class ArchiveDerivationRepository {
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
-    return this.pgDb
+    // external_id IS NULL restricts to EVM rows; together with the
+    // archive_event_identity_shape CHECK this guarantees non-null block/tx coords,
+    // so the nullable table type narrows to the non-null ArchiveDerivationRow.
+    // Off-chain derivation reads get their own method when a consumer lands (AD2/AD4).
+    const rows = await this.pgDb
       .selectFrom('archive_event')
       .select([
         'id',
@@ -40,6 +44,7 @@ export class ArchiveDerivationRepository {
         'received_at',
         'derivation_attempt_count',
       ])
+      .where('external_id', 'is', null)
       .where('derived_at', 'is', null)
       .where('event_type', 'in', eventTypes)
       .orderBy('chain_id', 'asc')
@@ -48,6 +53,7 @@ export class ArchiveDerivationRepository {
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
+    return rows as ArchiveDerivationRow[];
   }
 
   async markDerived(id: string): Promise<void> {
