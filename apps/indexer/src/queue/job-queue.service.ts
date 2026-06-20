@@ -1,11 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { sql } from 'kysely';
+import type { Transaction } from 'kysely';
 import { PgBoss, fromKysely } from 'pg-boss';
 import type { EventsListener, LogEvent } from '@libs/chain';
 import { pgDb, SeenLogRepository } from '@libs/db';
+import type { PgDatabase } from '@libs/db';
 import { makeArchiveProducer, type RawLogJob } from '@sources/core';
-import { ARCHIVE_LOG_QUEUE, ARCHIVE_LOG_DLQ_QUEUE } from './queue-names';
+import {
+  ARCHIVE_LOG_QUEUE,
+  ARCHIVE_LOG_DLQ_QUEUE,
+  OFF_CHAIN_ARCHIVE_QUEUE,
+  OFF_CHAIN_ARCHIVE_DLQ_QUEUE,
+} from './queue-names';
 import type { QueueWorkerPort, QueueJob } from './queue-worker-port';
 
 /** Default forensics window: 7 days. Overridable via ARCHIVE_LOG_JOB_TTL_SECONDS. */
@@ -60,8 +67,28 @@ export class JobQueueService
       deleteAfterSeconds: jobTtlSeconds,
     });
 
+    // Off-chain archive queue (Z2) — same DLQ-before-main ordering.
+    await this.boss.createQueue(OFF_CHAIN_ARCHIVE_DLQ_QUEUE);
+    await this.boss.createQueue(OFF_CHAIN_ARCHIVE_QUEUE, {
+      retryLimit: 5,
+      retryBackoff: true,
+      deadLetter: OFF_CHAIN_ARCHIVE_DLQ_QUEUE,
+      deleteAfterSeconds: jobTtlSeconds,
+    });
+
     this.resolveReady();
     this.logger.log('archive_producer_ready');
+  }
+
+  /** Transactional enqueue: sends a job on the caller's PG transaction so the send
+   *  commits atomically with whatever else the transaction does (e.g. cursor upsert). */
+  async sendInTx<T extends object>(
+    queue: string,
+    job: T,
+    trx: Transaction<PgDatabase>,
+  ): Promise<void> {
+    await this.readyPromise;
+    await this.boss!.send(queue, job, { db: fromKysely(trx) });
   }
 
   async work<T>(

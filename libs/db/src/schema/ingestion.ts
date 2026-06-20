@@ -1,5 +1,5 @@
 import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
-import type { ArchiveEventType } from '@libs/domain';
+import type { ArchiveEventType, JsonValue } from '@libs/domain';
 import type { SourceType } from './domain';
 
 // ── Enum string-literal unions ────────────────────────────────────────────────
@@ -25,6 +25,10 @@ export interface ArchiveEventTable {
   external_id: string | null;
   /** Off-chain ordering key (source-native ordinal); null for EVM rows. See ADR-071/ADR-072. */
   derivation_ordinal: string | null;
+  /** Hash of the latest archived payload slice (off-chain mutable-latest); null for EVM rows. */
+  content_hash: string | null;
+  /** PG-maintained monotonic version, bumped on content change; CH RMT sort key. Null for EVM. */
+  version: number | null;
   event_type: ArchiveEventType;
   received_at: Date;
   derived_at: Date | null;
@@ -81,3 +85,16 @@ export interface IngestionDlqResolvedTable {
 
 export type IngestionDlqResolved = Selectable<IngestionDlqResolvedTable>;
 export type NewIngestionDlqResolved = Insertable<IngestionDlqResolvedTable>;
+
+/** Off-chain poll cursor watermark, one row per dao_source (ADR-071 §off-chain consumer).
+ *  `cursor` is the partition-aware TCursor blob; a restart resumes from it. */
+export interface OffChainCursorTable {
+  dao_source_id: string;
+  /** Partition-aware poll cursor blob (jsonb); null when reset to start. */
+  cursor: JsonValue | null;
+  updated_at: Date;
+}
+
+export type OffChainCursor = Selectable<OffChainCursorTable>;
+export type NewOffChainCursor = Insertable<OffChainCursorTable>;
+export type OffChainCursorUpdate = Updateable<OffChainCursorTable>;

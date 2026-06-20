@@ -35,6 +35,7 @@ export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-rep
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
 export type { ArchiveEventKey, ArchiveEventExternalKey } from './archive-event-repository';
 export { ArchiveEventRepository } from './archive-event-repository';
+export { OffChainCursorRepository } from './off-chain-cursor-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';
 export { DlqRepository } from './dlq-repository';
@@ -136,6 +137,10 @@ export type {
   NewIngestionDlq,
   NewIngestionDlqResolved,
   NewSelectorIndex,
+  OffChainCursor,
+  OffChainCursorTable,
+  NewOffChainCursor,
+  OffChainCursorUpdate,
   SelectorIndex,
   SelectorIndexTable,
 } from './schema/pg';

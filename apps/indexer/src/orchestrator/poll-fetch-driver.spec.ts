@@ -18,7 +18,8 @@ const FAKE_CTX: SourceContext = {
 };
 
 const STUB_PORT: QueueProducerPort = {
-  enqueue: vi.fn().mockResolvedValue(undefined),
+  loadCursor: vi.fn().mockResolvedValue(null),
+  commitTick: vi.fn().mockResolvedValue(undefined),
 };
 
 function makeSpec(intervalMs = 60_000): Extract<IngestSpec, { kind: 'poll' }> {

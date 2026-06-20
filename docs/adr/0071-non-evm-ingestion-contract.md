@@ -1,6 +1,6 @@
 # ADR-071 — Non-EVM ingestion contract
 
-**Status:** Poll transport + off-chain identity sections Accepted; consumer section Directional (to be ratified at implementation)
+**Status:** Accepted (poll transport, off-chain identity, and off-chain consumer sections all ratified + implemented)
 **Date:** 2026-06-20
 **Issue:** [#317](https://github.com/EugeneButusov/kvorum/issues/317), [#318](https://github.com/EugeneButusov/kvorum/issues/318), [#319](https://github.com/EugeneButusov/kvorum/issues/319)
 
@@ -143,16 +143,33 @@ off-chain derivers (AD2/AD4) — Z1 ships the infrastructure, not the protocol c
 
 ---
 
-## Off-chain consumer and mutable-latest semantics (Directional — to be ratified at implementation)
+## Off-chain consumer and mutable-latest semantics (Accepted)
 
-> This section records intent only. The exact payload shape, consumer dispatch, and CH write logic will be finalised when [#319](https://github.com/EugeneButusov/kvorum/issues/319) is implemented.
+Ratified and implemented in [#319](https://github.com/EugeneButusov/kvorum/issues/319). This is the half that **binds the real `QueueProducerPort`** — both guardrail halves (Z1 `external_id` idempotency + Z2 cursor persistence) are now satisfied.
 
-- The off-chain consumer resolves by `daoSourceId` (not `(chain, address)` — off-chain sources have no contract address).
-- No ABI decode step; the raw `PollItem.payload` is the archive payload.
-- **Mutable-latest semantics:** re-archive on `(external_id, contentHash)` change. An off-chain entity (Snapshot proposal) can be edited; the archive must reflect the latest version. Unlike EVM events (`ON CONFLICT DO NOTHING`), off-chain writes update on content change.
-- CH-first then PG watermark write, following the ADR-041 protocol where applicable.
-- Cursor is persisted (off-chain watermark table or `dao_source.source_config` amendment) so restarts resume rather than re-fetch.
-- `localConcurrency: 1` on the off-chain consumer queue — the single-worker-per-source invariant holds.
+### Producer + cursor (atomic per-tick commit)
+
+The reshaped `QueueProducerPort` exposes `loadCursor(source)` and `commitTick(source, items, nextCursor)`. `commitTick` opens **one** PG transaction: `boss.send(off_chain_archive, job, { db: trx })` for each item, then upserts `off_chain_cursor(dao_source_id, cursor)`, then commits — **all-or-nothing**. The cursor advances only if the jobs are durably enqueued; a crash re-fetches (idempotent at the consumer) rather than skips (at-least-once). The poller seeds its cursor from `loadCursor` before the immediate first tick. Cursor persistence lives in its own `off_chain_cursor` table (not `dao_source.source_config` — runtime watermark vs operator config).
+
+### Consumer (resolve by daoSourceId, no decode, mutable-latest)
+
+A worker on `off_chain_archive` (`localConcurrency: 1`) resolves the source by **`daoSourceId`** (the job carries it; no `(chain, address)` — off-chain has no address), skips ABI decode (the raw `payload` is the archive payload), and dispatches by `sourceType` to a per-source CH writer (`buildOffChainArchiveWriter`). The PG watermark + mutable-latest decision are owned by the generic consumer; the per-source seam writes only CH.
+
+**Mutable-latest with a monotonic `version`.** Per job, `findByExternalId` returns `{ id, content_hash, version }`:
+
+- **unchanged** (`content_hash` equal) → **skip** (the at-least-once safety net for re-delivery, not just efficiency);
+- **new** → `version = 1`, CH write, PG insert;
+- **edited** → `version = existing.version + 1`, CH write, then a **CAS** PG update `… WHERE version < :version` that also resets **all four** derivation watermarks (`derived_at`, `derivation_actor_resolved_at`, `derivation_attempt_count`, `actor_resolution_attempt_count`) so the edit is re-resolved and re-derived from scratch.
+
+`version` is **PG-maintained** (bumped only on content change), and is the CH `ReplacingMergeTree(version)` sort key so the latest edit wins deterministically. This is self-contained (no reliance on a source-native monotonic field), retry-idempotent (a retry recomputes the same version from unchanged PG state), and the CAS guard makes an out-of-order older edit a no-op.
+
+### Binding constraint on Z3
+
+The per-source off-chain CH table (`event_archive_snapshot`, Z3) **MUST** be `ReplacingMergeTree(version)` — **not** the existing `received_at` convention, which is second-precision and would non-deterministically drop a same-second edit. Z2 ships a synthetic in-memory CH writer; Z3 inherits the obligation to re-run the mutable-latest end-to-end against the real table (asserting `SELECT … FINAL` returns the edit, and a CH-insert failure routes to DLQ without advancing the PG watermark).
+
+### DLQ
+
+`off_chain_archive` has `deadLetter`/`retryLimit`; an `OffChainArchiveDlqBridge` drains dead-lettered jobs into `ingestion_dlq`. Transient CH/PG errors throw → retry → dead-letter; a malformed/unmapped job acks into the DLQ without burning retries. `ingestion_dlq` is unchanged — the off-chain identity (`external_id`, etc.) is carried in the row's `payload` jsonb rather than adding an `archive_external_id` column.
 
 ---
 

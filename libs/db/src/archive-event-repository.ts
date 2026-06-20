@@ -45,15 +45,46 @@ export class ArchiveEventRepository {
     return query.executeTakeFirst();
   }
 
-  /** Off-chain existence check by source-native external_id (off-chain consumer path). */
-  async findByExternalId(key: ArchiveEventExternalKey): Promise<{ id: string } | undefined> {
+  /** Off-chain existence check by source-native external_id; returns the current
+   *  content_hash + version for the mutable-latest insert/re-archive/skip decision. */
+  async findByExternalId(
+    key: ArchiveEventExternalKey,
+  ): Promise<{ id: string; content_hash: string | null; version: number | null } | undefined> {
     return this.pgDb
       .selectFrom('archive_event')
-      .select('id')
+      .select(['id', 'content_hash', 'version'])
       .where('source_type', '=', key.sourceType)
       .where('chain_id', '=', key.chainId)
       .where('external_id', '=', key.externalId)
       .executeTakeFirst();
+  }
+
+  /** Mutable-latest re-archive: advance content_hash + version and reset ALL derivation
+   *  watermarks so the edited row is re-resolved and re-derived from scratch. CAS-guarded
+   *  on `version < :version` so an out-of-order older edit cannot clobber a newer one.
+   *  Returns true iff a row was updated (false when the guard rejects a stale edit). */
+  async reArchiveOffchain(
+    key: ArchiveEventExternalKey,
+    next: { contentHash: string; version: number; ordinal: string | null },
+  ): Promise<boolean> {
+    const result = await this.pgDb
+      .updateTable('archive_event')
+      .set({
+        content_hash: next.contentHash,
+        version: next.version,
+        derivation_ordinal: next.ordinal,
+        received_at: sql`now()`,
+        derived_at: null,
+        derivation_actor_resolved_at: null,
+        derivation_attempt_count: 0,
+        actor_resolution_attempt_count: 0,
+      })
+      .where('source_type', '=', key.sourceType)
+      .where('chain_id', '=', key.chainId)
+      .where('external_id', '=', key.externalId)
+      .where('version', '<', next.version)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows ?? 0n) > 0;
   }
 
   async countUnderivedBySourceType(sourceType: string) {

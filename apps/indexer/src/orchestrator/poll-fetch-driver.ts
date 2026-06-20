@@ -8,7 +8,7 @@ import { QUEUE_PRODUCER_PORT } from './tokens';
 export class PollFetchDriver implements FetchDriver<'poll'> {
   readonly kind = 'poll' as const;
 
-  constructor(@Inject(QUEUE_PRODUCER_PORT) private readonly enqueuePort: QueueProducerPort) {}
+  constructor(@Inject(QUEUE_PRODUCER_PORT) private readonly queuePort: QueueProducerPort) {}
 
   async start(
     spec: Extract<IngestSpec, { kind: 'poll' }>,
@@ -17,7 +17,7 @@ export class PollFetchDriver implements FetchDriver<'poll'> {
     const poller = new PollSourcePoller({
       source: ctx,
       listener: spec.listener,
-      enqueuePort: this.enqueuePort,
+      queuePort: this.queuePort,
     });
     await poller.start();
     return {

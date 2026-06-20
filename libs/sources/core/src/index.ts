@@ -99,6 +99,9 @@ export interface SourceIngester<TConfig = unknown> {
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
   /** Returns the consumer-path archive function for this source (optional). */
   buildArchiveConsumer?(): ArchiveConsumeFn;
+  /** Returns the per-source CH writer for off-chain rows (optional). The generic off-chain
+   *  consumer owns the PG watermark + mutable-latest; this writes only the CH archive. */
+  buildOffChainArchiveWriter?(): OffChainArchiveWriteFn;
 }
 
 export interface ProjectionDeriver {
@@ -159,6 +162,23 @@ export interface ArchiveConsumeContext {
 
 /** Consumer-path archive function: decode RawLogJob → CH-first write. Throws on failure. */
 export type ArchiveConsumeFn = (ctx: ArchiveConsumeContext, raw: RawLogJob) => Promise<void>;
+
+/** One off-chain item handed to the per-source CH writer. `version` is assigned by the
+ *  generic consumer (PG-monotonic) and is the CH ReplacingMergeTree(version) sort key. */
+export interface OffChainArchiveItem {
+  externalId: string;
+  contentHash: string;
+  ordinal: string | null;
+  version: number;
+  payload: unknown;
+}
+
+/** Per-source off-chain CH writer: idempotent insert keyed on (external_id, version).
+ *  PG watermark + mutable-latest decision are owned by the generic consumer. Throws on failure. */
+export type OffChainArchiveWriteFn = (
+  ctx: ArchiveConsumeContext,
+  item: OffChainArchiveItem,
+) => Promise<void>;
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,
