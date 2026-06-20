@@ -13,11 +13,16 @@ export interface ArchiveEventTable {
   source_type: SourceType;
   dao_source_id: string;
   chain_id: string;
+  // Block/tx coords are non-null for EVM rows and null for off-chain rows
+  // (identified by external_id instead). The archive_event_identity_shape CHECK
+  // enforces exactly one shape — see 0002_core_domain / ADR-071.
   // pg driver returns bigint as string
-  block_number: string;
-  block_hash: string;
-  tx_hash: string;
-  log_index: number;
+  block_number: string | null;
+  block_hash: string | null;
+  tx_hash: string | null;
+  log_index: number | null;
+  /** Source-native id for off-chain rows (Snapshot proposal hash, Discourse topic id); null for EVM. */
+  external_id: string | null;
   event_type: ArchiveEventType;
   received_at: Date;
   derived_at: Date | null;

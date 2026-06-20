@@ -33,7 +33,7 @@ export type { ArchiveDerivationRow } from './archive-derivation-repository';
 export { ArchiveDerivationRepository } from './archive-derivation-repository';
 export { ArchiveDerivationAdminRepository } from './archive-derivation-admin-repository';
 export { ArchiveActorResolutionRepository } from './archive-actor-resolution-repository';
-export type { ArchiveEventKey } from './archive-event-repository';
+export type { ArchiveEventKey, ArchiveEventExternalKey } from './archive-event-repository';
 export { ArchiveEventRepository } from './archive-event-repository';
 export { isTransientDbError, isCanonicalPartialUniqueViolation } from './utils';
 export type { DlqDepthRow } from './dlq-repository';

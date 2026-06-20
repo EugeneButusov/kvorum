@@ -51,7 +51,9 @@ describe('ArchiveDerivationRepository', () => {
     await expect(repo.findUnderived(['ProposalCreated'], 50)).resolves.toEqual([ARCHIVE_ROW]);
 
     expect(pgSelect.selectFrom).toHaveBeenCalledWith('archive_event');
+    // external_id IS NULL restricts to EVM rows (ADR-071) so coords are non-null.
     expect(pgSelect.where.mock.calls).toEqual([
+      ['external_id', 'is', null],
       ['derived_at', 'is', null],
       ['event_type', 'in', ['ProposalCreated']],
     ]);

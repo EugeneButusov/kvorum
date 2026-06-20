@@ -12,7 +12,10 @@ export class ArchiveActorResolutionRepository {
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
-    return this.pgDb
+    // external_id IS NULL restricts to EVM rows (non-null coords by the
+    // archive_event_identity_shape CHECK), narrowing the nullable table type to
+    // ArchiveDerivationRow. Off-chain actor resolution lands with its consumer (AD4).
+    const rows = await this.pgDb
       .selectFrom('archive_event')
       .select([
         'id',
@@ -27,6 +30,7 @@ export class ArchiveActorResolutionRepository {
         'received_at',
         'derivation_attempt_count',
       ])
+      .where('external_id', 'is', null)
       .where('derived_at', 'is', null)
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
@@ -36,6 +40,7 @@ export class ArchiveActorResolutionRepository {
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
+    return rows as ArchiveDerivationRow[];
   }
 
   async findUnresolvedActors(
@@ -45,7 +50,10 @@ export class ArchiveActorResolutionRepository {
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
-    return this.pgDb
+    // external_id IS NULL restricts to EVM rows (non-null coords by the
+    // archive_event_identity_shape CHECK), narrowing the nullable table type to
+    // ArchiveDerivationRow. Off-chain actor resolution lands with its consumer (AD4).
+    const rows = await this.pgDb
       .selectFrom('archive_event')
       .select([
         'id',
@@ -60,6 +68,7 @@ export class ArchiveActorResolutionRepository {
         'received_at',
         'derivation_attempt_count',
       ])
+      .where('external_id', 'is', null)
       .where('derivation_actor_resolved_at', 'is', null)
       .where('event_type', 'in', eventTypes)
       .where('actor_resolution_attempt_count', '<', attemptThreshold)
@@ -69,6 +78,7 @@ export class ArchiveActorResolutionRepository {
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
+    return rows as ArchiveDerivationRow[];
   }
 
   async markActorResolved(id: string): Promise<void> {

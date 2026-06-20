@@ -60,6 +60,8 @@ describe('ArchiveActorResolutionRepository', () => {
 
     await expect(repo.findDerivableBy(['VoteCast'], 10)).resolves.toEqual([ARCHIVE_ROW]);
 
+    // external_id IS NULL restricts to EVM rows (ADR-071) so coords are non-null.
+    expect(pgSelect.where).toHaveBeenCalledWith('external_id', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('derived_at', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is not', null);
     expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', ['VoteCast']);
@@ -81,6 +83,7 @@ describe('ArchiveActorResolutionRepository', () => {
       repo.findUnresolvedActors(['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'], 5, 25),
     ).resolves.toEqual([ARCHIVE_ROW]);
 
+    expect(pgSelect.where).toHaveBeenCalledWith('external_id', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('derivation_actor_resolved_at', 'is', null);
     expect(pgSelect.where).toHaveBeenCalledWith('event_type', 'in', [
       'VoteCast',
