@@ -81,7 +81,6 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
         voter_address: '0x' + 'ab'.repeat(20),
         voting_chain_id: '0x89',
         primary_choice: 1,
-        seq: '0',
         voting_power: '1000',
         cast_at: new Date('2026-05-21T00:00:00.000Z'),
         block_number: '100',

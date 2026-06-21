@@ -31,7 +31,6 @@ describe('VoteEventsProjectionWriter', () => {
         voter_address: '0xabc',
         voting_chain_id: '0x1',
         primary_choice: 1,
-        seq: '0',
         voting_power: '10',
         cast_at: new Date('2026-01-01T00:00:00.000Z'),
         block_number: '100',

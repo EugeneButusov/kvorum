@@ -31,16 +31,12 @@ voting types (`weighted`, `ranked-choice`, `quadratic`). See D4 below for the am
 
 ## Decisions
 
-### D1 — In-place pipeline rebuild
+### D1 — No CH DDL changes in Z4
 
-The `seq` column requires a new `argMaxState` entry in `vote_events_agg` and a new
-`argMaxMerge` entry in `vote_events_projection`. Because the MV SELECT lists are hardcoded,
-adding columns is a full drop-and-rebuild (MV → agg → projection; ADR-0067 precedent). The
-implementation edits `0001_core_ch_source_of_truth.sql` in-place. The
-`clickhouse-migrations` runner md5-checksums applied files and `process.exit(1)`s on a changed
-file — **any already-migrated ClickHouse instance must be wiped before applying** (CI uses a
-fresh DB on every run; no prod data exists at Z4 time). The rebuild + rollback procedure is
-documented below.
+Z4 makes no changes to the CH vote pipeline. `primary_choice Int8` already existed and was
+already non-nullable. The pipeline rebuild cost (drop MV → drop agg → drop projection → alter
+raw → recreate; ADR-0067 precedent) is deferred to AD4, which will add Snapshot-specific
+columns when it ships.
 
 ### D2 — `choices` payload deferred to AD4 (Snapshot-specific table)
 
@@ -92,91 +88,41 @@ analytics that need speed (participation counts, for/against breakdowns, indexed
 `primary_choice = choices[0].choice_index` is enforced at the write path (AD4) and verified by
 integration tests.
 
-### D5 — Off-chain supersession key: `seq UInt64 DEFAULT 0`
+### D5 — Off-chain supersession key: deferred to AD4 (Snapshot-specific)
 
-**Unified ordering key:** `(cast_at DESC, block_number DESC, log_index DESC, seq DESC)`.
+The off-chain re-vote tie-break problem (same-second `cast_at`, `block_number = 0`,
+`log_index = 0`) is Snapshot-specific — no current EVM source can produce a non-deterministic
+supersession ordering. Adding a `seq` column to the generic `vote_events_raw` table would
+make every EVM write carry a meaningless `0` sentinel.
 
-`seq` is a `UInt64` payload column (not in `ORDER BY` or `GROUP BY` — matches
-`primary_choice`/`voting_power`). Agg state: `AggregateFunction(argMax, UInt64, DateTime64(6))`.
+The fix belongs in the Snapshot-specific protocol table (AD4): a Snapshot-owned `ordinal`
+column derived from `derivation_ordinal` (Z1), stored only where it is meaningful. At AD4,
+`isNewerVote` gains an optional ordinal parameter and `findCurrentVote` ORDER BY gains the
+terminal comparator — scoped to the Snapshot read path.
 
-- **Off-chain** (Snapshot, AD1/AD4): `seq` = `derivation_ordinal` from Z1 — the poll-sequence
-  counter the plugin increments monotonically per observed event. For EVM `seq` is `0` (the
-  `(cast_at, block_number, log_index)` triple is already a total order).
-- **Monotonicity constraint (binding on AD1/AD4):** the off-chain ordinal fed to `seq` MUST be a
-  strict total order increasing with cast/observation order within any `(proposal, voter)` chain.
-  Concretely: a per-source poll-sequence counter **never `created`-seconds** (second resolution
-  reintroduces same-second ties). `derivation_ordinal` from Z1 satisfies this by construction.
-- `vote_id` (content-addressed from the vote-hash by AD4) remains the storage `ORDER BY`
-  terminal for replay-idempotent dedup.
-- `isNewerVote`, `findCurrentVote` ORDER BY, and `listVotersForProposal` argMax tuple all gain
-  `seq` as the terminal comparator. For EVM the comparator is a no-op (`0 vs 0`).
+**Monotonicity contract (binding on AD4):** the ordinal fed to `seq` MUST be a strict total
+order within any `(proposal, voter)` chain. `derivation_ordinal` from Z1 satisfies this by
+construction.
 
-### D6 — Live decode out of scope → AD4
+### D6 — Live decode and supersession tie-break out of scope → AD4
 
-Z4 ships the `seq` pipeline column, the pipeline rebuild, this ADR, and `findChoicesForVote`
-(EVM synthesis from `primary_choice`). AD4 owns the live Snapshot decode: Snapshot-specific
-protocol table for `choices`/`vp_by_strategy`, deriving `vote_id` from the vote-hash, emitting
-off-chain sentinels (`block_number=0`, `log_index=0`), and setting `seq = derivation_ordinal`.
-`findChoicesForVote` will dispatch by source type at AD4.
+Z4 delivers `primary_choice Int8` (non-nullable, amends ADR-023), this ADR, and
+`findChoicesForVote` (EVM synthesis from `primary_choice`). AD4 owns everything
+Snapshot-specific: the Snapshot protocol table (`choices`, `vp_by_strategy`, `ordinal`),
+`vote_id` from vote-hash, off-chain sentinels, and `isNewerVote` ordinal extension.
 
-### D7 — Rollback is documented, not executable as a migration
+### D7 — No pipeline rebuild in Z4
 
-D1 (in-place edit) carries no down-migration. Rollback = reverting `0001_core_ch_source_of_truth.sql`
-to the prior text and re-applying the rebuild procedure below. **AG validates this procedure
-against a populated database before the first real backfill run.**
-
-## Already-migrated-instance rebuild procedure
-
-For any ClickHouse instance that has already applied `0001_core_ch_source_of_truth.sql` (including
-local dev), the in-place edit does not auto-apply. Procedure (mirrors ADR-0067):
-
-```sql
--- 1. Stop all indexer workers (no writes during rebuild)
--- 2. Drop the read VIEW
-DROP VIEW IF EXISTS vote_events_projection;
--- 3. Drop the MV (stops new rows flowing into agg)
-DROP TABLE IF EXISTS vote_events_mv;
--- 4. Drop the agg table
-DROP TABLE IF EXISTS vote_events_agg;
--- 5. ALTER vote_events_raw to add new columns (or DROP + recreate if ALTER is unavailable)
-ALTER TABLE vote_events_raw
-  ADD COLUMN IF NOT EXISTS seq UInt64 DEFAULT 0;
--- 6. Recreate agg (with new state columns)
-CREATE TABLE vote_events_agg ... (see 0001_core_ch_source_of_truth.sql);
--- 7. Recreate MV (new SELECT list)
-CREATE MATERIALIZED VIEW vote_events_mv TO vote_events_agg AS ... ;
--- 8. Recreate projection VIEW
-CREATE VIEW vote_events_projection AS ... ;
--- 9. Backfill agg from raw (for existing rows)
-INSERT INTO vote_events_agg
-  SELECT vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at,
-         voting_chain_id,
-         argMaxState(primary_choice, version) AS primary_choice_state,
-         argMaxState(seq, version)            AS seq_state,
-         argMaxState(voting_power, version)   AS voting_power_state,
-         argMaxState(superseded, version)     AS superseded_state,
-         argMaxState(superseded_at, version)  AS superseded_at_state,
-         argMaxState(superseded_by_vote_id, version) AS superseded_by_vote_id_state
-  FROM vote_events_raw
-  GROUP BY vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at, voting_chain_id;
--- 10. Resume indexer workers
-```
-
-**Rollback:** revert `0001_core_ch_source_of_truth.sql` to pre-Z4 text, run the same procedure
-with the old DDL (omit new columns in step 5; skip agg INSERT for new state columns).
-AG validates the rollback against a populated DB before the first M-series backfill.
+Z4 makes no CH DDL changes — the `primary_choice Int8` column already existed. No
+drop-and-rebuild is needed. AD4 will rebuild the pipeline when it adds the Snapshot-specific
+table and columns.
 
 ## Consequences
 
-- **Z4** ships `seq UInt64 DEFAULT 0` in the CH pipeline. All EVM sources pass `seq = '0'`; the
-  comparator is a no-op for EVM re-votes. `isNewerVote` gains `seq` as the terminal comparator;
-  `findCurrentVote` ORDER BY and `listVotersForProposal` argMax tuple both include `seq`.
-- **AD4** adds the Snapshot-specific protocol table for `choices` + `vp_by_strategy` payload
-  without any further core pipeline rebuild. `findChoicesForVote` will dispatch by source type
-  at AD4 time.
+- **Z4** delivers only the `primary_choice` non-nullable amendment and ADR-072 documentation.
+  The CH pipeline is unchanged from pre-Z4.
+- **AD4** owns the Snapshot protocol table, `choices`/`vp_by_strategy` payload, the ordinal
+  tie-break column, and `findChoicesForVote` dispatch by source type.
 - **AF1** can read `findChoicesForVote` → `VoteChoiceDto[]` for EVM sources now (synthesized
-  from `primary_choice`); full multi-element support added in AD4.
-- **EVM sources (Compound, Aave)** are unaffected beyond the `seq` no-op; `primary_choice` is
-  always non-null.
-- **AG validates** the already-migrated-instance rebuild + rollback procedure before the first
-  populated backfill run.
+  from `primary_choice`); full multi-element and off-chain support added in AD4.
+- **EVM sources (Compound, Aave)** are unaffected; `primary_choice` is always non-null.

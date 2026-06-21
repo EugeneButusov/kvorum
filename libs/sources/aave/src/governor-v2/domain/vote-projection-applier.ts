@@ -171,7 +171,7 @@ export class AaveGovernorV2VoteProjectionApplier {
         return;
       }
       const primaryChoice = event.support ? 1 : 0;
-      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, '0', current);
+      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
       const rows = buildVoteRows({
         row,
         daoId,
@@ -181,7 +181,6 @@ export class AaveGovernorV2VoteProjectionApplier {
         incoming: {
           primaryChoice,
           votingPower: event.votingPower,
-          seq: '0',
         },
         current,
         incomingIsNewer,

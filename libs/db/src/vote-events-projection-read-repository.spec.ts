@@ -74,7 +74,6 @@ describe('VoteEventsProjectionReadRepository', () => {
       ['vef.cast_at', 'desc'],
       ['vef.block_number', 'desc'],
       ['vef.log_index', 'desc'],
-      ['vef.seq', 'desc'],
     ]);
     expect(chChain.limit).toHaveBeenCalledWith(1);
   });

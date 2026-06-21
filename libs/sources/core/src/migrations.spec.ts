@@ -120,13 +120,7 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     expect(rawColumn?.default_expression).toBe("'0x1'");
   });
 
-  it('adds seq column to vote pipeline and primary_choice is Int8', async () => {
-    const seqProjection = await fetchColumn('vote_events_projection', 'seq');
-    expect(seqProjection?.name).toBe('seq');
-
-    const seqRaw = await fetchColumn('vote_events_raw', 'seq');
-    expect(seqRaw?.default_expression).toBe('0');
-
+  it('primary_choice column is Int8 (non-nullable)', async () => {
     const primaryChoiceRaw = await fetchColumn('vote_events_raw', 'primary_choice');
     expect(primaryChoiceRaw?.type).toBe('Int8');
   });

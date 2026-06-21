@@ -22,35 +22,20 @@ const CURRENT: CurrentVoteRow = {
   block_number: '199',
   log_index: 2,
   primary_choice: 0,
-  seq: '0',
   voting_power: '100',
   voting_chain_id: '0x89',
 };
 
 describe('isNewerVote', () => {
   it('treats missing current vote as newer', () => {
-    expect(isNewerVote(new Date('2026-01-01T00:01:40Z'), '200', 3, '0', undefined)).toBe(true);
+    expect(isNewerVote(new Date('2026-01-01T00:01:40Z'), '200', 3, undefined)).toBe(true);
   });
 
   it('orders by cast timestamp, then block number, then log index', () => {
-    expect(isNewerVote(new Date('2026-01-01T00:01:41Z'), '100', 1, '0', CURRENT)).toBe(true);
-    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '200', 1, '0', CURRENT)).toBe(true);
-    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '199', 3, '0', CURRENT)).toBe(true);
-    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '199', 2, '0', CURRENT)).toBe(false);
-  });
-
-  it('uses seq as terminal tie-break when cast_at, block_number, and log_index all tie', () => {
-    const CURRENT_OFF_CHAIN: CurrentVoteRow = {
-      ...CURRENT,
-      block_number: '0',
-      log_index: 0,
-      seq: '5',
-    };
-    const castAt = CURRENT.cast_at;
-    expect(isNewerVote(castAt, '0', 0, '10', CURRENT_OFF_CHAIN)).toBe(true);
-    expect(isNewerVote(castAt, '0', 0, '3', CURRENT_OFF_CHAIN)).toBe(false);
-    // BigInt compare, not lexicographic: '10' > '9'
-    expect(isNewerVote(castAt, '0', 0, '10', { ...CURRENT_OFF_CHAIN, seq: '9' })).toBe(true);
+    expect(isNewerVote(new Date('2026-01-01T00:01:41Z'), '100', 1, CURRENT)).toBe(true);
+    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '200', 1, CURRENT)).toBe(true);
+    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '199', 3, CURRENT)).toBe(true);
+    expect(isNewerVote(new Date('2026-01-01T00:01:39Z'), '199', 2, CURRENT)).toBe(false);
   });
 });
 
@@ -65,7 +50,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        seq: '0',
       },
       current: undefined,
       incomingIsNewer: true,
@@ -76,7 +60,6 @@ describe('buildVoteRows', () => {
         vote_id: 'archive-2',
         voting_chain_id: '0x89',
         primary_choice: 1,
-        seq: '0',
         voting_power: '123',
         superseded: 0,
         superseded_at: null,
@@ -96,7 +79,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        seq: '0',
       },
       current: CURRENT,
       incomingIsNewer: true,
@@ -110,7 +92,6 @@ describe('buildVoteRows', () => {
       expect.objectContaining({
         vote_id: 'archive-1',
         voting_chain_id: '0x89',
-        seq: '0',
         superseded: 1,
         superseded_at: castAt,
         superseded_by_vote_id: 'archive-2',
@@ -128,7 +109,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        seq: '0',
       },
       current: CURRENT,
       incomingIsNewer: false,

@@ -174,7 +174,7 @@ export class GovernorVoteProjectionApplier {
         this.record(row, 'skipped_idempotent', null);
         return;
       }
-      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, '0', current);
+      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
       const rows = buildVoteRows({
         row,
         daoId,
@@ -184,7 +184,6 @@ export class GovernorVoteProjectionApplier {
         incoming: {
           primaryChoice: event.primaryChoice,
           votingPower: event.votingPowerReported,
-          seq: '0',
         },
         current,
         incomingIsNewer,

@@ -13,7 +13,6 @@ describe('projectAaveVote', () => {
     ).toEqual({
       primaryChoice: 1,
       votingPower: '123',
-      seq: '0',
     });
   });
 
@@ -28,7 +27,6 @@ describe('projectAaveVote', () => {
     ).toEqual({
       primaryChoice: 0,
       votingPower: '456',
-      seq: '0',
     });
   });
 });

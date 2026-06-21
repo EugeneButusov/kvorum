@@ -8,7 +8,6 @@ export interface CurrentVoteRow {
   block_number: string;
   log_index: number;
   primary_choice: number;
-  seq: string;
   voting_power: string;
   voting_chain_id: string;
 }
@@ -32,7 +31,7 @@ export class VoteEventsProjectionReadRepository {
         sql<string>`
           argMax(
             vef.voting_power,
-            tuple(vef.cast_at, vef.block_number, vef.log_index, vef.seq)
+            tuple(vef.cast_at, vef.block_number, vef.log_index)
           )
         `.as('voting_power'),
       ])
@@ -61,7 +60,6 @@ export class VoteEventsProjectionReadRepository {
         'vef.block_number',
         'vef.log_index',
         'vef.primary_choice',
-        'vef.seq',
         'vef.voting_power',
         'vef.voting_chain_id',
       ])
@@ -72,7 +70,6 @@ export class VoteEventsProjectionReadRepository {
       .orderBy('vef.cast_at', 'desc')
       .orderBy('vef.block_number', 'desc')
       .orderBy('vef.log_index', 'desc')
-      .orderBy('vef.seq', 'desc')
       .limit(1)
       .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
   }

@@ -33,7 +33,6 @@ export function projectVoteCast(
       block_number: archiveRow.block_number,
       log_index: archiveRow.log_index,
       primary_choice: payload.primaryChoice,
-      seq: '0',
       superseded: 0,
       superseded_at: null,
       superseded_by_vote_id: null,
