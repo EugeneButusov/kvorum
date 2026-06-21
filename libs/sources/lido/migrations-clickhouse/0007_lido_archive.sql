@@ -4,8 +4,9 @@
 -- Reconcile source types (aragon_voting reconcilers) do not get separate archive tables;
 -- reconcilers read chain state directly — matches Aave convention (D3).
 --
--- Shape is identical to the Aave archive tables: ReplacingMergeTree(received_at),
--- PARTITION BY chain_id, block-keyed ORDER BY, bloom index on tx_hash.
+-- block_hash is intentionally NOT in ORDER BY. The ingester reads at confirmedHead =
+-- tip − headLag (ADR-058), so ingested blocks are finalized and reorg-free.
+-- The natural 4-tuple (chain_id, block_number, tx_hash, log_index) is the dedup key.
 
 CREATE TABLE IF NOT EXISTS archive_event_aragon_voting
 (
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS archive_event_aragon_voting
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
 
 CREATE TABLE IF NOT EXISTS archive_event_dual_governance
 (
@@ -39,7 +40,7 @@ CREATE TABLE IF NOT EXISTS archive_event_dual_governance
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
 
 CREATE TABLE IF NOT EXISTS archive_event_easy_track
 (
@@ -56,4 +57,4 @@ CREATE TABLE IF NOT EXISTS archive_event_easy_track
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
