@@ -26,7 +26,7 @@ export function buildVoteRows(args: {
   proposalId: string;
   voterAddress: string;
   castAt: Date;
-  incoming: { primaryChoice: number | null; votingPower: string; choices: string; seq: string };
+  incoming: { primaryChoice: number; votingPower: string; choices: string; seq: string };
   current: CurrentVoteRow | undefined;
   incomingIsNewer: boolean;
 }): readonly NewVoteEventsProjectionRow[] {

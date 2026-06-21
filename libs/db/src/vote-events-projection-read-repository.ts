@@ -7,7 +7,7 @@ export interface CurrentVoteRow {
   cast_at: Date;
   block_number: string;
   log_index: number;
-  primary_choice: number | null;
+  primary_choice: number;
   choices: string;
   seq: string;
   voting_power: string;

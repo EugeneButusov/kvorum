@@ -9,7 +9,7 @@ export type VoteReadRow = {
   voting_chain_id: string;
   voting_power_reported: string;
   voting_power_verified: boolean;
-  primary_choice: number | null;
+  primary_choice: number;
   cast_at: Date;
   reason: string | null;
   proposal_id: string;
@@ -34,7 +34,7 @@ type VoteEventsProjectionTable = {
   vote_id: string;
   proposal_id: string;
   voter_address: string;
-  primary_choice: number | null;
+  primary_choice: number;
   choices: string;
   voting_power: string;
   voting_chain_id: string;
@@ -211,11 +211,7 @@ export class VoteReadRepository {
       return JSON.parse(row.choices) as VoteChoiceReadRow[];
     }
 
-    if (row.primary_choice !== null) {
-      return [{ choice_index: row.primary_choice, weight: '1.0' }];
-    }
-
-    return [];
+    return [{ choice_index: row.primary_choice, weight: '1.0' }];
   }
 
   private async fetchProposal(proposalId: string): Promise<

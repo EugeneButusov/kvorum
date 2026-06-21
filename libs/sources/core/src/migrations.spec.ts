@@ -134,7 +134,7 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
     expect(seqRaw?.default_expression).toBe('0');
 
     const primaryChoiceRaw = await fetchColumn('vote_events_raw', 'primary_choice');
-    expect(primaryChoiceRaw?.type).toMatch(/^Nullable/);
+    expect(primaryChoiceRaw?.type).toBe('Int8');
   });
 
   it('creates actor_address_redirect dictionary', async () => {

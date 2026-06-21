@@ -22,7 +22,7 @@ export interface VoteEventsProjectionTable {
   proposal_id: string;
   voter_address: string;
   voting_chain_id: string;
-  primary_choice: number | null;
+  primary_choice: number;
   choices: string;
   seq: string;
   voting_power: string;

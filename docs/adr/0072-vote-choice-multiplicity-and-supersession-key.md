@@ -72,17 +72,24 @@ sources.
 
 This table is the contract AF1 codes its fixtures against.
 
-### D4 — `primary_choice Nullable(Int8)` (reconciles ADR-023)
+### D4 — `primary_choice Int8`, always highest-weight choice index (amends ADR-023)
 
-ADR-023 mandates `primary_choice = NULL` for `weighted`/`ranked-choice`/`quadratic` votes.
-Z4 makes `primary_choice Nullable(Int8)` in the storage layer, so AD4 can write NULL for
-multi-choice types without a second pipeline rebuild. Single-choice EVM sources (Compound, Aave)
-continue to write the concrete integer index. `primary_choice` is retained as the denormalised
-highest-weight index for single-choice reads, tie-breaks, and analytics; `NULL` is the
-correct sentinel for multi-choice types.
+ADR-023 mandated `primary_choice = NULL` for multi-choice Snapshot voting types. **This ADR
+amends that decision.** `primary_choice` is defined as the **highest-weight choice index for
+all voting types** — never NULL:
 
-The agg state type changes to `AggregateFunction(argMax, Nullable(Int8), DateTime64(6))` —
-argMax supports Nullable arguments (precedent: `superseded_at_state`).
+- single-choice / basic / approval → the chosen option index (unchanged)
+- weighted → `choices[0].choice_index` (the option with the largest fractional weight)
+- ranked-choice → `choices[0].choice_index` (first preference, rank 1)
+- quadratic → `choices[0].choice_index` (the option with the largest normalized weight)
+
+`primary_choice` is a CH-optimized denormalization of the first element of `choices`. This
+keeps it non-nullable and typed as `Int8`, preserving vectorized filter and aggregation
+performance for all vote types. Analytics that need precision use `choices`; analytics that
+need speed (participation counts, for/against breakdowns, indexed filters) use `primary_choice`
+and get a coherent result regardless of voting type. The write invariant
+`primary_choice = choices[0].choice_index` is enforced at the write path and unit-tested on
+the `singleChoiceBreakdown` helper.
 
 ### D5 — Off-chain supersession key: `seq UInt64 DEFAULT 0`
 
@@ -133,8 +140,7 @@ DROP TABLE IF EXISTS vote_events_agg;
 -- 5. ALTER vote_events_raw to add new columns (or DROP + recreate if ALTER is unavailable)
 ALTER TABLE vote_events_raw
   ADD COLUMN IF NOT EXISTS choices String DEFAULT '[]' CODEC(ZSTD(1)),
-  ADD COLUMN IF NOT EXISTS seq UInt64 DEFAULT 0,
-  MODIFY COLUMN primary_choice Nullable(Int8);
+  ADD COLUMN IF NOT EXISTS seq UInt64 DEFAULT 0;
 -- 6. Recreate agg (with new state columns)
 CREATE TABLE vote_events_agg ... (see 0001_core_ch_source_of_truth.sql);
 -- 7. Recreate MV (new SELECT list)
