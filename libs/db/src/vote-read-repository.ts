@@ -9,7 +9,7 @@ export type VoteReadRow = {
   voting_chain_id: string;
   voting_power_reported: string;
   voting_power_verified: boolean;
-  primary_choice: number | null;
+  primary_choice: number;
   cast_at: Date;
   reason: string | null;
   proposal_id: string;

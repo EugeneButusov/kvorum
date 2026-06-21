@@ -47,7 +47,10 @@ describe('buildVoteRows', () => {
       proposalId: 'proposal-1',
       voterAddress: '0xabc',
       castAt: new Date('2026-01-01T00:01:40Z'),
-      incoming: { primaryChoice: 1, votingPower: '123' },
+      incoming: {
+        primaryChoice: 1,
+        votingPower: '123',
+      },
       current: undefined,
       incomingIsNewer: true,
     });
@@ -73,7 +76,10 @@ describe('buildVoteRows', () => {
       proposalId: 'proposal-1',
       voterAddress: '0xabc',
       castAt,
-      incoming: { primaryChoice: 1, votingPower: '123' },
+      incoming: {
+        primaryChoice: 1,
+        votingPower: '123',
+      },
       current: CURRENT,
       incomingIsNewer: true,
     });
@@ -100,7 +106,10 @@ describe('buildVoteRows', () => {
       proposalId: 'proposal-1',
       voterAddress: '0xabc',
       castAt: new Date('2026-01-01T00:01:38Z'),
-      incoming: { primaryChoice: 1, votingPower: '123' },
+      incoming: {
+        primaryChoice: 1,
+        votingPower: '123',
+      },
       current: CURRENT,
       incomingIsNewer: false,
     });

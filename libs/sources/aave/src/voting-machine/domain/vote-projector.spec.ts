@@ -10,7 +10,10 @@ describe('projectAaveVote', () => {
         support: true,
         votingPower: '123',
       }),
-    ).toEqual({ primaryChoice: 1, votingPower: '123' });
+    ).toEqual({
+      primaryChoice: 1,
+      votingPower: '123',
+    });
   });
 
   it('maps support=false to Against', () => {
@@ -21,6 +24,9 @@ describe('projectAaveVote', () => {
         support: false,
         votingPower: '456',
       }),
-    ).toEqual({ primaryChoice: 0, votingPower: '456' });
+    ).toEqual({
+      primaryChoice: 0,
+      votingPower: '456',
+    });
   });
 });

@@ -4,8 +4,9 @@ export function projectAaveVote(payload: VoteEmittedPayload): {
   primaryChoice: number;
   votingPower: string;
 } {
+  const primaryChoice = payload.support ? 1 : 0;
   return {
-    primaryChoice: payload.support ? 1 : 0,
+    primaryChoice,
     votingPower: payload.votingPower,
   };
 }

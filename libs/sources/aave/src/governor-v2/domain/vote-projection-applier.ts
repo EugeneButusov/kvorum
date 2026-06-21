@@ -170,6 +170,7 @@ export class AaveGovernorV2VoteProjectionApplier {
         this.record(row, 'skipped_idempotent', null);
         return;
       }
+      const primaryChoice = event.support ? 1 : 0;
       const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
       const rows = buildVoteRows({
         row,
@@ -178,7 +179,7 @@ export class AaveGovernorV2VoteProjectionApplier {
         voterAddress,
         castAt,
         incoming: {
-          primaryChoice: event.support ? 1 : 0,
+          primaryChoice,
           votingPower: event.votingPower,
         },
         current,
