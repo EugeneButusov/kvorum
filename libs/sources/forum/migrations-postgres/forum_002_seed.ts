@@ -11,7 +11,7 @@ import { sql } from 'kysely';
 // ADR-0073.
 
 const COMPOUND_FORUM_URL = 'https://www.comp.xyz';
-const COMPOUND_FORUM_URL_PRE_Z5 = 'https://gov.compound.finance';
+const COMPOUND_FORUM_URL_PREVIOUS = 'https://gov.compound.finance';
 
 export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
@@ -61,6 +61,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await sql`DELETE FROM source_type WHERE value = 'discourse_forum'`.execute(db);
 
   await sql`
-    UPDATE dao SET forum_url = ${COMPOUND_FORUM_URL_PRE_Z5} WHERE slug = 'compound'
+    UPDATE dao SET forum_url = ${COMPOUND_FORUM_URL_PREVIOUS} WHERE slug = 'compound'
   `.execute(db);
 }

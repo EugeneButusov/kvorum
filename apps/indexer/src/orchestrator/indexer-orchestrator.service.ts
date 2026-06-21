@@ -85,7 +85,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
         // ADR-0073: a dao_source whose source_type has no registered plugin is seeded ahead of
-        // its plugin (e.g. Z5 seeds snapshot/discourse_forum before AD1/AE2 build them). Skip it
+        // its plugin (e.g. snapshot/discourse_forum are seeded before AD1/AE2 build them). Skip it
         // with a warn + metric rather than crashing all ingestion. dao_source.source_type is
         // FK-constrained to source_type(value), so this can only be "not built yet" or a forgotten
         // plugin registration — the metric makes the latter alertable. (Distinct from the

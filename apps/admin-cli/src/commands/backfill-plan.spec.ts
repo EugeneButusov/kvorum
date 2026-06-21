@@ -32,8 +32,8 @@ describe('planBackfillOrder', () => {
     ]);
   });
 
-  it('excludes off-chain sources (Z5 snapshot/discourse_forum seeds) from the EVM plan', () => {
-    // Z5 seeds off-chain dao_source rows on Aave/Compound; they must not reach the EVM backfill
+  it('excludes off-chain sources (snapshot/discourse_forum seeds) from the EVM plan', () => {
+    // Off-chain dao_source rows are seeded on Aave/Compound; they must not reach the EVM backfill
     // readiness gate (which would abort the whole run on chain_id ∉ CHAIN_CONFIG). ADR-0073.
     const rows = [
       target({ source_type: 'aave_governance_v3', chain_id: '0x1' }),

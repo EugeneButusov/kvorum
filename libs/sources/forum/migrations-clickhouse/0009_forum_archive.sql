@@ -9,7 +9,7 @@
 --     it fully partitions by source+chain; external_id is the Discourse topic id.
 --   - SELECT ... FINAL returns the row with the greatest version per (dao_source_id, external_id).
 --
--- No writer until AE2; created here (Z5) alongside the discourse_forum source_type so the
+-- No writer until AE2; created alongside the discourse_forum source_type so the
 -- "archive table per archiving source_type" invariant holds before the forum plugin lands.
 
 CREATE TABLE IF NOT EXISTS archive_event_discourse_forum

@@ -2,20 +2,21 @@
 
 **Status:** Accepted
 **Date:** 2026-06-21
-**Issue:** Z5 (Epic Z [#309](https://github.com/EugeneButusov/kvorum/issues/309))
+**Issue:** Epic Z [#309](https://github.com/EugeneButusov/kvorum/issues/309)
 **Related:** [ADR-064](./0064-multi-chain-dao-source-binding.md), [ADR-071](./0071-non-evm-ingestion-contract.md)
 
 ---
 
 ## Context
 
-M4 seeds `dao_source` rows for sources whose plugins are built in later tasks: Z5 seeds the
-`snapshot` (AD1) and `discourse_forum` (AE2) off-chain sources, and defers the Dual Governance /
+M4 seeds `dao_source` rows for sources whose plugins are built in later tasks: the source seeds add
+the `snapshot` (AD1) and `discourse_forum` (AE2) off-chain sources, and defer the Dual Governance /
 Easy Track EVM sources to AB0 / AC1. This "seed-ahead-of-plugin" sequencing is deliberate — the
 seeds are shared infrastructure (a DAO's full source set) and want to land before the per-source
 plugins so each plugin task is purely additive.
 
-Two startup paths assumed, before Z5, that **every** `dao_source` row is immediately ingestable:
+Two startup paths assumed, before these seeds, that **every** `dao_source` row is immediately
+ingestable:
 
 1. **Indexer orchestrator** (`indexer-orchestrator.service.ts`) pre-validated all rows and **threw**
    `No plugin registered for source_type="…"` on the first row whose `source_type` had no registered
@@ -25,7 +26,7 @@ Two startup paths assumed, before Z5, that **every** `dao_source` row is immedia
 2. **admin-cli backfill orchestrator** (`backfill-plan.ts` + `backfill-orchestrator.ts`) dropped
    only `_reconcile` rows from the plan, so off-chain rows reached the readiness gate, which flags
    any `chain_id` absent from `CHAIN_CONFIG` (off-chain rows carry the `off-chain` sentinel) and
-   **aborts the entire run before writes**. Since Z5 seeds Snapshot on Aave + Compound, their
+   **aborts the entire run before writes**. Since the seeds add Snapshot on Aave + Compound, their
    `admin-cli backfill` would have regressed.
 
 `dao_source.source_type` is FK-constrained to `source_type(value)`, so neither path can ever see a
@@ -50,14 +51,14 @@ and "plugin built but not registered in Nest" (a real bug).
 
 ## Consequences
 
-- Z5 can seed Snapshot ×3 + Discourse ×3 dao_source rows without crashing the live indexer or
+- The seed migrations can add Snapshot ×3 + Discourse ×3 dao_source rows without crashing the live indexer or
   breaking Aave/Compound backfill. As AD1/AE2 land, their source_types acquire plugins and the
   orchestrator starts polling them with no further change.
 - **Observability is the safety net for the swallowed "forgot to register" case.** A non-zero
   `dao_source_unregistered` counter in a deploy that was supposed to register a plugin is a
   release-gate signal — wire it into deploy alerting. Without it, a missing plugin registration
   would silently mean "that source never ingests."
-- **Availability improves regardless of Z5:** one unbuilt or misregistered source can no longer
+- **Availability improves regardless:** one unbuilt or misregistered source can no longer
   take down all ingestion in a multi-source indexer.
 - Rejected alternatives: a per-row `enabled`/`active` flag (adds schema + an operational toggle for
   no benefit over skip-on-no-plugin, since the FK already blocks typos); stub no-op plugins (throwaway

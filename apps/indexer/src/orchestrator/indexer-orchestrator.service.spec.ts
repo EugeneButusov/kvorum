@@ -241,7 +241,7 @@ describe('IndexerOrchestratorService', () => {
   it('#3 — unregistered source_type: skipped with warn + metric; registered sibling still starts (ADR-0073)', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
     // A registered EVM source alongside two seeded-ahead off-chain sources with no plugin yet
-    // (Z5 seeds snapshot/discourse_forum before AD1/AE2 build them).
+    // (snapshot/discourse_forum are seeded before AD1/AE2 build them).
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x1'),
       makeSource('src-2', 'snapshot', 'off-chain'),
