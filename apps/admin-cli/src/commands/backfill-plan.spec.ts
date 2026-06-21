@@ -32,6 +32,21 @@ describe('planBackfillOrder', () => {
     ]);
   });
 
+  it('excludes off-chain sources (Z5 snapshot/discourse_forum seeds) from the EVM plan', () => {
+    // Z5 seeds off-chain dao_source rows on Aave/Compound; they must not reach the EVM backfill
+    // readiness gate (which would abort the whole run on chain_id ∉ CHAIN_CONFIG). ADR-0073.
+    const rows = [
+      target({ source_type: 'aave_governance_v3', chain_id: '0x1' }),
+      target({ source_type: 'snapshot', chain_id: 'off-chain' }),
+      target({ source_type: 'discourse_forum', chain_id: 'off-chain' }),
+    ];
+    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const planned = [...plan.phase1, ...plan.phase2];
+    expect(planned.map((t) => t.source_type)).toEqual(['aave_governance_v3']);
+    // The off-chain rows leave no trace in the plan, so the gate never sees chain_id='off-chain'.
+    expect(findMissingChainConfigs(planned, [{ chainId: '0x1' }])).toEqual([]);
+  });
+
   it('puts the mainnet spine (governance_v3 first) in phase1 and the rest in phase2', () => {
     const rows = [
       target({ source_type: 'aave_payloads_controller', chain_id: '0x89' }),

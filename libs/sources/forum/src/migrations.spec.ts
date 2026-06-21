@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
 import { up as up001, down as down001 } from '../migrations-postgres/forum_001_thread_link';
+import { up as up002, down as down002 } from '../migrations-postgres/forum_002_seed';
 
 describe('forum migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -52,6 +53,18 @@ describe('forum migrations smoke (mocked db)', () => {
   it('forum_001_thread_link down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down001(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('forum_002_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up002(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('forum_002_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down002(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
