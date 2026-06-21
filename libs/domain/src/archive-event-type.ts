@@ -21,7 +21,6 @@ export type ArchiveEventType =
   | 'VotingActivated'
   | 'ProposalFailed'
   | 'PayloadSent'
-  // Aragon Voting (Lido two-phase fork) — AA1
   | 'StartVote'
   | 'CastVote'
   | 'CastObjection'
