@@ -10,6 +10,7 @@ const PACKAGES = [
     expectedLabel: 'Compound',
     config: 'vitest.integration.config.mts',
   },
+  { name: '@sources/lido', expectedLabel: 'Lido', config: 'vitest.integration.config.mts' },
 ];
 
 const tempDir = mkdtempSync(join(tmpdir(), 'kvorum-integration-'));

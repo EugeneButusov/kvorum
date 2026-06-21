@@ -20,4 +20,13 @@ export type ArchiveEventType =
   | 'DelegateVotesChanged'
   | 'VotingActivated'
   | 'ProposalFailed'
-  | 'PayloadSent';
+  | 'PayloadSent'
+  // Aragon Voting (Lido two-phase fork) — AA1
+  | 'StartVote'
+  | 'CastVote'
+  | 'CastObjection'
+  | 'ExecuteVote'
+  | 'ChangeSupportRequired'
+  | 'ChangeMinQuorum'
+  | 'ChangeVoteTime'
+  | 'ChangeObjectionPhaseTime';
