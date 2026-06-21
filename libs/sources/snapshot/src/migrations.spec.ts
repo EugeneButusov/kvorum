@@ -1,9 +1,6 @@
 import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
-import {
-  up as up001,
-  down as down001,
-} from '../migrations-postgres/snapshot_001_proposal_metadata';
+import { up as up001, down as down001 } from '../migrations-postgres/snapshot_001_extension_tables';
 
 describe('snapshot migrations smoke (mocked db)', () => {
   function makeMockDb() {
