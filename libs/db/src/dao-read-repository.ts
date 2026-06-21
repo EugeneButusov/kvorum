@@ -16,10 +16,15 @@ export class DaoReadRepository {
   async listSourcesForDao(
     daoId: string,
   ): Promise<Array<Pick<DaoSource, 'source_type' | 'source_config'>>> {
+    // Deterministic order on the (source_type, chain_id) business key — without it Postgres
+    // returns heap order, which is unstable across inserts/deletes and makes both the response
+    // and its ETag non-deterministic.
     return this.db
       .selectFrom('dao_source')
       .select(['source_type', 'source_config'])
       .where('dao_id', '=', daoId)
+      .orderBy('source_type', 'asc')
+      .orderBy('chain_id', 'asc')
       .execute();
   }
 
