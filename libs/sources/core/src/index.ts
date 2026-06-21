@@ -195,6 +195,7 @@ export type {
   VoteProjectionHoldReason,
 } from './vote/vote-errors';
 export { buildVoteRows, isNewerVote } from './vote/vote-rows';
+export { singleChoiceBreakdown } from './vote/breakdown';
 
 // Re-export CH source-of-truth table row types so @sources/core remains the
 // canonical import point. The `declare module '@libs/db'` side-effect in

@@ -263,7 +263,7 @@ export class AaveVoteProjectionApplier {
         return undefined;
       }
 
-      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
+      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, '0', current);
       const rows = buildVoteRows({
         row,
         daoId,

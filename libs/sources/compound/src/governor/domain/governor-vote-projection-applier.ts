@@ -13,6 +13,7 @@ import {
   ProjectionError,
   buildVoteRows,
   isNewerVote,
+  singleChoiceBreakdown,
 } from '@sources/core';
 import type { VoteCastPayload } from './types';
 import {
@@ -174,7 +175,7 @@ export class GovernorVoteProjectionApplier {
         this.record(row, 'skipped_idempotent', null);
         return;
       }
-      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
+      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, '0', current);
       const rows = buildVoteRows({
         row,
         daoId,
@@ -184,6 +185,8 @@ export class GovernorVoteProjectionApplier {
         incoming: {
           primaryChoice: event.primaryChoice,
           votingPower: event.votingPowerReported,
+          choices: singleChoiceBreakdown(event.primaryChoice),
+          seq: '0',
         },
         current,
         incomingIsNewer,

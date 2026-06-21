@@ -5,6 +5,7 @@ export function isNewerVote(
   castAt: Date,
   blockNumber: string,
   logIndex: number,
+  seq: string,
   current: CurrentVoteRow | undefined,
 ): boolean {
   if (current === undefined) return true;
@@ -14,7 +15,9 @@ export function isNewerVote(
   const currentBlock = BigInt(current.block_number);
   if (incomingBlock !== currentBlock) return incomingBlock > currentBlock;
 
-  return logIndex > current.log_index;
+  if (logIndex !== current.log_index) return logIndex > current.log_index;
+
+  return BigInt(seq) > BigInt(current.seq);
 }
 
 export function buildVoteRows(args: {
@@ -23,7 +26,7 @@ export function buildVoteRows(args: {
   proposalId: string;
   voterAddress: string;
   castAt: Date;
-  incoming: { primaryChoice: number; votingPower: string };
+  incoming: { primaryChoice: number | null; votingPower: string; choices: string; seq: string };
   current: CurrentVoteRow | undefined;
   incomingIsNewer: boolean;
 }): readonly NewVoteEventsProjectionRow[] {
@@ -35,6 +38,8 @@ export function buildVoteRows(args: {
     voter_address: args.voterAddress,
     voting_chain_id: args.row.chain_id,
     primary_choice: args.incoming.primaryChoice,
+    choices: args.incoming.choices,
+    seq: args.incoming.seq,
     voting_power: args.incoming.votingPower,
     cast_at: args.castAt,
     block_number: args.row.block_number,
@@ -54,6 +59,8 @@ export function buildVoteRows(args: {
       voter_address: args.voterAddress,
       voting_chain_id: args.current.voting_chain_id,
       primary_choice: args.current.primary_choice,
+      choices: args.current.choices,
+      seq: args.current.seq,
       voting_power: args.current.voting_power,
       cast_at: args.current.cast_at,
       block_number: args.current.block_number,

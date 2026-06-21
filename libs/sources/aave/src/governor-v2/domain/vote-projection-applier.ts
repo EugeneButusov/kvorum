@@ -13,6 +13,7 @@ import {
   ProjectionError,
   buildVoteRows,
   isNewerVote,
+  singleChoiceBreakdown,
 } from '@sources/core';
 import type { V2VoteEmittedPayload } from './types';
 import type {
@@ -170,7 +171,8 @@ export class AaveGovernorV2VoteProjectionApplier {
         this.record(row, 'skipped_idempotent', null);
         return;
       }
-      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, current);
+      const primaryChoice = event.support ? 1 : 0;
+      const incomingIsNewer = isNewerVote(castAt, row.block_number, row.log_index, '0', current);
       const rows = buildVoteRows({
         row,
         daoId,
@@ -178,8 +180,10 @@ export class AaveGovernorV2VoteProjectionApplier {
         voterAddress,
         castAt,
         incoming: {
-          primaryChoice: event.support ? 1 : 0,
+          primaryChoice,
           votingPower: event.votingPower,
+          choices: singleChoiceBreakdown(primaryChoice),
+          seq: '0',
         },
         current,
         incomingIsNewer,

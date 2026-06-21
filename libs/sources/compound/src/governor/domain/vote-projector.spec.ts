@@ -49,6 +49,8 @@ describe('projectVoteCast', () => {
       block_number: '100',
       log_index: 3,
       primary_choice: 2,
+      choices: '[{"choice_index":2,"weight":"1.0"}]',
+      seq: '0',
       superseded: 0,
       superseded_at: null,
       superseded_by_vote_id: null,

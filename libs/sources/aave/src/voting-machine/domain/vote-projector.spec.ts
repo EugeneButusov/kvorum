@@ -10,7 +10,12 @@ describe('projectAaveVote', () => {
         support: true,
         votingPower: '123',
       }),
-    ).toEqual({ primaryChoice: 1, votingPower: '123' });
+    ).toEqual({
+      primaryChoice: 1,
+      votingPower: '123',
+      choices: '[{"choice_index":1,"weight":"1.0"}]',
+      seq: '0',
+    });
   });
 
   it('maps support=false to Against', () => {
@@ -21,6 +26,11 @@ describe('projectAaveVote', () => {
         support: false,
         votingPower: '456',
       }),
-    ).toEqual({ primaryChoice: 0, votingPower: '456' });
+    ).toEqual({
+      primaryChoice: 0,
+      votingPower: '456',
+      choices: '[{"choice_index":0,"weight":"1.0"}]',
+      seq: '0',
+    });
   });
 });

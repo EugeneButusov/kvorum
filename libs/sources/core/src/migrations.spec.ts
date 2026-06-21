@@ -46,13 +46,14 @@ async function hasDictionary(name: string): Promise<boolean> {
 type ColumnRow = {
   table: string;
   name: string;
+  type: string;
   default_expression: string;
 };
 
 async function fetchColumn(table: string, name: string): Promise<ColumnRow | undefined> {
   const result = await chDb
     .selectFrom('system.columns' as never)
-    .select(['table' as never, 'name' as never, 'default_expression' as never])
+    .select(['table' as never, 'name' as never, 'type' as never, 'default_expression' as never])
     .where('database' as never, '=', clickhouseDbName)
     .where('table' as never, '=', table)
     .where('name' as never, '=', name)
@@ -117,6 +118,23 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
 
     const rawColumn = await fetchColumn('vote_events_raw', 'voting_chain_id');
     expect(rawColumn?.default_expression).toBe("'0x1'");
+  });
+
+  it('adds choices and seq columns to vote pipeline, primary_choice is Nullable', async () => {
+    const choicesProjection = await fetchColumn('vote_events_projection', 'choices');
+    expect(choicesProjection?.name).toBe('choices');
+
+    const seqProjection = await fetchColumn('vote_events_projection', 'seq');
+    expect(seqProjection?.name).toBe('seq');
+
+    const choicesRaw = await fetchColumn('vote_events_raw', 'choices');
+    expect(choicesRaw?.default_expression).toBe("'[]'");
+
+    const seqRaw = await fetchColumn('vote_events_raw', 'seq');
+    expect(seqRaw?.default_expression).toBe('0');
+
+    const primaryChoiceRaw = await fetchColumn('vote_events_raw', 'primary_choice');
+    expect(primaryChoiceRaw?.type).toMatch(/^Nullable/);
   });
 
   it('creates actor_address_redirect dictionary', async () => {
