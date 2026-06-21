@@ -42,10 +42,12 @@ module.exports = {
       '@nest/chain': path.join(root, 'nest/chain/src/index.ts'),
       '@nest/aave': path.join(root, 'nest/sources/aave/src/index.ts'),
       '@nest/compound': path.join(root, 'nest/sources/compound/src/index.ts'),
+      '@nest/lido': path.join(root, 'nest/sources/lido/src/index.ts'),
       '@nest/sources': path.join(root, 'nest/sources/index.ts'),
       '@sources/core': path.join(root, 'libs/sources/core/src/index.ts'),
       '@sources/aave': path.join(root, 'libs/sources/aave/src/index.ts'),
       '@sources/compound': path.join(root, 'libs/sources/compound/src/index.ts'),
+      '@sources/lido': path.join(root, 'libs/sources/lido/src/index.ts'),
     },
   },
   module: {

@@ -20,4 +20,12 @@ export type ArchiveEventType =
   | 'DelegateVotesChanged'
   | 'VotingActivated'
   | 'ProposalFailed'
-  | 'PayloadSent';
+  | 'PayloadSent'
+  | 'StartVote'
+  | 'CastVote'
+  | 'CastObjection'
+  | 'ExecuteVote'
+  | 'ChangeSupportRequired'
+  | 'ChangeMinQuorum'
+  | 'ChangeVoteTime'
+  | 'ChangeObjectionPhaseTime';

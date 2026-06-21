@@ -1,0 +1,25 @@
+{
+  "name": "@nest/lido",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@libs/db": "workspace:*",
+    "@libs/chain": "workspace:*",
+    "@nest/chain": "workspace:*",
+    "@nest/db": "workspace:*",
+    "@sources/core": "workspace:*",
+    "@sources/lido": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0"
+  }
+}

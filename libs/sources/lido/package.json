@@ -7,13 +7,18 @@
   "dependencies": {
     "@libs/db": "workspace:*",
     "@libs/domain": "workspace:*",
+    "@libs/chain": "workspace:*",
+    "@sources/core": "workspace:*",
+    "ethers": "^6.0.0",
     "kysely": "^0.29.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "^3.0.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",
     "build": "tsc -p tsconfig.lib.json",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "lint": "eslint src"
   }
 }
