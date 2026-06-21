@@ -145,6 +145,15 @@ describeWithDb('compound_002_seed migration', () => {
         // otherwise compound_comp_token in dao_source blocks the DAO row deletion.
         await upCompToken(tx);
         await downCompToken(tx);
+        // The cross-DAO off-chain seeds (snapshot_002 + forum_002) add off-chain compound
+        // dao_source rows FK-referencing the compound dao; in real rollback order they down()
+        // before compound_002. Clear them here so downCompoundSeed's DELETE FROM dao doesn't hit
+        // a foreign-key violation from the committed rows.
+        await tx
+          .deleteFrom('dao_source')
+          .where('chain_id', '=', 'off-chain')
+          .where('dao_id', '=', compoundDao.id)
+          .execute();
         await downCompoundSeed(tx);
 
         const daoRows = await tx.selectFrom('dao').where('id', '=', compoundDao.id).execute();
