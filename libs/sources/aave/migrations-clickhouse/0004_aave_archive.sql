@@ -3,16 +3,14 @@
 -- These are raw event archives for the four Aave governance contract kinds. Reconcile
 -- source_type rows do not get separate archive tables; reconcilers read chain state.
 --
--- block_hash is part of ORDER BY: a reorg of the same (chain_id, tx_hash, log_index)
--- emits a second row, not a dedup. Consumers pin PG-canonical block_hash values through
--- their archive_event IN-tuple filter and fold physical duplicates downstream, so archive
--- reads are intentionally not SELECT ... FINAL.
+-- block_hash is NOT in ORDER BY. The ingester reads at confirmedHead = tip − headLag
+-- (ADR-058), so ingested blocks are finalized and reorg-free. The dedup key is the
+-- natural 4-tuple (chain_id, block_number, tx_hash, log_index).
 --
 -- received_at is server-stamped (DEFAULT now()); writers MUST NOT supply it.
 -- ReplacingMergeTree(received_at) keeps the row with the greatest received_at;
 -- DateTime is SECOND PRECISION, so same-second re-observations dedup
--- non-deterministically. Polygon voting-machine volume makes that exposure larger than
--- Compound, but canonical block_hash filtering prevents derivation corruption.
+-- non-deterministically. Confirmed-head ingestion makes that exposure negligible.
 --
 -- PARTITION BY chain_id is deliberate for this R3 footprint. Monthly sub-partitions would
 -- create hundreds of tiny partitions for the light tables. Chain partitions are healthy for
@@ -40,7 +38,7 @@ CREATE TABLE IF NOT EXISTS archive_event_aave_governance_v3
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
 
 CREATE TABLE IF NOT EXISTS archive_event_aave_voting_machine
 (
@@ -57,7 +55,7 @@ CREATE TABLE IF NOT EXISTS archive_event_aave_voting_machine
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
 
 CREATE TABLE IF NOT EXISTS archive_event_aave_payloads_controller
 (
@@ -74,7 +72,7 @@ CREATE TABLE IF NOT EXISTS archive_event_aave_payloads_controller
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
 
 CREATE TABLE IF NOT EXISTS archive_event_aave_governor_v2
 (
@@ -91,4 +89,4 @@ CREATE TABLE IF NOT EXISTS archive_event_aave_governor_v2
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);

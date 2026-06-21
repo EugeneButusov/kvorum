@@ -1,6 +1,7 @@
 -- Archive table for the AAVE governance-token delegation source (mainnet only).
--- Mirrors 0003_compound_comp_token_archive.sql verbatim in structure; see 0002_compound_archive.sql
--- for the block_hash / received_at / partition / TTL / codec rationale.
+-- Mirrors 0003_compound_comp_token_archive.sql verbatim in structure; see 0004_aave_archive.sql
+-- for the received_at / partition / TTL / codec rationale. block_hash is not in ORDER BY
+-- (ingester reads at confirmedHead = tip − headLag per ADR-058; reorgs cannot affect ingested blocks).
 --
 -- Populated by AaveTokenArchiveWriter writing AaveTokenV3 DelegateChanged events (both VOTING
 -- and PROPOSITION power types are archived; the projection applier derives VOTING only per
@@ -29,4 +30,4 @@ CREATE TABLE IF NOT EXISTS archive_event_aave_token
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);
