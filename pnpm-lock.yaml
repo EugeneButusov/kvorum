@@ -439,6 +439,51 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
+  libs/sources/forum:
+    dependencies:
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
+      kysely:
+        specifier: ^0.29.0
+        version: 0.29.0
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/sources/lido:
+    dependencies:
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
+      kysely:
+        specifier: ^0.29.0
+        version: 0.29.0
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/sources/snapshot:
+    dependencies:
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@libs/domain':
+        specifier: workspace:*
+        version: link:../../domain
+      kysely:
+        specifier: ^0.29.0
+        version: 0.29.0
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
   libs/utils:
     dependencies:
       tslib:

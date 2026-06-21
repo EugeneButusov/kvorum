@@ -1,0 +1,20 @@
+{
+  "name": "@sources/snapshot",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "@libs/db": "workspace:*",
+    "@libs/domain": "workspace:*",
+    "kysely": "^0.29.0",
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
+    "lint": "eslint src"
+  }
+}
