@@ -1,6 +1,6 @@
--- block_hash is part of ORDER BY: a reorg of the same (chain_id, tx_hash, log_index)
--- emits a second row, not a dedup. G1 supplies the canonical block_hash from
--- archive_event in its IN-tuple filter (ADR-041 §Reorg semantics).
+-- block_hash is NOT in ORDER BY. The ingester reads at confirmedHead = tip − headLag
+-- (ADR-058), so ingested blocks are finalized and reorg-free. The dedup key is the
+-- natural 4-tuple (chain_id, block_number, tx_hash, log_index).
 
 -- received_at is server-stamped (DEFAULT now()); writers MUST NOT supply it.
 -- ReplacingMergeTree(received_at) keeps the row with the greatest received_at;
@@ -39,4 +39,4 @@ CREATE TABLE IF NOT EXISTS archive_event_compound_governor_bravo
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);

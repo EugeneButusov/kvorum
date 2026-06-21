@@ -1,19 +1,16 @@
 -- Mirror of 0002_compound_archive.sql for the COMP ERC-20 token archive.
 -- All structural semantics are identical; see 0002_compound_archive.sql for the
--- block_hash / received_at / partition / TTL / codec rationale (preserved here verbatim).
+-- received_at / partition / TTL / codec rationale (preserved here verbatim).
+-- block_hash is not in ORDER BY — see 0002_compound_archive.sql for rationale.
 --
 -- This table will be populated by K2a's ArchiveWriter writing DelegateChanged +
--- DelegateVotesChanged events. The 5-tuple idempotency key
--- (source_type, chain_id, tx_hash, log_index, block_hash) lives in PG
+-- DelegateVotesChanged events. The 4-tuple idempotency key
+-- (source_type, chain_id, tx_hash, log_index) lives in PG
 -- archive_event per ADR-041 -- same protocol as the governor archives.
 --
 -- Volume estimate for this source: ~50k events over 6yr (~23/day average).
 -- Well below any partition / dedup / index threshold called out in the
 -- inherited comments below; no template deviation warranted.
-
--- block_hash is part of ORDER BY: a reorg of the same (chain_id, tx_hash, log_index)
--- emits a second row, not a dedup. G1 supplies the canonical block_hash from
--- archive_event in its IN-tuple filter (ADR-041 §Reorg semantics).
 
 -- received_at is server-stamped (DEFAULT now()); writers MUST NOT supply it.
 -- ReplacingMergeTree(received_at) keeps the row with the greatest received_at;
@@ -52,4 +49,4 @@ CREATE TABLE IF NOT EXISTS archive_event_compound_comp_token
 )
 ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY chain_id
-ORDER BY (chain_id, block_number, tx_hash, log_index, block_hash);
+ORDER BY (chain_id, block_number, tx_hash, log_index);

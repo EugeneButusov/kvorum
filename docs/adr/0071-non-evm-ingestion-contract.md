@@ -173,6 +173,25 @@ The per-source off-chain CH table (`event_archive_snapshot`, Z3) **MUST** be `Re
 
 ---
 
+## Z3 binding constraint satisfied (Accepted)
+
+Ratified and implemented in [#320](https://github.com/EugeneButusov/kvorum/issues/320).
+
+`archive_event_snapshot` was created in `libs/sources/snapshot/migrations-clickhouse/0008_snapshot_archive.sql` as:
+
+```sql
+ENGINE = ReplacingMergeTree(version)
+ORDER BY (dao_source_id, external_id);
+```
+
+This satisfies the §Off-chain consumer binding constraint: `version` (Int32, mirroring PG `archive_event.version`) is the sort key — `SELECT … FINAL` returns the row with the greatest version per `(dao_source_id, external_id)` regardless of insertion order, making same-second edits deterministic. The `received_at` convention (second-precision) was intentionally **not** used.
+
+A minimal round-trip test (`tests/snapshot-archive-round-trip.integration.spec.ts`) proves deduplication: insert v1 → insert v2 same key → `SELECT … FINAL` returns exactly the v2 row.
+
+The full DLQ-on-CH-failure end-to-end remains with AD1 as stated.
+
+---
+
 ## Alternatives considered
 
 - **Separate `SourceIngester` field** (e.g. `isOffChain: boolean`) for detection — rejected in favour of `spec.kind` dispatch. The driver dispatch axis already exists; a boolean field would be redundant and require changes to every plugin.

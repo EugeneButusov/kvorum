@@ -425,7 +425,7 @@ describeWithCh('aave ClickHouse archive migration', () => {
       const table = tables.get(name);
       expect(table?.engine_full).toMatch(/^ReplacingMergeTree/);
       expect(table?.partition_key).toBe('chain_id');
-      expect(table?.sorting_key).toBe('chain_id, block_number, tx_hash, log_index, block_hash');
+      expect(table?.sorting_key).toBe('chain_id, block_number, tx_hash, log_index');
     }
   });
 });
