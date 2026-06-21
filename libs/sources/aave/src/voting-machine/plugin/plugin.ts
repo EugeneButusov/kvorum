@@ -54,7 +54,7 @@ export function createAaveVotingMachinePlugin(
   return {
     sourceType: 'aave_voting_machine',
     supportedChainIds: AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: ['backfillable'],
     parseConfig: (raw) => AaveVotingMachineConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

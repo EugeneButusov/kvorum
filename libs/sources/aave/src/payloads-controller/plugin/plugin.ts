@@ -69,7 +69,7 @@ export function createAavePayloadsControllerPlugin(
   return {
     sourceType: 'aave_payloads_controller',
     supportedChainIds: AAVE_PAYLOADS_CONTROLLER_SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: ['backfillable'],
     parseConfig: (raw) => AavePayloadsControllerConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

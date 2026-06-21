@@ -91,20 +91,21 @@ export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
 /**
- * Ingestion transport of a source. `evm` sources sit on a block lattice and are backfilled by the
- * EVM block-range driver; `offchain` sources (Snapshot, Discourse) are poll-based, carry the
- * `off-chain` sentinel chain_id, and are backfilled via the poll transport (AG1) — never the EVM
- * block-range scanner. A declared tag rather than an inferred one (chain_id sentinel / source_type
- * suffix), so backfill eligibility is read directly off the plugin.
+ * Declared capabilities of a source plugin — what it can do, read directly off the plugin rather
+ * than inferred from a chain_id sentinel or a source_type suffix.
+ *
+ * - `backfillable`: participates in the EVM block-range backfill. EVM event-log sources declare it;
+ *   reconcile sweeps (block-head re-query, no log backfill) and off-chain poll sources (Snapshot,
+ *   Discourse — a separate from-genesis poll transport owned by AG1) do not.
  */
-export type SourceTransport = 'evm' | 'offchain';
+export type SourceCapability = 'backfillable';
 
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
   /** Orchestrator skips any dao_source whose chain is not in this list. */
   readonly supportedChainIds: readonly string[];
-  /** Ingestion transport — see {@link SourceTransport}. Drives EVM-backfill eligibility. */
-  readonly transport: SourceTransport;
+  /** Declared capabilities — see {@link SourceCapability}. */
+  readonly capabilities: readonly SourceCapability[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;

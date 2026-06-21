@@ -22,7 +22,7 @@ import { PROPOSAL_CREATED_TOPIC } from './evm-test-emitter.bytecode';
               {
                 sourceType: 'evm_test_emitter',
                 supportedChainIds: ['0x7a69'],
-                transport: 'evm',
+                capabilities: ['backfillable'],
                 parseConfig: (raw) => raw as { governor_address: string },
                 buildBackfillRuntime: (ctx, cfg) => ({
                   filter: {

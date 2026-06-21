@@ -43,16 +43,15 @@ and "plugin built but not registered in Nest" (a real bug).
    intentionally-silent "plugin present but chain unsupported" skip (`supportedChainIds`): the
    no-plugin skip is observable (warn + metric); the chain-unsupported skip stays silent.
 
-2. **Backfill plan:** the EVM backfill plan keeps **only** sources that resolve to a registered
-   backfill plugin whose declared `transport` is `evm` (`isBackfillableSourceType`). `SourceIngester`
-   gains a declarative `readonly transport: 'evm' | 'offchain'` field, so backfill eligibility is read
-   directly off the plugin instead of inferred from a `chain_id` sentinel or a `_reconcile` suffix.
-   This single positive whitelist replaces both prior implicit checks: reconcile sweeps and off-chain
-   (Snapshot/Discourse) sources are excluded because they are not EVM-transport backfill plugins.
-   Off-chain backfill is a separate transport (AG1, Snapshot `created_gte` pagination with no
-   head-lag); the EVM plan should never enumerate off-chain rows. This is a **permanent** exclusion,
-   unlike the orchestrator's no-plugin skip which resolves itself the moment AD1/AE2 register their
-   plugins.
+2. **Backfill plan:** the EVM backfill plan keeps **only** sources a registered plugin declares
+   `backfillable` for (`isBackfillableSourceType`). `SourceIngester` gains a declarative
+   `readonly capabilities: readonly SourceCapability[]` field; EVM event-log sources declare
+   `['backfillable']`, reconcile sweeps and off-chain sources do not. Backfill eligibility is read
+   directly off the plugin's declared capability instead of inferred from a `chain_id` sentinel or a
+   `_reconcile` suffix. This single positive whitelist replaces both prior implicit checks. Off-chain
+   backfill is a separate transport (AG1, Snapshot `created_gte` pagination with no head-lag); the
+   EVM plan never enumerates off-chain rows. This is a **permanent** exclusion, unlike the
+   orchestrator's no-plugin skip which resolves itself the moment AD1/AE2 register their plugins.
 
 ## Consequences
 

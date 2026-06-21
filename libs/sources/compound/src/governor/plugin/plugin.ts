@@ -58,7 +58,7 @@ function createPlugin(
   return {
     sourceType,
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: ['backfillable'],
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => {
       const topics = interfaceForSource(sourceType).topics;

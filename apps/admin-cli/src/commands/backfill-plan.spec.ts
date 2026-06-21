@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   findMissingChainConfigs,
   planBackfillOrder,
   selectBackfillMode,
   type BackfillTarget,
 } from './backfill-plan.js';
+import {
+  buildBackfillSourcePlugins,
+  isBackfillableSourceType,
+} from '../plugins/backfill-source-plugins.js';
 
 function target(
   partial: Partial<BackfillTarget> & { source_type: string; chain_id: string },
@@ -19,16 +23,24 @@ function target(
   };
 }
 
-// Stand-in for the registry-backed predicate (isBackfillableSourceType): only EVM governance
-// source types are backfillable. Reconcile sweeps and off-chain sources are not.
-const BACKFILLABLE = new Set([
-  'aave_governance_v3',
-  'aave_governor_v2',
-  'aave_token',
-  'aave_voting_machine',
-  'aave_payloads_controller',
-]);
-const isBackfillable = (sourceType: string): boolean => BACKFILLABLE.has(sourceType);
+// Derive backfill eligibility from the real plugin registry's declared capabilities — no hardcoded
+// source-type list. Plugins built with stub deps (only sourceType + capabilities are read here).
+const mockDeps = () => ({
+  archiveWriter: {} as never,
+  dlqRepo: {} as never,
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+});
+const BACKFILL_PLUGINS = buildBackfillSourcePlugins({
+  governor: mockDeps(),
+  compToken: mockDeps(),
+  aaveGovernorV2: mockDeps(),
+  aaveGovernanceV3: mockDeps(),
+  aaveVotingMachine: mockDeps(),
+  aavePayloadsController: mockDeps(),
+  aaveToken: mockDeps(),
+});
+const isBackfillable = (sourceType: string): boolean =>
+  isBackfillableSourceType(sourceType, BACKFILL_PLUGINS);
 
 describe('planBackfillOrder', () => {
   it('excludes reconcile sources', () => {

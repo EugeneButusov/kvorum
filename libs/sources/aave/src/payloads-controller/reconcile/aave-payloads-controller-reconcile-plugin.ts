@@ -31,7 +31,7 @@ export function createAavePayloadsControllerReconcilePlugin(
   return {
     sourceType: 'aave_payloads_controller_reconcile',
     supportedChainIds: AAVE_PAYLOADS_CONTROLLER_SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: [],
     parseConfig: (raw) => AavePayloadsControllerConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',

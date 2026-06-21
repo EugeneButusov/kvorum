@@ -40,7 +40,7 @@ function isDeprecated(target: BackfillTarget): boolean {
 
 /**
  * Builds the ordered backfill plan from a DAO's source rows: keeps only EVM-backfillable sources
- * (`opts.isBackfillable`, backed by the plugins' declared `transport` — see
+ * (`opts.isBackfillable`, backed by the plugins' declared `backfillable` capability — see
  * isBackfillableSourceType; this excludes reconcile sweeps and off-chain Snapshot/Discourse sources
  * whose backfill is a separate transport owned by AG1, ADR-0073), optionally drops deprecated-chain
  * sources, and splits the rest into the serial mainnet spine (phase 1) and the bounded-parallel

@@ -57,7 +57,7 @@ export function createAaveGovernanceV3Plugin(
   return {
     sourceType: 'aave_governance_v3',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: ['backfillable'],
     parseConfig: (raw) => AaveGovernanceV3ConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

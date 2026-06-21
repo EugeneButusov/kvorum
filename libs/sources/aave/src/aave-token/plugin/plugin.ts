@@ -52,7 +52,7 @@ export function createAaveTokenPlugin(deps: AaveTokenPluginDeps): SourceIngester
   return {
     sourceType: 'aave_token',
     supportedChainIds: AAVE_TOKEN_SUPPORTED_CHAIN_IDS,
-    transport: 'evm',
+    capabilities: ['backfillable'],
     parseConfig: (raw) => AaveTokenConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',
