@@ -77,6 +77,7 @@ function makeFakePlugin(sourceType: string, parseOk = true): SourceIngester {
   return {
     sourceType,
     supportedChainIds: ['0x1', '0x89', '0x999'],
+    transport: 'evm',
     parseConfig: (raw: unknown) => {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
@@ -152,6 +153,7 @@ function makeFakePollPlugin(sourceType: string): SourceIngester {
   return {
     sourceType,
     supportedChainIds: ['off-chain'],
+    transport: 'offchain',
     parseConfig: (raw: unknown) => raw,
     buildBackfillRuntime: () => {
       throw new Error('poll sources do not support backfill runtime');
@@ -451,6 +453,7 @@ describe('IndexerOrchestratorService', () => {
     const blockHeadPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo_reconcile',
       supportedChainIds: ['0x1'],
+      transport: 'evm',
       parseConfig: (raw: unknown) => raw,
       buildBackfillRuntime: () => ({
         filter: { address: '0xabc', topics: [] },
@@ -499,6 +502,7 @@ describe('IndexerOrchestratorService', () => {
     const unknownKindPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo',
       supportedChainIds: ['0x1'],
+      transport: 'evm',
       parseConfig: (raw: unknown) => raw,
       buildBackfillRuntime: () => ({
         filter: { address: '0xabc', topics: [] },

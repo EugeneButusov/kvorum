@@ -58,6 +58,7 @@ export function createCompTokenPlugin(
   return {
     sourceType: 'compound_comp_token',
     supportedChainIds: COMP_TOKEN_SUPPORTED_CHAIN_IDS,
+    transport: 'evm',
     parseConfig: (raw) => CompTokenSourceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       // listener omitted — EvmEventPollerDriver supplies the generic archive producer for live path

@@ -179,3 +179,23 @@ export function resolvePluginAndConfig(
   }
   return null;
 }
+
+/**
+ * A source_type is EVM-backfillable iff it resolves to a registered backfill plugin whose declared
+ * `transport` is `evm`. Reconcile sweeps and off-chain (Snapshot/Discourse) sources are not in the
+ * registry (and declare `transport: 'offchain'` once built), so this is the single explicit source
+ * of truth for "include in the EVM block-range backfill plan" — read off the plugin's declared
+ * transport, not inferred from a chain_id sentinel or a source_type suffix.
+ */
+export function isBackfillableSourceType(
+  sourceType: string,
+  plugins: readonly BackfillSourcePlugin[],
+): boolean {
+  return plugins.some((plugin) => plugin.sourceType === sourceType && plugin.transport === 'evm');
+}
+
+/** Builds the `isBackfillable` predicate over the default backfill plugin registry. */
+export function buildIsBackfillable(logger: Logger): (sourceType: string) => boolean {
+  const plugins = buildDefaultBackfillSourcePlugins(logger);
+  return (sourceType) => isBackfillableSourceType(sourceType, plugins);
+}

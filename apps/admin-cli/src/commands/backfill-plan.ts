@@ -39,19 +39,18 @@ function isDeprecated(target: BackfillTarget): boolean {
 }
 
 /**
- * Builds the ordered backfill plan from a DAO's source rows: drops reconcile sources (no logs to
- * fetch) and off-chain sources (chain_id='off-chain' — Snapshot/Discourse have no EVM logs; their
- * backfill is a separate transport owned by AG1, ADR-0073), optionally drops deprecated-chain
+ * Builds the ordered backfill plan from a DAO's source rows: keeps only EVM-backfillable sources
+ * (`opts.isBackfillable`, backed by the plugins' declared `transport` — see
+ * isBackfillableSourceType; this excludes reconcile sweeps and off-chain Snapshot/Discourse sources
+ * whose backfill is a separate transport owned by AG1, ADR-0073), optionally drops deprecated-chain
  * sources, and splits the rest into the serial mainnet spine (phase 1) and the bounded-parallel
  * remainder (phase 2).
  */
 export function planBackfillOrder(
   rows: readonly BackfillTarget[],
-  opts: { skipDeprecated: boolean },
+  opts: { skipDeprecated: boolean; isBackfillable: (sourceType: string) => boolean },
 ): BackfillPlan {
-  const backfillable = rows.filter(
-    (r) => !r.source_type.endsWith('_reconcile') && r.chain_id !== 'off-chain',
-  );
+  const backfillable = rows.filter((r) => opts.isBackfillable(r.source_type));
   const skippedDeprecated: BackfillTarget[] = [];
   const live: BackfillTarget[] = [];
   for (const r of backfillable) {

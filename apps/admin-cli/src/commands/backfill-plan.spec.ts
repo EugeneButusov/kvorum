@@ -19,6 +19,17 @@ function target(
   };
 }
 
+// Stand-in for the registry-backed predicate (isBackfillableSourceType): only EVM governance
+// source types are backfillable. Reconcile sweeps and off-chain sources are not.
+const BACKFILLABLE = new Set([
+  'aave_governance_v3',
+  'aave_governor_v2',
+  'aave_token',
+  'aave_voting_machine',
+  'aave_payloads_controller',
+]);
+const isBackfillable = (sourceType: string): boolean => BACKFILLABLE.has(sourceType);
+
 describe('planBackfillOrder', () => {
   it('excludes reconcile sources', () => {
     const rows = [
@@ -26,7 +37,7 @@ describe('planBackfillOrder', () => {
       target({ source_type: 'aave_governance_v3_reconcile', chain_id: '0x1' }),
       target({ source_type: 'aave_payloads_controller_reconcile', chain_id: '0x89' }),
     ];
-    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
     expect([...plan.phase1, ...plan.phase2].map((t) => t.source_type)).toEqual([
       'aave_governance_v3',
     ]);
@@ -40,7 +51,7 @@ describe('planBackfillOrder', () => {
       target({ source_type: 'snapshot', chain_id: 'off-chain' }),
       target({ source_type: 'discourse_forum', chain_id: 'off-chain' }),
     ];
-    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
     const planned = [...plan.phase1, ...plan.phase2];
     expect(planned.map((t) => t.source_type)).toEqual(['aave_governance_v3']);
     // The off-chain rows leave no trace in the plan, so the gate never sees chain_id='off-chain'.
@@ -55,7 +66,7 @@ describe('planBackfillOrder', () => {
       target({ source_type: 'aave_governor_v2', chain_id: '0x1' }),
       target({ source_type: 'aave_governance_v3', chain_id: '0x1' }),
     ];
-    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
     expect(plan.phase1.map((t) => t.source_type)).toEqual([
       'aave_governance_v3',
       'aave_governor_v2',
@@ -76,9 +87,11 @@ describe('planBackfillOrder', () => {
       }),
       target({ source_type: 'aave_payloads_controller', chain_id: '0x89' }),
     ];
-    expect(planBackfillOrder(rows, { skipDeprecated: false }).phase2).toHaveLength(2);
+    expect(planBackfillOrder(rows, { skipDeprecated: false, isBackfillable }).phase2).toHaveLength(
+      2,
+    );
 
-    const skipped = planBackfillOrder(rows, { skipDeprecated: true });
+    const skipped = planBackfillOrder(rows, { skipDeprecated: true, isBackfillable });
     expect(skipped.phase2).toHaveLength(1);
     expect(skipped.skippedDeprecated.map((t) => t.chain_id)).toEqual(['0x440']);
   });

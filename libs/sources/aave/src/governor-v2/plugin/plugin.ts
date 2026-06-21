@@ -55,6 +55,7 @@ export function createAaveGovernorV2Plugin(
   return {
     sourceType: 'aave_governor_v2',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
+    transport: 'evm',
     parseConfig: (raw) => AaveGovernorV2ConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

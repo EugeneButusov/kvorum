@@ -90,10 +90,21 @@ export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 /** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
+/**
+ * Ingestion transport of a source. `evm` sources sit on a block lattice and are backfilled by the
+ * EVM block-range driver; `offchain` sources (Snapshot, Discourse) are poll-based, carry the
+ * `off-chain` sentinel chain_id, and are backfilled via the poll transport (AG1) — never the EVM
+ * block-range scanner. A declared tag rather than an inferred one (chain_id sentinel / source_type
+ * suffix), so backfill eligibility is read directly off the plugin.
+ */
+export type SourceTransport = 'evm' | 'offchain';
+
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
   /** Orchestrator skips any dao_source whose chain is not in this list. */
   readonly supportedChainIds: readonly string[];
+  /** Ingestion transport — see {@link SourceTransport}. Drives EVM-backfill eligibility. */
+  readonly transport: SourceTransport;
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
