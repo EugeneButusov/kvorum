@@ -26,7 +26,7 @@ export function buildVoteRows(args: {
   proposalId: string;
   voterAddress: string;
   castAt: Date;
-  incoming: { primaryChoice: number; votingPower: string; choices: string; seq: string };
+  incoming: { primaryChoice: number; votingPower: string; seq: string };
   current: CurrentVoteRow | undefined;
   incomingIsNewer: boolean;
 }): readonly NewVoteEventsProjectionRow[] {
@@ -38,7 +38,6 @@ export function buildVoteRows(args: {
     voter_address: args.voterAddress,
     voting_chain_id: args.row.chain_id,
     primary_choice: args.incoming.primaryChoice,
-    choices: args.incoming.choices,
     seq: args.incoming.seq,
     voting_power: args.incoming.votingPower,
     cast_at: args.castAt,
@@ -59,7 +58,6 @@ export function buildVoteRows(args: {
       voter_address: args.voterAddress,
       voting_chain_id: args.current.voting_chain_id,
       primary_choice: args.current.primary_choice,
-      choices: args.current.choices,
       seq: args.current.seq,
       voting_power: args.current.voting_power,
       cast_at: args.current.cast_at,

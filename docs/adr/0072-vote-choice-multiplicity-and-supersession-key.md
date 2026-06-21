@@ -14,26 +14,27 @@ The CH vote pipeline (`vote_events_raw` → `vote_events_mv` → `vote_events_ag
 Two gaps need closing before AD4 (live Snapshot weighted/ranked-choice decode) and AF1 (vote API
 shapes):
 
-1. **Choice multiplicity.** Snapshot supports weighted (split power across choices),
-   ranked-choice (ordered preference), quadratic, and approval voting. None fit a scalar
-   `primary_choice`. A structured `choices` column is needed to carry a multi-element breakdown per
-   vote.
-
-2. **Off-chain supersession degeneracy.** EVM votes have strictly increasing `(cast_at,
+1. **Off-chain supersession degeneracy.** EVM votes have strictly increasing `(cast_at,
 block_number, log_index)` — a natural total order for supersession. Snapshot votes carry no
    block or log_index; both are sentinel `0`. `cast_at` is second-resolution and can tie across
    same-second edits of the same vote. Without a tie-breaker the "current" vote is
    non-deterministic for off-chain re-votes.
 
-ADR-023 (Accepted) additionally mandates `primary_choice = NULL` for multi-choice Snapshot
-voting types (`weighted`, `ranked-choice`, `quadratic`).
+2. **Choice multiplicity** (deferred to AD4). Snapshot supports weighted (split power across
+   choices), ranked-choice, quadratic, and approval voting. A per-vote `choices` breakdown is
+   needed but belongs in a Snapshot-specific protocol table rather than the core CH pipeline —
+   it is a payload column (point-fetch by vote_id for display only), never filtered or aggregated,
+   and would break vectorized execution on the core pipeline columns.
+
+ADR-023 (Accepted) additionally mandated `primary_choice = NULL` for multi-choice Snapshot
+voting types (`weighted`, `ranked-choice`, `quadratic`). See D4 below for the amendment.
 
 ## Decisions
 
 ### D1 — In-place pipeline rebuild
 
-The `choices` and `seq` columns require new `argMaxState` entries in `vote_events_agg` and new
-`argMaxMerge` entries in `vote_events_projection`. Because the MV SELECT lists are hardcoded,
+The `seq` column requires a new `argMaxState` entry in `vote_events_agg` and a new
+`argMaxMerge` entry in `vote_events_projection`. Because the MV SELECT lists are hardcoded,
 adding columns is a full drop-and-rebuild (MV → agg → projection; ADR-0067 precedent). The
 implementation edits `0001_core_ch_source_of_truth.sql` in-place. The
 `clickhouse-migrations` runner md5-checksums applied files and `process.exit(1)`s on a changed
@@ -41,36 +42,37 @@ file — **any already-migrated ClickHouse instance must be wiped before applyin
 fresh DB on every run; no prod data exists at Z4 time). The rebuild + rollback procedure is
 documented below.
 
-### D2 — `choices` storage: argMax'd JSON `String`
+### D2 — `choices` payload deferred to AD4 (Snapshot-specific table)
 
-`choices String DEFAULT '[]' CODEC(ZSTD(1))` on `vote_events_raw`; agg state
-`AggregateFunction(argMax, String, DateTime64(6))`; MV `argMaxState(choices, version)`;
-projection `argMaxMerge(choices_state)`. `String` argMax round-trips JSON losslessly.
-`Nested`/`Array(Tuple)` cannot be argMax'd and would force a subquery-based projection.
-`DEFAULT '[]'` ensures `JSON.parse` never throws on a row written without the field.
+`choices` is a point-lookup payload column (display UI fetches by `vote_id`), never used in
+WHERE, GROUP BY, or aggregation. Storing it in the core CH pipeline would break vectorized
+execution for all vote types needing fast analytics.
 
-### D3 — `choices` JSON shape: `[{choice_index, weight}]` sorted descending weight
+AD4 will store the Snapshot-specific `choices[]`/`vp_by_strategy` breakdown in a
+Snapshot-specific protocol table (separate from `vote_events_raw`). `findChoicesForVote` will
+dispatch at read time: Snapshot → Snapshot protocol table; EVM → synthesized from
+`primary_choice` as `[{ choice_index, weight: "1.0" }]`. No further pipeline rebuild is needed
+at AD4.
+
+### D3 — `choices` JSON shape (AD4 contract, not Z4)
 
 ```jsonc
 [{"choice_index": <int>, "weight": "<decimal-string>"}, ...]
 ```
 
 `weight` is a decimal string (no float drift). Sorted descending by weight so `choices[0]` is
-always the highest-weight entry. `primary_choice = choices[0].choice_index` for single-choice
-sources.
+always the highest-weight entry. `primary_choice = choices[0].choice_index` by invariant.
 
-#### Per-`voting_type` mapping (the AF1 fixture contract)
+#### Per-`voting_type` mapping (the AF1 fixture contract, owned by AD4)
 
 | `voting_type`             | `primary_choice`             | `choices` entries                                                        |
 | ------------------------- | ---------------------------- | ------------------------------------------------------------------------ |
 | `basic` / `single-choice` | index of chosen option       | one entry, `weight: "1.0"`                                               |
 | `approval`                | index of first chosen option | one entry per chosen option, each `weight: "1.0"`                        |
-| `weighted`                | NULL (ADR-023)               | one entry per option with fractional weights summing to `"1.0"`          |
-| `ranked-choice`           | NULL (ADR-023)               | `choice_index` carries rank (1 = first preference); `weight: "1.0"` each |
-| `quadratic`               | NULL (ADR-023)               | normalized fractional weights summing to `"1.0"`                         |
+| `weighted`                | `choices[0].choice_index`    | one entry per option with fractional weights summing to `"1.0"`          |
+| `ranked-choice`           | `choices[0].choice_index`    | `choice_index` carries rank (1 = first preference); `weight: "1.0"` each |
+| `quadratic`               | `choices[0].choice_index`    | normalized fractional weights summing to `"1.0"`                         |
 | `copeland`                | index of first chosen option | pairwise weight entries                                                  |
-
-This table is the contract AF1 codes its fixtures against.
 
 ### D4 — `primary_choice Int8`, always highest-weight choice index (amends ADR-023)
 
@@ -83,13 +85,12 @@ all voting types** — never NULL:
 - ranked-choice → `choices[0].choice_index` (first preference, rank 1)
 - quadratic → `choices[0].choice_index` (the option with the largest normalized weight)
 
-`primary_choice` is a CH-optimized denormalization of the first element of `choices`. This
-keeps it non-nullable and typed as `Int8`, preserving vectorized filter and aggregation
-performance for all vote types. Analytics that need precision use `choices`; analytics that
-need speed (participation counts, for/against breakdowns, indexed filters) use `primary_choice`
-and get a coherent result regardless of voting type. The write invariant
-`primary_choice = choices[0].choice_index` is enforced at the write path and unit-tested on
-the `singleChoiceBreakdown` helper.
+`primary_choice` keeps vectorized filter and aggregation performance for all vote types.
+Analytics that need the full breakdown will use the Snapshot-specific protocol table (AD4);
+analytics that need speed (participation counts, for/against breakdowns, indexed filters) use
+`primary_choice` and get a coherent result regardless of voting type. The write invariant
+`primary_choice = choices[0].choice_index` is enforced at the write path (AD4) and verified by
+integration tests.
 
 ### D5 — Off-chain supersession key: `seq UInt64 DEFAULT 0`
 
@@ -112,11 +113,11 @@ the `singleChoiceBreakdown` helper.
 
 ### D6 — Live decode out of scope → AD4
 
-Z4 ships the columns, the pipeline rebuild, this ADR, and read wiring (`findChoicesForVote`).
-AD4 owns the live Snapshot decode: populating `choices` from `choices[]`/`vp_by_strategy`, writing
-`primary_choice = NULL` for `weighted`/`ranked-choice`/`quadratic`, deriving `vote_id` from
-the vote-hash, emitting off-chain sentinels (`block_number=0`, `log_index=0`), and setting
-`seq = derivation_ordinal`.
+Z4 ships the `seq` pipeline column, the pipeline rebuild, this ADR, and `findChoicesForVote`
+(EVM synthesis from `primary_choice`). AD4 owns the live Snapshot decode: Snapshot-specific
+protocol table for `choices`/`vp_by_strategy`, deriving `vote_id` from the vote-hash, emitting
+off-chain sentinels (`block_number=0`, `log_index=0`), and setting `seq = derivation_ordinal`.
+`findChoicesForVote` will dispatch by source type at AD4.
 
 ### D7 — Rollback is documented, not executable as a migration
 
@@ -139,7 +140,6 @@ DROP TABLE IF EXISTS vote_events_mv;
 DROP TABLE IF EXISTS vote_events_agg;
 -- 5. ALTER vote_events_raw to add new columns (or DROP + recreate if ALTER is unavailable)
 ALTER TABLE vote_events_raw
-  ADD COLUMN IF NOT EXISTS choices String DEFAULT '[]' CODEC(ZSTD(1)),
   ADD COLUMN IF NOT EXISTS seq UInt64 DEFAULT 0;
 -- 6. Recreate agg (with new state columns)
 CREATE TABLE vote_events_agg ... (see 0001_core_ch_source_of_truth.sql);
@@ -152,7 +152,6 @@ INSERT INTO vote_events_agg
   SELECT vote_id, dao_id, proposal_id, voter_address, block_number, log_index, cast_at,
          voting_chain_id,
          argMaxState(primary_choice, version) AS primary_choice_state,
-         argMaxState(choices, version)        AS choices_state,
          argMaxState(seq, version)            AS seq_state,
          argMaxState(voting_power, version)   AS voting_power_state,
          argMaxState(superseded, version)     AS superseded_state,
@@ -169,16 +168,15 @@ AG validates the rollback against a populated DB before the first M-series backf
 
 ## Consequences
 
-- **AD4** can write multi-element `choices` + `primary_choice = NULL` for Snapshot
-  weighted/ranked-choice/quadratic votes without any further pipeline rebuild.
-- **AF1** can read `findChoicesForVote` → `VoteChoiceDto[]` for both single-choice and
-  multi-element breakdowns; uses the per-`voting_type` mapping table above as the fixture
-  contract.
-- **EVM sources (Compound, Aave)** are byte-identical: `choices` reads back as the one-element
-  shape; `primary_choice` is non-null; `seq = 0` is a no-op tie-break.
-- **Analytics** (`matched_choices`, `listForProposal`, `listForActor`): `primary_choice` going
-  nullable is additive-safe — no weighted votes exist until AD4, so no read hits NULL in Z4.
-  Future analytics for multi-choice types will treat NULL as "no single choice to align" —
-  semantically correct.
+- **Z4** ships `seq UInt64 DEFAULT 0` in the CH pipeline. All EVM sources pass `seq = '0'`; the
+  comparator is a no-op for EVM re-votes. `isNewerVote` gains `seq` as the terminal comparator;
+  `findCurrentVote` ORDER BY and `listVotersForProposal` argMax tuple both include `seq`.
+- **AD4** adds the Snapshot-specific protocol table for `choices` + `vp_by_strategy` payload
+  without any further core pipeline rebuild. `findChoicesForVote` will dispatch by source type
+  at AD4 time.
+- **AF1** can read `findChoicesForVote` → `VoteChoiceDto[]` for EVM sources now (synthesized
+  from `primary_choice`); full multi-element support added in AD4.
+- **EVM sources (Compound, Aave)** are unaffected beyond the `seq` no-op; `primary_choice` is
+  always non-null.
 - **AG validates** the already-migrated-instance rebuild + rollback procedure before the first
   populated backfill run.

@@ -13,7 +13,6 @@ import {
   ProjectionError,
   buildVoteRows,
   isNewerVote,
-  singleChoiceBreakdown,
 } from '@sources/core';
 import type { VoteCastPayload } from './types';
 import {
@@ -185,7 +184,6 @@ export class GovernorVoteProjectionApplier {
         incoming: {
           primaryChoice: event.primaryChoice,
           votingPower: event.votingPowerReported,
-          choices: singleChoiceBreakdown(event.primaryChoice),
           seq: '0',
         },
         current,

@@ -13,7 +13,6 @@ import {
   ProjectionError,
   buildVoteRows,
   isNewerVote,
-  singleChoiceBreakdown,
 } from '@sources/core';
 import type { V2VoteEmittedPayload } from './types';
 import type {
@@ -182,7 +181,6 @@ export class AaveGovernorV2VoteProjectionApplier {
         incoming: {
           primaryChoice,
           votingPower: event.votingPower,
-          choices: singleChoiceBreakdown(primaryChoice),
           seq: '0',
         },
         current,

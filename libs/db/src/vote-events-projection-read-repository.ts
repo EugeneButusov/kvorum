@@ -8,7 +8,6 @@ export interface CurrentVoteRow {
   block_number: string;
   log_index: number;
   primary_choice: number;
-  choices: string;
   seq: string;
   voting_power: string;
   voting_chain_id: string;
@@ -62,7 +61,6 @@ export class VoteEventsProjectionReadRepository {
         'vef.block_number',
         'vef.log_index',
         'vef.primary_choice',
-        'vef.choices',
         'vef.seq',
         'vef.voting_power',
         'vef.voting_chain_id',

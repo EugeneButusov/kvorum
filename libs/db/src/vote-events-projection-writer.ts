@@ -8,7 +8,6 @@ export interface NewVoteEventsProjectionRow {
   voter_address: string;
   voting_chain_id: string;
   primary_choice: number;
-  choices: string;
   seq: string;
   voting_power: string;
   cast_at: Date;

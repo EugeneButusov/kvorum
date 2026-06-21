@@ -22,7 +22,6 @@ const CURRENT: CurrentVoteRow = {
   block_number: '199',
   log_index: 2,
   primary_choice: 0,
-  choices: '[{"choice_index":0,"weight":"1.0"}]',
   seq: '0',
   voting_power: '100',
   voting_chain_id: '0x89',
@@ -66,7 +65,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        choices: '[{"choice_index":1,"weight":"1.0"}]',
         seq: '0',
       },
       current: undefined,
@@ -78,7 +76,6 @@ describe('buildVoteRows', () => {
         vote_id: 'archive-2',
         voting_chain_id: '0x89',
         primary_choice: 1,
-        choices: '[{"choice_index":1,"weight":"1.0"}]',
         seq: '0',
         voting_power: '123',
         superseded: 0,
@@ -99,7 +96,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        choices: '[{"choice_index":1,"weight":"1.0"}]',
         seq: '0',
       },
       current: CURRENT,
@@ -114,7 +110,6 @@ describe('buildVoteRows', () => {
       expect.objectContaining({
         vote_id: 'archive-1',
         voting_chain_id: '0x89',
-        choices: '[{"choice_index":0,"weight":"1.0"}]',
         seq: '0',
         superseded: 1,
         superseded_at: castAt,
@@ -133,7 +128,6 @@ describe('buildVoteRows', () => {
       incoming: {
         primaryChoice: 1,
         votingPower: '123',
-        choices: '[{"choice_index":1,"weight":"1.0"}]',
         seq: '0',
       },
       current: CURRENT,

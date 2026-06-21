@@ -35,7 +35,6 @@ type VoteEventsProjectionTable = {
   proposal_id: string;
   voter_address: string;
   primary_choice: number;
-  choices: string;
   voting_power: string;
   voting_chain_id: string;
   cast_at: Date;
@@ -201,16 +200,11 @@ export class VoteReadRepository {
   async findChoicesForVote(voteId: string): Promise<VoteChoiceReadRow[]> {
     const row = await this.ch
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
-      .select(['v.choices', 'v.primary_choice'])
+      .select(['v.primary_choice'])
       .where('v.vote_id', '=', voteId)
       .executeTakeFirst();
 
     if (row === undefined) return [];
-
-    if (row.choices && row.choices !== '[]') {
-      return JSON.parse(row.choices) as VoteChoiceReadRow[];
-    }
-
     return [{ choice_index: row.primary_choice, weight: '1.0' }];
   }
 

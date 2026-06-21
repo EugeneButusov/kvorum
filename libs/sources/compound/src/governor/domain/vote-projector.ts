@@ -1,5 +1,4 @@
 import type { ArchiveDerivationRow, NewVoteEventsProjectionRow } from '@libs/db';
-import { singleChoiceBreakdown } from '@sources/core';
 import type { VoteCastPayload } from './types';
 
 export interface VoteProjectionContext {
@@ -34,7 +33,6 @@ export function projectVoteCast(
       block_number: archiveRow.block_number,
       log_index: archiveRow.log_index,
       primary_choice: payload.primaryChoice,
-      choices: singleChoiceBreakdown(payload.primaryChoice),
       seq: '0',
       superseded: 0,
       superseded_at: null,
