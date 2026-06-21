@@ -90,10 +90,22 @@ export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 /** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
+/**
+ * Declared capabilities of a source plugin — what it can do, read directly off the plugin rather
+ * than inferred from a chain_id sentinel or a source_type suffix.
+ *
+ * - `backfillable`: participates in the EVM block-range backfill. EVM event-log sources declare it;
+ *   reconcile sweeps (block-head re-query, no log backfill) and off-chain poll sources (Snapshot,
+ *   Discourse — a separate from-genesis poll transport owned by AG1) do not.
+ */
+export type SourceCapability = 'backfillable';
+
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
   /** Orchestrator skips any dao_source whose chain is not in this list. */
   readonly supportedChainIds: readonly string[];
+  /** Declared capabilities — see {@link SourceCapability}. */
+  readonly capabilities: readonly SourceCapability[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;

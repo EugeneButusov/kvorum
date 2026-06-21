@@ -442,13 +442,13 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "slug": "compound",
     "sources": [
       {
+        "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "source_type": "alt_governor",
+      },
+      {
         "chain_id": "0x1",
         "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
         "source_type": "compound_governor_bravo",
-      },
-      {
-        "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-        "source_type": "alt_governor",
       },
     ],
     "website_url": "https://compound.finance",
@@ -538,13 +538,13 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
 {
   "data": [
     {
+      "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "source_type": "alt_governor",
+    },
+    {
       "chain_id": "0x1",
       "contract_address": "0xdddddddddddddddddddddddddddddddddddddddd",
       "source_type": "compound_governor_bravo",
-    },
-    {
-      "contract_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      "source_type": "alt_governor",
     },
   ],
 }
@@ -604,9 +604,9 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "compound-proposal-pass-rate": ""OyYzMyAo8QXs3BZnj2YUzhj2RJg"",
   "cross-dao-proposals": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "cross-dao-proposals-multi": ""1JyV4opb7TzGUwIn6Q4L5wPNDH8"",
-  "dao-detail": ""HCHYuBht_32YTgbVOo6C8WJDeYU"",
+  "dao-detail": ""lIM5kstU21QMTOmhMjHFmtiX288"",
   "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
-  "dao-sources": ""rNVI-PNdt4l2GmoeJ5mzlE7Ua_c"",
+  "dao-sources": ""N7p023Md1K6zjurBAO6prEgWM6o"",
   "daos-list": ""UCRJDY9f6hfyOYGiDB36sDVrxo8"",
   "proposal-detail": ""Qf6Ew8lQW1CJkouc44B5bjsfCEg"",
 }

@@ -30,6 +30,7 @@ function createReconcilePlugin(
   return {
     sourceType,
     supportedChainIds: SUPPORTED_CHAIN_IDS,
+    capabilities: [],
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, _cfg) => ({
       kind: 'evm-block-head-poller',

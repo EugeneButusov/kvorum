@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   findMissingChainConfigs,
   planBackfillOrder,
   selectBackfillMode,
   type BackfillTarget,
 } from './backfill-plan.js';
+import {
+  buildBackfillSourcePlugins,
+  isBackfillableSourceType,
+} from '../plugins/backfill-source-plugins.js';
 
 function target(
   partial: Partial<BackfillTarget> & { source_type: string; chain_id: string },
@@ -19,6 +23,25 @@ function target(
   };
 }
 
+// Derive backfill eligibility from the real plugin registry's declared capabilities — no hardcoded
+// source-type list. Plugins built with stub deps (only sourceType + capabilities are read here).
+const mockDeps = () => ({
+  archiveWriter: {} as never,
+  dlqRepo: {} as never,
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+});
+const BACKFILL_PLUGINS = buildBackfillSourcePlugins({
+  governor: mockDeps(),
+  compToken: mockDeps(),
+  aaveGovernorV2: mockDeps(),
+  aaveGovernanceV3: mockDeps(),
+  aaveVotingMachine: mockDeps(),
+  aavePayloadsController: mockDeps(),
+  aaveToken: mockDeps(),
+});
+const isBackfillable = (sourceType: string): boolean =>
+  isBackfillableSourceType(sourceType, BACKFILL_PLUGINS);
+
 describe('planBackfillOrder', () => {
   it('excludes reconcile sources', () => {
     const rows = [
@@ -26,10 +49,25 @@ describe('planBackfillOrder', () => {
       target({ source_type: 'aave_governance_v3_reconcile', chain_id: '0x1' }),
       target({ source_type: 'aave_payloads_controller_reconcile', chain_id: '0x89' }),
     ];
-    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
     expect([...plan.phase1, ...plan.phase2].map((t) => t.source_type)).toEqual([
       'aave_governance_v3',
     ]);
+  });
+
+  it('excludes off-chain sources (snapshot/discourse_forum seeds) from the EVM plan', () => {
+    // Off-chain dao_source rows are seeded on Aave/Compound; they must not reach the EVM backfill
+    // readiness gate (which would abort the whole run on chain_id ∉ CHAIN_CONFIG). ADR-0073.
+    const rows = [
+      target({ source_type: 'aave_governance_v3', chain_id: '0x1' }),
+      target({ source_type: 'snapshot', chain_id: 'off-chain' }),
+      target({ source_type: 'discourse_forum', chain_id: 'off-chain' }),
+    ];
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
+    const planned = [...plan.phase1, ...plan.phase2];
+    expect(planned.map((t) => t.source_type)).toEqual(['aave_governance_v3']);
+    // The off-chain rows leave no trace in the plan, so the gate never sees chain_id='off-chain'.
+    expect(findMissingChainConfigs(planned, [{ chainId: '0x1' }])).toEqual([]);
   });
 
   it('puts the mainnet spine (governance_v3 first) in phase1 and the rest in phase2', () => {
@@ -40,7 +78,7 @@ describe('planBackfillOrder', () => {
       target({ source_type: 'aave_governor_v2', chain_id: '0x1' }),
       target({ source_type: 'aave_governance_v3', chain_id: '0x1' }),
     ];
-    const plan = planBackfillOrder(rows, { skipDeprecated: false });
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
     expect(plan.phase1.map((t) => t.source_type)).toEqual([
       'aave_governance_v3',
       'aave_governor_v2',
@@ -61,9 +99,11 @@ describe('planBackfillOrder', () => {
       }),
       target({ source_type: 'aave_payloads_controller', chain_id: '0x89' }),
     ];
-    expect(planBackfillOrder(rows, { skipDeprecated: false }).phase2).toHaveLength(2);
+    expect(planBackfillOrder(rows, { skipDeprecated: false, isBackfillable }).phase2).toHaveLength(
+      2,
+    );
 
-    const skipped = planBackfillOrder(rows, { skipDeprecated: true });
+    const skipped = planBackfillOrder(rows, { skipDeprecated: true, isBackfillable });
     expect(skipped.phase2).toHaveLength(1);
     expect(skipped.skippedDeprecated.map((t) => t.chain_id)).toEqual(['0x440']);
   });

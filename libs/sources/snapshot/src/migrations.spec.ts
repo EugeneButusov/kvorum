@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import { vi } from 'vitest';
 import { up as up001, down as down001 } from '../migrations-postgres/snapshot_001_extension_tables';
+import { up as up002, down as down002 } from '../migrations-postgres/snapshot_002_seed';
 
 describe('snapshot migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -52,6 +53,18 @@ describe('snapshot migrations smoke (mocked db)', () => {
   it('snapshot_001_proposal_metadata down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down001(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('snapshot_002_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up002(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('snapshot_002_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down002(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });

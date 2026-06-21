@@ -7,6 +7,7 @@ import type { SourceIngester, SourceContext, IngestSpec } from '@sources/core';
 import { BackfillAlreadyStartedError, runBootCatchUp, SOURCE_INGESTERS } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { IndexerOrchestratorService } from './indexer-orchestrator.service';
+import { orchestratorMetrics } from './orchestrator-metrics';
 import { FETCH_DRIVERS, QUEUE_PRODUCER_PORT } from './tokens';
 
 vi.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -76,6 +77,7 @@ function makeFakePlugin(sourceType: string, parseOk = true): SourceIngester {
   return {
     sourceType,
     supportedChainIds: ['0x1', '0x89', '0x999'],
+    capabilities: ['backfillable'],
     parseConfig: (raw: unknown) => {
       if (!parseOk) throw new Error(`malformed source_config for ${sourceType}`);
       return raw;
@@ -151,6 +153,7 @@ function makeFakePollPlugin(sourceType: string): SourceIngester {
   return {
     sourceType,
     supportedChainIds: ['off-chain'],
+    capabilities: [],
     parseConfig: (raw: unknown) => raw,
     buildBackfillRuntime: () => {
       throw new Error('poll sources do not support backfill runtime');
@@ -237,16 +240,35 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
-  it('#3 — unknown source_type: throws BEFORE any driver.start()', async () => {
+  it('#3 — unregistered source_type: skipped with warn + metric; registered sibling still starts (ADR-0073)', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
-    mockDaoSourceRepo.findAll.mockResolvedValue([makeSource('src-1', 'unknown_source', '0x1')]);
+    // A registered EVM source alongside two seeded-ahead off-chain sources with no plugin yet
+    // (snapshot/discourse_forum are seeded before AD1/AE2 build them).
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-1', 'compound_governor_bravo', '0x1'),
+      makeSource('src-2', 'snapshot', 'off-chain'),
+      makeSource('src-3', 'discourse_forum', 'off-chain'),
+    ]);
+
+    const addSpy = vi.spyOn(orchestratorMetrics.daoSourceUnregistered, 'add');
 
     const driver = makeFakeDriver();
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
-    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No plugin registered/);
-    expect(driver.start).not.toHaveBeenCalled();
+    await expect(svc.onApplicationBootstrap()).resolves.not.toThrow();
+
+    // The registered source starts; the two unregistered ones are skipped, not fatal.
+    expect(driver.start).toHaveBeenCalledTimes(1);
+    expect(addSpy).toHaveBeenCalledTimes(2);
+    expect(addSpy).toHaveBeenCalledWith(1, { source_type: 'snapshot' });
+    expect(addSpy).toHaveBeenCalledWith(1, { source_type: 'discourse_forum' });
+    expect(vi.mocked(Logger.prototype.warn)).toHaveBeenCalledWith('dao_source_no_plugin', {
+      source_type: 'snapshot',
+      dao_source_id: 'src-2',
+    });
+
+    await svc.drain();
   });
 
   it('#4 — malformed source_config: throws BEFORE any driver.start()', async () => {
@@ -431,6 +453,7 @@ describe('IndexerOrchestratorService', () => {
     const blockHeadPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo_reconcile',
       supportedChainIds: ['0x1'],
+      capabilities: [],
       parseConfig: (raw: unknown) => raw,
       buildBackfillRuntime: () => ({
         filter: { address: '0xabc', topics: [] },
@@ -479,6 +502,7 @@ describe('IndexerOrchestratorService', () => {
     const unknownKindPlugin: SourceIngester = {
       sourceType: 'compound_governor_bravo',
       supportedChainIds: ['0x1'],
+      capabilities: ['backfillable'],
       parseConfig: (raw: unknown) => raw,
       buildBackfillRuntime: () => ({
         filter: { address: '0xabc', topics: [] },

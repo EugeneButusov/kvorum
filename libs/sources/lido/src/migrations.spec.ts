@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { up as up001, down as down001 } from '../migrations-postgres/lido_001_aragon_voting';
 import { up as up002, down as down002 } from '../migrations-postgres/lido_002_dual_governance';
 import { up as up003, down as down003 } from '../migrations-postgres/lido_003_easy_track';
+import { up as up004, down as down004 } from '../migrations-postgres/lido_004_seed';
 
 describe('lido migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -87,6 +88,18 @@ describe('lido migrations smoke (mocked db)', () => {
   it('lido_003_easy_track down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down003(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_004_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up004(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_004_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down004(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });

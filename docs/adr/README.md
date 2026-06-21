@@ -46,6 +46,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-0063](0063-pgboss-job-based-ingestion.md)               | pg-boss job-based ingestion orchestration                                         | Accepted                      | 3.3, 3.10, 6.20.1                       |
 | [ADR-0064](0064-multi-chain-dao-source-binding.md)           | Multi-chain dao_source binding and chain-aware derivation dispatch                | Accepted                      | 2.5, 3.5, 10.5                          |
 | [ADR-0066](0066-aave-voting-power-strategy.md)               | Aave voting power strategy                                                        | Withdrawn (M3 V3 #262)        | —                                       |
+| [ADR-073](0073-seed-ahead-source-tolerance.md)               | Seed-ahead source tolerance (skip-not-crash for unbuilt source_types)             | Accepted                      | 3.3, 3.10                               |
 
 ## Status legend
 

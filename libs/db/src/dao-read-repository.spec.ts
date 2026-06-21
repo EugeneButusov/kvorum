@@ -9,6 +9,7 @@ function makeSelectChain(returnValue: unknown) {
     innerJoin: vi.fn(),
     select: vi.fn(),
     where: vi.fn(),
+    orderBy: vi.fn(),
     execute,
     executeTakeFirst,
   };
@@ -16,6 +17,7 @@ function makeSelectChain(returnValue: unknown) {
   chain.innerJoin.mockReturnValue(chain);
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
   return { selectFrom: vi.fn().mockReturnValue(chain), chain };
 }
 
@@ -39,6 +41,9 @@ describe('DaoReadRepository', () => {
     expect(selectFrom).toHaveBeenCalledWith('dao_source');
     expect(chain.select).toHaveBeenCalledWith(['source_type', 'source_config']);
     expect(chain.where).toHaveBeenCalledWith('dao_id', '=', 'dao-1');
+    // Deterministic order on the business key (stable response + ETag).
+    expect(chain.orderBy).toHaveBeenCalledWith('source_type', 'asc');
+    expect(chain.orderBy).toHaveBeenCalledWith('chain_id', 'asc');
   });
 
   it('findSourceByDaoSlugAndType joins dao to dao_source', async () => {

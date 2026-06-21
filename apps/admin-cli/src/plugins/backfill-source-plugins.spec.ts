@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildBackfillSourcePlugins, resolvePluginAndConfig } from './backfill-source-plugins.js';
+import {
+  buildBackfillSourcePlugins,
+  isBackfillableSourceType,
+  resolvePluginAndConfig,
+} from './backfill-source-plugins.js';
 
 const makeDeps = () => ({
   archiveWriter: {} as never,
@@ -120,5 +124,25 @@ describe('resolvePluginAndConfig', () => {
 
   it('returns null for an unknown source_type', () => {
     expect(resolvePluginAndConfig('unknown_source' as never, {}, plugins)).toBeNull();
+  });
+});
+
+describe('isBackfillableSourceType', () => {
+  const plugins = buildBackfillSourcePlugins(allDeps());
+
+  it('every registered backfill plugin declares the backfillable capability (drift guard)', () => {
+    expect(plugins.every((plugin) => plugin.capabilities.includes('backfillable'))).toBe(true);
+  });
+
+  it('is true for registered EVM source types', () => {
+    expect(isBackfillableSourceType('aave_governance_v3', plugins)).toBe(true);
+    expect(isBackfillableSourceType('compound_governor_bravo', plugins)).toBe(true);
+  });
+
+  it('is false for reconcile, off-chain, and unknown source types (not in the registry)', () => {
+    expect(isBackfillableSourceType('aave_governance_v3_reconcile', plugins)).toBe(false);
+    expect(isBackfillableSourceType('snapshot', plugins)).toBe(false);
+    expect(isBackfillableSourceType('discourse_forum', plugins)).toBe(false);
+    expect(isBackfillableSourceType('unknown_source', plugins)).toBe(false);
   });
 });

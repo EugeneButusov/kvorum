@@ -10,7 +10,10 @@ import {
   type BackfillTarget,
 } from './backfill-plan.js';
 import { runSourceBackfill } from './backfill-run-source.js';
-import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
+import {
+  buildBackfillSourceRuntime,
+  buildIsBackfillable,
+} from '../plugins/backfill-source-plugins.js';
 
 export interface RunBackfillOrchestrationInput {
   daoSlug: string;
@@ -66,7 +69,10 @@ export async function runBackfillOrchestration(
     fail(format, ExitCode.NotFound, `no dao_source rows found for dao: ${input.daoSlug}`);
   }
 
-  const plan = planBackfillOrder(rows, { skipDeprecated: input.skipDeprecated });
+  const plan = planBackfillOrder(rows, {
+    skipDeprecated: input.skipDeprecated,
+    isBackfillable: buildIsBackfillable(silentLogger),
+  });
   const targets = [...plan.phase1, ...plan.phase2];
   if (targets.length === 0) {
     fail(format, ExitCode.NotFound, `no backfillable sources found for dao: ${input.daoSlug}`);

@@ -1,5 +1,5 @@
 import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import type { ClickHouseDatabase, PgDatabase } from '@libs/db';
 
 // ── Forum Thread ──────────────────────────────────────────────────────────────
 
@@ -36,6 +36,20 @@ export type ProposalForumLink = Selectable<ProposalForumLinkTable>;
 export type NewProposalForumLink = Insertable<ProposalForumLinkTable>;
 export type ProposalForumLinkUpdate = Updateable<ProposalForumLinkTable>;
 
+// ── CH archive table ──────────────────────────────────────────────────────────
+
+export interface ArchiveEventDiscourseForumTable {
+  dao_source_id: string;
+  external_id: string;
+  // Int32 mirrors PG archive_event.version (signed int32).
+  version: number;
+  content_hash: string;
+  payload: string;
+}
+
+export type ArchiveEventDiscourseForum = ArchiveEventDiscourseForumTable;
+export type NewArchiveEventDiscourseForum = ArchiveEventDiscourseForumTable;
+
 // ── Declaration merging ───────────────────────────────────────────────────────
 
 declare module '@libs/db' {
@@ -43,6 +57,11 @@ declare module '@libs/db' {
     forum_thread: ForumThreadTable;
     proposal_forum_link: ProposalForumLinkTable;
   }
+
+  interface ClickHouseDatabase {
+    archive_event_discourse_forum: ArchiveEventDiscourseForumTable;
+  }
 }
 
 type _PgCheck = PgDatabase['forum_thread'];
+type _ChCheck = ClickHouseDatabase['archive_event_discourse_forum'];

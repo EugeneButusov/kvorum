@@ -28,6 +28,7 @@ export function createAaveGovernanceV3ReconcilePlugin(
   return {
     sourceType: 'aave_governance_v3_reconcile',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
+    capabilities: [],
     parseConfig: (raw) => AaveGovernanceV3ConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',

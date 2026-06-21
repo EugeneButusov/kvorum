@@ -165,9 +165,10 @@ describeWithPg('aave_002_seed migration', () => {
           .where('dao.slug', '=', 'aave')
           .execute();
 
-        // 35 from aave_002_seed + 1 aave_token dao_source from aave_005_token (both committed
-        // by the CI `db:migrate` step that runs before the test suite).
-        expect(sourceRows).toHaveLength(36);
+        // 35 from aave_002_seed + 1 aave_token dao_source from aave_005_token + 2 cross-DAO
+        // off-chain seeds (snapshot_002 + forum_002: aave snapshot + discourse_forum), all
+        // committed by the CI `db:migrate` step that runs before the test suite.
+        expect(sourceRows).toHaveLength(38);
         expect(sourceRows).toContainEqual({
           source_type: 'aave_governance_v3',
           chain_id: '0x1',
@@ -367,9 +368,18 @@ describeWithPg('aave_002_seed payload reconcile rows', () => {
           .execute();
         expect(daoSourceRows).toHaveLength(14);
 
-        // aave_005_token seeds an aave_token dao_source FK-referencing the aave dao. In real
-        // rollback order aave_005 down() runs before aave_002 down(); replicate that here, else
-        // downAaveSeed's `DELETE FROM dao` hits a foreign-key violation from the committed row.
+        // aave_005_token seeds an aave_token dao_source, and the cross-DAO off-chain seeds
+        // (snapshot_002 + forum_002) seed off-chain aave dao_source rows — all FK-reference the
+        // aave dao. In real rollback order those down() before aave_002 down(); replicate that
+        // here, else downAaveSeed's `DELETE FROM dao` hits a foreign-key violation from the
+        // committed rows.
+        await tx
+          .deleteFrom('dao_source')
+          .where('chain_id', '=', 'off-chain')
+          .where('dao_id', 'in', (qb) =>
+            qb.selectFrom('dao').select('id').where('slug', '=', 'aave'),
+          )
+          .execute();
         await downAaveTokenSeed(tx);
         await downAaveSeed(tx);
 
