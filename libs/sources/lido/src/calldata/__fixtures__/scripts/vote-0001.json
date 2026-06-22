@@ -1,0 +1,7 @@
+{
+  "voteId": 1,
+  "kind": "flat",
+  "script": "0x00000001ae7ab96520de3a18e5e111b5eaab095312d7fe8400000004046f7da2",
+  "expectedLeafActionCount": 1,
+  "countProvenance": "derived by toProposalActions() + cross-checked against Lido Aragon app at vote.lido.fi/vote/1"
+}

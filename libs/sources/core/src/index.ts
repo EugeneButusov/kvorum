@@ -1,3 +1,6 @@
+export { decodeEvmScript, EvmScriptDecodeError } from './calldata/evmscript';
+export type { EvmScriptCall, EvmScriptDecodeErrorReason } from './calldata/evmscript';
+
 export { BaseArchiveWriter } from './base-archive-writer';
 export { makeIngesterListener } from './ingester-listener';
 export { DecodeError } from './decode-error';
