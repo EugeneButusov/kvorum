@@ -24,14 +24,14 @@ export type {
   NewEasyTrackMotionMeta,
 } from './persistence/schema';
 
-// EVMScript decoder (AA2)
+// EVMScript decoder
 export { toProposalActions } from './calldata/evmscript-actions';
 export { createForwarderRegistry, FORWARD_SELECTOR, EXECUTE_SELECTOR } from './calldata/forwarders';
 export type { ForwarderRegistry, ForwarderEntry } from './calldata/forwarders';
 export { decodeEvmScript, EvmScriptDecodeError } from '@sources/core';
 export type { EvmScriptCall, EvmScriptDecodeErrorReason } from '@sources/core';
 
-// Aragon Voting (Lido two-phase fork) — AA1
+// Aragon Voting (Lido two-phase fork)
 export { ARAGON_VOTING_INTERFACE, ARAGON_VOTING_TOPICS } from './aragon-voting/abi/events';
 export type { AragonVotingTopics } from './aragon-voting/abi/events';
 export { decodeAragonVotingLog } from './aragon-voting/abi/decoder';

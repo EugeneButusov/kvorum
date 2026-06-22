@@ -2,7 +2,7 @@
  * Orchestration: EVMScript hex → ordered ProposalActionInput[] (DFS pre-order).
  *
  * Pure & deterministic over (scriptHex, chainId) for a fixed registry. Action indices are
- * positional — a forwarder-registry change requires full re-derivation (AA3).
+ * positional — a forwarder-registry change requires full re-derivation.
  */
 
 import type { ProposalActionInput } from '@libs/db';

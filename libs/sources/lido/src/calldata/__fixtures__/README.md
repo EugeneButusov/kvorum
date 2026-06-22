@@ -30,7 +30,7 @@ flattened `proposal_action` leaves.
 **≥ 95 % of non-empty executionScripts parse structurally** — this measures
 whether `decodeEvmScript` + `unwrapCall` can parse a real Lido on-chain vote
 script without throwing or degrading to an opaque leaf. It is independent of
-inner-calldata ABI resolution (§3.8 / AA4).
+inner-calldata ABI resolution (§3.8).
 
 - Empty scripts (`0x` or bare spec id) are a separate bucket (100% trivial).
 - The ≥ 95 % denominator excludes empty scripts.

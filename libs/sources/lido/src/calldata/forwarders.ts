@@ -23,7 +23,7 @@
  *
  * ## Determinism
  * unwrapCall() is pure over (call, registry) for a fixed registry. Action index stability requires
- * that registry changes trigger full re-derivation of the containing proposal's actions (AA3).
+ * that registry changes trigger full re-derivation of the containing proposal's actions.
  *
  * ## Easy Track / AC reuse
  * createForwarderRegistry(extra) is extensible — pass additional forwarder addresses to handle

@@ -15,7 +15,7 @@
  * ## Structural-parse metric
  * The ≥95% acceptance criterion on historical Lido votes measures structural-parse success
  * over non-empty executionScripts only. It is independent of inner-calldata ABI resolution
- * (§3.8 / AA4). Empty scripts parse to [] and are counted separately.
+ * (§3.8). Empty scripts parse to [] and are counted separately.
  *
  * ## Forwarder recursion
  * This parser is flat — it returns one EvmScriptCall per inner call without recursing into
