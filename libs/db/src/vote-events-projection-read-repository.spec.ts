@@ -20,14 +20,17 @@ function makeChain<T>(result: T) {
 }
 
 describe('VoteEventsProjectionReadRepository', () => {
-  it('returns current vote row for dao/proposal/voter tuple', async () => {
+  it('returns current vote row for dao/proposal/voter tuple, parsing the CH datetime to a Date', async () => {
+    // The ClickHouse driver returns DateTime64 as a zoneless UTC string; findCurrentVote
+    // converts it to a Date so downstream ordering compares instants, not strings.
     const row = {
-      voteId: 'vote-1',
-      castAt: new Date('2026-01-01T00:00:00.000Z'),
-      blockNumber: '100',
-      logIndex: 2,
-      primaryChoice: 1,
-      votingPower: '42',
+      vote_id: 'vote-1',
+      cast_at: '2026-01-01 00:00:00.000',
+      block_number: '100',
+      log_index: 2,
+      primary_choice: 1,
+      voting_power: '42',
+      voting_chain_id: '0x1',
     };
     const chChain = makeChain(row);
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
@@ -35,7 +38,7 @@ describe('VoteEventsProjectionReadRepository', () => {
 
     await expect(
       repo.findCurrentVote({ daoId: 'dao-1', proposalId: 'p-1', voterAddress: '0xabc' }),
-    ).resolves.toEqual(row);
+    ).resolves.toEqual({ ...row, cast_at: new Date('2026-01-01T00:00:00.000Z') });
     expect(chChain.where).toHaveBeenCalledWith('vef.dao_id', '=', 'dao-1');
     expect(chChain.where).toHaveBeenCalledWith('vef.proposal_id', '=', 'p-1');
     expect(chChain.where).toHaveBeenCalledWith('vef.voter_address', '=', '0xabc');
@@ -57,12 +60,13 @@ describe('VoteEventsProjectionReadRepository', () => {
     // + LIMIT 1 is a defensive fallback. A refactor removing these or changing a direction
     // would re-open the window where a stale row could be picked if the guard ever relaxes.
     const row = {
-      voteId: 'v1',
-      castAt: new Date(),
-      blockNumber: '100',
-      logIndex: 0,
-      primaryChoice: 1,
-      votingPower: '100',
+      vote_id: 'v1',
+      cast_at: '2026-01-01 00:00:00.000',
+      block_number: '100',
+      log_index: 0,
+      primary_choice: 1,
+      voting_power: '100',
+      voting_chain_id: '0x1',
     };
     const chChain = makeChain(row);
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };

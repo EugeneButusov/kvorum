@@ -17,6 +17,14 @@ export interface ProposalVoterRow {
   voting_power: string;
 }
 
+function toDate(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  // CH DateTime64 strings lack a zone; treat as UTC.
+  const normalized =
+    value.includes('Z') || value.includes('+') ? value : `${value.replace(' ', 'T')}Z`;
+  return new Date(normalized);
+}
+
 export class VoteEventsProjectionReadRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
@@ -52,7 +60,7 @@ export class VoteEventsProjectionReadRepository {
     // voter, block, log, vote_id) tuple is exactly one row, so no FINAL or LIMIT 1 BY
     // needed. The identity guard (commit 0.0) ensures at most one superseded=0 row per
     // (dao, proposal, voter) at any time. ORDER BY + LIMIT 1 is a defensive fallback.
-    return this.chDb
+    const row = (await this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
       .select([
         'vef.vote_id',
@@ -71,6 +79,14 @@ export class VoteEventsProjectionReadRepository {
       .orderBy('vef.block_number', 'desc')
       .orderBy('vef.log_index', 'desc')
       .limit(1)
-      .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
+      .executeTakeFirst()) as
+      | (Omit<CurrentVoteRow, 'cast_at'> & { cast_at: string | Date })
+      | undefined;
+
+    if (row === undefined) return undefined;
+    // The ClickHouse driver returns DateTime64 as a space-separated UTC string
+    // ("YYYY-MM-DD HH:MM:SS.sss") with no zone marker; honor the typed Date contract
+    // so downstream ordering (isNewerVote) compares real instants, not strings.
+    return { ...row, cast_at: toDate(row.cast_at) };
   }
 }
