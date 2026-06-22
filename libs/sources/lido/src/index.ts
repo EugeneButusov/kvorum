@@ -79,11 +79,11 @@ export type {
 } from './aragon-voting/domain/proposal-projector';
 export { projectAragonVoteCast } from './aragon-voting/domain/vote-projector';
 export type { AragonVoteIncoming } from './aragon-voting/domain/vote-projector';
-export { AragonVotingProjectionApplier } from './aragon-voting/domain/aragon-voting-projection-applier';
+export { AragonProposalProjectionApplier } from './aragon-voting/domain/aragon-proposal-projection-applier';
 export type {
-  AragonVotingProjectionApplierDeps,
-  AragonVotingProjectionMetrics,
-} from './aragon-voting/domain/aragon-voting-projection-applier';
+  AragonProposalProjectionApplierDeps,
+  AragonProposalProjectionMetrics,
+} from './aragon-voting/domain/aragon-proposal-projection-applier';
 export { AragonVoteProjectionApplier } from './aragon-voting/domain/aragon-vote-projection-applier';
 export type {
   AragonVoteProjectionApplierDeps,

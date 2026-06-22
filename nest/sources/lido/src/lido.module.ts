@@ -13,7 +13,7 @@ import {
 import type { SourcePlugin } from '@sources/core';
 import {
   AragonVotingArchivePayloadRepository,
-  AragonVotingProjectionApplier,
+  AragonProposalProjectionApplier,
   AragonVoteProjectionApplier,
   AragonVotingEventRepository,
   LidoAragonVotingActorAddressDeriver,
@@ -69,13 +69,13 @@ const NOOP_PROJECTION_METRICS = {
       ): SourcePlugin => {
         const payloads = new AragonVotingArchivePayloadRepository(chDb);
         const actorAddressDeriver = new LidoAragonVotingActorAddressDeriver(payloads);
-        const proposalApplier = new AragonVotingProjectionApplier({
+        const proposalApplier = new AragonProposalProjectionApplier({
           pgDb,
           archive,
           dlq: dlqRepo,
           payloads,
           metrics: NOOP_PROJECTION_METRICS,
-          logger: toChainLogger(new Logger('AragonVotingProjectionApplier')),
+          logger: toChainLogger(new Logger('AragonProposalProjectionApplier')),
         });
         const voteApplier = new AragonVoteProjectionApplier({
           archive,

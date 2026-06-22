@@ -29,7 +29,7 @@ export type AragonProposalDerivationFailureReason =
   | 'decode_error'
   | 'projection_apply_error';
 
-export interface AragonVotingProjectionMetrics {
+export interface AragonProposalProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
   processed(labels: {
     source_type: string;
@@ -39,12 +39,12 @@ export interface AragonVotingProjectionMetrics {
   }): void;
 }
 
-export interface AragonVotingProjectionApplierDeps {
+export interface AragonProposalProjectionApplierDeps {
   pgDb: Kysely<PgDatabase>;
   archive: ArchiveDerivationRepository;
   dlq: DlqRepository;
   payloads: AragonVotingArchivePayloadRepository;
-  metrics: AragonVotingProjectionMetrics;
+  metrics: AragonProposalProjectionMetrics;
   logger?: Logger;
 }
 
@@ -67,7 +67,7 @@ interface ProjectionRepositories {
  * Event-only: no contract-state reads (`getVote` is AA4). `proposal_action` rows
  * are deferred to AA4 (the execution script is in no AA1 event).
  */
-export class AragonVotingProjectionApplier {
+export class AragonProposalProjectionApplier {
   readonly kind = 'projection' as const;
   readonly sourceTypes = ['aragon_voting'] as const;
   readonly eventTypes = [
@@ -81,7 +81,7 @@ export class AragonVotingProjectionApplier {
 
   private readonly logger: Logger;
 
-  constructor(private readonly deps: AragonVotingProjectionApplierDeps) {
+  constructor(private readonly deps: AragonProposalProjectionApplierDeps) {
     this.logger = deps.logger ?? silentLogger;
   }
 

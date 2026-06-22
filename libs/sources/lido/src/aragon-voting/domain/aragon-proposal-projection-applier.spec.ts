@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { AragonVotingProjectionApplier } from './aragon-voting-projection-applier';
+import { AragonProposalProjectionApplier } from './aragon-proposal-projection-applier';
 import type { AragonVotingArchivePayloadRow } from '../persistence/archive-payload-repository';
 
 const APP_ADDRESS = '0x' + '2e'.repeat(20);
@@ -38,7 +38,7 @@ function makePayload(payload: unknown, eventType = 'StartVote'): AragonVotingArc
 interface MutableApplier {
   transaction: ReturnType<typeof vi.fn>;
 }
-function mutable(a: AragonVotingProjectionApplier): MutableApplier {
+function mutable(a: AragonProposalProjectionApplier): MutableApplier {
   return a as unknown as MutableApplier;
 }
 
@@ -56,7 +56,7 @@ function buildApplier(opts?: { payloads?: AragonVotingArchivePayloadRow[] }) {
       ),
   };
   const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
-  const applier = new AragonVotingProjectionApplier({
+  const applier = new AragonProposalProjectionApplier({
     pgDb: {} as never,
     archive: archive as never,
     dlq: dlq as never,
@@ -84,7 +84,7 @@ function buildApplier(opts?: { payloads?: AragonVotingArchivePayloadRow[] }) {
   return { applier, archive, dlq, payloads, metrics, repos };
 }
 
-describe('AragonVotingProjectionApplier', () => {
+describe('AragonProposalProjectionApplier', () => {
   it('declares the proposal-lifecycle + config contract', () => {
     const { applier } = buildApplier();
     expect(applier.kind).toBe('projection');

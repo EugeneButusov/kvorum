@@ -19,7 +19,7 @@ import {
   AragonVoteProjectionApplier,
   AragonVotingArchivePayloadRepository,
   AragonVotingEventRepository,
-  AragonVotingProjectionApplier,
+  AragonProposalProjectionApplier,
   LidoAragonVotingActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
   makeAragonVotingIngesterListener,
@@ -73,7 +73,7 @@ describeIf('Lido Aragon Voting derivation integration', () => {
   let proposals: ProposalRepository;
   let payloads: AragonVotingArchivePayloadRepository;
   let deriver: LidoAragonVotingActorAddressDeriver;
-  let proposalApplier: AragonVotingProjectionApplier;
+  let proposalApplier: AragonProposalProjectionApplier;
   let voteApplier: AragonVoteProjectionApplier;
 
   let txCounter = 0;
@@ -230,7 +230,7 @@ describeIf('Lido Aragon Voting derivation integration', () => {
       dlqRepo: dlq,
     });
 
-    proposalApplier = new AragonVotingProjectionApplier({
+    proposalApplier = new AragonProposalProjectionApplier({
       pgDb,
       archive,
       dlq,
