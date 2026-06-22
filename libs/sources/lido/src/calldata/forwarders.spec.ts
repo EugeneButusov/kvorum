@@ -41,9 +41,9 @@ function buildScript(calls: Array<{ to: string; calldata: string }>): string {
 }
 
 // Known mainnet forwarder addresses
-const AGENT = '0x3e40d73eb977dc6a537af587d48316fee66e9c8c';
-const TOKEN_MANAGER = '0xf73a1260d222f447210581ddf212d915c09a3249';
-const VOTING = '0x2e59a20f205bb85a89c53f1936454680651e618e';
+const AGENT = '0x3e40d73eb977dc6a537af587d48316fee66e9c8c'; // gitleaks:allow
+const TOKEN_MANAGER = '0xf73a1260d222f447210581ddf212d915c09a3249'; // gitleaks:allow
+const VOTING = '0x2e59a20f205bb85a89c53f1936454680651e618e'; // gitleaks:allow
 const NON_FORWARDER = '0x' + '11'.repeat(20);
 const CHAIN_ID = '0x1';
 

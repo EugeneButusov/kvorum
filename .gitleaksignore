@@ -13,3 +13,4 @@ ba32f224b73c95697c2c46c366cd6f7c5fd7fee3:libs/sources/aave/src/aave-token/consta
 d35672dde7a7dfcd3203b622e884df1c4065e012:apps/api/tests/aave.seed.ts:generic-api-key:104
 1b989ddeeafd5734f71dd1e1227ece1000e83555:apps/api/tests/compound.seed.ts:generic-api-key:98
 c715217013a84f28fc97e5ba3f9b06b72845bffa:tests/e2e/__snapshots__/conformance.e2e.spec.ts.snap:generic-api-key:536
+e9012f2fadd68f622544cf41dbf7264bb96be224:libs/sources/lido/src/calldata/forwarders.spec.ts:generic-api-key:45
