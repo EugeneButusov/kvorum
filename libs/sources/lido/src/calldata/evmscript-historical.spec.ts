@@ -9,11 +9,12 @@
  */
 
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { decodeEvmScript } from '@sources/core';
 import { toProposalActions } from './evmscript-actions';
-import { createForwarderRegistry } from './forwarders';
+import { EXECUTE_SELECTOR, FORWARD_SELECTOR, createForwarderRegistry } from './forwarders';
 
 interface FixtureFile {
   voteId: number;
@@ -23,7 +24,7 @@ interface FixtureFile {
   countProvenance: string;
 }
 
-const FIXTURES_DIR = join(import.meta.dirname, '__fixtures__', 'scripts');
+const FIXTURES_DIR = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'scripts');
 const FIXTURES_PRESENT =
   existsSync(FIXTURES_DIR) && readdirSync(FIXTURES_DIR).some((f) => f.endsWith('.json'));
 
@@ -104,13 +105,16 @@ describeIf(FIXTURES_PRESENT)('EVMScript historical acceptance', () => {
   });
 
   it('zero opaque-degradations across the historical set', () => {
-    // An opaque degradation is a leaf whose targetAddress is a known forwarder —
-    // it means unwrapping failed silently. We assert zero.
+    // An opaque degradation is a leaf that targets a known forwarder AND uses the
+    // forward/execute selector — meaning unwrapping silently fell back instead of recursing.
+    // A direct call to a forwarder address with a different selector is legitimate (e.g.
+    // TokenManager.assignVested) and must NOT be flagged.
     const forwarderAddresses = new Set([
       '0x3e40d73eb977dc6a537af587d48316fee66e9c8c', // Agent
       '0xf73a1260d222f447210581ddf212d915c09a3249', // TokenManager
       '0x2e59a20f205bb85a89c53f1936454680651e618e', // Voting
     ]);
+    const forwarderSelectors = new Set([FORWARD_SELECTOR, EXECUTE_SELECTOR]);
     const degraded: number[] = [];
     for (const fixture of nonEmpty) {
       let actions: ReturnType<typeof toProposalActions>;
@@ -120,7 +124,8 @@ describeIf(FIXTURES_PRESENT)('EVMScript historical acceptance', () => {
         continue;
       }
       for (const action of actions) {
-        if (forwarderAddresses.has(action.targetAddress)) {
+        const sel = action.calldata.length >= 10 ? action.calldata.slice(0, 10).toLowerCase() : '';
+        if (forwarderAddresses.has(action.targetAddress) && forwarderSelectors.has(sel)) {
           degraded.push(fixture.voteId);
           break;
         }

@@ -15,9 +15,10 @@
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const SCRIPTS_DIR = join(import.meta.dirname, 'scripts');
+const SCRIPTS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scripts');
 const VOTING_ADDRESS = '0x2e59A20f205bB85a89C53f1936454680651E618e';
 
 // LIP-21 (objection phase) upgrade vote ID. Vote IDs >= this use the 11-field getVote ABI.
