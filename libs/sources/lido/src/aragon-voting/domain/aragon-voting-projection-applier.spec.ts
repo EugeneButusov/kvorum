@@ -3,6 +3,9 @@ import type { ArchiveDerivationRow } from '@libs/db';
 import { AragonVotingProjectionApplier } from './aragon-voting-projection-applier';
 import type { AragonVotingArchivePayloadRow } from '../persistence/archive-payload-repository';
 
+const APP_ADDRESS = '0x' + '2e'.repeat(20);
+const CREATOR = '0x' + '11'.repeat(20);
+
 function makeRow(overrides: Partial<ArchiveDerivationRow>): ArchiveDerivationRow {
   return {
     id: 'archive-1',
@@ -13,64 +16,77 @@ function makeRow(overrides: Partial<ArchiveDerivationRow>): ArchiveDerivationRow
     block_hash: '0xblock',
     tx_hash: '0xtx',
     log_index: 1,
-    event_type: 'ChangeVoteTime',
+    event_type: 'StartVote',
     received_at: new Date('2026-01-01T00:00:00Z'),
     derivation_attempt_count: 0,
     ...overrides,
   } as ArchiveDerivationRow;
 }
 
-function makePayload(
-  overrides: Partial<AragonVotingArchivePayloadRow>,
-): AragonVotingArchivePayloadRow {
+function makePayload(payload: unknown, eventType = 'StartVote'): AragonVotingArchivePayloadRow {
   return {
     chain_id: '0x1',
     tx_hash: '0xtx',
     log_index: 1,
     block_hash: '0xblock',
-    event_type: 'ChangeVoteTime',
-    payload: JSON.stringify({ voteTime: '259200' }),
+    event_type: eventType,
+    payload: typeof payload === 'string' ? payload : JSON.stringify(payload),
     received_at: new Date('2026-01-01T00:00:00Z'),
-    ...overrides,
   };
 }
 
-function makeMetrics() {
-  return { batchLookupSeconds: vi.fn(), processed: vi.fn() };
+interface MutableApplier {
+  transaction: ReturnType<typeof vi.fn>;
+}
+function mutable(a: AragonVotingProjectionApplier): MutableApplier {
+  return a as unknown as MutableApplier;
 }
 
-// Minimal tx mock supporting the archive_event watermark updates the drain path makes.
-function makeTxPgDb() {
-  const archiveWrites: Array<'derived' | 'actor_resolved'> = [];
-  const tx = {
-    updateTable: vi.fn(() => {
-      let kind: 'derived' | 'actor_resolved' | undefined;
-      const chain = {
-        set: vi.fn((values: Record<string, unknown>) => {
-          if ('derived_at' in values) kind = 'derived';
-          if ('derivation_actor_resolved_at' in values) kind = 'actor_resolved';
-          return chain;
-        }),
-        where: vi.fn(() => chain),
-        execute: vi.fn(async () => {
-          if (kind) archiveWrites.push(kind);
-          return undefined;
-        }),
-      };
-      return chain;
-    }),
+function buildApplier(opts?: { payloads?: AragonVotingArchivePayloadRow[] }) {
+  const archive = {
+    incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+    markDerived: vi.fn().mockResolvedValue(undefined),
   };
-  const pgDb = {
-    transaction: vi.fn(() => ({
-      execute: vi.fn((fn: (arg: typeof tx) => Promise<unknown>) => fn(tx)),
-    })),
+  const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
+  const payloads = {
+    fetchPayloads: vi
+      .fn()
+      .mockResolvedValue(
+        opts?.payloads ?? [makePayload({ voteId: '1', creator: CREATOR, metadata: 'm' })],
+      ),
   };
-  return { pgDb, archiveWrites };
+  const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
+  const applier = new AragonVotingProjectionApplier({
+    pgDb: {} as never,
+    archive: archive as never,
+    dlq: dlq as never,
+    payloads: payloads as never,
+    metrics,
+  });
+  const repos = {
+    actors: { findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }) },
+    proposals: {
+      findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
+      insertProposal: vi.fn().mockResolvedValue({ inserted: true, proposalId: 'p-1' }),
+      ensureChoices: vi.fn().mockResolvedValue(undefined),
+      advanceState: vi.fn().mockResolvedValue(1),
+      findBySource: vi.fn().mockResolvedValue({ id: 'p-1' }),
+    },
+    aragonProposals: {
+      findVotingAddress: vi.fn().mockResolvedValue(APP_ADDRESS),
+      insertMetadata: vi.fn().mockResolvedValue(undefined),
+      setExecutedAt: vi.fn().mockResolvedValue(undefined),
+    },
+    archive: { markDerived: vi.fn().mockResolvedValue(undefined) },
+    actorResolution: { markActorResolved: vi.fn().mockResolvedValue(undefined) },
+  };
+  mutable(applier).transaction = vi.fn((fn: (r: typeof repos) => Promise<void>) => fn(repos));
+  return { applier, archive, dlq, payloads, metrics, repos };
 }
 
 describe('AragonVotingProjectionApplier', () => {
   it('declares the proposal-lifecycle + config contract', () => {
-    const applier = new AragonVotingProjectionApplier({} as never);
+    const { applier } = buildApplier();
     expect(applier.kind).toBe('projection');
     expect([...applier.sourceTypes]).toEqual(['aragon_voting']);
     expect([...applier.eventTypes]).toEqual([
@@ -83,25 +99,126 @@ describe('AragonVotingProjectionApplier', () => {
     ]);
   });
 
-  it('drains a Change* config event as a no-op (marks derived + actor-resolved, no proposal)', async () => {
-    const { pgDb, archiveWrites } = makeTxPgDb();
-    const payloads = { fetchPayloads: vi.fn().mockResolvedValue([makePayload({})]) };
-    const metrics = makeMetrics();
+  it('returns early on an empty batch', async () => {
+    const { applier, payloads } = buildApplier();
+    await applier.applyBatch([]);
+    expect(payloads.fetchPayloads).not.toHaveBeenCalled();
+  });
 
-    const applier = new AragonVotingProjectionApplier({
-      pgDb: pgDb as never,
-      archive: {} as never,
-      dlq: {} as never,
-      payloads: payloads as never,
-      metrics,
+  it('derives StartVote → proposal + metadata seed + choices', async () => {
+    const { applier, metrics, repos } = buildApplier();
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
+
+    expect(repos.actors.findOrCreateActorAddress).toHaveBeenCalledWith(CREATOR, 'proposer_event');
+    expect(repos.proposals.insertProposal).toHaveBeenCalled();
+    expect(repos.aragonProposals.insertMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({ proposal_id: 'p-1', app_address: APP_ADDRESS }),
+    );
+    expect(repos.proposals.ensureChoices).toHaveBeenCalled();
+    expect(repos.archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(repos.actorResolution.markActorResolved).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'derived' }));
+  });
+
+  it('skips an idempotent StartVote re-derivation (no metadata insert)', async () => {
+    const { applier, metrics, repos } = buildApplier();
+    repos.proposals.insertProposal.mockResolvedValue({ inserted: false });
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
+
+    expect(repos.aragonProposals.insertMetadata).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_idempotent' }),
+    );
+  });
+
+  it('throws (→ projection_apply_error) when voting_address is missing from config', async () => {
+    const { applier, archive, metrics, repos } = buildApplier();
+    repos.aragonProposals.findVotingAddress.mockResolvedValue(undefined);
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
+    );
+  });
+
+  it('advances ExecuteVote to executed and stamps executed_at', async () => {
+    const { applier, metrics, repos } = buildApplier({
+      payloads: [makePayload({ voteId: '1' }, 'ExecuteVote')],
     });
+    await applier.applyBatch([makeRow({ event_type: 'ExecuteVote' })]);
 
-    await applier.applyBatch([makeRow({})]);
+    expect(repos.proposals.advanceState).toHaveBeenCalledWith(
+      expect.objectContaining({ targetState: 'executed' }),
+    );
+    expect(repos.aragonProposals.setExecutedAt).toHaveBeenCalledWith('p-1', expect.any(Date));
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'derived' }));
+  });
+
+  it('records skipped_state_guard when ExecuteVote advances nothing', async () => {
+    const { applier, metrics, repos } = buildApplier({
+      payloads: [makePayload({ voteId: '1' }, 'ExecuteVote')],
+    });
+    repos.proposals.advanceState.mockResolvedValue(0);
+    await applier.applyBatch([makeRow({ event_type: 'ExecuteVote' })]);
+
+    expect(repos.aragonProposals.setExecutedAt).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_state_guard' }),
+    );
+  });
+
+  it('drains a Change* config event as a no-op (marks derived + actor-resolved)', async () => {
+    const { applier, metrics, repos } = buildApplier({
+      payloads: [makePayload({ voteTime: '259200' }, 'ChangeVoteTime')],
+    });
+    await applier.applyBatch([makeRow({ event_type: 'ChangeVoteTime' })]);
+
+    expect(repos.proposals.insertProposal).not.toHaveBeenCalled();
+    expect(repos.archive.markDerived).toHaveBeenCalledWith('archive-1');
+    expect(repos.actorResolution.markActorResolved).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_config' }),
+    );
+  });
+
+  it('fails with payload_missing when the CH payload is absent', async () => {
+    const { applier, archive, metrics } = buildApplier({ payloads: [] });
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
+
+    expect(archive.incrementAttemptCount).toHaveBeenCalledWith('archive-1');
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'payload_missing' }),
+    );
+  });
+
+  it('fails with decode_error on malformed payload JSON', async () => {
+    const { applier, metrics } = buildApplier({
+      payloads: [makePayload('{not json', 'StartVote')],
+    });
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
 
     expect(metrics.processed).toHaveBeenCalledWith(
-      expect.objectContaining({ event_type: 'ChangeVoteTime', outcome: 'skipped_config' }),
+      expect.objectContaining({ outcome: 'failed', reason: 'decode_error' }),
     );
-    // both watermarks stamped so the config row drains (zero-underived gate)
-    expect(archiveWrites).toEqual(['derived', 'actor_resolved']);
+  });
+
+  it('routes to proposal_projection_stage DLQ at the attempt threshold', async () => {
+    const { applier, dlq } = buildApplier({ payloads: [] });
+    await applier.applyBatch([makeRow({ event_type: 'StartVote', derivation_attempt_count: 4 })]);
+
+    expect(dlq.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ stage: 'proposal_projection_stage' }),
+    );
+  });
+
+  it('throws (→ projection_apply_error) for an unknown dao_source', async () => {
+    const { applier, metrics, repos } = buildApplier();
+    repos.proposals.findDaoIdForSource.mockResolvedValue(undefined);
+    await applier.applyBatch([makeRow({ event_type: 'StartVote' })]);
+
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'projection_apply_error' }),
+    );
   });
 });
