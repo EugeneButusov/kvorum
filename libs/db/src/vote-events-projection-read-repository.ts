@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import { chTimestampToDate } from './ch-timestamp';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { VoteEventsProjectionTable } from './schema/projections';
 
@@ -15,14 +16,6 @@ export interface CurrentVoteRow {
 export interface ProposalVoterRow {
   voter_address: string;
   voting_power: string;
-}
-
-function toDate(value: string | Date): Date {
-  if (value instanceof Date) return value;
-  // CH DateTime64 strings lack a zone; treat as UTC.
-  const normalized =
-    value.includes('Z') || value.includes('+') ? value : `${value.replace(' ', 'T')}Z`;
-  return new Date(normalized);
 }
 
 export class VoteEventsProjectionReadRepository {
@@ -84,9 +77,8 @@ export class VoteEventsProjectionReadRepository {
       | undefined;
 
     if (row === undefined) return undefined;
-    // The ClickHouse driver returns DateTime64 as a space-separated UTC string
-    // ("YYYY-MM-DD HH:MM:SS.sss") with no zone marker; honor the typed Date contract
-    // so downstream ordering (isNewerVote) compares real instants, not strings.
-    return { ...row, cast_at: toDate(row.cast_at) };
+    // ClickHouse returns DateTime64 as a zoneless UTC string; honor the typed Date
+    // contract so downstream ordering (isNewerVote) compares real instants, not strings.
+    return { ...row, cast_at: chTimestampToDate(row.cast_at) };
   }
 }
