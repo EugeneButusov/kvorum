@@ -16,7 +16,7 @@ import type { ForwarderRegistry } from './forwarders';
  * @param scriptHex  Hex-encoded EVMScript (0x-prefixed or bare).
  * @param chainId    Chain id string (e.g. '0x1') attached to every leaf as targetChainId.
  * @param registry   Optional forwarder registry — defaults to the Lido mainnet registry.
- *                   Pass a custom registry for Easy Track (AC) or testing.
+ *                   Pass a custom registry for Easy Track or testing.
  * @returns          Actions in DFS pre-order (= on-chain execution order). Empty array for
  *                   empty/bare-spec-id scripts. Throws EvmScriptDecodeError for malformed input.
  */

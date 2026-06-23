@@ -12,7 +12,7 @@ export interface CastVotePayload {
 }
 
 // Co-fires with CastVote(supports=false) when votePhase == Objection.
-// AA3 must dedupe: treat as phase marker, not a separate vote.
+// Derivation must dedupe: treat as a phase marker, not a separate vote.
 export interface CastObjectionPayload {
   voteId: string;
   voter: string;

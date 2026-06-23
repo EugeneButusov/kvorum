@@ -102,7 +102,7 @@ describe('createForwarderRegistry', () => {
     expect(registry.get(AGENT)).toBeDefined();
   });
 
-  it('external registration via extra param (AC reuse)', () => {
+  it('external registration via extra param (Easy Track reuse)', () => {
     const CUSTOM = '0x' + 'ff'.repeat(20);
     const extRegistry = createForwarderRegistry([
       { address: CUSTOM, selectors: [FORWARD_SELECTOR] },

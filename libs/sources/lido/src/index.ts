@@ -56,3 +56,36 @@ export type {
   LidoAragonVotingPluginDeps,
 } from './aragon-voting/plugin/plugin';
 export { makeLidoReadExtension } from './aragon-voting/api/lido-read-extension';
+
+// Aragon Voting derivation (proposal/vote projection, actor sweep, metadata)
+export { LidoAragonVotingActorAddressDeriver } from './aragon-voting/domain/actor-address-deriver';
+export type {
+  AragonActorAddressSource,
+  AragonAddressCandidate,
+} from './aragon-voting/domain/actor-address-deriver';
+export { AragonVotingArchivePayloadRepository } from './aragon-voting/persistence/archive-payload-repository';
+export type { AragonVotingArchivePayloadRow } from './aragon-voting/persistence/archive-payload-repository';
+export { AragonProposalRepository } from './aragon-voting/persistence/aragon-proposal-repository';
+export { extractAragonTitle } from './aragon-voting/domain/title-extractor';
+export {
+  projectAragonProposalEvent,
+  AragonProposalProjectionError,
+} from './aragon-voting/domain/proposal-projector';
+export type {
+  AragonProposalProjection,
+  AragonProposalCreatedProjection,
+  AragonStateTransitionProjection,
+  AragonConfigNoopProjection,
+} from './aragon-voting/domain/proposal-projector';
+export { projectAragonVoteCast } from './aragon-voting/domain/vote-projector';
+export type { AragonVoteIncoming } from './aragon-voting/domain/vote-projector';
+export { AragonProposalProjectionApplier } from './aragon-voting/domain/aragon-proposal-projection-applier';
+export type {
+  AragonProposalProjectionApplierDeps,
+  AragonProposalProjectionMetrics,
+} from './aragon-voting/domain/aragon-proposal-projection-applier';
+export { AragonVoteProjectionApplier } from './aragon-voting/domain/aragon-vote-projection-applier';
+export type {
+  AragonVoteProjectionApplierDeps,
+  AragonVoteProjectionMetrics,
+} from './aragon-voting/domain/aragon-vote-projection-applier';

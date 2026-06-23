@@ -5,7 +5,8 @@ import type {
   ProposalExtension,
 } from '@libs/domain';
 
-// Stub — real implementation in AF1 (threads pgDb, replaces Promise.resolve(null)).
+// Stub — the real implementation (threading pgDb, replacing Promise.resolve(null))
+// lands with the proposal read-extension work.
 export function makeLidoReadExtension(): SourceReadExtension {
   return {
     sourceTypes: ['aragon_voting'],

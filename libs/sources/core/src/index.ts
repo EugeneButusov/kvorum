@@ -210,6 +210,8 @@ export type {
   VoteProjectionHoldReason,
 } from './vote/vote-errors';
 export { buildVoteRows, isNewerVote } from './vote/vote-rows';
+export { ArchiveFailureRouter, archiveEventTupleKey } from './projection/archive-failure-router';
+export type { ArchiveFailureRouterDeps } from './projection/archive-failure-router';
 
 // Re-export CH source-of-truth table row types so @sources/core remains the
 // canonical import point. The `declare module '@libs/db'` side-effect in

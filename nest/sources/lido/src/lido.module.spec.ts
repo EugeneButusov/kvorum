@@ -46,12 +46,21 @@ describe('LidoSourceModule', () => {
     expect(plugin.ingesters[0]!.capabilities).toContain('backfillable');
   });
 
-  it('M3 has empty derivers', async () => {
+  it('registers the Aragon derivation derivers (actor-address + proposal + vote)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(LIDO_SOURCE_PLUGIN);
-    expect(plugin.derivers).toHaveLength(0);
+
+    expect(plugin.derivers).toHaveLength(3);
+    expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
+      'actor-address',
+      'projection',
+      'projection',
+    ]);
+    for (const deriver of plugin.derivers) {
+      expect(deriver.sourceTypes).toContain('aragon_voting');
+    }
   });
 
   it('M4 readExtension claims aragon_voting and returns expected stubs', async () => {

@@ -52,7 +52,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     ON CONFLICT (dao_id, source_type, chain_id) DO NOTHING
   `.execute(db);
 
-  // Reconcile binding: copy the base aragon_voting row (AA4 getVote re-query).
+  // Reconcile binding: copy the base aragon_voting row (getVote re-query source).
   await sql`
     INSERT INTO dao_source (dao_id, source_type, chain_id, source_config, active_from_block)
     SELECT dao_id, 'aragon_voting_reconcile', chain_id, source_config, active_from_block

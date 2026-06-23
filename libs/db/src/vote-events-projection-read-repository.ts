@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely';
+import { chTimestampToDate } from './ch-timestamp';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { VoteEventsProjectionTable } from './schema/projections';
 
@@ -52,7 +53,7 @@ export class VoteEventsProjectionReadRepository {
     // voter, block, log, vote_id) tuple is exactly one row, so no FINAL or LIMIT 1 BY
     // needed. The identity guard (commit 0.0) ensures at most one superseded=0 row per
     // (dao, proposal, voter) at any time. ORDER BY + LIMIT 1 is a defensive fallback.
-    return this.chDb
+    const row = (await this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
       .select([
         'vef.vote_id',
@@ -71,6 +72,13 @@ export class VoteEventsProjectionReadRepository {
       .orderBy('vef.block_number', 'desc')
       .orderBy('vef.log_index', 'desc')
       .limit(1)
-      .executeTakeFirst() as Promise<CurrentVoteRow | undefined>;
+      .executeTakeFirst()) as
+      | (Omit<CurrentVoteRow, 'cast_at'> & { cast_at: string | Date })
+      | undefined;
+
+    if (row === undefined) return undefined;
+    // ClickHouse returns DateTime64 as a zoneless UTC string; honor the typed Date
+    // contract so downstream ordering (isNewerVote) compares real instants, not strings.
+    return { ...row, cast_at: chTimestampToDate(row.cast_at) };
   }
 }
