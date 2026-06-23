@@ -97,7 +97,7 @@ const NOOP_PROJECTION_METRICS = {
               dlqRepo,
               logger: toChainLogger(new Logger('LidoAragonVoting')),
             }),
-            // AG1: register aragon_voting_reconcile ingester + admin-cli backfill/DLQ-retry entry.
+            // TODO: register the aragon_voting_reconcile ingester + admin-cli backfill/DLQ-retry entry.
           ],
           derivers: [actorAddressDeriver, proposalApplier, voteApplier],
           readExtension: makeLidoReadExtension(),

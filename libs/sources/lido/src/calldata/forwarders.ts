@@ -25,7 +25,7 @@
  * unwrapCall() is pure over (call, registry) for a fixed registry. Action index stability requires
  * that registry changes trigger full re-derivation of the containing proposal's actions.
  *
- * ## Easy Track / AC reuse
+ * ## Easy Track reuse
  * createForwarderRegistry(extra) is extensible — pass additional forwarder addresses to handle
  * Easy Track's EVMScriptExecutor and Aragon Agent on different deployments.
  */
@@ -68,7 +68,7 @@ const DEFAULT_FORWARDER_ADDRESSES: readonly string[] = [
 
 /**
  * Build the forwarder registry.
- * Pass extra entries to extend for AC / Easy Track scenarios.
+ * Pass extra entries to extend for Easy Track scenarios.
  */
 export function createForwarderRegistry(
   extra?: readonly { address: string; selectors: readonly string[] }[],

@@ -86,8 +86,9 @@ export function projectAragonProposalEvent(
     case 'ChangeMinQuorum':
     case 'ChangeVoteTime':
     case 'ChangeObjectionPhaseTime':
-      // Global config events: AA3 does not consume them (pct/phase-times come from
-      // AA4's getVote reconciler). Drained as no-ops so they reach derived_at and
+      // Global config events: the event-only projection does not consume them
+      // (pct/phase-times come from the getVote state reconciler). Drained as no-ops
+      // so they reach derived_at and
       // satisfy the zero-underived acceptance gate.
       return { kind: 'config_noop', archiveRowId: archiveRow.id };
     case 'CastVote':
@@ -124,7 +125,7 @@ function projectStartVote(
       voting_starts_block: archiveRow.block_number,
       voting_ends_block: null,
       // Aragon opens voting immediately at StartVote (no pending phase). Terminal
-      // non-executed states (succeeded/defeated/expired) are derived by AA4.
+      // non-executed states (succeeded/defeated/expired) are derived by the reconciler.
       state: 'active',
       state_updated_at: confirmedAt,
       updated_at: confirmedAt,

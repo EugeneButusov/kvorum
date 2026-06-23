@@ -5,9 +5,10 @@ import type { NewAragonProposalMetadata } from '../../persistence/schema';
 /**
  * Per-source PG extension repo for Lido Aragon proposals.
  *
- * AA3 seeds the metadata row at StartVote (`app_address`; pct/phase-times left
- * NULL) and stamps `executed_at` on ExecuteVote. AA4's getVote reconciler fills
- * the NULL pct/phase-time columns and drives `last_reconcile_check_block`.
+ * The event-only projection seeds the metadata row at StartVote (`app_address`;
+ * pct/phase-times left NULL) and stamps `executed_at` on ExecuteVote. The getVote
+ * state reconciler fills the NULL pct/phase-time columns and drives
+ * `last_reconcile_check_block`.
  */
 export class AragonProposalRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}

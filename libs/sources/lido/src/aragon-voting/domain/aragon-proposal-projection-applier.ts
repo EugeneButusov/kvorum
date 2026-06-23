@@ -9,6 +9,7 @@ import {
   type PgDatabase,
   ProposalRepository,
 } from '@libs/db';
+import { ArchiveFailureRouter, archiveEventTupleKey } from '@sources/core';
 import { projectAragonProposalEvent } from './proposal-projector';
 import type { AragonVotingEvent } from './types';
 import { AragonProposalRepository } from '../persistence/aragon-proposal-repository';
@@ -60,12 +61,14 @@ interface ProjectionRepositories {
  * Projects Lido Aragon proposal-lifecycle + config events into PG.
  *
  *  - StartVote  → insert `proposal` (state `active`) + `aragon_proposal_metadata`
- *    seed (`app_address`; pct/phase-times NULL → AA4) + binary [No, Yes] choices.
+ *    seed (`app_address`; pct/phase-end-times left NULL) + binary [No, Yes] choices.
  *  - ExecuteVote → advance state to `executed` + stamp metadata.executed_at.
- *  - Change*    → no-op drain (mark derived; consumed by AA4 via getVote).
+ *  - Change*    → no-op drain (mark derived; the global config is consumed by the
+ *    state reconciler via getVote, not here).
  *
- * Event-only: no contract-state reads (`getVote` is AA4). `proposal_action` rows
- * are deferred to AA4 (the execution script is in no AA1 event).
+ * Event-only: no contract-state reads. The execution script lives in no archive
+ * event, so `proposal_action` rows and the per-vote pct/phase-end-times are filled
+ * by the getVote state reconciler, not this applier.
  */
 export class AragonProposalProjectionApplier {
   readonly kind = 'projection' as const;
@@ -80,9 +83,19 @@ export class AragonProposalProjectionApplier {
   ] as const;
 
   private readonly logger: Logger;
+  private readonly failures: ArchiveFailureRouter;
 
   constructor(private readonly deps: AragonProposalProjectionApplierDeps) {
     this.logger = deps.logger ?? silentLogger;
+    this.failures = new ArchiveFailureRouter({
+      archive: deps.archive,
+      dlq: deps.dlq,
+      stage: PROPOSAL_PROJECTION_STAGE,
+      source: 'indexer.proposal_projection',
+      logEvent: 'aragon_proposal_derivation_failed',
+      threshold: DLQ_THRESHOLD,
+      logger: this.logger,
+    });
   }
 
   async applyBatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
@@ -91,10 +104,10 @@ export class AragonProposalProjectionApplier {
     const lookupStartedAt = Date.now();
     const payloads = await this.deps.payloads.fetchPayloads(rows);
     this.deps.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
-    const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
+    const byKey = new Map(payloads.map((payload) => [archiveEventTupleKey(payload), payload]));
 
     for (const row of rows) {
-      const payload = byKey.get(tupleKey(row));
+      const payload = byKey.get(archiveEventTupleKey(row));
       if (payload === undefined) {
         await this.failAndMaybeDlq(row, 'payload_missing', new Error('archive payload missing'));
         continue;
@@ -215,45 +228,7 @@ export class AragonProposalProjectionApplier {
     error: unknown,
   ): Promise<void> {
     this.record(row, 'failed', reason);
-    await this.deps.archive.incrementAttemptCount(row.id);
-    const attempt = row.derivation_attempt_count + 1;
-    this.logger.error('aragon_proposal_derivation_failed', {
-      row_id: row.id,
-      source_type: row.source_type,
-      event_type: row.event_type,
-      chain_id: row.chain_id,
-      tx_hash: row.tx_hash,
-      log_index: row.log_index,
-      block_hash: row.block_hash,
-      attempt,
-      reason,
-      error: String(error),
-    });
-
-    if (attempt < DLQ_THRESHOLD) return;
-
-    await this.deps.dlq.insert({
-      stage: PROPOSAL_PROJECTION_STAGE,
-      source: 'indexer.proposal_projection',
-      payload: {
-        id: row.id,
-        source_type: row.source_type,
-        chain_id: row.chain_id,
-        tx_hash: row.tx_hash,
-        log_index: row.log_index,
-        block_hash: row.block_hash,
-        event_type: row.event_type,
-      },
-      error: { message: String(error) },
-      retries: attempt,
-      first_seen_at: new Date(),
-      last_attempt_at: new Date(),
-      archive_source_type: row.source_type,
-      archive_chain_id: row.chain_id,
-      archive_tx_hash: row.tx_hash,
-      archive_log_index: row.log_index,
-      archive_block_hash: row.block_hash,
-    });
+    await this.failures.route(row, reason, error);
   }
 
   private record(
@@ -288,13 +263,4 @@ function parseArchiveEvent(eventType: string, payloadJson: string): AragonVoting
     default:
       throw new Error(`unsupported aragon proposal event_type ${eventType}`);
   }
-}
-
-function tupleKey(row: {
-  chain_id: string;
-  tx_hash: string;
-  log_index: number;
-  block_hash: string;
-}): string {
-  return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

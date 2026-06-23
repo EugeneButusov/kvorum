@@ -9,7 +9,7 @@
  * bare CID), fall back to a deterministic placeholder `Lido Vote #{voteId}`.
  *
  * IPFS *resolution* (turning the CID into a richer title) is deferred; the
- * first-line / placeholder result is the AA3 contract. ADR-030's note that Lido
+ * first-line / placeholder result is the contract here. ADR-030's note that Lido
  * uses `{title, description}` JSON is factually wrong → doc follow-up.
  */
 const IPFS_CID_PREFIX = 'lidovoteipfs://';
