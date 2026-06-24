@@ -10,15 +10,15 @@ import {
 import { dgStateForOrdinal } from './getters';
 import type { DualGovernanceEvent, ExternalCall } from '../domain/types';
 
-const lc = (v: unknown): string => (v as string).toLowerCase();
-const num = (v: unknown): number => Number(v as bigint);
-const dec = (v: unknown): string => (v as bigint).toString();
+const lowercaseAddress = (value: unknown): string => (value as string).toLowerCase();
+const toNumber = (value: unknown): number => Number(value as bigint);
+const toDecimalString = (value: unknown): string => (value as bigint).toString();
 
 function decodeCalls(raw: unknown): ExternalCall[] {
-  return (raw as Result[]).map((c) => ({
-    target: lc(c[0]),
-    value: dec(c[1]),
-    payload: c[2] as string,
+  return (raw as Result[]).map((call) => ({
+    target: lowercaseAddress(call[0]),
+    value: toDecimalString(call[1]),
+    payload: call[2] as string,
   }));
 }
 
@@ -29,135 +29,147 @@ interface Dispatch {
   build: Builder;
 }
 
-const T = DUAL_GOVERNANCE_TOPICS;
-const L = TIMELOCK_TOPICS;
-
 // topic0 → { which interface parses it, how to shape the payload }. Dispatch is by topic0, never by
 // event name, because `ProposalSubmitted` is overloaded across the two contracts.
 const DISPATCH: Record<string, Dispatch> = {
-  [T.DualGovernanceStateChanged]: {
+  [DUAL_GOVERNANCE_TOPICS.DualGovernanceStateChanged]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => {
-      const c = p.args['context'] as Result;
+    build: (parsed) => {
+      const context = parsed.args['context'] as Result;
       return {
         type: 'DualGovernanceStateChanged',
         payload: {
-          from: dgStateForOrdinal(num(p.args['from'])),
-          to: dgStateForOrdinal(num(p.args['to'])),
+          from: dgStateForOrdinal(toNumber(parsed.args['from'])),
+          to: dgStateForOrdinal(toNumber(parsed.args['to'])),
           context: {
-            state: dgStateForOrdinal(num(c['state'])),
-            enteredAt: num(c['enteredAt']),
-            vetoSignallingActivatedAt: num(c['vetoSignallingActivatedAt']),
-            signallingEscrow: lc(c['signallingEscrow']),
-            rageQuitRound: num(c['rageQuitRound']),
-            vetoSignallingReactivationTime: num(c['vetoSignallingReactivationTime']),
-            normalOrVetoCooldownExitedAt: num(c['normalOrVetoCooldownExitedAt']),
-            rageQuitEscrow: lc(c['rageQuitEscrow']),
-            configProvider: lc(c['configProvider']),
+            state: dgStateForOrdinal(toNumber(context['state'])),
+            enteredAt: toNumber(context['enteredAt']),
+            vetoSignallingActivatedAt: toNumber(context['vetoSignallingActivatedAt']),
+            signallingEscrow: lowercaseAddress(context['signallingEscrow']),
+            rageQuitRound: toNumber(context['rageQuitRound']),
+            vetoSignallingReactivationTime: toNumber(context['vetoSignallingReactivationTime']),
+            normalOrVetoCooldownExitedAt: toNumber(context['normalOrVetoCooldownExitedAt']),
+            rageQuitEscrow: lowercaseAddress(context['rageQuitEscrow']),
+            configProvider: lowercaseAddress(context['configProvider']),
           },
         },
       };
     },
   },
-  [T.NewSignallingEscrowDeployed]: {
+  [DUAL_GOVERNANCE_TOPICS.NewSignallingEscrowDeployed]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'NewSignallingEscrowDeployed',
-      payload: { escrow: lc(p.args['escrow']) },
+      payload: { escrow: lowercaseAddress(parsed.args['escrow']) },
     }),
   },
-  [T.EscrowMasterCopyDeployed]: {
+  [DUAL_GOVERNANCE_TOPICS.EscrowMasterCopyDeployed]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'EscrowMasterCopyDeployed',
-      payload: { escrowMasterCopy: lc(p.args['escrowMasterCopy']) },
+      payload: { escrowMasterCopy: lowercaseAddress(parsed.args['escrowMasterCopy']) },
     }),
   },
-  [T.ConfigProviderSet]: {
+  [DUAL_GOVERNANCE_TOPICS.ConfigProviderSet]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'ConfigProviderSet',
-      payload: { newConfigProvider: lc(p.args['newConfigProvider']) },
+      payload: { newConfigProvider: lowercaseAddress(parsed.args['newConfigProvider']) },
     }),
   },
-  [T.ProposalSubmittedMeta]: {
+  [DUAL_GOVERNANCE_TOPICS.ProposalSubmittedMeta]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'ProposalSubmittedMeta',
       payload: {
-        proposerAccount: lc(p.args['proposerAccount']),
-        proposalId: dec(p.args['proposalId']),
-        metadata: p.args['metadata'] as string,
+        proposerAccount: lowercaseAddress(parsed.args['proposerAccount']),
+        proposalId: toDecimalString(parsed.args['proposalId']),
+        metadata: parsed.args['metadata'] as string,
       },
     }),
   },
-  [T.ProposalsCancellerSet]: {
+  [DUAL_GOVERNANCE_TOPICS.ProposalsCancellerSet]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'ProposalsCancellerSet',
-      payload: { proposalsCanceller: lc(p.args['proposalsCanceller']) },
+      payload: { proposalsCanceller: lowercaseAddress(parsed.args['proposalsCanceller']) },
     }),
   },
-  [T.CancelAllPendingProposalsExecuted]: {
+  [DUAL_GOVERNANCE_TOPICS.CancelAllPendingProposalsExecuted]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
     build: () => ({ type: 'CancelAllPendingProposalsExecuted', payload: {} }),
   },
-  [T.CancelAllPendingProposalsSkipped]: {
+  [DUAL_GOVERNANCE_TOPICS.CancelAllPendingProposalsSkipped]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
     build: () => ({ type: 'CancelAllPendingProposalsSkipped', payload: {} }),
   },
-  [T.ProposerRegistered]: {
+  [DUAL_GOVERNANCE_TOPICS.ProposerRegistered]: {
     iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
+    build: (parsed) => ({
       type: 'ProposerRegistered',
-      payload: { proposerAccount: lc(p.args['proposerAccount']), executor: lc(p.args['executor']) },
-    }),
-  },
-  [T.ProposerExecutorSet]: {
-    iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
-      type: 'ProposerExecutorSet',
-      payload: { proposerAccount: lc(p.args['proposerAccount']), executor: lc(p.args['executor']) },
-    }),
-  },
-  [T.ProposerUnregistered]: {
-    iface: DUAL_GOVERNANCE_INTERFACE,
-    build: (p) => ({
-      type: 'ProposerUnregistered',
-      payload: { proposerAccount: lc(p.args['proposerAccount']), executor: lc(p.args['executor']) },
-    }),
-  },
-  [L.ProposalSubmitted]: {
-    iface: TIMELOCK_INTERFACE,
-    build: (p) => ({
-      type: 'ProposalSubmitted',
       payload: {
-        id: dec(p.args['id']),
-        executor: lc(p.args['executor']),
-        calls: decodeCalls(p.args['calls']),
+        proposerAccount: lowercaseAddress(parsed.args['proposerAccount']),
+        executor: lowercaseAddress(parsed.args['executor']),
       },
     }),
   },
-  [L.ProposalScheduled]: {
-    iface: TIMELOCK_INTERFACE,
-    build: (p) => ({ type: 'ProposalScheduled', payload: { id: dec(p.args['id']) } }),
-  },
-  [L.ProposalExecuted]: {
-    iface: TIMELOCK_INTERFACE,
-    build: (p) => ({ type: 'ProposalExecuted', payload: { id: dec(p.args['id']) } }),
-  },
-  [L.ProposalsCancelledTill]: {
-    iface: TIMELOCK_INTERFACE,
-    build: (p) => ({
-      type: 'ProposalsCancelledTill',
-      payload: { proposalId: dec(p.args['proposalId']) },
+  [DUAL_GOVERNANCE_TOPICS.ProposerExecutorSet]: {
+    iface: DUAL_GOVERNANCE_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposerExecutorSet',
+      payload: {
+        proposerAccount: lowercaseAddress(parsed.args['proposerAccount']),
+        executor: lowercaseAddress(parsed.args['executor']),
+      },
     }),
   },
-  [L.EmergencyModeActivated]: {
+  [DUAL_GOVERNANCE_TOPICS.ProposerUnregistered]: {
+    iface: DUAL_GOVERNANCE_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposerUnregistered',
+      payload: {
+        proposerAccount: lowercaseAddress(parsed.args['proposerAccount']),
+        executor: lowercaseAddress(parsed.args['executor']),
+      },
+    }),
+  },
+  [TIMELOCK_TOPICS.ProposalSubmitted]: {
+    iface: TIMELOCK_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposalSubmitted',
+      payload: {
+        id: toDecimalString(parsed.args['id']),
+        executor: lowercaseAddress(parsed.args['executor']),
+        calls: decodeCalls(parsed.args['calls']),
+      },
+    }),
+  },
+  [TIMELOCK_TOPICS.ProposalScheduled]: {
+    iface: TIMELOCK_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposalScheduled',
+      payload: { id: toDecimalString(parsed.args['id']) },
+    }),
+  },
+  [TIMELOCK_TOPICS.ProposalExecuted]: {
+    iface: TIMELOCK_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposalExecuted',
+      payload: { id: toDecimalString(parsed.args['id']) },
+    }),
+  },
+  [TIMELOCK_TOPICS.ProposalsCancelledTill]: {
+    iface: TIMELOCK_INTERFACE,
+    build: (parsed) => ({
+      type: 'ProposalsCancelledTill',
+      payload: { proposalId: toDecimalString(parsed.args['proposalId']) },
+    }),
+  },
+  [TIMELOCK_TOPICS.EmergencyModeActivated]: {
     iface: TIMELOCK_INTERFACE,
     build: () => ({ type: 'EmergencyModeActivated', payload: {} }),
   },
-  [L.EmergencyModeDeactivated]: {
+  [TIMELOCK_TOPICS.EmergencyModeDeactivated]: {
     iface: TIMELOCK_INTERFACE,
     build: () => ({ type: 'EmergencyModeDeactivated', payload: {} }),
   },
