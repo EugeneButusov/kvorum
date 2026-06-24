@@ -6,10 +6,12 @@ import {
   type LoadedAbiLibrary,
   loadSharedAbiLibrary,
 } from '@sources/core';
+import { lidoCalldataProtocol } from '@sources/lido';
 
 const protocols: readonly CalldataProtocolSupport[] = [
   aaveCalldataProtocol,
   compoundCalldataProtocol,
+  lidoCalldataProtocol,
 ];
 
 export const bundledAbisFor = makeBundledAbiResolver(protocols);

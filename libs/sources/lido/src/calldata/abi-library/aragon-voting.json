@@ -1,0 +1,9 @@
+[
+  "function newVote(bytes _executionScript, string _metadata)",
+  "function newVote(bytes _executionScript, string _metadata, bool _castVote, bool _executesIfDecided)",
+  "function changeSupportRequiredPct(uint64 _supportRequiredPct)",
+  "function changeMinAcceptQuorumPct(uint64 _minAcceptQuorumPct)",
+  "function unsafelyChangeVoteTime(uint64 _voteTime)",
+  "function unsafelyChangeObjectionPhaseTime(uint64 _objectionPhaseTime)",
+  "function executeVote(uint256 _voteId)"
+]

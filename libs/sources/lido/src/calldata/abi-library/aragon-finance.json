@@ -1,0 +1,6 @@
+[
+  "function newImmediatePayment(address _token, address _receiver, uint256 _amount, string _reference)",
+  "function newPeriodicPayment(address _token, address _receiver, uint256 _amount, uint64 _initialPaymentTime, uint64 _interval, uint64 _maxExecutions, string _reference)",
+  "function executePayment(uint256 _paymentId)",
+  "function deposit(address _token, uint256 _amount, string _reference)"
+]

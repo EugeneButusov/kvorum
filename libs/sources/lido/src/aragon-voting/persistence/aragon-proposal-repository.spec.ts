@@ -57,4 +57,73 @@ describe('AragonProposalRepository', () => {
 
     expect(await repo.findVotingAddress('s1')).toBeUndefined();
   });
+
+  it('reconcileState writes the guarded state transition and returns the row count', async () => {
+    const executeTakeFirst = vi.fn().mockResolvedValue({ numUpdatedRows: 1n });
+    const chain: Record<string, unknown> = { executeTakeFirst };
+    chain['set'] = vi.fn(() => chain);
+    chain['where'] = vi.fn(() => chain);
+    const updateTable = vi.fn().mockReturnValue(chain);
+    const repo = new AragonProposalRepository({ updateTable } as never);
+
+    const n = await repo.reconcileState({
+      proposalId: 'p1',
+      expectedStates: ['active'],
+      targetState: 'succeeded',
+      stateUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    expect(n).toBe(1);
+    expect(updateTable).toHaveBeenCalledWith('proposal');
+    expect(chain['set']).toHaveBeenCalledWith(expect.objectContaining({ state: 'succeeded' }));
+  });
+
+  it('markReconcileChecked stamps last_reconcile_check_block', async () => {
+    const execute = vi.fn().mockResolvedValue(undefined);
+    const where = vi.fn().mockReturnValue({ execute });
+    const set = vi.fn().mockReturnValue({ where });
+    const updateTable = vi.fn().mockReturnValue({ set });
+    const repo = new AragonProposalRepository({ updateTable } as never);
+
+    await repo.markReconcileChecked('p1', '18500000');
+
+    expect(updateTable).toHaveBeenCalledWith('aragon_proposal_metadata');
+    expect(set).toHaveBeenCalledWith({ last_reconcile_check_block: '18500000' });
+    expect(where).toHaveBeenCalledWith('proposal_id', '=', 'p1');
+  });
+
+  it('findStaleForReconciliation short-circuits on empty inputs (no query)', async () => {
+    const selectFrom = vi.fn();
+    const repo = new AragonProposalRepository({ selectFrom } as never);
+
+    expect(
+      await repo.findStaleForReconciliation(
+        [],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1', recheckGapBlocks: 1 }],
+        5,
+      ),
+    ).toEqual([]);
+    expect(await repo.findStaleForReconciliation(['aragon_voting'], [], 5)).toEqual([]);
+    expect(
+      await repo.findStaleForReconciliation(
+        ['aragon_voting'],
+        [{ chainId: '0x1', confirmedThresholdBlock: '1', recheckGapBlocks: 1 }],
+        0,
+      ),
+    ).toEqual([]);
+    expect(selectFrom).not.toHaveBeenCalled();
+  });
+
+  it('fillSupportQuorum updates the metadata row (COALESCE write-once)', async () => {
+    const execute = vi.fn().mockResolvedValue(undefined);
+    const where = vi.fn().mockReturnValue({ execute });
+    const set = vi.fn().mockReturnValue({ where });
+    const updateTable = vi.fn().mockReturnValue({ set });
+    const repo = new AragonProposalRepository({ updateTable } as never);
+
+    await repo.fillSupportQuorum('p1', { supportRequiredPct: '5', minAcceptQuorumPct: '1' });
+
+    expect(updateTable).toHaveBeenCalledWith('aragon_proposal_metadata');
+    expect(where).toHaveBeenCalledWith('proposal_id', '=', 'p1');
+  });
 });

@@ -1,0 +1,8 @@
+[
+  "function createPermission(address _entity, address _app, bytes32 _role, address _manager)",
+  "function grantPermission(address _entity, address _app, bytes32 _role)",
+  "function grantPermissionP(address _entity, address _app, bytes32 _role, uint256[] _params)",
+  "function revokePermission(address _entity, address _app, bytes32 _role)",
+  "function setPermissionManager(address _newManager, address _app, bytes32 _role)",
+  "function removePermissionManager(address _app, bytes32 _role)"
+]
