@@ -1,0 +1,5 @@
+[
+  "function setApp(bytes32 _namespace, bytes32 _appId, address _app)",
+  "function newAppInstance(bytes32 _appId, address _appBase)",
+  "function setRecoveryVaultAppId(bytes32 _recoveryVaultAppId)"
+]

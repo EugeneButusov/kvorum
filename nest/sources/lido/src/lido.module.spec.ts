@@ -33,17 +33,25 @@ describe('LidoSourceModule', () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('M2 exposes exactly one ingester with sourceType aragon_voting', async () => {
+  it('exposes the aragon_voting ingester + the reconcile ingester', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(LIDO_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('lido');
-    expect(plugin.ingesters).toHaveLength(1);
-    expect(plugin.ingesters[0]!.sourceType).toBe('aragon_voting');
-    expect(plugin.ingesters[0]!.supportedChainIds).toEqual(['0x1']);
-    expect(plugin.ingesters[0]!.capabilities).toContain('backfillable');
+    expect(plugin.ingesters.map((i) => i.sourceType).sort()).toEqual([
+      'aragon_voting',
+      'aragon_voting_reconcile',
+    ]);
+
+    const voting = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting')!;
+    expect(voting.supportedChainIds).toEqual(['0x1']);
+    expect(voting.capabilities).toContain('backfillable');
+
+    const reconcile = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting_reconcile')!;
+    expect(reconcile.supportedChainIds).toEqual(['0x1']);
+    expect([...reconcile.capabilities]).toEqual([]);
   });
 
   it('registers the Aragon derivation derivers (actor-address + proposal + vote)', async () => {

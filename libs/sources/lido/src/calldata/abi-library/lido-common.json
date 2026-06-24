@@ -1,0 +1,10 @@
+[
+  "function resume()",
+  "function stop()",
+  "function pauseFor(uint256 _duration)",
+  "function pauseUntil(uint256 _pauseUntilInclusive)",
+  "function setStakingLimit(uint256 _maxStakeLimit, uint256 _stakeLimitIncreasePerBlock)",
+  "function removeStakingLimit()",
+  "event Resumed()",
+  "event Paused(uint256 duration)"
+]

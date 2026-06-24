@@ -66,6 +66,10 @@ export type {
 export { AragonVotingArchivePayloadRepository } from './aragon-voting/persistence/archive-payload-repository';
 export type { AragonVotingArchivePayloadRow } from './aragon-voting/persistence/archive-payload-repository';
 export { AragonProposalRepository } from './aragon-voting/persistence/aragon-proposal-repository';
+export type {
+  AragonStaleReconciliationRow,
+  AragonReconcileStateInput,
+} from './aragon-voting/persistence/aragon-proposal-repository';
 export { extractAragonTitle } from './aragon-voting/domain/title-extractor';
 export {
   projectAragonProposalEvent,
@@ -89,3 +93,18 @@ export type {
   AragonVoteProjectionApplierDeps,
   AragonVoteProjectionMetrics,
 } from './aragon-voting/domain/aragon-vote-projection-applier';
+
+// Aragon Voting state reconciler + getVote enrichment
+export {
+  GET_VOTE_INTERFACE,
+  AragonGetVoteDecodeError,
+  encodeGetVote,
+  decodeGetVote,
+} from './aragon-voting/abi/get-vote';
+export type { AragonGetVoteResult } from './aragon-voting/abi/get-vote';
+export { AragonStateReconciler } from './aragon-voting/reconcile/aragon-state-reconciler';
+export { createLidoAragonVotingReconcilePlugin } from './aragon-voting/reconcile/aragon-reconcile-plugin';
+export type { LidoAragonVotingReconcilePluginDeps } from './aragon-voting/reconcile/aragon-reconcile-plugin';
+
+// Calldata ABI library (proposal_action decode, §3.8)
+export { lidoCalldataProtocol } from './calldata/protocol';

@@ -12,6 +12,7 @@ import {
 } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import {
+  AragonProposalRepository,
   AragonVotingArchivePayloadRepository,
   AragonProposalProjectionApplier,
   AragonVoteProjectionApplier,
@@ -19,10 +20,12 @@ import {
   LidoAragonVotingActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
   createLidoAragonVotingPlugin,
+  createLidoAragonVotingReconcilePlugin,
   makeLidoReadExtension,
 } from '@sources/lido';
 import { ChainContextModule, toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
+import { buildDriverMetrics } from '../../reconcile-metrics';
 
 export const LIDO_SOURCE_PLUGIN = 'LIDO_SOURCE_PLUGIN';
 
@@ -89,6 +92,13 @@ const NOOP_PROJECTION_METRICS = {
           logger: toChainLogger(new Logger('AragonVoteProjectionApplier')),
         });
 
+        const reconcilePlugin = createLidoAragonVotingReconcilePlugin({
+          aragonProposals: new AragonProposalRepository(pgDb),
+          proposals,
+          metrics: buildDriverMetrics(),
+          logger: toChainLogger(new Logger('AragonVotingReconcile')),
+        });
+
         return {
           name: 'lido',
           ingesters: [
@@ -97,7 +107,7 @@ const NOOP_PROJECTION_METRICS = {
               dlqRepo,
               logger: toChainLogger(new Logger('LidoAragonVoting')),
             }),
-            // TODO: register the aragon_voting_reconcile ingester + admin-cli backfill/DLQ-retry entry.
+            reconcilePlugin,
           ],
           derivers: [actorAddressDeriver, proposalApplier, voteApplier],
           readExtension: makeLidoReadExtension(),

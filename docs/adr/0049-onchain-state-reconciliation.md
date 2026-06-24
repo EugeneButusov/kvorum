@@ -116,3 +116,28 @@ Aave Governance v3 joins the reconciled source set with a narrower write surface
 - Aave reconcile is simpler than Compound because it corrects exactly one event-silent transition.
 - A missed `VotingActivated` or `ProposalFailed` event is surfaced operationally rather than papered over by a guessed state write.
 - `aave_governance_v3_reconcile` can share the generic reconcile driver while keeping Aave-specific state semantics local.
+
+## Amendment — 2026-06-23 (Lido Aragon Voting — reconcile + getVote enrichment)
+
+Lido Aragon Voting (`aragon_voting`) joins the reconciled source set via `aragon_voting_reconcile`, and **extends the reconcile pass with getVote enrichment** — the reconciler is no longer state-only.
+
+### Source applicability
+
+- included: `aragon_voting` (reconciled by the `aragon_voting_reconcile` ingester)
+- watermark field: `aragon_proposal_metadata.last_reconcile_check_block`; chain scoping reads `dao_source.chain_id`
+
+### State reconcile model
+
+1. Candidate selection: `proposal.state = 'active'` **OR** `aragon_proposal_metadata.support_required_pct IS NULL` (the enrich-once signal), gated by the watermark recheck gap. This is broader than Aave/Compound because the pass also enriches, not only classifies.
+2. Classification uses `getVote(uint256)` at the confirmed-threshold block (single 11-field ABI — the current impl serves all votes through it). Pass/fail uses Aragon `_isValuePct` (strict `>`, `PCT_BASE = 10^18`): support `yea·PCT/(yea+nay) > supportRequired`, quorum `yea·PCT/votingPower > minAcceptQuorum`; zero votes cast → defeated.
+3. Allowed reconciler write set is **`succeeded` / `defeated`** at vote close (`open = false`, `executed = false`) — Aragon has no `expired`/cancel terminal at the Voting layer. Close `state_updated_at` uses the confirmed-threshold block timestamp (deterministic, replay-safe).
+4. On-chain `executed` while local ≠ executed → `missed_event` (`ExecuteVote` is event-driven; never overwritten). `succeeded` is not fully terminal — a passed vote is executable indefinitely; execution arrives via the event path. A Dual-Governance veto is invisible at the Voting layer (a vetoed proposal stays closed-unexecuted → reconciler writes `succeeded`).
+
+### Enrichment extension (enrich-once)
+
+On the first pass for a proposal (`support_required_pct IS NULL`), the reconciler also: decodes `getVote.script` → `proposal_action` rows (AA2 `toProposalActions`, position-keyed, `onConflict do nothing`), then fills `support_required_pct` / `min_accept_quorum_pct` from the per-vote getVote fields. Ordering is load-bearing: **`insertActions` runs before the pct write**, so the pct (the candidate predicate's done-signal) lands last — a partial failure self-heals on re-query (pct stays NULL; `insertActions` is idempotent). No live `voteTime()`/`objectionPhaseTime()` getters are read (they return current global config and would mis-date historical votes); `main_phase_ends_at`/`objection_phase_ends_at` are a follow-up computed from the per-vote-era `Change*` event history.
+
+### Consequences
+
+- One `getVote` read per candidate serves both classification and enrichment (RPC economy).
+- A reconcile-driven enrichment is a deliberate divergence from the state-only model; the enrich-once predicate + atomic ordering are the contract that keeps it idempotent and starvation-free.
