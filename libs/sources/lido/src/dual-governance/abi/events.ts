@@ -21,7 +21,16 @@ const DUAL_GOVERNANCE_EVENTS = [
   // Master-copy + clones: a new signalling Escrow clone is deployed on each veto-signalling cycle.
   // AB1 indexes this on the master copy to discover clone instances (do NOT hardcode a clone addr).
   'event NewSignallingEscrowDeployed(address indexed escrow)',
+  'event EscrowMasterCopyDeployed(address escrowMasterCopy)',
   'event ConfigProviderSet(address newConfigProvider)',
+  // DG governance-layer proposal flow. This `ProposalSubmitted` carries the proposer + metadata
+  // (description) and is DISTINCT from the Timelock's same-named event (which carries the calls) —
+  // different signature, different topic0. They share `proposalId`; AB3 reconciles them. Keyed below
+  // as `ProposalSubmittedMeta` to disambiguate.
+  'event ProposalSubmitted(address indexed proposerAccount, uint256 indexed proposalId, string metadata)',
+  'event ProposalsCancellerSet(address proposalsCanceller)',
+  'event CancelAllPendingProposalsExecuted()',
+  'event CancelAllPendingProposalsSkipped()',
   // Proposer registry (executor mapping is AB3's N:M correlation anchor).
   'event ProposerRegistered(address indexed proposerAccount, address indexed executor)',
   'event ProposerExecutorSet(address indexed proposerAccount, address indexed executor)',
@@ -50,7 +59,21 @@ function topic(iface: Interface, name: string): string {
 export const DUAL_GOVERNANCE_TOPICS = {
   DualGovernanceStateChanged: topic(DUAL_GOVERNANCE_INTERFACE, 'DualGovernanceStateChanged'),
   NewSignallingEscrowDeployed: topic(DUAL_GOVERNANCE_INTERFACE, 'NewSignallingEscrowDeployed'),
+  EscrowMasterCopyDeployed: topic(DUAL_GOVERNANCE_INTERFACE, 'EscrowMasterCopyDeployed'),
   ConfigProviderSet: topic(DUAL_GOVERNANCE_INTERFACE, 'ConfigProviderSet'),
+  // `ProposalSubmittedMeta` is the DG-layer ProposalSubmitted(address,uint256,string); the Timelock's
+  // ProposalSubmitted lives in TIMELOCK_TOPICS. The interface holds exactly one ProposalSubmitted, so
+  // the by-name lookup here is unambiguous.
+  ProposalSubmittedMeta: topic(DUAL_GOVERNANCE_INTERFACE, 'ProposalSubmitted'),
+  ProposalsCancellerSet: topic(DUAL_GOVERNANCE_INTERFACE, 'ProposalsCancellerSet'),
+  CancelAllPendingProposalsExecuted: topic(
+    DUAL_GOVERNANCE_INTERFACE,
+    'CancelAllPendingProposalsExecuted',
+  ),
+  CancelAllPendingProposalsSkipped: topic(
+    DUAL_GOVERNANCE_INTERFACE,
+    'CancelAllPendingProposalsSkipped',
+  ),
   ProposerRegistered: topic(DUAL_GOVERNANCE_INTERFACE, 'ProposerRegistered'),
   ProposerExecutorSet: topic(DUAL_GOVERNANCE_INTERFACE, 'ProposerExecutorSet'),
   ProposerUnregistered: topic(DUAL_GOVERNANCE_INTERFACE, 'ProposerUnregistered'),

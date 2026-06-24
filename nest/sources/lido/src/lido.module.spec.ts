@@ -33,7 +33,7 @@ describe('LidoSourceModule', () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('exposes the aragon_voting ingester + the reconcile ingester', async () => {
+  it('exposes the aragon_voting, dual_governance, and reconcile ingesters', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
@@ -43,11 +43,16 @@ describe('LidoSourceModule', () => {
     expect(plugin.ingesters.map((i) => i.sourceType).sort()).toEqual([
       'aragon_voting',
       'aragon_voting_reconcile',
+      'dual_governance',
     ]);
 
     const voting = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting')!;
     expect(voting.supportedChainIds).toEqual(['0x1']);
     expect(voting.capabilities).toContain('backfillable');
+
+    const dg = plugin.ingesters.find((i) => i.sourceType === 'dual_governance')!;
+    expect(dg.supportedChainIds).toEqual(['0x1']);
+    expect(dg.capabilities).toContain('backfillable');
 
     const reconcile = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting_reconcile')!;
     expect(reconcile.supportedChainIds).toEqual(['0x1']);

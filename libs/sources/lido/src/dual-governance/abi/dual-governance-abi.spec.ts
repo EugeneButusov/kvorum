@@ -21,6 +21,15 @@ const VERIFIED_DG_TOPICS = {
   ProposerRegistered: '0x21049d33ee462b7341fa44cb6501c90d00147f57e0f9751fe7a296f775ec8aaa',
   ProposerExecutorSet: '0x93c024076e6c39162f773d92d0707b90c3b8e7958d72168e4a4d92b6699ae52a',
   ProposerUnregistered: '0x2067da2ab4af0fcc94aff6ebead2c7ff85757075b78babd7123a66bbd5c65d6c',
+  // Added in AB1 (#328). ProposalSubmittedMeta cross-checked live against the DG-layer log signature;
+  // the rest are keccak256 of the canonical signatures, locked here to catch parameter-type drift.
+  ProposalSubmittedMeta: '0x232ce03ddb9384ef5aeb6333cad16b1c7e68e1977e0e6e5a3666e934569a15fc',
+  EscrowMasterCopyDeployed: '0x03758110e5bb0bc8eb73e05382c02905b2bce34875905d1c156b2bad2b532951',
+  ProposalsCancellerSet: '0x34655f7be96663a25362fc0d2c741c5da1ca3d44170970da4ad1734110dd426e',
+  CancelAllPendingProposalsExecuted:
+    '0x2298fa2d89588534f8cc810d1d330103cdc1dbc9a90d8ad69ecb945333811bb7',
+  CancelAllPendingProposalsSkipped:
+    '0xe37ee6060f57b78dc9b410581969e2db39a6dea9139ee0a1f4dc0ef2d9a2fed9',
 } as const;
 
 const VERIFIED_TIMELOCK_TOPICS = {
