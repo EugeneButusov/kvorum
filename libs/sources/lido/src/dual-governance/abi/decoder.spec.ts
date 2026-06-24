@@ -108,6 +108,30 @@ describe('decodeDualGovernanceLog', () => {
     ).toEqual({ type: 'CancelAllPendingProposalsExecuted', payload: {} });
   });
 
+  it('decodes every remaining DG + Timelock event type to its discriminator', () => {
+    const dgCases: Array<[string, unknown[], string]> = [
+      ['EscrowMasterCopyDeployed', [A1], 'EscrowMasterCopyDeployed'],
+      ['ConfigProviderSet', [A1], 'ConfigProviderSet'],
+      ['ProposalsCancellerSet', [A1], 'ProposalsCancellerSet'],
+      ['CancelAllPendingProposalsSkipped', [], 'CancelAllPendingProposalsSkipped'],
+      ['ProposerExecutorSet', [A1, A2], 'ProposerExecutorSet'],
+      ['ProposerUnregistered', [A1, A2], 'ProposerUnregistered'],
+    ];
+    for (const [event, args, expected] of dgCases) {
+      expect(decodeDualGovernanceLog(dgLog(event, args), 'dual_governance').type).toBe(expected);
+    }
+
+    const tlCases: Array<[string, unknown[], string]> = [
+      ['ProposalScheduled', [9n], 'ProposalScheduled'],
+      ['ProposalExecuted', [9n], 'ProposalExecuted'],
+      ['EmergencyModeActivated', [], 'EmergencyModeActivated'],
+      ['EmergencyModeDeactivated', [], 'EmergencyModeDeactivated'],
+    ];
+    for (const [event, args, expected] of tlCases) {
+      expect(decodeDualGovernanceLog(tlLog(event, args), 'dual_governance').type).toBe(expected);
+    }
+  });
+
   it('throws DecodeError on an unknown topic', () => {
     const log = makeLog({ topics: ['0x' + 'ff'.repeat(32)], data: '0x' });
     expect(() => decodeDualGovernanceLog(log, 'dual_governance')).toThrow(DecodeError);
