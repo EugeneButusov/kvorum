@@ -109,7 +109,7 @@ export type { LidoAragonVotingReconcilePluginDeps } from './aragon-voting/reconc
 // Calldata ABI library (proposal_action decode, §3.8)
 export { lidoCalldataProtocol } from './calldata/protocol';
 
-// ── Dual Governance (Epic AB) ────────────────────────────────────────────────
+// ── Dual Governance ──────────────────────────────────────────────────────────
 export {
   DUAL_GOVERNANCE_INTERFACE,
   TIMELOCK_INTERFACE,
