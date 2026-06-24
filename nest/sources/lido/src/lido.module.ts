@@ -17,10 +17,13 @@ import {
   AragonProposalProjectionApplier,
   AragonVoteProjectionApplier,
   AragonVotingEventRepository,
+  DualGovernanceEventRepository,
   LidoAragonVotingActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
+  LidoDualGovernanceArchiveWriter,
   createLidoAragonVotingPlugin,
   createLidoAragonVotingReconcilePlugin,
+  createLidoDualGovernancePlugin,
   makeLidoReadExtension,
 } from '@sources/lido';
 import { ChainContextModule, toChainLogger } from '@nest/chain';
@@ -60,6 +63,17 @@ const NOOP_PROJECTION_METRICS = {
       inject: [ArchiveEventRepository, DlqRepository],
     },
     {
+      provide: LidoDualGovernanceArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new LidoDualGovernanceArchiveWriter({
+          eventRepo: new DualGovernanceEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('LidoDualGovernanceArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
       provide: LIDO_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: LidoAragonVotingArchiveWriter,
@@ -69,6 +83,7 @@ const NOOP_PROJECTION_METRICS = {
         voteRead: VoteEventsProjectionReadRepository,
         voteWrite: VoteEventsProjectionWriter,
         registry: ChainContextRegistry,
+        dgArchiveWriter: LidoDualGovernanceArchiveWriter,
       ): SourcePlugin => {
         const payloads = new AragonVotingArchivePayloadRepository(chDb);
         const actorAddressDeriver = new LidoAragonVotingActorAddressDeriver(payloads);
@@ -107,6 +122,11 @@ const NOOP_PROJECTION_METRICS = {
               dlqRepo,
               logger: toChainLogger(new Logger('LidoAragonVoting')),
             }),
+            createLidoDualGovernancePlugin({
+              archiveWriter: dgArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('LidoDualGovernance')),
+            }),
             reconcilePlugin,
           ],
           derivers: [actorAddressDeriver, proposalApplier, voteApplier],
@@ -121,6 +141,7 @@ const NOOP_PROJECTION_METRICS = {
         VoteEventsProjectionReadRepository,
         VoteEventsProjectionWriter,
         ChainContextRegistry,
+        LidoDualGovernanceArchiveWriter,
       ],
     },
   ],

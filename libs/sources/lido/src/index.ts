@@ -108,3 +108,33 @@ export type { LidoAragonVotingReconcilePluginDeps } from './aragon-voting/reconc
 
 // Calldata ABI library (proposal_action decode, §3.8)
 export { lidoCalldataProtocol } from './calldata/protocol';
+
+// ── Dual Governance (Epic AB) ────────────────────────────────────────────────
+export {
+  DUAL_GOVERNANCE_INTERFACE,
+  TIMELOCK_INTERFACE,
+  DUAL_GOVERNANCE_TOPICS,
+  TIMELOCK_TOPICS,
+} from './dual-governance/abi/events';
+export type { DualGovernanceTopics, TimelockTopics } from './dual-governance/abi/events';
+export { decodeDualGovernanceLog } from './dual-governance/abi/decoder';
+export type { DualGovernanceEvent, DualGovernanceEventType } from './dual-governance/domain/types';
+export {
+  DUAL_GOVERNANCE_MAINNET,
+  DUAL_GOVERNANCE_ACTIVE_FROM_BLOCK,
+  DG_ONCHAIN_STATE_TO_PG,
+} from './dual-governance/addresses';
+export { DualGovernanceEventRepository } from './dual-governance/persistence/event-repository';
+export type { DualGovernanceEventData } from './dual-governance/persistence/event-repository.types';
+export { LidoDualGovernanceArchiveWriter } from './dual-governance/ingestion/archive-writer';
+export type { LidoDualGovernanceArchiveWriterDeps } from './dual-governance/ingestion/archive-writer.types';
+export { makeDualGovernanceIngesterListener } from './dual-governance/ingestion/ingester-listener';
+export type { DualGovernanceIngesterListenerDeps } from './dual-governance/ingestion/ingester-listener';
+export {
+  createLidoDualGovernancePlugin,
+  LidoDualGovernanceConfigSchema,
+} from './dual-governance/plugin/plugin';
+export type {
+  LidoDualGovernanceConfig,
+  LidoDualGovernancePluginDeps,
+} from './dual-governance/plugin/plugin';

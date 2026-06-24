@@ -28,4 +28,22 @@ export type ArchiveEventType =
   | 'ChangeSupportRequired'
   | 'ChangeMinQuorum'
   | 'ChangeVoteTime'
-  | 'ChangeObjectionPhaseTime';
+  | 'ChangeObjectionPhaseTime'
+  // Lido Dual Governance (Epic AB): DualGovernance + EmergencyProtectedTimelock event set.
+  // 'ProposalExecuted' is shared with the registry above.
+  | 'DualGovernanceStateChanged'
+  | 'NewSignallingEscrowDeployed'
+  | 'EscrowMasterCopyDeployed'
+  | 'ConfigProviderSet'
+  | 'ProposalSubmittedMeta'
+  | 'ProposalsCancellerSet'
+  | 'CancelAllPendingProposalsExecuted'
+  | 'CancelAllPendingProposalsSkipped'
+  | 'ProposerRegistered'
+  | 'ProposerExecutorSet'
+  | 'ProposerUnregistered'
+  | 'ProposalSubmitted'
+  | 'ProposalScheduled'
+  | 'ProposalsCancelledTill'
+  | 'EmergencyModeActivated'
+  | 'EmergencyModeDeactivated';
