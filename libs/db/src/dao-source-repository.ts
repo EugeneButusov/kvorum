@@ -23,6 +23,16 @@ export class DaoSourceRepository {
       .execute();
   }
 
+  /** Resolve the owning `dao_id` for a `dao_source` row. Returns undefined if the source is unknown. */
+  async findDaoIdForSource(daoSourceId: string): Promise<string | undefined> {
+    const row = await this.db
+      .selectFrom('dao_source')
+      .select('dao_id')
+      .where('id', '=', daoSourceId)
+      .executeTakeFirst();
+    return row?.dao_id;
+  }
+
   async findTokenAddressByDaoAndSourceType(
     daoId: string,
     sourceType: string,

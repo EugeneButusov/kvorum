@@ -1,0 +1,41 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { ArchiveDerivationRow } from '@libs/db';
+import { DualGovernanceArchivePayloadRepository } from './archive-payload-repository';
+
+function makeChDb(rows: unknown[]) {
+  const execute = vi.fn().mockResolvedValue(rows);
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    execute,
+  };
+  const selectFrom = vi.fn().mockReturnValue(chain);
+  return { chDb: { selectFrom } as never, selectFrom, chain };
+}
+
+const ROW = {
+  chain_id: '0x1',
+  tx_hash: '0x' + 'cd'.repeat(32),
+  log_index: 0,
+  block_hash: '0x' + 'ab'.repeat(32),
+} as unknown as ArchiveDerivationRow;
+
+describe('DualGovernanceArchivePayloadRepository', () => {
+  it('returns [] without querying when there are no rows', async () => {
+    const { chDb, selectFrom } = makeChDb([]);
+    const repo = new DualGovernanceArchivePayloadRepository(chDb);
+    await expect(repo.fetchPayloads([])).resolves.toEqual([]);
+    expect(selectFrom).not.toHaveBeenCalled();
+  });
+
+  it('queries archive_event_dual_governance ordered by received_at asc', async () => {
+    const found = [{ event_type: 'DualGovernanceStateChanged', payload: '{}' }];
+    const { chDb, selectFrom, chain } = makeChDb(found);
+    const repo = new DualGovernanceArchivePayloadRepository(chDb);
+    const out = await repo.fetchPayloads([ROW]);
+    expect(selectFrom).toHaveBeenCalledWith('archive_event_dual_governance');
+    expect(chain.orderBy).toHaveBeenCalledWith('received_at', 'asc');
+    expect(out).toBe(found);
+  });
+});

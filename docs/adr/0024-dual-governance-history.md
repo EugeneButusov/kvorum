@@ -1,9 +1,9 @@
 # ADR-024 — `dual_governance_state` modeled as DAO-wide history
 
-- **Status**: Proposed
-- **Date**: 2026-05-08
+- **Status**: Accepted
+- **Date**: 2026-05-08 (proposed); 2026-06-25 (accepted — implemented by AB2 #329: the append-only `dual_governance_state_history` deriver, with current-state / state-at-T as single indexed lookups)
 - **Spec sections affected**: 2.5
-- **Related**: KNOWN-007, DR-011
+- **Related**: KNOWN-007, DR-011, ADR-0074
 
 ## Context
 

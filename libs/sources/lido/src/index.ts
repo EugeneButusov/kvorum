@@ -138,3 +138,16 @@ export type {
   LidoDualGovernanceConfig,
   LidoDualGovernancePluginDeps,
 } from './dual-governance/plugin/plugin';
+
+// Dual Governance DAO-wide state-history derivation (ADR-024)
+export { DualGovernanceArchivePayloadRepository } from './dual-governance/persistence/archive-payload-repository';
+export type { DualGovernanceArchivePayloadRow } from './dual-governance/persistence/archive-payload-repository';
+export { DualGovernanceStateHistoryRepository } from './dual-governance/persistence/state-history-repository';
+export { LidoDualGovernanceActorAddressDeriver } from './dual-governance/domain/actor-address-deriver';
+export { projectDualGovernanceStateChange } from './dual-governance/domain/state-projector';
+export type { StateChangeCoords } from './dual-governance/domain/state-projector';
+export { DualGovernanceStateProjectionApplier } from './dual-governance/domain/state-projection-applier';
+export type {
+  DualGovernanceStateProjectionApplierDeps,
+  DualGovernanceStateProjectionMetrics,
+} from './dual-governance/domain/state-projection-applier';
