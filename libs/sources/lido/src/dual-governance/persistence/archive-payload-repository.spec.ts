@@ -38,4 +38,32 @@ describe('DualGovernanceArchivePayloadRepository', () => {
     expect(chain.orderBy).toHaveBeenCalledWith('received_at', 'asc');
     expect(out).toBe(found);
   });
+
+  describe('findEventsInTx', () => {
+    it('filters by chain_id, tx_hash and event_type, ordered by received_at asc', async () => {
+      const found = [{ event_type: 'ProposalSubmittedMeta', payload: '{"proposalId":"7"}' }];
+      const { chDb, selectFrom, chain } = makeChDb(found);
+      const repo = new DualGovernanceArchivePayloadRepository(chDb);
+      const tx = '0x' + 'cd'.repeat(32);
+
+      const out = await repo.findEventsInTx('0x1', tx, 'ProposalSubmittedMeta');
+
+      expect(selectFrom).toHaveBeenCalledWith('archive_event_dual_governance');
+      expect(chain.where.mock.calls).toEqual([
+        ['chain_id', '=', '0x1'],
+        ['tx_hash', '=', tx],
+        ['event_type', '=', 'ProposalSubmittedMeta'],
+      ]);
+      expect(chain.orderBy).toHaveBeenCalledWith('received_at', 'asc');
+      expect(out).toBe(found);
+    });
+
+    it('returns [] when no event of that type is in the tx', async () => {
+      const { chDb } = makeChDb([]);
+      const repo = new DualGovernanceArchivePayloadRepository(chDb);
+      await expect(repo.findEventsInTx('0x1', '0xtx', 'ProposalSubmittedMeta')).resolves.toEqual(
+        [],
+      );
+    });
+  });
 });
