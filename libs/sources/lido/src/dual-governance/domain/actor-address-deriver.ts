@@ -1,11 +1,14 @@
 import type { ArchiveDerivationRow } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
-import type {
-  ActorAddressCandidate,
-  ActorAddressDeriver,
-  ActorAddressPayloadRow,
-} from '@sources/core';
+import type { ActorAddressDeriver, ActorAddressPayloadRow } from '@sources/core';
 import { DualGovernanceArchivePayloadRepository } from '../persistence/archive-payload-repository';
+
+// The actor sweep reads `candidate.source` to pick the actor_address source. Mirrors the Aragon
+// deriver's local candidate type (the core ActorAddressCandidate carries `role`, not `source`).
+interface DualGovernanceAddressCandidate {
+  address: string;
+  source: 'proposer_event';
+}
 
 /**
  * Actor-address sweep for Lido Dual Governance.
@@ -15,16 +18,23 @@ import { DualGovernanceArchivePayloadRepository } from '../persistence/archive-p
  * adapter lists — stamping unconditionally even when `extractAddresses` returns `[]`. So this adapter
  * must list every event the DG projection processes.
  *
- * AB2 processes only `DualGovernanceStateChanged`, which has no governance actor (a transition is not
- * attributable to a voter/proposer), so `extractAddresses` returns `[]` — the sweep still marks the row
- * resolved, letting the state-history applier run. AB3 EXTENDS `eventTypes` (and the switch) for the
- * proposer/proposal events it derives.
+ * `DualGovernanceStateChanged` has no governance actor (a transition is not attributable to a
+ * voter/proposer), so it returns `[]` — the sweep still marks the row resolved, letting the
+ * state-history applier (AB2) run. AB3 adds the proposal-flow events the proposal applier derives: the
+ * DG `ProposalSubmittedMeta` carries the proposer account; the Timelock id-only events and the
+ * calls-carrying `ProposalSubmitted` (whose `executor` is the AdminExecutor contract, not a
+ * participant) have none, so they resolve to `[]` and are still released to the applier.
  */
 export class LidoDualGovernanceActorAddressDeriver implements ActorAddressDeriver {
   readonly kind = 'actor-address' as const;
   readonly sourceTypes = ['dual_governance'] as const;
   readonly eventTypes = [
     'DualGovernanceStateChanged',
+    'ProposalSubmitted',
+    'ProposalScheduled',
+    'ProposalExecuted',
+    'ProposalsCancelledTill',
+    'ProposalSubmittedMeta',
   ] as const satisfies readonly ArchiveEventType[];
 
   constructor(private readonly payloads: DualGovernanceArchivePayloadRepository) {}
@@ -44,11 +54,19 @@ export class LidoDualGovernanceActorAddressDeriver implements ActorAddressDerive
   }
 
   extractAddresses(
-    _eventType: ArchiveEventType,
-    _payload: string,
-  ): readonly ActorAddressCandidate[] {
-    // No governance actor on a state transition. The escrow/config addresses in the payload are
-    // contracts, not participants. Returning [] still lets the sweep mark the row resolved.
+    eventType: ArchiveEventType,
+    payload: string,
+  ): readonly DualGovernanceAddressCandidate[] {
+    if (eventType === 'ProposalSubmittedMeta') {
+      const parsed = JSON.parse(payload) as { proposerAccount?: string };
+      if (typeof parsed.proposerAccount === 'string') {
+        return [{ address: parsed.proposerAccount.toLowerCase(), source: 'proposer_event' }];
+      }
+      return [];
+    }
+    // State transitions, the Timelock id-only events, and the calls-carrying ProposalSubmitted have no
+    // participant address (escrow/config/executor in payloads are contracts). [] still lets the sweep
+    // mark the row resolved so the projection appliers run.
     return [];
   }
 }

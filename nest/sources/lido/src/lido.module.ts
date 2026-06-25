@@ -1,6 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import { ChainContextRegistry } from '@libs/chain';
 import {
+  ActorRepository,
   ArchiveDerivationRepository,
   ArchiveEventRepository,
   DaoSourceRepository,
@@ -18,8 +19,11 @@ import {
   AragonProposalProjectionApplier,
   AragonVoteProjectionApplier,
   AragonVotingEventRepository,
+  AragonEnactmentLookup,
   DualGovernanceArchivePayloadRepository,
   DualGovernanceEventRepository,
+  DualGovernanceProposalProjectionApplier,
+  DualGovernanceProposalRepository,
   DualGovernanceStateHistoryRepository,
   DualGovernanceStateProjectionApplier,
   LidoAragonVotingActorAddressDeriver,
@@ -132,6 +136,17 @@ const NOOP_PROJECTION_METRICS = {
           metrics: NOOP_PROJECTION_METRICS,
           logger: toChainLogger(new Logger('DualGovernanceStateProjection')),
         });
+        const dgProposalApplier = new DualGovernanceProposalProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads: dgPayloads,
+          proposals,
+          actors: new ActorRepository(pgDb),
+          ledger: new DualGovernanceProposalRepository(pgDb),
+          enactment: new AragonEnactmentLookup(chDb),
+          metrics: NOOP_PROJECTION_METRICS,
+          logger: toChainLogger(new Logger('DualGovernanceProposalProjection')),
+        });
 
         return {
           name: 'lido',
@@ -154,6 +169,7 @@ const NOOP_PROJECTION_METRICS = {
             voteApplier,
             dgActorAddressDeriver,
             dgStateApplier,
+            dgProposalApplier,
           ],
           readExtension: makeLidoReadExtension(),
         };

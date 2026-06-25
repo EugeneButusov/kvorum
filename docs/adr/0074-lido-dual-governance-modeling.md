@@ -41,15 +41,36 @@ Timelock's `ProposalsCancelledTill(proposalId)` — one event carrying the bound
 single boundary-carrying row** and interpreted as a range at proposal-derivation time (AB3); it is never
 expanded to per-proposal rows at archive time.
 
-### 4. N:M Aragon↔DG correlation has no on-chain link
+### 4. N:M Aragon↔DG correlation has no on-chain _field_ link — but shares the enactment tx
 
-A DG-submitted proposal carries **no on-chain reference** to its originating Aragon vote. (Two distinct
-`ProposalSubmitted` events exist — the DG-layer one carrying proposer + metadata, and the Timelock one
-carrying the calls — sharing only `proposalId`.) Correlation (AB3) is therefore heuristic on
-**(executor = AdminExecutor, calls payload, timestamp)**, covering: 1:1 Aragon→DG; omnibus; a **direct
-DG submission with no Aragon origin → its own `proposal` row under `dual_governance`**; an Aragon vote
-that never reaches DG; and **resubmission-after-veto** (same calls, new id → idempotent). The correlation
-must neither double-count nor orphan.
+A DG-submitted proposal carries **no on-chain reference field** to its originating Aragon vote. (Two
+distinct `ProposalSubmitted` events exist — the DG-layer one carrying proposer + metadata, and the
+Timelock one carrying the calls — sharing only `proposalId`.) However, the Aragon enactment script calls
+`submitProposal` **synchronously**, so the Aragon `ExecuteVote` and the Timelock `ProposalSubmitted`
+ride the **same enactment transaction** — verified on real mainnet submissions (`VERIFICATION.md`,
+2026-06-25: txs share exactly one `ExecuteVote`). AB3 therefore correlates on a **deterministic
+tx-hash primary**: the Timelock submission's tx → the co-tx Aragon `ExecuteVote` payload `{voteId}` →
+the Aragon `proposal` (`source_id = voteId`). The drafted `(executor = AdminExecutor, calls-hash,
+time-window)` heuristic remains a documented **fallback** for any non-co-tx submission. This covers:
+1:1 Aragon→DG; omnibus; a **direct DG submission with no Aragon origin → its own `proposal` row under
+`dual_governance`** (proposer + metadata from the co-tx `ProposalSubmittedMeta`); an Aragon vote that
+never reaches DG; and **resubmission-after-veto** (same calls, new id → idempotent). Correlation must
+neither double-count nor orphan.
+
+**Ledger + unified-state ownership (AB3).** Each submission is recorded in the `dual_governance_proposal`
+ledger (keyed `(dao_id, dg_proposal_id)`, idempotent), tracking origin + the DG timelock sub-lifecycle
+(`submitted → scheduled → executed | cancelled`). DG inner calls become `proposal_action` rows at
+`payload_index = 1`. **AB3 owns the post-enactment unified `proposal.state`** = `f(ledger status)`
+(`submitted/scheduled → queued`, `executed → executed`, `cancelled → canceled`), applied via the
+guard-bypassing `ProposalRepository.setStateFromDerivation` (an absolute set, distinct from the
+monotonic `advanceState`). This **reclassifies** the Aragon layer's premature `executed` (set on
+`ExecuteVote`) back to `queued`, then drives it forward; it is replay-safe because the value derives from
+the authoritative ledger, not the current state. A **cross-source defer** gate holds a submission (no
+DLQ, no failed attempt) until the Aragon archive has covered its block, so a co-tx `ExecuteVote` is
+guaranteed visible before a no-match is committed as direct.
+
+> **Scope reality:** all 11 Timelock proposals to date are Aragon-originated; case 3 (direct) has no live
+> instance yet and is validated by synthetic fixtures.
 
 ### 5. Escrow + rage-quit detail is reconciler-sourced
 
@@ -63,10 +84,11 @@ by the AB4 reconciler (the AB2 history rows leave those columns NULL). Emergency
 - **Per-proposal DG state** — rejected by ADR-024 (state is a DAO property; repeats data).
 - **Store the on-chain ordinal directly** — rejected; the PG enum is name-based and omits `NotInitialized`, so mapping by name is unambiguous and analytics-friendly.
 - **Expand bulk-cancel to per-proposal rows at archive time** — rejected; loses the range semantics that derivation needs.
-- **Link DG↔Aragon structurally** — impossible; no on-chain link exists.
+- **Link DG↔Aragon structurally** — no on-chain _field_ link exists, but the shared enactment tx is a deterministic correlation key (§4); the `(executor, calls-hash, time-window)` heuristic is the fallback, not the primary.
+- **Ledger-only, defer unified state to AB4 (correlated proposals)** — rejected; `advanceState` is terminal-locked at the Aragon-set `executed`, so a cancel-after-enactment could never reach the unified state. AB3 reclassifies via `setStateFromDerivation` instead, keeping `proposal.state` correct as of AB3.
 
 ## Consequences
 
 - AB2 derives `DualGovernanceStateChanged` into the append-only history; "current state" and "state at T" are single indexed lookups, idempotent under replay (unique index + watermark).
-- AB3 owns the N:M correlation + the DG-submitted proposal flow; AB4 owns reconciliation + escrow-derived detail and may extend ADR-031's `vetoed` transition.
-- Status flips to Accepted when AB3/AB4 land the correlation + reconciler this ADR specifies; AB2 ratifies sections 1–3.
+- AB3 (#330) lands the N:M correlation + the DG-submitted proposal flow: the `dual_governance_proposal` ledger (`lido_006`), the tx-primary correlator, `setStateFromDerivation`, and the second projection deriver. AB4 owns reconciliation + escrow-derived detail and may extend ADR-031's `vetoed` transition.
+- Status flips to Accepted when AB4 lands the reconciler this ADR specifies; AB2 ratifies sections 1–3, AB3 ratifies section 4.

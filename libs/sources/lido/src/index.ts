@@ -17,6 +17,12 @@ export type {
   DualGovernanceStateHistoryTable,
   DualGovernanceStateHistoryUpdate,
   NewDualGovernanceStateHistory,
+  DualGovernanceProposal,
+  DualGovernanceProposalTable,
+  DualGovernanceProposalUpdate,
+  DualGovernanceProposalOrigin,
+  DualGovernanceProposalStatus,
+  NewDualGovernanceProposal,
   EasyTrackMotionMeta,
   EasyTrackMotionMetaTable,
   EasyTrackMotionMetaUpdate,
@@ -147,6 +153,25 @@ export { LidoDualGovernanceActorAddressDeriver } from './dual-governance/domain/
 export { projectDualGovernanceStateChange } from './dual-governance/domain/state-projector';
 export type { StateChangeCoords } from './dual-governance/domain/state-projector';
 export { DualGovernanceStateProjectionApplier } from './dual-governance/domain/state-projection-applier';
+export { DualGovernanceProposalRepository } from './dual-governance/persistence/dg-proposal-repository';
+export { AragonEnactmentLookup } from './dual-governance/persistence/aragon-enactment-lookup';
+export { DualGovernanceProposalProjectionApplier } from './dual-governance/domain/dg-proposal-projection-applier';
+export type {
+  DualGovernanceProposalProjectionApplierDeps,
+  DualGovernanceProposalProjectionMetrics,
+  DualGovernanceProposalOutcome,
+  DualGovernanceProposalFailureReason,
+} from './dual-governance/domain/dg-proposal-projection-applier';
+export {
+  computeCallsHash,
+  callsToProposalActions,
+  ledgerStatusToProposalState,
+  buildDirectProposal,
+} from './dual-governance/domain/proposal-correlator';
+export type {
+  DirectProposalDraft,
+  DirectProposalInput,
+} from './dual-governance/domain/proposal-correlator';
 export type {
   DualGovernanceStateProjectionApplierDeps,
   DualGovernanceStateProjectionMetrics,

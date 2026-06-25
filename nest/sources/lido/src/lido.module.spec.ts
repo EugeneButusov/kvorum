@@ -65,11 +65,12 @@ describe('LidoSourceModule', () => {
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(LIDO_SOURCE_PLUGIN);
 
-    // Aragon: actor-address + proposal + vote (3). Dual Governance: actor-address + state (2).
-    expect(plugin.derivers).toHaveLength(5);
+    // Aragon: actor-address + proposal + vote (3). Dual Governance: actor-address + state + proposal (3).
+    expect(plugin.derivers).toHaveLength(6);
     expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
       'actor-address',
       'actor-address',
+      'projection',
       'projection',
       'projection',
       'projection',
@@ -79,7 +80,7 @@ describe('LidoSourceModule', () => {
     expect(aragon).toHaveLength(3);
 
     const dg = plugin.derivers.filter((d) => d.sourceTypes.includes('dual_governance'));
-    expect(dg.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection']);
+    expect(dg.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection', 'projection']);
   });
 
   it('M4 readExtension claims aragon_voting and returns expected stubs', async () => {
