@@ -3,6 +3,7 @@ import { ChainContextRegistry } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   ArchiveEventRepository,
+  DaoSourceRepository,
   DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
@@ -17,8 +18,12 @@ import {
   AragonProposalProjectionApplier,
   AragonVoteProjectionApplier,
   AragonVotingEventRepository,
+  DualGovernanceArchivePayloadRepository,
   DualGovernanceEventRepository,
+  DualGovernanceStateHistoryRepository,
+  DualGovernanceStateProjectionApplier,
   LidoAragonVotingActorAddressDeriver,
+  LidoDualGovernanceActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
   LidoDualGovernanceArchiveWriter,
   createLidoAragonVotingPlugin,
@@ -44,6 +49,7 @@ const NOOP_PROJECTION_METRICS = {
     DbModule.forFeature([
       ArchiveDerivationRepository,
       ArchiveEventRepository,
+      DaoSourceRepository,
       DlqRepository,
       ProposalRepository,
       VoteEventsProjectionReadRepository,
@@ -84,6 +90,7 @@ const NOOP_PROJECTION_METRICS = {
         voteWrite: VoteEventsProjectionWriter,
         registry: ChainContextRegistry,
         dgArchiveWriter: LidoDualGovernanceArchiveWriter,
+        daoSources: DaoSourceRepository,
       ): SourcePlugin => {
         const payloads = new AragonVotingArchivePayloadRepository(chDb);
         const actorAddressDeriver = new LidoAragonVotingActorAddressDeriver(payloads);
@@ -114,6 +121,18 @@ const NOOP_PROJECTION_METRICS = {
           logger: toChainLogger(new Logger('AragonVotingReconcile')),
         });
 
+        const dgPayloads = new DualGovernanceArchivePayloadRepository(chDb);
+        const dgActorAddressDeriver = new LidoDualGovernanceActorAddressDeriver(dgPayloads);
+        const dgStateApplier = new DualGovernanceStateProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads: dgPayloads,
+          daoSources,
+          history: new DualGovernanceStateHistoryRepository(pgDb),
+          metrics: NOOP_PROJECTION_METRICS,
+          logger: toChainLogger(new Logger('DualGovernanceStateProjection')),
+        });
+
         return {
           name: 'lido',
           ingesters: [
@@ -129,7 +148,13 @@ const NOOP_PROJECTION_METRICS = {
             }),
             reconcilePlugin,
           ],
-          derivers: [actorAddressDeriver, proposalApplier, voteApplier],
+          derivers: [
+            actorAddressDeriver,
+            proposalApplier,
+            voteApplier,
+            dgActorAddressDeriver,
+            dgStateApplier,
+          ],
           readExtension: makeLidoReadExtension(),
         };
       },
@@ -142,6 +167,7 @@ const NOOP_PROJECTION_METRICS = {
         VoteEventsProjectionWriter,
         ChainContextRegistry,
         LidoDualGovernanceArchiveWriter,
+        DaoSourceRepository,
       ],
     },
   ],

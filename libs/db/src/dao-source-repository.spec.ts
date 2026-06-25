@@ -300,4 +300,22 @@ describe('DaoSourceRepository', () => {
       ]);
     });
   });
+
+  describe('findDaoIdForSource', () => {
+    it('returns the owning dao_id for a known source', async () => {
+      const { selectFrom, chain } = makeSelectTakeFirst({ dao_id: 'dao-1' });
+      const repo = new DaoSourceRepository({ selectFrom } as never);
+
+      expect(await repo.findDaoIdForSource('src-1')).toBe('dao-1');
+      expect(selectFrom).toHaveBeenCalledWith('dao_source');
+      expect(chain.where).toHaveBeenCalledWith('id', '=', 'src-1');
+    });
+
+    it('returns undefined for an unknown source', async () => {
+      const { selectFrom } = makeSelectTakeFirst(undefined);
+      const repo = new DaoSourceRepository({ selectFrom } as never);
+
+      expect(await repo.findDaoIdForSource('nope')).toBeUndefined();
+    });
+  });
 });

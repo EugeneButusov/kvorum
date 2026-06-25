@@ -37,6 +37,7 @@ export interface DualGovernanceStateHistoryTable {
   // pg driver returns bigint as string
   block_number: string;
   tx_hash: string;
+  log_index: number;
   rage_quit_eth_amount: string | null;
   veto_signaling_started_at: Date | null;
   veto_signaling_deactivated_at: Date | null;

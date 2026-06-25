@@ -35,6 +35,7 @@ describe('lido migrations smoke (mocked db)', () => {
       columns: vi.fn().mockReturnThis(),
       column: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
+      unique: vi.fn().mockReturnThis(),
       execute: executeQuery,
     });
     const executor = {
