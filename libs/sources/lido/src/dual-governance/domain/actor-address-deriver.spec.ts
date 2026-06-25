@@ -11,18 +11,48 @@ function makeDeriver(payloadRows: unknown[] = []) {
 }
 
 describe('LidoDualGovernanceActorAddressDeriver', () => {
-  it('claims dual_governance + DualGovernanceStateChanged so the sweep stamps it resolved', () => {
+  it('claims dual_governance + every event the projections derive so the sweep stamps them', () => {
     const { deriver } = makeDeriver();
     expect(deriver.kind).toBe('actor-address');
     expect(deriver.sourceTypes).toEqual(['dual_governance']);
-    expect(deriver.eventTypes).toEqual(['DualGovernanceStateChanged']);
+    expect(deriver.eventTypes).toEqual([
+      'DualGovernanceStateChanged',
+      'ProposalSubmitted',
+      'ProposalScheduled',
+      'ProposalExecuted',
+      'ProposalsCancelledTill',
+      'ProposalSubmittedMeta',
+    ]);
   });
 
-  it('extracts no actor candidates (a state transition has no participant)', () => {
+  it('extracts no actor candidates for a state transition', () => {
     const { deriver } = makeDeriver();
     expect(
       deriver.extractAddresses('DualGovernanceStateChanged', '{"from":"NotInitialized"}'),
     ).toEqual([]);
+  });
+
+  it('extracts the proposer from ProposalSubmittedMeta (lowercased, proposer_event)', () => {
+    const { deriver } = makeDeriver();
+    const proposer = '0xABCdef0000000000000000000000000000000001';
+    expect(
+      deriver.extractAddresses(
+        'ProposalSubmittedMeta',
+        JSON.stringify({ proposerAccount: proposer, proposalId: '7', metadata: 'x' }),
+      ),
+    ).toEqual([{ address: proposer.toLowerCase(), source: 'proposer_event' }]);
+  });
+
+  it('extracts no candidate when ProposalSubmittedMeta lacks a proposer', () => {
+    const { deriver } = makeDeriver();
+    expect(deriver.extractAddresses('ProposalSubmittedMeta', '{}')).toEqual([]);
+  });
+
+  it('extracts no candidates for the Timelock id-only / calls events (executor is a contract)', () => {
+    const { deriver } = makeDeriver();
+    expect(deriver.extractAddresses('ProposalSubmitted', JSON.stringify({ id: '7' }))).toEqual([]);
+    expect(deriver.extractAddresses('ProposalScheduled', JSON.stringify({ id: '7' }))).toEqual([]);
+    expect(deriver.extractAddresses('ProposalsCancelledTill', '{"proposalId":"7"}')).toEqual([]);
   });
 
   it('maps fetched CH payload rows to the ActorAddressPayloadRow shape', async () => {

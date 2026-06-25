@@ -154,6 +154,31 @@ export class ProposalRepository {
     return Number(result?.numUpdatedRows ?? 0n);
   }
 
+  /**
+   * Absolute state set for authoritative cross-source reclassification — bypasses the monotonic,
+   * terminal-locked `advanceState` guard. Used by the Lido Dual Governance proposal deriver (AB3): a
+   * DG-routed proposal's unified state is `f(dual_governance_proposal.status)`, so DG (authoritative
+   * post-enactment) overrides the Aragon layer's premature `executed` (set on `ExecuteVote`) with
+   * `queued`, then drives it forward. Replay-safe: the value derives from the authoritative ledger
+   * status, not the current `proposal.state`, so re-deriving any event re-sets the same value. Do NOT
+   * use for normal monotonic lifecycle advances — use `advanceState`.
+   */
+  async setStateFromDerivation(input: {
+    proposalId: string;
+    state: ProposalState;
+    stateUpdatedAt: Date;
+  }): Promise<void> {
+    await this.db
+      .updateTable('proposal')
+      .set({
+        state: input.state,
+        state_updated_at: input.stateUpdatedAt,
+        updated_at: sql<Date>`now()`,
+      })
+      .where('id', '=', input.proposalId)
+      .execute();
+  }
+
   async updateTitleDescription(
     proposalId: string,
     title: string | null,

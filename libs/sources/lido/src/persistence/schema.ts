@@ -48,6 +48,36 @@ export type DualGovernanceStateHistory = Selectable<DualGovernanceStateHistoryTa
 export type NewDualGovernanceStateHistory = Insertable<DualGovernanceStateHistoryTable>;
 export type DualGovernanceStateHistoryUpdate = Updateable<DualGovernanceStateHistoryTable>;
 
+// AB3 (#330): DG proposal-flow ledger. Correlation + DG timelock sub-lifecycle (ADR-0074 §4).
+export type DualGovernanceProposalOrigin = 'aragon' | 'direct';
+export type DualGovernanceProposalStatus = 'submitted' | 'scheduled' | 'executed' | 'cancelled';
+
+export interface DualGovernanceProposalTable {
+  id: Generated<string>;
+  dao_id: string;
+  // pg driver returns bigint as string
+  dg_proposal_id: string;
+  proposal_id: string;
+  origin: DualGovernanceProposalOrigin;
+  aragon_source_id: string | null;
+  executor: string;
+  calls_hash: string;
+  submitted_tx_hash: string;
+  // pg driver returns bigint as string
+  submitted_block: string;
+  submitted_at: Date;
+  status: DualGovernanceProposalStatus;
+  scheduled_at: Date | null;
+  executed_at: Date | null;
+  cancelled_at: Date | null;
+  // pg driver returns bigint as string
+  last_reconcile_check_block: string | null;
+}
+
+export type DualGovernanceProposal = Selectable<DualGovernanceProposalTable>;
+export type NewDualGovernanceProposal = Insertable<DualGovernanceProposalTable>;
+export type DualGovernanceProposalUpdate = Updateable<DualGovernanceProposalTable>;
+
 // ── Easy Track ────────────────────────────────────────────────────────────────
 
 export type EasyTrackMotionState = 'active' | 'enacted' | 'objected' | 'rejected' | 'canceled';
@@ -121,6 +151,7 @@ declare module '@libs/db' {
   interface PgDatabase {
     aragon_proposal_metadata: AragonProposalMetadataTable;
     dual_governance_state_history: DualGovernanceStateHistoryTable;
+    dual_governance_proposal: DualGovernanceProposalTable;
     easy_track_motion_meta: EasyTrackMotionMetaTable;
   }
 

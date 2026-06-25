@@ -43,3 +43,21 @@ contracts. Full forensic narrative is in `docs/planning/ab0-dg-archaeology.md` (
 2. **PG enum gap** — `dual_governance_state` omits `NotInitialized`; map by name, not ordinal.
 3. **ADR-0030 titling rule is unimplementable** as written (assumes a DG→Aragon link that does not
    exist on-chain). **ADR-0031** needs the rage-quit effective window — available via the escrow.
+
+## AB3 same-tx correlation check (2026-06-25)
+
+Although no DG→Aragon **field** link exists (finding 3), the Aragon enactment script calls
+`submitProposal` synchronously, so the Aragon `ExecuteVote` and the Timelock `ProposalSubmitted`
+share the **enactment transaction**. Verified against 3 real mainnet submissions (Blockscout logs):
+
+| Timelock `ProposalSubmitted` tx    | co-tx Aragon `ExecuteVote` voteId |
+| ---------------------------------- | --------------------------------- |
+| `0x36a2ceae…552e86` (blk 25373650) | 202                               |
+| `0xc1c03334…787de1` (blk 25122802) | 201                               |
+| `0xbd138cbc…337fd3` (blk 24872110) | 199                               |
+
+Each submission tx carries **exactly one** `ExecuteVote` from the Voting proxy `0x2e59…`, voteId in
+the indexed topic. This ratifies AB3's **tx-hash-primary** correlation (ADR-0074 §4): resolve the
+Timelock `ProposalSubmitted` tx → co-tx `ExecuteVote` payload `{voteId}` → Aragon `proposal`
+(`source_id = voteId`). The `(executor, calls-hash, time-window)` heuristic remains a documented
+fallback for any non-co-tx submission.

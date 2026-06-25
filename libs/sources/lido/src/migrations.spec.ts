@@ -5,6 +5,10 @@ import { up as up002, down as down002 } from '../migrations-postgres/lido_002_du
 import { up as up003, down as down003 } from '../migrations-postgres/lido_003_easy_track';
 import { up as up004, down as down004 } from '../migrations-postgres/lido_004_seed';
 import { up as up005, down as down005 } from '../migrations-postgres/lido_005_dual_governance_seed';
+import {
+  up as up006,
+  down as down006,
+} from '../migrations-postgres/lido_006_dual_governance_proposal';
 
 describe('lido migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -114,6 +118,18 @@ describe('lido migrations smoke (mocked db)', () => {
   it('lido_005_dual_governance_seed down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down005(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_006_dual_governance_proposal up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up006(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_006_dual_governance_proposal down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down006(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });

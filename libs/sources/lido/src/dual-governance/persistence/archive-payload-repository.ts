@@ -40,4 +40,33 @@ export class DualGovernanceArchivePayloadRepository {
       .orderBy('received_at', 'asc')
       .execute();
   }
+
+  /**
+   * All DG archive rows of a given event type within one transaction. AB3 uses this to pull a Timelock
+   * `ProposalSubmitted`'s co-tx `ProposalSubmittedMeta` (proposer + metadata) — they are emitted together
+   * by `submitProposal` and share `proposalId` — so a direct submission can be created from a single
+   * trigger event regardless of which sibling derives first.
+   */
+  async findEventsInTx(
+    chainId: string,
+    txHash: string,
+    eventType: string,
+  ): Promise<DualGovernanceArchivePayloadRow[]> {
+    return this.chDb
+      .selectFrom('archive_event_dual_governance')
+      .select([
+        'chain_id',
+        'tx_hash',
+        'log_index',
+        'block_hash',
+        'event_type',
+        'payload',
+        'received_at',
+      ])
+      .where('chain_id', '=', chainId)
+      .where('tx_hash', '=', txHash)
+      .where('event_type', '=', eventType)
+      .orderBy('received_at', 'asc')
+      .execute();
+  }
 }

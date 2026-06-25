@@ -341,6 +341,29 @@ describe('ProposalRepository', () => {
     expect(update.where.mock.calls.at(-1)).toEqual(['state', 'in', expected]);
   });
 
+  it('setStateFromDerivation sets state absolutely (bypasses the monotonic guard)', async () => {
+    const update = makeUpdateChain(1n);
+    const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
+    const at = new Date('2026-02-01T00:00:00Z');
+
+    await repo.setStateFromDerivation({
+      proposalId: 'proposal-1',
+      state: 'queued',
+      stateUpdatedAt: at,
+    });
+
+    expect(update.updateTable).toHaveBeenCalledWith('proposal');
+    expect(update.set).toHaveBeenCalledWith({
+      state: 'queued',
+      state_updated_at: at,
+      updated_at: expect.anything(),
+    });
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
+    // No `state in (...)` guard — unlike advanceState, this is an unconditional set by id.
+    expect(update.where).toHaveBeenCalledTimes(1);
+    expect(update.execute).toHaveBeenCalledOnce();
+  });
+
   it('updates title and description without touching description_hash', async () => {
     const update = makeUpdateChain(1n);
     const repo = new ProposalRepository({ updateTable: update.updateTable } as never);
