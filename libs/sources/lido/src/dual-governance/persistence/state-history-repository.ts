@@ -48,4 +48,21 @@ export class DualGovernanceStateHistoryRepository {
       .executeTakeFirst();
     return row?.state;
   }
+
+  /**
+   * All `rage_quit` transition timestamps for the DAO, ascending. The unified-state resolver checks
+   * whether any falls within a proposal's pending window → ADR-031 `vetoed`. Rage quits are rare (none
+   * on mainnet to date), so this read is bounded in practice; fetching them once per derivation lets the
+   * overlap decision stay a pure, in-memory function.
+   */
+  async rageQuitTransitionsForDao(daoId: string): Promise<Date[]> {
+    const rows = await this.db
+      .selectFrom('dual_governance_state_history')
+      .select('transition_at')
+      .where('dao_id', '=', daoId)
+      .where('state', '=', 'rage_quit')
+      .orderBy('transition_at', 'asc')
+      .execute();
+    return rows.map((row) => row.transition_at);
+  }
 }

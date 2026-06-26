@@ -24,6 +24,7 @@ import {
   DualGovernanceEventRepository,
   DualGovernanceProposalProjectionApplier,
   DualGovernanceProposalRepository,
+  DualGovernanceReconcileRepository,
   DualGovernanceStateHistoryRepository,
   DualGovernanceStateProjectionApplier,
   LidoAragonVotingActorAddressDeriver,
@@ -33,6 +34,7 @@ import {
   createLidoAragonVotingPlugin,
   createLidoAragonVotingReconcilePlugin,
   createLidoDualGovernancePlugin,
+  createLidoDualGovernanceReconcilePlugin,
   makeLidoReadExtension,
 } from '@sources/lido';
 import { ChainContextModule, toChainLogger } from '@nest/chain';
@@ -127,12 +129,18 @@ const NOOP_PROJECTION_METRICS = {
 
         const dgPayloads = new DualGovernanceArchivePayloadRepository(chDb);
         const dgActorAddressDeriver = new LidoDualGovernanceActorAddressDeriver(dgPayloads);
+        // Shared across the two DG derivers so the ADR-031 `vetoed` resolver reads/writes one ledger +
+        // one history (the rage-quit step and the proposal-flow handlers must not diverge).
+        const dgHistory = new DualGovernanceStateHistoryRepository(pgDb);
+        const dgLedger = new DualGovernanceProposalRepository(pgDb);
         const dgStateApplier = new DualGovernanceStateProjectionApplier({
           archive,
           dlq: dlqRepo,
           payloads: dgPayloads,
           daoSources,
-          history: new DualGovernanceStateHistoryRepository(pgDb),
+          history: dgHistory,
+          ledger: dgLedger,
+          proposals,
           metrics: NOOP_PROJECTION_METRICS,
           logger: toChainLogger(new Logger('DualGovernanceStateProjection')),
         });
@@ -142,10 +150,16 @@ const NOOP_PROJECTION_METRICS = {
           payloads: dgPayloads,
           proposals,
           actors: new ActorRepository(pgDb),
-          ledger: new DualGovernanceProposalRepository(pgDb),
+          ledger: dgLedger,
           enactment: new AragonEnactmentLookup(chDb),
+          history: dgHistory,
           metrics: NOOP_PROJECTION_METRICS,
           logger: toChainLogger(new Logger('DualGovernanceProposalProjection')),
+        });
+        const dgReconcilePlugin = createLidoDualGovernanceReconcilePlugin({
+          reconcile: new DualGovernanceReconcileRepository(pgDb),
+          metrics: buildDriverMetrics(),
+          logger: toChainLogger(new Logger('DualGovernanceReconcile')),
         });
 
         return {
@@ -162,6 +176,7 @@ const NOOP_PROJECTION_METRICS = {
               logger: toChainLogger(new Logger('LidoDualGovernance')),
             }),
             reconcilePlugin,
+            dgReconcilePlugin,
           ],
           derivers: [
             actorAddressDeriver,

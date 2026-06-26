@@ -44,3 +44,20 @@ No other source produces `vetoed` in v1. Aave Guardian cancellations, Compound p
 - The dashboard's state-filter UI labels `vetoed` accurately (`"Vetoed (Lido Dual Governance)"` or similar).
 - The extension to admin-veto paths in v1.x is non-breaking: `vetoed` simply gains additional sources of transition. No schema or API change required.
 - §2.4.4's enum description is updated with a footnote pointing here; the implementation includes a dedicated test exercising the DG → Aragon proposal veto transition.
+
+## Implementation note — realized 2026-06-26
+
+This ADR was Accepted-but-dormant since M1. It is now implemented for Lido Dual Governance:
+
+- On a DG `rage_quit` transition (projected by the DG state deriver), every non-executed DG-routed
+  proposal whose pending window `[submitted_at, cancelled_at ?? open]` is covered by the rage-quit is set
+  to `vetoed` via `ProposalRepository.setStateFromDerivation`.
+- **Veto outranks cancel:** a bulk-cancel (`cancelAllPendingProposals` → `ProposalsCancelledTill`) that
+  lands inside a rage-quit window resolves to `vetoed`, not `canceled` — honouring "veto ≠ cancellation."
+  An **executed** proposal stays `executed` (the veto did not stop it).
+- Precedence is computed once in a shared `resolveUnifiedProposalState(ledger, history)` used by both the
+  proposal-flow handlers and the rage-quit step, so the two `proposal.state` writers are replay-safe and
+  order-independent (each derives from the authoritative ledger + DG state history).
+- **Fixture-only:** no rage quit has ever occurred on mainnet, so the transition is validated by synthetic
+  fixtures (`libs/sources/lido/tests/lido-dual-governance-reconcile.integration.spec.ts`), not live data.
+- The extension to admin-veto paths (KNOWN-003) remains future work; this realization does not touch it.

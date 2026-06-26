@@ -1,9 +1,9 @@
 # ADR-0074 — Lido Dual Governance modeling
 
-- **Status**: Proposed
-- **Date**: 2026-06-25
+- **Status**: Accepted
+- **Date**: 2026-06-25 (proposed); 2026-06-26 (accepted, ratified by the reconciler + veto work)
 - **Spec sections affected**: 2.5, 3 (Lido)
-- **Related**: ADR-024 (DAO-wide history), ADR-049 (on-chain reconciliation), ADR-031 (`vetoed` state), KNOWN-003; Epic AB (#311), AB0 (#327), AB1 (#328), AB2 (#329)
+- **Related**: ADR-024 (DAO-wide history), ADR-049 (on-chain reconciliation), ADR-031 (`vetoed` state), KNOWN-003, KNOWN-025; Epic AB (#311), AB0 (#327), AB1 (#328), AB2 (#329)
 
 ## Context
 
@@ -33,6 +33,17 @@ and its on-chain observation, and `DualGovernanceStateChanged` fires only on the
 So **event-silent transitions are the norm**: AB2 projects emitted transitions into the history; AB4
 reconciles via `getEffectiveState()`/`getStateDetails()` to catch the silent ones. There is no
 `getState()`.
+
+**Surface-only ruling — the reconciler does not write transitions.** Every _persisted_ transition
+emits `DualGovernanceStateChanged`, which the state projection records authoritatively (correct EVM
+identity + `enteredAt`). The only event-silent window is `effectiveState` running ahead of
+`persistedState` until the next on-chain poke, which self-heals when that poke fires the event. So the
+`dual_governance_reconcile` ingester is **observational**: it reads `getStateDetails()` at the confirmed
+threshold and SURFACES drift as a `state_drift` metric/log + advances a per-DAO reconcile watermark
+(`dual_governance_reconcile_state`, lido_007) — it never writes a history row. This mirrors ADR-049's
+"never overwrite/guess event states" and avoids inventing a synthetic EVM identity for an effective
+transition that fights the `(dao_id, block, tx, log_index)` unique index. A write-ahead model was rejected
+(no live instance justifies the synthetic-identity/dedup machinery).
 
 ### 3. Bulk cancellation is a range
 
@@ -72,12 +83,28 @@ guaranteed visible before a no-match is committed as direct.
 > **Scope reality:** all 11 Timelock proposals to date are Aragon-originated; case 3 (direct) has no live
 > instance yet and is validated by synthetic fixtures.
 
-### 5. Escrow + rage-quit detail is reconciler-sourced
+### 5. Veto/escrow detail — event-payload-sourced, rage-quit ETH deferred
 
-The signalling/rage-quit `Escrow` is a master-copy + EIP-1167 clones. Rage-quit ETH amounts and
-veto-signalling episode timestamps are **not** on the state event; they are populated from escrow state
-by the AB4 reconciler (the AB2 history rows leave those columns NULL). Emergency mechanisms
-(ResealManager, EPT guardian, GateSeal) are KNOWN-003: detect + document, not modeled in M4.
+The signalling/rage-quit `Escrow` is a master-copy + EIP-1167 clones. **Correcting the draft: the
+`DualGovernanceStateChanged` `Context` tuple already carries the episode anchors** —
+`vetoSignallingActivatedAt`, `normalOrVetoCooldownExitedAt`, `signallingEscrow`, `rageQuitEscrow`,
+`rageQuitRound` — and the state projection archives the full payload. So the veto-signalling timestamps
+(`veto_signaling_started_at` ← `vetoSignallingActivatedAt`; `veto_signaling_deactivated_at` ←
+`enteredAt` on the deactivation sub-state) are filled by the **state projection from the event payload —
+no reconciler RPC**. This supersedes the draft's "populated from escrow state by the reconciler".
+
+`rage_quit_eth_amount` is **deferred** (left NULL; **KNOWN-025**): no rage quit has ever occurred
+(`getRageQuitEscrow() == 0x0`), so the column is fixture-only, and the rage-quit Escrow balance getter
+cannot be live-verified the way the vendored getters were — vendoring an unverifiable ABI would break
+that discipline. The escrow _address_ is known from `context.rageQuitEscrow` if/when a real
+rage quit makes the read verifiable.
+
+Emergency mechanisms (ResealManager, EPT guardian, GateSeal) are KNOWN-003: detect + document, not
+modeled in M4. They are **event-sourced** (`EmergencyModeActivated`/`Deactivated`, archived by the event
+ingester) and the no-corrupt guarantee is **structural** — no deriver maps emergency events to `proposal.state` or
+`dual_governance_state`, so an emergency action cannot corrupt normal-path state (the reconciler also
+checks `isEmergencyModeActive()` as belt-and-suspenders). No ADR-075 is written: nothing has triggered
+live, and the conditional ADR is only warranted when an emergency action is actually modeled.
 
 ## Alternatives considered
 
@@ -86,9 +113,14 @@ by the AB4 reconciler (the AB2 history rows leave those columns NULL). Emergency
 - **Expand bulk-cancel to per-proposal rows at archive time** — rejected; loses the range semantics that derivation needs.
 - **Link DG↔Aragon structurally** — no on-chain _field_ link exists, but the shared enactment tx is a deterministic correlation key (§4); the `(executor, calls-hash, time-window)` heuristic is the fallback, not the primary.
 - **Ledger-only, defer unified state to AB4 (correlated proposals)** — rejected; `advanceState` is terminal-locked at the Aragon-set `executed`, so a cancel-after-enactment could never reach the unified state. AB3 reclassifies via `setStateFromDerivation` instead, keeping `proposal.state` correct as of AB3.
+- **Reconciler-sourced veto detail (§5, draft)** — superseded: the episode anchors ride the `DualGovernanceStateChanged` `Context`, so a pure event-payload projection is authoritative and replay-safe without an RPC dependency.
+- **Write-ahead effective transitions (§2)** — rejected; introduces a synthetic-identity/dedup scheme against the event-identity unique index for a gap that self-heals, with no live instance to justify it. Surface-only chosen.
+- **Fill `rage_quit_eth_amount` now via a vendored Escrow getter** — rejected; no rage quit has ever occurred, so the getter is unverifiable against a real instance (breaks the verify-what-you-vendor rule). Deferred as KNOWN-025.
+- **A dedicated `vetoed` deriver on `DualGovernanceStateChanged`** — impossible: the derivation worker maps each `(source_type, event_type)` to exactly one deriver, so the rage-quit `vetoed` step lives inside the state-projection applier, and both `proposal.state` writers share one `resolveUnifiedProposalState` so they cannot diverge.
 
 ## Consequences
 
 - AB2 derives `DualGovernanceStateChanged` into the append-only history; "current state" and "state at T" are single indexed lookups, idempotent under replay (unique index + watermark).
-- AB3 (#330) lands the N:M correlation + the DG-submitted proposal flow: the `dual_governance_proposal` ledger (`lido_006`), the tx-primary correlator, `setStateFromDerivation`, and the second projection deriver. AB4 owns reconciliation + escrow-derived detail and may extend ADR-031's `vetoed` transition.
-- Status flips to Accepted when AB4 lands the reconciler this ADR specifies; AB2 ratifies sections 1–3, AB3 ratifies section 4.
+- The proposal-flow work lands the N:M correlation + the DG-submitted proposal flow: the `dual_governance_proposal` ledger (`lido_006`), the tx-primary correlator, `setStateFromDerivation`, and the second projection deriver.
+- The reconciler + veto work lands: the veto-timestamp fill from the event `Context` (projection); the `vetoed` transition (ADR-031, realized) via the shared `resolveUnifiedProposalState` with veto-over-cancel precedence; the observational `dual_governance_reconcile` ingester (drift surface + watermark, `lido_007`/`lido_008`); the structural emergency-mode no-corrupt guarantee (KNOWN-003); and the rage-quit-ETH deferral (KNOWN-025). All veto/rage-quit/emergency paths are fixture-validated — no live instance exists.
+- The state projection ratifies sections 1–3, the proposal-flow work ratifies section 4, and the reconciler + veto work ratifies sections 2 (reconciler) and 5 (detail) — this ADR is now **Accepted**.

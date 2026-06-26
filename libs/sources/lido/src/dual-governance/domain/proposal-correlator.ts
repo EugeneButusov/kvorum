@@ -58,6 +58,65 @@ export function ledgerStatusToProposalState(status: DualGovernanceProposalStatus
   }
 }
 
+/** Write side of the unified `proposal.state` (the relevant slice of `ProposalRepository`). */
+export interface UnifiedProposalStateWriter {
+  setStateFromDerivation(input: {
+    proposalId: string;
+    state: ProposalState;
+    stateUpdatedAt: Date;
+  }): Promise<void>;
+}
+
+/** The ledger fields the unified-state resolver reads (a structural subset of `DualGovernanceProposal`). */
+export interface UnifiedProposalLedgerRow {
+  status: DualGovernanceProposalStatus;
+  submitted_at: Date;
+  cancelled_at: Date | null;
+}
+
+/**
+ * The unified `proposal.state` for a DG-routed proposal, with ADR-031 `vetoed` precedence over
+ * `f(ledger status)`. A **non-executed** proposal whose pending window `[submitted_at, cancelled_at ??
+ * open]` is covered by a DG rage-quit transition is `vetoed` — ADR-031 distinguishes a community veto
+ * from a plain cancellation, so a bulk-cancel that lands inside a rage-quit window resolves to `vetoed`,
+ * not `canceled`. An executed proposal is `executed` regardless (the veto did not stop it).
+ *
+ * Pure: the caller supplies the DAO's rage-quit transition timestamps (fetched once from the state
+ * history via `DualGovernanceStateHistoryRepository.rageQuitTransitionsForDao`). Replay-safe +
+ * order-independent — whichever deriver resolves last (the proposal-flow handlers / the rage-quit step)
+ * computes the same value from the same authoritative inputs, which is what keeps the two derivers (both
+ * write `proposal.state`) from fighting.
+ */
+export function resolveUnifiedProposalState(
+  ledger: UnifiedProposalLedgerRow,
+  rageQuitTransitionAts: readonly Date[],
+): ProposalState {
+  if (ledger.status !== 'executed') {
+    const covered = rageQuitTransitionAts.some(
+      (at) =>
+        at >= ledger.submitted_at && (ledger.cancelled_at === null || at <= ledger.cancelled_at),
+    );
+    if (covered) return 'vetoed';
+  }
+  return ledgerStatusToProposalState(ledger.status);
+}
+
+/**
+ * Resolve a DG-routed proposal's unified state from the pre-fetched rage-quit transitions and write it
+ * via the guard-bypassing `setStateFromDerivation`. Shared by the proposal-flow handlers (every
+ * proposal-flow event) and the rage-quit veto step so the ADR-031 precedence is computed in one place.
+ */
+export async function applyUnifiedProposalState(
+  proposals: UnifiedProposalStateWriter,
+  ledger: UnifiedProposalLedgerRow & { proposal_id: string },
+  rageQuitTransitionAts: readonly Date[],
+  stateUpdatedAt: Date,
+): Promise<ProposalState> {
+  const state = resolveUnifiedProposalState(ledger, rageQuitTransitionAts);
+  await proposals.setStateFromDerivation({ proposalId: ledger.proposal_id, state, stateUpdatedAt });
+  return state;
+}
+
 export interface DirectProposalInput {
   dgProposalId: string;
   metadata: string;

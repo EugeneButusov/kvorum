@@ -8,10 +8,10 @@ import {
 } from '@libs/db';
 import { ArchiveFailureRouter, archiveEventTupleKey, type ProjectionDeriver } from '@sources/core';
 import {
+  applyUnifiedProposalState,
   buildDirectProposal,
   callsToProposalActions,
   computeCallsHash,
-  ledgerStatusToProposalState,
 } from './proposal-correlator';
 import type {
   DualGovernanceEvent,
@@ -20,9 +20,11 @@ import type {
   TimelockProposalIdPayload,
   TimelockProposalSubmittedPayload,
 } from './types';
+import type { DualGovernanceProposal } from '../../persistence/schema';
 import { AragonEnactmentLookup } from '../persistence/aragon-enactment-lookup';
 import { DualGovernanceArchivePayloadRepository } from '../persistence/archive-payload-repository';
 import { DualGovernanceProposalRepository } from '../persistence/dg-proposal-repository';
+import { DualGovernanceStateHistoryRepository } from '../persistence/state-history-repository';
 
 const DLQ_THRESHOLD = Number(process.env['DG_PROPOSAL_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const DG_PROPOSAL_PROJECTION_STAGE = 'dual_governance_proposal_projection_stage';
@@ -77,6 +79,8 @@ export interface DualGovernanceProposalProjectionApplierDeps {
   actors: ActorRepository;
   ledger: DualGovernanceProposalRepository;
   enactment: AragonEnactmentLookup;
+  // ADR-031 `vetoed` precedence: the unified-state resolver reads rage-quit episodes from here.
+  history: DualGovernanceStateHistoryRepository;
   metrics: DualGovernanceProposalProjectionMetrics;
   logger?: Logger;
 }
@@ -223,7 +227,7 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
       callsToProposalActions(payload.calls, row.chain_id),
       DG_ACTION_PAYLOAD_INDEX,
     );
-    await this.setUnifiedState(proposalId, ledgerRow.status, row.received_at);
+    await this.setUnifiedState(ledgerRow, row.received_at);
     return 'derived';
   }
 
@@ -268,7 +272,7 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
     const daoId = await this.requireDaoId(row);
     const ledgerRow = await this.deps.ledger.markScheduled(daoId, payload.id, row.received_at);
     if (ledgerRow === undefined) return 'deferred'; // its ProposalSubmitted has not derived yet
-    await this.setUnifiedState(ledgerRow.proposal_id, ledgerRow.status, row.received_at);
+    await this.setUnifiedState(ledgerRow, row.received_at);
     return 'derived';
   }
 
@@ -279,7 +283,7 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
     const daoId = await this.requireDaoId(row);
     const ledgerRow = await this.deps.ledger.markExecuted(daoId, payload.id, row.received_at);
     if (ledgerRow === undefined) return 'deferred';
-    await this.setUnifiedState(ledgerRow.proposal_id, ledgerRow.status, row.received_at);
+    await this.setUnifiedState(ledgerRow, row.received_at);
     return 'derived';
   }
 
@@ -299,21 +303,19 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
       row.received_at,
     );
     for (const ledgerRow of cancelled) {
-      await this.setUnifiedState(ledgerRow.proposal_id, ledgerRow.status, row.received_at);
+      await this.setUnifiedState(ledgerRow, row.received_at);
     }
     return 'derived';
   }
 
-  private async setUnifiedState(
-    proposalId: string,
-    status: Parameters<typeof ledgerStatusToProposalState>[0],
-    at: Date,
-  ): Promise<void> {
-    await this.deps.proposals.setStateFromDerivation({
-      proposalId,
-      state: ledgerStatusToProposalState(status),
-      stateUpdatedAt: at,
-    });
+  /**
+   * Resolve + write the unified `proposal.state` from the ledger row, honouring ADR-031 `vetoed`
+   * precedence over `f(ledger status)` (a rage-quit covering the proposal's pending window wins). Routed
+   * through the shared resolver so this and the rage-quit step never diverge.
+   */
+  private async setUnifiedState(ledgerRow: DualGovernanceProposal, at: Date): Promise<void> {
+    const rageQuitAts = await this.deps.history.rageQuitTransitionsForDao(ledgerRow.dao_id);
+    await applyUnifiedProposalState(this.deps.proposals, ledgerRow, rageQuitAts, at);
   }
 
   private async aragonArchiveCovers(row: ArchiveDerivationRow): Promise<boolean> {

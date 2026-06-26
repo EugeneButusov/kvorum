@@ -61,3 +61,15 @@ the indexed topic. This ratifies AB3's **tx-hash-primary** correlation (ADR-0074
 Timelock `ProposalSubmitted` tx → co-tx `ExecuteVote` payload `{voteId}` → Aragon `proposal`
 (`source_id = voteId`). The `(executor, calls-hash, time-window)` heuristic remains a documented
 fallback for any non-co-tx submission.
+
+## DG reconcile read (2026-06-26)
+
+The `dual_governance_reconcile` ingester reads `getStateDetails()` (DG) + `isEmergencyModeActive()`
+(Timelock) at the confirmed head. Live state at verification: `effectiveState == persistedState ==
+Normal` (entered 2025-08-08), `isEmergencyModeActive() == false`, `getRageQuitEscrow() == 0x0`. The
+reconciler is therefore observational in steady state — it advances the per-DAO watermark and writes no
+state. The veto-signalling timestamps now derive from the `DualGovernanceStateChanged` `Context` (already
+archived by the state projection), not from a reconciler RPC; `rage_quit_eth_amount` is deferred
+(KNOWN-025) because no rage quit has ever occurred and its escrow getter is not live-verifiable. The
+`vetoed` transition (ADR-031) and all veto/rage-quit/emergency columns are consequently
+**fixture-validated only**.

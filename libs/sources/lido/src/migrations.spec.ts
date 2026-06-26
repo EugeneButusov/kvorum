@@ -9,6 +9,14 @@ import {
   up as up006,
   down as down006,
 } from '../migrations-postgres/lido_006_dual_governance_proposal';
+import {
+  up as up007,
+  down as down007,
+} from '../migrations-postgres/lido_007_dual_governance_reconcile_state';
+import {
+  up as up008,
+  down as down008,
+} from '../migrations-postgres/lido_008_dual_governance_reconcile_seed';
 
 describe('lido migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -130,6 +138,30 @@ describe('lido migrations smoke (mocked db)', () => {
   it('lido_006_dual_governance_proposal down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down006(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_007_dual_governance_reconcile_state up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up007(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_007_dual_governance_reconcile_state down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down007(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_008_dual_governance_reconcile_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up008(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_008_dual_governance_reconcile_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down008(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });

@@ -68,4 +68,29 @@ describe('projectDualGovernanceStateChange', () => {
       projectDualGovernanceStateChange(stateChanged('NotInitialized', 1), COORDS),
     ).toThrow(/unmappable/);
   });
+
+  it('fills veto_signaling_started_at from context.vetoSignallingActivatedAt', () => {
+    const event = stateChanged('VetoSignalling', 1754600000);
+    event.payload.context.vetoSignallingActivatedAt = 1754600000;
+    const row = projectDualGovernanceStateChange(event, COORDS);
+    expect(row.veto_signaling_started_at).toEqual(new Date(1754600000 * 1000));
+    // Not the deactivation sub-state → deactivated_at stays NULL.
+    expect(row.veto_signaling_deactivated_at).toBeNull();
+    // rage_quit_eth_amount stays deferred (KNOWN-025).
+    expect(row.rage_quit_eth_amount).toBeNull();
+  });
+
+  it('fills veto_signaling_deactivated_at from enteredAt only on the deactivation sub-state', () => {
+    const event = stateChanged('VetoSignallingDeactivation', 1754610000);
+    event.payload.context.vetoSignallingActivatedAt = 1754600000;
+    const row = projectDualGovernanceStateChange(event, COORDS);
+    expect(row.veto_signaling_started_at).toEqual(new Date(1754600000 * 1000));
+    expect(row.veto_signaling_deactivated_at).toEqual(new Date(1754610000 * 1000));
+  });
+
+  it('leaves veto timestamps NULL when no signalling is active (zeroes ⇒ NULL)', () => {
+    const row = projectDualGovernanceStateChange(stateChanged('Normal', 1754648507), COORDS);
+    expect(row.veto_signaling_started_at).toBeNull();
+    expect(row.veto_signaling_deactivated_at).toBeNull();
+  });
 });

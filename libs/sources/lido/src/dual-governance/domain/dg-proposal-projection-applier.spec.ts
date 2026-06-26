@@ -63,7 +63,7 @@ function ledgerRow(status: string, proposalId = 'prop-1') {
     calls_hash: '0xhash',
     submitted_tx_hash: TX,
     submitted_block: '23095715',
-    submitted_at: new Date(),
+    submitted_at: new Date('2026-01-01T00:00:00Z'),
     status,
     scheduled_at: null,
     executed_at: null,
@@ -86,6 +86,7 @@ function makeDeps(over: {
   scheduledRow?: ReturnType<typeof ledgerRow> | undefined;
   executedRow?: ReturnType<typeof ledgerRow> | undefined;
   cancelled?: ReturnType<typeof ledgerRow>[];
+  rageQuitAts?: Date[];
 }) {
   const row = over.row ?? makeRow();
   const archive = {
@@ -123,6 +124,10 @@ function makeDeps(over: {
     findEnactmentVoteId: vi.fn().mockResolvedValue(over.voteId),
     maxArchivedBlock: vi.fn().mockResolvedValue(over.maxBlock ?? 99_999_999n),
   };
+  // Default: no rage-quits, so the resolver yields plain f(ledger status).
+  const history = {
+    rageQuitTransitionsForDao: vi.fn().mockResolvedValue(over.rageQuitAts ?? []),
+  };
   const metrics = { batchLookupSeconds: vi.fn(), processed: vi.fn() };
   const deps: DualGovernanceProposalProjectionApplierDeps = {
     archive: archive as never,
@@ -137,10 +142,11 @@ function makeDeps(over: {
     actors: actors as never,
     ledger: ledger as never,
     enactment: enactment as never,
+    history: history as never,
     metrics,
     logger: silentLogger,
   };
-  return { deps, row, archive, proposals, actors, ledger, enactment, metrics };
+  return { deps, row, archive, proposals, actors, ledger, enactment, history, metrics };
 }
 
 describe('DualGovernanceProposalProjectionApplier', () => {
@@ -329,6 +335,22 @@ describe('DualGovernanceProposalProjectionApplier', () => {
     );
     expect(proposals.setStateFromDerivation).toHaveBeenCalledWith(
       expect.objectContaining({ proposalId: 'p-b', state: 'canceled' }),
+    );
+  });
+
+  it('resolves a bulk-cancel inside a rage-quit window to vetoed, not canceled (ADR-031)', async () => {
+    const { deps, proposals } = makeDeps({
+      row: makeRow({ event_type: 'ProposalsCancelledTill' }),
+      payload: CANCELLED_TILL,
+      cancelled: [ledgerRow('cancelled', 'p-a')],
+      // A rage-quit after the ledger row's submitted_at (2026-01-01) covers its pending window.
+      rageQuitAts: [new Date('2026-02-01T00:00:00Z')],
+    });
+    await new DualGovernanceProposalProjectionApplier(deps).applyBatch([
+      makeRow({ event_type: 'ProposalsCancelledTill' }),
+    ]);
+    expect(proposals.setStateFromDerivation).toHaveBeenCalledWith(
+      expect.objectContaining({ proposalId: 'p-a', state: 'vetoed' }),
     );
   });
 

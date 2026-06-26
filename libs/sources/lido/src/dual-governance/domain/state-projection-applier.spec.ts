@@ -47,16 +47,30 @@ function makeDeps(over: {
   payload?: string | undefined;
   daoId?: string | undefined;
   inserted?: boolean;
+  resolvable?: Array<Record<string, unknown>>;
+  rageQuitAts?: Date[];
 }): {
   deps: DualGovernanceStateProjectionApplierDeps;
-  history: { insert: ReturnType<typeof vi.fn> };
+  history: {
+    insert: ReturnType<typeof vi.fn>;
+    rageQuitTransitionsForDao: ReturnType<typeof vi.fn>;
+  };
+  ledger: { findResolvableByDao: ReturnType<typeof vi.fn> };
+  proposals: { setStateFromDerivation: ReturnType<typeof vi.fn> };
   archive: {
     markDerived: ReturnType<typeof vi.fn>;
     incrementAttemptCount: ReturnType<typeof vi.fn>;
   };
   dlq: { insert: ReturnType<typeof vi.fn> };
 } {
-  const history = { insert: vi.fn().mockResolvedValue({ inserted: over.inserted ?? true }) };
+  const history = {
+    insert: vi.fn().mockResolvedValue({ inserted: over.inserted ?? true }),
+    rageQuitTransitionsForDao: vi.fn().mockResolvedValue(over.rageQuitAts ?? []),
+  };
+  const ledger = {
+    findResolvableByDao: vi.fn().mockResolvedValue(over.resolvable ?? []),
+  };
+  const proposals = { setStateFromDerivation: vi.fn().mockResolvedValue(undefined) };
   const archive = {
     markDerived: vi.fn().mockResolvedValue(undefined),
     incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
@@ -86,10 +100,39 @@ function makeDeps(over: {
       findDaoIdForSource: vi.fn().mockResolvedValue(over.daoId),
     } as never,
     history: history as never,
+    ledger: ledger as never,
+    proposals: proposals as never,
     metrics: { batchLookupSeconds: vi.fn(), processed: vi.fn() },
     logger: silentLogger,
   };
-  return { deps, history, archive, dlq };
+  return { deps, history, ledger, proposals, archive, dlq };
+}
+
+const RAGE_QUIT_PAYLOAD = JSON.stringify({
+  from: 'VetoSignalling',
+  to: 'RageQuit',
+  context: {
+    state: 'RageQuit',
+    enteredAt: 1754700000,
+    vetoSignallingActivatedAt: 1754600000,
+    signallingEscrow: '0x' + '11'.repeat(20),
+    rageQuitRound: 1,
+    vetoSignallingReactivationTime: 0,
+    normalOrVetoCooldownExitedAt: 0,
+    rageQuitEscrow: '0x' + '33'.repeat(20),
+    configProvider: '0x' + '22'.repeat(20),
+  },
+});
+
+function pendingLedgerRow(proposalId: string) {
+  return {
+    proposal_id: proposalId,
+    dao_id: 'dao-1',
+    status: 'scheduled',
+    submitted_at: new Date('2026-01-01T00:00:00Z'),
+    executed_at: null,
+    cancelled_at: null,
+  };
 }
 
 describe('DualGovernanceStateProjectionApplier', () => {
@@ -141,5 +184,42 @@ describe('DualGovernanceStateProjectionApplier', () => {
     const { deps, history } = makeDeps({ payload: STATE_PAYLOAD, daoId: 'dao-1' });
     await new DualGovernanceStateProjectionApplier(deps).applyBatch([]);
     expect(history.insert).not.toHaveBeenCalled();
+  });
+
+  it('does not touch proposal state on a non-rage-quit transition', async () => {
+    const { deps, ledger, proposals } = makeDeps({ payload: STATE_PAYLOAD, daoId: 'dao-1' });
+    await new DualGovernanceStateProjectionApplier(deps).applyBatch([makeRow()]);
+    expect(ledger.findResolvableByDao).not.toHaveBeenCalled();
+    expect(proposals.setStateFromDerivation).not.toHaveBeenCalled();
+  });
+
+  it('vetoes covered pending proposals on a rage-quit transition (ADR-031)', async () => {
+    const { deps, ledger, proposals, history } = makeDeps({
+      payload: RAGE_QUIT_PAYLOAD,
+      daoId: 'dao-1',
+      resolvable: [pendingLedgerRow('prop-veto')],
+      // A rage-quit after the proposal's submitted_at (2026-01-01) covers its pending window.
+      rageQuitAts: [new Date('2026-02-01T00:00:00Z')],
+    });
+    await new DualGovernanceStateProjectionApplier(deps).applyBatch([makeRow()]);
+    expect(history.rageQuitTransitionsForDao).toHaveBeenCalledWith('dao-1');
+    expect(ledger.findResolvableByDao).toHaveBeenCalledWith('dao-1');
+    expect(proposals.setStateFromDerivation).toHaveBeenCalledWith(
+      expect.objectContaining({ proposalId: 'prop-veto', state: 'vetoed' }),
+    );
+  });
+
+  it('on rage-quit, leaves an out-of-window pending proposal at its ledger state (queued)', async () => {
+    const { deps, proposals } = makeDeps({
+      payload: RAGE_QUIT_PAYLOAD,
+      daoId: 'dao-1',
+      resolvable: [pendingLedgerRow('prop-safe')],
+      // The only rage-quit predates the proposal's submission → outside its window.
+      rageQuitAts: [new Date('2025-01-01T00:00:00Z')],
+    });
+    await new DualGovernanceStateProjectionApplier(deps).applyBatch([makeRow()]);
+    expect(proposals.setStateFromDerivation).toHaveBeenCalledWith(
+      expect.objectContaining({ proposalId: 'prop-safe', state: 'queued' }),
+    );
   });
 });

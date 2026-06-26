@@ -41,6 +41,21 @@ export class DualGovernanceProposalRepository {
       .executeTakeFirst();
   }
 
+  /**
+   * Ledger rows whose unified state can still flip to `vetoed` — every non-`executed` row for the DAO
+   * (an executed proposal is `executed` regardless of a rage-quit). The rage-quit step re-resolves
+   * these so a covered pending proposal becomes `vetoed` (ADR-031). Includes `cancelled` rows: a
+   * bulk-cancel inside a rage-quit window resolves to `vetoed`, not `canceled`.
+   */
+  async findResolvableByDao(daoId: string): Promise<DualGovernanceProposal[]> {
+    return this.db
+      .selectFrom('dual_governance_proposal')
+      .selectAll()
+      .where('dao_id', '=', daoId)
+      .where('status', '<>', 'executed')
+      .execute();
+  }
+
   /** Advance status to `scheduled` (only from `submitted`); returns the current row. */
   async markScheduled(
     daoId: string,

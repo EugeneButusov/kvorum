@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  applyUnifiedProposalState,
   buildDirectProposal,
   callsToProposalActions,
   computeCallsHash,
   ledgerStatusToProposalState,
+  resolveUnifiedProposalState,
+  type UnifiedProposalLedgerRow,
 } from './proposal-correlator';
 import type { ExternalCall } from './types';
 
@@ -112,5 +115,88 @@ describe('buildDirectProposal', () => {
   it('truncates an overly long title', () => {
     const draft = buildDirectProposal({ ...base, metadata: 'x'.repeat(500) });
     expect(draft.title).toHaveLength(200);
+  });
+});
+
+describe('resolveUnifiedProposalState (ADR-031 vetoed precedence)', () => {
+  const baseLedger: UnifiedProposalLedgerRow = {
+    status: 'scheduled',
+    submitted_at: new Date('2026-01-01T00:00:00Z'),
+    cancelled_at: null,
+  };
+  const insideWindow = [new Date('2026-02-01T00:00:00Z')]; // after submitted_at
+  const beforeSubmission = [new Date('2025-12-01T00:00:00Z')]; // before submitted_at
+
+  it('returns f(ledger status) when there are no rage-quits', () => {
+    expect(resolveUnifiedProposalState(baseLedger, [])).toBe('queued');
+  });
+
+  it('returns vetoed for a non-executed proposal covered by a rage-quit', () => {
+    expect(resolveUnifiedProposalState(baseLedger, insideWindow)).toBe('vetoed');
+  });
+
+  it('does not veto when every rage-quit predates the proposal submission', () => {
+    expect(resolveUnifiedProposalState(baseLedger, beforeSubmission)).toBe('queued');
+  });
+
+  it('vetoed outranks canceled (a bulk-cancel inside a rage-quit window)', () => {
+    const cancelled: UnifiedProposalLedgerRow = {
+      ...baseLedger,
+      status: 'cancelled',
+      cancelled_at: new Date('2026-03-01T00:00:00Z'),
+    };
+    // rage-quit 2026-02-01 ∈ [submitted 2026-01-01, cancelled 2026-03-01]
+    expect(resolveUnifiedProposalState(cancelled, insideWindow)).toBe('vetoed');
+  });
+
+  it('does not veto when the rage-quit lands after the proposal was cancelled', () => {
+    const cancelled: UnifiedProposalLedgerRow = {
+      ...baseLedger,
+      status: 'cancelled',
+      cancelled_at: new Date('2026-01-15T00:00:00Z'),
+    };
+    // rage-quit 2026-02-01 is AFTER cancelled_at 2026-01-15 → out of window
+    expect(resolveUnifiedProposalState(cancelled, insideWindow)).toBe('canceled');
+  });
+
+  it('treats the window bounds as inclusive', () => {
+    expect(resolveUnifiedProposalState(baseLedger, [baseLedger.submitted_at])).toBe('vetoed');
+    const cancelled: UnifiedProposalLedgerRow = {
+      ...baseLedger,
+      status: 'cancelled',
+      cancelled_at: new Date('2026-02-01T00:00:00Z'),
+    };
+    expect(resolveUnifiedProposalState(cancelled, [cancelled.cancelled_at!])).toBe('vetoed');
+  });
+
+  it('an executed proposal stays executed even if a rage-quit overlapped (veto did not stop it)', () => {
+    const executed: UnifiedProposalLedgerRow = { ...baseLedger, status: 'executed' };
+    expect(resolveUnifiedProposalState(executed, insideWindow)).toBe('executed');
+  });
+});
+
+describe('applyUnifiedProposalState', () => {
+  const ledger = {
+    proposal_id: 'prop-1',
+    status: 'scheduled' as const,
+    submitted_at: new Date('2026-01-01T00:00:00Z'),
+    cancelled_at: null,
+  };
+
+  it('resolves and writes the unified state via setStateFromDerivation', async () => {
+    const proposals = { setStateFromDerivation: vi.fn().mockResolvedValue(undefined) };
+    const at = new Date('2026-03-01T00:00:00Z');
+    const state = await applyUnifiedProposalState(
+      proposals,
+      ledger,
+      [new Date('2026-02-01T00:00:00Z')],
+      at,
+    );
+    expect(state).toBe('vetoed');
+    expect(proposals.setStateFromDerivation).toHaveBeenCalledWith({
+      proposalId: 'prop-1',
+      state: 'vetoed',
+      stateUpdatedAt: at,
+    });
   });
 });
