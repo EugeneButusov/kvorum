@@ -44,4 +44,13 @@ export type ArchiveEventType =
   | 'ProposerExecutorSet'
   | 'ProposerUnregistered'
   | 'EmergencyModeActivated'
-  | 'EmergencyModeDeactivated';
+  | 'EmergencyModeDeactivated'
+  | 'MotionCreated'
+  | 'MotionObjected'
+  | 'MotionRejected'
+  | 'MotionCanceled'
+  | 'MotionEnacted'
+  | 'MotionDurationChanged'
+  | 'ObjectionsThresholdChanged'
+  | 'MotionsCountLimitChanged'
+  | 'EVMScriptExecutorChanged';

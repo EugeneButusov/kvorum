@@ -191,3 +191,23 @@ export type {
   DualGovernanceStateProjectionApplierDeps,
   DualGovernanceStateProjectionMetrics,
 } from './dual-governance/domain/state-projection-applier';
+
+// ── Easy Track (Lido optimistic motions) ──────────────────────────────────────
+export { EASY_TRACK_INTERFACE, EASY_TRACK_TOPICS } from './easy-track/abi/events';
+export type { EasyTrackTopics } from './easy-track/abi/events';
+export { decodeEasyTrackLog } from './easy-track/abi/decoder';
+export type { EasyTrackEvent, EasyTrackEventType } from './easy-track/domain/types';
+export { EASY_TRACK_MAINNET, EASY_TRACK_ACTIVE_FROM_BLOCK } from './easy-track/addresses';
+export { EasyTrackEventRepository } from './easy-track/persistence/event-repository';
+export type {
+  EasyTrackEventData,
+  EasyTrackEventRepositoryDeps,
+} from './easy-track/persistence/event-repository.types';
+export { EasyTrackArchivePayloadRepository } from './easy-track/persistence/archive-payload-repository';
+export type { EasyTrackArchivePayloadRow } from './easy-track/persistence/archive-payload-repository';
+export { LidoEasyTrackArchiveWriter } from './easy-track/ingestion/archive-writer';
+export type { LidoEasyTrackArchiveWriterDeps } from './easy-track/ingestion/archive-writer.types';
+export { makeEasyTrackIngesterListener } from './easy-track/ingestion/ingester-listener';
+export type { EasyTrackIngesterListenerDeps } from './easy-track/ingestion/ingester-listener';
+export { createLidoEasyTrackPlugin, LidoEasyTrackConfigSchema } from './easy-track/plugin/plugin';
+export type { LidoEasyTrackConfig, LidoEasyTrackPluginDeps } from './easy-track/plugin/plugin';

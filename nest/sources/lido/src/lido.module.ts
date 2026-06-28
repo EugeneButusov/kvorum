@@ -27,14 +27,17 @@ import {
   DualGovernanceReconcileRepository,
   DualGovernanceStateHistoryRepository,
   DualGovernanceStateProjectionApplier,
+  EasyTrackEventRepository,
   LidoAragonVotingActorAddressDeriver,
   LidoDualGovernanceActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
   LidoDualGovernanceArchiveWriter,
+  LidoEasyTrackArchiveWriter,
   createLidoAragonVotingPlugin,
   createLidoAragonVotingReconcilePlugin,
   createLidoDualGovernancePlugin,
   createLidoDualGovernanceReconcilePlugin,
+  createLidoEasyTrackPlugin,
   makeLidoReadExtension,
 } from '@sources/lido';
 import { ChainContextModule, toChainLogger } from '@nest/chain';
@@ -86,6 +89,17 @@ const NOOP_PROJECTION_METRICS = {
       inject: [ArchiveEventRepository, DlqRepository],
     },
     {
+      provide: LidoEasyTrackArchiveWriter,
+      useFactory: (archiveEventRepo: ArchiveEventRepository, dlqRepo: DlqRepository) =>
+        new LidoEasyTrackArchiveWriter({
+          eventRepo: new EasyTrackEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('LidoEasyTrackArchiveWriter')),
+        }),
+      inject: [ArchiveEventRepository, DlqRepository],
+    },
+    {
       provide: LIDO_SOURCE_PLUGIN,
       useFactory: (
         archiveWriter: LidoAragonVotingArchiveWriter,
@@ -97,6 +111,7 @@ const NOOP_PROJECTION_METRICS = {
         registry: ChainContextRegistry,
         dgArchiveWriter: LidoDualGovernanceArchiveWriter,
         daoSources: DaoSourceRepository,
+        etArchiveWriter: LidoEasyTrackArchiveWriter,
       ): SourcePlugin => {
         const payloads = new AragonVotingArchivePayloadRepository(chDb);
         const actorAddressDeriver = new LidoAragonVotingActorAddressDeriver(payloads);
@@ -175,6 +190,11 @@ const NOOP_PROJECTION_METRICS = {
               dlqRepo,
               logger: toChainLogger(new Logger('LidoDualGovernance')),
             }),
+            createLidoEasyTrackPlugin({
+              archiveWriter: etArchiveWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('LidoEasyTrack')),
+            }),
             reconcilePlugin,
             dgReconcilePlugin,
           ],
@@ -199,6 +219,7 @@ const NOOP_PROJECTION_METRICS = {
         ChainContextRegistry,
         LidoDualGovernanceArchiveWriter,
         DaoSourceRepository,
+        LidoEasyTrackArchiveWriter,
       ],
     },
   ],
