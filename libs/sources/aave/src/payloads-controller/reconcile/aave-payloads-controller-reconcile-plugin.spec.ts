@@ -111,11 +111,8 @@ describe('createAavePayloadsControllerReconcilePlugin', () => {
     );
   });
 
-  it('throws when backfill runtime is requested', () => {
+  it('omits buildBackfillRuntime — not backfillable', () => {
     const plugin = createAavePayloadsControllerReconcilePlugin(makeDeps() as never);
-
-    expect(() => plugin.buildBackfillRuntime({} as never, {} as never)).toThrow(
-      'source_type "aave_payloads_controller_reconcile" does not support backfill runtime',
-    );
+    expect(plugin.buildBackfillRuntime).toBeUndefined();
   });
 });

@@ -184,17 +184,17 @@ export function resolvePluginAndConfig(
 }
 
 /**
- * A source_type is EVM-backfillable iff a registered plugin declares the `backfillable` capability
- * for it. The capability is declared in the plugin setup (not inferred from a chain_id sentinel or a
- * source_type suffix): EVM event-log sources declare it; reconcile sweeps and off-chain sources do
- * not. Single explicit source of truth for "include in the EVM block-range backfill plan".
+ * A source_type is EVM-backfillable iff its registered plugin provides a `buildBackfillRuntime` (not
+ * inferred from a chain_id sentinel or a source_type suffix): EVM event-log sources have one; reconcile
+ * sweeps and off-chain sources do not. The method's presence is the single source of truth for "include
+ * in the EVM block-range backfill plan".
  */
 export function isBackfillableSourceType(
   sourceType: string,
   plugins: readonly BackfillSourcePlugin[],
 ): boolean {
   return plugins.some(
-    (plugin) => plugin.sourceType === sourceType && plugin.capabilities.includes('backfillable'),
+    (plugin) => plugin.sourceType === sourceType && plugin.buildBackfillRuntime != null,
   );
 }
 

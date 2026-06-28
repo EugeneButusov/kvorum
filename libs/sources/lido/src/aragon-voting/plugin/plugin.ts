@@ -58,7 +58,6 @@ export function createLidoAragonVotingPlugin(
   return {
     sourceType: 'aragon_voting',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: ['backfillable'],
     parseConfig: (raw) => LidoAragonVotingConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

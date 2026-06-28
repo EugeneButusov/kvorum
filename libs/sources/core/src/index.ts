@@ -93,29 +93,17 @@ export const SOURCE_PLUGINS = 'SOURCE_PLUGINS';
 /** Nest injection token for flattened source ingesters consumed by orchestrator runtime. */
 export const SOURCE_INGESTERS = 'SOURCE_INGESTERS';
 
-/**
- * Declared capabilities of a source plugin — what it can do, read directly off the plugin rather
- * than inferred from a chain_id sentinel or a source_type suffix.
- *
- * - `backfillable`: participates in the EVM block-range backfill. EVM event-log sources declare it;
- *   reconcile sweeps (block-head re-query, no log backfill) and off-chain poll sources (Snapshot,
- *   Discourse — a separate from-genesis poll transport owned by AG1) do not.
- */
-export type SourceCapability = 'backfillable';
-
 export interface SourceIngester<TConfig = unknown> {
   readonly sourceType: SourceType;
   /** Orchestrator skips any dao_source whose chain is not in this list. */
   readonly supportedChainIds: readonly string[];
-  /** Declared capabilities — see {@link SourceCapability}. */
-  readonly capabilities: readonly SourceCapability[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
   /**
-   * EVM block-range backfill runtime. Present only on `backfillable` sources (EVM event-log pollers).
-   * Reconcile sweeps and off-chain poll sources omit it — their lack of the `backfillable` capability
-   * is the single source of truth for "not backfillable", so callers gate on the capability rather than
-   * relying on this throwing.
+   * EVM block-range backfill runtime. **Present iff the source is backfillable** (EVM event-log
+   * pollers); reconcile sweeps (block-head re-query, no log backfill) and off-chain poll sources omit
+   * it. The presence of this method is the single source of truth for "backfillable" — callers gate on
+   * `buildBackfillRuntime != null` rather than a separately-declared flag, so the two can never drift.
    */
   buildBackfillRuntime?(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
   /** Returns the consumer-path archive function for this source (optional). */

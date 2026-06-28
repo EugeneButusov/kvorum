@@ -37,7 +37,7 @@ describe('createLidoDualGovernancePlugin', () => {
     const plugin = makePlugin();
     expect(plugin.sourceType).toBe('dual_governance');
     expect(plugin.supportedChainIds).toEqual(['0x1']);
-    expect(plugin.capabilities).toContain('backfillable');
+    expect(plugin.buildBackfillRuntime).toBeDefined(); // backfillable
   });
 
   it('parseConfig requires both addresses and rejects invalid ones', () => {

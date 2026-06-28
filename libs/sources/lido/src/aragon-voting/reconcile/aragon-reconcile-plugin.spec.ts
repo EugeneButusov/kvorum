@@ -34,7 +34,7 @@ describe('createLidoAragonVotingReconcilePlugin', () => {
     const plugin = createLidoAragonVotingReconcilePlugin(makeDeps() as never);
     expect(plugin.sourceType).toBe('aragon_voting_reconcile');
     expect([...plugin.supportedChainIds]).toEqual(['0x1']);
-    expect([...plugin.capabilities]).toEqual([]);
+    expect(plugin.buildBackfillRuntime).toBeUndefined(); // not backfillable
   });
 
   it('parses config via the shared voting_address schema', () => {
@@ -114,12 +114,8 @@ describe('createLidoAragonVotingReconcilePlugin', () => {
     );
   });
 
-  it('refuses a backfill runtime', () => {
-    expect(() =>
-      createLidoAragonVotingReconcilePlugin(makeDeps() as never).buildBackfillRuntime(
-        {} as never,
-        {} as never,
-      ),
-    ).toThrow(/does not support backfill/);
+  it('omits buildBackfillRuntime — not backfillable', () => {
+    const plugin = createLidoAragonVotingReconcilePlugin(makeDeps() as never);
+    expect(plugin.buildBackfillRuntime).toBeUndefined();
   });
 });

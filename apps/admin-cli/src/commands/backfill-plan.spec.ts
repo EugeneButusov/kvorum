@@ -23,8 +23,8 @@ function target(
   };
 }
 
-// Derive backfill eligibility from the real plugin registry's declared capabilities — no hardcoded
-// source-type list. Plugins built with stub deps (only sourceType + capabilities are read here).
+// Derive backfill eligibility from the real plugin registry (a plugin is backfillable iff it provides
+// buildBackfillRuntime) — no hardcoded source-type list. Plugins built with stub deps.
 const mockDeps = () => ({
   archiveWriter: {} as never,
   dlqRepo: {} as never,

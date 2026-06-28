@@ -39,7 +39,6 @@ export function createLidoAragonVotingReconcilePlugin(
   return {
     sourceType: 'aragon_voting_reconcile',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: [],
     parseConfig: (raw) => LidoAragonVotingConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',
@@ -61,8 +60,5 @@ export function createLidoAragonVotingReconcilePlugin(
         ]);
       },
     }),
-    buildBackfillRuntime: () => {
-      throw new Error('source_type "aragon_voting_reconcile" does not support backfill runtime');
-    },
   };
 }

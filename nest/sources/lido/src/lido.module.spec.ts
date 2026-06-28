@@ -49,19 +49,19 @@ describe('LidoSourceModule', () => {
 
     const voting = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting')!;
     expect(voting.supportedChainIds).toEqual(['0x1']);
-    expect(voting.capabilities).toContain('backfillable');
+    expect(voting.buildBackfillRuntime).toBeDefined(); // backfillable
 
     const dg = plugin.ingesters.find((i) => i.sourceType === 'dual_governance')!;
     expect(dg.supportedChainIds).toEqual(['0x1']);
-    expect(dg.capabilities).toContain('backfillable');
+    expect(dg.buildBackfillRuntime).toBeDefined(); // backfillable
 
     const reconcile = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting_reconcile')!;
     expect(reconcile.supportedChainIds).toEqual(['0x1']);
-    expect([...reconcile.capabilities]).toEqual([]);
+    expect(reconcile.buildBackfillRuntime).toBeUndefined(); // not backfillable
 
     const dgReconcile = plugin.ingesters.find((i) => i.sourceType === 'dual_governance_reconcile')!;
     expect(dgReconcile.supportedChainIds).toEqual(['0x1']);
-    expect([...dgReconcile.capabilities]).toEqual([]);
+    expect(dgReconcile.buildBackfillRuntime).toBeUndefined(); // not backfillable
   });
 
   it('registers the Aragon + Dual Governance derivers', async () => {

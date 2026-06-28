@@ -31,7 +31,6 @@ export function createAavePayloadsControllerReconcilePlugin(
   return {
     sourceType: 'aave_payloads_controller_reconcile',
     supportedChainIds: AAVE_PAYLOADS_CONTROLLER_SUPPORTED_CHAIN_IDS,
-    capabilities: [],
     parseConfig: (raw) => AavePayloadsControllerConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',
@@ -53,10 +52,5 @@ export function createAavePayloadsControllerReconcilePlugin(
         ]);
       },
     }),
-    buildBackfillRuntime: () => {
-      throw new Error(
-        'source_type "aave_payloads_controller_reconcile" does not support backfill runtime',
-      );
-    },
   };
 }

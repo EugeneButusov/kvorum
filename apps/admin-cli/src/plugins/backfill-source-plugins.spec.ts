@@ -130,8 +130,8 @@ describe('resolvePluginAndConfig', () => {
 describe('isBackfillableSourceType', () => {
   const plugins = buildBackfillSourcePlugins(allDeps());
 
-  it('every registered backfill plugin declares the backfillable capability (drift guard)', () => {
-    expect(plugins.every((plugin) => plugin.capabilities.includes('backfillable'))).toBe(true);
+  it('every registered backfill plugin provides a backfill runtime (drift guard)', () => {
+    expect(plugins.every((plugin) => plugin.buildBackfillRuntime != null)).toBe(true);
   });
 
   it('is true for registered EVM source types', () => {

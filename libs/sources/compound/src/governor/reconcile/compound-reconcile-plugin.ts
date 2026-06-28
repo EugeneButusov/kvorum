@@ -30,7 +30,6 @@ function createReconcilePlugin(
   return {
     sourceType,
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: [],
     parseConfig: (raw) => DaoSourceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, _cfg) => ({
       kind: 'evm-block-head-poller',
@@ -52,9 +51,6 @@ function createReconcilePlugin(
         ]);
       },
     }),
-    buildBackfillRuntime: () => {
-      throw new Error(`source_type "${sourceType}" does not support backfill runtime`);
-    },
   };
 }
 

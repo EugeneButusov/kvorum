@@ -33,13 +33,12 @@ export function createLidoDualGovernanceReconcilePlugin(
   };
   const driver = new ReconcileDriver(reconciler, deps.reconcile, deps.metrics, deps.logger, config);
 
-  // No `backfillable` capability: a reconcile sweep re-queries live state, it has no eth_getLogs range
-  // to backfill. `buildBackfillRuntime` is therefore omitted — the absent capability is what gates the
-  // orchestrator + backfill planner, so no runtime is ever requested for this source.
+  // Not backfillable: a reconcile sweep re-queries live state, it has no eth_getLogs range to backfill.
+  // `buildBackfillRuntime` is therefore omitted — its absence is the single source of truth that gates
+  // the orchestrator + backfill planner, so no runtime is ever requested for this source.
   return {
     sourceType: 'dual_governance_reconcile',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: [],
     parseConfig: (raw) => LidoDualGovernanceConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',
