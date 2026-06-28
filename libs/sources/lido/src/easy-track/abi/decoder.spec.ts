@@ -98,4 +98,12 @@ describe('decodeEasyTrackLog', () => {
     const log = makeLog({ topics: ['0x' + 'ff'.repeat(32)], data: '0x' });
     expect(() => decodeEasyTrackLog(log, 'easy_track')).toThrow(DecodeError);
   });
+
+  it('throws DecodeError when a known topic carries undecodable data', () => {
+    // Valid topic0 (the interface dispatches it) but empty data, so ethers cannot decode the
+    // declared uint256 arg and parseLog throws — exercises the parse_failed catch.
+    const topic0 = EASY_TRACK_INTERFACE.getEvent('MotionDurationChanged')!.topicHash;
+    const log = makeLog({ topics: [topic0], data: '0x' });
+    expect(() => decodeEasyTrackLog(log, 'easy_track')).toThrow(DecodeError);
+  });
 });
