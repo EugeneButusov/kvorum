@@ -35,7 +35,7 @@ describe('createLidoDualGovernanceReconcilePlugin', () => {
     const plugin = createLidoDualGovernanceReconcilePlugin(makeDeps() as never);
     expect(plugin.sourceType).toBe('dual_governance_reconcile');
     expect([...plugin.supportedChainIds]).toEqual(['0x1']);
-    expect([...plugin.capabilities]).toEqual([]);
+    expect(plugin.buildBackfillRuntime).toBeUndefined(); // not backfillable
   });
 
   it('parses config via the shared DG address schema', () => {
@@ -116,9 +116,8 @@ describe('createLidoDualGovernanceReconcilePlugin', () => {
     );
   });
 
-  it('omits buildBackfillRuntime — not backfillable, signalled via capabilities', () => {
+  it('omits buildBackfillRuntime — its absence is what marks the source not backfillable', () => {
     const plugin = createLidoDualGovernanceReconcilePlugin(makeDeps() as never);
     expect(plugin.buildBackfillRuntime).toBeUndefined();
-    expect([...plugin.capabilities]).not.toContain('backfillable');
   });
 });

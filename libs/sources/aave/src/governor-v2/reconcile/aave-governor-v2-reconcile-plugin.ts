@@ -28,7 +28,6 @@ export function createAaveGovernorV2ReconcilePlugin(
   return {
     sourceType: 'aave_governor_v2_reconcile',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: [],
     parseConfig: (raw) => AaveGovernorV2ConfigSchema.parse(raw),
     buildIngestSpec: () => ({
       kind: 'evm-block-head-poller',
@@ -50,8 +49,5 @@ export function createAaveGovernorV2ReconcilePlugin(
         ]);
       },
     }),
-    buildBackfillRuntime: () => {
-      throw new Error('source_type "aave_governor_v2_reconcile" does not support backfill runtime');
-    },
   };
 }

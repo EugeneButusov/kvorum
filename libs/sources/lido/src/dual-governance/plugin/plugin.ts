@@ -59,7 +59,6 @@ export function createLidoDualGovernancePlugin(
   return {
     sourceType: 'dual_governance',
     supportedChainIds: SUPPORTED_CHAIN_IDS,
-    capabilities: ['backfillable'],
     parseConfig: (raw) => LidoDualGovernanceConfigSchema.parse(raw),
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'evm-event-poller',

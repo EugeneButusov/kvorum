@@ -35,7 +35,7 @@ describe('createLidoAragonVotingPlugin', () => {
     const plugin = makePlugin();
     expect(plugin.sourceType).toBe('aragon_voting');
     expect(plugin.supportedChainIds).toEqual(['0x1']);
-    expect(plugin.capabilities).toContain('backfillable');
+    expect(plugin.buildBackfillRuntime).toBeDefined(); // backfillable
   });
 
   it('parseConfig accepts voting_address and rejects invalid addresses', () => {

@@ -132,11 +132,8 @@ describe('createAaveGovernorV2ReconcilePlugin', () => {
     );
   });
 
-  it('throws when backfill runtime is requested', () => {
+  it('omits buildBackfillRuntime — not backfillable', () => {
     const plugin = createAaveGovernorV2ReconcilePlugin(makeDeps() as never);
-
-    expect(() => plugin.buildBackfillRuntime({} as never, {} as never)).toThrow(
-      'source_type "aave_governor_v2_reconcile" does not support backfill runtime',
-    );
+    expect(plugin.buildBackfillRuntime).toBeUndefined();
   });
 });
