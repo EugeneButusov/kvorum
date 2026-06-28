@@ -17,6 +17,7 @@ import {
   up as up008,
   down as down008,
 } from '../migrations-postgres/lido_008_dual_governance_reconcile_seed';
+import { up as up009, down as down009 } from '../migrations-postgres/lido_009_easy_track_seed';
 
 describe('lido migrations smoke (mocked db)', () => {
   function makeMockDb() {
@@ -162,6 +163,18 @@ describe('lido migrations smoke (mocked db)', () => {
   it('lido_008_dual_governance_reconcile_seed down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await down008(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_009_easy_track_seed up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await up009(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('lido_009_easy_track_seed down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await down009(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
