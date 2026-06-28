@@ -23,6 +23,10 @@ export type {
   DualGovernanceProposalOrigin,
   DualGovernanceProposalStatus,
   NewDualGovernanceProposal,
+  DualGovernanceReconcileState,
+  DualGovernanceReconcileStateTable,
+  DualGovernanceReconcileStateUpdate,
+  NewDualGovernanceReconcileState,
   EasyTrackMotionMeta,
   EasyTrackMotionMetaTable,
   EasyTrackMotionMetaUpdate,
@@ -167,11 +171,22 @@ export {
   callsToProposalActions,
   ledgerStatusToProposalState,
   buildDirectProposal,
+  resolveUnifiedProposalState,
+  applyUnifiedProposalState,
 } from './dual-governance/domain/proposal-correlator';
 export type {
   DirectProposalDraft,
   DirectProposalInput,
+  UnifiedProposalStateWriter,
+  UnifiedProposalLedgerRow,
 } from './dual-governance/domain/proposal-correlator';
+
+// Dual Governance reconcile (ADR-0074 §2) — observational DAO-wide state reconciler.
+export { DualGovernanceReconcileRepository } from './dual-governance/persistence/dg-reconcile-repository';
+export type { DgStaleReconciliationRow } from './dual-governance/persistence/dg-reconcile-repository';
+export { DualGovernanceStateReconciler } from './dual-governance/reconcile/dg-state-reconciler';
+export { createLidoDualGovernanceReconcilePlugin } from './dual-governance/reconcile/dg-reconcile-plugin';
+export type { LidoDualGovernanceReconcilePluginDeps } from './dual-governance/reconcile/dg-reconcile-plugin';
 export type {
   DualGovernanceStateProjectionApplierDeps,
   DualGovernanceStateProjectionMetrics,

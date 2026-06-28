@@ -33,7 +33,7 @@ describe('LidoSourceModule', () => {
     expect(moduleRef).toBeDefined();
   });
 
-  it('exposes the aragon_voting, dual_governance, and reconcile ingesters', async () => {
+  it('exposes the aragon_voting, dual_governance, and both reconcile ingesters', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
@@ -44,6 +44,7 @@ describe('LidoSourceModule', () => {
       'aragon_voting',
       'aragon_voting_reconcile',
       'dual_governance',
+      'dual_governance_reconcile',
     ]);
 
     const voting = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting')!;
@@ -57,6 +58,10 @@ describe('LidoSourceModule', () => {
     const reconcile = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting_reconcile')!;
     expect(reconcile.supportedChainIds).toEqual(['0x1']);
     expect([...reconcile.capabilities]).toEqual([]);
+
+    const dgReconcile = plugin.ingesters.find((i) => i.sourceType === 'dual_governance_reconcile')!;
+    expect(dgReconcile.supportedChainIds).toEqual(['0x1']);
+    expect([...dgReconcile.capabilities]).toEqual([]);
   });
 
   it('registers the Aragon + Dual Governance derivers', async () => {

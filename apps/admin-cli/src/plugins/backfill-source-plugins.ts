@@ -153,6 +153,9 @@ export function buildBackfillSourceRuntime(input: BackfillSourceRuntimeInput): B
     sourceLabel: resolved.plugin.sourceType,
   };
 
+  if (resolved.plugin.buildBackfillRuntime == null) {
+    throw new Error(`source_type "${input.sourceType}" is not backfillable`);
+  }
   return resolved.plugin.buildBackfillRuntime(ctx, resolved.parsedConfig);
 }
 

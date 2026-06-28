@@ -111,7 +111,13 @@ export interface SourceIngester<TConfig = unknown> {
   readonly capabilities: readonly SourceCapability[];
   parseConfig(raw: unknown): TConfig;
   buildIngestSpec(ctx: SourceContext, cfg: TConfig): IngestSpec;
-  buildBackfillRuntime(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
+  /**
+   * EVM block-range backfill runtime. Present only on `backfillable` sources (EVM event-log pollers).
+   * Reconcile sweeps and off-chain poll sources omit it — their lack of the `backfillable` capability
+   * is the single source of truth for "not backfillable", so callers gate on the capability rather than
+   * relying on this throwing.
+   */
+  buildBackfillRuntime?(ctx: SourceContext, cfg: TConfig): BackfillRuntime;
   /** Returns the consumer-path archive function for this source (optional). */
   buildArchiveConsumer?(): ArchiveConsumeFn;
   /** Returns the per-source CH writer for off-chain rows (optional). The generic off-chain

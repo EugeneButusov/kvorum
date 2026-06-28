@@ -78,6 +78,21 @@ export type DualGovernanceProposal = Selectable<DualGovernanceProposalTable>;
 export type NewDualGovernanceProposal = Insertable<DualGovernanceProposalTable>;
 export type DualGovernanceProposalUpdate = Updateable<DualGovernanceProposalTable>;
 
+// Per-DAO reconcile cursor for the `dual_governance_reconcile` ingester (lido_007). DG
+// state is reconciled DAO-wide (ADR-024), so the candidate is one row per DG DAO. Rows are upserted
+// lazily by the reconciler — a missing row means "never checked".
+export interface DualGovernanceReconcileStateTable {
+  dao_id: string;
+  // pg driver returns bigint as string
+  last_reconcile_check_block: string | null;
+  last_effective_state: DualGovernanceState | null;
+  updated_at: Generated<Date>;
+}
+
+export type DualGovernanceReconcileState = Selectable<DualGovernanceReconcileStateTable>;
+export type NewDualGovernanceReconcileState = Insertable<DualGovernanceReconcileStateTable>;
+export type DualGovernanceReconcileStateUpdate = Updateable<DualGovernanceReconcileStateTable>;
+
 // ── Easy Track ────────────────────────────────────────────────────────────────
 
 export type EasyTrackMotionState = 'active' | 'enacted' | 'objected' | 'rejected' | 'canceled';
@@ -152,6 +167,7 @@ declare module '@libs/db' {
     aragon_proposal_metadata: AragonProposalMetadataTable;
     dual_governance_state_history: DualGovernanceStateHistoryTable;
     dual_governance_proposal: DualGovernanceProposalTable;
+    dual_governance_reconcile_state: DualGovernanceReconcileStateTable;
     easy_track_motion_meta: EasyTrackMotionMetaTable;
   }
 

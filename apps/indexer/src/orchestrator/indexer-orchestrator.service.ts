@@ -149,7 +149,14 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
               : undefined,
           );
           if (spec.kind === 'evm-event-poller') {
-            const runtime = entry.plugin.buildBackfillRuntime(ctx, entry.config);
+            // evm-event-poller sources are backfillable by contract, so the runtime is always present.
+            const buildBackfill = entry.plugin.buildBackfillRuntime;
+            if (!buildBackfill) {
+              throw new Error(
+                `evm-event-poller source "${entry.sourceType}" must implement buildBackfillRuntime`,
+              );
+            }
+            const runtime = buildBackfill(ctx, entry.config);
             const task = this.runParallelCatchUp(
               entry as typeof entry & { chainCfg: ChainConfig },
               runtime,
@@ -254,7 +261,7 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       src: { id: string };
       sourceType: string;
     },
-    runtime: ReturnType<SourceIngester['buildBackfillRuntime']>,
+    runtime: ReturnType<NonNullable<SourceIngester['buildBackfillRuntime']>>,
     firstTickPromise: Promise<bigint>,
   ): Promise<void> {
     try {

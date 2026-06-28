@@ -4,11 +4,14 @@ import {
   type ArchiveDerivationRow,
   DaoSourceRepository,
   DlqRepository,
+  ProposalRepository,
 } from '@libs/db';
 import { ArchiveFailureRouter, archiveEventTupleKey, type ProjectionDeriver } from '@sources/core';
+import { applyUnifiedProposalState } from './proposal-correlator';
 import { projectDualGovernanceStateChange } from './state-projector';
 import type { DualGovernanceEvent, DualGovernanceStateChangedPayload } from './types';
 import { DualGovernanceArchivePayloadRepository } from '../persistence/archive-payload-repository';
+import { DualGovernanceProposalRepository } from '../persistence/dg-proposal-repository';
 import { DualGovernanceStateHistoryRepository } from '../persistence/state-history-repository';
 
 const DLQ_THRESHOLD = Number(process.env['DG_STATE_PROJECTION_DLQ_THRESHOLD'] ?? '5');
@@ -36,6 +39,9 @@ export interface DualGovernanceStateProjectionApplierDeps {
   payloads: DualGovernanceArchivePayloadRepository;
   daoSources: DaoSourceRepository;
   history: DualGovernanceStateHistoryRepository;
+  // ADR-031 `vetoed` step: on a rage-quit transition, re-resolve pending DG proposals to `vetoed`.
+  ledger: DualGovernanceProposalRepository;
+  proposals: ProposalRepository;
   metrics: DualGovernanceStateProjectionMetrics;
   logger?: Logger;
 }
@@ -43,9 +49,11 @@ export interface DualGovernanceStateProjectionApplierDeps {
 type StateChangedEvent = Extract<DualGovernanceEvent, { type: 'DualGovernanceStateChanged' }>;
 
 /**
- * Projects DualGovernanceStateChanged events into the append-only DAO-wide history (ADR-024).
- * One row per persisted transition; idempotent via the lido_002 unique index + the derivation
- * watermark. No proposal/correlation work (AB3) and no escrow reads (AB4).
+ * Projects DualGovernanceStateChanged events into the append-only DAO-wide history (ADR-024). One row
+ * per persisted transition; idempotent via the lido_002 unique index + the derivation watermark. The
+ * veto-signalling timestamps are filled here from the event `Context` (ADR-0074 §5 — no reconciler
+ * RPC needed). On a `rage_quit` transition it also applies the ADR-031 `vetoed` step: every pending DG
+ * proposal whose window is covered is re-resolved (a community veto outranks `queued`/`canceled`).
  */
 export class DualGovernanceStateProjectionApplier implements ProjectionDeriver {
   readonly kind = 'projection' as const;
@@ -112,8 +120,26 @@ export class DualGovernanceStateProjectionApplier implements ProjectionDeriver {
     const { inserted } = await this.deps.history.insert(historyRow);
     // ON CONFLICT DO NOTHING + watermark: re-derivation no-ops both, so insert→markDerived is
     // replay-safe without a transaction.
+    if (historyRow.state === 'rage_quit') {
+      await this.applyVetoes(daoId, historyRow.transition_at);
+    }
     await this.deps.archive.markDerived(row.id);
     this.record(row, inserted ? 'derived' : 'skipped_idempotent', null);
+  }
+
+  /**
+   * ADR-031 `vetoed`: a DG rage-quit community-vetoes every pending DG proposal whose window it
+   * covers. Re-resolve each non-executed ledger proposal through the shared resolver — replay-safe and
+   * idempotent (the resolver re-derives the same value, and a proposal that later executes resolves back
+   * to `executed`). Stamped at the rage-quit's `transition_at`. Fixture-only: no live rage quit exists.
+   */
+  private async applyVetoes(daoId: string, at: Date): Promise<void> {
+    // Fetch the DAO's rage-quit transitions once, then resolve every pending proposal against them.
+    const rageQuitAts = await this.deps.history.rageQuitTransitionsForDao(daoId);
+    const resolvable = await this.deps.ledger.findResolvableByDao(daoId);
+    for (const ledgerRow of resolvable) {
+      await applyUnifiedProposalState(this.deps.proposals, ledgerRow, rageQuitAts, at);
+    }
   }
 
   private async fail(

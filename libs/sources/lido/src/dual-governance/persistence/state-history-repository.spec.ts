@@ -86,4 +86,35 @@ describe('DualGovernanceStateHistoryRepository', () => {
     ).resolves.toBeUndefined();
     expect(chain.where).toHaveBeenCalledWith('transition_at', '<=', at);
   });
+
+  it('rageQuitTransitionsForDao returns rage_quit transition timestamps, ordered ascending', async () => {
+    const t1 = new Date('2025-09-01T00:00:00Z');
+    const t2 = new Date('2025-10-01T00:00:00Z');
+    const chain = {
+      select: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      execute: vi.fn().mockResolvedValue([{ transition_at: t1 }, { transition_at: t2 }]),
+    };
+    const db = { selectFrom: vi.fn().mockReturnValue(chain) } as never;
+    await expect(
+      new DualGovernanceStateHistoryRepository(db).rageQuitTransitionsForDao('dao-1'),
+    ).resolves.toEqual([t1, t2]);
+    expect(chain.where).toHaveBeenCalledWith('dao_id', '=', 'dao-1');
+    expect(chain.where).toHaveBeenCalledWith('state', '=', 'rage_quit');
+    expect(chain.orderBy).toHaveBeenCalledWith('transition_at', 'asc');
+  });
+
+  it('rageQuitTransitionsForDao returns [] when the DAO has never rage-quit', async () => {
+    const chain = {
+      select: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      execute: vi.fn().mockResolvedValue([]),
+    };
+    const db = { selectFrom: vi.fn().mockReturnValue(chain) } as never;
+    await expect(
+      new DualGovernanceStateHistoryRepository(db).rageQuitTransitionsForDao('dao-1'),
+    ).resolves.toEqual([]);
+  });
 });

@@ -37,6 +37,13 @@ function buildGenericSourceListenerProvider(): DlqRetryListenerProvider {
       };
       // Use buildBackfillRuntime — it always supplies a domain listener with the archive writer.
       // buildIngestSpec no longer provides a listener (live path uses the generic producer instead).
+      // Reconcile/off-chain sources have no backfill runtime (no `backfillable` capability) and never
+      // produce archive events, so a DLQ row for one is not retryable.
+      if (plugin.buildBackfillRuntime == null) {
+        throw new Error(
+          `source_type "${input.archiveSourceType}" has no backfill runtime to retry`,
+        );
+      }
       const runtime = plugin.buildBackfillRuntime(ctx, parsedConfig);
       const listener = runtime.listenerFactory();
 

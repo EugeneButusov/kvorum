@@ -18,6 +18,7 @@ import {
   DualGovernanceEventRepository,
   DualGovernanceProposalProjectionApplier,
   DualGovernanceProposalRepository,
+  DualGovernanceStateHistoryRepository,
   LidoDualGovernanceArchiveWriter,
 } from '@sources/lido';
 
@@ -125,13 +126,14 @@ describeIf('Lido Dual Governance proposal-flow correlation integration', () => {
       actors,
       ledger,
       enactment: new AragonEnactmentLookup(chDb),
+      history: new DualGovernanceStateHistoryRepository(pgDb),
       metrics: NOOP_METRICS,
       logger: silentLogger,
     });
   }, 30_000);
 
   beforeEach(async () => {
-    await sql`TRUNCATE proposal_action, dual_governance_proposal, proposal, archive_event, ingestion_dlq, actor_address, actor RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE proposal_action, dual_governance_state_history, dual_governance_proposal, proposal, archive_event, ingestion_dlq, actor_address, actor RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
     await sql`ALTER TABLE archive_event_dual_governance DELETE WHERE chain_id = ${CHAIN_ID}`.execute(
@@ -143,7 +145,7 @@ describeIf('Lido Dual Governance proposal-flow correlation integration', () => {
   });
 
   afterAll(async () => {
-    await sql`TRUNCATE dao, proposal_action, dual_governance_proposal, proposal, archive_event, ingestion_dlq, actor_address, actor RESTART IDENTITY CASCADE`.execute(
+    await sql`TRUNCATE dao, proposal_action, dual_governance_state_history, dual_governance_proposal, proposal, archive_event, ingestion_dlq, actor_address, actor RESTART IDENTITY CASCADE`.execute(
       pgDb,
     );
     await sql`ALTER TABLE archive_event_dual_governance DELETE WHERE chain_id = ${CHAIN_ID}`.execute(

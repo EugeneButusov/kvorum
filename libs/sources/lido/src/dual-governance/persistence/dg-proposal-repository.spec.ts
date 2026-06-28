@@ -135,4 +135,15 @@ describe('DualGovernanceProposalRepository', () => {
     expect(calls).toContainEqual(['where', ['dg_proposal_id', '<=', '5']]);
     expect(calls).toContainEqual(['where', ['status', 'not in', ['executed', 'cancelled']]]);
   });
+
+  it('findResolvableByDao returns every non-executed row for the dao (vetoed candidates)', async () => {
+    const calls: Call[] = [];
+    const rows = [ROW, { ...ROW, id: 'dgp-2', status: 'cancelled' as const }];
+    const db = { selectFrom: () => makeChain({ execute: rows }, calls) } as never;
+    await expect(
+      new DualGovernanceProposalRepository(db).findResolvableByDao('dao-1'),
+    ).resolves.toEqual(rows);
+    expect(calls).toContainEqual(['where', ['dao_id', '=', 'dao-1']]);
+    expect(calls).toContainEqual(['where', ['status', '<>', 'executed']]);
+  });
 });
