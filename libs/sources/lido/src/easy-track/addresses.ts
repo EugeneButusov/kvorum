@@ -19,3 +19,11 @@ export const EASY_TRACK_MAINNET = {
 // 0x55c4c7e33eb92da16871944879d52180c1a2e59c2701404abef864c5196ab7f1 (2021-11-24). Earliest block
 // that can carry a motion event — the backfill `active_from_block`.
 export const EASY_TRACK_ACTIVE_FROM_BLOCK = 13676729;
+
+// Genesis objection-window length (seconds). The standard Lido motion duration is 72h; the contract
+// enforces a 48h floor. This is only a fallback: the motion projection reconstructs the duration in
+// force at a motion's creation block from the archived `MotionDurationChanged` timeline, and the
+// MotionSettings constructor emits a `MotionDurationChanged` at the creation block, so every motion is
+// normally preceded by a concrete value. This constant covers the (unexpected) gap before the first
+// such event.
+export const DEFAULT_MOTION_DURATION_SECONDS = 72 * 60 * 60;

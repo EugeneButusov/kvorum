@@ -68,4 +68,27 @@ export class EasyTrackArchivePayloadRepository {
       .orderBy('received_at', 'asc')
       .execute();
   }
+
+  /**
+   * The motion duration (objection-window length, in seconds) in force at `block`: the most recent
+   * archived `MotionDurationChanged` with `block_number <= block`. Returns `null` when none precedes
+   * the block (caller falls back to the pinned genesis default). Reads the archive directly, so the
+   * duration timeline is available regardless of whether the settings events have been derived.
+   */
+  async findDurationAsOf(chainId: string, block: string): Promise<string | null> {
+    const row = await this.chDb
+      .selectFrom('archive_event_easy_track')
+      .select('payload')
+      .where('chain_id', '=', chainId)
+      .where('event_type', '=', 'MotionDurationChanged')
+      // `block` is a decimal string; cast so ClickHouse compares UInt64 to UInt64, not UInt64 to String.
+      .where(sql<boolean>`block_number <= toUInt64(${block})`)
+      .orderBy('block_number', 'desc')
+      .orderBy('log_index', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+    if (row === undefined) return null;
+    const parsed = JSON.parse(row.payload) as { motionDuration?: string };
+    return typeof parsed.motionDuration === 'string' ? parsed.motionDuration : null;
+  }
 }
