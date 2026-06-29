@@ -53,4 +53,6 @@ export type ArchiveEventType =
   | 'MotionDurationChanged'
   | 'ObjectionsThresholdChanged'
   | 'MotionsCountLimitChanged'
-  | 'EVMScriptExecutorChanged';
+  | 'EVMScriptExecutorChanged'
+  | 'SnapshotProposalCreated'
+  | 'SnapshotVoteCast';
