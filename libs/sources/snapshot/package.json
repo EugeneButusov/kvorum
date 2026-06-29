@@ -7,8 +7,12 @@
   "dependencies": {
     "@libs/db": "workspace:*",
     "@libs/domain": "workspace:*",
+    "@libs/observability": "workspace:*",
+    "@libs/utils": "workspace:*",
+    "@sources/core": "workspace:*",
     "kysely": "^0.29.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "^4.0.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",

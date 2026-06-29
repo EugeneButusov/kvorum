@@ -489,12 +489,24 @@ importers:
       '@libs/domain':
         specifier: workspace:*
         version: link:../../domain
+      '@libs/observability':
+        specifier: workspace:*
+        version: link:../../observability
+      '@libs/utils':
+        specifier: workspace:*
+        version: link:../../utils
+      '@sources/core':
+        specifier: workspace:*
+        version: link:../core
       kysely:
         specifier: ^0.29.0
         version: 0.29.0
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
 
   libs/utils:
     dependencies:
@@ -743,6 +755,31 @@ importers:
       '@sources/lido':
         specifier: workspace:*
         version: link:../../../libs/sources/lido
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+    devDependencies:
+      '@nestjs/testing':
+        specifier: ^11.0.0
+        version: 11.1.19(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/platform-express@11.1.19)
+
+  nest/sources/snapshot:
+    dependencies:
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../../libs/db
+      '@nestjs/common':
+        specifier: ^11.0.0
+        version: 11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.0.0
+        version: 11.1.19(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.19)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@sources/core':
+        specifier: workspace:*
+        version: link:../../../libs/sources/core
+      '@sources/snapshot':
+        specifier: workspace:*
+        version: link:../../../libs/sources/snapshot
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
