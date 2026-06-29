@@ -183,4 +183,63 @@ describe('SnapshotClient', () => {
     await client.fetchProposals({ space: 's', createdGte: 0, first: 100, skip: 0, signal });
     expect(fetchMock.mock.calls[0]![1].signal).toBe(signal);
   });
+
+  it('does not retry a non-429 4xx client error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 400 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient({ backoffBaseMs: 1 });
+    await expect(
+      client.fetchProposals({
+        space: 's',
+        createdGte: 0,
+        first: 100,
+        skip: 0,
+        signal: liveSignal(),
+      }),
+    ).rejects.toThrow(/HTTP 400/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a transient network error then succeeds', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ECONNRESET'))
+      .mockResolvedValueOnce(gql({ proposals: [{ id: 'p1', created: 1 }] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient({ backoffBaseMs: 1 });
+    const rows = await client.fetchProposals({
+      space: 's',
+      createdGte: 0,
+      first: 100,
+      skip: 0,
+      signal: liveSignal(),
+    });
+    expect(rows).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('aborts an in-flight backoff when the tick deadline fires', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response('', { status: 503 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient({ backoffBaseMs: 10_000 });
+    const promise = client.fetchProposals({
+      space: 's',
+      createdGte: 0,
+      first: 100,
+      skip: 0,
+      signal: controller.signal,
+    });
+    // Let the 503 resolve and the (long) backoff timer start, then trip the deadline.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    controller.abort(new Error('tick-timeout'));
+
+    await expect(promise).rejects.toThrow();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

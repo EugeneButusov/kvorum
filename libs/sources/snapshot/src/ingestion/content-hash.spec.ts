@@ -30,8 +30,9 @@ describe('contentHash', () => {
     expect(contentHash({ id: '0x1' })).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('handles null and primitive slices', () => {
+  it('handles null, undefined, and primitive slices', () => {
     expect(contentHash(null)).toMatch(/^[0-9a-f]{64}$/);
+    expect(contentHash(undefined)).toMatch(/^[0-9a-f]{64}$/);
     expect(contentHash(42)).toMatch(/^[0-9a-f]{64}$/);
   });
 });

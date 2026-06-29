@@ -110,6 +110,22 @@ describe('makeSnapshotPollListener', () => {
     expect(cur.proposals).toEqual({ createdGte: 50, skip: 0 });
   });
 
+  it('rolls to the max created across a short page even when rows are not ascending', async () => {
+    // pageSize 3, two rows returned (short page → roll forward); the larger `created` is not last,
+    // exercising the max-scan in both advance() and the high-water-mark computation.
+    const client = makeClient(
+      [
+        { id: 'a', created: 80 },
+        { id: 'b', created: 40 },
+      ],
+      [],
+    );
+    const listener = makeSnapshotPollListener({ client, space: 's', pageSize: 3 }, 60_000);
+    const { nextCursor } = await listener.poll(ctx, null);
+    const cur = nextCursor as unknown as SnapshotCursor;
+    expect(cur.proposals).toEqual({ createdGte: 80, skip: 0 });
+  });
+
   it('exposes the configured interval', () => {
     const listener = makeSnapshotPollListener({ client: makeClient([], []), space: 's' }, 45_000);
     expect(listener.intervalMs).toBe(45_000);
