@@ -6,10 +6,12 @@ import {
   type ArchiveDerivationRow,
   DlqRepository,
   type PgDatabase,
+  type ProposalActionInput,
   ProposalRepository,
 } from '@libs/db';
 import {
   ArchiveFailureRouter,
+  EvmScriptDecodeError,
   VoteBlockTimestampFetcher,
   archiveEventTupleKey,
   type ProjectionDeriver,
@@ -20,12 +22,28 @@ import {
   projectMotionCreated,
 } from './motion-projector';
 import type { EasyTrackEvent } from './types';
-import { DEFAULT_MOTION_DURATION_SECONDS } from '../addresses';
+import { toProposalActions } from '../../calldata/evmscript-actions';
+import {
+  createForwarderRegistry,
+  EXECUTE_SELECTOR,
+  FORWARD_SELECTOR,
+} from '../../calldata/forwarders';
+import { DEFAULT_MOTION_DURATION_SECONDS, EASY_TRACK_MAINNET } from '../addresses';
 import { EasyTrackArchivePayloadRepository } from '../persistence/archive-payload-repository';
 import { EasyTrackMotionRepository } from '../persistence/motion-repository';
 
 const DLQ_THRESHOLD = Number(process.env['EASY_TRACK_MOTION_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const EASY_TRACK_MOTION_PROJECTION_STAGE = 'easy_track_motion_projection_stage';
+
+// Default Lido forwarders (Agent unwrapping) extended with the Easy Track EVMScriptExecutor, so a
+// motion script that routes through the executor unwraps to its real leaf targets; direct calls and
+// anything unrecognized degrade to opaque leaves (never dropped).
+const EASY_TRACK_FORWARDERS = createForwarderRegistry([
+  {
+    address: EASY_TRACK_MAINNET.evmScriptExecutor,
+    selectors: [FORWARD_SELECTOR, EXECUTE_SELECTOR],
+  },
+]);
 
 const MOTION_EVENT_TYPES = [
   'MotionCreated',
@@ -223,12 +241,39 @@ export class EasyTrackMotionProjectionApplier implements ProjectionDeriver {
 
       if (result.inserted) {
         await repos.motions.insert({ ...projection.meta, proposal_id: result.proposalId! });
+        await this.insertMotionActions(repos, result.proposalId!, row.chain_id, payload.evmScript);
         this.record(row, 'derived', null);
       } else {
         this.record(row, 'skipped_idempotent', null);
       }
       await repos.archive.markDerived(row.id);
     });
+  }
+
+  // Decode the motion's enacting EVMScript into `proposal_action` rows. Best-effort: a malformed
+  // top-level script (never produced by a real motion — the contract validates) logs and leaves the
+  // proposal action-less; a DB write error propagates to fail the row. Inner calls degrade to opaque
+  // leaves inside the decoder, so partial/unknown scripts still record every target.
+  private async insertMotionActions(
+    repos: ProjectionRepositories,
+    proposalId: string,
+    chainId: string,
+    evmScript: string,
+  ): Promise<void> {
+    let actions: ProposalActionInput[];
+    try {
+      actions = toProposalActions(evmScript, chainId, EASY_TRACK_FORWARDERS);
+    } catch (error) {
+      if (error instanceof EvmScriptDecodeError) {
+        this.logger.error('easy_track_evmscript_decode_failed', {
+          proposal_id: proposalId,
+          reason: error.reason,
+        });
+        return;
+      }
+      throw error;
+    }
+    if (actions.length > 0) await repos.proposals.insertActions(proposalId, actions);
   }
 
   private async applyObjected(row: ArchiveDerivationRow, motionId: string): Promise<void> {
