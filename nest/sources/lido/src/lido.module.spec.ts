@@ -46,6 +46,7 @@ describe('LidoSourceModule', () => {
       'dual_governance',
       'dual_governance_reconcile',
       'easy_track',
+      'easy_track_reconcile',
     ]);
 
     const voting = plugin.ingesters.find((i) => i.sourceType === 'aragon_voting')!;
@@ -67,6 +68,10 @@ describe('LidoSourceModule', () => {
     const dgReconcile = plugin.ingesters.find((i) => i.sourceType === 'dual_governance_reconcile')!;
     expect(dgReconcile.supportedChainIds).toEqual(['0x1']);
     expect(dgReconcile.buildBackfillRuntime).toBeUndefined(); // not backfillable
+
+    const etReconcile = plugin.ingesters.find((i) => i.sourceType === 'easy_track_reconcile')!;
+    expect(etReconcile.supportedChainIds).toEqual(['0x1']);
+    expect(etReconcile.buildBackfillRuntime).toBeUndefined(); // not backfillable
   });
 
   it('registers the Aragon, Dual Governance, and Easy Track derivers', async () => {

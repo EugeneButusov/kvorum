@@ -184,8 +184,11 @@ describeIf('Lido Easy Track motion derivation integration', () => {
     }
   }
 
-  it('derives MotionCreated → an active, binding proposal + motion meta with the objection window', async () => {
+  it('derives MotionCreated → active binding proposal + meta + decoded proposal_action rows', async () => {
     const createdAt = 1_767_225_600; // 2026-01-01T00:00:00Z
+    const actionTarget = '0x' + '33'.repeat(20);
+    // spec-1 EVMScript: one direct call to actionTarget with calldata 0xabcdef.
+    const evmScript = '0x00000001' + '33'.repeat(20) + '00000003' + 'abcdef';
     registerBlock(100, createdAt);
     await archive('MotionDurationChanged', 50, 0, { motionDuration: String(DURATION) });
     await archive('MotionCreated', 100, 0, {
@@ -193,7 +196,7 @@ describeIf('Lido Easy Track motion derivation integration', () => {
       creator: CREATOR,
       evmScriptFactory: FACTORY,
       evmScriptCallData: '0xc0ffee',
-      evmScript: '0xdead',
+      evmScript,
     });
 
     await deriveAll();
@@ -220,6 +223,17 @@ describeIf('Lido Easy Track motion derivation integration', () => {
     expect(meta.factory_address).toBe(FACTORY);
     expect(meta.state).toBe('active');
     expect(meta.objection_ends_at).toEqual(new Date((createdAt + DURATION) * 1000));
+
+    // The motion's EVMScript is decoded into proposal_action rows.
+    const actions = await pgDb
+      .selectFrom('proposal_action')
+      .select(['action_index', 'target_address', 'calldata'])
+      .where('proposal_id', '=', proposal.id)
+      .orderBy('action_index')
+      .execute();
+    expect(actions).toEqual([
+      { action_index: 0, target_address: actionTarget, calldata: '0xabcdef' },
+    ]);
 
     // The optimistic-objection model writes no per-voter ballots.
     const voteCount = await chDb

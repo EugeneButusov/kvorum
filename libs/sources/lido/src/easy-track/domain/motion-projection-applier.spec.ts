@@ -53,13 +53,16 @@ function buildApplier(opts?: {
   };
   const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
   const payloads = {
-    fetchPayloads: vi
-      .fn()
-      .mockResolvedValue(
-        opts?.payloads ?? [
-          makePayload({ motionId: '42', creator: CREATOR, evmScriptFactory: FACTORY }),
-        ],
-      ),
+    fetchPayloads: vi.fn().mockResolvedValue(
+      opts?.payloads ?? [
+        makePayload({
+          motionId: '42',
+          creator: CREATOR,
+          evmScriptFactory: FACTORY,
+          evmScript: '0x00000001', // valid, empty (spec-1 no calls)
+        }),
+      ],
+    ),
     findDurationAsOf: vi
       .fn()
       .mockResolvedValue(opts?.duration === undefined ? DURATION : opts.duration),
@@ -93,6 +96,7 @@ function buildApplier(opts?: {
     proposals: {
       findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
       insertProposal: vi.fn().mockResolvedValue({ inserted: true, proposalId: 'p-1' }),
+      insertActions: vi.fn().mockResolvedValue(0),
       advanceState: vi.fn().mockResolvedValue(1),
       findBySource: vi.fn().mockResolvedValue({ id: 'p-1', dao_id: 'dao-1' }),
     },
@@ -167,6 +171,49 @@ describe('EasyTrackMotionProjectionApplier', () => {
     expect(repos.motions.insert).toHaveBeenCalledWith(
       expect.objectContaining({ objection_ends_at: expectedEnds }),
     );
+  });
+
+  it('decodes the motion EVMScript into proposal_action rows', async () => {
+    const target = '0x' + '33'.repeat(20);
+    // spec-1 EVMScript: one direct call to `target` with calldata 0xabcdef (3 bytes).
+    const script = '0x00000001' + '33'.repeat(20) + '00000003' + 'abcdef';
+    const { applier, repos } = buildApplier({
+      payloads: [
+        makePayload({
+          motionId: '42',
+          creator: CREATOR,
+          evmScriptFactory: FACTORY,
+          evmScript: script,
+        }),
+      ],
+    });
+    await applier.applyBatch([makeRow({ event_type: 'MotionCreated' })]);
+    expect(repos.proposals.insertActions).toHaveBeenCalledWith('p-1', [
+      expect.objectContaining({
+        targetAddress: target,
+        targetChainId: '0x1',
+        valueWei: '0',
+        functionSignature: null,
+        calldata: '0xabcdef',
+      }),
+    ]);
+  });
+
+  it('creates the proposal without actions when the EVMScript is malformed (best-effort)', async () => {
+    const { applier, repos, metrics } = buildApplier({
+      payloads: [
+        makePayload({
+          motionId: '42',
+          creator: CREATOR,
+          evmScriptFactory: FACTORY,
+          evmScript: '0xZZ',
+        }),
+      ],
+    });
+    await applier.applyBatch([makeRow({ event_type: 'MotionCreated' })]);
+    expect(repos.proposals.insertProposal).toHaveBeenCalled();
+    expect(repos.proposals.insertActions).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'derived' }));
   });
 
   it('skips an idempotent MotionCreated re-derivation (no meta insert)', async () => {

@@ -225,3 +225,18 @@ export type {
   EasyTrackMotionProjectionMetrics,
 } from './easy-track/domain/motion-projection-applier';
 export { EasyTrackMotionRepository } from './easy-track/persistence/motion-repository';
+// Easy Track reconcile (ADR-076 §reconciler): event-silent optimistic-pass (active → queued).
+export {
+  EASY_TRACK_GETTERS_INTERFACE,
+  encodeGetMotions,
+  decodeGetMotions,
+} from './easy-track/abi/getters';
+export type { EasyTrackMotion } from './easy-track/abi/getters';
+export { EasyTrackReconcileRepository } from './easy-track/persistence/reconcile-repository';
+export type {
+  EasyTrackStaleReconciliationRow,
+  EasyTrackReconcileStateInput,
+} from './easy-track/persistence/reconcile-repository';
+export { EasyTrackStateReconciler } from './easy-track/reconcile/easy-track-state-reconciler';
+export { createLidoEasyTrackReconcilePlugin } from './easy-track/reconcile/easy-track-reconcile-plugin';
+export type { LidoEasyTrackReconcilePluginDeps } from './easy-track/reconcile/easy-track-reconcile-plugin';

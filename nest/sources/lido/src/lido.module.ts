@@ -30,6 +30,7 @@ import {
   EasyTrackArchivePayloadRepository,
   EasyTrackEventRepository,
   EasyTrackMotionProjectionApplier,
+  EasyTrackReconcileRepository,
   LidoAragonVotingActorAddressDeriver,
   LidoDualGovernanceActorAddressDeriver,
   LidoEasyTrackActorAddressDeriver,
@@ -41,6 +42,7 @@ import {
   createLidoDualGovernancePlugin,
   createLidoDualGovernanceReconcilePlugin,
   createLidoEasyTrackPlugin,
+  createLidoEasyTrackReconcilePlugin,
   makeLidoReadExtension,
 } from '@sources/lido';
 import { ChainContextModule, toChainLogger } from '@nest/chain';
@@ -191,6 +193,11 @@ const NOOP_PROJECTION_METRICS = {
           metrics: NOOP_PROJECTION_METRICS,
           logger: toChainLogger(new Logger('EasyTrackMotionProjection')),
         });
+        const etReconcilePlugin = createLidoEasyTrackReconcilePlugin({
+          easyTrackProposals: new EasyTrackReconcileRepository(pgDb),
+          metrics: buildDriverMetrics(),
+          logger: toChainLogger(new Logger('EasyTrackReconcile')),
+        });
 
         return {
           name: 'lido',
@@ -212,6 +219,7 @@ const NOOP_PROJECTION_METRICS = {
             }),
             reconcilePlugin,
             dgReconcilePlugin,
+            etReconcilePlugin,
           ],
           derivers: [
             actorAddressDeriver,
