@@ -211,3 +211,17 @@ export { makeEasyTrackIngesterListener } from './easy-track/ingestion/ingester-l
 export type { EasyTrackIngesterListenerDeps } from './easy-track/ingestion/ingester-listener';
 export { createLidoEasyTrackPlugin, LidoEasyTrackConfigSchema } from './easy-track/plugin/plugin';
 export type { LidoEasyTrackConfig, LidoEasyTrackPluginDeps } from './easy-track/plugin/plugin';
+// Easy Track motion derivation (ADR-076): motion → unified proposal + easy_track_motion_meta.
+export { DEFAULT_MOTION_DURATION_SECONDS } from './easy-track/addresses';
+export { LidoEasyTrackActorAddressDeriver } from './easy-track/domain/actor-address-deriver';
+export { easyTrackMotionTitle } from './easy-track/domain/title-extractor';
+export {
+  projectMotionCreated,
+  MOTION_TERMINAL_TRANSITIONS,
+} from './easy-track/domain/motion-projector';
+export { EasyTrackMotionProjectionApplier } from './easy-track/domain/motion-projection-applier';
+export type {
+  EasyTrackMotionProjectionApplierDeps,
+  EasyTrackMotionProjectionMetrics,
+} from './easy-track/domain/motion-projection-applier';
+export { EasyTrackMotionRepository } from './easy-track/persistence/motion-repository';

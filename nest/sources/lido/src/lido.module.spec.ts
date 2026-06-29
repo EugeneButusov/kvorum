@@ -69,17 +69,20 @@ describe('LidoSourceModule', () => {
     expect(dgReconcile.buildBackfillRuntime).toBeUndefined(); // not backfillable
   });
 
-  it('registers the Aragon + Dual Governance derivers', async () => {
+  it('registers the Aragon, Dual Governance, and Easy Track derivers', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(LIDO_SOURCE_PLUGIN);
 
-    // Aragon: actor-address + proposal + vote (3). Dual Governance: actor-address + state + proposal (3).
-    expect(plugin.derivers).toHaveLength(6);
+    // Aragon: actor-address + proposal + vote (3). Dual Governance: actor-address + state + proposal
+    // (3). Easy Track: actor-address + motion projection (2).
+    expect(plugin.derivers).toHaveLength(8);
     expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
       'actor-address',
       'actor-address',
+      'actor-address',
+      'projection',
       'projection',
       'projection',
       'projection',
@@ -91,6 +94,9 @@ describe('LidoSourceModule', () => {
 
     const dg = plugin.derivers.filter((d) => d.sourceTypes.includes('dual_governance'));
     expect(dg.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection', 'projection']);
+
+    const easyTrack = plugin.derivers.filter((d) => d.sourceTypes.includes('easy_track'));
+    expect(easyTrack.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection']);
   });
 
   it('M4 readExtension claims aragon_voting and returns expected stubs', async () => {

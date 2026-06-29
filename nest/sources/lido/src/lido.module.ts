@@ -27,9 +27,12 @@ import {
   DualGovernanceReconcileRepository,
   DualGovernanceStateHistoryRepository,
   DualGovernanceStateProjectionApplier,
+  EasyTrackArchivePayloadRepository,
   EasyTrackEventRepository,
+  EasyTrackMotionProjectionApplier,
   LidoAragonVotingActorAddressDeriver,
   LidoDualGovernanceActorAddressDeriver,
+  LidoEasyTrackActorAddressDeriver,
   LidoAragonVotingArchiveWriter,
   LidoDualGovernanceArchiveWriter,
   LidoEasyTrackArchiveWriter,
@@ -177,6 +180,18 @@ const NOOP_PROJECTION_METRICS = {
           logger: toChainLogger(new Logger('DualGovernanceReconcile')),
         });
 
+        const etPayloads = new EasyTrackArchivePayloadRepository(chDb);
+        const etActorAddressDeriver = new LidoEasyTrackActorAddressDeriver(etPayloads);
+        const etMotionApplier = new EasyTrackMotionProjectionApplier({
+          pgDb,
+          archive,
+          dlq: dlqRepo,
+          payloads: etPayloads,
+          registry,
+          metrics: NOOP_PROJECTION_METRICS,
+          logger: toChainLogger(new Logger('EasyTrackMotionProjection')),
+        });
+
         return {
           name: 'lido',
           ingesters: [
@@ -205,6 +220,8 @@ const NOOP_PROJECTION_METRICS = {
             dgActorAddressDeriver,
             dgStateApplier,
             dgProposalApplier,
+            etActorAddressDeriver,
+            etMotionApplier,
           ],
           readExtension: makeLidoReadExtension(),
         };
