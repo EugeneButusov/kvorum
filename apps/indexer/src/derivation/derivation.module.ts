@@ -9,7 +9,12 @@ import {
   ProposalRepository,
   pgDb,
 } from '@libs/db';
-import { SOURCE_PLUGINS, type ActorSweepAdapter, type SourcePlugin } from '@sources/core';
+import {
+  SOURCE_PLUGINS,
+  type ActorSweepAdapter,
+  type OffchainActorAddressDeriver,
+  type SourcePlugin,
+} from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { ActorSweepService } from './actor-sweep.service';
@@ -63,8 +68,8 @@ import { TimestampFillerService } from './timestamp-filler.service';
         dlq: DlqRepository,
         plugins: readonly SourcePlugin[],
       ) => {
-        const adapters: ActorSweepAdapter[] = plugins
-          .flatMap((plugin) => plugin.derivers)
+        const derivers = plugins.flatMap((plugin) => plugin.derivers);
+        const adapters: ActorSweepAdapter[] = derivers
           .filter((deriver) => deriver.kind === 'actor-address')
           .map((deriver) => ({
             sourceTypes: deriver.sourceTypes,
@@ -77,8 +82,12 @@ import { TimestampFillerService } from './timestamp-filler.service';
                   (candidate as { source?: string }).source ?? candidate.role ?? 'unknown_event',
               })),
           }));
+        const offchainAdapters: OffchainActorAddressDeriver[] = derivers.filter(
+          (deriver): deriver is OffchainActorAddressDeriver =>
+            deriver.kind === 'offchain-actor-address',
+        );
 
-        return new ActorSweepService(actorResolution, actors, dlq, adapters);
+        return new ActorSweepService(actorResolution, actors, dlq, adapters, offchainAdapters);
       },
       inject: [ArchiveActorResolutionRepository, ActorRepository, DlqRepository, SOURCE_PLUGINS],
     },
