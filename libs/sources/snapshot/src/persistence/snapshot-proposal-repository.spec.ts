@@ -48,6 +48,31 @@ describe('SnapshotProposalRepository', () => {
     );
   });
 
+  it('findMetadata returns voting_type, network, and the choice count', async () => {
+    const executeTakeFirst = vi
+      .fn()
+      .mockResolvedValueOnce({ voting_type: 'weighted', network: '1' })
+      .mockResolvedValueOnce({ n: 3 });
+    const builder: Record<string, unknown> = {};
+    for (const m of ['select', 'where']) builder[m] = vi.fn(() => builder);
+    builder['executeTakeFirst'] = executeTakeFirst;
+    const repo = new SnapshotProposalRepository({ selectFrom: () => builder } as never);
+
+    expect(await repo.findMetadata('p-1')).toEqual({
+      voting_type: 'weighted',
+      network: '1',
+      choice_count: 3,
+    });
+  });
+
+  it('findMetadata returns undefined for an unknown proposal', async () => {
+    const builder: Record<string, unknown> = {};
+    for (const m of ['select', 'where']) builder[m] = vi.fn(() => builder);
+    builder['executeTakeFirst'] = vi.fn().mockResolvedValue(undefined);
+    const repo = new SnapshotProposalRepository({ selectFrom: () => builder } as never);
+    expect(await repo.findMetadata('p-1')).toBeUndefined();
+  });
+
   it('findStaleClosedProposalIds builds the bounded query and returns source ids', async () => {
     const builder: Record<string, unknown> = {};
     for (const method of ['innerJoin', 'select', 'orderBy', 'limit']) {

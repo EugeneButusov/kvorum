@@ -1,5 +1,15 @@
-import type { ArchiveDerivationRow, CurrentVoteRow } from '@libs/db';
+import type { CurrentVoteRow } from '@libs/db';
 import type { NewVoteEventsProjectionRow } from '../persistence/schema';
+
+/** The minimal vote-row identity `buildVoteRows` needs. EVM appliers pass their full
+ *  `ArchiveDerivationRow` (structurally assignable); off-chain appliers (Snapshot) pass a synthetic
+ *  shape with sentinel `block_number='0'`/`log_index=0` and `chain_id` = the voting chain. */
+export interface VoteRowIdentity {
+  id: string;
+  block_number: string;
+  log_index: number;
+  chain_id: string;
+}
 
 export function isNewerVote(
   castAt: Date,
@@ -18,7 +28,7 @@ export function isNewerVote(
 }
 
 export function buildVoteRows(args: {
-  row: ArchiveDerivationRow;
+  row: VoteRowIdentity;
   daoId: string;
   proposalId: string;
   voterAddress: string;

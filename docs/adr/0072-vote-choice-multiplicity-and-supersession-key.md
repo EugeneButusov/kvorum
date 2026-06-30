@@ -126,3 +126,51 @@ table and columns.
 - **AF1** can read `findChoicesForVote` → `VoteChoiceDto[]` for EVM sources now (synthesized
   from `primary_choice`); full multi-element and off-chain support added in AD4.
 - **EVM sources (Compound, Aave)** are unaffected; `primary_choice` is always non-null.
+
+## AD4 amendment (2026-06-30)
+
+AD4 implemented the Snapshot-specific decisions and, on contact with the code, amends D5/D6:
+
+### A1 — No `ordinal`/`seq` column; reuse the shared supersession path (amends D5)
+
+D5 prescribed a Snapshot `ordinal` column from `derivation_ordinal`. But AD1 sets
+`derivation_ordinal = the vote's Snapshot `created`=`cast_at`, so it is **redundant** with
+`cast_at`and adds no ordering. AD4 therefore adds **no column** and reuses the shared`buildVoteRows`/`isNewerVote`/`findCurrentVote`unchanged, passing off-chain sentinels`block_number='0'`, `log_index=0`. `buildVoteRows`'s `row`param is narrowed to the structural`{ id, block_number, log_index, chain_id }`so off-chain callers can supply a synthetic identity
+(EVM callers pass their`ArchiveDerivationRow` unchanged).
+
+**Same-second off-chain re-votes** (the case D5 targeted) are both **unobservable** in practice —
+Snapshot's API returns one vote per voter and the poll cadence is 60s, so two same-second casts by
+one voter never both reach the archive — **and unorderable** (second-resolution `created`, no
+sub-second signal exists anywhere). The shared logic yields a deterministic result (on a `cast_at`
+tie the incoming is treated as not-newer → superseded; exactly one `superseded=0` row remains) and
+selection order is deterministic (`ORDER BY derivation_ordinal, external_id, id`). This is
+**best-effort-deterministic, not recency** — documented as an accepted limitation.
+
+### A2 — `vote_id` is the archive UUID, not a vote-hash (corrects D6)
+
+D6 described `vote_id` as "from vote-hash." In the implementation `vote_id = archive_event.id`, a
+random `gen_random_uuid()`. It is **not order-bearing** and is **not** used as a supersession
+tie-break (see A1). D6's "vote_id from vote-hash" is withdrawn.
+
+### A3 — `voting_power` is `round(vp)`; no fixed-point scaling
+
+Snapshot `vp` is fractional; the core `voting_power UInt256` stores **`round(vp)`** (read raw by the
+API/analytics, so any scaling would corrupt it). The **exact decimal `vp`** is kept in the protocol
+table. Snapshot `voting_power` is rounded reported power and is never summed across sources.
+
+### A4 — Protocol table `snapshot_vote_choice` (CH); 0-based indices; `voting_chain_id` from `network`
+
+The breakdown lives in `snapshot_vote_choice` (CH `ReplacingMergeTree(version)`, keyed by `vote_id`):
+`choices` JSON (0-based `choice_index`, decimal `weight`, desc by weight), exact `vp`,
+`vp_by_strategy`. `voting_chain_id` is derived from `snapshot_proposal_metadata.network` (mapped to
+hex), **not** the `'off-chain'` archive sentinel. The API read-dispatch
+(`findChoicesForVote`) is AF1's.
+
+### A5 — Votes derive continuously; shielded deferred
+
+Votes derive as archived (a non-shielded vote's choice + `vp` are final at the snapshot block, so
+this satisfies "consume only at final" for the per-vote data we store). A scores_state-final gate
+was rejected: deferring without a watermark advance would head-of-line-block the off-chain
+derivation lane. **Shielded/encrypted choices are detected (undecodable) and skipped** (marked
+derived); full shielded support — re-fetching closed proposals' votes for revealed choices — is a
+KNOWN follow-up.

@@ -53,4 +53,31 @@ export class SnapshotProposalRepository {
       .execute();
     return rows.map((row) => row.source_id);
   }
+
+  /** Vote-derivation inputs for a proposal: voting_type + network for the choice decode and the
+   *  vote's voting_chain_id, and the choice count for index validation. */
+  async findMetadata(
+    proposalId: string,
+  ): Promise<
+    { voting_type: string | null; network: string | null; choice_count: number } | undefined
+  > {
+    const row = await this.db
+      .selectFrom('snapshot_proposal_metadata')
+      .select(['voting_type', 'network'])
+      .where('proposal_id', '=', proposalId)
+      .executeTakeFirst();
+    if (row === undefined) return undefined;
+
+    const count = await this.db
+      .selectFrom('proposal_choice')
+      .select(({ fn }) => fn.countAll().as('n'))
+      .where('proposal_id', '=', proposalId)
+      .executeTakeFirst();
+
+    return {
+      voting_type: row.voting_type,
+      network: row.network,
+      choice_count: Number(count?.n ?? 0),
+    };
+  }
 }

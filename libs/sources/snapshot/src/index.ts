@@ -27,6 +27,12 @@ export { SnapshotArchivePayloadRepository } from './persistence/archive-payload-
 export { SnapshotProposalRepository } from './persistence/snapshot-proposal-repository';
 export { SnapshotActorAddressDeriver } from './domain/actor-address-deriver';
 export { SnapshotProposalProjectionApplier } from './domain/proposal-projection-applier';
+export { SnapshotVoteProjectionApplier } from './domain/vote-projection-applier';
+export type { SnapshotVoteProjectionApplierDeps } from './domain/vote-projection-applier';
+export { SnapshotVoteChoiceRepository } from './persistence/snapshot-vote-choice-repository';
+export { decodeVoteChoice } from './domain/vote-choice-decoder';
+export type { VoteChoiceDecode, DecodedChoice } from './domain/vote-choice-decoder';
+export { roundVp, networkToChainId } from './domain/voting-power';
 export type { SnapshotProposalProjectionApplierDeps } from './domain/proposal-projection-applier';
 export { projectSnapshotProposal } from './domain/proposal-projector';
 export type { SnapshotProposalProjection } from './domain/proposal-projector';
