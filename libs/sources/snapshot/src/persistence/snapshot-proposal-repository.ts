@@ -54,9 +54,8 @@ export class SnapshotProposalRepository {
     return rows.map((row) => row.source_id);
   }
 
-  /** Vote-derivation inputs for a proposal (AD4): scores_state (privacy/shape gate not needed —
-   *  the decoder detects undecodable choices), voting_type + network for the decode/voting_chain_id,
-   *  and the choice count for index validation. */
+  /** Vote-derivation inputs for a proposal: voting_type + network for the choice decode and the
+   *  vote's voting_chain_id, and the choice count for index validation. */
   async findMetadata(
     proposalId: string,
   ): Promise<

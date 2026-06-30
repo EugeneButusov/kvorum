@@ -3,7 +3,7 @@
 // `primaryChoice = choices[0].choice_index`. An unrecognised type or an unparseable choice (e.g. a
 // shielded proposal's encrypted choice) returns `undecodable` → the applier marks it skipped.
 //
-// Encodings (verify against pinned live fixtures before the AG backfill — copeland/quadratic are
+// Encodings (verify against pinned live fixtures before the live backfill — copeland/quadratic are
 // the least-certain):
 //   single-choice/basic : int (1-based)                     e.g. 2
 //   approval            : int[] (1-based)                    e.g. [1, 3]
@@ -20,7 +20,14 @@ export type VoteChoiceDecode =
   | { kind: 'decoded'; primaryChoice: number; choices: DecodedChoice[] }
   | { kind: 'undecodable' };
 
+// Full, unsplit weight for the single-vote-per-choice types (single-choice/basic/approval/ranked):
+// each selected option carries weight "1.0" (the decimal-string contract, ADR-072 D3).
 const WEIGHT_ONE = '1.0';
+// Fixed-point base for normalizing weighted/quadratic raw weights into fractions without float drift
+// (e.g. 1/3). 10^18 = 18 decimal places — far beyond display needs, and matches the wei/ether
+// fixed-point convention used elsewhere in the codebase. The value is a precision choice, not
+// semantically meaningful; any large power of ten would do. The rounding residue is given to the
+// largest entry so the formatted weights sum to exactly "1.0".
 const SCALE = 10n ** 18n;
 
 export function decodeVoteChoice(

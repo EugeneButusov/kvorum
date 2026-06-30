@@ -10,7 +10,7 @@ export interface SnapshotProposalMetadataTable {
   voting_type: string | null;
   strategies: unknown | null;
   ipfs_hash: string | null;
-  // Source for Z4's voting_chain_id — AD2 must populate reliably.
+  // The Snapshot strategy network; source for the vote's voting_chain_id. Populate reliably.
   network: string | null;
   // Snapshot-owned vocabulary: pending|active|final|invalid; stays text.
   scores_state: string | null;
@@ -35,7 +35,7 @@ export interface ArchiveEventSnapshotTable {
 export type ArchiveEventSnapshot = ArchiveEventSnapshotTable;
 export type NewArchiveEventSnapshot = ArchiveEventSnapshotTable;
 
-// ── Vote choice protocol table (ADR-072 D2; AD4) ──────────────────────────────
+// ── Vote choice protocol table (ADR-072 D2) ───────────────────────────────────
 
 export interface SnapshotVoteChoiceTable {
   vote_id: string;

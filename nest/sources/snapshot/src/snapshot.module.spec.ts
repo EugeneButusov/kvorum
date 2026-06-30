@@ -17,7 +17,7 @@ describe('SnapshotSourceModule', () => {
     expect(plugin.ingesters).toHaveLength(1);
     expect(plugin.ingesters[0]!.sourceType).toBe('snapshot');
     expect(plugin.ingesters[0]!.supportedChainIds).toEqual(['off-chain']);
-    // proposal applier + actor deriver (AD2/AD3) + vote applier (AD4).
+    // proposal projection applier + actor-address deriver + vote projection applier.
     expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
       'offchain-actor-address',
       'offchain-projection',

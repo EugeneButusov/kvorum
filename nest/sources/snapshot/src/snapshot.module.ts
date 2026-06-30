@@ -28,9 +28,9 @@ export const SNAPSHOT_SOURCE_PLUGIN = 'SNAPSHOT_SOURCE_PLUGIN';
 const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
 
 // Off-chain source: one `snapshot` plugin covering all three seeded spaces (lido/aave/compound).
-// AD2 adds the proposal projection applier + proposer actor adapter (the off-chain derivation
-// foundation dispatches them) and the closed-proposal reconcile pass. Registering here starts live
-// polling + derivation on boot (gated by INDEXER_LIVE_POLLER_ENABLED).
+// Registers the proposal + vote projection appliers, the actor-address deriver, and the
+// closed-proposal reconcile pass. Registering here starts live polling + derivation on boot
+// (gated by INDEXER_LIVE_POLLER_ENABLED).
 @Module({
   providers: [
     {

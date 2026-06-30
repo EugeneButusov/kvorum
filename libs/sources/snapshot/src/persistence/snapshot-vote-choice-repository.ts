@@ -10,7 +10,7 @@ export interface SnapshotVoteChoiceRow {
 }
 
 /** Writes/reads the Snapshot per-vote choice breakdown (ADR-072 D2). The API read-dispatch
- *  (findChoicesForVote) is AF1's; AD4 uses `findByVoteId` only in its own tests. */
+ *  (findChoicesForVote) lives in the API read layer; `findByVoteId` is used by the derivation tests. */
 export class SnapshotVoteChoiceRepository {
   constructor(private readonly chDb: Kysely<ClickHouseDatabase>) {}
 
