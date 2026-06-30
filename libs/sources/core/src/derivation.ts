@@ -14,15 +14,19 @@ export interface DerivationProjectionApplier {
  *  sweep correlates payloads to rows via `archiveRowKey`, which handles both shapes. */
 export type ActorSweepRow = ArchiveDerivationRow | OffchainArchiveRow;
 
-export interface ActorSweepPayloadRow {
-  chain_id?: string;
-  tx_hash?: string | null;
-  log_index?: number | null;
-  block_hash?: string | null;
-  external_id?: string | null;
-  event_type: ArchiveEventType;
-  payload: string;
-}
+/** A CH payload slice correlated back to its archive row by `archiveRowKey`. One of two shapes —
+ *  off-chain rows carry the source-native `external_id`; EVM rows carry the block 4-tuple — so each
+ *  variant keeps its own identity invariant rather than degrading to a bag of optionals. */
+export type ActorSweepPayloadRow =
+  | { external_id: string; event_type: ArchiveEventType; payload: string }
+  | {
+      chain_id: string;
+      tx_hash: string;
+      log_index: number;
+      block_hash: string;
+      event_type: ArchiveEventType;
+      payload: string;
+    };
 
 export interface ActorSweepAddressCandidate {
   address: string;
