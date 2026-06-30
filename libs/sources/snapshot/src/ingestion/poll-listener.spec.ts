@@ -126,6 +126,38 @@ describe('makeSnapshotPollListener', () => {
     expect(cur.proposals).toEqual({ createdGte: 80, skip: 0 });
   });
 
+  it('does not run a reconcile pass without a staleProvider', async () => {
+    const client = makeClient([], []);
+    (client as { fetchProposalsByIds?: unknown }).fetchProposalsByIds = vi.fn();
+    const listener = makeSnapshotPollListener({ client, space: 's', pageSize: 2 }, 60_000);
+    const { items } = await listener.poll(ctx, null);
+    expect(items).toEqual([]);
+    expect(
+      (client as { fetchProposalsByIds: ReturnType<typeof vi.fn> }).fetchProposalsByIds,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('reconcile re-queries stale proposals and emits deletion sentinels for absent ids', async () => {
+    const client = {
+      fetchProposals: vi.fn().mockResolvedValue([]),
+      fetchVotes: vi.fn().mockResolvedValue([]),
+      fetchProposalsByIds: vi.fn().mockResolvedValue([{ id: '0xstale', created: 200 }]),
+    } as unknown as SnapshotClient;
+    const staleProvider = vi.fn().mockResolvedValue(['0xstale', '0xgone']);
+    const listener = makeSnapshotPollListener(
+      { client, space: 's', pageSize: 2, staleProvider },
+      60_000,
+    );
+
+    const { items } = await listener.poll(ctx, null);
+
+    expect(client.fetchProposalsByIds).toHaveBeenCalledWith('s', ['0xstale', '0xgone'], ctx.signal);
+    const requeried = items.find((i) => i.externalId === 'prop:0xstale');
+    expect(requeried?.payload).toEqual({ id: '0xstale', created: 200 });
+    const deletion = items.find((i) => i.externalId === 'prop:0xgone');
+    expect(deletion?.payload).toEqual({ id: '0xgone', deleted: true });
+  });
+
   it('exposes the configured interval', () => {
     const listener = makeSnapshotPollListener({ client: makeClient([], []), space: 's' }, 45_000);
     expect(listener.intervalMs).toBe(45_000);

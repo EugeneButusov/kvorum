@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@libs/db": "workspace:*",
+    "@nest/chain": "workspace:*",
     "@sources/core": "workspace:*",
     "@sources/snapshot": "workspace:*",
     "@nestjs/common": "^11.0.0",

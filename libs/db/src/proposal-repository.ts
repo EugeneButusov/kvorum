@@ -195,6 +195,47 @@ export class ProposalRepository {
       .execute();
   }
 
+  /**
+   * Update the mutable, derivation-owned content fields of an existing proposal. Used for off-chain
+   * mutable-latest sources (Snapshot) where a proposal edit re-derives the same row with changed
+   * title/body/voting window. Does NOT touch `state` (route that through `setStateFromDerivation`).
+   */
+  async updateDerivedFields(input: {
+    proposalId: string;
+    title: string | null;
+    description: string;
+    descriptionHash: string;
+    votingStartsAt: Date | null;
+    votingEndsAt: Date | null;
+  }): Promise<void> {
+    await this.db
+      .updateTable('proposal')
+      .set({
+        title: input.title,
+        description: input.description,
+        description_hash: input.descriptionHash,
+        voting_starts_at: input.votingStartsAt,
+        voting_ends_at: input.votingEndsAt,
+        updated_at: sql<Date>`now()`,
+      })
+      .where('id', '=', input.proposalId)
+      .execute();
+  }
+
+  /**
+   * Replace a proposal's choice set wholesale (delete-then-insert). `ensureChoices` is INSERT …
+   * ON CONFLICT DO NOTHING, so it cannot drop a removed index or update a changed value when an
+   * editable off-chain proposal's `choices[]` changes — this does.
+   */
+  async reindexChoices(proposalId: string, choices: readonly NewProposalChoice[]): Promise<void> {
+    await this.db.deleteFrom('proposal_choice').where('proposal_id', '=', proposalId).execute();
+    if (choices.length === 0) return;
+    await this.db
+      .insertInto('proposal_choice')
+      .values(choices.map((choice) => ({ ...choice, proposal_id: proposalId })))
+      .execute();
+  }
+
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {
     return this.db
       .selectFrom('proposal')

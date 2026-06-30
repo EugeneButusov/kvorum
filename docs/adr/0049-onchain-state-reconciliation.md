@@ -141,3 +141,18 @@ On the first pass for a proposal (`support_required_pct IS NULL`), the reconcile
 
 - One `getVote` read per candidate serves both classification and enrichment (RPC economy).
 - A reconcile-driven enrichment is a deliberate divergence from the state-only model; the enrich-once predicate + atomic ordering are the contract that keeps it idempotent and starvation-free.
+
+---
+
+## Amendment (AD2, 2026-06-30) — off-chain reconciliation via re-archive
+
+Snapshot has no EVM `ReconcileDriver` analogue (no blocks/head). Its event-silent transition is a
+proposal's tally finalizing _after_ it closes, which the forward `created_gte` poll never re-fetches.
+AD2 reconciles by **re-querying, not by a direct state write**: a reconcile pass folded into the
+Snapshot poll selects closed-but-not-`final` proposals per space (bounded to a 14-day window, backed by
+a partial index on `snapshot_proposal_metadata(space_id, scores_state)`), re-fetches them by id, and
+emits them as normal archive items. The mutable-latest path (ADR-071) does the rest: the changed
+`content_hash` (now carrying `scores_state='final'`) re-derives the proposal, finalizing `state` +
+`scores_state`. Still-non-final re-fetches hash identically → the consumer skips them (no churn). A
+proposal absent from a successful `id_in` response is treated as deleted (→ `canceled`). This reuses the
+ingestion + derivation machinery wholesale rather than adding a second state-mutation path.

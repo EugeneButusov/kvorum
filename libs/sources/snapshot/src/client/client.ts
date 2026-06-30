@@ -1,6 +1,6 @@
 import type { SnapshotProposalRow, SnapshotVoteRow } from '../domain/types';
 import { snapshotMetrics } from '../metrics';
-import { PROPOSALS_QUERY, VOTES_QUERY } from './queries';
+import { PROPOSALS_BY_IDS_QUERY, PROPOSALS_QUERY, VOTES_QUERY } from './queries';
 
 export const DEFAULT_SNAPSHOT_GRAPHQL_URL = 'https://hub.snapshot.org/graphql';
 
@@ -63,20 +63,48 @@ export class SnapshotClient {
   }
 
   async fetchProposals(p: PageParams): Promise<SnapshotProposalRow[]> {
-    return this.query<SnapshotProposalRow>(PROPOSALS_QUERY, p, 'proposals', 'proposal');
+    return this.request<SnapshotProposalRow>(
+      PROPOSALS_QUERY,
+      { space: p.space, createdGte: p.createdGte, first: p.first, skip: p.skip },
+      'proposals',
+      'proposal',
+      p.signal,
+    );
   }
 
   async fetchVotes(p: PageParams): Promise<SnapshotVoteRow[]> {
-    return this.query<SnapshotVoteRow>(VOTES_QUERY, p, 'votes', 'vote');
+    return this.request<SnapshotVoteRow>(
+      VOTES_QUERY,
+      { space: p.space, createdGte: p.createdGte, first: p.first, skip: p.skip },
+      'votes',
+      'vote',
+      p.signal,
+    );
   }
 
-  private async query<T>(
+  /** Reconcile re-query: fetch specific proposals by id for the closed-proposal final-tally sweep. */
+  async fetchProposalsByIds(
+    space: string,
+    ids: readonly string[],
+    signal: AbortSignal,
+  ): Promise<SnapshotProposalRow[]> {
+    if (ids.length === 0) return [];
+    return this.request<SnapshotProposalRow>(
+      PROPOSALS_BY_IDS_QUERY,
+      { space, ids },
+      'proposals',
+      'proposal',
+      signal,
+    );
+  }
+
+  private async request<T>(
     query: string,
-    p: PageParams,
+    variables: Record<string, unknown>,
     field: 'proposals' | 'votes',
     entity: Entity,
+    signal: AbortSignal,
   ): Promise<T[]> {
-    const variables = { space: p.space, createdGte: p.createdGte, first: p.first, skip: p.skip };
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     if (this.apiKey) headers['x-api-key'] = this.apiKey;
 
@@ -88,18 +116,18 @@ export class SnapshotClient {
           method: 'POST',
           headers,
           body: JSON.stringify({ query, variables }),
-          signal: p.signal,
+          signal,
         });
         snapshotMetrics.graphqlLatency.record(Date.now() - start, { entity });
 
         if (res.status === 429) {
           snapshotMetrics.rateLimited.add(1, { entity });
-          await this.backoff(attempt, res.headers.get('retry-after'), p.signal, entity);
+          await this.backoff(attempt, res.headers.get('retry-after'), signal, entity);
           attempt += 1;
           continue;
         }
         if (res.status >= 500) {
-          await this.backoff(attempt, null, p.signal, entity);
+          await this.backoff(attempt, null, signal, entity);
           attempt += 1;
           continue;
         }
@@ -124,12 +152,12 @@ export class SnapshotClient {
           snapshotMetrics.graphqlErrors.add(1, { entity });
           throw err;
         }
-        if (p.signal.aborted) throw err;
+        if (signal.aborted) throw err;
         if (attempt >= this.maxRetries) {
           snapshotMetrics.graphqlErrors.add(1, { entity });
           throw err;
         }
-        await abortableDelay(this.backoffMs(attempt), p.signal);
+        await abortableDelay(this.backoffMs(attempt), signal);
         attempt += 1;
       }
     }

@@ -220,6 +220,28 @@ describe('SnapshotClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('fetchProposalsByIds posts an id_in query with the ids', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(gql({ proposals: [{ id: 'p1', created: 1 }] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient();
+    const rows = await client.fetchProposalsByIds('s', ['p1', 'p2'], liveSignal());
+
+    expect(rows).toHaveLength(1);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.variables).toEqual({ space: 's', ids: ['p1', 'p2'] });
+    expect(body.query).toContain('id_in');
+  });
+
+  it('fetchProposalsByIds short-circuits empty ids without a request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient();
+    await expect(client.fetchProposalsByIds('s', [], liveSignal())).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('aborts an in-flight backoff when the tick deadline fires', async () => {
     const controller = new AbortController();
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response('', { status: 503 }));

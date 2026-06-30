@@ -19,12 +19,22 @@ export {
 export type { SnapshotConfig, SnapshotPluginDeps } from './plugin/plugin';
 export { makeSnapshotOffChainArchiveWriter } from './ingestion/archive-writer';
 export { makeSnapshotPollListener, DEFAULT_PAGE_SIZE, SKIP_CAP } from './ingestion/poll-listener';
+export type { SnapshotStaleProvider } from './ingestion/poll-listener';
 export { contentHash } from './ingestion/content-hash';
 export { makeSnapshotReadExtension } from './api/snapshot-read-extension';
 export { snapshotMetrics } from './metrics';
+export { SnapshotArchivePayloadRepository } from './persistence/archive-payload-repository';
+export { SnapshotProposalRepository } from './persistence/snapshot-proposal-repository';
+export { SnapshotActorAddressDeriver } from './domain/actor-address-deriver';
+export { SnapshotProposalProjectionApplier } from './domain/proposal-projection-applier';
+export type { SnapshotProposalProjectionApplierDeps } from './domain/proposal-projection-applier';
+export { projectSnapshotProposal } from './domain/proposal-projector';
+export type { SnapshotProposalProjection } from './domain/proposal-projector';
+export { extractSnapshotTitle } from './domain/title-extractor';
 export type {
   SnapshotCursor,
   SnapshotSubCursor,
   SnapshotProposalRow,
   SnapshotVoteRow,
+  SnapshotProposalPayload,
 } from './domain/types';

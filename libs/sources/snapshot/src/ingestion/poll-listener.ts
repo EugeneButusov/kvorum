@@ -15,14 +15,34 @@ export const DEFAULT_PAGE_SIZE = 100;
 // then roll the window forward (the inclusive boundary re-checks the tail, consumer dedupes).
 export const SKIP_CAP = 5000;
 
+/** Returns the raw Snapshot proposal ids that should be re-queried for final tallies (closed,
+ *  not-yet-final, within the recency window). Threads the per-tick signal into its PG read. */
+export type SnapshotStaleProvider = (signal: AbortSignal) => Promise<string[]>;
+
 export interface SnapshotPollListenerDeps {
   client: SnapshotClient;
   space: string;
   pageSize?: number;
+  /** Optional closed-proposal reconcile pass (AD2). Omitted → forward-only polling. */
+  staleProvider?: SnapshotStaleProvider;
 }
 
 function emptyCursor(): SnapshotCursor {
   return { proposals: { createdGte: 0, skip: 0 }, votes: { createdGte: 0, skip: 0 } };
+}
+
+/** Deletion sentinel for a stale proposal id the API no longer returns (a successful `id_in`
+ *  query that omits it → deleted, not a transient gap). Re-archived, it flips content_hash and
+ *  drives the projector to cancel the proposal. */
+function deletionItem(id: string): PollItem {
+  const payload = { id, deleted: true };
+  return {
+    externalId: `prop:${id}`,
+    eventType: 'SnapshotProposalCreated',
+    contentHash: contentHash(payload),
+    ordinal: '0',
+    payload,
+  };
 }
 
 /** Advance one entity's sub-cursor: keep paging the same window while it yields full pages under
@@ -41,6 +61,25 @@ function advance(
     if (r.created > maxCreated) maxCreated = r.created;
   }
   return { createdGte: maxCreated, skip: 0 };
+}
+
+/** Closed-proposal reconcile pass: re-query stale proposals by id and emit them as normal proposal
+ *  items (re-archive → mutable-latest re-derive captures the now-final tally). Absent ids from a
+ *  successful query → deletion sentinels. Returns [] when no reconcile is configured. */
+async function reconcile(deps: SnapshotPollListenerDeps, signal: AbortSignal): Promise<PollItem[]> {
+  if (deps.staleProvider === undefined) return [];
+  const ids = await deps.staleProvider(signal);
+  if (ids.length === 0) return [];
+
+  const fetched = await deps.client.fetchProposalsByIds(deps.space, ids, signal);
+  snapshotMetrics.reconcileRequeried.add(fetched.length, { space_id: deps.space });
+
+  const returned = new Set(fetched.map((row) => row.id));
+  const items: PollItem[] = fetched.map(toProposalItem);
+  for (const id of ids) {
+    if (!returned.has(id)) items.push(deletionItem(id));
+  }
+  return items;
 }
 
 function toProposalItem(row: SnapshotProposalRow): PollItem {
@@ -117,7 +156,13 @@ export function makeSnapshotPollListener(
         );
       }
 
-      const items: PollItem[] = [...proposals.map(toProposalItem), ...votes.map(toVoteItem)];
+      const reconcileItems = await reconcile(deps, ctx.signal);
+
+      const items: PollItem[] = [
+        ...proposals.map(toProposalItem),
+        ...votes.map(toVoteItem),
+        ...reconcileItems,
+      ];
       const nextCursor: SnapshotCursor = {
         proposals: advance(cur.proposals, proposals, pageSize),
         votes: advance(cur.votes, votes, pageSize),

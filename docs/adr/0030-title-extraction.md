@@ -51,3 +51,7 @@ The truncation marker is the Unicode ellipsis (`…`, U+2026), not three ASCII d
 - For `aave_governance_v3`, `proposal.description_hash` stores the canonical on-chain IPFS digest (64 hex chars, no `0x`) and remains immutable even after title/description enrichment succeeds.
 - The dashboard's proposal-list rows display titles consistently; truncation is uniform; no per-source string handling on the frontend.
 - §2.4.4's field description is updated to reference this ADR for the precise extraction rules.
+- **Snapshot (AD2):** the proposal carries a native `title`, so the rule is normalize + strip a leading
+  markdown heading + 200-char cap (no IPFS fetch). An empty/missing title falls back to a
+  `Snapshot proposal <id>` placeholder. `proposal.description_hash` is a SHA-256 of the body (so an edit
+  re-derives a new hash); unlike Aave it is not an on-chain IPFS digest.
