@@ -198,3 +198,27 @@ The full DLQ-on-CH-failure end-to-end remains with AD1 as stated.
 - **Scalar `PollCursor = string`** — rejected. Snapshot needs `{ space, createdGte, skip }` and Discourse needs `{ category, page, streamPos }`. A scalar forces a breaking `IngestSpec` change in AD/AE.
 - **Widening `FetchDriver.start` chainCfg to optional** globally — rejected. It would stop TypeScript from flagging a missing chainCfg on EVM drivers.
 - **Hand-rolling the timer lifecycle** — rejected. `AbstractPoller` already implements the exact lifecycle with the verified `stopTimeoutMs` race; reimplementing it worse was a blocker found in the adversarial review (rev2).
+
+---
+
+## Amendment (AD2, 2026-06-30) — off-chain derivation dispatch
+
+Z shipped the off-chain archive identity + selection repo methods (`findUnderivedOffchain`,
+`findDerivableByOffchain`, `findUnresolvedActorsOffchain`) but nothing consumed them. AD2 — the first
+off-chain projection (Snapshot proposals) — wires the derivation side, mirroring the EVM model:
+
+- **Two new parallel deriver interfaces** in `@sources/core`: `OffchainProjectionDeriver`
+  (`kind: 'offchain-projection'`, `applyBatch(OffchainArchiveRow[])`) and `OffchainActorAddressDeriver`
+  (`kind: 'offchain-actor-address'`). Kept separate from the EVM `ProjectionDeriver`/`ActorAddressDeriver`
+  rather than widening their `ArchiveDerivationRow` signatures to a union — widening would reject the
+  four concrete EVM derivers' narrow types at the `derivation.module` adapter-assignment site.
+- **Both workers gain an additive off-chain pass.** The derivation worker calls `findDerivableByOffchain`
+  and the actor-sweep `findUnresolvedActorsOffchain`; off-chain rows are matched to CH payloads by
+  `external_id` (not the block 4-tuple). The uniform actor-resolution gate is preserved — off-chain rows
+  derive only after the actor-sweep sets `derivation_actor_resolved_at`. EVM dispatch is byte-for-byte
+  unchanged (regression tests assert this).
+- **Mutable-latest re-derivation** rides the existing watermark reset: an edit bumps `version` + resets
+  `derived_at`/`derivation_actor_resolved_at`, so the row re-sweeps then re-derives. The off-chain
+  projection applier reads the **max-version** CH payload and re-sets derivation-owned state via the
+  guard-bypass `ProposalRepository.setStateFromDerivation` (state is a pure function of the latest
+  payload, replay-safe — same rationale as the Lido DG applier).

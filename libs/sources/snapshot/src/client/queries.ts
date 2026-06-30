@@ -30,6 +30,34 @@ export const PROPOSALS_QUERY = `query Proposals($space: String!, $createdGte: In
     network
     flagged
     privacy
+    strategies { name network params }
+    space { id }
+  }
+}`;
+
+// Reconcile re-query: fetch specific proposals by id (closed proposals whose tally finalized after
+// the forward cursor passed them). Same field selection as PROPOSALS_QUERY so contentHash matches.
+export const PROPOSALS_BY_IDS_QUERY = `query ProposalsByIds($space: String!, $ids: [String!]!) {
+  proposals(first: 1000, where: { space: $space, id_in: $ids }) {
+    id
+    title
+    body
+    choices
+    type
+    start
+    end
+    snapshot
+    state
+    scores
+    scores_total
+    scores_state
+    created
+    author
+    ipfs
+    network
+    flagged
+    privacy
+    strategies { name network params }
     space { id }
   }
 }`;

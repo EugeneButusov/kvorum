@@ -1,13 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import {
-  ActorRepository,
-  ArchiveActorResolutionRepository,
-  DlqRepository,
-  type ArchiveDerivationRow,
-} from '@libs/db';
+import { ActorRepository, ArchiveActorResolutionRepository, DlqRepository } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
-import type { ActorSweepAdapter } from '@sources/core';
+import type { ActorSweepAdapter, ActorSweepRow } from '@sources/core';
 import { readIntervalMs } from '../app/env-helpers';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
@@ -47,14 +42,22 @@ export class ActorSweepService {
       const batchSize = Number(
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
-      const rows = await this.actorResolution.findUnresolvedActors(
-        this.eventTypes,
-        ACTOR_SWEEP_DLQ_THRESHOLD,
-        batchSize,
-      );
-      if (rows.length === 0) return;
+      // EVM and off-chain rows come from separate selections (different SQL/ordering) but feed one
+      // processing path — each source_type's adapter is keyed the same way, transport-agnostic.
+      const [evmRows, offchainRows] = await Promise.all([
+        this.actorResolution.findUnresolvedActors(
+          this.eventTypes,
+          ACTOR_SWEEP_DLQ_THRESHOLD,
+          batchSize,
+        ),
+        this.actorResolution.findUnresolvedActorsOffchain(
+          this.eventTypes,
+          ACTOR_SWEEP_DLQ_THRESHOLD,
+          batchSize,
+        ),
+      ]);
 
-      const bySourceType = groupBySourceType(rows);
+      const bySourceType = groupBySourceType<ActorSweepRow>([...evmRows, ...offchainRows]);
       for (const [sourceType, batch] of bySourceType) {
         await this.processSourceBatch(sourceType, batch);
       }
@@ -67,7 +70,7 @@ export class ActorSweepService {
 
   private async processSourceBatch(
     sourceType: string,
-    rows: readonly ArchiveDerivationRow[],
+    rows: readonly ActorSweepRow[],
   ): Promise<void> {
     try {
       const adapter = this.adapterBySourceType.get(sourceType);
@@ -106,22 +109,23 @@ export class ActorSweepService {
     }
   }
 
-  private async handleFailure(row: ArchiveDerivationRow, err: unknown): Promise<void> {
+  private async handleFailure(row: ActorSweepRow, err: unknown): Promise<void> {
     const attempt = await this.actorResolution.incrementActorResolutionAttemptCount(row.id);
+    const { fields, archive } = rowIdentity(row);
     this.logger.warn('actor_sweep_row_failed', {
       row_id: row.id,
       source_type: row.source_type,
       event_type: row.event_type,
       chain_id: row.chain_id,
-      tx_hash: row.tx_hash,
-      log_index: row.log_index,
-      block_hash: row.block_hash,
+      ...fields,
       attempt,
       error: String(err),
     });
 
     if (attempt < ACTOR_SWEEP_DLQ_THRESHOLD) return;
 
+    // ingestion_dlq has no external_id column — off-chain identity rides the JSON payload (mirroring
+    // the off-chain archive consumer), and the archive_* coords are null for off-chain rows.
     await this.dlq.insert({
       stage: ACTOR_RESOLUTION_STAGE,
       source: 'indexer.actor_sweep',
@@ -129,10 +133,8 @@ export class ActorSweepService {
         id: row.id,
         source_type: row.source_type,
         chain_id: row.chain_id,
-        tx_hash: row.tx_hash,
-        log_index: row.log_index,
-        block_hash: row.block_hash,
         event_type: row.event_type,
+        ...fields,
       },
       error: { message: String(err) },
       retries: attempt,
@@ -140,17 +142,36 @@ export class ActorSweepService {
       last_attempt_at: new Date(),
       archive_source_type: row.source_type,
       archive_chain_id: row.chain_id,
-      archive_tx_hash: row.tx_hash,
-      archive_log_index: row.log_index,
-      archive_block_hash: row.block_hash,
+      archive_tx_hash: archive.tx_hash,
+      archive_log_index: archive.log_index,
+      archive_block_hash: archive.block_hash,
     });
   }
 }
 
-function groupBySourceType(
-  rows: readonly ArchiveDerivationRow[],
-): Map<string, ArchiveDerivationRow[]> {
-  const grouped = new Map<string, ArchiveDerivationRow[]>();
+/** Transport-specific identity for logs + DLQ: `fields` is spread into the log/JSON payload
+ *  (external_id off-chain, block/tx coords on EVM); `archive` holds the typed DLQ coord columns
+ *  (null for off-chain). */
+function rowIdentity(row: ActorSweepRow): {
+  fields: Record<string, string | number>;
+  archive: { tx_hash: string | null; log_index: number | null; block_hash: string | null };
+} {
+  if ('external_id' in row) {
+    return {
+      fields: { external_id: row.external_id },
+      archive: { tx_hash: null, log_index: null, block_hash: null },
+    };
+  }
+  return {
+    fields: { tx_hash: row.tx_hash, log_index: row.log_index, block_hash: row.block_hash },
+    archive: { tx_hash: row.tx_hash, log_index: row.log_index, block_hash: row.block_hash },
+  };
+}
+
+function groupBySourceType<T extends { source_type: string }>(
+  rows: readonly T[],
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
   for (const row of rows) {
     const rowsForSource = grouped.get(row.source_type);
     if (rowsForSource === undefined) {
@@ -162,16 +183,16 @@ function groupBySourceType(
   return grouped;
 }
 
-/** Correlation key between an archive row and its CH payload. Off-chain rows
- *  (external_id set) key on external_id; EVM rows key on the block/tx 4-tuple.
- *  EVM output is unchanged from the prior tuple key. */
+/** Correlation key between an archive row and its CH payload within a single source batch.
+ *  Off-chain rows (external_id set) key on the source-native, globally-unique external_id; EVM rows
+ *  key on the block/tx 4-tuple. EVM output is unchanged from the prior tuple key. */
 export function archiveRowKey(row: {
-  chain_id: string;
+  chain_id?: string;
   tx_hash?: string | null;
   log_index?: number | null;
   block_hash?: string | null;
   external_id?: string | null;
 }): string {
-  if (row.external_id != null) return `${row.chain_id}:ext:${row.external_id}`;
+  if (row.external_id != null) return `ext:${row.external_id}`;
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

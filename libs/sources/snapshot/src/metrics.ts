@@ -29,4 +29,13 @@ export const snapshotMetrics = {
     name: 'ingestion_snapshot_high_water_mark_lag_seconds',
     description: 'now - max(created) seen for a space; how far the forward cursor trails the tip',
   }),
+  proposalsDerived: defineCounter({
+    name: 'ingestion_snapshot_proposals_derived',
+    description:
+      'Snapshot proposal derivations by outcome (derived|updated|skipped_flagged|deleted|failed)',
+  }),
+  reconcileRequeried: defineCounter({
+    name: 'ingestion_snapshot_reconcile_requeried',
+    description: 'Closed Snapshot proposals re-queried by the reconcile pass, by space_id',
+  }),
 };

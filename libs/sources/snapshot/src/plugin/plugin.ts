@@ -4,7 +4,7 @@ import type { ClickHouseDatabase } from '@libs/db';
 import type { SourceIngester } from '@sources/core';
 import type { SnapshotClient } from '../client/client';
 import { makeSnapshotOffChainArchiveWriter } from '../ingestion/archive-writer';
-import { makeSnapshotPollListener } from '../ingestion/poll-listener';
+import { makeSnapshotPollListener, type SnapshotStaleProvider } from '../ingestion/poll-listener';
 
 // One `snapshot` source per space; the seeded source_config is `{ space }`.
 export const SnapshotConfigSchema = z.object({
@@ -23,6 +23,8 @@ export interface SnapshotPluginDeps {
   chDb: Kysely<ClickHouseDatabase>;
   intervalMs?: number;
   pageSize?: number;
+  /** Per-space reconcile stale-provider factory (AD2). Omitted → forward-only polling. */
+  staleProviderFactory?: (space: string) => SnapshotStaleProvider;
 }
 
 export function createSnapshotPlugin(deps: SnapshotPluginDeps): SourceIngester<SnapshotConfig> {
@@ -35,7 +37,12 @@ export function createSnapshotPlugin(deps: SnapshotPluginDeps): SourceIngester<S
     buildIngestSpec: (_ctx, cfg) => ({
       kind: 'poll',
       listener: makeSnapshotPollListener(
-        { client: deps.client, space: cfg.space, pageSize: deps.pageSize },
+        {
+          client: deps.client,
+          space: cfg.space,
+          pageSize: deps.pageSize,
+          staleProvider: deps.staleProviderFactory?.(cfg.space),
+        },
         intervalMs,
       ),
     }),

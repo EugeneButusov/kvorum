@@ -60,6 +60,7 @@ describe('ActorSweepService', () => {
   it('returns early when no unresolved actors exist', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -71,6 +72,7 @@ describe('ActorSweepService', () => {
   it('materializes actor for voter and marks row actor-resolved', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -111,10 +113,151 @@ describe('ActorSweepService', () => {
     expect(dlq.insert).not.toHaveBeenCalled();
   });
 
+  it('resolves an off-chain proposer (external_id-keyed) and marks the row resolved', async () => {
+    const offchainRow = {
+      id: 'oc-1',
+      source_type: 'snapshot',
+      dao_source_id: 'source-1',
+      chain_id: 'off-chain',
+      external_id: 'prop:0xabc',
+      derivation_ordinal: '100',
+      event_type: 'SnapshotProposalCreated',
+      received_at: new Date('2026-01-01T00:00:00Z'),
+      derivation_attempt_count: 0,
+    };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([offchainRow]),
+      markActorResolved: vi.fn().mockResolvedValue(undefined),
+      incrementActorResolutionAttemptCount: vi.fn(),
+    };
+    const actors = {
+      findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
+    };
+    const dlq = { insert: vi.fn() };
+    // Off-chain derivers are normalized onto the same ActorSweepAdapter shape at the module level.
+    const offchainAdapter = {
+      sourceTypes: ['snapshot'],
+      eventTypes: ['SnapshotProposalCreated'],
+      fetchPayloads: vi.fn().mockResolvedValue([
+        {
+          external_id: 'prop:0xabc',
+          event_type: 'SnapshotProposalCreated',
+          payload: JSON.stringify({ author: '0x' + 'cd'.repeat(20) }),
+        },
+      ]),
+      extractAddresses: (_eventType: string, payloadJson: string) => {
+        const payload = JSON.parse(payloadJson) as Record<string, string>;
+        return [{ address: payload['author'] ?? '', source: 'proposer_event' }];
+      },
+    };
+    const service = new ActorSweepService(
+      archive as never,
+      actors as never,
+      dlq as never,
+      [offchainAdapter] as never,
+    );
+
+    await service.tick();
+
+    expect(offchainAdapter.fetchPayloads).toHaveBeenCalledWith([offchainRow]);
+    expect(actors.findOrCreateActorAddress).toHaveBeenCalledWith(
+      '0x' + 'cd'.repeat(20),
+      'proposer_event',
+    );
+    expect(archive.markActorResolved).toHaveBeenCalledWith('oc-1');
+    expect(dlq.insert).not.toHaveBeenCalled();
+  });
+
+  it('off-chain: increments attempt without DLQ when the payload is missing', async () => {
+    const offchainRow = {
+      id: 'oc-1',
+      source_type: 'snapshot',
+      dao_source_id: 'src-1',
+      chain_id: 'off-chain',
+      external_id: 'prop:0xabc',
+      derivation_ordinal: '1',
+      event_type: 'SnapshotProposalCreated',
+      received_at: new Date(),
+      derivation_attempt_count: 0,
+    };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([offchainRow]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
+    };
+    const dlq = { insert: vi.fn() };
+    const offchainAdapter = {
+      sourceTypes: ['snapshot'],
+      eventTypes: ['SnapshotProposalCreated'],
+      fetchPayloads: vi.fn().mockResolvedValue([]), // nothing for this external_id
+      extractAddresses: () => [],
+    };
+    const service = new ActorSweepService(
+      archive as never,
+      {} as never,
+      dlq as never,
+      [offchainAdapter] as never,
+    );
+
+    await service.tick();
+
+    expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith('oc-1');
+    expect(archive.markActorResolved).not.toHaveBeenCalled();
+    expect(dlq.insert).not.toHaveBeenCalled();
+  });
+
+  it('off-chain: dead-letters with off-chain identity once the attempt threshold is reached', async () => {
+    const offchainRow = {
+      id: 'oc-2',
+      source_type: 'snapshot',
+      dao_source_id: 'src-1',
+      chain_id: 'off-chain',
+      external_id: 'prop:0xdef',
+      derivation_ordinal: '1',
+      event_type: 'SnapshotProposalCreated',
+      received_at: new Date(),
+      derivation_attempt_count: 4,
+    };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([offchainRow]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(5),
+    };
+    const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
+    // No adapter registered for 'snapshot' → processSourceBatch throws → handleFailure dead-letters.
+    const otherAdapter = {
+      sourceTypes: ['other'],
+      eventTypes: ['SnapshotProposalCreated'],
+      fetchPayloads: vi.fn(),
+      extractAddresses: () => [],
+    };
+    const service = new ActorSweepService(
+      archive as never,
+      {} as never,
+      dlq as never,
+      [otherAdapter] as never,
+    );
+
+    await service.tick();
+
+    expect(dlq.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archive_source_type: 'snapshot',
+        archive_chain_id: 'off-chain',
+        archive_tx_hash: null,
+        payload: expect.objectContaining({ external_id: 'prop:0xdef' }),
+      }),
+    );
+  });
+
   it('skips zero-address delegate without creating actor', async () => {
     const row = { ...ROW, event_type: 'test_delegation_event', source_type: 'test_source_token' };
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([row]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -165,6 +308,7 @@ describe('ActorSweepService', () => {
   it('increments attempts and writes DLQ row when threshold is reached', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(5),
     };
@@ -212,6 +356,7 @@ describe('ActorSweepService', () => {
     const row2 = { ...ROW, id: 'archive-2', tx_hash: '0xtx2', log_index: 2 };
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW, row2]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn().mockResolvedValue(undefined),
       incrementActorResolutionAttemptCount: vi.fn(),
     };
@@ -248,7 +393,8 @@ describe('ActorSweepService', () => {
 
   it('throws "no adapter" and calls handleFailure when source_type has no registered adapter', async () => {
     const archive = {
-      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]), // ROW has source_type 'test_source_bravo'
+      findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]), // ROW has source_type 'test_source_bravo'
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
     };
@@ -273,6 +419,7 @@ describe('ActorSweepService', () => {
   it('calls handleFailure for all rows when fetchPayloads throws (inner catch)', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
     };
@@ -308,6 +455,7 @@ describe('ActorSweepService', () => {
   it('calls handleFailure when row payload is missing from fetched batch', async () => {
     const archive = {
       findUnresolvedActors: vi.fn().mockResolvedValue([ROW]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([]),
       markActorResolved: vi.fn(),
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
     };
@@ -336,7 +484,7 @@ describe('archiveRowKey', () => {
     ).toBe('0x1:0xtx:3:0xblk');
   });
 
-  it('keys off-chain rows on external_id, ignoring null coords', () => {
+  it('keys off-chain rows on the source-native external_id, ignoring null coords', () => {
     expect(
       archiveRowKey({
         chain_id: 'off-chain',
@@ -345,7 +493,7 @@ describe('archiveRowKey', () => {
         block_hash: null,
         external_id: 'proposal-0xabc',
       }),
-    ).toBe('off-chain:ext:proposal-0xabc');
+    ).toBe('ext:proposal-0xabc');
   });
 
   it('distinguishes two off-chain rows of the same source by external_id', () => {

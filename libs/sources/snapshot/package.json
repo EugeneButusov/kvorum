@@ -5,6 +5,7 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
     "@libs/domain": "workspace:*",
     "@libs/observability": "workspace:*",

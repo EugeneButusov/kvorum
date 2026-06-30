@@ -8,6 +8,8 @@ import {
   DlqRepository,
   ProposalRepository,
   pgDb,
+  type ArchiveDerivationRow,
+  type OffchainArchiveRow,
 } from '@libs/db';
 import { SOURCE_PLUGINS, type ActorSweepAdapter, type SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
@@ -63,13 +65,16 @@ import { TimestampFillerService } from './timestamp-filler.service';
         dlq: DlqRepository,
         plugins: readonly SourcePlugin[],
       ) => {
-        const adapters: ActorSweepAdapter[] = plugins
-          .flatMap((plugin) => plugin.derivers)
+        // Normalize both EVM (`actor-address`) and off-chain (`offchain-actor-address`) derivers onto
+        // the single ActorSweepAdapter shape so the sweep has one code path. The dispatch is by
+        // source_type, so each adapter only ever receives rows of its own transport (cast-safe).
+        const derivers = plugins.flatMap((plugin) => plugin.derivers);
+        const adapters: ActorSweepAdapter[] = derivers
           .filter((deriver) => deriver.kind === 'actor-address')
           .map((deriver) => ({
             sourceTypes: deriver.sourceTypes,
             eventTypes: deriver.eventTypes,
-            fetchPayloads: deriver.fetchPayloads,
+            fetchPayloads: (rows) => deriver.fetchPayloads(rows as readonly ArchiveDerivationRow[]),
             extractAddresses: (eventType, payload) =>
               deriver.extractAddresses(eventType, payload).map((candidate) => ({
                 address: candidate.address,
@@ -77,8 +82,23 @@ import { TimestampFillerService } from './timestamp-filler.service';
                   (candidate as { source?: string }).source ?? candidate.role ?? 'unknown_event',
               })),
           }));
+        const offchainAdapters: ActorSweepAdapter[] = derivers
+          .filter((deriver) => deriver.kind === 'offchain-actor-address')
+          .map((deriver) => ({
+            sourceTypes: deriver.sourceTypes,
+            eventTypes: deriver.eventTypes,
+            fetchPayloads: (rows) => deriver.fetchPayloads(rows as readonly OffchainArchiveRow[]),
+            extractAddresses: (eventType, payload) =>
+              deriver.extractAddresses(eventType, payload).map((candidate) => ({
+                address: candidate.address,
+                source: candidate.role ?? 'unknown_event',
+              })),
+          }));
 
-        return new ActorSweepService(actorResolution, actors, dlq, adapters);
+        return new ActorSweepService(actorResolution, actors, dlq, [
+          ...adapters,
+          ...offchainAdapters,
+        ]);
       },
       inject: [ArchiveActorResolutionRepository, ActorRepository, DlqRepository, SOURCE_PLUGINS],
     },

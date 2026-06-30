@@ -72,7 +72,7 @@ export { DaoSourceNotFoundError } from './backfill/errors/dao-source-not-found.e
 
 import type { HeadListener, LogFilter, EventsListener, LogEvent } from '@libs/chain';
 import type { SourceType } from '@libs/db';
-import type { ArchiveDerivationRow } from '@libs/db';
+import type { ArchiveDerivationRow, OffchainArchiveRow } from '@libs/db';
 import type { ArchiveEventType, SourceReadExtension } from '@libs/domain';
 import type { BackfillRuntime } from './backfill/types';
 import type { PollListener } from './poll/types';
@@ -142,7 +142,41 @@ export interface ActorAddressDeriver {
   extractAddresses(eventType: ArchiveEventType, payload: string): readonly ActorAddressCandidate[];
 }
 
-export type SourceDeriver = ProjectionDeriver | ActorAddressDeriver;
+// ── Off-chain derivers (ADR-071) ──────────────────────────────────────────────
+// Parallel interfaces for off-chain sources (Snapshot, forum): rows are OffchainArchiveRow
+// (external_id + derivation_ordinal, no block coords) rather than ArchiveDerivationRow. Kept
+// separate from the EVM derivers so the four concrete EVM actor/projection derivers stay strictly
+// typed to non-null block coords — a single widened union would reject their narrow signatures.
+
+/** Off-chain payload slice keyed by the source-native external_id (no block coords). */
+export interface OffchainActorAddressPayloadRow {
+  external_id: string;
+  event_type: ArchiveEventType;
+  payload: string;
+}
+
+export interface OffchainActorAddressDeriver {
+  readonly kind: 'offchain-actor-address';
+  readonly sourceTypes: readonly string[];
+  readonly eventTypes: readonly ArchiveEventType[];
+  fetchPayloads(
+    rows: readonly OffchainArchiveRow[],
+  ): Promise<readonly OffchainActorAddressPayloadRow[]>;
+  extractAddresses(eventType: ArchiveEventType, payload: string): readonly ActorAddressCandidate[];
+}
+
+export interface OffchainProjectionDeriver {
+  readonly kind: 'offchain-projection';
+  readonly sourceTypes: readonly string[];
+  readonly eventTypes: readonly ArchiveEventType[];
+  applyBatch(rows: readonly OffchainArchiveRow[]): Promise<void>;
+}
+
+export type SourceDeriver =
+  | ProjectionDeriver
+  | ActorAddressDeriver
+  | OffchainProjectionDeriver
+  | OffchainActorAddressDeriver;
 
 export interface SourcePlugin {
   readonly name: string;
@@ -191,6 +225,7 @@ export type OffChainArchiveWriteFn = (
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,
+  ActorSweepRow,
   ActorSweepPayloadRow,
   ActorSweepAddressCandidate,
   ActorSweepAdapter,

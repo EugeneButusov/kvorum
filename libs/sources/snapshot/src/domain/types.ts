@@ -26,3 +26,28 @@ export interface SnapshotCursor {
   proposals: SnapshotSubCursor;
   votes: SnapshotSubCursor;
 }
+
+// The archived raw Snapshot proposal slice (the GraphQL `proposals` row). Only the fields the
+// proposal projector reads are typed; everything else in the payload is ignored. `deleted` is a
+// reconcile-injected sentinel (a proposal that vanished from the API), not a Snapshot field.
+export interface SnapshotProposalPayload {
+  id: string;
+  created: number;
+  title?: string | null;
+  body?: string | null;
+  choices?: string[] | null;
+  type?: string | null;
+  start?: number | null;
+  end?: number | null;
+  state?: string | null;
+  scores?: number[] | null;
+  scores_total?: number | null;
+  scores_state?: string | null;
+  author?: string | null;
+  ipfs?: string | null;
+  network?: string | null;
+  flagged?: boolean | null;
+  strategies?: unknown;
+  space?: { id?: string | null } | null;
+  deleted?: boolean | null;
+}
