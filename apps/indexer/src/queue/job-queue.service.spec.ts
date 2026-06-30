@@ -77,6 +77,26 @@ describe('JobQueueService', () => {
 
       expect(mockBoss.send).toHaveBeenCalledWith(ARCHIVE_LOG_QUEUE, fakeJob, expect.any(Object));
     });
+
+    it('listener logger closures delegate to the Nest logger without throwing', () => {
+      new JobQueueService();
+      const deps = vi.mocked(makeArchiveProducer).mock.calls[0]![0];
+      expect(() => {
+        deps.logger.debug('debug message', { a: 1 });
+        deps.logger.error('error message', { b: 2 });
+      }).not.toThrow();
+    });
+  });
+
+  describe('sendInTx()', () => {
+    it('sends a job on the caller transaction once ready', async () => {
+      const provider = new JobQueueService();
+      await provider.onApplicationBootstrap();
+
+      await provider.sendInTx('custom-queue', { x: 1 }, {} as never);
+
+      expect(mockBoss.send).toHaveBeenCalledWith('custom-queue', { x: 1 }, expect.any(Object));
+    });
   });
 
   describe('onApplicationBootstrap()', () => {

@@ -166,6 +166,86 @@ describe('ActorSweepService', () => {
     expect(dlq.insert).not.toHaveBeenCalled();
   });
 
+  it('off-chain: increments attempt without DLQ when the payload is missing', async () => {
+    const offchainRow = {
+      id: 'oc-1',
+      source_type: 'snapshot',
+      dao_source_id: 'src-1',
+      chain_id: 'off-chain',
+      external_id: 'prop:0xabc',
+      derivation_ordinal: '1',
+      event_type: 'SnapshotProposalCreated',
+      received_at: new Date(),
+      derivation_attempt_count: 0,
+    };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([offchainRow]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(1),
+    };
+    const dlq = { insert: vi.fn() };
+    const offchainAdapter = {
+      kind: 'offchain-actor-address' as const,
+      sourceTypes: ['snapshot'],
+      eventTypes: ['SnapshotProposalCreated'],
+      fetchPayloads: vi.fn().mockResolvedValue([]), // nothing for this external_id
+      extractAddresses: () => [],
+    };
+    const service = new ActorSweepService(archive as never, {} as never, dlq as never, [], [
+      offchainAdapter,
+    ] as never);
+
+    await service.tick();
+
+    expect(archive.incrementActorResolutionAttemptCount).toHaveBeenCalledWith('oc-1');
+    expect(archive.markActorResolved).not.toHaveBeenCalled();
+    expect(dlq.insert).not.toHaveBeenCalled();
+  });
+
+  it('off-chain: dead-letters with off-chain identity once the attempt threshold is reached', async () => {
+    const offchainRow = {
+      id: 'oc-2',
+      source_type: 'snapshot',
+      dao_source_id: 'src-1',
+      chain_id: 'off-chain',
+      external_id: 'prop:0xdef',
+      derivation_ordinal: '1',
+      event_type: 'SnapshotProposalCreated',
+      received_at: new Date(),
+      derivation_attempt_count: 4,
+    };
+    const archive = {
+      findUnresolvedActors: vi.fn().mockResolvedValue([]),
+      findUnresolvedActorsOffchain: vi.fn().mockResolvedValue([offchainRow]),
+      markActorResolved: vi.fn(),
+      incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(5),
+    };
+    const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
+    // No adapter registered for 'snapshot' → processOffchainSourceBatch throws → handleFailureOffchain.
+    const otherAdapter = {
+      kind: 'offchain-actor-address' as const,
+      sourceTypes: ['other'],
+      eventTypes: ['SnapshotProposalCreated'],
+      fetchPayloads: vi.fn(),
+      extractAddresses: () => [],
+    };
+    const service = new ActorSweepService(archive as never, {} as never, dlq as never, [], [
+      otherAdapter,
+    ] as never);
+
+    await service.tick();
+
+    expect(dlq.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archive_source_type: 'snapshot',
+        archive_chain_id: 'off-chain',
+        archive_tx_hash: null,
+        payload: expect.objectContaining({ external_id: 'prop:0xdef' }),
+      }),
+    );
+  });
+
   it('skips zero-address delegate without creating actor', async () => {
     const row = { ...ROW, event_type: 'test_delegation_event', source_type: 'test_source_token' };
     const archive = {

@@ -88,6 +88,23 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).toHaveBeenCalledWith('oc-1');
   });
 
+  it('runs an initial tick on bootstrap', async () => {
+    const actorResolution = {
+      findDerivableBy: vi.fn().mockResolvedValue([]),
+      findDerivableByOffchain: vi.fn().mockResolvedValue([]),
+    };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [],
+    );
+
+    await worker.onApplicationBootstrap();
+
+    expect(actorResolution.findDerivableBy).toHaveBeenCalled();
+  });
+
   it('increments attempt count when source has no projection applier', async () => {
     const applier = {
       kind: 'projection' as const,
