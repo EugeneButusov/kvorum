@@ -1,5 +1,12 @@
 import { Logger, Module } from '@nestjs/common';
-import { ArchiveDerivationRepository, chDb, pgDb } from '@libs/db';
+import {
+  ArchiveDerivationRepository,
+  ProposalRepository,
+  VoteEventsProjectionReadRepository,
+  VoteEventsProjectionWriter,
+  chDb,
+  pgDb,
+} from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import {
   SnapshotActorAddressDeriver,
@@ -7,6 +14,8 @@ import {
   SnapshotClient,
   SnapshotProposalProjectionApplier,
   SnapshotProposalRepository,
+  SnapshotVoteChoiceRepository,
+  SnapshotVoteProjectionApplier,
   createSnapshotPlugin,
   makeSnapshotReadExtension,
   type SnapshotStaleProvider,
@@ -42,6 +51,17 @@ const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
         });
         const actorAddressDeriver = new SnapshotActorAddressDeriver(payloads);
 
+        const voteApplier = new SnapshotVoteProjectionApplier({
+          payloads,
+          proposals: new ProposalRepository(pgDb),
+          snapshotProposals: new SnapshotProposalRepository(pgDb),
+          voteRead: new VoteEventsProjectionReadRepository(chDb),
+          voteWrite: new VoteEventsProjectionWriter(chDb),
+          voteChoice: new SnapshotVoteChoiceRepository(chDb),
+          archive: new ArchiveDerivationRepository(pgDb),
+          logger: toChainLogger(new Logger('SnapshotVoteProjection')),
+        });
+
         // Per-space reconcile stale-provider, backed by the proposal/metadata tables. The signal is
         // threaded to the HTTP re-query in the listener; the PG read is bounded + indexed.
         const staleProviderFactory =
@@ -59,7 +79,7 @@ const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
               staleProviderFactory,
             }),
           ],
-          derivers: [proposalApplier, actorAddressDeriver],
+          derivers: [proposalApplier, actorAddressDeriver, voteApplier],
           readExtension: makeSnapshotReadExtension(),
         };
       },

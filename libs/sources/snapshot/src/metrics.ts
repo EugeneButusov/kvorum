@@ -38,4 +38,9 @@ export const snapshotMetrics = {
     name: 'ingestion_snapshot_reconcile_requeried',
     description: 'Closed Snapshot proposals re-queried by the reconcile pass, by space_id',
   }),
+  votesDerived: defineCounter({
+    name: 'ingestion_snapshot_votes_derived',
+    description:
+      'Snapshot vote derivations by outcome (derived|superseded|skipped_shielded|skipped_idempotent|failed)',
+  }),
 };
