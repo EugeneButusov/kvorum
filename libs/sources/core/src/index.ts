@@ -225,6 +225,7 @@ export type OffChainArchiveWriteFn = (
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,
+  ActorSweepRow,
   ActorSweepPayloadRow,
   ActorSweepAddressCandidate,
   ActorSweepAdapter,

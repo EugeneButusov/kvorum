@@ -1,14 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import {
-  ActorRepository,
-  ArchiveActorResolutionRepository,
-  DlqRepository,
-  type ArchiveDerivationRow,
-  type OffchainArchiveRow,
-} from '@libs/db';
+import { ActorRepository, ArchiveActorResolutionRepository, DlqRepository } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
-import type { ActorSweepAdapter, OffchainActorAddressDeriver } from '@sources/core';
+import type { ActorSweepAdapter, ActorSweepRow } from '@sources/core';
 import { readIntervalMs } from '../app/env-helpers';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
@@ -24,25 +18,16 @@ export class ActorSweepService {
   private inFlight = false;
   private readonly eventTypes: readonly ArchiveEventType[];
   private readonly adapterBySourceType: ReadonlyMap<string, ActorSweepAdapter>;
-  private readonly offchainEventTypes: readonly ArchiveEventType[];
-  private readonly offchainAdapterBySourceType: ReadonlyMap<string, OffchainActorAddressDeriver>;
 
   constructor(
     private readonly actorResolution: ArchiveActorResolutionRepository,
     private readonly actors: ActorRepository,
     private readonly dlq: DlqRepository,
     adapters: readonly ActorSweepAdapter[],
-    offchainAdapters: readonly OffchainActorAddressDeriver[] = [],
   ) {
     this.eventTypes = [...new Set(adapters.flatMap((adapter) => adapter.eventTypes))];
     this.adapterBySourceType = new Map(
       adapters.flatMap((adapter) =>
-        adapter.sourceTypes.map((sourceType) => [sourceType, adapter] as const),
-      ),
-    );
-    this.offchainEventTypes = [...new Set(offchainAdapters.flatMap((a) => a.eventTypes))];
-    this.offchainAdapterBySourceType = new Map(
-      offchainAdapters.flatMap((adapter) =>
         adapter.sourceTypes.map((sourceType) => [sourceType, adapter] as const),
       ),
     );
@@ -57,24 +42,24 @@ export class ActorSweepService {
       const batchSize = Number(
         process.env['ACTOR_SWEEP_BATCH_SIZE'] ?? DEFAULT_ACTOR_SWEEP_BATCH_SIZE,
       );
-      const rows = await this.actorResolution.findUnresolvedActors(
-        this.eventTypes,
-        ACTOR_SWEEP_DLQ_THRESHOLD,
-        batchSize,
-      );
-      const bySourceType = groupBySourceType(rows);
+      // EVM and off-chain rows come from separate selections (different SQL/ordering) but feed one
+      // processing path — each source_type's adapter is keyed the same way, transport-agnostic.
+      const [evmRows, offchainRows] = await Promise.all([
+        this.actorResolution.findUnresolvedActors(
+          this.eventTypes,
+          ACTOR_SWEEP_DLQ_THRESHOLD,
+          batchSize,
+        ),
+        this.actorResolution.findUnresolvedActorsOffchain(
+          this.eventTypes,
+          ACTOR_SWEEP_DLQ_THRESHOLD,
+          batchSize,
+        ),
+      ]);
+
+      const bySourceType = groupBySourceType<ActorSweepRow>([...evmRows, ...offchainRows]);
       for (const [sourceType, batch] of bySourceType) {
         await this.processSourceBatch(sourceType, batch);
-      }
-
-      const offchainRows = await this.actorResolution.findUnresolvedActorsOffchain(
-        this.offchainEventTypes,
-        ACTOR_SWEEP_DLQ_THRESHOLD,
-        batchSize,
-      );
-      const byOffchainSourceType = groupBySourceType(offchainRows);
-      for (const [sourceType, batch] of byOffchainSourceType) {
-        await this.processOffchainSourceBatch(sourceType, batch);
       }
     } catch (err) {
       this.logger.error('actor_sweep_tick_failed', { error: String(err) });
@@ -85,7 +70,7 @@ export class ActorSweepService {
 
   private async processSourceBatch(
     sourceType: string,
-    rows: readonly ArchiveDerivationRow[],
+    rows: readonly ActorSweepRow[],
   ): Promise<void> {
     try {
       const adapter = this.adapterBySourceType.get(sourceType);
@@ -124,101 +109,23 @@ export class ActorSweepService {
     }
   }
 
-  private async processOffchainSourceBatch(
-    sourceType: string,
-    rows: readonly OffchainArchiveRow[],
-  ): Promise<void> {
-    try {
-      const adapter = this.offchainAdapterBySourceType.get(sourceType);
-      if (adapter === undefined) {
-        throw new Error(`no off-chain actor sweep adapter for source_type ${sourceType}`);
-      }
-      const payloads = await adapter.fetchPayloads(rows);
-      const byKey = new Map(payloads.map((payload) => [payload.external_id, payload]));
-
-      for (const row of rows) {
-        const payload = byKey.get(row.external_id);
-        if (payload === undefined) {
-          await this.handleFailureOffchain(row, new Error('archive payload missing'));
-          continue;
-        }
-
-        try {
-          const candidates = adapter.extractAddresses(row.event_type, payload.payload);
-          for (const candidate of candidates) {
-            const normalized = candidate.address.toLowerCase();
-            if (normalized === ZERO_ADDRESS) continue;
-            await this.actors.findOrCreateActorAddress(
-              normalized,
-              (candidate.role ?? 'unknown_event') as ActorAddressSource,
-            );
-          }
-          await this.actorResolution.markActorResolved(row.id);
-        } catch (err) {
-          await this.handleFailureOffchain(row, err);
-        }
-      }
-    } catch (err) {
-      for (const row of rows) {
-        await this.handleFailureOffchain(row, err);
-      }
-    }
-  }
-
-  private async handleFailureOffchain(row: OffchainArchiveRow, err: unknown): Promise<void> {
+  private async handleFailure(row: ActorSweepRow, err: unknown): Promise<void> {
     const attempt = await this.actorResolution.incrementActorResolutionAttemptCount(row.id);
+    const { fields, archive } = rowIdentity(row);
     this.logger.warn('actor_sweep_row_failed', {
       row_id: row.id,
       source_type: row.source_type,
       event_type: row.event_type,
       chain_id: row.chain_id,
-      external_id: row.external_id,
+      ...fields,
       attempt,
       error: String(err),
     });
 
     if (attempt < ACTOR_SWEEP_DLQ_THRESHOLD) return;
 
-    // ingestion_dlq has no external_id column — carry the off-chain identity in the payload,
-    // mirroring the off-chain archive consumer's DLQ rows.
-    await this.dlq.insert({
-      stage: ACTOR_RESOLUTION_STAGE,
-      source: 'indexer.actor_sweep',
-      payload: {
-        id: row.id,
-        external_id: row.external_id,
-        source_type: row.source_type,
-        chain_id: row.chain_id,
-        event_type: row.event_type,
-      },
-      error: { message: String(err) },
-      retries: attempt,
-      first_seen_at: new Date(),
-      last_attempt_at: new Date(),
-      archive_source_type: row.source_type,
-      archive_chain_id: row.chain_id,
-      archive_tx_hash: null,
-      archive_log_index: null,
-      archive_block_hash: null,
-    });
-  }
-
-  private async handleFailure(row: ArchiveDerivationRow, err: unknown): Promise<void> {
-    const attempt = await this.actorResolution.incrementActorResolutionAttemptCount(row.id);
-    this.logger.warn('actor_sweep_row_failed', {
-      row_id: row.id,
-      source_type: row.source_type,
-      event_type: row.event_type,
-      chain_id: row.chain_id,
-      tx_hash: row.tx_hash,
-      log_index: row.log_index,
-      block_hash: row.block_hash,
-      attempt,
-      error: String(err),
-    });
-
-    if (attempt < ACTOR_SWEEP_DLQ_THRESHOLD) return;
-
+    // ingestion_dlq has no external_id column — off-chain identity rides the JSON payload (mirroring
+    // the off-chain archive consumer), and the archive_* coords are null for off-chain rows.
     await this.dlq.insert({
       stage: ACTOR_RESOLUTION_STAGE,
       source: 'indexer.actor_sweep',
@@ -226,10 +133,8 @@ export class ActorSweepService {
         id: row.id,
         source_type: row.source_type,
         chain_id: row.chain_id,
-        tx_hash: row.tx_hash,
-        log_index: row.log_index,
-        block_hash: row.block_hash,
         event_type: row.event_type,
+        ...fields,
       },
       error: { message: String(err) },
       retries: attempt,
@@ -237,11 +142,30 @@ export class ActorSweepService {
       last_attempt_at: new Date(),
       archive_source_type: row.source_type,
       archive_chain_id: row.chain_id,
-      archive_tx_hash: row.tx_hash,
-      archive_log_index: row.log_index,
-      archive_block_hash: row.block_hash,
+      archive_tx_hash: archive.tx_hash,
+      archive_log_index: archive.log_index,
+      archive_block_hash: archive.block_hash,
     });
   }
+}
+
+/** Transport-specific identity for logs + DLQ: `fields` is spread into the log/JSON payload
+ *  (external_id off-chain, block/tx coords on EVM); `archive` holds the typed DLQ coord columns
+ *  (null for off-chain). */
+function rowIdentity(row: ActorSweepRow): {
+  fields: Record<string, string | number>;
+  archive: { tx_hash: string | null; log_index: number | null; block_hash: string | null };
+} {
+  if ('external_id' in row) {
+    return {
+      fields: { external_id: row.external_id },
+      archive: { tx_hash: null, log_index: null, block_hash: null },
+    };
+  }
+  return {
+    fields: { tx_hash: row.tx_hash, log_index: row.log_index, block_hash: row.block_hash },
+    archive: { tx_hash: row.tx_hash, log_index: row.log_index, block_hash: row.block_hash },
+  };
 }
 
 function groupBySourceType<T extends { source_type: string }>(
@@ -259,16 +183,16 @@ function groupBySourceType<T extends { source_type: string }>(
   return grouped;
 }
 
-/** Correlation key between an archive row and its CH payload. Off-chain rows
- *  (external_id set) key on external_id; EVM rows key on the block/tx 4-tuple.
- *  EVM output is unchanged from the prior tuple key. */
+/** Correlation key between an archive row and its CH payload within a single source batch.
+ *  Off-chain rows (external_id set) key on the source-native, globally-unique external_id; EVM rows
+ *  key on the block/tx 4-tuple. EVM output is unchanged from the prior tuple key. */
 export function archiveRowKey(row: {
-  chain_id: string;
+  chain_id?: string;
   tx_hash?: string | null;
   log_index?: number | null;
   block_hash?: string | null;
   external_id?: string | null;
 }): string {
-  if (row.external_id != null) return `${row.chain_id}:ext:${row.external_id}`;
+  if (row.external_id != null) return `ext:${row.external_id}`;
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
 }

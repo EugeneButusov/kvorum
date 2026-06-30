@@ -135,8 +135,8 @@ describe('ActorSweepService', () => {
       findOrCreateActorAddress: vi.fn().mockResolvedValue({ id: 'actor-1' }),
     };
     const dlq = { insert: vi.fn() };
+    // Off-chain derivers are normalized onto the same ActorSweepAdapter shape at the module level.
     const offchainAdapter = {
-      kind: 'offchain-actor-address' as const,
       sourceTypes: ['snapshot'],
       eventTypes: ['SnapshotProposalCreated'],
       fetchPayloads: vi.fn().mockResolvedValue([
@@ -148,12 +148,15 @@ describe('ActorSweepService', () => {
       ]),
       extractAddresses: (_eventType: string, payloadJson: string) => {
         const payload = JSON.parse(payloadJson) as Record<string, string>;
-        return [{ address: payload['author'] ?? '', role: 'proposer_event' }];
+        return [{ address: payload['author'] ?? '', source: 'proposer_event' }];
       },
     };
-    const service = new ActorSweepService(archive as never, actors as never, dlq as never, [], [
-      offchainAdapter,
-    ] as never);
+    const service = new ActorSweepService(
+      archive as never,
+      actors as never,
+      dlq as never,
+      [offchainAdapter] as never,
+    );
 
     await service.tick();
 
@@ -186,15 +189,17 @@ describe('ActorSweepService', () => {
     };
     const dlq = { insert: vi.fn() };
     const offchainAdapter = {
-      kind: 'offchain-actor-address' as const,
       sourceTypes: ['snapshot'],
       eventTypes: ['SnapshotProposalCreated'],
       fetchPayloads: vi.fn().mockResolvedValue([]), // nothing for this external_id
       extractAddresses: () => [],
     };
-    const service = new ActorSweepService(archive as never, {} as never, dlq as never, [], [
-      offchainAdapter,
-    ] as never);
+    const service = new ActorSweepService(
+      archive as never,
+      {} as never,
+      dlq as never,
+      [offchainAdapter] as never,
+    );
 
     await service.tick();
 
@@ -222,17 +227,19 @@ describe('ActorSweepService', () => {
       incrementActorResolutionAttemptCount: vi.fn().mockResolvedValue(5),
     };
     const dlq = { insert: vi.fn().mockResolvedValue(undefined) };
-    // No adapter registered for 'snapshot' → processOffchainSourceBatch throws → handleFailureOffchain.
+    // No adapter registered for 'snapshot' → processSourceBatch throws → handleFailure dead-letters.
     const otherAdapter = {
-      kind: 'offchain-actor-address' as const,
       sourceTypes: ['other'],
       eventTypes: ['SnapshotProposalCreated'],
       fetchPayloads: vi.fn(),
       extractAddresses: () => [],
     };
-    const service = new ActorSweepService(archive as never, {} as never, dlq as never, [], [
-      otherAdapter,
-    ] as never);
+    const service = new ActorSweepService(
+      archive as never,
+      {} as never,
+      dlq as never,
+      [otherAdapter] as never,
+    );
 
     await service.tick();
 
@@ -477,7 +484,7 @@ describe('archiveRowKey', () => {
     ).toBe('0x1:0xtx:3:0xblk');
   });
 
-  it('keys off-chain rows on external_id, ignoring null coords', () => {
+  it('keys off-chain rows on the source-native external_id, ignoring null coords', () => {
     expect(
       archiveRowKey({
         chain_id: 'off-chain',
@@ -486,7 +493,7 @@ describe('archiveRowKey', () => {
         block_hash: null,
         external_id: 'proposal-0xabc',
       }),
-    ).toBe('off-chain:ext:proposal-0xabc');
+    ).toBe('ext:proposal-0xabc');
   });
 
   it('distinguishes two off-chain rows of the same source by external_id', () => {
