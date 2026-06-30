@@ -37,4 +37,5 @@ export type {
   SnapshotProposalRow,
   SnapshotVoteRow,
   SnapshotProposalPayload,
+  SnapshotVotePayload,
 } from './domain/types';

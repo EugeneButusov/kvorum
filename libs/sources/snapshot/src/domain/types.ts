@@ -30,6 +30,13 @@ export interface SnapshotCursor {
 // The archived raw Snapshot proposal slice (the GraphQL `proposals` row). Only the fields the
 // proposal projector reads are typed; everything else in the payload is ignored. `deleted` is a
 // reconcile-injected sentinel (a proposal that vanished from the API), not a Snapshot field.
+// The archived raw Snapshot vote slice (the GraphQL `votes` row). AD3 reads only `voter`; AD4
+// reads the rest (choice/vp/reason/proposal) for vote derivation.
+export interface SnapshotVotePayload {
+  id: string;
+  voter?: string | null;
+}
+
 export interface SnapshotProposalPayload {
   id: string;
   created: number;
