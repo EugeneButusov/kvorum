@@ -5,16 +5,17 @@ import type {
   OffchainActorAddressDeriver,
   OffchainActorAddressPayloadRow,
 } from '@sources/core';
-import type { SnapshotProposalPayload } from './types';
+import type { SnapshotProposalPayload, SnapshotVotePayload } from './types';
 import type { SnapshotArchivePayloadRepository } from '../persistence/archive-payload-repository';
 
-// Minimal AD2 actor adapter: resolves the proposer (`author`) from SnapshotProposalCreated so the
-// proposal row passes the actor-resolution gate before derivation. AD3 extends this to voters
-// (SnapshotVoteCast) and delegators.
+// Resolves the actor addresses Snapshot derivation gates on: the proposer (`author`) from
+// SnapshotProposalCreated and the voter (`voter`) from SnapshotVoteCast. Once resolved, the proposal
+// (AD2) and vote (AD4) rows pass the actor-resolution gate. Delegators land with AD5's delegation
+// ingestion (no delegation archive rows exist yet).
 export class SnapshotActorAddressDeriver implements OffchainActorAddressDeriver {
   readonly kind = 'offchain-actor-address' as const;
   readonly sourceTypes = ['snapshot'] as const;
-  readonly eventTypes = ['SnapshotProposalCreated'] as const;
+  readonly eventTypes = ['SnapshotProposalCreated', 'SnapshotVoteCast'] as const;
 
   constructor(private readonly payloads: SnapshotArchivePayloadRepository) {}
 
@@ -23,17 +24,28 @@ export class SnapshotActorAddressDeriver implements OffchainActorAddressDeriver 
   ): Promise<readonly OffchainActorAddressPayloadRow[]> {
     const latest = await this.payloads.fetchLatest(rows);
     const eventTypeByExternalId = new Map(rows.map((row) => [row.external_id, row.event_type]));
-    return latest.map((row) => ({
-      external_id: row.external_id,
-      event_type: eventTypeByExternalId.get(row.external_id) ?? 'SnapshotProposalCreated',
-      payload: row.payload,
-    }));
+    return latest.map((row) => {
+      // fetchLatest only returns external_ids that were in `rows`, so the lookup cannot miss; a
+      // miss is a real invariant violation — fail loud rather than mislabel or silently drop.
+      const eventType = eventTypeByExternalId.get(row.external_id);
+      if (eventType === undefined) {
+        throw new Error(`snapshot actor sweep: no archive row for external_id ${row.external_id}`);
+      }
+      return { external_id: row.external_id, event_type: eventType, payload: row.payload };
+    });
   }
 
   extractAddresses(eventType: ArchiveEventType, payload: string): readonly ActorAddressCandidate[] {
-    if (eventType !== 'SnapshotProposalCreated') return [];
-    const parsed = JSON.parse(payload) as SnapshotProposalPayload;
-    if (parsed.author == null || parsed.author === '') return [];
-    return [{ address: parsed.author, role: 'proposer_event' }];
+    if (eventType === 'SnapshotProposalCreated') {
+      const proposer = (JSON.parse(payload) as SnapshotProposalPayload).author;
+      if (proposer == null || proposer === '') return [];
+      return [{ address: proposer, role: 'proposer_event' }];
+    }
+    if (eventType === 'SnapshotVoteCast') {
+      const voter = (JSON.parse(payload) as SnapshotVotePayload).voter;
+      if (voter == null || voter === '') return [];
+      return [{ address: voter, role: 'voter_event' }];
+    }
+    return [];
   }
 }
