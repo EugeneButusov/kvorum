@@ -2,7 +2,7 @@ import { defineCounter, defineGauge, defineHistogram } from '@libs/observability
 
 // `indexer_ingestion_snapshot_*` once the service prefix is applied (ADR-045). The generic
 // poll driver already emits pollTick / pollItemsEnqueued; these cover the Snapshot-specific
-// client + per-space signal the AG backfill and live operations need.
+// client + per-space signal that live backfill and live operations need.
 export const snapshotMetrics = {
   proposalsPolled: defineCounter({
     name: 'ingestion_snapshot_proposals_polled',
@@ -42,5 +42,10 @@ export const snapshotMetrics = {
     name: 'ingestion_snapshot_votes_derived',
     description:
       'Snapshot vote derivations by outcome (derived|superseded|skipped_shielded|skipped_idempotent|failed)',
+  }),
+  delegationsDerived: defineCounter({
+    name: 'ingestion_snapshot_delegations_derived',
+    description:
+      'Snapshot on-chain delegation derivations by source_type/event_type/outcome (derived|failed)',
   }),
 };

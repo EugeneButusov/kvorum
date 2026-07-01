@@ -14,18 +14,34 @@ describe('SnapshotSourceModule', () => {
     const plugin = moduleRef.get<SourcePlugin>(SNAPSHOT_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('snapshot');
-    expect(plugin.ingesters).toHaveLength(1);
-    expect(plugin.ingesters[0]!.sourceType).toBe('snapshot');
+    // off-chain poll ingester + the two on-chain delegation registries (Delegate Registry + Split).
+    expect(plugin.ingesters.map((i) => i.sourceType)).toEqual([
+      'snapshot',
+      'snapshot_delegate_registry',
+      'snapshot_split_delegation',
+    ]);
     expect(plugin.ingesters[0]!.supportedChainIds).toEqual(['off-chain']);
-    // proposal projection applier + actor-address deriver + vote projection applier.
+    expect(plugin.ingesters[1]!.supportedChainIds).toEqual(['0x1']);
+    // off-chain: proposal projection applier + actor deriver + vote applier; on-chain: a projection
+    // + actor-address deriver per delegation system.
     expect(plugin.derivers.map((d) => d.kind).sort()).toEqual([
+      'actor-address',
+      'actor-address',
       'offchain-actor-address',
       'offchain-projection',
       'offchain-projection',
+      'projection',
+      'projection',
     ]);
-    expect(plugin.derivers.filter((d) => d.eventTypes.includes('SnapshotVoteCast'))).toHaveLength(
+    // each on-chain system contributes a projection applier + an actor-address deriver.
+    expect(plugin.derivers.filter((d) => d.eventTypes.includes('SetDelegate'))).toHaveLength(2);
+    expect(plugin.derivers.filter((d) => d.eventTypes.includes('DelegationUpdated'))).toHaveLength(
       2,
     );
-    expect(plugin.readExtension.sourceTypes).toEqual(['snapshot']);
+    expect(plugin.readExtension.sourceTypes).toEqual([
+      'snapshot',
+      'snapshot_delegate_registry',
+      'snapshot_split_delegation',
+    ]);
   });
 });

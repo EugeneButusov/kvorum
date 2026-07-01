@@ -16,7 +16,7 @@ export function makeIngesterListener<TEvent extends { type: ArchiveEventType; pa
     dlqRepo: DlqRepository;
   },
   decode: (log: LogEvent) => TEvent,
-  options: IngesterListenerOptions = {},
+  options: IngesterListenerOptions<TEvent> = {},
 ): EventsListener<LogEvent> {
   return async (events: LogEvent[]) => {
     const batchStartMs = Date.now();
@@ -33,6 +33,9 @@ export function makeIngesterListener<TEvent extends { type: ArchiveEventType; pa
           });
           continue;
         }
+
+        // Drop out-of-scope events the topic filter cannot exclude (e.g. un-indexed scope).
+        if (options.filter && !options.filter(decoded)) continue;
 
         try {
           await deps.archiveWriter.write(deps.context, decoded, log);
