@@ -2,6 +2,8 @@ import { forumMetrics, type ForumEndpoint } from '../metrics';
 import { abortableDelay } from './abortable-delay';
 import { RatePacer, type RatePacerOptions } from './rate-pacer';
 import type {
+  DiscourseCategoriesResponse,
+  DiscourseCategory,
   DiscourseCategoryPageResponse,
   DiscoursePost,
   DiscoursePostRaw,
@@ -62,6 +64,21 @@ export class DiscourseClient {
     this.backoffBaseMs = opts.backoffBaseMs ?? 500;
     this.chunkSize = opts.chunkSize ?? POST_IDS_CHUNK_SIZE;
     this.pacer = new RatePacer(opts.pacer);
+  }
+
+  /** Resolve the forum's categories (`/categories.json`) as a slug→id list. A category page needs
+   *  the numeric id (`/c/{slug}.json` 301-redirects), so the crawler maps configured slugs here. */
+  async fetchCategories(signal: AbortSignal): Promise<DiscourseCategory[]> {
+    const body = await this.request<DiscourseCategoriesResponse>(
+      '/categories.json',
+      'categories',
+      signal,
+    );
+    return (body.category_list?.categories ?? []).map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      name: c.name ?? null,
+    }));
   }
 
   /** Fetch one category page (`/c/{slug}/{id}.json?page=N`, page 0-indexed). Returns the topics

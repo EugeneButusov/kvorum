@@ -58,6 +58,19 @@ export interface DiscoursePostsResponse {
   } | null;
 }
 
+/** `/categories.json` — the slug→numeric-id map (a category page needs the id). */
+export interface DiscourseCategoriesResponse {
+  category_list?: {
+    categories?: { id: number; slug: string; name?: string | null }[] | null;
+  } | null;
+}
+
+export interface DiscourseCategory {
+  id: number;
+  slug: string;
+  name: string | null;
+}
+
 // ── Transport-layer domain types (camelCase, returned by DiscourseClient) ────────
 
 /** A topic as listed on a category page — the crawl work-list unit. */

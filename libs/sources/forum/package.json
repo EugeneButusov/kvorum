@@ -6,12 +6,15 @@
   "types": "./src/index.d.ts",
   "dependencies": {
     "@joplin/turndown-plugin-gfm": "1.0.67",
+    "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
     "@libs/domain": "workspace:*",
     "@libs/observability": "workspace:*",
+    "@sources/core": "workspace:*",
     "kysely": "^0.29.0",
     "tslib": "^2.3.0",
-    "turndown": "7.2.4"
+    "turndown": "7.2.4",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/turndown": "^5.0.6"

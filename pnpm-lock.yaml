@@ -444,6 +444,9 @@ importers:
       '@joplin/turndown-plugin-gfm':
         specifier: 1.0.67
         version: 1.0.67
+      '@libs/chain':
+        specifier: workspace:*
+        version: link:../../chain
       '@libs/db':
         specifier: workspace:*
         version: link:../../db
@@ -453,6 +456,9 @@ importers:
       '@libs/observability':
         specifier: workspace:*
         version: link:../../observability
+      '@sources/core':
+        specifier: workspace:*
+        version: link:../core
       kysely:
         specifier: ^0.29.0
         version: 0.29.0
@@ -462,6 +468,9 @@ importers:
       turndown:
         specifier: 7.2.4
         version: 7.2.4
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
     devDependencies:
       '@types/turndown':
         specifier: ^5.0.6
@@ -740,6 +749,37 @@ importers:
       zod:
         specifier: ^4.0.0
         version: 4.4.3
+    devDependencies:
+      '@nestjs/testing':
+        specifier: ^11.0.0
+        version: 11.1.19(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/platform-express@11.1.19)
+
+  nest/sources/forum:
+    dependencies:
+      '@libs/chain':
+        specifier: workspace:*
+        version: link:../../../libs/chain
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../../libs/db
+      '@nest/chain':
+        specifier: workspace:*
+        version: link:../../chain
+      '@nestjs/common':
+        specifier: ^11.0.0
+        version: 11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^11.0.0
+        version: 11.1.19(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.19)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@sources/core':
+        specifier: workspace:*
+        version: link:../../../libs/sources/core
+      '@sources/forum':
+        specifier: workspace:*
+        version: link:../../../libs/sources/forum
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
     devDependencies:
       '@nestjs/testing':
         specifier: ^11.0.0
