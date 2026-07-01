@@ -5,10 +5,16 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@joplin/turndown-plugin-gfm": "1.0.67",
     "@libs/db": "workspace:*",
     "@libs/domain": "workspace:*",
+    "@libs/observability": "workspace:*",
     "kysely": "^0.29.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "turndown": "7.2.4"
+  },
+  "devDependencies": {
+    "@types/turndown": "^5.0.6"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",
