@@ -1,6 +1,8 @@
 import { Logger, Module } from '@nestjs/common';
 import {
   ArchiveDerivationRepository,
+  ArchiveEventRepository,
+  DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
   VoteEventsProjectionWriter,
@@ -9,15 +11,32 @@ import {
 } from '@libs/db';
 import type { SourcePlugin } from '@sources/core';
 import {
+  DelegateRegistryActorAddressDeriver,
+  DelegateRegistryArchivePayloadRepository,
+  DelegateRegistryArchiveWriter,
+  DelegateRegistryDelegationProjectionApplier,
+  DelegateRegistryEventRepository,
+  SNAPSHOT_DELEGATION_CHAIN_ID,
   SnapshotActorAddressDeriver,
   SnapshotArchivePayloadRepository,
   SnapshotClient,
+  SnapshotDelegationRepository,
   SnapshotProposalProjectionApplier,
   SnapshotProposalRepository,
+  SnapshotSpaceDaoResolver,
   SnapshotVoteChoiceRepository,
   SnapshotVoteProjectionApplier,
+  SplitDelegationActorAddressDeriver,
+  SplitDelegationArchivePayloadRepository,
+  SplitDelegationArchiveWriter,
+  SplitDelegationEventRepository,
+  SplitDelegationProjectionApplier,
+  createDelegateRegistryPlugin,
   createSnapshotPlugin,
+  createSplitDelegationPlugin,
   makeSnapshotReadExtension,
+  snapshotMetrics,
+  type SnapshotDelegationProjectionMetrics,
   type SnapshotStaleProvider,
 } from '@sources/snapshot';
 import { toChainLogger } from '@nest/chain';
@@ -26,6 +45,16 @@ export const SNAPSHOT_SOURCE_PLUGIN = 'SNAPSHOT_SOURCE_PLUGIN';
 
 // Reconcile re-queries up to this many stale closed proposals per space per poll tick.
 const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
+
+const delegationMetrics: SnapshotDelegationProjectionMetrics = {
+  processed: ({ source_type, event_type, outcome, reason }) =>
+    snapshotMetrics.delegationsDerived.add(1, {
+      source_type,
+      event_type,
+      outcome,
+      reason: reason ?? 'none',
+    }),
+};
 
 // Off-chain source: one `snapshot` plugin covering all three seeded spaces (lido/aave/compound).
 // Registers the proposal + vote projection appliers, the actor-address deriver, and the
@@ -69,6 +98,57 @@ const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
           () =>
             new SnapshotProposalRepository(pgDb).findStaleClosedProposalIds(space, RECONCILE_BATCH);
 
+        // On-chain delegation (mainnet): shared PG target + space→dao resolver, then one ingester
+        // and (actor + projection) deriver pair per delegation system. dao attribution is recovered
+        // from the decoded space, not the trigger-owner dao_source (see ADR-0075).
+        const archiveEventRepo = new ArchiveEventRepository(pgDb);
+        const dlqRepo = new DlqRepository(pgDb);
+        const archive = new ArchiveDerivationRepository(pgDb);
+        const delegationRepo = new SnapshotDelegationRepository(pgDb);
+        const spaceResolver = new SnapshotSpaceDaoResolver(pgDb);
+
+        const delegateRegistryPayloads = new DelegateRegistryArchivePayloadRepository(chDb);
+        const delegateRegistryWriter = new DelegateRegistryArchiveWriter({
+          eventRepo: new DelegateRegistryEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('DelegateRegistryArchiveWriter')),
+        });
+        const delegateRegistryApplier = new DelegateRegistryDelegationProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads: delegateRegistryPayloads,
+          delegationRepo,
+          spaceResolver,
+          metrics: delegationMetrics,
+          network: SNAPSHOT_DELEGATION_CHAIN_ID,
+          logger: toChainLogger(new Logger('DelegateRegistryProjection')),
+        });
+        const delegateRegistryActorDeriver = new DelegateRegistryActorAddressDeriver(
+          delegateRegistryPayloads,
+        );
+
+        const splitDelegationPayloads = new SplitDelegationArchivePayloadRepository(chDb);
+        const splitDelegationWriter = new SplitDelegationArchiveWriter({
+          eventRepo: new SplitDelegationEventRepository({ chDb }),
+          archiveEventRepo,
+          dlqRepo,
+          logger: toChainLogger(new Logger('SplitDelegationArchiveWriter')),
+        });
+        const splitDelegationApplier = new SplitDelegationProjectionApplier({
+          archive,
+          dlq: dlqRepo,
+          payloads: splitDelegationPayloads,
+          delegationRepo,
+          spaceResolver,
+          metrics: delegationMetrics,
+          network: SNAPSHOT_DELEGATION_CHAIN_ID,
+          logger: toChainLogger(new Logger('SplitDelegationProjection')),
+        });
+        const splitDelegationActorDeriver = new SplitDelegationActorAddressDeriver(
+          splitDelegationPayloads,
+        );
+
         return {
           name: 'snapshot',
           ingesters: [
@@ -78,8 +158,26 @@ const RECONCILE_BATCH = Number(process.env['SNAPSHOT_RECONCILE_BATCH'] ?? '25');
               intervalMs: intervalEnv ? Number(intervalEnv) : undefined,
               staleProviderFactory,
             }),
+            createDelegateRegistryPlugin({
+              archiveWriter: delegateRegistryWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('DelegateRegistry')),
+            }),
+            createSplitDelegationPlugin({
+              archiveWriter: splitDelegationWriter,
+              dlqRepo,
+              logger: toChainLogger(new Logger('SplitDelegation')),
+            }),
           ],
-          derivers: [proposalApplier, actorAddressDeriver, voteApplier],
+          derivers: [
+            proposalApplier,
+            actorAddressDeriver,
+            voteApplier,
+            delegateRegistryApplier,
+            delegateRegistryActorDeriver,
+            splitDelegationApplier,
+            splitDelegationActorDeriver,
+          ],
           readExtension: makeSnapshotReadExtension(),
         };
       },

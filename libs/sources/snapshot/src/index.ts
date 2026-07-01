@@ -45,3 +45,67 @@ export type {
   SnapshotProposalPayload,
   SnapshotVotePayload,
 } from './domain/types';
+
+// ── On-chain delegation (Delegate Registry + Split Delegation) ────────────
+export {
+  DELEGATE_REGISTRY_ADDRESS,
+  SPLIT_DELEGATION_ADDRESS,
+  SNAPSHOT_DELEGATION_CHAIN_ID,
+  SNAPSHOT_DELEGATION_SPACES,
+  SNAPSHOT_DELEGATION_PROJECTION_STAGE,
+  DELEGATION_SYSTEM,
+  DELEGATION_EVENT_TYPE,
+} from './delegation/constants';
+export {
+  bytes32ToAddress,
+  decodeSpaceId,
+  encodeSpaceId,
+  GLOBAL_SPACE_ID,
+} from './delegation/address';
+export { SnapshotDelegationRepository } from './delegation/snapshot-delegation-repository';
+export type { CurrentDelegate } from './delegation/snapshot-delegation-repository';
+export { SnapshotSpaceDaoResolver } from './delegation/space-dao-resolver';
+export type {
+  SnapshotDelegation,
+  NewSnapshotDelegation,
+  SnapshotDelegationTable,
+} from './persistence/schema';
+
+// Delegate Registry
+export { decodeDelegateRegistryLog } from './delegate-registry/abi/decoder';
+export { DELEGATE_REGISTRY_TOPICS } from './delegate-registry/abi/events';
+export type { DelegateRegistryEvent } from './delegate-registry/domain/types';
+export { DelegateRegistryArchiveWriter } from './delegate-registry/ingestion/archive-writer';
+export { DelegateRegistryEventRepository } from './delegate-registry/persistence/event-repository';
+export { DelegateRegistryArchivePayloadRepository } from './delegate-registry/persistence/archive-payload-repository';
+export {
+  createDelegateRegistryPlugin,
+  DelegateRegistryConfigSchema,
+} from './delegate-registry/plugin/plugin';
+export type { DelegateRegistryConfig } from './delegate-registry/plugin/plugin';
+export { DelegateRegistryActorAddressDeriver } from './delegate-registry/domain/actor-address-deriver';
+export { projectDelegateRegistryEvent } from './delegate-registry/domain/delegation-projector';
+export { DelegateRegistryDelegationProjectionApplier } from './delegate-registry/domain/delegation-projection-applier';
+export type {
+  SnapshotDelegationProjectionMetrics,
+  DelegationDerivationOutcome,
+  DelegationDerivationFailureReason,
+} from './delegate-registry/domain/delegation-projection-applier';
+
+// Split Delegation
+export { decodeSplitDelegationLog } from './split-delegation/abi/decoder';
+export { SPLIT_DELEGATION_TOPICS } from './split-delegation/abi/events';
+export type { SplitDelegationEvent, SplitDelegationEntry } from './split-delegation/domain/types';
+export { isTrackedSplitDelegation } from './split-delegation/domain/context-filter';
+export { normalizeWeights } from './split-delegation/domain/weights';
+export { SplitDelegationArchiveWriter } from './split-delegation/ingestion/archive-writer';
+export { SplitDelegationEventRepository } from './split-delegation/persistence/event-repository';
+export { SplitDelegationArchivePayloadRepository } from './split-delegation/persistence/archive-payload-repository';
+export {
+  createSplitDelegationPlugin,
+  SplitDelegationConfigSchema,
+} from './split-delegation/plugin/plugin';
+export type { SplitDelegationConfig } from './split-delegation/plugin/plugin';
+export { SplitDelegationActorAddressDeriver } from './split-delegation/domain/actor-address-deriver';
+export { projectSplitDelegationEvent } from './split-delegation/domain/delegation-projector';
+export { SplitDelegationProjectionApplier } from './split-delegation/domain/delegation-projection-applier';

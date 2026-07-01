@@ -55,4 +55,10 @@ export type ArchiveEventType =
   | 'MotionsCountLimitChanged'
   | 'EVMScriptExecutorChanged'
   | 'SnapshotProposalCreated'
-  | 'SnapshotVoteCast';
+  | 'SnapshotVoteCast'
+  | 'SetDelegate'
+  | 'ClearDelegate'
+  | 'DelegationUpdated'
+  | 'DelegationCleared'
+  | 'ExpirationUpdated'
+  | 'OptOutStatusSet';
