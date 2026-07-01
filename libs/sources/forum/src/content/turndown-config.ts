@@ -1,5 +1,5 @@
-import { tables } from '@joplin/turndown-plugin-gfm';
 import TurndownService from 'turndown';
+import { tables } from './gfm';
 
 // Minimal structural view of the DOM node turndown hands each rule. Domino (turndown's bundled
 // parser) implements these; typed here so we don't depend on the `DOM` lib (this package is

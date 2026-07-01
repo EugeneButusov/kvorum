@@ -25,6 +25,22 @@ export const forumMetrics = {
     name: 'forum_turndown_failures',
     description: 'Posts whose cooked HTML failed to normalise to Markdown, by forum_host',
   }),
+  topicsEnumerated: defineCounter({
+    name: 'forum_topics_enumerated',
+    description: 'Category-listing topics seen by a crawl tick, by forum_host',
+  }),
+  threadsCrawled: defineCounter({
+    name: 'forum_threads_crawled',
+    description: 'Full threads fetched + emitted by a crawl tick, by forum_host',
+  }),
+  sweepsCompleted: defineCounter({
+    name: 'forum_sweeps_completed',
+    description: 'Completed category sweeps, by forum_host and mode (incremental|reconcile)',
+  }),
+  threadsDerived: defineCounter({
+    name: 'forum_threads_derived',
+    description: 'forum_thread derivations by outcome (derived|failed)',
+  }),
 };
 
-export type ForumEndpoint = 'category' | 'topic' | 'posts';
+export type ForumEndpoint = 'categories' | 'category' | 'topic' | 'posts';

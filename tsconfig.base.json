@@ -45,6 +45,7 @@
       "@nest/compound": ["./nest/sources/compound/src/index.ts"],
       "@nest/lido": ["./nest/sources/lido/src/index.ts"],
       "@nest/snapshot": ["./nest/sources/snapshot/src/index.ts"],
+      "@nest/forum": ["./nest/sources/forum/src/index.ts"],
       "@nest/sources": ["./nest/sources/index.ts"],
       "@nest/observability": ["./nest/observability/src/index.ts"],
       "@nest/logging": ["./nest/logging/src/index.ts"]

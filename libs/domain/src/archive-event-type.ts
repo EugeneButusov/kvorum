@@ -56,6 +56,7 @@ export type ArchiveEventType =
   | 'EVMScriptExecutorChanged'
   | 'SnapshotProposalCreated'
   | 'SnapshotVoteCast'
+  | 'DiscourseTopicCrawled'
   | 'SetDelegate'
   | 'ClearDelegate'
   | 'DelegationUpdated'
