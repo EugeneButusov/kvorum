@@ -1,6 +1,6 @@
 # ADR-034 — Forum content pipeline: HTML → Markdown via turndown
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-05-08
 - **Spec sections affected**: 3.7
 - **Related**: 5.7

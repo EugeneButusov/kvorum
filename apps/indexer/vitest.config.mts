@@ -15,8 +15,10 @@ const alias = {
   '@sources/aave': resolve(root, 'libs/sources/aave/src/index.ts'),
   '@sources/compound': resolve(root, 'libs/sources/compound/src/index.ts'),
   '@sources/lido': resolve(root, 'libs/sources/lido/src/index.ts'),
+  '@sources/forum': resolve(root, 'libs/sources/forum/src/index.ts'),
   '@nest/chain': resolve(root, 'nest/chain/src/index.ts'),
   '@nest/compound': resolve(root, 'nest/sources/compound/src/index.ts'),
+  '@nest/forum': resolve(root, 'nest/sources/forum/src/index.ts'),
   '@nest/sources': resolve(root, 'nest/sources/index.ts'),
   '@nest/observability': resolve(root, 'nest/observability/src/index.ts'),
 };

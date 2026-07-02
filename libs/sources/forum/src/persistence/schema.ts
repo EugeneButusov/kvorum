@@ -9,6 +9,7 @@ export interface ForumThreadTable {
   forum_host: string;
   // pg driver returns bigint as string
   forum_topic_id: string;
+  title: string | null;
   raw_content: string | null;
   content_pipeline_version: string | null;
   post_count: number | null;
@@ -21,8 +22,9 @@ export type ForumThreadUpdate = Updateable<ForumThreadTable>;
 
 // ── Proposal Forum Link ───────────────────────────────────────────────────────
 
-// KNOWN-005: low/inferred confidence values deferred to AE.
-export type ProposalForumLinkConfidence = 'high' | 'medium';
+// 'low' is wired for the M5 embedding-based path (KNOWN-005); the deterministic linker only writes
+// 'high' (description_url) and 'medium' (community_curated).
+export type ProposalForumLinkConfidence = 'high' | 'medium' | 'low';
 
 export interface ProposalForumLinkTable {
   id: Generated<string>;

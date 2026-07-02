@@ -13,6 +13,7 @@ import {
 } from './thread-projection-applier';
 import type { ForumThreadPayload } from '../ingestion/types';
 import type { ForumArchivePayloadRepository } from '../persistence/archive-payload-repository';
+import type { ForumLinkRepository } from '../persistence/forum-link-repository';
 
 function row(id: string, externalId: string): OffchainArchiveRow {
   return {
@@ -51,10 +52,12 @@ function payload(topicId: number): ForumThreadPayload {
 function harness(opts: {
   payloadsByExternalId: Record<string, string>;
   daoId?: string | undefined;
+  inserted?: boolean;
 }) {
-  const upsert = vi.fn().mockResolvedValue(undefined);
+  const upsert = vi.fn().mockResolvedValue({ inserted: opts.inserted ?? true });
   const markDerived = vi.fn().mockResolvedValue(undefined);
   const incrementAttemptCount = vi.fn().mockResolvedValue(undefined);
+  const resetScanForUnlinkedProposals = vi.fn().mockResolvedValue(0);
   const error = vi.fn();
 
   const payloads = {
@@ -80,6 +83,7 @@ function harness(opts: {
     payloads,
     archive,
     daoSources,
+    linkRepo: { resetScanForUnlinkedProposals } as unknown as ForumLinkRepository,
     logger: { error } as unknown as Logger,
     withTransaction: (fn) =>
       fn({
@@ -88,7 +92,14 @@ function harness(opts: {
       } as unknown as ForumProjectionRepos),
   });
 
-  return { applier, upsert, markDerived, incrementAttemptCount, error };
+  return {
+    applier,
+    upsert,
+    markDerived,
+    incrementAttemptCount,
+    resetScanForUnlinkedProposals,
+    error,
+  };
 }
 
 describe('ForumThreadProjectionApplier.applyBatch', () => {
@@ -105,6 +116,7 @@ describe('ForumThreadProjectionApplier.applyBatch', () => {
     expect(arg.daoId).toBe('dao-1');
     expect(arg.forumHost).toBe('research.lido.fi');
     expect(arg.forumTopicId).toBe('10');
+    expect(arg.title).toBe('T10');
     expect(arg.postCount).toBe(2);
     expect(arg.lastActivityAt).toEqual(new Date('2026-01-05T00:00:00.000Z'));
     expect(arg.rawContent).toContain('**@alice**');
@@ -112,6 +124,30 @@ describe('ForumThreadProjectionApplier.applyBatch', () => {
     expect(arg.contentPipelineVersion).toMatch(/^turndown@/);
     expect(h.markDerived).toHaveBeenCalledWith('r1');
     expect(h.incrementAttemptCount).not.toHaveBeenCalled();
+    // A NEW thread re-queues the DAO's unlinked proposals for the linker sweep.
+    expect(h.resetScanForUnlinkedProposals).toHaveBeenCalledWith('dao-1');
+  });
+
+  it('does not re-queue linking when the thread already existed (update, not insert)', async () => {
+    const h = harness({
+      payloadsByExternalId: { 'topic:10': JSON.stringify(payload(10)) },
+      daoId: 'dao-1',
+      inserted: false,
+    });
+    await h.applier.applyBatch([row('r1', 'topic:10')]);
+    expect(h.markDerived).toHaveBeenCalledWith('r1');
+    expect(h.resetScanForUnlinkedProposals).not.toHaveBeenCalled();
+  });
+
+  it('a re-queue failure never fails derivation', async () => {
+    const h = harness({
+      payloadsByExternalId: { 'topic:10': JSON.stringify(payload(10)) },
+      daoId: 'dao-1',
+    });
+    h.resetScanForUnlinkedProposals.mockRejectedValueOnce(new Error('db down'));
+    await expect(h.applier.applyBatch([row('r1', 'topic:10')])).resolves.toBeUndefined();
+    expect(h.markDerived).toHaveBeenCalledWith('r1'); // derivation still succeeded
+    expect(h.error).toHaveBeenCalled();
   });
 
   it('carries a null last_activity through as null', async () => {
