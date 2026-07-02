@@ -54,6 +54,7 @@ describe('proposal.mappers', () => {
       [{ proposal_id: 'p1', choice_index: 0, value: 'For' }],
       '0x1',
       null,
+      [],
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
@@ -65,6 +66,41 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['voting']).toBeUndefined();
     expect((dto as Record<string, unknown>)['payloads']).toBeUndefined();
     expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+    expect(dto.metadata).toBeNull();
+    expect(dto.forum_links).toEqual([]);
+  });
+
+  it('surfaces source metadata and forum links', () => {
+    const extension = {
+      voting: null,
+      payloads: [],
+      metadata: {
+        kind: 'snapshot' as const,
+        space_id: 'lido-snapshot.eth',
+        voting_type: 'weighted',
+        strategies: [{ name: 'erc20-balance-of' }],
+        ipfs_hash: 'Qm...',
+        network: '1',
+        scores_state: 'final',
+        flagged: false,
+      },
+    };
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [
+      {
+        forum_host: 'research.lido.fi',
+        forum_topic_id: '123',
+        title: 'Proposal discussion',
+        url: 'https://research.lido.fi/t/123',
+        confidence: 'high',
+        last_activity_at: '2026-05-15T09:00:00Z',
+      },
+    ]);
+
+    expect(dto.metadata).toEqual(extension.metadata);
+    expect(dto.forum_links).toHaveLength(1);
+    expect(dto.forum_links[0]?.confidence).toBe('high');
+    expect(dto.forum_links[0]?.url).toBe('https://research.lido.fi/t/123');
+    expect(Object.getPrototypeOf(dto.forum_links[0]).constructor.name).toBe('ProposalForumLinkDto');
   });
 
   it('maps Aave detail with voting and grouped payloads', () => {
@@ -104,9 +140,10 @@ describe('proposal.mappers', () => {
           unindexed_target_chain: false,
         },
       ],
+      metadata: null,
     };
 
-    const dto = toProposalDetailDto(row, [], [], '0x1', extension);
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, []);
     expect(dto.origin_chain_id).toBe('0x1');
     expect(dto.voting).toEqual(extension.voting);
     expect(dto.payloads).toHaveLength(2);

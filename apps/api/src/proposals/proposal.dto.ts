@@ -1,5 +1,14 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProposalPayloadGroupDto, ProposalVotingDto } from './proposal-extension.dto';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, refs } from '@nestjs/swagger';
+import type { ProposalSourceMetadata } from '@libs/domain';
+import {
+  AragonProposalMetadataDto,
+  DualGovernanceProposalMetadataDto,
+  EasyTrackProposalMetadataDto,
+  ProposalForumLinkDto,
+  ProposalPayloadGroupDto,
+  ProposalVotingDto,
+  SnapshotProposalMetadataDto,
+} from './proposal-extension.dto';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class ProposalLinksDto {
@@ -95,6 +104,12 @@ export class ProposalListItemDto {
   declare _meta: ProposalMetaDto;
 }
 
+@ApiExtraModels(
+  AragonProposalMetadataDto,
+  SnapshotProposalMetadataDto,
+  DualGovernanceProposalMetadataDto,
+  EasyTrackProposalMetadataDto,
+)
 export class ProposalDetailDto extends ProposalListItemDto {
   @ApiProperty()
   declare description: string;
@@ -113,6 +128,22 @@ export class ProposalDetailDto extends ProposalListItemDto {
 
   @ApiPropertyOptional({ nullable: true, type: [ProposalPayloadGroupDto] })
   declare payloads?: ProposalPayloadGroupDto[] | null;
+
+  // Source-specific metadata, discriminated by `kind` (== source_type). Null when the source
+  // carries none (e.g. Compound/Aave, which use `voting`/`payloads` instead).
+  @ApiPropertyOptional({
+    nullable: true,
+    oneOf: refs(
+      AragonProposalMetadataDto,
+      SnapshotProposalMetadataDto,
+      DualGovernanceProposalMetadataDto,
+      EasyTrackProposalMetadataDto,
+    ),
+  })
+  declare metadata?: ProposalSourceMetadata | null;
+
+  @ApiProperty({ type: () => [ProposalForumLinkDto] })
+  declare forum_links: ProposalForumLinkDto[];
 }
 
 export class ProposalDetailResponseDto {

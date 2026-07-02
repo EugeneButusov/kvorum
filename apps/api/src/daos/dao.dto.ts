@@ -18,11 +18,26 @@ export class DaoSourceDto {
   @ApiProperty()
   declare source_type: string;
 
+  // Off-chain sources (snapshot, discourse_forum) bind by space/host rather than a contract.
+  @ApiProperty()
+  declare off_chain: boolean;
+
   @ApiPropertyOptional()
   declare contract_address?: string;
 
   @ApiPropertyOptional()
   declare chain_id?: string;
+
+  // Snapshot space id (e.g. lido-snapshot.eth).
+  @ApiPropertyOptional()
+  declare space?: string;
+
+  // Discourse forum host (e.g. research.lido.fi).
+  @ApiPropertyOptional()
+  declare forum_host?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  declare forum_categories?: string[];
 }
 
 export class DaoListItemDto {

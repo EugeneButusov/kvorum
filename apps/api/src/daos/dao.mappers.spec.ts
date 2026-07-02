@@ -34,17 +34,43 @@ describe('dao.mappers', () => {
     });
   });
 
-  it('toDaoSourceDto preserves source_type and curated fields', () => {
+  it('toDaoSourceDto preserves source_type and curated fields (on-chain)', () => {
     const dto = toDaoSourceDto({
       source_type: 'compound_governor_bravo',
       source_config: { contract_address: '0xEF', chain_id: '10' },
     });
     expect(dto).toEqual({
       source_type: 'compound_governor_bravo',
+      off_chain: false,
       contract_address: '0xef',
       chain_id: '10',
     });
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
+  });
+
+  it('toDaoSourceDto marks snapshot off-chain and surfaces the space', () => {
+    const dto = toDaoSourceDto({
+      source_type: 'snapshot',
+      source_config: { space: 'lido-snapshot.eth' },
+    });
+    expect(dto).toEqual({
+      source_type: 'snapshot',
+      off_chain: true,
+      space: 'lido-snapshot.eth',
+    });
+  });
+
+  it('toDaoSourceDto marks discourse_forum off-chain with host + categories', () => {
+    const dto = toDaoSourceDto({
+      source_type: 'discourse_forum',
+      source_config: { host: 'research.lido.fi', categories: ['proposals', 42] },
+    });
+    expect(dto).toEqual({
+      source_type: 'discourse_forum',
+      off_chain: true,
+      forum_host: 'research.lido.fi',
+      forum_categories: ['proposals'],
+    });
   });
 
   it('omits curated-absent fields without null/undefined leakage', () => {

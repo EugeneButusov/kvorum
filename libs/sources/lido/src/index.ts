@@ -65,7 +65,7 @@ export type {
   LidoAragonVotingConfig,
   LidoAragonVotingPluginDeps,
 } from './aragon-voting/plugin/plugin';
-export { makeLidoReadExtension } from './aragon-voting/api/lido-read-extension';
+export { makeLidoReadExtension } from './api/lido-read-extension';
 
 // Aragon Voting derivation (proposal/vote projection, actor sweep, metadata)
 export { LidoAragonVotingActorAddressDeriver } from './aragon-voting/domain/actor-address-deriver';

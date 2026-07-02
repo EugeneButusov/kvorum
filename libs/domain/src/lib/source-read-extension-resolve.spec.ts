@@ -6,7 +6,7 @@ import {
   resolveReadExtension,
 } from './source-read-extension-resolve';
 
-const proposalExt: ProposalExtension = { voting: null, payloads: [] };
+const proposalExt: ProposalExtension = { voting: null, payloads: [], metadata: null };
 
 const aave: SourceReadExtension = {
   sourceTypes: ['aave_governance_v3', 'aave_voting_machine'],

@@ -184,7 +184,7 @@ export class VotesController {
       });
     }
 
-    const choices = await this.voteRepo.findChoicesForVote(vote.id);
+    const choices = await this.voteRepo.findChoicesForVote(vote.id, sourceType);
     return {
       data: toVoteDetailDto(vote, choices),
     };

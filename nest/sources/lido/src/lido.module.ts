@@ -231,7 +231,7 @@ const NOOP_PROJECTION_METRICS = {
             etActorAddressDeriver,
             etMotionApplier,
           ],
-          readExtension: makeLidoReadExtension(),
+          readExtension: makeLidoReadExtension(pgDb),
         };
       },
       inject: [

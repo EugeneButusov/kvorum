@@ -33,23 +33,59 @@ describe('VoteReadRepository', () => {
     expect(ch.selectFrom).not.toHaveBeenCalled();
   });
 
-  it('findChoicesForVote returns single weighted choice from primary_choice', async () => {
+  it('findChoicesForVote returns single weighted choice from primary_choice (EVM source)', async () => {
     const chChain = makeChain({ primary_choice: 2 });
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    await expect(repo.findChoicesForVote('vote-1')).resolves.toEqual([
+    await expect(repo.findChoicesForVote('vote-1', 'aragon_voting')).resolves.toEqual([
       { choice_index: 2, weight: '1.0' },
     ]);
     expect(chChain.where).toHaveBeenCalledWith('v.vote_id', '=', 'vote-1');
   });
 
-  it('findChoicesForVote returns empty when vote is missing', async () => {
+  it('findChoicesForVote returns empty when vote is missing (EVM source)', async () => {
     const chChain = makeChain(undefined);
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    await expect(repo.findChoicesForVote('vote-1')).resolves.toEqual([]);
+    await expect(repo.findChoicesForVote('vote-1', 'aragon_voting')).resolves.toEqual([]);
+  });
+
+  it('findChoicesForVote reads snapshot_vote_choice for snapshot votes (ADR-0072 D2)', async () => {
+    // ReplacingMergeTree(version): the greatest version wins; the stored JSON is the ADR-0072 D3 shape.
+    const chChain = makeChain([
+      {
+        choices: JSON.stringify([
+          { choice_index: 0, weight: '0.6' },
+          { choice_index: 1, weight: '0.4' },
+        ]),
+        version: '2',
+      },
+      { choices: JSON.stringify([{ choice_index: 3, weight: '1.0' }]), version: '1' },
+    ]);
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+    const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
+
+    await expect(repo.findChoicesForVote('vote-1', 'snapshot')).resolves.toEqual([
+      { choice_index: 0, weight: '0.6' },
+      { choice_index: 1, weight: '0.4' },
+    ]);
+    expect(chChain.where).toHaveBeenCalledWith('c.vote_id', '=', 'vote-1');
+  });
+
+  it('findChoicesForVote falls back to primary_choice when a snapshot vote has no choice row', async () => {
+    // Defensive: shouldn't happen post-AD4, but a missing protocol row must not 500 or drop the vote.
+    const snapshotChain = makeChain([]);
+    const projectionChain = makeChain({ primary_choice: 5 });
+    const ch = {
+      selectFrom: vi.fn().mockReturnValueOnce(snapshotChain).mockReturnValueOnce(projectionChain),
+    };
+    const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
+
+    await expect(repo.findChoicesForVote('vote-1', 'snapshot')).resolves.toEqual([
+      { choice_index: 5, weight: '1.0' },
+    ]);
   });
 
   it('guard R12: findChoicesForVote uses executeTakeFirst — VIEW exposes one row per vote_id', async () => {
@@ -60,7 +96,7 @@ describe('VoteReadRepository', () => {
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    const result = await repo.findChoicesForVote('vote-1');
+    const result = await repo.findChoicesForVote('vote-1', 'aragon_voting');
 
     expect(result).toHaveLength(1);
     expect(chChain.executeTakeFirst).toHaveBeenCalledOnce();

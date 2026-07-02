@@ -1,6 +1,7 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
-import type { ProposalExtension, ProposalPayloadView } from '@libs/domain';
+import type { ForumLinkView, ProposalExtension, ProposalPayloadView } from '@libs/domain';
 import {
+  ProposalForumLinkDto,
   ProposalPayloadDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
@@ -57,6 +58,7 @@ export function toProposalDetailDto(
   choices: ProposalChoice[],
   originChainId: string,
   extension: ProposalExtension | null,
+  forumLinks: readonly ForumLinkView[],
 ): ProposalDetailDto {
   const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
@@ -78,6 +80,17 @@ export function toProposalDetailDto(
       value: choice.value,
     })),
     origin_chain_id: originChainId,
+    metadata: extension?.metadata ?? null,
+    forum_links: forumLinks.map((link) =>
+      Object.assign(new ProposalForumLinkDto(), {
+        forum_host: link.forum_host,
+        forum_topic_id: link.forum_topic_id,
+        title: link.title,
+        url: link.url,
+        confidence: link.confidence,
+        last_activity_at: link.last_activity_at,
+      }),
+    ),
     _meta: proposalMeta(row),
   });
 
