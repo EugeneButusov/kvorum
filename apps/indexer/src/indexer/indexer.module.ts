@@ -10,6 +10,7 @@ import { ChainContextModule } from '@nest/chain';
 import { SourcesModule } from '@nest/sources';
 import { DerivationModule } from '../derivation';
 import { EnsResolverModule } from '../ens';
+import { ForumLinkerModule } from '../forum/forum-linker.module';
 import { IndexerInfraModule } from '../infra/indexer-infra.module';
 import { EvmBlockHeadPollerDriver } from '../orchestrator/evm-block-head-poller-driver';
 import { EvmEventPollerDriver } from '../orchestrator/evm-event-poller-driver';
@@ -38,6 +39,7 @@ import { SourceResolver } from '../queue/source-resolver';
     DerivationModule,
     EnsResolverModule,
     SourcesModule,
+    ForumLinkerModule,
   ],
   providers: [
     {

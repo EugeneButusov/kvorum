@@ -41,6 +41,14 @@ export const forumMetrics = {
     name: 'forum_threads_derived',
     description: 'forum_thread derivations by outcome (derived|failed)',
   }),
+  proposalsLinkScanned: defineCounter({
+    name: 'forum_proposals_link_scanned',
+    description: 'Proposals evaluated by a forum-linker sweep tick',
+  }),
+  linksCreated: defineCounter({
+    name: 'forum_links_created',
+    description: 'proposal_forum_link rows inserted, by confidence (high|medium)',
+  }),
 };
 
 export type ForumEndpoint = 'categories' | 'category' | 'topic' | 'posts';

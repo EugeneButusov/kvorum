@@ -3,6 +3,7 @@ import { ArchiveDerivationRepository, DaoSourceRepository, chDb, pgDb } from '@l
 import type { SourcePlugin } from '@sources/core';
 import {
   ForumArchivePayloadRepository,
+  ForumLinkRepository,
   ForumThreadActorAddressDeriver,
   ForumThreadProjectionApplier,
   createForumPlugin,
@@ -33,6 +34,9 @@ function optionalInt(name: string): number | undefined {
           payloads,
           archive: new ArchiveDerivationRepository(pgDb),
           daoSources: new DaoSourceRepository(pgDb),
+          // On a new thread, re-queue the DAO's unlinked proposals for the linker sweep (best-effort;
+          // the sweep itself runs indexer-only via ForumLinkerModule).
+          linkRepo: new ForumLinkRepository(pgDb),
           logger: toChainLogger(new Logger('ForumThreadProjection')),
         });
         const actorAddressDeriver = new ForumThreadActorAddressDeriver();

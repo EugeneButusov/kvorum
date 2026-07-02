@@ -31,10 +31,12 @@ function fakeDb() {
             };
             cb(oc);
             return {
-              execute: () => {
-                captured.executed = true;
-                return Promise.resolve();
-              },
+              returning: () => ({
+                executeTakeFirst: () => {
+                  captured.executed = true;
+                  return Promise.resolve({ inserted: true });
+                },
+              }),
             };
           },
         };
@@ -49,21 +51,24 @@ describe('ForumThreadRepository.upsert', () => {
     const { db, captured } = fakeDb();
     const lastActivity = new Date('2026-01-05T00:00:00Z');
 
-    await new ForumThreadRepository(db).upsert({
+    const result = await new ForumThreadRepository(db).upsert({
       daoId: 'dao-1',
       forumHost: 'research.lido.fi',
       forumTopicId: '42',
+      title: 'Raise staking limit',
       rawContent: '**@u** at t\n\nhello',
       contentPipelineVersion: 'turndown@7.2.4+rules-v1',
       postCount: 3,
       lastActivityAt: lastActivity,
     });
 
+    expect(result).toEqual({ inserted: true });
     expect(captured.table).toBe('forum_thread');
     expect(captured.values).toEqual({
       dao_id: 'dao-1',
       forum_host: 'research.lido.fi',
       forum_topic_id: '42',
+      title: 'Raise staking limit',
       raw_content: '**@u** at t\n\nhello',
       content_pipeline_version: 'turndown@7.2.4+rules-v1',
       post_count: 3,
@@ -71,6 +76,7 @@ describe('ForumThreadRepository.upsert', () => {
     });
     expect(captured.conflictCols).toEqual(['forum_host', 'forum_topic_id']);
     expect(captured.updateSet).toEqual({
+      title: 'Raise staking limit',
       raw_content: '**@u** at t\n\nhello',
       content_pipeline_version: 'turndown@7.2.4+rules-v1',
       post_count: 3,

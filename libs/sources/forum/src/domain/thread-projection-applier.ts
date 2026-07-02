@@ -11,6 +11,7 @@ import { renderThread } from '../content/content-pipeline';
 import type { ForumThreadPayload } from '../ingestion/types';
 import { forumMetrics } from '../metrics';
 import type { ForumArchivePayloadRepository } from '../persistence/archive-payload-repository';
+import type { ForumLinkRepository } from '../persistence/forum-link-repository';
 import { ForumThreadRepository } from '../persistence/forum-thread-repository';
 
 /** Repositories an apply runs against, all bound to the same transaction in production. */
@@ -30,6 +31,9 @@ export interface ForumThreadProjectionApplierDeps {
   archive: ArchiveDerivationRepository;
   daoSources: DaoSourceRepository;
   logger: Logger;
+  /** Optional: on inserting a NEW thread, re-queue the DAO's unlinked proposals for the linker
+   *  sweep (best-effort, never blocks derivation). Omitted → no re-queue. */
+  linkRepo?: ForumLinkRepository;
   /** Override the per-row transaction runner (tests inject mock repos). */
   withTransaction?: ForumTransactionRunner;
 }
@@ -82,22 +86,37 @@ export class ForumThreadProjectionApplier implements OffchainProjectionDeriver {
         const daoId = await this.deps.daoSources.findDaoIdForSource(row.dao_source_id);
         if (daoId === undefined) throw new Error(`unknown dao_source ${row.dao_source_id}`);
         const rendered = renderThread(payload, payload.host);
+        let inserted = false;
         await this.withTransaction(async (repos) => {
-          await repos.forumThreads.upsert({
+          const upsertResult = await repos.forumThreads.upsert({
             daoId,
             forumHost: payload.host,
             forumTopicId: String(payload.topicId),
+            title: payload.title,
             rawContent: rendered.rawContent,
             contentPipelineVersion: rendered.contentPipelineVersion,
             postCount: payload.postCount,
             lastActivityAt: payload.lastActivityAt ? new Date(payload.lastActivityAt) : null,
           });
+          inserted = upsertResult.inserted;
           await repos.archive.markDerived(row.id);
         });
         forumMetrics.threadsDerived.add(1, { outcome: 'derived' });
+        if (inserted) await this.requeueForLinking(daoId);
       } catch (err) {
         await this.fail(row, 'projection_apply_error', err);
       }
+    }
+  }
+
+  /** Best-effort re-queue after a NEW thread lands, so the DAO's unlinked proposals are re-evaluated
+   *  against it by the linker sweep. Never throws — linking must not block ingestion. */
+  private async requeueForLinking(daoId: string): Promise<void> {
+    if (this.deps.linkRepo === undefined) return;
+    try {
+      await this.deps.linkRepo.resetScanForUnlinkedProposals(daoId);
+    } catch (err) {
+      this.deps.logger.error('forum_link_requeue_failed', { dao_id: daoId, error: String(err) });
     }
   }
 

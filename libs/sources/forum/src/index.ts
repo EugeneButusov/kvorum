@@ -65,6 +65,27 @@ export {
 } from './domain/thread-projection-applier';
 export { ForumThreadActorAddressDeriver } from './domain/actor-address-deriver';
 
+// ── Proposal↔thread linking (SPEC §3.7) ─────────────────────────────────────────────
+export {
+  classifyLink,
+  extractForumThreadRefs,
+  normalizeTitle,
+  stripStageTag,
+  proposalTitleKey,
+  threadTitleKey,
+  type ForumThreadRef,
+  type LinkClassification,
+  type LinkConfidence,
+  type LinkMethod,
+} from './linking/matchers';
+export { computeProposalLinks, type LinkableProposal } from './linking/linker';
+export {
+  ForumLinkRepository,
+  type NewForumLink,
+  type UnscannedProposal,
+  type LinkCandidateThread,
+} from './persistence/forum-link-repository';
+
 // ── Read extension ──────────────────────────────────────────────────────────────────
 export { makeForumReadExtension } from './api/forum-read-extension';
 

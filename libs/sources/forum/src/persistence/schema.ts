@@ -9,6 +9,7 @@ export interface ForumThreadTable {
   forum_host: string;
   // pg driver returns bigint as string
   forum_topic_id: string;
+  title: string | null;
   raw_content: string | null;
   content_pipeline_version: string | null;
   post_count: number | null;
@@ -21,8 +22,9 @@ export type ForumThreadUpdate = Updateable<ForumThreadTable>;
 
 // ── Proposal Forum Link ───────────────────────────────────────────────────────
 
-// KNOWN-005: low/inferred confidence values deferred to AE.
-export type ProposalForumLinkConfidence = 'high' | 'medium';
+// 'low' is wired for the M5 embedding-based path (KNOWN-005); the deterministic linker only writes
+// 'high' (description_url) and 'medium' (community_curated).
+export type ProposalForumLinkConfidence = 'high' | 'medium' | 'low';
 
 export interface ProposalForumLinkTable {
   id: Generated<string>;
@@ -35,6 +37,19 @@ export interface ProposalForumLinkTable {
 export type ProposalForumLink = Selectable<ProposalForumLinkTable>;
 export type NewProposalForumLink = Insertable<ProposalForumLinkTable>;
 export type ProposalForumLinkUpdate = Updateable<ProposalForumLinkTable>;
+
+// ── Proposal Forum Link Scan (linker watermark) ─────────────────────────────────
+
+// The forum-linker sweep's watermark: a proposal with a row here has been evaluated for forum
+// links. Kept as a forum-owned extension table (not a column on core `proposal`) so nothing about
+// forum linking leaks into libs/db. A row is removed to re-queue a proposal when a new thread lands.
+export interface ProposalForumLinkScanTable {
+  proposal_id: string;
+  scanned_at: Generated<Date>;
+}
+
+export type ProposalForumLinkScan = Selectable<ProposalForumLinkScanTable>;
+export type NewProposalForumLinkScan = Insertable<ProposalForumLinkScanTable>;
 
 // ── CH archive table ──────────────────────────────────────────────────────────
 
@@ -56,6 +71,7 @@ declare module '@libs/db' {
   interface PgDatabase {
     forum_thread: ForumThreadTable;
     proposal_forum_link: ProposalForumLinkTable;
+    proposal_forum_link_scan: ProposalForumLinkScanTable;
   }
 
   interface ClickHouseDatabase {
