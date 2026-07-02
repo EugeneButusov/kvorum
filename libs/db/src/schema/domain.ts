@@ -96,9 +96,6 @@ export interface ProposalTable {
   state_updated_at: Date;
   created_at: Generated<Date>;
   updated_at: Date;
-  // Watermark for the forum-linker sweep (NULL = not yet scanned). Omittable on insert (defaults to
-  // NULL). See @sources/forum linking.
-  forum_link_scanned_at: Generated<Date | null>;
 }
 
 export type Proposal = Selectable<ProposalTable>;

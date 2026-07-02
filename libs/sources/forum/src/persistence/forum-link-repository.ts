@@ -1,9 +1,8 @@
 import type { Kysely } from 'kysely';
-import { sql } from 'kysely';
 import type { PgDatabase } from '@libs/db';
 import type { LinkConfidence, LinkMethod } from '../linking/matchers';
 
-/** A proposal awaiting a forum-link scan (watermark NULL), of a forum-enabled DAO. */
+/** A proposal awaiting a forum-link scan (no watermark row yet), of a forum-enabled DAO. */
 export interface UnscannedProposal {
   id: string;
   daoId: string;
@@ -31,16 +30,31 @@ export interface NewForumLink {
 export class ForumLinkRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
-  /** Proposals of forum-enabled DAOs not yet link-scanned (watermark NULL), oldest first. */
+  /** Proposals of forum-enabled DAOs with no scan row yet (not-yet-evaluated), oldest first. */
   async findUnscannedProposals(limit: number): Promise<UnscannedProposal[]> {
     const rows = await this.db
       .selectFrom('proposal')
-      .innerJoin('dao_source', (join) =>
-        join
-          .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
-          .on('dao_source.source_type', '=', 'discourse_forum'),
+      // Forum-enabled DAO (semi-join, no row fan-out).
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('dao_source')
+            .select('dao_source.id')
+            .whereRef('dao_source.dao_id', '=', 'proposal.dao_id')
+            .where('dao_source.source_type', '=', 'discourse_forum'),
+        ),
       )
-      .where('proposal.forum_link_scanned_at', 'is', null)
+      // Not yet scanned (anti-join against the watermark table).
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom('proposal_forum_link_scan')
+              .select('proposal_forum_link_scan.proposal_id')
+              .whereRef('proposal_forum_link_scan.proposal_id', '=', 'proposal.id'),
+          ),
+        ),
+      )
       .select([
         'proposal.id as id',
         'proposal.dao_id as daoId',
@@ -57,9 +71,9 @@ export class ForumLinkRepository {
   async markProposalsScanned(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return;
     await this.db
-      .updateTable('proposal')
-      .set({ forum_link_scanned_at: sql`now()` })
-      .where('id', 'in', ids)
+      .insertInto('proposal_forum_link_scan')
+      .values(ids.map((proposal_id) => ({ proposal_id })))
+      .onConflict((oc) => oc.column('proposal_id').doNothing())
       .execute();
   }
 
@@ -74,27 +88,31 @@ export class ForumLinkRepository {
       .execute();
   }
 
-  /** Re-queue a DAO's not-yet-linked proposals for the sweep after a thread changes. Runs only on a
-   *  genuine thread change (the mutable-latest consumer skips no-op re-crawls), and touches only
-   *  unlinked proposals — linked ones stay put (idempotent inserts handle any additional matches). */
+  /** Re-queue a DAO's not-yet-linked proposals for the sweep after a thread changes, by deleting
+   *  their scan rows. Runs only on a genuine thread change (the mutable-latest consumer skips no-op
+   *  re-crawls), and touches only unlinked proposals — linked ones keep their scan row (idempotent
+   *  inserts handle any additional matches). */
   async resetScanForUnlinkedProposals(daoId: string): Promise<number> {
     const result = await this.db
-      .updateTable('proposal')
-      .set({ forum_link_scanned_at: null })
-      .where('dao_id', '=', daoId)
-      .where('forum_link_scanned_at', 'is not', null)
-      .where((eb) =>
-        eb.not(
-          eb.exists(
-            eb
-              .selectFrom('proposal_forum_link')
-              .select('proposal_forum_link.id')
-              .whereRef('proposal_forum_link.proposal_id', '=', 'proposal.id'),
+      .deleteFrom('proposal_forum_link_scan')
+      .where('proposal_id', 'in', (eb) =>
+        eb
+          .selectFrom('proposal')
+          .select('proposal.id')
+          .where('proposal.dao_id', '=', daoId)
+          .where((inner) =>
+            inner.not(
+              inner.exists(
+                inner
+                  .selectFrom('proposal_forum_link')
+                  .select('proposal_forum_link.id')
+                  .whereRef('proposal_forum_link.proposal_id', '=', 'proposal.id'),
+              ),
+            ),
           ),
-        ),
       )
       .executeTakeFirst();
-    return Number(result.numUpdatedRows ?? 0n);
+    return Number(result.numDeletedRows ?? 0n);
   }
 
   /** Insert a link, idempotent on the (proposal_id, forum_thread_id) unique constraint. */

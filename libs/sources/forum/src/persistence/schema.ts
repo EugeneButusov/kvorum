@@ -38,6 +38,19 @@ export type ProposalForumLink = Selectable<ProposalForumLinkTable>;
 export type NewProposalForumLink = Insertable<ProposalForumLinkTable>;
 export type ProposalForumLinkUpdate = Updateable<ProposalForumLinkTable>;
 
+// ── Proposal Forum Link Scan (linker watermark) ─────────────────────────────────
+
+// The forum-linker sweep's watermark: a proposal with a row here has been evaluated for forum
+// links. Kept as a forum-owned extension table (not a column on core `proposal`) so nothing about
+// forum linking leaks into libs/db. A row is removed to re-queue a proposal when a new thread lands.
+export interface ProposalForumLinkScanTable {
+  proposal_id: string;
+  scanned_at: Generated<Date>;
+}
+
+export type ProposalForumLinkScan = Selectable<ProposalForumLinkScanTable>;
+export type NewProposalForumLinkScan = Insertable<ProposalForumLinkScanTable>;
+
 // ── CH archive table ──────────────────────────────────────────────────────────
 
 export interface ArchiveEventDiscourseForumTable {
@@ -58,6 +71,7 @@ declare module '@libs/db' {
   interface PgDatabase {
     forum_thread: ForumThreadTable;
     proposal_forum_link: ProposalForumLinkTable;
+    proposal_forum_link_scan: ProposalForumLinkScanTable;
   }
 
   interface ClickHouseDatabase {
