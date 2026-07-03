@@ -2,80 +2,76 @@ import type { SourceReadExtension } from '@libs/domain';
 import { toDaoSourceDto } from './dao.mappers';
 import { isoSeconds } from '../http/iso';
 
-// Minimal source extensions: an EVM source (no override → EVM default) and off-chain snapshot/forum
-// sources that curate their own config map. Mirrors how the real extensions are assembled.
+// Abstract source extensions — the mapper is source-blind, so these stand in for any source:
+// `evm_source`/`bare_source` rely on the EVM default (no curateSourceConfig override); the others
+// curate arbitrary config maps to prove the mapper surfaces whatever a source returns.
 const extensions: SourceReadExtension[] = [
   {
-    sourceTypes: ['compound_governor_bravo', 'alt_governor'],
+    sourceTypes: ['evm_source', 'bare_source'],
     choiceBounds: () => ({ min: 0, max: 2 }),
     delegationModel: () => 'power-bearing',
     getProposalExtension: () => Promise.resolve(null),
   },
   {
-    sourceTypes: ['snapshot'],
-    choiceBounds: () => ({ min: 0, max: 127 }),
+    sourceTypes: ['scalar_source'],
+    choiceBounds: () => ({ min: 0, max: 1 }),
     delegationModel: () => 'power-bearing',
     getProposalExtension: () => Promise.resolve(null),
     curateSourceConfig: (_t, raw) =>
-      typeof (raw as { space?: unknown }).space === 'string'
-        ? { space: (raw as { space: string }).space }
+      typeof (raw as { key?: unknown }).key === 'string'
+        ? { binding: (raw as { key: string }).key }
         : {},
   },
   {
-    sourceTypes: ['discourse_forum'],
+    sourceTypes: ['multi_field_source'],
     choiceBounds: () => ({ min: 0, max: 0 }),
     delegationModel: () => 'relationship-only',
     getProposalExtension: () => Promise.resolve(null),
     curateSourceConfig: (_t, raw) => ({
-      forum_host: (raw as { host: string }).host,
-      forum_categories: (raw as { categories: unknown[] }).categories.filter(
-        (c): c is string => typeof c === 'string',
-      ),
+      host: (raw as { host: string }).host,
+      tags: (raw as { tags: unknown[] }).tags.filter((c): c is string => typeof c === 'string'),
     }),
   },
 ];
 
 describe('dao.mappers', () => {
-  it('toDaoSourceDto curates an on-chain source via the EVM default', () => {
+  it('toDaoSourceDto curates a source with no override via the EVM default', () => {
     const dto = toDaoSourceDto(
-      {
-        source_type: 'compound_governor_bravo',
-        source_config: { contract_address: '0xEF', chain_id: '10' },
-      },
+      { source_type: 'evm_source', source_config: { contract_address: '0xEF', chain_id: '10' } },
       extensions,
     );
     expect(dto).toEqual({
-      source_type: 'compound_governor_bravo',
+      source_type: 'evm_source',
       config: { contract_address: '0xef', chain_id: '10' },
     });
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
   });
 
-  it('toDaoSourceDto surfaces the snapshot space (source-driven)', () => {
+  it('toDaoSourceDto surfaces a source-curated scalar binding', () => {
     const dto = toDaoSourceDto(
-      { source_type: 'snapshot', source_config: { space: 'lido-snapshot.eth' } },
+      { source_type: 'scalar_source', source_config: { key: 'abstract-binding' } },
       extensions,
     );
-    expect(dto).toEqual({ source_type: 'snapshot', config: { space: 'lido-snapshot.eth' } });
+    expect(dto).toEqual({ source_type: 'scalar_source', config: { binding: 'abstract-binding' } });
   });
 
-  it('toDaoSourceDto surfaces forum host + categories (source-driven)', () => {
+  it('toDaoSourceDto surfaces string + array config values', () => {
     const dto = toDaoSourceDto(
       {
-        source_type: 'discourse_forum',
-        source_config: { host: 'research.lido.fi', categories: ['proposals', 42] },
+        source_type: 'multi_field_source',
+        source_config: { host: 'host.example', tags: ['a', 42] },
       },
       extensions,
     );
     expect(dto).toEqual({
-      source_type: 'discourse_forum',
-      config: { forum_host: 'research.lido.fi', forum_categories: ['proposals'] },
+      source_type: 'multi_field_source',
+      config: { host: 'host.example', tags: ['a'] },
     });
   });
 
   it('emits an empty config map when nothing is curated', () => {
-    const dto = toDaoSourceDto({ source_type: 'alt_governor', source_config: {} }, extensions);
-    expect(dto).toEqual({ source_type: 'alt_governor', config: {} });
+    const dto = toDaoSourceDto({ source_type: 'bare_source', source_config: {} }, extensions);
+    expect(dto).toEqual({ source_type: 'bare_source', config: {} });
   });
 
   it('isoSeconds truncates milliseconds and supports null', () => {
