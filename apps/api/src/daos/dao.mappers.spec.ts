@@ -3,7 +3,7 @@ import { toDaoSourceDto } from './dao.mappers';
 import { isoSeconds } from '../http/iso';
 
 // Minimal source extensions: an EVM source (no override → EVM default) and off-chain snapshot/forum
-// sources that curate their own config. Mirrors how the real extensions are assembled.
+// sources that curate their own config map. Mirrors how the real extensions are assembled.
 const extensions: SourceReadExtension[] = [
   {
     sourceTypes: ['compound_governor_bravo', 'alt_governor'],
@@ -18,9 +18,10 @@ const extensions: SourceReadExtension[] = [
     getProposalExtension: () => Promise.resolve(null),
     curateSourceConfig: (_t, raw) => ({
       off_chain: true,
-      ...(typeof (raw as { space?: unknown }).space === 'string'
-        ? { space: (raw as { space: string }).space }
-        : {}),
+      config:
+        typeof (raw as { space?: unknown }).space === 'string'
+          ? { space: (raw as { space: string }).space }
+          : {},
     }),
   },
   {
@@ -30,10 +31,12 @@ const extensions: SourceReadExtension[] = [
     getProposalExtension: () => Promise.resolve(null),
     curateSourceConfig: (_t, raw) => ({
       off_chain: true,
-      forum_host: (raw as { host: string }).host,
-      forum_categories: (raw as { categories: string[] }).categories.filter(
-        (c): c is string => typeof c === 'string',
-      ),
+      config: {
+        forum_host: (raw as { host: string }).host,
+        forum_categories: (raw as { categories: unknown[] }).categories.filter(
+          (c): c is string => typeof c === 'string',
+        ),
+      },
     }),
   },
 ];
@@ -50,8 +53,7 @@ describe('dao.mappers', () => {
     expect(dto).toEqual({
       source_type: 'compound_governor_bravo',
       off_chain: false,
-      contract_address: '0xef',
-      chain_id: '10',
+      config: { contract_address: '0xef', chain_id: '10' },
     });
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
   });
@@ -61,7 +63,11 @@ describe('dao.mappers', () => {
       { source_type: 'snapshot', source_config: { space: 'lido-snapshot.eth' } },
       extensions,
     );
-    expect(dto).toEqual({ source_type: 'snapshot', off_chain: true, space: 'lido-snapshot.eth' });
+    expect(dto).toEqual({
+      source_type: 'snapshot',
+      off_chain: true,
+      config: { space: 'lido-snapshot.eth' },
+    });
   });
 
   it('toDaoSourceDto marks discourse_forum off-chain with host + categories (source-driven)', () => {
@@ -75,16 +81,13 @@ describe('dao.mappers', () => {
     expect(dto).toEqual({
       source_type: 'discourse_forum',
       off_chain: true,
-      forum_host: 'research.lido.fi',
-      forum_categories: ['proposals'],
+      config: { forum_host: 'research.lido.fi', forum_categories: ['proposals'] },
     });
   });
 
-  it('omits curated-absent fields without null/undefined leakage', () => {
+  it('emits an empty config map when nothing is curated', () => {
     const dto = toDaoSourceDto({ source_type: 'alt_governor', source_config: {} }, extensions);
-    expect(dto).toEqual({ source_type: 'alt_governor', off_chain: false });
-    expect(Object.prototype.hasOwnProperty.call(dto, 'contract_address')).toBe(false);
-    expect(JSON.stringify(dto)).not.toContain('contract_address');
+    expect(dto).toEqual({ source_type: 'alt_governor', off_chain: false, config: {} });
   });
 
   it('isoSeconds truncates milliseconds and supports null', () => {

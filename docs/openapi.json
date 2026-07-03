@@ -2515,26 +2515,24 @@
           "off_chain": {
             "type": "boolean"
           },
-          "contract_address": {
-            "type": "string"
-          },
-          "chain_id": {
-            "type": "string"
-          },
-          "space": {
-            "type": "string"
-          },
-          "forum_host": {
-            "type": "string"
-          },
-          "forum_categories": {
-            "type": "array",
-            "items": {
-              "type": "string"
+          "config": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
             }
           }
         },
-        "required": ["source_type", "off_chain"]
+        "required": ["source_type", "off_chain", "config"]
       },
       "DaoDetailDto": {
         "type": "object",

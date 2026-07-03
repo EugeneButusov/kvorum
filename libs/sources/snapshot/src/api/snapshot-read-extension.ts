@@ -7,7 +7,7 @@ import type {
   ProposalExtension,
   SourceReadExtension,
 } from '@libs/domain';
-import { curateEvmSourceConfig } from '@libs/domain';
+import { asSourceConfigObject, curateEvmSourceConfig } from '@libs/domain';
 import { SnapshotProposalExtensionReadRepository } from './snapshot-proposal-extension-read-repository';
 
 // Read surface for the Snapshot source family: the off-chain `snapshot` proposal/vote source plus
@@ -39,12 +39,10 @@ export function makeSnapshotReadExtension(db: Kysely<PgDatabase>): SourceReadExt
     curateSourceConfig(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // The off-chain `snapshot` source binds by `space`; the delegation registries are on-chain.
       if (sourceType !== 'snapshot') return curateEvmSourceConfig(rawConfig);
-      const cfg =
-        rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)
-          ? (rawConfig as Record<string, unknown>)
-          : {};
-      const space = typeof cfg['space'] === 'string' ? cfg['space'] : undefined;
-      return { off_chain: true, ...(space === undefined ? {} : { space }) };
+      const cfg = asSourceConfigObject(rawConfig);
+      const config: Record<string, string | string[]> = {};
+      if (typeof cfg['space'] === 'string') config['space'] = cfg['space'];
+      return { off_chain: true, config };
     },
   };
 }

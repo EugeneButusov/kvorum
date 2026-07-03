@@ -53,7 +53,8 @@ export function getProposalExtensionFor(
   return contribution.getProposalExtension(proposalId, sourceType);
 }
 
-function asConfigObject(rawConfig: unknown): Record<string, unknown> {
+// Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).
+export function asSourceConfigObject(rawConfig: unknown): Record<string, unknown> {
   return rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)
     ? (rawConfig as Record<string, unknown>)
     : {};
@@ -63,22 +64,17 @@ function asConfigObject(rawConfig: unknown): Record<string, unknown> {
 // EVM sources and any source that does not override curateSourceConfig. Exported so on-chain source
 // extensions can reuse it for their non-off-chain source types (e.g. Snapshot's delegation registries).
 export function curateEvmSourceConfig(rawConfig: unknown): CuratedDaoSourceConfig {
-  const cfg = asConfigObject(rawConfig);
-  const contractAddress =
-    typeof cfg['contract_address'] === 'string' ? cfg['contract_address'].toLowerCase() : undefined;
-  const rawChainId = cfg['chain_id'];
-  const chainId =
-    typeof rawChainId === 'string'
-      ? rawChainId
-      : typeof rawChainId === 'number'
-        ? String(rawChainId)
-        : undefined;
+  const cfg = asSourceConfigObject(rawConfig);
+  const config: Record<string, string | string[]> = {};
 
-  return {
-    off_chain: false,
-    ...(contractAddress === undefined ? {} : { contract_address: contractAddress }),
-    ...(chainId === undefined ? {} : { chain_id: chainId }),
-  };
+  if (typeof cfg['contract_address'] === 'string') {
+    config['contract_address'] = cfg['contract_address'].toLowerCase();
+  }
+  const rawChainId = cfg['chain_id'];
+  if (typeof rawChainId === 'string') config['chain_id'] = rawChainId;
+  else if (typeof rawChainId === 'number') config['chain_id'] = String(rawChainId);
+
+  return { off_chain: false, config };
 }
 
 export function curateSourceConfigFor(

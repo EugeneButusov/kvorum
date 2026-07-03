@@ -5,6 +5,7 @@ import type {
   ProposalExtension,
   SourceReadExtension,
 } from '@libs/domain';
+import { asSourceConfigObject } from '@libs/domain';
 
 // Minimal read surface for the `discourse_forum` source. Forum threads are not proposals/votes and
 // carry no delegation — they surface on proposal detail via `proposal_forum_link` (the read-path
@@ -27,19 +28,15 @@ export function makeForumReadExtension(): SourceReadExtension {
     },
     curateSourceConfig(_sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // Off-chain Discourse source: binds by `host` (+ optional `categories`).
-      const cfg =
-        rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)
-          ? (rawConfig as Record<string, unknown>)
-          : {};
-      const forumHost = typeof cfg['host'] === 'string' ? cfg['host'] : undefined;
-      const forumCategories = Array.isArray(cfg['categories'])
-        ? cfg['categories'].filter((c): c is string => typeof c === 'string')
-        : undefined;
-      return {
-        off_chain: true,
-        ...(forumHost === undefined ? {} : { forum_host: forumHost }),
-        ...(forumCategories === undefined ? {} : { forum_categories: forumCategories }),
-      };
+      const cfg = asSourceConfigObject(rawConfig);
+      const config: Record<string, string | string[]> = {};
+      if (typeof cfg['host'] === 'string') config['forum_host'] = cfg['host'];
+      if (Array.isArray(cfg['categories'])) {
+        config['forum_categories'] = cfg['categories'].filter(
+          (c): c is string => typeof c === 'string',
+        );
+      }
+      return { off_chain: true, config };
     },
   };
 }

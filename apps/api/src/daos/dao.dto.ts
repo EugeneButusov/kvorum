@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class DaoLinksDto {
@@ -22,22 +22,16 @@ export class DaoSourceDto {
   @ApiProperty()
   declare off_chain: boolean;
 
-  @ApiPropertyOptional()
-  declare contract_address?: string;
-
-  @ApiPropertyOptional()
-  declare chain_id?: string;
-
-  // Snapshot space id (e.g. lido-snapshot.eth).
-  @ApiPropertyOptional()
-  declare space?: string;
-
-  // Discourse forum host (e.g. research.lido.fi).
-  @ApiPropertyOptional()
-  declare forum_host?: string;
-
-  @ApiPropertyOptional({ type: [String] })
-  declare forum_categories?: string[];
+  // Source-specific binding config, curated by the owning source's read extension. On-chain sources
+  // carry `contract_address`/`chain_id`; snapshot carries `space`; forum carries
+  // `forum_host`/`forum_categories`. Kept as an open map so a new source needs no API change.
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+    },
+  })
+  declare config: Record<string, string | string[]>;
 }
 
 export class DaoListItemDto {
