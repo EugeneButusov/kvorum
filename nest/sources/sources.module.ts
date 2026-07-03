@@ -33,8 +33,6 @@ import { SNAPSHOT_SOURCE_PLUGIN, SnapshotSourceModule } from '@nest/snapshot';
       ],
     },
   ],
-  // Re-export ForumSourceModule so its FORUM_LINK_READER provider is injectable by apps/api
-  // controllers (which import SourcesModule), keeping the API source-blind.
-  exports: [SOURCE_PLUGINS, ForumSourceModule],
+  exports: [SOURCE_PLUGINS],
 })
 export class SourcesModule {}

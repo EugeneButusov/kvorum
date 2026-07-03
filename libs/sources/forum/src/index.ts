@@ -88,7 +88,6 @@ export {
 
 // ── Read extension ──────────────────────────────────────────────────────────────────
 export { makeForumReadExtension } from './api/forum-read-extension';
-export { ForumLinkReadRepository } from './api/forum-link-read-repository';
 
 // ── Metrics ─────────────────────────────────────────────────────────────────────
 export { forumMetrics } from './metrics';

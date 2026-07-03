@@ -98,6 +98,18 @@ export type CuratedDaoSourceConfig = Record<string, string | string[]>;
 export type VoteExtension = Record<string, never>;
 export type DelegationExtension = Record<string, never>;
 
+// A resolved forum-thread link on a proposal (proposal_forum_link ⨝ forum_thread). Forum links are
+// cross-source — a proposal of any source_type may carry them — so getForumLinks is fanned out across
+// all extensions (only the forum contribution implements it), not resolved by the proposal's source.
+export interface ForumLinkView {
+  forum_host: string;
+  forum_topic_id: string;
+  title: string | null;
+  url: string;
+  confidence: 'high' | 'medium' | 'low';
+  last_activity_at: string | null; // ISO seconds
+}
+
 // Per-source read extensions spanning proposals, votes, delegations, and dao-source config
 // (ADR-0069, amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
 // and aggregated into the SOURCE_READ_EXTENSIONS collection; dispatched via the pure
@@ -115,4 +127,7 @@ export interface SourceReadExtension {
   // Curate this source's raw source_config into its public /sources view. Optional — sources that
   // omit it get the on-chain EVM default (contract_address/chain_id, off_chain=false).
   curateSourceConfig?(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig;
+  // Cross-source: forum threads referencing a proposal of ANY source. Fanned out across all
+  // extensions (only the forum contribution implements it), unlike the source-type-keyed methods.
+  getForumLinks?(proposalId: string): Promise<readonly ForumLinkView[]>;
 }

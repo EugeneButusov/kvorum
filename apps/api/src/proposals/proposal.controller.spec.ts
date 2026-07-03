@@ -19,10 +19,6 @@ function makeExtensions(overrides?: Partial<SourceReadExtension>): SourceReadExt
   ];
 }
 
-function makeForumLinks(links: unknown[] = []) {
-  return { getLinksForProposal: vi.fn().mockResolvedValue(links) };
-}
-
 function makeQb(rows: unknown[]) {
   const qb = {
     where: vi.fn(),
@@ -68,7 +64,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {} as ApiListQueryDto);
@@ -82,7 +77,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       await expect(controller.listByDao('unknown', {} as ApiListQueryDto)).rejects.toBeInstanceOf(
@@ -98,7 +92,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');
@@ -130,7 +123,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -152,7 +144,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -174,7 +165,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -196,7 +186,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -218,7 +207,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -240,7 +228,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -262,7 +249,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listByDao('compound', {
@@ -289,7 +275,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         extensions,
-        makeForumLinks() as never,
       );
 
       const out = await controller.detail('compound', 'compound_governor_bravo', '42');
@@ -352,7 +337,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         extensions,
-        makeForumLinks() as never,
       );
 
       const out = await controller.detail('aave', 'aave_governance_v3', '42');
@@ -374,7 +358,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       await expect(controller.detail('compound', 'comp', '999')).rejects.toBeInstanceOf(
@@ -396,7 +379,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const out = await controller.listCrossDao({ limit: 1 } as ApiListQueryDto);
@@ -412,7 +394,6 @@ describe('ProposalController', () => {
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
         makeExtensions(),
-        makeForumLinks() as never,
       );
 
       const { canonicalQuery, encodeCursor } = await import('../pagination/cursor');

@@ -9,10 +9,9 @@ import {
 } from '@nestjs/swagger';
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
 import {
-  FORUM_LINK_READER,
   SOURCE_READ_EXTENSIONS,
+  getForumLinksFor,
   getProposalExtensionFor,
-  type ForumLinkReader,
   type SourceReadExtension,
 } from '@libs/domain';
 import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
@@ -41,8 +40,6 @@ export class ProposalController {
     private readonly daoRepo: DaoReadRepository,
     @Inject(SOURCE_READ_EXTENSIONS)
     private readonly extensions: readonly SourceReadExtension[],
-    @Inject(FORUM_LINK_READER)
-    private readonly forumLinks: ForumLinkReader,
   ) {}
 
   @ApiParam({ name: 'slug', type: String })
@@ -115,7 +112,7 @@ export class ProposalController {
       this.repo.findChoices(row.id),
       this.repo.resolveOriginChainId(row.id, sourceType),
       getProposalExtensionFor(this.extensions, row.id, sourceType),
-      this.forumLinks.getLinksForProposal(row.id),
+      getForumLinksFor(this.extensions, row.id),
     ]);
 
     return {

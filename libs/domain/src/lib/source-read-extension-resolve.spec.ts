@@ -8,6 +8,7 @@ import {
   curateEvmSourceConfig,
   curateSourceConfigFor,
   delegationModelFor,
+  getForumLinksFor,
   getProposalExtensionFor,
   resolveReadExtension,
 } from './source-read-extension-resolve';
@@ -129,6 +130,34 @@ describe('source-read-extension-resolve', () => {
       expect(curateSourceConfigFor([], 'anything', { chain_id: '0x1' })).toEqual({
         chain_id: '0x1',
       });
+    });
+  });
+
+  describe('getForumLinksFor', () => {
+    const link = {
+      forum_host: 'forum.example',
+      forum_topic_id: '1',
+      title: null,
+      url: 'https://forum.example/t/1',
+      confidence: 'high' as const,
+      last_activity_at: null,
+    };
+    const forum: SourceReadExtension = {
+      sourceTypes: ['discourse_forum'],
+      choiceBounds: () => ({ min: 0, max: 0 }),
+      delegationModel: () => 'relationship-only',
+      getProposalExtension: () => Promise.resolve(null),
+      getForumLinks: () => Promise.resolve([link]),
+    };
+
+    it('fans out across all extensions and concatenates (source-type-agnostic)', async () => {
+      // aave/compound do not implement getForumLinks; only forum contributes.
+      await expect(getForumLinksFor([aave, compound, forum], 'p1')).resolves.toEqual([link]);
+    });
+
+    it('returns empty when no extension implements getForumLinks', async () => {
+      await expect(getForumLinksFor([aave, compound], 'p1')).resolves.toEqual([]);
+      await expect(getForumLinksFor([], 'p1')).resolves.toEqual([]);
     });
   });
 });

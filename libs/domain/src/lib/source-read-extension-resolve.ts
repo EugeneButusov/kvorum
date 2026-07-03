@@ -2,6 +2,7 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
+  ForumLinkView,
   ProposalExtension,
   SourceReadExtension,
 } from './source-read-extension';
@@ -51,6 +52,17 @@ export function getProposalExtensionFor(
   const contribution = resolveReadExtension(extensions, sourceType);
   if (contribution === undefined) return Promise.resolve(null);
   return contribution.getProposalExtension(proposalId, sourceType);
+}
+
+// Forum links are cross-source (any proposal may carry them), so — unlike the source-type-keyed
+// resolvers above — this fans out across all extensions and concatenates. Only the forum
+// contribution implements getForumLinks today.
+export async function getForumLinksFor(
+  extensions: readonly SourceReadExtension[],
+  proposalId: string,
+): Promise<ForumLinkView[]> {
+  const batches = await Promise.all(extensions.map((e) => e.getForumLinks?.(proposalId) ?? []));
+  return batches.flat();
 }
 
 // Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).

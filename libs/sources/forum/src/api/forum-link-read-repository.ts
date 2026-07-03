@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
-import type { ForumLinkReader, ForumLinkView } from '@libs/domain';
+import type { ForumLinkView } from '@libs/domain';
 import '../persistence/schema';
 
 const CONFIDENCE_RANK: Record<ForumLinkView['confidence'], number> = {
@@ -12,7 +12,7 @@ const CONFIDENCE_RANK: Record<ForumLinkView['confidence'], number> = {
 // Reads a proposal's forum-thread links (proposal_forum_link ⨝ forum_thread) for the API detail
 // surface. Cross-source: keyed only by proposal_id. Ordered high→low confidence, then most
 // recent activity first.
-export class ForumLinkReadRepository implements ForumLinkReader {
+export class ForumLinkReadRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
   async getLinksForProposal(proposalId: string): Promise<ForumLinkView[]> {

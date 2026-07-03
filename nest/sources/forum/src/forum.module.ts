@@ -1,10 +1,8 @@
 import { Logger, Module } from '@nestjs/common';
 import { ArchiveDerivationRepository, DaoSourceRepository, chDb, pgDb } from '@libs/db';
-import { FORUM_LINK_READER, type ForumLinkReader } from '@libs/domain';
 import type { SourcePlugin } from '@sources/core';
 import {
   ForumArchivePayloadRepository,
-  ForumLinkReadRepository,
   ForumLinkRepository,
   ForumThreadActorAddressDeriver,
   ForumThreadProjectionApplier,
@@ -55,18 +53,12 @@ function optionalInt(name: string): number | undefined {
             }),
           ],
           derivers: [threadApplier, actorAddressDeriver],
-          readExtension: makeForumReadExtension(),
+          // pgDb backs getForumLinks (cross-source proposal→thread links) + curateSourceConfig.
+          readExtension: makeForumReadExtension(pgDb),
         };
       },
     },
-    {
-      // Cross-source forum-link surface for the API proposal-detail path. Provided here (the
-      // forum lib owns the tables) and re-exported via SourcesModule so apps/api can inject it
-      // source-blind through the @libs/domain token.
-      provide: FORUM_LINK_READER,
-      useFactory: (): ForumLinkReader => new ForumLinkReadRepository(pgDb),
-    },
   ],
-  exports: [FORUM_SOURCE_PLUGIN, FORUM_LINK_READER],
+  exports: [FORUM_SOURCE_PLUGIN],
 })
 export class ForumSourceModule {}
