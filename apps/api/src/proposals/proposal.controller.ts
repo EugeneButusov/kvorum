@@ -10,7 +10,6 @@ import {
 import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
 import {
   SOURCE_READ_EXTENSIONS,
-  getForumLinksFor,
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
@@ -107,16 +106,22 @@ export class ProposalController {
       });
     }
 
-    const [actions, choices, originChainId, extension, forumLinks] = await Promise.all([
+    const [actions, choices, originChainId, ext] = await Promise.all([
       this.repo.findActions(row.id),
       this.repo.findChoices(row.id),
       this.repo.resolveOriginChainId(row.id, sourceType),
       getProposalExtensionFor(this.extensions, row.id, sourceType),
-      getForumLinksFor(this.extensions, row.id),
     ]);
 
     return {
-      data: toProposalDetailDto(row, actions, choices, originChainId, extension, forumLinks),
+      data: toProposalDetailDto(
+        row,
+        actions,
+        choices,
+        originChainId,
+        ext.extension,
+        ext.forumLinks,
+      ),
     };
   }
 

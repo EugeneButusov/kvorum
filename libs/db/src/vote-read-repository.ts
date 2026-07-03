@@ -41,8 +41,8 @@ type VoteEventsProjectionTable = {
   superseded: number;
 };
 
-// The Snapshot-specific per-vote choice breakdown (ADR-0072 D2). Typed inline via sql`` so libs/db
-// reads the protocol table without importing @sources/snapshot; `choices` is the ADR-0072 D3 JSON
+// The Snapshot-specific per-vote choice breakdown (ADR-0072). Typed inline via sql`` so libs/db
+// reads the protocol table without importing @sources/snapshot; `choices` is the JSON breakdown
 // (`[{choice_index, weight}]`, sorted desc by weight).
 type SnapshotVoteChoiceProjection = {
   vote_id: string;
@@ -207,10 +207,10 @@ export class VoteReadRepository {
   }
 
   async findChoicesForVote(voteId: string, sourceType: string): Promise<VoteChoiceReadRow[]> {
-    // ADR-0072 D2: dispatch at read time. Snapshot carries a real multi-choice breakdown in the
+    // ADR-0072: dispatch at read time. Snapshot carries a real multi-choice breakdown in the
     // snapshot_vote_choice protocol table; all EVM sources synthesize a one-element breakdown from
     // primary_choice. A snapshot vote with no choice row falls through to synthesis (defensive —
-    // shouldn't happen post-AD4, but never 500 and never drop the vote).
+    // shouldn't happen once Snapshot choice rows are written, but never 500 and never drop the vote).
     if (sourceType === 'snapshot') {
       const snapshotChoices = await this.findSnapshotChoices(voteId);
       if (snapshotChoices !== undefined) return snapshotChoices;

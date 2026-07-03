@@ -44,25 +44,27 @@ export function delegationModelFor(
   );
 }
 
-export function getProposalExtensionFor(
+// Everything the proposal-detail read path needs: the source-specific extension (voting/payloads/
+// metadata, or null when the source contributes none) plus the cross-source forum links. Two
+// dispatch shapes are combined here so the caller makes a single call: `extension` is resolved by
+// the proposal's source_type; `forumLinks` is fanned out across all extensions (a proposal of any
+// source may carry links, and only the forum contribution implements getForumLinks) and concatenated.
+export interface ProposalExtensionResult {
+  extension: ProposalExtension | null;
+  forumLinks: readonly ForumLinkView[];
+}
+
+export async function getProposalExtensionFor(
   extensions: readonly SourceReadExtension[],
   proposalId: string,
   sourceType: string,
-): Promise<ProposalExtension | null> {
+): Promise<ProposalExtensionResult> {
   const contribution = resolveReadExtension(extensions, sourceType);
-  if (contribution === undefined) return Promise.resolve(null);
-  return contribution.getProposalExtension(proposalId, sourceType);
-}
-
-// Forum links are cross-source (any proposal may carry them), so — unlike the source-type-keyed
-// resolvers above — this fans out across all extensions and concatenates. Only the forum
-// contribution implements getForumLinks today.
-export async function getForumLinksFor(
-  extensions: readonly SourceReadExtension[],
-  proposalId: string,
-): Promise<ForumLinkView[]> {
-  const batches = await Promise.all(extensions.map((e) => e.getForumLinks?.(proposalId) ?? []));
-  return batches.flat();
+  const [extension, forumLinkBatches] = await Promise.all([
+    contribution?.getProposalExtension(proposalId, sourceType) ?? Promise.resolve(null),
+    Promise.all(extensions.map((e) => e.getForumLinks?.(proposalId) ?? [])),
+  ]);
+  return { extension, forumLinks: forumLinkBatches.flat() };
 }
 
 // Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).

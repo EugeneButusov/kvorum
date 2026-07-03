@@ -21,8 +21,8 @@ export function makeSnapshotReadExtension(db: Kysely<PgDatabase>): SourceReadExt
     choiceBounds(_sourceType: string): ChoiceBounds {
       // Snapshot choices are 1..N and vary per proposal, so a single static bound can only widen to
       // avoid over-rejecting the primary_choice filter input (Int8 upper bound). Per-proposal bounds
-      // are a follow-up (the filter-validation surface); primary_choice itself is always highest-weight per
-      // ADR-0072 D4, so a permissive bound is safe here.
+      // are a follow-up (the filter-validation surface); primary_choice itself is always the
+      // highest-weight choice (ADR-0072), so a permissive bound is safe here.
       return { min: 0, max: 127 };
     },
     delegationModel(sourceType: string): DelegationModel {

@@ -52,8 +52,8 @@ describe('VoteReadRepository', () => {
     await expect(repo.findChoicesForVote('vote-1', 'aragon_voting')).resolves.toEqual([]);
   });
 
-  it('findChoicesForVote reads snapshot_vote_choice for snapshot votes (ADR-0072 D2)', async () => {
-    // ReplacingMergeTree(version): the greatest version wins; the stored JSON is the ADR-0072 D3 shape.
+  it('findChoicesForVote reads snapshot_vote_choice for snapshot votes', async () => {
+    // ReplacingMergeTree(version): the greatest version wins; the stored JSON is the choices breakdown.
     const chChain = makeChain([
       {
         choices: JSON.stringify([
@@ -75,7 +75,8 @@ describe('VoteReadRepository', () => {
   });
 
   it('findChoicesForVote falls back to primary_choice when a snapshot vote has no choice row', async () => {
-    // Defensive: shouldn't happen post-AD4, but a missing protocol row must not 500 or drop the vote.
+    // Defensive: shouldn't happen once Snapshot choice rows are written, but a missing protocol row
+    // must not 500 or drop the vote.
     const snapshotChain = makeChain([]);
     const projectionChain = makeChain({ primary_choice: 5 });
     const ch = {
@@ -88,7 +89,7 @@ describe('VoteReadRepository', () => {
     ]);
   });
 
-  it('guard R12: findChoicesForVote uses executeTakeFirst — VIEW exposes one row per vote_id', async () => {
+  it('findChoicesForVote uses executeTakeFirst — the projection VIEW exposes one row per vote_id', async () => {
     // Safe: the vote_events_projection VIEW groups by the full sorting key including vote_id,
     // so each vote_id is exactly one row. executeTakeFirst() picks it; execute() would return
     // an array and break the caller. A refactor switching to execute() would be unsafe.
