@@ -2512,14 +2512,29 @@
           "source_type": {
             "type": "string"
           },
+          "off_chain": {
+            "type": "boolean"
+          },
           "contract_address": {
             "type": "string"
           },
           "chain_id": {
             "type": "string"
+          },
+          "space": {
+            "type": "string"
+          },
+          "forum_host": {
+            "type": "string"
+          },
+          "forum_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
-        "required": ["source_type"]
+        "required": ["source_type", "off_chain"]
       },
       "DaoDetailDto": {
         "type": "object",
@@ -2835,6 +2850,145 @@
         },
         "required": ["data", "pagination"]
       },
+      "AragonProposalMetadataDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["aragon_voting"]
+          },
+          "app_address": {
+            "type": "string"
+          },
+          "app_version": {
+            "type": "object",
+            "nullable": true
+          },
+          "support_required_pct": {
+            "type": "object",
+            "nullable": true
+          },
+          "min_accept_quorum_pct": {
+            "type": "object",
+            "nullable": true
+          },
+          "main_phase_ends_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "objection_phase_ends_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "executed_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["kind", "app_address"]
+      },
+      "SnapshotProposalMetadataDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["snapshot"]
+          },
+          "space_id": {
+            "type": "string"
+          },
+          "voting_type": {
+            "type": "object",
+            "nullable": true
+          },
+          "strategies": {
+            "type": "object",
+            "nullable": true
+          },
+          "ipfs_hash": {
+            "type": "object",
+            "nullable": true
+          },
+          "network": {
+            "type": "object",
+            "nullable": true
+          },
+          "scores_state": {
+            "type": "object",
+            "nullable": true
+          },
+          "flagged": {
+            "type": "boolean"
+          }
+        },
+        "required": ["kind", "space_id", "flagged"]
+      },
+      "DualGovernanceProposalMetadataDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["dual_governance"]
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["aragon", "direct"]
+          },
+          "dg_proposal_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["submitted", "scheduled", "executed", "cancelled"]
+          },
+          "executor": {
+            "type": "string"
+          },
+          "aragon_source_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "submitted_at": {
+            "type": "string"
+          },
+          "scheduled_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "executed_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "cancelled_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["kind", "origin", "dg_proposal_id", "status", "executor", "submitted_at"]
+      },
+      "EasyTrackProposalMetadataDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["easy_track"]
+          },
+          "motion_id": {
+            "type": "string"
+          },
+          "factory_address": {
+            "type": "string"
+          },
+          "objection_ends_at": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["active", "enacted", "objected", "rejected", "canceled"]
+          }
+        },
+        "required": ["kind", "motion_id", "factory_address", "objection_ends_at", "state"]
+      },
       "ProposalActionDto": {
         "type": "object",
         "properties": {
@@ -2947,6 +3101,33 @@
         },
         "required": ["target_chain_id", "payloads"]
       },
+      "ProposalForumLinkDto": {
+        "type": "object",
+        "properties": {
+          "forum_host": {
+            "type": "string"
+          },
+          "forum_topic_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "last_activity_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["forum_host", "forum_topic_id", "url", "confidence"]
+      },
       "ProposalDetailDto": {
         "type": "object",
         "properties": {
@@ -3016,6 +3197,30 @@
             "items": {
               "$ref": "#/components/schemas/ProposalPayloadGroupDto"
             }
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AragonProposalMetadataDto"
+              },
+              {
+                "$ref": "#/components/schemas/SnapshotProposalMetadataDto"
+              },
+              {
+                "$ref": "#/components/schemas/DualGovernanceProposalMetadataDto"
+              },
+              {
+                "$ref": "#/components/schemas/EasyTrackProposalMetadataDto"
+              }
+            ]
+          },
+          "forum_links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalForumLinkDto"
+            }
           }
         },
         "required": [
@@ -3032,7 +3237,8 @@
           "description",
           "actions",
           "choices",
-          "origin_chain_id"
+          "origin_chain_id",
+          "forum_links"
         ]
       },
       "ProposalDetailResponseDto": {
