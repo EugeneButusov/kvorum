@@ -5,7 +5,7 @@ import {
   ProposalPayloadDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
-} from './proposal-extension.dto';
+} from '@nest/sources';
 import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 

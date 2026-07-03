@@ -16,7 +16,8 @@
     "@sources/forum": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@nestjs/swagger": "^11.4.3"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0"
