@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiNotFoundResponse,
@@ -7,6 +7,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { DaoReadRepository } from '@libs/db';
+import { SOURCE_READ_EXTENSIONS, type SourceReadExtension } from '@libs/domain';
 import { DaoDetailResponseDto, DaoListResponseDto, DaoSourceListResponseDto } from './dao.dto';
 import { toDaoDetailDto, toDaoListItemDto, toDaoSourceDto } from './dao.mappers';
 import { DAO_LIST_QUERY } from './dao.query';
@@ -28,7 +29,11 @@ import { parseQuery } from '../query/query-parser';
 @ApiBearerAuth()
 @Controller('v1/daos')
 export class DaoController {
-  constructor(private readonly repo: DaoReadRepository) {}
+  constructor(
+    private readonly repo: DaoReadRepository,
+    @Inject(SOURCE_READ_EXTENSIONS)
+    private readonly extensions: readonly SourceReadExtension[],
+  ) {}
 
   @ApiOkResponse({ type: DaoListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -87,7 +92,7 @@ export class DaoController {
 
     const sources = await this.repo.listSourcesForDao(dao.id);
 
-    return { data: toDaoDetailDto(dao, sources) };
+    return { data: toDaoDetailDto(dao, sources, this.extensions) };
   }
 
   @ApiOkResponse({ type: DaoSourceListResponseDto })
@@ -102,6 +107,6 @@ export class DaoController {
     }
 
     const sources = await this.repo.listSourcesForDao(dao.id);
-    return { data: sources.map(toDaoSourceDto) };
+    return { data: sources.map((s) => toDaoSourceDto(s, this.extensions)) };
   }
 }

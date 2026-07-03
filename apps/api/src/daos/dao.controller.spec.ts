@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { SourceReadExtension } from '@libs/domain';
 import { DaoController } from './dao.controller';
 import { ProblemException } from '../http/problem-exception';
+
+// EVM-default source coverage for the sources the fixtures exercise (no off-chain override needed).
+const extensions: SourceReadExtension[] = [
+  {
+    sourceTypes: ['compound_governor_bravo', 'alt_governor'],
+    choiceBounds: () => ({ min: 0, max: 2 }),
+    delegationModel: () => 'power-bearing',
+    getProposalExtension: () => Promise.resolve(null),
+  },
+];
 
 function makeQb(rows: unknown[]) {
   const qb = {
@@ -36,7 +47,7 @@ describe('DaoController', () => {
     };
     const qb = makeQb([row]);
     const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const out = await controller.list({} as never);
     expect(out.data).toHaveLength(1);
@@ -50,7 +61,7 @@ describe('DaoController', () => {
     ];
     const qb = makeQb(rows);
     const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const out = await controller.list({ limit: '1' } as never);
     expect(out.data).toHaveLength(1);
@@ -64,7 +75,7 @@ describe('DaoController', () => {
     ];
     const qb = makeQb(rows);
     const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const out = await controller.list({ limit: '1', sort: '-created_at' } as never);
     expect(out.pagination.next_cursor).not.toBeNull();
@@ -81,7 +92,7 @@ describe('DaoController', () => {
       findDaoBySlug: vi.fn().mockResolvedValue(baseDao),
       listSourcesForDao: vi.fn().mockResolvedValue(sources),
     } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const out = await controller.detail('compound');
     expect(out.data.slug).toBe('compound');
@@ -92,7 +103,7 @@ describe('DaoController', () => {
     const repo = {
       findDaoBySlug: vi.fn().mockResolvedValue(undefined),
     } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     await expect(controller.detail('unknown')).rejects.toBeInstanceOf(ProblemException);
   });
@@ -103,7 +114,7 @@ describe('DaoController', () => {
       findDaoBySlug: vi.fn().mockResolvedValue(baseDao),
       listSourcesForDao: vi.fn().mockResolvedValue(sources),
     } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const out = await controller.sources('compound');
     expect(out.data).toHaveLength(1);
@@ -113,7 +124,7 @@ describe('DaoController', () => {
     const repo = {
       findDaoBySlug: vi.fn().mockResolvedValue(undefined),
     } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     await expect(controller.sources('unknown')).rejects.toBeInstanceOf(ProblemException);
   });
@@ -125,7 +136,7 @@ describe('DaoController', () => {
     ];
     const qb = makeQb(rows);
     const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) } as never;
-    const controller = new DaoController(repo);
+    const controller = new DaoController(repo, extensions);
 
     const { canonicalQuery } = await import('../pagination/cursor');
     const { parseQuery } = await import('../query/query-parser');

@@ -1,5 +1,6 @@
 import type {
   ChoiceBounds,
+  CuratedDaoSourceConfig,
   DelegationModel,
   ProposalExtension,
   SourceReadExtension,
@@ -50,4 +51,43 @@ export function getProposalExtensionFor(
   const contribution = resolveReadExtension(extensions, sourceType);
   if (contribution === undefined) return Promise.resolve(null);
   return contribution.getProposalExtension(proposalId, sourceType);
+}
+
+function asConfigObject(rawConfig: unknown): Record<string, unknown> {
+  return rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)
+    ? (rawConfig as Record<string, unknown>)
+    : {};
+}
+
+// The on-chain default curation: contract_address (lowercased) + chain_id, off_chain=false. Used for
+// EVM sources and any source that does not override curateSourceConfig. Exported so on-chain source
+// extensions can reuse it for their non-off-chain source types (e.g. Snapshot's delegation registries).
+export function curateEvmSourceConfig(rawConfig: unknown): CuratedDaoSourceConfig {
+  const cfg = asConfigObject(rawConfig);
+  const contractAddress =
+    typeof cfg['contract_address'] === 'string' ? cfg['contract_address'].toLowerCase() : undefined;
+  const rawChainId = cfg['chain_id'];
+  const chainId =
+    typeof rawChainId === 'string'
+      ? rawChainId
+      : typeof rawChainId === 'number'
+        ? String(rawChainId)
+        : undefined;
+
+  return {
+    off_chain: false,
+    ...(contractAddress === undefined ? {} : { contract_address: contractAddress }),
+    ...(chainId === undefined ? {} : { chain_id: chainId }),
+  };
+}
+
+export function curateSourceConfigFor(
+  extensions: readonly SourceReadExtension[],
+  sourceType: string,
+  rawConfig: unknown,
+): CuratedDaoSourceConfig {
+  const contribution = resolveReadExtension(extensions, sourceType);
+  return (
+    contribution?.curateSourceConfig?.(sourceType, rawConfig) ?? curateEvmSourceConfig(rawConfig)
+  );
 }

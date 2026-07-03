@@ -86,13 +86,26 @@ export interface ProposalExtension {
 // (e.g. Compound comp-token) carry actual voting power on each delegation row.
 export type DelegationModel = 'relationship-only' | 'power-bearing';
 
+// Public, curated view of a dao_source's `source_config` for GET /daos/{slug}/sources. `off_chain`
+// distinguishes poll-based off-chain sources (snapshot, forum) from on-chain contract sources; the
+// remaining keys are the union across sources, each filled by the owning source's curateSourceConfig
+// (on-chain sources use the EVM default: contract_address/chain_id). apps/api stays source-blind.
+export interface CuratedDaoSourceConfig {
+  off_chain: boolean;
+  contract_address?: string;
+  chain_id?: string;
+  space?: string;
+  forum_host?: string;
+  forum_categories?: string[];
+}
+
 // Reserved per-entity extension surfaces (no fields yet). Type aliases rather than
 // empty interfaces — `interface X {}` trips @typescript-eslint/no-empty-object-type.
 export type VoteExtension = Record<string, never>;
 export type DelegationExtension = Record<string, never>;
 
-// Per-source read extensions spanning proposals, votes, and delegations (ADR-0069,
-// amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
+// Per-source read extensions spanning proposals, votes, delegations, and dao-source config
+// (ADR-0069, amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
 // and aggregated into the SOURCE_READ_EXTENSIONS collection; dispatched via the pure
 // source-blind helpers in ./source-read-extension-resolve.
 export interface SourceReadExtension {
@@ -105,4 +118,7 @@ export interface SourceReadExtension {
     delegationId: string,
     sourceType: string,
   ): Promise<DelegationExtension | null>;
+  // Curate this source's raw source_config into its public /sources view. Optional — sources that
+  // omit it get the on-chain EVM default (contract_address/chain_id, off_chain=false).
+  curateSourceConfig?(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig;
 }

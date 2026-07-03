@@ -1,6 +1,12 @@
-import type { ProposalExtension, SourceReadExtension } from './source-read-extension';
+import type {
+  CuratedDaoSourceConfig,
+  ProposalExtension,
+  SourceReadExtension,
+} from './source-read-extension';
 import {
   choiceBoundsFor,
+  curateEvmSourceConfig,
+  curateSourceConfigFor,
   delegationModelFor,
   getProposalExtensionFor,
   resolveReadExtension,
@@ -20,6 +26,18 @@ const compound: SourceReadExtension = {
   choiceBounds: () => ({ min: 0, max: 2 }),
   delegationModel: () => 'power-bearing',
   getProposalExtension: () => Promise.resolve(null),
+};
+
+// A source that overrides curateSourceConfig to mark itself off-chain.
+const offchain: SourceReadExtension = {
+  sourceTypes: ['snapshot'],
+  choiceBounds: () => ({ min: 0, max: 127 }),
+  delegationModel: () => 'power-bearing',
+  getProposalExtension: () => Promise.resolve(null),
+  curateSourceConfig: (_sourceType, raw): CuratedDaoSourceConfig => ({
+    off_chain: true,
+    space: (raw as { space?: string }).space,
+  }),
 };
 
 const extensions = [aave, compound];
@@ -73,6 +91,46 @@ describe('source-read-extension-resolve', () => {
     it('resolves null for unknown source types (never throws)', async () => {
       await expect(getProposalExtensionFor(extensions, 'p1', 'nope')).resolves.toBeNull();
       await expect(getProposalExtensionFor([], 'p1', 'anything')).resolves.toBeNull();
+    });
+  });
+
+  describe('curateEvmSourceConfig', () => {
+    it('extracts + lowercases contract_address and stringifies chain_id', () => {
+      expect(
+        curateEvmSourceConfig({ contract_address: '0xABCD', chain_id: 1, extra: 'ignored' }),
+      ).toEqual({ off_chain: false, contract_address: '0xabcd', chain_id: '1' });
+    });
+
+    it('handles invalid shapes without throwing', () => {
+      expect(curateEvmSourceConfig(null)).toEqual({ off_chain: false });
+      expect(curateEvmSourceConfig(['x'])).toEqual({ off_chain: false });
+      expect(curateEvmSourceConfig({})).toEqual({ off_chain: false });
+    });
+  });
+
+  describe('curateSourceConfigFor', () => {
+    it('uses the EVM default for sources that do not override', () => {
+      expect(
+        curateSourceConfigFor(extensions, 'compound_governor_bravo', {
+          contract_address: '0xEF',
+          chain_id: '10',
+        }),
+      ).toEqual({ off_chain: false, contract_address: '0xef', chain_id: '10' });
+    });
+
+    it('delegates to the source override when present', () => {
+      expect(
+        curateSourceConfigFor([...extensions, offchain], 'snapshot', {
+          space: 'lido-snapshot.eth',
+        }),
+      ).toEqual({ off_chain: true, space: 'lido-snapshot.eth' });
+    });
+
+    it('falls back to the EVM default for unknown source types', () => {
+      expect(curateSourceConfigFor([], 'anything', { chain_id: '0x1' })).toEqual({
+        off_chain: false,
+        chain_id: '0x1',
+      });
     });
   });
 });
