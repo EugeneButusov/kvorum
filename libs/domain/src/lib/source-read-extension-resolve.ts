@@ -60,12 +60,12 @@ export function asSourceConfigObject(rawConfig: unknown): Record<string, unknown
     : {};
 }
 
-// The on-chain default curation: contract_address (lowercased) + chain_id, off_chain=false. Used for
-// EVM sources and any source that does not override curateSourceConfig. Exported so on-chain source
-// extensions can reuse it for their non-off-chain source types (e.g. Snapshot's delegation registries).
+// The on-chain default curation: contract_address (lowercased) + chain_id. Used for EVM sources and
+// any source that does not override curateSourceConfig. Exported so on-chain source extensions can
+// reuse it for their on-chain source types (e.g. Snapshot's delegation registries).
 export function curateEvmSourceConfig(rawConfig: unknown): CuratedDaoSourceConfig {
   const cfg = asSourceConfigObject(rawConfig);
-  const config: Record<string, string | string[]> = {};
+  const config: CuratedDaoSourceConfig = {};
 
   if (typeof cfg['contract_address'] === 'string') {
     config['contract_address'] = cfg['contract_address'].toLowerCase();
@@ -74,7 +74,7 @@ export function curateEvmSourceConfig(rawConfig: unknown): CuratedDaoSourceConfi
   if (typeof rawChainId === 'string') config['chain_id'] = rawChainId;
   else if (typeof rawChainId === 'number') config['chain_id'] = String(rawChainId);
 
-  return { off_chain: false, config };
+  return config;
 }
 
 export function curateSourceConfigFor(

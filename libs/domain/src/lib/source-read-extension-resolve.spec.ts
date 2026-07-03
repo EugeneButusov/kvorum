@@ -28,15 +28,14 @@ const compound: SourceReadExtension = {
   getProposalExtension: () => Promise.resolve(null),
 };
 
-// A source that overrides curateSourceConfig to mark itself off-chain.
+// A source that overrides curateSourceConfig with its own binding keys.
 const offchain: SourceReadExtension = {
   sourceTypes: ['snapshot'],
   choiceBounds: () => ({ min: 0, max: 127 }),
   delegationModel: () => 'power-bearing',
   getProposalExtension: () => Promise.resolve(null),
   curateSourceConfig: (_sourceType, raw): CuratedDaoSourceConfig => ({
-    off_chain: true,
-    config: { space: (raw as { space: string }).space },
+    space: (raw as { space: string }).space,
   }),
 };
 
@@ -95,16 +94,16 @@ describe('source-read-extension-resolve', () => {
   });
 
   describe('curateEvmSourceConfig', () => {
-    it('extracts + lowercases contract_address and stringifies chain_id into config', () => {
+    it('extracts + lowercases contract_address and stringifies chain_id', () => {
       expect(
         curateEvmSourceConfig({ contract_address: '0xABCD', chain_id: 1, extra: 'ignored' }),
-      ).toEqual({ off_chain: false, config: { contract_address: '0xabcd', chain_id: '1' } });
+      ).toEqual({ contract_address: '0xabcd', chain_id: '1' });
     });
 
-    it('handles invalid shapes without throwing (empty config)', () => {
-      expect(curateEvmSourceConfig(null)).toEqual({ off_chain: false, config: {} });
-      expect(curateEvmSourceConfig(['x'])).toEqual({ off_chain: false, config: {} });
-      expect(curateEvmSourceConfig({})).toEqual({ off_chain: false, config: {} });
+    it('handles invalid shapes without throwing (empty map)', () => {
+      expect(curateEvmSourceConfig(null)).toEqual({});
+      expect(curateEvmSourceConfig(['x'])).toEqual({});
+      expect(curateEvmSourceConfig({})).toEqual({});
     });
   });
 
@@ -115,7 +114,7 @@ describe('source-read-extension-resolve', () => {
           contract_address: '0xEF',
           chain_id: '10',
         }),
-      ).toEqual({ off_chain: false, config: { contract_address: '0xef', chain_id: '10' } });
+      ).toEqual({ contract_address: '0xef', chain_id: '10' });
     });
 
     it('delegates to the source override when present', () => {
@@ -123,13 +122,12 @@ describe('source-read-extension-resolve', () => {
         curateSourceConfigFor([...extensions, offchain], 'snapshot', {
           space: 'lido-snapshot.eth',
         }),
-      ).toEqual({ off_chain: true, config: { space: 'lido-snapshot.eth' } });
+      ).toEqual({ space: 'lido-snapshot.eth' });
     });
 
     it('falls back to the EVM default for unknown source types', () => {
       expect(curateSourceConfigFor([], 'anything', { chain_id: '0x1' })).toEqual({
-        off_chain: false,
-        config: { chain_id: '0x1' },
+        chain_id: '0x1',
       });
     });
   });

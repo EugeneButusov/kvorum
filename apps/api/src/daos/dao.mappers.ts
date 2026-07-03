@@ -9,12 +9,10 @@ export function toDaoSourceDto(
   row: Pick<DaoSource, 'source_type' | 'source_config'>,
   extensions: readonly SourceReadExtension[],
 ): DaoSourceDto {
-  const { off_chain, config } = curateSourceConfigFor(
-    extensions,
-    row.source_type,
-    row.source_config,
-  );
-  return Object.assign(new DaoSourceDto(), { source_type: row.source_type, off_chain, config });
+  return Object.assign(new DaoSourceDto(), {
+    source_type: row.source_type,
+    config: curateSourceConfigFor(extensions, row.source_type, row.source_config),
+  });
 }
 
 export function toDaoListItemDto(dao: Dao): DaoListItemDto {

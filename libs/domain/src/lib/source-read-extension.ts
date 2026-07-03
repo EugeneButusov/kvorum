@@ -86,16 +86,12 @@ export interface ProposalExtension {
 // (e.g. Compound comp-token) carry actual voting power on each delegation row.
 export type DelegationModel = 'relationship-only' | 'power-bearing';
 
-// Public, curated view of a dao_source's `source_config` for GET /daos/{slug}/sources. `off_chain`
-// distinguishes poll-based off-chain sources (snapshot, forum) from on-chain contract sources. The
-// variable per-source fields live in an opaque `config` map owned by each source's
-// curateSourceConfig (EVM sources → contract_address/chain_id; snapshot → space; forum →
-// forum_host/forum_categories). Keeping them in a map means apps/api enumerates no source-specific
-// field names — a new source surfaces its config with no API change.
-export interface CuratedDaoSourceConfig {
-  off_chain: boolean;
-  config: Record<string, string | string[]>;
-}
+// Public, curated view of a dao_source's `source_config` for GET /daos/{slug}/sources: an opaque map
+// of binding fields owned by each source's curateSourceConfig (EVM sources → contract_address/
+// chain_id; snapshot → space; forum → forum_host/forum_categories). Keeping it a map means apps/api
+// enumerates no source-specific field names — a new source surfaces its config with no API change.
+// (On-chain vs off-chain is derivable from source_type, so no separate flag is carried.)
+export type CuratedDaoSourceConfig = Record<string, string | string[]>;
 
 // Reserved per-entity extension surfaces (no fields yet). Type aliases rather than
 // empty interfaces — `interface X {}` trips @typescript-eslint/no-empty-object-type.

@@ -2512,9 +2512,6 @@
           "source_type": {
             "type": "string"
           },
-          "off_chain": {
-            "type": "boolean"
-          },
           "config": {
             "type": "object",
             "additionalProperties": {
@@ -2532,7 +2529,7 @@
             }
           }
         },
-        "required": ["source_type", "off_chain", "config"]
+        "required": ["source_type", "config"]
       },
       "DaoDetailDto": {
         "type": "object",

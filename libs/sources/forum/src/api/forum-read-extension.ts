@@ -29,14 +29,14 @@ export function makeForumReadExtension(): SourceReadExtension {
     curateSourceConfig(_sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // Off-chain Discourse source: binds by `host` (+ optional `categories`).
       const cfg = asSourceConfigObject(rawConfig);
-      const config: Record<string, string | string[]> = {};
+      const config: CuratedDaoSourceConfig = {};
       if (typeof cfg['host'] === 'string') config['forum_host'] = cfg['host'];
       if (Array.isArray(cfg['categories'])) {
         config['forum_categories'] = cfg['categories'].filter(
           (c): c is string => typeof c === 'string',
         );
       }
-      return { off_chain: true, config };
+      return config;
     },
   };
 }

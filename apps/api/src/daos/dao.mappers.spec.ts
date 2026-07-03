@@ -16,13 +16,10 @@ const extensions: SourceReadExtension[] = [
     choiceBounds: () => ({ min: 0, max: 127 }),
     delegationModel: () => 'power-bearing',
     getProposalExtension: () => Promise.resolve(null),
-    curateSourceConfig: (_t, raw) => ({
-      off_chain: true,
-      config:
-        typeof (raw as { space?: unknown }).space === 'string'
-          ? { space: (raw as { space: string }).space }
-          : {},
-    }),
+    curateSourceConfig: (_t, raw) =>
+      typeof (raw as { space?: unknown }).space === 'string'
+        ? { space: (raw as { space: string }).space }
+        : {},
   },
   {
     sourceTypes: ['discourse_forum'],
@@ -30,13 +27,10 @@ const extensions: SourceReadExtension[] = [
     delegationModel: () => 'relationship-only',
     getProposalExtension: () => Promise.resolve(null),
     curateSourceConfig: (_t, raw) => ({
-      off_chain: true,
-      config: {
-        forum_host: (raw as { host: string }).host,
-        forum_categories: (raw as { categories: unknown[] }).categories.filter(
-          (c): c is string => typeof c === 'string',
-        ),
-      },
+      forum_host: (raw as { host: string }).host,
+      forum_categories: (raw as { categories: unknown[] }).categories.filter(
+        (c): c is string => typeof c === 'string',
+      ),
     }),
   },
 ];
@@ -52,25 +46,20 @@ describe('dao.mappers', () => {
     );
     expect(dto).toEqual({
       source_type: 'compound_governor_bravo',
-      off_chain: false,
       config: { contract_address: '0xef', chain_id: '10' },
     });
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
   });
 
-  it('toDaoSourceDto marks snapshot off-chain and surfaces the space (source-driven)', () => {
+  it('toDaoSourceDto surfaces the snapshot space (source-driven)', () => {
     const dto = toDaoSourceDto(
       { source_type: 'snapshot', source_config: { space: 'lido-snapshot.eth' } },
       extensions,
     );
-    expect(dto).toEqual({
-      source_type: 'snapshot',
-      off_chain: true,
-      config: { space: 'lido-snapshot.eth' },
-    });
+    expect(dto).toEqual({ source_type: 'snapshot', config: { space: 'lido-snapshot.eth' } });
   });
 
-  it('toDaoSourceDto marks discourse_forum off-chain with host + categories (source-driven)', () => {
+  it('toDaoSourceDto surfaces forum host + categories (source-driven)', () => {
     const dto = toDaoSourceDto(
       {
         source_type: 'discourse_forum',
@@ -80,14 +69,13 @@ describe('dao.mappers', () => {
     );
     expect(dto).toEqual({
       source_type: 'discourse_forum',
-      off_chain: true,
       config: { forum_host: 'research.lido.fi', forum_categories: ['proposals'] },
     });
   });
 
   it('emits an empty config map when nothing is curated', () => {
     const dto = toDaoSourceDto({ source_type: 'alt_governor', source_config: {} }, extensions);
-    expect(dto).toEqual({ source_type: 'alt_governor', off_chain: false, config: {} });
+    expect(dto).toEqual({ source_type: 'alt_governor', config: {} });
   });
 
   it('isoSeconds truncates milliseconds and supports null', () => {

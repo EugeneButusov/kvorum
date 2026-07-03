@@ -30,7 +30,6 @@ describeHttpIf('dao endpoints e2e', () => {
         .expect(200);
 
       expect(detail.body.data.slug).toBe('compound');
-      expect(detail.body.data.sources[0].off_chain).toBe(false);
       expect(detail.body.data.sources[0].config.chain_id).toBeDefined();
       expect(detail.headers['etag']).toBeDefined();
 

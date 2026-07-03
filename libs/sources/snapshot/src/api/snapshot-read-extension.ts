@@ -40,9 +40,9 @@ export function makeSnapshotReadExtension(db: Kysely<PgDatabase>): SourceReadExt
       // The off-chain `snapshot` source binds by `space`; the delegation registries are on-chain.
       if (sourceType !== 'snapshot') return curateEvmSourceConfig(rawConfig);
       const cfg = asSourceConfigObject(rawConfig);
-      const config: Record<string, string | string[]> = {};
+      const config: CuratedDaoSourceConfig = {};
       if (typeof cfg['space'] === 'string') config['space'] = cfg['space'];
-      return { off_chain: true, config };
+      return config;
     },
   };
 }

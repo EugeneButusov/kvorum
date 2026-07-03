@@ -18,10 +18,6 @@ export class DaoSourceDto {
   @ApiProperty()
   declare source_type: string;
 
-  // Off-chain sources (snapshot, discourse_forum) bind by space/host rather than a contract.
-  @ApiProperty()
-  declare off_chain: boolean;
-
   // Source-specific binding config, curated by the owning source's read extension. On-chain sources
   // carry `contract_address`/`chain_id`; snapshot carries `space`; forum carries
   // `forum_host`/`forum_categories`. Kept as an open map so a new source needs no API change.
