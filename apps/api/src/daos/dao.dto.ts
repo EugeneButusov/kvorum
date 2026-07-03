@@ -18,9 +18,8 @@ export class DaoSourceDto {
   @ApiProperty()
   declare source_type: string;
 
-  // Source-specific binding config, curated by the owning source's read extension. On-chain sources
-  // carry `contract_address`/`chain_id`; snapshot carries `space`; forum carries
-  // `forum_host`/`forum_categories`. Kept as an open map so a new source needs no API change.
+  // Source-specific binding config, curated by the owning source's read extension. Kept as an open
+  // map so a new source surfaces its config with no API change.
   @ApiProperty({
     type: 'object',
     additionalProperties: {
