@@ -593,6 +593,21 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       "slug": "compound",
       "website_url": "https://compound.finance",
     },
+    {
+      "_meta": {
+        "last_updated_at": "2026-02-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/lido",
+        },
+      },
+      "description": "Lido DAO (e2e)",
+      "forum_url": "https://research.lido.fi",
+      "name": "Lido",
+      "primary_chain_id": "1",
+      "primary_token_address": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "slug": "lido",
+      "website_url": "https://lido.fi",
+    },
   ],
   "pagination": {
     "has_more": false,
@@ -617,8 +632,303 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "dao-detail": ""CcdwyOfS_wsLve8ERvMCWW5bAx4"",
   "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-sources": ""lHkveUj1_T9XP9b3L7wyayzxv8k"",
-  "daos-list": ""UCRJDY9f6hfyOYGiDB36sDVrxo8"",
+  "daos-list": ""K3GdscfRwAyzVbs-REYRqs-jM3c"",
+  "lido-aragon-proposal-detail": ""kFgYOUSvjMyvaa9PzKWGr7WLU7c"",
+  "lido-proposals-list": ""yQdNNSUPdVSZbPR0I3o60jjVKF4"",
+  "lido-snapshot-proposal-detail": ""gwjv1EUtQ6Ei0-ZvhLwm0Sc5-M0"",
+  "lido-snapshot-vote": ""ERMGzVrFHa90WUElGQaGAKkvmiE"",
+  "lido-sources": ""d-p4pjaL6_WXzUxxMUUXlhIQDMY"",
   "proposal-detail": ""hsrVPQgGIaRCLATCHxhYS3KB_jM"",
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > lido-aragon-proposal-detail 1`] = `
+{
+  "data": {
+    "_meta": {
+      "confirmed": true,
+      "last_updated_at": "2026-02-15T12:00:00Z",
+      "links": {
+        "self": "/v1/daos/lido/proposals/aragon_voting/77",
+        "votes": "/v1/daos/lido/proposals/aragon_voting/77/votes",
+      },
+    },
+    "actions": [],
+    "binding": true,
+    "choices": [
+      {
+        "choice_index": 0,
+        "value": "Nay",
+      },
+      {
+        "choice_index": 1,
+        "value": "Yea",
+      },
+    ],
+    "dao_slug": "lido",
+    "description": "A binding LDO governance vote",
+    "metadata": {
+      "app_address": "0x2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+      "app_version": "4",
+      "executed_at": "2026-02-15T00:00:00Z",
+      "kind": "aragon_voting",
+      "main_phase_ends_at": null,
+      "min_accept_quorum_pct": "50000000000000000",
+      "objection_phase_ends_at": null,
+      "support_required_pct": "500000000000000000",
+    },
+    "offchain_discussion_links": [
+      {
+        "confidence": "high",
+        "host": "research.lido.fi",
+        "last_activity_at": "2026-02-13T00:00:00Z",
+        "platform": "discourse",
+        "title": "Discussion: Binding Vote",
+        "url": "https://research.lido.fi/t/4242",
+      },
+    ],
+    "origin_chain_id": "0x1",
+    "payloads": [],
+    "proposer": {
+      "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+      "display_name": null,
+    },
+    "source_id": "77",
+    "source_type": "aragon_voting",
+    "state": "executed",
+    "title": "Lido Aragon Binding Vote",
+    "voting": null,
+    "voting_ends_at": "2026-02-14T00:00:00Z",
+    "voting_starts_at": "2026-02-10T00:00:00Z",
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > lido-proposals-list 1`] = `
+{
+  "data": [
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-02-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/lido/proposals/dual_governance/10",
+          "votes": "/v1/daos/lido/proposals/dual_governance/10/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "lido",
+      "proposer": {
+        "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "display_name": null,
+      },
+      "source_id": "10",
+      "source_type": "dual_governance",
+      "state": "defeated",
+      "title": "Lido Dual Governance Proposal",
+      "voting_ends_at": "2026-02-16T00:00:00Z",
+      "voting_starts_at": "2026-02-12T00:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-02-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/lido/proposals/aragon_voting/77",
+          "votes": "/v1/daos/lido/proposals/aragon_voting/77/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "lido",
+      "proposer": {
+        "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "display_name": null,
+      },
+      "source_id": "77",
+      "source_type": "aragon_voting",
+      "state": "executed",
+      "title": "Lido Aragon Binding Vote",
+      "voting_ends_at": "2026-02-14T00:00:00Z",
+      "voting_starts_at": "2026-02-10T00:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-02-15T12:00:00Z",
+        "links": {
+          "self": "/v1/daos/lido/proposals/easy_track/5",
+          "votes": "/v1/daos/lido/proposals/easy_track/5/votes",
+        },
+      },
+      "binding": true,
+      "dao_slug": "lido",
+      "proposer": {
+        "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "display_name": null,
+      },
+      "source_id": "5",
+      "source_type": "easy_track",
+      "state": "executed",
+      "title": "Lido Easy Track Motion",
+      "voting_ends_at": "2026-02-11T00:00:00Z",
+      "voting_starts_at": "2026-02-08T00:00:00Z",
+    },
+    {
+      "_meta": {
+        "confirmed": true,
+        "last_updated_at": "2026-02-06T00:00:00Z",
+        "links": {
+          "self": "/v1/daos/lido/proposals/snapshot/0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+          "votes": "/v1/daos/lido/proposals/snapshot/0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a/votes",
+        },
+      },
+      "binding": false,
+      "dao_slug": "lido",
+      "proposer": {
+        "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "display_name": null,
+      },
+      "source_id": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "source_type": "snapshot",
+      "state": "executed",
+      "title": "Lido Snapshot Signaling",
+      "voting_ends_at": "2026-02-05T00:00:00Z",
+      "voting_starts_at": "2026-02-01T00:00:00Z",
+    },
+  ],
+  "pagination": {
+    "has_more": false,
+    "limit": 50,
+    "next_cursor": null,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > lido-snapshot-proposal-detail 1`] = `
+{
+  "data": {
+    "_meta": {
+      "confirmed": true,
+      "last_updated_at": "2026-02-06T00:00:00Z",
+      "links": {
+        "self": "/v1/daos/lido/proposals/snapshot/0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+        "votes": "/v1/daos/lido/proposals/snapshot/0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a/votes",
+      },
+    },
+    "actions": [],
+    "binding": false,
+    "choices": [
+      {
+        "choice_index": 0,
+        "value": "Option A",
+      },
+      {
+        "choice_index": 1,
+        "value": "Option B",
+      },
+      {
+        "choice_index": 2,
+        "value": "Option C",
+      },
+    ],
+    "dao_slug": "lido",
+    "description": "A weighted Snapshot signaling proposal",
+    "metadata": {
+      "flagged": false,
+      "ipfs_hash": "Qm123",
+      "kind": "snapshot",
+      "network": "0x1",
+      "scores_state": "final",
+      "space_id": "lido-snapshot.eth",
+      "strategies": [
+        {
+          "name": "erc20-balance-of",
+        },
+      ],
+      "voting_type": "weighted",
+    },
+    "offchain_discussion_links": [],
+    "origin_chain_id": "0x1",
+    "payloads": [],
+    "proposer": {
+      "address": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+      "display_name": null,
+    },
+    "source_id": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "source_type": "snapshot",
+    "state": "executed",
+    "title": "Lido Snapshot Signaling",
+    "voting": null,
+    "voting_ends_at": "2026-02-05T00:00:00Z",
+    "voting_starts_at": "2026-02-01T00:00:00Z",
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > lido-snapshot-vote 1`] = `
+{
+  "data": {
+    "_meta": {
+      "confirmed": true,
+    },
+    "cast_at": "2026-02-03T00:00:00Z",
+    "choices": [
+      {
+        "choice_index": 1,
+        "weight": "0.6",
+      },
+      {
+        "choice_index": 2,
+        "weight": "0.4",
+      },
+    ],
+    "primary_choice": 1,
+    "reason": null,
+    "vote_id": "00000000-0000-0000-bbbb-000000000041",
+    "voter": {
+      "_meta": {
+        "links": {
+          "actor": "/v1/actors/0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        },
+      },
+      "address": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "display_name": "Lido Voter",
+    },
+    "voting_chain_id": "0x1",
+    "voting_power_reported": "3000000000000000000",
+    "voting_power_verified": false,
+  },
+}
+`;
+
+exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag snapshots for all six endpoints > lido-sources 1`] = `
+{
+  "data": [
+    {
+      "config": {
+        "contract_address": "0x2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+      },
+      "source_type": "aragon_voting",
+    },
+    {
+      "config": {
+        "contract_address": "0xc1dbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdb",
+      },
+      "source_type": "dual_governance",
+    },
+    {
+      "config": {
+        "contract_address": "0xf0eaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaeaea",
+      },
+      "source_type": "easy_track",
+    },
+    {
+      "config": {
+        "space": "lido-snapshot.eth",
+      },
+      "source_type": "snapshot",
+    },
+  ],
 }
 `;
 
