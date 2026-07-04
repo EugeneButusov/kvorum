@@ -2,6 +2,12 @@ import request, { type Response } from 'supertest';
 import { AAVE_VOTER_ADDRESS, seedAaveData } from './aave.seed';
 import { seedConformanceData } from './conformance.seed';
 import {
+  LIDO_ARAGON_SOURCE_ID,
+  LIDO_SNAPSHOT_SOURCE_ID,
+  LIDO_VOTER_ADDRESS,
+  seedLidoData,
+} from './lido.seed';
+import {
   createRealApp,
   describeHttpIf,
   resetClickhouse,
@@ -62,6 +68,21 @@ const ENDPOINTS: EndpointCase[] = [
     name: 'aave-delegate-alignment',
     path: `/v1/daos/aave/analytics/delegate-alignment?delegate=${AAVE_VOTER_ADDRESS}`,
     skipEtag: true,
+  },
+  // Lido four-track + Snapshot + forum conformance fixtures (M4)
+  { name: 'lido-sources', path: '/v1/daos/lido/sources' },
+  { name: 'lido-proposals-list', path: '/v1/daos/lido/proposals' },
+  {
+    name: 'lido-aragon-proposal-detail',
+    path: `/v1/daos/lido/proposals/aragon_voting/${LIDO_ARAGON_SOURCE_ID}`,
+  },
+  {
+    name: 'lido-snapshot-proposal-detail',
+    path: `/v1/daos/lido/proposals/snapshot/${LIDO_SNAPSHOT_SOURCE_ID}`,
+  },
+  {
+    name: 'lido-snapshot-vote',
+    path: `/v1/daos/lido/proposals/snapshot/${LIDO_SNAPSHOT_SOURCE_ID}/votes/${LIDO_VOTER_ADDRESS}`,
   },
 ];
 
@@ -127,6 +148,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
     try {
       const seeded = await seedConformanceData();
       await seedAaveData(); // additive: Aave DAO + CH votes/delegations
+      await seedLidoData(); // additive: Lido four-track + Snapshot + forum fixtures
       const server = app.getHttpServer();
 
       const etagByEndpoint: Record<string, string | null> = {};
@@ -176,6 +198,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
     try {
       const seeded = await seedConformanceData();
       await seedAaveData(); // additive: Aave DAO + CH votes/delegations
+      await seedLidoData(); // additive: Lido four-track + Snapshot + forum fixtures
       const server = app.getHttpServer();
 
       const daoList = await request(server)

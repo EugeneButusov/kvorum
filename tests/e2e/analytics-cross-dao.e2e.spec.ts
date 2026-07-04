@@ -8,6 +8,7 @@ import {
   type AaveSeedContext,
   seedAaveData,
 } from './aave.seed';
+import { LIDO_ARAGON_PROPOSAL_ID, LIDO_DAO_ID, seedLidoData } from './lido.seed';
 import {
   createRealApp,
   describeHttpIf,
@@ -22,6 +23,7 @@ import { chDb } from '../../libs/db/src/client';
 const COMP_DELEGATION_ID = '00000000-0000-0000-cccc-000000000001';
 const COMP_VOTER_SECONDARY_ADDRESS = `0x${'d0'.repeat(20)}`;
 const COMP_VOTER_VOTE_ID = '00000000-0000-0000-cccc-000000000002';
+const LIDO_CROSS_DAO_VOTE_ID = '00000000-0000-0000-cccc-000000000003';
 
 const SEED_DATE = new Date('2026-01-15T12:00:00.000Z');
 
@@ -35,9 +37,10 @@ describeHttpIf('Analytics cross-DAO e2e (X3 PR2)', () => {
     await resetDaoProposalApiTables();
     await resetClickhouse();
 
-    // Seed baseline Compound + Aave entity data
+    // Seed baseline Compound + Aave + Lido entity data (three DAOs)
     compound = await seedDaoProposalApiData();
     aave = await seedAaveData();
+    await seedLidoData();
 
     // ── Compound: add a power-bearing delegation in CH ──────────────────────────
     // (gives concentration a non-zero window so it returns 200, not 204)
@@ -82,6 +85,23 @@ describeHttpIf('Analytics cross-DAO e2e (X3 PR2)', () => {
         voting_power: '500000000000000000',
         cast_at: SEED_DATE,
         block_number: '20000001',
+        log_index: 0,
+        superseded: 0,
+        superseded_at: null,
+        superseded_by_vote_id: null,
+      },
+      {
+        // Third DAO: the Aave voter also votes on a Lido Aragon proposal, so its cross-DAO
+        // summary spans compound + aave + lido (per-DAO, never collapsed).
+        vote_id: LIDO_CROSS_DAO_VOTE_ID,
+        dao_id: LIDO_DAO_ID,
+        proposal_id: LIDO_ARAGON_PROPOSAL_ID,
+        voter_address: AAVE_VOTER_ADDRESS,
+        voting_chain_id: '0x1',
+        primary_choice: 1,
+        voting_power: '2000000000000000000',
+        cast_at: SEED_DATE,
+        block_number: '21000600',
         log_index: 0,
         superseded: 0,
         superseded_at: null,
@@ -201,6 +221,20 @@ describeHttpIf('Analytics cross-DAO e2e (X3 PR2)', () => {
       const compoundEntry = daos.find((d) => d.dao_slug === 'compound');
       expect(compoundEntry).toBeDefined();
       expect(compoundEntry!.votes_cast).toBe(1);
+    });
+
+    it('spans all three DAOs per-DAO (compound + aave + lido, not collapsed)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/actors/${AAVE_VOTER_ADDRESS}/analytics/cross-dao`)
+        .set('Authorization', aave.bearer)
+        .expect(200);
+
+      const daos = res.body.daos as { dao_slug: string; votes_cast: number }[];
+      const bySlug = new Map(daos.map((d) => [d.dao_slug, d.votes_cast]));
+      // One row per DAO — Lido appears as its own entry alongside compound + aave.
+      expect(bySlug.get('compound')).toBe(1);
+      expect(bySlug.get('aave')).toBe(1);
+      expect(bySlug.get('lido')).toBe(1);
     });
   });
 
