@@ -100,11 +100,8 @@ jobs:
         run: pnpm --filter api build
 
       - name: Start API
-        # Run the built webpack bundle (not tsx-from-source): it handles the decorator/DTO transform
-        # correctly and is representative of production. tsx transforms cross-package decorated DTOs
-        # with esbuild, which rejects them ("Decorators are not valid here").
         run: |
-          node dist/apps/api/main.js > /tmp/api.log 2>&1 &
+          pnpm exec tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/main.ts > /tmp/api.log 2>&1 &
           echo $! > /tmp/api.pid
         env:
           API_PORT: '3001'
