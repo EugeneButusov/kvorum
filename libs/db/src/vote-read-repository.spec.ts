@@ -38,7 +38,7 @@ describe('VoteReadRepository', () => {
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    await expect(repo.findChoicesForVote('vote-1', 'aragon_voting')).resolves.toEqual([
+    await expect(repo.findChoicesForVote('vote-1', 'evm_source')).resolves.toEqual([
       { choice_index: 2, weight: '1.0' },
     ]);
     expect(chChain.where).toHaveBeenCalledWith('v.vote_id', '=', 'vote-1');
@@ -49,7 +49,7 @@ describe('VoteReadRepository', () => {
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    await expect(repo.findChoicesForVote('vote-1', 'aragon_voting')).resolves.toEqual([]);
+    await expect(repo.findChoicesForVote('vote-1', 'evm_source')).resolves.toEqual([]);
   });
 
   it('findChoicesForVote reads snapshot_vote_choice for snapshot votes', async () => {
@@ -97,7 +97,7 @@ describe('VoteReadRepository', () => {
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
     const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
 
-    const result = await repo.findChoicesForVote('vote-1', 'aragon_voting');
+    const result = await repo.findChoicesForVote('vote-1', 'evm_source');
 
     expect(result).toHaveLength(1);
     expect(chChain.executeTakeFirst).toHaveBeenCalledOnce();
