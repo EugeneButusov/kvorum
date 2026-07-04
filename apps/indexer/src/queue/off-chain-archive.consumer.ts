@@ -4,6 +4,7 @@ import { chainMetrics } from '@libs/chain';
 import { ArchiveEventRepository, DaoSourceRepository, DlqRepository } from '@libs/db';
 import type { NewIngestionDlq } from '@libs/db';
 import type { ArchiveConsumeContext, OffChainArchiveWriteFn } from '@sources/core';
+import { applyOffChainMutableLatest } from '@sources/core';
 import type { OffChainArchiveJob } from './off-chain-archive.types';
 import { OFF_CHAIN_ARCHIVE_QUEUE } from './queue-names';
 import { QUEUE_WORKER_PORT } from './queue-worker-port';
@@ -74,61 +75,19 @@ export class OffChainArchiveConsumer implements OnApplicationBootstrap {
     };
 
     try {
-      const existing = await this.archiveEventRepo.findByExternalId({
-        sourceType: ctx.sourceType,
-        chainId: ctx.chainId,
-        externalId: job.externalId,
-      });
-
-      if (existing && existing.content_hash === job.contentHash) {
-        chainMetrics.offChainArchiveConsumer.add(1, {
-          source: ctx.sourceLabel,
-          result: 'skip_unchanged',
-        });
-        return;
-      }
-
-      // PG-maintained monotonic version: bumped only on a content change; the CH
-      // ReplacingMergeTree(version) sort key so the latest edit wins deterministically.
-      const version = existing ? (existing.version ?? 0) + 1 : 1;
-
-      // CH-first (per-source, idempotent on (external_id, version)).
-      await write(ctx, {
-        externalId: job.externalId,
-        contentHash: job.contentHash,
-        ordinal: job.ordinal,
-        version,
-        payload: job.payload,
-      });
-
-      if (!existing) {
-        await this.archiveEventRepo.insert({
-          source_type: ctx.sourceType,
-          dao_source_id: ctx.daoSourceId,
-          chain_id: ctx.chainId,
-          external_id: job.externalId,
-          content_hash: job.contentHash,
-          version,
-          derivation_ordinal: job.ordinal,
-          event_type: job.eventType,
-          received_at: new Date(),
-          derived_at: null,
-        });
-        chainMetrics.offChainArchiveConsumer.add(1, {
-          source: ctx.sourceLabel,
-          result: 'inserted',
-        });
-      } else {
-        // CAS-guarded update + full derivation-watermark reset (ADR-071).
-        await this.archiveEventRepo.reArchiveOffchain(
-          { sourceType: ctx.sourceType, chainId: ctx.chainId, externalId: job.externalId },
-          { contentHash: job.contentHash, version, ordinal: job.ordinal },
-        );
-        chainMetrics.offChainArchiveConsumer.add(1, {
-          source: ctx.sourceLabel,
-          result: 're_archived',
-        });
-      }
+      // Shared mutable-latest core (ADR-071), reused verbatim by the admin-cli backfill --direct sink.
+      const result = await applyOffChainMutableLatest(
+        ctx,
+        {
+          externalId: job.externalId,
+          contentHash: job.contentHash,
+          ordinal: job.ordinal,
+          eventType: job.eventType,
+          payload: job.payload,
+        },
+        { archiveEventRepo: this.archiveEventRepo, write },
+      );
+      chainMetrics.offChainArchiveConsumer.add(1, { source: ctx.sourceLabel, result });
     } catch (err) {
       // Transient (CH/PG) → throw → retry → deadLetter → OffChainArchiveDlqBridge.
       chainMetrics.offChainArchiveConsumer.add(1, {

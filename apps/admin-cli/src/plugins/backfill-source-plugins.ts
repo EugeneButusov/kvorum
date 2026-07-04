@@ -40,6 +40,35 @@ import {
   type CompTokenSourceConfig,
 } from '@sources/compound';
 import type { BackfillRuntime, SourceIngester } from '@sources/core';
+import {
+  createLidoAragonVotingPlugin,
+  LidoAragonVotingArchiveWriter,
+  AragonVotingEventRepository,
+  createLidoDualGovernancePlugin,
+  LidoDualGovernanceArchiveWriter,
+  DualGovernanceEventRepository,
+  createLidoEasyTrackPlugin,
+  LidoEasyTrackArchiveWriter,
+  EasyTrackEventRepository,
+  type LidoAragonVotingConfig,
+  type LidoAragonVotingPluginDeps,
+  type LidoDualGovernanceConfig,
+  type LidoDualGovernancePluginDeps,
+  type LidoEasyTrackConfig,
+  type LidoEasyTrackPluginDeps,
+} from '@sources/lido';
+import {
+  createDelegateRegistryPlugin,
+  DelegateRegistryArchiveWriter,
+  DelegateRegistryEventRepository,
+  createSplitDelegationPlugin,
+  SplitDelegationArchiveWriter,
+  SplitDelegationEventRepository,
+  type DelegateRegistryConfig,
+  type DelegateRegistryPluginDeps,
+  type SplitDelegationConfig,
+  type SplitDelegationPluginDeps,
+} from '@sources/snapshot';
 
 export type BackfillSourcePlugin =
   | SourceIngester<CompoundGovernorConfig>
@@ -48,7 +77,12 @@ export type BackfillSourcePlugin =
   | SourceIngester<AaveGovernanceV3Config>
   | SourceIngester<AaveVotingMachineConfig>
   | SourceIngester<AavePayloadsControllerConfig>
-  | SourceIngester<AaveTokenConfig>;
+  | SourceIngester<AaveTokenConfig>
+  | SourceIngester<LidoAragonVotingConfig>
+  | SourceIngester<LidoDualGovernanceConfig>
+  | SourceIngester<LidoEasyTrackConfig>
+  | SourceIngester<DelegateRegistryConfig>
+  | SourceIngester<SplitDelegationConfig>;
 
 export interface BackfillSourcePluginDeps {
   governor: CompoundGovernorPluginDeps;
@@ -58,6 +92,11 @@ export interface BackfillSourcePluginDeps {
   aaveVotingMachine: AaveVotingMachinePluginDeps;
   aavePayloadsController: AavePayloadsControllerPluginDeps;
   aaveToken: AaveTokenPluginDeps;
+  lidoAragonVoting: LidoAragonVotingPluginDeps;
+  lidoDualGovernance: LidoDualGovernancePluginDeps;
+  lidoEasyTrack: LidoEasyTrackPluginDeps;
+  snapshotDelegateRegistry: DelegateRegistryPluginDeps;
+  snapshotSplitDelegation: SplitDelegationPluginDeps;
 }
 
 export function buildBackfillSourcePlugins(
@@ -71,6 +110,11 @@ export function buildBackfillSourcePlugins(
     createAaveVotingMachinePlugin(deps.aaveVotingMachine),
     createAavePayloadsControllerPlugin(deps.aavePayloadsController),
     createAaveTokenPlugin(deps.aaveToken),
+    createLidoAragonVotingPlugin(deps.lidoAragonVoting),
+    createLidoDualGovernancePlugin(deps.lidoDualGovernance),
+    createLidoEasyTrackPlugin(deps.lidoEasyTrack),
+    createDelegateRegistryPlugin(deps.snapshotDelegateRegistry),
+    createSplitDelegationPlugin(deps.snapshotSplitDelegation),
   ];
 }
 
@@ -119,6 +163,36 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     dlqRepo,
     logger,
   });
+  const lidoAragonVotingArchiveWriter = new LidoAragonVotingArchiveWriter({
+    eventRepo: new AragonVotingEventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo,
+    logger,
+  });
+  const lidoDualGovernanceArchiveWriter = new LidoDualGovernanceArchiveWriter({
+    eventRepo: new DualGovernanceEventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo,
+    logger,
+  });
+  const lidoEasyTrackArchiveWriter = new LidoEasyTrackArchiveWriter({
+    eventRepo: new EasyTrackEventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo,
+    logger,
+  });
+  const snapshotDelegateRegistryArchiveWriter = new DelegateRegistryArchiveWriter({
+    eventRepo: new DelegateRegistryEventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo,
+    logger,
+  });
+  const snapshotSplitDelegationArchiveWriter = new SplitDelegationArchiveWriter({
+    eventRepo: new SplitDelegationEventRepository({ chDb }),
+    archiveEventRepo: new ArchiveEventRepository(pgDb),
+    dlqRepo,
+    logger,
+  });
 
   return buildBackfillSourcePlugins({
     governor: { archiveWriter: governorArchiveWriter, dlqRepo, logger },
@@ -128,6 +202,19 @@ export function buildDefaultBackfillSourcePlugins(logger: Logger): readonly Back
     aaveVotingMachine: { archiveWriter: aaveVotingMachineArchiveWriter, dlqRepo, logger },
     aavePayloadsController: { archiveWriter: aavePayloadsControllerArchiveWriter, dlqRepo, logger },
     aaveToken: { archiveWriter: aaveTokenArchiveWriter, dlqRepo, logger },
+    lidoAragonVoting: { archiveWriter: lidoAragonVotingArchiveWriter, dlqRepo, logger },
+    lidoDualGovernance: { archiveWriter: lidoDualGovernanceArchiveWriter, dlqRepo, logger },
+    lidoEasyTrack: { archiveWriter: lidoEasyTrackArchiveWriter, dlqRepo, logger },
+    snapshotDelegateRegistry: {
+      archiveWriter: snapshotDelegateRegistryArchiveWriter,
+      dlqRepo,
+      logger,
+    },
+    snapshotSplitDelegation: {
+      archiveWriter: snapshotSplitDelegationArchiveWriter,
+      dlqRepo,
+      logger,
+    },
   });
 }
 

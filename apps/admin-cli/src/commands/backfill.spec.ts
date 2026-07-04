@@ -9,7 +9,7 @@ const makeDeps = () => ({
 });
 
 describe('backfill command plugin coverage', () => {
-  it('exposes all known source types, including the multi-chain Aave v3 sources', () => {
+  it('exposes all known EVM-backfillable source types, including Lido + Snapshot delegation', () => {
     const plugins = buildBackfillSourcePlugins({
       governor: makeDeps(),
       compToken: makeDeps(),
@@ -18,6 +18,11 @@ describe('backfill command plugin coverage', () => {
       aaveVotingMachine: makeDeps(),
       aavePayloadsController: makeDeps(),
       aaveToken: makeDeps(),
+      lidoAragonVoting: makeDeps(),
+      lidoDualGovernance: makeDeps(),
+      lidoEasyTrack: makeDeps(),
+      snapshotDelegateRegistry: makeDeps(),
+      snapshotSplitDelegation: makeDeps(),
     });
 
     expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
@@ -30,7 +35,31 @@ describe('backfill command plugin coverage', () => {
       'aave_voting_machine',
       'aave_payloads_controller',
       'aave_token',
+      'aragon_voting',
+      'dual_governance',
+      'easy_track',
+      'snapshot_delegate_registry',
+      'snapshot_split_delegation',
     ]);
+  });
+
+  it('reports every registered plugin as EVM-backfillable (buildBackfillRuntime present)', () => {
+    const plugins = buildBackfillSourcePlugins({
+      governor: makeDeps(),
+      compToken: makeDeps(),
+      aaveGovernorV2: makeDeps(),
+      aaveGovernanceV3: makeDeps(),
+      aaveVotingMachine: makeDeps(),
+      aavePayloadsController: makeDeps(),
+      aaveToken: makeDeps(),
+      lidoAragonVoting: makeDeps(),
+      lidoDualGovernance: makeDeps(),
+      lidoEasyTrack: makeDeps(),
+      snapshotDelegateRegistry: makeDeps(),
+      snapshotSplitDelegation: makeDeps(),
+    });
+
+    expect(plugins.every((plugin) => plugin.buildBackfillRuntime != null)).toBe(true);
   });
 });
 

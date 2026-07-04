@@ -11,9 +11,15 @@ import {
 } from './backfill-plan.js';
 import { runSourceBackfill } from './backfill-run-source.js';
 import {
+  runOffChainBackfillForSource,
+  type OffChainDrainOptions,
+  type OffChainSinkMode,
+} from './offchain-backfill.js';
+import {
   buildBackfillSourceRuntime,
   buildIsBackfillable,
 } from '../plugins/backfill-source-plugins.js';
+import { isOffChainBackfillSourceType } from '../plugins/offchain-backfill-source-plugins.js';
 
 export interface RunBackfillOrchestrationInput {
   daoSlug: string;
@@ -23,6 +29,8 @@ export interface RunBackfillOrchestrationInput {
   dryRun: boolean;
   format: OutputFormat;
   signal: AbortSignal;
+  /** Off-chain (snapshot / discourse_forum) phase-3 controls. */
+  offChain: { mode: OffChainSinkMode } & OffChainDrainOptions;
 }
 
 interface GateFailure {
@@ -74,7 +82,10 @@ export async function runBackfillOrchestration(
     isBackfillable: buildIsBackfillable(silentLogger),
   });
   const targets = [...plan.phase1, ...plan.phase2];
-  if (targets.length === 0) {
+  // Off-chain sources (snapshot / discourse_forum) are excluded from the EVM plan by design; they run
+  // as a serial phase 3 after the EVM spine so proposals exist before forum-link / delegation work.
+  const offChainTargets = rows.filter((r) => isOffChainBackfillSourceType(r.source_type));
+  if (targets.length === 0 && offChainTargets.length === 0) {
     fail(format, ExitCode.NotFound, `no backfillable sources found for dao: ${input.daoSlug}`);
   }
 
@@ -151,7 +162,7 @@ export async function runBackfillOrchestration(
     }
 
     if (input.dryRun) {
-      emitPlan(format, input.daoSlug, plan, gateFailures, input.concurrency);
+      emitPlan(format, input.daoSlug, plan, offChainTargets, gateFailures, input.concurrency);
       return;
     }
 
@@ -211,6 +222,38 @@ export async function runBackfillOrchestration(
     }
     await runWithConcurrency(plan.phase2, Math.max(1, input.concurrency), runOne);
 
+    // Phase 3: off-chain drains, serial (each hits a rate-limited external API and is internally paced).
+    for (const t of offChainTargets) {
+      const base = { source_type: t.source_type, chain_id: t.chain_id };
+      if (input.signal.aborted) {
+        outcomes.push({ ...base, status: 'cancelled' });
+        continue;
+      }
+      try {
+        const outcome = await runOffChainBackfillForSource({
+          target: {
+            id: t.id,
+            source_type: t.source_type,
+            source_config: t.source_config,
+            chain_id: t.chain_id,
+          },
+          mode: input.offChain.mode,
+          options: {
+            quiescenceTicks: input.offChain.quiescenceTicks,
+            interTickDelayMs: input.offChain.interTickDelayMs,
+          },
+          signal: input.signal,
+        });
+        outcomes.push({
+          ...base,
+          status: outcome.status,
+          detail: `${outcome.itemsProcessed} items / ${outcome.ticks} ticks`,
+        });
+      } catch (err) {
+        outcomes.push({ ...base, status: 'error', detail: errMessage(err) });
+      }
+    }
+
     emitSummary(format, input.daoSlug, outcomes);
   } finally {
     for (const client of pool.values()) {
@@ -266,6 +309,7 @@ function emitPlan(
   format: OutputFormat,
   slug: string,
   plan: BackfillPlan,
+  offChainTargets: readonly BackfillTarget[],
   gateFailures: readonly GateFailure[],
   concurrency: number,
 ): void {
@@ -283,6 +327,7 @@ function emitPlan(
         `Backfill plan for ${slug} (concurrency ${concurrency}):`,
         `  Phase 1 (serial): ${plan.phase1.map(fmtTarget).join(', ') || '(none)'}`,
         `  Phase 2 (parallel): ${plan.phase2.map(fmtTarget).join(', ') || '(none)'}`,
+        `  Phase 3 (off-chain): ${offChainTargets.map(fmtTarget).join(', ') || '(none)'}`,
         `  Skipped (deprecated): ${plan.skippedDeprecated.map(fmtTarget).join(', ') || '(none)'}`,
         gateLine,
       ].join('\n'),
@@ -292,6 +337,7 @@ function emitPlan(
       concurrency,
       phase1: plan.phase1.map(jsonTarget),
       phase2: plan.phase2.map(jsonTarget),
+      phase3_off_chain: offChainTargets.map(jsonTarget),
       skipped_deprecated: plan.skippedDeprecated.map(jsonTarget),
       gate_failures: gateFailures,
     },

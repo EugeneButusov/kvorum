@@ -9,6 +9,7 @@ import {
   type OutputFormat,
   resolveFormat,
 } from '../output.js';
+import { validateSourceConfig } from '../plugins/source-config-validation.js';
 
 type DaoCommon = { format?: string };
 type DaoAddOpts = DaoCommon & { name: string; token: string; chain: string };
@@ -64,7 +65,7 @@ export function registerDao(program: Command): void {
           }
 
           const config = parseJson(opts.config, '--config');
-          await validateSourceConfig(opts.type, config);
+          validateSourceConfigOrFail(format, opts.type, config);
           const { normalizeChainId } = await import('@libs/chain');
           const row = await daoAdminRepository.addSource({
             daoId: dao.id,
@@ -96,7 +97,7 @@ export function registerDao(program: Command): void {
             fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
           }
           const config = parseJson(opts.config, '--config');
-          await validateSourceConfig(existing.source_type, config);
+          validateSourceConfigOrFail(format, existing.source_type, config);
           const updated = await daoAdminRepository.updateSourceConfig(daoSourceId, config);
           emit(format, () => `DAO source updated: ${daoSourceId}`, {
             id: daoSourceId,
@@ -124,15 +125,24 @@ function parseJson(raw: string, optionName: string): unknown {
   }
 }
 
-async function validateSourceConfig(sourceType: string, config: unknown): Promise<void> {
-  if (sourceType === 'compound_governor_bravo') {
-    const { createCompoundGovernorBravoPlugin } = await import('@sources/compound');
-    const plugin = createCompoundGovernorBravoPlugin({
-      archiveWriter: {} as never,
-      dlqRepo: {} as never,
-      logger: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
-    });
-    plugin.parseConfig(config);
+/**
+ * Validates the source_config for `sourceType` (dispatching to that source's parseConfig across all
+ * ingesters, EVM + off-chain) and exits with a ValidationFailure on a bad config or an unrecognized
+ * source_type. Replaces the earlier Compound-only check that silently accepted every other type.
+ */
+function validateSourceConfigOrFail(
+  format: OutputFormat,
+  sourceType: string,
+  config: unknown,
+): void {
+  try {
+    validateSourceConfig(sourceType, config);
+  } catch (error) {
+    fail(
+      format,
+      ExitCode.ValidationFailure,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 

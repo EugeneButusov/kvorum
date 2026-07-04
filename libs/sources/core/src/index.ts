@@ -222,6 +222,13 @@ export type OffChainArchiveWriteFn = (
   ctx: ArchiveConsumeContext,
   item: OffChainArchiveItem,
 ) => Promise<void>;
+export { applyOffChainMutableLatest } from './offchain/apply-mutable-latest';
+export type {
+  MutableLatestItem,
+  MutableLatestOutcome,
+  OffChainArchiveStore,
+  ApplyMutableLatestDeps,
+} from './offchain/apply-mutable-latest';
 export { DERIVATION_APPLIERS, ACTOR_SWEEP_ADAPTERS } from './derivation';
 export type {
   DerivationProjectionApplier,

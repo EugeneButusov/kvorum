@@ -6,7 +6,12 @@ import { emit, ExitCode, fail, type OutputFormat, resolveFormat } from '../outpu
 import { validateFromBlockGate } from './backfill-gate.js';
 import { runBackfillOrchestration } from './backfill-orchestrator.js';
 import { runSourceBackfill } from './backfill-run-source.js';
+import { runOffChainBackfillForSource, type OffChainBackfillTarget } from './offchain-backfill.js';
 import { buildBackfillSourceRuntime } from '../plugins/backfill-source-plugins.js';
+import { isOffChainBackfillSourceType } from '../plugins/offchain-backfill-source-plugins.js';
+
+const DEFAULT_QUIESCENCE_TICKS = 3;
+const DEFAULT_INTER_TICK_DELAY_MS = 250;
 
 type BackfillCommonOptions = {
   format?: string;
@@ -18,6 +23,11 @@ type BackfillStartOptions = BackfillCommonOptions & {
   toBlock?: string;
   dryRun?: boolean;
   confirmReplay?: boolean;
+  // Off-chain (snapshot / discourse_forum) options:
+  dao?: string;
+  direct?: boolean;
+  quiescenceTicks?: string;
+  interTickDelay?: string;
 };
 
 type BackfillCatchUpOptions = BackfillCommonOptions & {
@@ -31,6 +41,9 @@ type BackfillRunOptions = BackfillCommonOptions & {
   skipDeprecated?: boolean;
   skipLogDepthCheck?: boolean;
   dryRun?: boolean;
+  direct?: boolean;
+  quiescenceTicks?: string;
+  interTickDelay?: string;
 };
 
 export function registerBackfill(program: Command): void {
@@ -43,13 +56,27 @@ export function registerBackfill(program: Command): void {
       '--chain <id>',
       'chain id (required when the source_type is registered on multiple chains)',
     )
-    .option('--from-block <N>', 'starting block number')
-    .option('--to-block <N>', 'ending block number')
+    .option('--from-block <N>', 'starting block number (EVM sources only)')
+    .option('--to-block <N>', 'ending block number (EVM sources only)')
     .option('--confirm-replay', 'confirm re-running blocks below current backfill head')
+    .option('--dao <slug>', 'DAO slug (off-chain sources: disambiguates a source_type across DAOs)')
+    .option(
+      '--direct',
+      'off-chain: write the archive in-process instead of enqueuing to the consumer',
+    )
+    .option(
+      '--quiescence-ticks <K>',
+      'off-chain: consecutive empty ticks that end the drain (default 3)',
+    )
+    .option('--inter-tick-delay <ms>', 'off-chain: pacing delay between polls (default 250)')
     .option('--dry-run', 'show what would happen without making changes')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(sourceType: string, opts: BackfillStartOptions) {
       await withBackfillFormat(this, opts, async (format) => {
+        if (isOffChainBackfillSourceType(sourceType)) {
+          await runOffChainStart(sourceType, opts, format);
+          return;
+        }
         const [
           {
             FailoverRpcClient,
@@ -298,6 +325,12 @@ export function registerBackfill(program: Command): void {
     .option('--concurrency <n>', 'max concurrent sources in the parallel phase (default 3)')
     .option('--skip-deprecated', 'skip sources on deprecated chains (backfill-only)')
     .option('--skip-log-depth-check', 'skip the pre-flight eth_getLogs depth probe')
+    .option('--direct', 'off-chain phase: write the archive in-process instead of enqueuing')
+    .option(
+      '--quiescence-ticks <K>',
+      'off-chain phase: empty ticks that end each drain (default 3)',
+    )
+    .option('--inter-tick-delay <ms>', 'off-chain phase: pacing delay between polls (default 250)')
     .option('--dry-run', 'show the ordered plan + readiness gate without making changes')
     .option('--format <format>', 'output format: human or json')
     .action(async function action(daoSlug: string, opts: BackfillRunOptions) {
@@ -315,6 +348,19 @@ export function registerBackfill(program: Command): void {
           dryRun: opts.dryRun === true,
           format,
           signal: controller.signal,
+          offChain: {
+            mode: opts.direct === true ? ('direct' as const) : ('enqueue' as const),
+            quiescenceTicks: parseUnsignedOr(
+              opts.quiescenceTicks,
+              DEFAULT_QUIESCENCE_TICKS,
+              '--quiescence-ticks',
+            ),
+            interTickDelayMs: parseUnsignedOr(
+              opts.interTickDelay,
+              DEFAULT_INTER_TICK_DELAY_MS,
+              '--inter-tick-delay',
+            ),
+          },
         };
         try {
           if (opts.dryRun === true) {
@@ -330,6 +376,137 @@ export function registerBackfill(program: Command): void {
         }
       });
     });
+}
+
+/**
+ * Off-chain (snapshot / discourse_forum) branch of `backfill start`: resolves a single dao_source
+ * (disambiguated by --dao when a source_type spans DAOs), then drains it from genesis via the poll
+ * transport. `--direct` writes in-process; otherwise items enqueue to the off-chain consumer.
+ */
+async function runOffChainStart(
+  sourceType: string,
+  opts: BackfillStartOptions,
+  format: OutputFormat,
+): Promise<void> {
+  if (opts.fromBlock != null || opts.toBlock != null) {
+    fail(
+      format,
+      ExitCode.ValidationFailure,
+      `--from-block/--to-block are not valid for off-chain source ${sourceType}`,
+    );
+  }
+
+  const { daoSourceRepository } = buildContainer();
+  const target = await resolveOffChainTarget(daoSourceRepository, sourceType, opts.dao, format);
+
+  const mode = opts.direct === true ? 'direct' : 'enqueue';
+  const options = {
+    quiescenceTicks: parseUnsignedOr(
+      opts.quiescenceTicks,
+      DEFAULT_QUIESCENCE_TICKS,
+      '--quiescence-ticks',
+    ),
+    interTickDelayMs: parseUnsignedOr(
+      opts.interTickDelay,
+      DEFAULT_INTER_TICK_DELAY_MS,
+      '--inter-tick-delay',
+    ),
+  };
+
+  if (opts.dryRun === true) {
+    emit(
+      format,
+      () =>
+        `Would drain off-chain backfill for ${sourceType} (dao_source ${target.id}), mode=${mode}, ` +
+        `quiescence=${options.quiescenceTicks}`,
+      { source_type: sourceType, dao_source_id: target.id, mode, dry_run: true, ...options },
+    );
+    return;
+  }
+
+  await withAudit('backfill start (off-chain)', { sourceType, ...opts }, async () => {
+    const controller = new AbortController();
+    const onSignal = (signal: NodeJS.Signals): void => controller.abort(signal);
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const outcome = await runOffChainBackfillForSource({
+        target,
+        mode,
+        options,
+        signal: controller.signal,
+        onTick: makeOffChainProgress(),
+      });
+      process.stderr.write('\n');
+      emit(
+        format,
+        () =>
+          `Off-chain backfill ${outcome.status} for ${sourceType} ` +
+          `(${outcome.itemsProcessed} items across ${outcome.ticks} ticks)`,
+        { source_type: sourceType, dao_source_id: target.id, mode, ...outcome },
+      );
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
+    }
+  });
+}
+
+/** Resolves an off-chain source_type to a single dao_source target row (chain is always off-chain, so
+ *  --chain cannot disambiguate; --dao selects among the same source_type across DAOs). */
+async function resolveOffChainTarget(
+  repo: ReturnType<typeof buildContainer>['daoSourceRepository'],
+  sourceType: string,
+  daoSlug: string | undefined,
+  format: OutputFormat,
+): Promise<OffChainBackfillTarget> {
+  if (daoSlug != null) {
+    const rows = await repo.findSourcesByDaoSlug(daoSlug);
+    const row = rows.find((r) => r.source_type === sourceType);
+    if (row == null) {
+      fail(format, ExitCode.NotFound, `no ${sourceType} source for dao ${daoSlug}`);
+    }
+    return row;
+  }
+
+  const matches = await repo.findBySourceType(sourceType);
+  if (matches.length === 0) {
+    fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
+  }
+  if (matches.length > 1) {
+    fail(
+      format,
+      ExitCode.ValidationFailure,
+      `source_type ${sourceType} is registered on multiple DAOs; pass --dao <slug> to select one`,
+    );
+  }
+  const only = matches[0];
+  const row = only != null ? await repo.findByIdWithChain(only.id) : null;
+  if (row == null) {
+    fail(format, ExitCode.NotFound, `dao_source not found for source_type: ${sourceType}`);
+  }
+  return row;
+}
+
+function parseUnsignedOr(value: string | undefined, fallback: number, optionName: string): number {
+  if (value == null) return fallback;
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${optionName} must be an unsigned integer`);
+  }
+  return Number(value);
+}
+
+/** Single-line stderr progress for an off-chain drain (per-tick items + quiescence counter). */
+function makeOffChainProgress(): (info: {
+  tick: number;
+  items: number;
+  quiescent: number;
+}) => void {
+  const isTTY = process.stderr.isTTY === true;
+  return ({ tick, items, quiescent }) => {
+    const line = `  tick ${tick}  items ${items}  quiescent ${quiescent}`;
+    process.stderr.write(isTTY ? `\r${line}          ` : `${line}\n`);
+  };
 }
 
 function parseConcurrency(value: string | undefined): number {

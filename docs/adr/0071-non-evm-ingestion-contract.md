@@ -192,6 +192,33 @@ The full DLQ-on-CH-failure end-to-end remains with AD1 as stated.
 
 ---
 
+## Amendment (2026-07-04) — bounded off-chain backfill drain
+
+The poll transport was built as a **perpetual** interval loop (`PollSourcePoller`): it never terminates,
+because live ingestion never "finishes." A from-genesis **backfill** needs a bounded run, so a drain
+driver in `admin-cli` (`runOffChainDrain`) runs over the same `PollListener` + `off_chain_cursor` +
+`QueueProducerPort` seam, with three additions:
+
+- **Inferred termination (quiescence).** `PollResult` deliberately carries no `done`/`caughtUp` flag
+  (§Poll transport scaffold), so the drain infers completion: it stops after **K consecutive ticks**
+  (default 3) that both return zero items **and** leave the cursor unadvanced. A single sparse tick does
+  not stop the run; the counter resets whenever a tick yields items or advances the cursor. The
+  conservative default trades a few extra polls near the head for safety against a premature stop at a
+  transient gap. The later live full-history run validates true completeness against a pinned Snapshot
+  snapshot.
+- **Forward-only.** The Snapshot closed-proposal reconcile (`staleProviderFactory`) and the Discourse
+  periodic re-crawl (`reconcileIntervalMs`) are omitted for the bounded sweep — those are live-mode
+  concerns. A backfill sweeps history once.
+- **Two sinks behind `QueueProducerPort`.** The default **enqueue** sink commits ticks to the
+  `off_chain_archive` pg-boss queue (the running consumer applies mutable-latest); the **`--direct`**
+  sink applies mutable-latest in-process for a self-contained CLI run. Both reuse the **same
+  `applyOffChainMutableLatest` routine** extracted from the Nest consumer into `@sources/core`, so the
+  live and backfill paths cannot drift. The drain is `SIGINT`/`SIGTERM`-cancellable (ADR-047) and
+  resumable via the persisted cursor.
+
+The single-worker-per-source invariant still holds: the drain is single-flight, and `--direct` writes
+serially per source.
+
 ## Alternatives considered
 
 - **Separate `SourceIngester` field** (e.g. `isOffChain: boolean`) for detection — rejected in favour of `spec.kind` dispatch. The driver dispatch axis already exists; a boolean field would be redundant and require changes to every plugin.
