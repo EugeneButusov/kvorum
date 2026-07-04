@@ -8,6 +8,7 @@ import {
   curateEvmSourceConfig,
   curateSourceConfigFor,
   delegationModelFor,
+  getActorOffchainDelegationsFor,
   getProposalExtensionFor,
   getVoteChoicesFor,
   resolveReadExtension,
@@ -197,6 +198,38 @@ describe('source-read-extension-resolve', () => {
         getVoteChoicesFor([aave, compound], 'v1', 'aave_governance_v3'),
       ).resolves.toBeNull();
       await expect(getVoteChoicesFor([], 'v1', 'anything')).resolves.toBeNull();
+    });
+  });
+
+  describe('getActorOffchainDelegationsFor', () => {
+    const del = {
+      platform: 'snapshot',
+      system: 'delegate_registry',
+      scope: 'lido-snapshot.eth',
+      network: '0x1',
+      delegate_address: '0xcc',
+      weight: null,
+      expires_at: null,
+    };
+    const offchainDeleg: SourceReadExtension = {
+      sourceTypes: ['snapshot'],
+      choiceBounds: () => ({ min: 0, max: 1 }),
+      delegationModel: () => 'relationship-only',
+      getProposalExtension: () => Promise.resolve(null),
+      getActorOffchainDelegations: () => Promise.resolve([del]),
+    };
+
+    it('fans out across all extensions and concatenates', async () => {
+      await expect(
+        getActorOffchainDelegationsFor([aave, compound, offchainDeleg], 'dao-1', ['0xaa']),
+      ).resolves.toEqual([del]);
+    });
+
+    it('returns empty when no extension implements it', async () => {
+      await expect(
+        getActorOffchainDelegationsFor([aave, compound], 'dao-1', ['0xaa']),
+      ).resolves.toEqual([]);
+      await expect(getActorOffchainDelegationsFor([], 'dao-1', ['0xaa'])).resolves.toEqual([]);
     });
   });
 });

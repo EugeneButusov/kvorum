@@ -73,6 +73,20 @@ export interface VoteChoiceView {
   weight: string;
 }
 
+// An actor's current off-chain delegation, for sources whose delegation lives outside the EVM
+// delegation_flow projection (today Snapshot: space-scoped, one-to-many split with weights; ADR-0074).
+// Kept off the EVM-shaped /delegations list — surfaced per-actor and medium-neutral so other off-chain
+// delegation systems can join. `weight` null = full delegation; `scope` null = global (all spaces).
+export interface OffchainDelegationView {
+  platform: string; // e.g. 'snapshot'
+  system: string; // e.g. 'delegate_registry' | 'split_delegation'
+  scope: string | null; // the delegation scope (Snapshot space); null = global
+  network: string;
+  delegate_address: string;
+  weight: string | null;
+  expires_at: string | null; // ISO seconds
+}
+
 // Per-source read extensions spanning proposals, votes, delegations, and dao-source config
 // (ADR-0069, amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
 // and aggregated into the SOURCE_READ_EXTENSIONS collection; dispatched via the pure
@@ -98,4 +112,12 @@ export interface SourceReadExtension {
   // source_type). null → the source has no per-vote breakdown; the read layer synthesizes one from
   // primary_choice. Keeps source-specific choice tables out of the source-blind read repository.
   getVoteChoices?(voteId: string): Promise<readonly VoteChoiceView[] | null>;
+  // An actor's current off-chain delegations within a DAO (Snapshot). Fanned out across all
+  // extensions (only the off-chain delegation source implements it) — off-chain delegation doesn't
+  // fit the EVM-shaped /delegations list, so it's surfaced per-actor. `delegatorAddresses` are the
+  // actor's addresses (lowercased).
+  getActorOffchainDelegations?(
+    daoId: string,
+    delegatorAddresses: readonly string[],
+  ): Promise<readonly OffchainDelegationView[]>;
 }

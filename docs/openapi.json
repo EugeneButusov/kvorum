@@ -2725,10 +2725,40 @@
         },
         "required": ["data", "pagination", "_meta"]
       },
-      "ActorDelegationResponseDto": {
+      "OffchainDelegationDto": {
         "type": "object",
         "properties": {
-          "data": {
+          "platform": {
+            "type": "string"
+          },
+          "system": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "object",
+            "nullable": true
+          },
+          "network": {
+            "type": "string"
+          },
+          "delegate_address": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "object",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": ["platform", "system", "network", "delegate_address"]
+      },
+      "ActorDelegationDto": {
+        "type": "object",
+        "properties": {
+          "evm": {
             "nullable": true,
             "type": "object",
             "allOf": [
@@ -2736,6 +2766,21 @@
                 "$ref": "#/components/schemas/DelegationListItemDto"
               }
             ]
+          },
+          "offchain": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OffchainDelegationDto"
+            }
+          }
+        },
+        "required": ["offchain"]
+      },
+      "ActorDelegationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ActorDelegationDto"
           }
         },
         "required": ["data"]

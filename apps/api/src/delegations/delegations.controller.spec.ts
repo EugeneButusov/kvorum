@@ -19,6 +19,9 @@ const contributions = [
   },
 ];
 
+// Default actor-address lookup; the actorDelegation tests override with their own mock.
+const actorRepo = { listAddressesForActor: vi.fn().mockResolvedValue([]) };
+
 describe('DelegationsController', () => {
   const daoRepo = {
     findDaoBySlug: vi.fn().mockResolvedValue({ id: 'dao-1', slug: 'compound' }),
@@ -53,6 +56,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -74,6 +78,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
     const res = mockResponse();
@@ -103,6 +108,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -112,7 +118,7 @@ describe('DelegationsController', () => {
       mockResponse(),
     );
 
-    expect(out).toEqual({ data: null });
+    expect(out).toEqual({ data: { evm: null, offchain: [] } });
   });
 
   it('throws actor-not-found for unknown actor in delegation route', async () => {
@@ -124,6 +130,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -142,6 +149,7 @@ describe('DelegationsController', () => {
       { listForDao: vi.fn() } as never,
       notFoundDaoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      actorRepo as never,
       contributions as never,
     );
     await expect(controller.list('unknown', {} as never)).rejects.toBeInstanceOf(ProblemException);
@@ -185,6 +193,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -199,6 +208,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -252,6 +262,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -303,6 +314,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       { resolveAddress: vi.fn() } as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -352,6 +364,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -388,6 +401,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -413,6 +427,7 @@ describe('DelegationsController', () => {
       { findCurrentDelegationForActor: vi.fn() } as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
     const res = mockResponse();
@@ -451,6 +466,7 @@ describe('DelegationsController', () => {
       delegationRepo as never,
       daoRepo as never,
       routing as never,
+      actorRepo as never,
       contributions as never,
     );
 
@@ -459,7 +475,57 @@ describe('DelegationsController', () => {
       '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       mockResponse(),
     );
-    expect(out?.data).not.toBeNull();
-    expect((out?.data as { delegation_id: string } | null)?.delegation_id).toBe('d1');
+    expect(out?.data.evm).not.toBeNull();
+    expect(out?.data.evm?.delegation_id).toBe('d1');
+    expect(out?.data.offchain).toEqual([]);
+  });
+
+  it('surfaces off-chain (Snapshot) delegations from a source contribution', async () => {
+    const offchainView = {
+      platform: 'snapshot',
+      system: 'delegate_registry',
+      scope: 'lido-snapshot.eth',
+      network: '0x1',
+      delegate_address: '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+      weight: null,
+      expires_at: null,
+    };
+    const delegationRepo = { findCurrentDelegationForActor: vi.fn().mockResolvedValue(undefined) };
+    const routing = {
+      resolveAddress: vi.fn().mockResolvedValue({ kind: 'ok', actor: { id: 'a1' } }),
+    };
+    const actorRepoWithAddr = {
+      listAddressesForActor: vi
+        .fn()
+        .mockResolvedValue([{ address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }]),
+    };
+    const offchainContribution = {
+      sourceTypes: ['snapshot'],
+      choiceBounds: () => ({ min: 0, max: 1 }),
+      delegationModel: () => 'relationship-only' as const,
+      getProposalExtension: () => Promise.resolve(null),
+      getActorOffchainDelegations: vi.fn().mockResolvedValue([offchainView]),
+    };
+    const controller = new DelegationsController(
+      delegationRepo as never,
+      daoRepo as never,
+      routing as never,
+      actorRepoWithAddr as never,
+      [...contributions, offchainContribution] as never,
+    );
+
+    const out = await controller.actorDelegation(
+      'compound',
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      mockResponse(),
+    );
+    expect(out?.data.evm).toBeNull();
+    expect(out?.data.offchain).toHaveLength(1);
+    expect(out?.data.offchain[0]?.delegate_address).toBe(
+      '0xcccccccccccccccccccccccccccccccccccccccc',
+    );
+    expect(offchainContribution.getActorOffchainDelegations).toHaveBeenCalledWith('dao-1', [
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    ]);
   });
 });

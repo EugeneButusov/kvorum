@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { DelegationModel } from '@libs/domain';
+import { OffchainDelegationDto } from '@nest/sources';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class DelegationActorLinksDto {
@@ -78,7 +79,18 @@ export class CurrentDelegatorsResponseDto {
   declare _meta: CurrentDelegatorsMetaDto;
 }
 
+// An actor's current delegation within a DAO: the EVM delegation (delegation_flow, single) plus any
+// off-chain delegations (Snapshot: space-scoped, one-to-many). Off-chain is a separate field because
+// it doesn't fit the EVM-shaped, cross-store-paginated /delegations list (ADR-0074).
+export class ActorDelegationDto {
+  @ApiPropertyOptional({ nullable: true, type: DelegationListItemDto })
+  declare evm: DelegationListItemDto | null;
+
+  @ApiProperty({ type: () => [OffchainDelegationDto] })
+  declare offchain: OffchainDelegationDto[];
+}
+
 export class ActorDelegationResponseDto {
-  @ApiProperty({ nullable: true, type: DelegationListItemDto })
-  declare data: DelegationListItemDto | null;
+  @ApiProperty({ type: ActorDelegationDto })
+  declare data: ActorDelegationDto;
 }

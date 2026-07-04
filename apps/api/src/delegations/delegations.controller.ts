@@ -10,19 +10,20 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { DaoReadRepository, DelegationReadRepository } from '@libs/db';
+import { ActorRepository, DaoReadRepository, DelegationReadRepository } from '@libs/db';
 import {
   SOURCE_READ_EXTENSIONS,
   type DelegationModel,
   type SourceReadExtension,
   delegationModelFor,
+  getActorOffchainDelegationsFor,
 } from '@libs/domain';
 import {
   ActorDelegationResponseDto,
   CurrentDelegatorsResponseDto,
   DelegationListResponseDto,
 } from './delegation.dto';
-import { toDelegationListItemDto } from './delegation.mappers';
+import { toDelegationListItemDto, toOffchainDelegationDto } from './delegation.mappers';
 import { DELEGATION_QUERY } from './delegation.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
@@ -47,6 +48,7 @@ export class DelegationsController {
     private readonly delegationRepo: DelegationReadRepository,
     private readonly daoRepo: DaoReadRepository,
     private readonly routing: ActorRoutingService,
+    private readonly actorRepo: ActorRepository,
     @Inject(SOURCE_READ_EXTENSIONS)
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
@@ -223,10 +225,22 @@ export class DelegationsController {
       });
     }
 
-    const row = await this.delegationRepo.findCurrentDelegationForActor(dao.id, resolved.actor.id);
-    if (row === undefined) return { data: null };
+    const [row, addresses] = await Promise.all([
+      this.delegationRepo.findCurrentDelegationForActor(dao.id, resolved.actor.id),
+      this.actorRepo.listAddressesForActor(resolved.actor.id),
+    ]);
+    const offchain = await getActorOffchainDelegationsFor(
+      this.extensions,
+      dao.id,
+      addresses.map((a) => a.address),
+    );
     const model = await this.resolveDelegationModel(dao.id);
-    return { data: toDelegationListItemDto(row, model) };
+    return {
+      data: {
+        evm: row === undefined ? null : toDelegationListItemDto(row, model),
+        offchain: offchain.map(toOffchainDelegationDto),
+      },
+    };
   }
 }
 

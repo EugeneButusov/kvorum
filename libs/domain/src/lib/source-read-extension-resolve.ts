@@ -2,6 +2,7 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
+  OffchainDelegationView,
   OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
@@ -78,6 +79,20 @@ export function getVoteChoicesFor(
 ): Promise<readonly VoteChoiceView[] | null> {
   const contribution = resolveReadExtension(extensions, sourceType);
   return contribution?.getVoteChoices?.(voteId) ?? Promise.resolve(null);
+}
+
+// An actor's current off-chain delegations within a DAO. Off-chain delegation doesn't fit the
+// EVM-shaped /delegations list, so — like forum links — it fans out across all extensions (only the
+// off-chain delegation source implements it) and concatenates.
+export async function getActorOffchainDelegationsFor(
+  extensions: readonly SourceReadExtension[],
+  daoId: string,
+  delegatorAddresses: readonly string[],
+): Promise<OffchainDelegationView[]> {
+  const batches = await Promise.all(
+    extensions.map((e) => e.getActorOffchainDelegations?.(daoId, delegatorAddresses) ?? []),
+  );
+  return batches.flat();
 }
 
 // Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).
