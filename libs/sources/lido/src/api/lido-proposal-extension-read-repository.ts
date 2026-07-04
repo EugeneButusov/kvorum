@@ -1,11 +1,11 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
+import type { ProposalExtension } from '@libs/domain';
 import type {
   AragonProposalMetadataView,
   DualGovernanceProposalMetadataView,
   EasyTrackProposalMetadataView,
-  ProposalExtension,
-} from '@libs/domain';
+} from './proposal-metadata-views';
 import '../persistence/schema';
 
 // Reads the per-proposal metadata for the three Lido on-chain tracks and shapes it into the

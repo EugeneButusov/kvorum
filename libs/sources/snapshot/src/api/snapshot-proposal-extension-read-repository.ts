@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
-import type { ProposalExtension, SnapshotProposalMetadataView } from '@libs/domain';
+import type { ProposalExtension } from '@libs/domain';
+import type { SnapshotProposalMetadataView } from './proposal-metadata-view';
 import '../persistence/schema';
 
 // Reads snapshot_proposal_metadata into ProposalExtension.metadata. Snapshot proposals carry

@@ -20,59 +20,13 @@ export interface ProposalVotingView {
   creation_block: string;
 }
 
-// Per-source proposal metadata, discriminated by `kind` (== the proposal's source_type).
-// Additive to the response: consumers that only read `voting`/`payloads` are unaffected. Date
-// fields are ISO-second strings (the source impl converts from its Date columns), matching the
-// convention on ProposalPayloadView.executed_at_destination.
-export interface AragonProposalMetadataView {
-  kind: 'aragon_voting';
-  app_address: string;
-  app_version: string | null;
-  // 10^18-based percentage params (Lido Aragon fork), not basis points. Kept as decimal strings.
-  support_required_pct: string | null;
-  min_accept_quorum_pct: string | null;
-  main_phase_ends_at: string | null;
-  objection_phase_ends_at: string | null;
-  executed_at: string | null;
+// Open base for per-source proposal metadata, discriminated by `kind` (== the proposal's
+// source_type). The contract only knows there is a `kind`-tagged block — each source owns its
+// concrete shape in its own package (and its swagger DTO in @nest/sources), so @libs/domain names
+// no specific source. The mapper passes the block through opaquely.
+export interface ProposalSourceMetadata {
+  readonly kind: string;
 }
-
-export interface SnapshotProposalMetadataView {
-  kind: 'snapshot';
-  space_id: string;
-  voting_type: string | null;
-  strategies: unknown | null;
-  ipfs_hash: string | null;
-  network: string | null;
-  scores_state: string | null;
-  flagged: boolean;
-}
-
-export interface DualGovernanceProposalMetadataView {
-  kind: 'dual_governance';
-  origin: 'aragon' | 'direct';
-  dg_proposal_id: string;
-  status: 'submitted' | 'scheduled' | 'executed' | 'cancelled';
-  executor: string;
-  aragon_source_id: string | null;
-  submitted_at: string;
-  scheduled_at: string | null;
-  executed_at: string | null;
-  cancelled_at: string | null;
-}
-
-export interface EasyTrackProposalMetadataView {
-  kind: 'easy_track';
-  motion_id: string;
-  factory_address: string;
-  objection_ends_at: string;
-  state: 'active' | 'enacted' | 'objected' | 'rejected' | 'canceled';
-}
-
-export type ProposalSourceMetadata =
-  | AragonProposalMetadataView
-  | SnapshotProposalMetadataView
-  | DualGovernanceProposalMetadataView
-  | EasyTrackProposalMetadataView;
 
 export interface ProposalExtension {
   voting: ProposalVotingView | null;
