@@ -86,7 +86,7 @@ export class ActorDelegationDto {
   @ApiPropertyOptional({ nullable: true, type: DelegationListItemDto })
   declare evm: DelegationListItemDto | null;
 
-  @ApiProperty({ type: () => [OffchainDelegationDto] })
+  @ApiProperty({ type: [OffchainDelegationDto] })
   declare offchain: OffchainDelegationDto[];
 }
 
