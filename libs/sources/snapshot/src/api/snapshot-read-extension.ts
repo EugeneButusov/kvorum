@@ -1,21 +1,27 @@
 import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import type { ClickHouseDatabase, PgDatabase } from '@libs/db';
 import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
   ProposalExtension,
   SourceReadExtension,
+  VoteChoiceView,
 } from '@libs/domain';
 import { asSourceConfigObject, curateEvmSourceConfig } from '@libs/domain';
 import { SnapshotProposalExtensionReadRepository } from './snapshot-proposal-extension-read-repository';
+import { SnapshotVoteChoiceRepository } from '../persistence/snapshot-vote-choice-repository';
 
 // Read surface for the Snapshot source family: the off-chain `snapshot` proposal/vote source plus
 // the two on-chain delegation source types.
 const DELEGATION_SOURCE_TYPES = ['snapshot_delegate_registry', 'snapshot_split_delegation'];
 
-export function makeSnapshotReadExtension(db: Kysely<PgDatabase>): SourceReadExtension {
+export function makeSnapshotReadExtension(
+  db: Kysely<PgDatabase>,
+  chDb: Kysely<ClickHouseDatabase>,
+): SourceReadExtension {
   const repo = new SnapshotProposalExtensionReadRepository(db);
+  const voteChoiceRepo = new SnapshotVoteChoiceRepository(chDb);
   return {
     sourceTypes: ['snapshot', ...DELEGATION_SOURCE_TYPES],
     choiceBounds(_sourceType: string): ChoiceBounds {
@@ -35,6 +41,11 @@ export function makeSnapshotReadExtension(db: Kysely<PgDatabase>): SourceReadExt
       sourceType: string,
     ): Promise<ProposalExtension | null> {
       return sourceType === 'snapshot' ? repo.getExtension(proposalId) : Promise.resolve(null);
+    },
+    async getVoteChoices(voteId: string): Promise<readonly VoteChoiceView[] | null> {
+      // Snapshot's per-vote breakdown (weighted/ranked/approval/etc.) lives in snapshot_vote_choice;
+      // a missing row → null so the read layer synthesizes from primary_choice.
+      return (await voteChoiceRepo.findByVoteId(voteId)) ?? null;
     },
     curateSourceConfig(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // The off-chain `snapshot` source binds by `space`; the delegation registries are on-chain.

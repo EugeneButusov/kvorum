@@ -28,7 +28,10 @@ export function toVoteListItemDto(row: VoteReadRow): VoteListItemDto {
   });
 }
 
-export function toVoteDetailDto(row: VoteReadRow, choices: VoteChoiceReadRow[]): VoteDetailDto {
+export function toVoteDetailDto(
+  row: VoteReadRow,
+  choices: readonly VoteChoiceReadRow[],
+): VoteDetailDto {
   return Object.assign(new VoteDetailDto(), {
     ...toVoteListItemDto(row),
     choices: choices.map((choice) => ({

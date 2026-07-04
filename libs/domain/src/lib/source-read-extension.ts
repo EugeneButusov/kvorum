@@ -110,6 +110,14 @@ export interface ForumLinkView {
   last_activity_at: string | null; // ISO seconds
 }
 
+// A per-vote choice breakdown entry (`weight` is a decimal string, sorted desc by weight). Sources
+// with real multiplicity (e.g. Snapshot weighted/ranked) provide it via getVoteChoices; sources
+// without it return null and the read layer synthesizes a one-element breakdown from primary_choice.
+export interface VoteChoiceView {
+  choice_index: number;
+  weight: string;
+}
+
 // Per-source read extensions spanning proposals, votes, delegations, and dao-source config
 // (ADR-0069, amended 2026-06-17 to lift the proposal-only scope guard). Carried on SourcePlugin
 // and aggregated into the SOURCE_READ_EXTENSIONS collection; dispatched via the pure
@@ -130,4 +138,8 @@ export interface SourceReadExtension {
   // Cross-source: forum threads referencing a proposal of ANY source. Fanned out across all
   // extensions (only the forum contribution implements it), unlike the source-type-keyed methods.
   getForumLinks?(proposalId: string): Promise<readonly ForumLinkView[]>;
+  // The vote's multi-choice breakdown, for sources that carry one (resolved by the vote's
+  // source_type). null → the source has no per-vote breakdown; the read layer synthesizes one from
+  // primary_choice. Keeps source-specific choice tables out of the source-blind read repository.
+  getVoteChoices?(voteId: string): Promise<readonly VoteChoiceView[] | null>;
 }

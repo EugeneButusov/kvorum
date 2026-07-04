@@ -9,6 +9,7 @@ import {
   curateSourceConfigFor,
   delegationModelFor,
   getProposalExtensionFor,
+  getVoteChoicesFor,
   resolveReadExtension,
 } from './source-read-extension-resolve';
 
@@ -166,6 +167,36 @@ describe('source-read-extension-resolve', () => {
       await expect(
         getProposalExtensionFor([aave, compound], 'p1', 'compound_governor_bravo'),
       ).resolves.toEqual({ extension: null, forumLinks: [] });
+    });
+  });
+
+  describe('getVoteChoicesFor', () => {
+    const multiChoice: SourceReadExtension = {
+      sourceTypes: ['multi_choice_source'],
+      choiceBounds: () => ({ min: 0, max: 127 }),
+      delegationModel: () => 'power-bearing',
+      getProposalExtension: () => Promise.resolve(null),
+      getVoteChoices: () =>
+        Promise.resolve([
+          { choice_index: 0, weight: '0.6' },
+          { choice_index: 1, weight: '0.4' },
+        ]),
+    };
+
+    it('returns the breakdown from the matching source', async () => {
+      await expect(
+        getVoteChoicesFor([aave, multiChoice], 'v1', 'multi_choice_source'),
+      ).resolves.toEqual([
+        { choice_index: 0, weight: '0.6' },
+        { choice_index: 1, weight: '0.4' },
+      ]);
+    });
+
+    it('returns null when the source has no getVoteChoices (caller synthesizes)', async () => {
+      await expect(
+        getVoteChoicesFor([aave, compound], 'v1', 'aave_governance_v3'),
+      ).resolves.toBeNull();
+      await expect(getVoteChoicesFor([], 'v1', 'anything')).resolves.toBeNull();
     });
   });
 });

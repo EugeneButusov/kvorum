@@ -41,15 +41,6 @@ type VoteEventsProjectionTable = {
   superseded: number;
 };
 
-// The Snapshot-specific per-vote choice breakdown (ADR-0072). Typed inline via sql`` so libs/db
-// reads the protocol table without importing @sources/snapshot; `choices` is the JSON breakdown
-// (`[{choice_index, weight}]`, sorted desc by weight).
-type SnapshotVoteChoiceProjection = {
-  vote_id: string;
-  choices: string;
-  version: string;
-};
-
 export class VoteReadRepository {
   private readonly pg: Kysely<PgDatabase>;
   private readonly ch: Kysely<ClickHouseDatabase>;
@@ -206,16 +197,10 @@ export class VoteReadRepository {
     return rows[0];
   }
 
-  async findChoicesForVote(voteId: string, sourceType: string): Promise<VoteChoiceReadRow[]> {
-    // ADR-0072: dispatch at read time. Snapshot carries a real multi-choice breakdown in the
-    // snapshot_vote_choice protocol table; all EVM sources synthesize a one-element breakdown from
-    // primary_choice. A snapshot vote with no choice row falls through to synthesis (defensive —
-    // shouldn't happen once Snapshot choice rows are written, but never 500 and never drop the vote).
-    if (sourceType === 'snapshot') {
-      const snapshotChoices = await this.findSnapshotChoices(voteId);
-      if (snapshotChoices !== undefined) return snapshotChoices;
-    }
-
+  // The source-agnostic breakdown: one entry synthesized from the core pipeline's primary_choice.
+  // Sources with real multiplicity (e.g. Snapshot) surface their breakdown through their own read
+  // extension (getVoteChoices); the API read layer prefers that and only falls back here.
+  async findChoicesForVote(voteId: string): Promise<VoteChoiceReadRow[]> {
     const row = await this.ch
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select(['v.primary_choice'])
@@ -224,21 +209,6 @@ export class VoteReadRepository {
 
     if (row === undefined) return [];
     return [{ choice_index: row.primary_choice, weight: '1.0' }];
-  }
-
-  private async findSnapshotChoices(voteId: string): Promise<VoteChoiceReadRow[] | undefined> {
-    // snapshot_vote_choice is ReplacingMergeTree(version); parts may be unmerged and FINAL can't be
-    // placed by the query builder, so pick the greatest version in JS (same approach as
-    // SnapshotVoteChoiceRepository.findByVoteId).
-    const rows = await this.ch
-      .selectFrom(sql<SnapshotVoteChoiceProjection>`snapshot_vote_choice`.as('c'))
-      .select(['c.choices', 'c.version'])
-      .where('c.vote_id', '=', voteId)
-      .execute();
-
-    if (rows.length === 0) return undefined;
-    const latest = rows.reduce((a, b) => (b.version > a.version ? b : a));
-    return JSON.parse(latest.choices) as VoteChoiceReadRow[];
   }
 
   private async fetchProposal(proposalId: string): Promise<

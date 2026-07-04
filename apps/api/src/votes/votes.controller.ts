@@ -10,7 +10,12 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProposalReadRepository, VoteReadRepository } from '@libs/db';
-import { SOURCE_READ_EXTENSIONS, type SourceReadExtension, choiceBoundsFor } from '@libs/domain';
+import {
+  SOURCE_READ_EXTENSIONS,
+  type SourceReadExtension,
+  choiceBoundsFor,
+  getVoteChoicesFor,
+} from '@libs/domain';
 import { VoteDetailResponseDto, VoteListResponseDto } from './vote.dto';
 import { toVoteDetailDto, toVoteListItemDto } from './vote.mappers';
 import { VOTE_QUERY } from './vote.query';
@@ -184,7 +189,10 @@ export class VotesController {
       });
     }
 
-    const choices = await this.voteRepo.findChoicesForVote(vote.id, sourceType);
+    // Prefer the source's own breakdown (e.g. Snapshot multiplicity); fall back to the source-agnostic
+    // synthesis from primary_choice when the source carries none.
+    const sourceChoices = await getVoteChoicesFor(this.extensions, vote.id, sourceType);
+    const choices = sourceChoices ?? (await this.voteRepo.findChoicesForVote(vote.id));
     return {
       data: toVoteDetailDto(vote, choices),
     };

@@ -5,6 +5,7 @@ import type {
   ForumLinkView,
   ProposalExtension,
   SourceReadExtension,
+  VoteChoiceView,
 } from './source-read-extension';
 
 // DI token for the aggregated array of per-source API extensions. Lives in
@@ -65,6 +66,18 @@ export async function getProposalExtensionFor(
     Promise.all(extensions.map((e) => e.getForumLinks?.(proposalId) ?? [])),
   ]);
   return { extension, forumLinks: forumLinkBatches.flat() };
+}
+
+// The vote's multi-choice breakdown from its own source (resolved by source_type). Returns null when
+// the source carries no per-vote breakdown, signalling the read layer to synthesize one from
+// primary_choice — so no source-specific choice table leaks into the source-blind read repository.
+export function getVoteChoicesFor(
+  extensions: readonly SourceReadExtension[],
+  voteId: string,
+  sourceType: string,
+): Promise<readonly VoteChoiceView[] | null> {
+  const contribution = resolveReadExtension(extensions, sourceType);
+  return contribution?.getVoteChoices?.(voteId) ?? Promise.resolve(null);
 }
 
 // Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).
