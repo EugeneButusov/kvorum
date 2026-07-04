@@ -82,7 +82,10 @@ export {
   createDelegateRegistryPlugin,
   DelegateRegistryConfigSchema,
 } from './delegate-registry/plugin/plugin';
-export type { DelegateRegistryConfig } from './delegate-registry/plugin/plugin';
+export type {
+  DelegateRegistryConfig,
+  DelegateRegistryPluginDeps,
+} from './delegate-registry/plugin/plugin';
 export { DelegateRegistryActorAddressDeriver } from './delegate-registry/domain/actor-address-deriver';
 export { projectDelegateRegistryEvent } from './delegate-registry/domain/delegation-projector';
 export { DelegateRegistryDelegationProjectionApplier } from './delegate-registry/domain/delegation-projection-applier';
@@ -105,7 +108,10 @@ export {
   createSplitDelegationPlugin,
   SplitDelegationConfigSchema,
 } from './split-delegation/plugin/plugin';
-export type { SplitDelegationConfig } from './split-delegation/plugin/plugin';
+export type {
+  SplitDelegationConfig,
+  SplitDelegationPluginDeps,
+} from './split-delegation/plugin/plugin';
 export { SplitDelegationActorAddressDeriver } from './split-delegation/domain/actor-address-deriver';
 export { projectSplitDelegationEvent } from './split-delegation/domain/delegation-projector';
 export { SplitDelegationProjectionApplier } from './split-delegation/domain/delegation-projection-applier';

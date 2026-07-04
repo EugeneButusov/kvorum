@@ -24,13 +24,18 @@ const allDeps = () => ({
   aaveVotingMachine: makeDeps(),
   aavePayloadsController: makeDeps(),
   aaveToken: makeDeps(),
+  lidoAragonVoting: makeDeps(),
+  lidoDualGovernance: makeDeps(),
+  lidoEasyTrack: makeDeps(),
+  snapshotDelegateRegistry: makeDeps(),
+  snapshotSplitDelegation: makeDeps(),
 });
 
 // Canonical AAVE ERC-20 address (the aave_token config validates token_address against it).
 const AAVE_ERC20_ADDRESS = '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9';
 
 describe('buildBackfillSourcePlugins', () => {
-  it('bootstraps Compound and all backfill-capable Aave plugins transparently', () => {
+  it('bootstraps Compound, Aave, Lido, and Snapshot-delegation plugins transparently', () => {
     const plugins = buildBackfillSourcePlugins(allDeps());
 
     expect(plugins.map((plugin) => plugin.sourceType)).toEqual([
@@ -43,6 +48,11 @@ describe('buildBackfillSourcePlugins', () => {
       'aave_voting_machine',
       'aave_payloads_controller',
       'aave_token',
+      'aragon_voting',
+      'dual_governance',
+      'easy_track',
+      'snapshot_delegate_registry',
+      'snapshot_split_delegation',
     ]);
   });
 
@@ -55,6 +65,15 @@ describe('buildBackfillSourcePlugins', () => {
     expect(types).toContain('aave_token');
     expect(types).toContain('compound_governor_bravo');
     expect(types).toContain('compound_comp_token');
+  });
+
+  it('includes the three Lido EVM tracks plus both Snapshot on-chain delegation sources', () => {
+    const types = buildBackfillSourcePlugins(allDeps()).map((p) => p.sourceType);
+    expect(types).toContain('aragon_voting');
+    expect(types).toContain('dual_governance');
+    expect(types).toContain('easy_track');
+    expect(types).toContain('snapshot_delegate_registry');
+    expect(types).toContain('snapshot_split_delegation');
   });
 });
 
@@ -122,6 +141,36 @@ describe('resolvePluginAndConfig', () => {
     expect(resolved?.plugin.sourceType).toBe('compound_governor_bravo');
   });
 
+  it('resolves aragon_voting (Lido two-phase fork)', () => {
+    const resolved = resolvePluginAndConfig(
+      'aragon_voting',
+      { voting_address: '0x2e59a20f205bb85a89c53f1936454680651e618e' },
+      plugins,
+    );
+    expect(resolved?.plugin.sourceType).toBe('aragon_voting');
+  });
+
+  it('resolves dual_governance (two watched addresses)', () => {
+    const resolved = resolvePluginAndConfig(
+      'dual_governance',
+      {
+        dual_governance_address: '0xc1db28b3301331277e307ffb51c806b0dccf5c0e',
+        timelock_address: '0xce0425301c85c5ea2a0873a2dee44d78e02d2b0e',
+      },
+      plugins,
+    );
+    expect(resolved?.plugin.sourceType).toBe('dual_governance');
+  });
+
+  it('resolves easy_track', () => {
+    const resolved = resolvePluginAndConfig(
+      'easy_track',
+      { easy_track_address: '0xf0211b7660680b49de1a7e9f25c65660f0a13fea' },
+      plugins,
+    );
+    expect(resolved?.plugin.sourceType).toBe('easy_track');
+  });
+
   it('returns null for an unknown source_type', () => {
     expect(resolvePluginAndConfig('unknown_source' as never, {}, plugins)).toBeNull();
   });
@@ -137,6 +186,11 @@ describe('isBackfillableSourceType', () => {
   it('is true for registered EVM source types', () => {
     expect(isBackfillableSourceType('aave_governance_v3', plugins)).toBe(true);
     expect(isBackfillableSourceType('compound_governor_bravo', plugins)).toBe(true);
+    expect(isBackfillableSourceType('aragon_voting', plugins)).toBe(true);
+    expect(isBackfillableSourceType('dual_governance', plugins)).toBe(true);
+    expect(isBackfillableSourceType('easy_track', plugins)).toBe(true);
+    expect(isBackfillableSourceType('snapshot_delegate_registry', plugins)).toBe(true);
+    expect(isBackfillableSourceType('snapshot_split_delegation', plugins)).toBe(true);
   });
 
   it('is false for reconcile, off-chain, and unknown source types (not in the registry)', () => {

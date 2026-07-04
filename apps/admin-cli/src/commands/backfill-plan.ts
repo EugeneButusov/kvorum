@@ -12,12 +12,23 @@ export interface BackfillTarget {
 }
 
 /**
- * Mainnet governance spine — backfilled serially and first so proposal/payload-declaration rows
- * exist before dependent votes/executions arrive. Order within the spine is intentional:
- * governance_v3 declares its payloads via PayloadSent, so it leads. (Ordering is an optimization,
- * not a correctness requirement — the derivation indefinite-hold tolerates any arrival order.)
+ * Mainnet governance spine — backfilled serially and first so proposal/declaration rows exist before
+ * dependent votes/executions/correlations arrive. The list is DAO-agnostic: a given DAO only has its
+ * own protocol family's source_types present, and the per-family sub-order is preserved by sorting on
+ * the global index below. Order within each family is intentional:
+ *   - Aave: governance_v3 declares its payloads via PayloadSent, so it leads.
+ *   - Lido: aragon_voting declares binding proposals that dual_governance correlates to (AB3), so it
+ *     leads; easy_track motions + delegation sources are independent and stay in phase 2.
+ * (Ordering is an optimization, not a correctness requirement — the derivation indefinite-hold
+ * tolerates any arrival order.)
  */
-const SPINE_ORDER: readonly string[] = ['aave_governance_v3', 'aave_governor_v2', 'aave_token'];
+const SPINE_ORDER: readonly string[] = [
+  'aave_governance_v3',
+  'aave_governor_v2',
+  'aave_token',
+  'aragon_voting',
+  'dual_governance',
+];
 const SPINE_TYPES = new Set<string>(SPINE_ORDER);
 
 export interface BackfillPlan {

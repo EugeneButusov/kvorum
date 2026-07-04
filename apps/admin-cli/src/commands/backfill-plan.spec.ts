@@ -38,6 +38,11 @@ const BACKFILL_PLUGINS = buildBackfillSourcePlugins({
   aaveVotingMachine: mockDeps(),
   aavePayloadsController: mockDeps(),
   aaveToken: mockDeps(),
+  lidoAragonVoting: mockDeps(),
+  lidoDualGovernance: mockDeps(),
+  lidoEasyTrack: mockDeps(),
+  snapshotDelegateRegistry: mockDeps(),
+  snapshotSplitDelegation: mockDeps(),
 });
 const isBackfillable = (sourceType: string): boolean =>
   isBackfillableSourceType(sourceType, BACKFILL_PLUGINS);
@@ -87,6 +92,23 @@ describe('planBackfillOrder', () => {
     expect(plan.phase2.map((t) => t.source_type).sort()).toEqual([
       'aave_payloads_controller',
       'aave_voting_machine',
+    ]);
+  });
+
+  it('orders the Lido spine (aragon_voting → dual_governance) and parks easy_track + delegation in phase2', () => {
+    const rows = [
+      target({ source_type: 'easy_track', chain_id: '0x1' }),
+      target({ source_type: 'dual_governance', chain_id: '0x1' }),
+      target({ source_type: 'snapshot_delegate_registry', chain_id: '0x1' }),
+      target({ source_type: 'aragon_voting', chain_id: '0x1' }),
+      target({ source_type: 'snapshot_split_delegation', chain_id: '0x1' }),
+    ];
+    const plan = planBackfillOrder(rows, { skipDeprecated: false, isBackfillable });
+    expect(plan.phase1.map((t) => t.source_type)).toEqual(['aragon_voting', 'dual_governance']);
+    expect(plan.phase2.map((t) => t.source_type).sort()).toEqual([
+      'easy_track',
+      'snapshot_delegate_registry',
+      'snapshot_split_delegation',
     ]);
   });
 
