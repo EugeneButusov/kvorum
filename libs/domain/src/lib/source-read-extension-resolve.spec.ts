@@ -79,23 +79,23 @@ describe('source-read-extension-resolve', () => {
   });
 
   describe('getProposalExtensionFor', () => {
-    it('resolves the matching contribution as the extension, with no forum links', async () => {
+    it('resolves the matching contribution as the extension, with no discussion links', async () => {
       await expect(
         getProposalExtensionFor(extensions, 'p1', 'aave_governance_v3'),
-      ).resolves.toEqual({ extension: proposalExt, forumLinks: [] });
+      ).resolves.toEqual({ extension: proposalExt, offchainDiscussionLinks: [] });
       await expect(
         getProposalExtensionFor(extensions, 'p1', 'compound_governor_bravo'),
-      ).resolves.toEqual({ extension: null, forumLinks: [] });
+      ).resolves.toEqual({ extension: null, offchainDiscussionLinks: [] });
     });
 
     it('resolves a null extension for unknown source types (never throws)', async () => {
       await expect(getProposalExtensionFor(extensions, 'p1', 'nope')).resolves.toEqual({
         extension: null,
-        forumLinks: [],
+        offchainDiscussionLinks: [],
       });
       await expect(getProposalExtensionFor([], 'p1', 'anything')).resolves.toEqual({
         extension: null,
-        forumLinks: [],
+        offchainDiscussionLinks: [],
       });
     });
   });
@@ -139,12 +139,12 @@ describe('source-read-extension-resolve', () => {
     });
   });
 
-  describe('getProposalExtensionFor forum links', () => {
+  describe('getProposalExtensionFor off-chain discussion links', () => {
     const link = {
-      forum_host: 'forum.example',
-      forum_topic_id: '1',
-      title: null,
+      platform: 'discourse',
+      host: 'forum.example',
       url: 'https://forum.example/t/1',
+      title: null,
       confidence: 'high' as const,
       last_activity_at: null,
     };
@@ -153,20 +153,20 @@ describe('source-read-extension-resolve', () => {
       choiceBounds: () => ({ min: 0, max: 0 }),
       delegationModel: () => 'relationship-only',
       getProposalExtension: () => Promise.resolve(null),
-      getForumLinks: () => Promise.resolve([link]),
+      getOffchainDiscussionLinks: () => Promise.resolve([link]),
     };
 
-    it('fans out forum links across all extensions regardless of the proposal source', async () => {
-      // aave/compound do not implement getForumLinks; only forum contributes.
+    it('fans out links across all extensions regardless of the proposal source', async () => {
+      // aave/compound do not implement getOffchainDiscussionLinks; only forum contributes.
       await expect(
         getProposalExtensionFor([aave, compound, forum], 'p1', 'aave_governance_v3'),
-      ).resolves.toEqual({ extension: proposalExt, forumLinks: [link] });
+      ).resolves.toEqual({ extension: proposalExt, offchainDiscussionLinks: [link] });
     });
 
-    it('returns no forum links when no extension implements getForumLinks', async () => {
+    it('returns no links when no extension implements getOffchainDiscussionLinks', async () => {
       await expect(
         getProposalExtensionFor([aave, compound], 'p1', 'compound_governor_bravo'),
-      ).resolves.toEqual({ extension: null, forumLinks: [] });
+      ).resolves.toEqual({ extension: null, offchainDiscussionLinks: [] });
     });
   });
 

@@ -98,14 +98,15 @@ export type CuratedDaoSourceConfig = Record<string, string | string[]>;
 export type VoteExtension = Record<string, never>;
 export type DelegationExtension = Record<string, never>;
 
-// A resolved forum-thread link on a proposal (proposal_forum_link ⨝ forum_thread). Forum links are
-// cross-source — a proposal of any source_type may carry them — so getForumLinks is fanned out across
-// all extensions (only the forum contribution implements it), not resolved by the proposal's source.
-export interface ForumLinkView {
-  forum_host: string;
-  forum_topic_id: string;
+// A link from a proposal to an off-chain discussion where it is debated (today a Discourse forum
+// thread; the shape is medium-neutral so other platforms — Mirror, Commonwealth, etc. — can join).
+// Cross-source: a proposal of any source_type may carry these, so getOffchainDiscussionLinks is
+// fanned out across all extensions, not resolved by the proposal's source.
+export interface OffchainDiscussionLinkView {
+  platform: string; // e.g. 'discourse' — lets consumers label/icon the source
+  host: string; // e.g. 'research.lido.fi'
+  url: string; // canonical link to the discussion
   title: string | null;
-  url: string;
   confidence: 'high' | 'medium' | 'low';
   last_activity_at: string | null; // ISO seconds
 }
@@ -135,9 +136,10 @@ export interface SourceReadExtension {
   // Curate this source's raw source_config into its public /sources view. Optional — sources that
   // omit it get the on-chain EVM default (contract_address/chain_id, off_chain=false).
   curateSourceConfig?(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig;
-  // Cross-source: forum threads referencing a proposal of ANY source. Fanned out across all
-  // extensions (only the forum contribution implements it), unlike the source-type-keyed methods.
-  getForumLinks?(proposalId: string): Promise<readonly ForumLinkView[]>;
+  // Cross-source: off-chain discussion threads referencing a proposal of ANY source. Fanned out
+  // across all extensions (only the forum contribution implements it), unlike the source-type-keyed
+  // methods.
+  getOffchainDiscussionLinks?(proposalId: string): Promise<readonly OffchainDiscussionLinkView[]>;
   // The vote's multi-choice breakdown, for sources that carry one (resolved by the vote's
   // source_type). null → the source has no per-vote breakdown; the read layer synthesizes one from
   // primary_choice. Keeps source-specific choice tables out of the source-blind read repository.

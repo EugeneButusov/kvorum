@@ -21,7 +21,7 @@ export {
   EasyTrackProposalMetadataDto,
 } from '@nest/lido';
 export { SnapshotProposalMetadataDto } from '@nest/snapshot';
-export { ProposalForumLinkDto } from '@nest/forum';
+export { OffchainDiscussionLinkDto } from '@nest/forum';
 
 // The discriminated set of proposal-detail `metadata` variants (by source `kind`). apps/api spreads
 // this into the OpenAPI union so it never names individual sources; a new source's DTO joins here.

@@ -4,7 +4,7 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
-  ForumLinkView,
+  OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
 } from '@libs/domain';
@@ -13,8 +13,8 @@ import { ForumLinkReadRepository } from './forum-link-read-repository';
 
 // Read surface for the `discourse_forum` source. Forum threads are not proposals/votes and carry no
 // delegation. Two live methods: curateSourceConfig shapes the off-chain host/categories binding for
-// GET /daos/{slug}/sources, and getForumLinks surfaces a proposal's linked threads (cross-source —
-// fanned out over all extensions, so it runs for proposals of every source, not just forum's own).
+// GET /daos/{slug}/sources, and getOffchainDiscussionLinks surfaces a proposal's linked threads
+// (cross-source — fanned out over all extensions, so it runs for proposals of every source).
 export function makeForumReadExtension(db: Kysely<PgDatabase>): SourceReadExtension {
   const linkRepo = new ForumLinkReadRepository(db);
   return {
@@ -31,7 +31,7 @@ export function makeForumReadExtension(db: Kysely<PgDatabase>): SourceReadExtens
     ): Promise<ProposalExtension | null> {
       return Promise.resolve(null);
     },
-    getForumLinks(proposalId: string): Promise<readonly ForumLinkView[]> {
+    getOffchainDiscussionLinks(proposalId: string): Promise<readonly OffchainDiscussionLinkView[]> {
       return linkRepo.getLinksForProposal(proposalId);
     },
     curateSourceConfig(_sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {

@@ -33,18 +33,18 @@ describe('ForumLinkReadRepository', () => {
     expect(selectFrom).toHaveBeenCalledWith('proposal_forum_link as pfl');
     expect(links).toEqual([
       {
-        forum_host: 'research.lido.fi',
-        forum_topic_id: '10',
-        title: 'Proposal thread',
+        platform: 'discourse',
+        host: 'research.lido.fi',
         url: 'https://research.lido.fi/t/10',
+        title: 'Proposal thread',
         confidence: 'high',
         last_activity_at: '2026-05-09T08:00:00Z',
       },
       {
-        forum_host: 'research.lido.fi',
-        forum_topic_id: '20',
-        title: 'ARFC thread',
+        platform: 'discourse',
+        host: 'research.lido.fi',
         url: 'https://research.lido.fi/t/20',
+        title: 'ARFC thread',
         confidence: 'medium',
         last_activity_at: '2026-05-10T08:00:00Z',
       },

@@ -67,10 +67,10 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['payloads']).toBeUndefined();
     expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
     expect(dto.metadata).toBeNull();
-    expect(dto.forum_links).toEqual([]);
+    expect(dto.offchain_discussion_links).toEqual([]);
   });
 
-  it('surfaces source metadata and forum links', () => {
+  it('surfaces source metadata and off-chain discussion links', () => {
     const extension = {
       voting: null,
       payloads: [],
@@ -87,20 +87,23 @@ describe('proposal.mappers', () => {
     };
     const dto = toProposalDetailDto(row, [], [], '0x1', extension, [
       {
-        forum_host: 'research.lido.fi',
-        forum_topic_id: '123',
-        title: 'Proposal discussion',
+        platform: 'discourse',
+        host: 'research.lido.fi',
         url: 'https://research.lido.fi/t/123',
+        title: 'Proposal discussion',
         confidence: 'high',
         last_activity_at: '2026-05-15T09:00:00Z',
       },
     ]);
 
     expect(dto.metadata).toEqual(extension.metadata);
-    expect(dto.forum_links).toHaveLength(1);
-    expect(dto.forum_links[0]?.confidence).toBe('high');
-    expect(dto.forum_links[0]?.url).toBe('https://research.lido.fi/t/123');
-    expect(Object.getPrototypeOf(dto.forum_links[0]).constructor.name).toBe('ProposalForumLinkDto');
+    expect(dto.offchain_discussion_links).toHaveLength(1);
+    expect(dto.offchain_discussion_links[0]?.confidence).toBe('high');
+    expect(dto.offchain_discussion_links[0]?.platform).toBe('discourse');
+    expect(dto.offchain_discussion_links[0]?.url).toBe('https://research.lido.fi/t/123');
+    expect(Object.getPrototypeOf(dto.offchain_discussion_links[0]).constructor.name).toBe(
+      'OffchainDiscussionLinkDto',
+    );
   });
 
   it('maps Aave detail with voting and grouped payloads', () => {

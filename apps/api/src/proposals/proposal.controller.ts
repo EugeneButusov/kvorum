@@ -120,7 +120,7 @@ export class ProposalController {
         choices,
         originChainId,
         ext.extension,
-        ext.forumLinks,
+        ext.offchainDiscussionLinks,
       ),
     };
   }

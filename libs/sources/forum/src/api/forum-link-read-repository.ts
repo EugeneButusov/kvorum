@@ -1,21 +1,21 @@
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
-import type { ForumLinkView } from '@libs/domain';
+import type { OffchainDiscussionLinkView } from '@libs/domain';
 import '../persistence/schema';
 
-const CONFIDENCE_RANK: Record<ForumLinkView['confidence'], number> = {
+const CONFIDENCE_RANK: Record<OffchainDiscussionLinkView['confidence'], number> = {
   high: 0,
   medium: 1,
   low: 2,
 };
 
-// Reads a proposal's forum-thread links (proposal_forum_link ⨝ forum_thread) for the API detail
-// surface. Cross-source: keyed only by proposal_id. Ordered high→low confidence, then most
-// recent activity first.
+// Reads a proposal's linked Discourse threads (proposal_forum_link ⨝ forum_thread) and shapes them
+// into the medium-neutral OffchainDiscussionLinkView. Cross-source: keyed only by proposal_id.
+// Ordered high→low confidence, then most recent activity first.
 export class ForumLinkReadRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
-  async getLinksForProposal(proposalId: string): Promise<ForumLinkView[]> {
+  async getLinksForProposal(proposalId: string): Promise<OffchainDiscussionLinkView[]> {
     const rows = await this.db
       .selectFrom('proposal_forum_link as pfl')
       .innerJoin('forum_thread as ft', 'ft.id', 'pfl.forum_thread_id')
@@ -31,10 +31,10 @@ export class ForumLinkReadRepository {
 
     return rows
       .map((row) => ({
-        forum_host: row.forum_host,
-        forum_topic_id: row.forum_topic_id,
-        title: row.title,
+        platform: 'discourse',
+        host: row.forum_host,
         url: `https://${row.forum_host}/t/${row.forum_topic_id}`,
+        title: row.title,
         confidence: row.confidence,
         last_activity_at: row.last_activity_at === null ? null : toIsoSeconds(row.last_activity_at),
       }))

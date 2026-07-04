@@ -2,7 +2,7 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
-  ForumLinkView,
+  OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
   VoteChoiceView,
@@ -46,13 +46,13 @@ export function delegationModelFor(
 }
 
 // Everything the proposal-detail read path needs: the source-specific extension (voting/payloads/
-// metadata, or null when the source contributes none) plus the cross-source forum links. Two
-// dispatch shapes are combined here so the caller makes a single call: `extension` is resolved by
-// the proposal's source_type; `forumLinks` is fanned out across all extensions (a proposal of any
-// source may carry links, and only the forum contribution implements getForumLinks) and concatenated.
+// metadata, or null when the source contributes none) plus the cross-source off-chain discussion
+// links. Two dispatch shapes are combined here so the caller makes a single call: `extension` is
+// resolved by the proposal's source_type; `offchainDiscussionLinks` is fanned out across all
+// extensions (a proposal of any source may carry links, only the forum contribution implements it).
 export interface ProposalExtensionResult {
   extension: ProposalExtension | null;
-  forumLinks: readonly ForumLinkView[];
+  offchainDiscussionLinks: readonly OffchainDiscussionLinkView[];
 }
 
 export async function getProposalExtensionFor(
@@ -61,11 +61,11 @@ export async function getProposalExtensionFor(
   sourceType: string,
 ): Promise<ProposalExtensionResult> {
   const contribution = resolveReadExtension(extensions, sourceType);
-  const [extension, forumLinkBatches] = await Promise.all([
+  const [extension, linkBatches] = await Promise.all([
     contribution?.getProposalExtension(proposalId, sourceType) ?? Promise.resolve(null),
-    Promise.all(extensions.map((e) => e.getForumLinks?.(proposalId) ?? [])),
+    Promise.all(extensions.map((e) => e.getOffchainDiscussionLinks?.(proposalId) ?? [])),
   ]);
-  return { extension, forumLinks: forumLinkBatches.flat() };
+  return { extension, offchainDiscussionLinks: linkBatches.flat() };
 }
 
 // The vote's multi-choice breakdown from its own source (resolved by source_type). Returns null when

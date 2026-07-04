@@ -1,8 +1,8 @@
 import { ApiExtraModels, ApiProperty, ApiPropertyOptional, refs } from '@nestjs/swagger';
 import type { ProposalSourceMetadata } from '@libs/domain';
 import {
+  OffchainDiscussionLinkDto,
   PROPOSAL_METADATA_DTOS,
-  ProposalForumLinkDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
 } from '@nest/sources';
@@ -127,8 +127,8 @@ export class ProposalDetailDto extends ProposalListItemDto {
   @ApiPropertyOptional({ nullable: true, oneOf: refs(...PROPOSAL_METADATA_DTOS) })
   declare metadata?: ProposalSourceMetadata | null;
 
-  @ApiProperty({ type: () => [ProposalForumLinkDto] })
-  declare forum_links: ProposalForumLinkDto[];
+  @ApiProperty({ type: () => [OffchainDiscussionLinkDto] })
+  declare offchain_discussion_links: OffchainDiscussionLinkDto[];
 }
 
 export class ProposalDetailResponseDto {

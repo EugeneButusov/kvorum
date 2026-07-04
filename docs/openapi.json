@@ -3096,21 +3096,21 @@
         },
         "required": ["target_chain_id", "payloads"]
       },
-      "ProposalForumLinkDto": {
+      "OffchainDiscussionLinkDto": {
         "type": "object",
         "properties": {
-          "forum_host": {
+          "platform": {
             "type": "string"
           },
-          "forum_topic_id": {
+          "host": {
+            "type": "string"
+          },
+          "url": {
             "type": "string"
           },
           "title": {
             "type": "object",
             "nullable": true
-          },
-          "url": {
-            "type": "string"
           },
           "confidence": {
             "type": "string",
@@ -3121,7 +3121,7 @@
             "nullable": true
           }
         },
-        "required": ["forum_host", "forum_topic_id", "url", "confidence"]
+        "required": ["platform", "host", "url", "confidence"]
       },
       "ProposalDetailDto": {
         "type": "object",
@@ -3211,10 +3211,10 @@
               }
             ]
           },
-          "forum_links": {
+          "offchain_discussion_links": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProposalForumLinkDto"
+              "$ref": "#/components/schemas/OffchainDiscussionLinkDto"
             }
           }
         },
@@ -3233,7 +3233,7 @@
           "actions",
           "choices",
           "origin_chain_id",
-          "forum_links"
+          "offchain_discussion_links"
         ]
       },
       "ProposalDetailResponseDto": {

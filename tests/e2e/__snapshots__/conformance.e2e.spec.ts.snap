@@ -60,8 +60,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     ],
     "dao_slug": "aave",
     "description": "A v3 governance proposal",
-    "forum_links": [],
     "metadata": null,
+    "offchain_discussion_links": [],
     "origin_chain_id": "0x1",
     "payloads": [
       {
@@ -607,7 +607,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "aave-concentration": null,
   "aave-delegate-alignment": null,
   "aave-delegation-flow": ""7E6lin7FRPEAF115ug5y1Pv2KXI"",
-  "aave-proposal-detail": ""0rND17hBIrkueSaU68Ew0XygJtw"",
+  "aave-proposal-detail": ""kP2ycDEGWOUa4Kyuxw7KQgzlP-M"",
   "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
   "aave-proposals-list": ""6VNz40HEqnp73-lX-YTeM_ayZdQ"",
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
@@ -618,7 +618,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "dao-proposals-list": ""PpdjFk0-1xI6wACRVG_iNsVe-ow"",
   "dao-sources": ""lHkveUj1_T9XP9b3L7wyayzxv8k"",
   "daos-list": ""UCRJDY9f6hfyOYGiDB36sDVrxo8"",
-  "proposal-detail": ""phHjs3alVp5kN17myK43GddY5-M"",
+  "proposal-detail": ""hsrVPQgGIaRCLATCHxhYS3KB_jM"",
 }
 `;
 
@@ -674,8 +674,8 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     ],
     "dao_slug": "compound",
     "description": "Executed proposal body",
-    "forum_links": [],
     "metadata": null,
+    "offchain_discussion_links": [],
     "origin_chain_id": "0x1",
     "proposer": {
       "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

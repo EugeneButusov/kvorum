@@ -1,7 +1,11 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
-import type { ForumLinkView, ProposalExtension, ProposalPayloadView } from '@libs/domain';
+import type {
+  OffchainDiscussionLinkView,
+  ProposalExtension,
+  ProposalPayloadView,
+} from '@libs/domain';
 import {
-  ProposalForumLinkDto,
+  OffchainDiscussionLinkDto,
   ProposalPayloadDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
@@ -58,7 +62,7 @@ export function toProposalDetailDto(
   choices: ProposalChoice[],
   originChainId: string,
   extension: ProposalExtension | null,
-  forumLinks: readonly ForumLinkView[],
+  offchainDiscussionLinks: readonly OffchainDiscussionLinkView[],
 ): ProposalDetailDto {
   const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
@@ -81,12 +85,12 @@ export function toProposalDetailDto(
     })),
     origin_chain_id: originChainId,
     metadata: extension?.metadata ?? null,
-    forum_links: forumLinks.map((link) =>
-      Object.assign(new ProposalForumLinkDto(), {
-        forum_host: link.forum_host,
-        forum_topic_id: link.forum_topic_id,
-        title: link.title,
+    offchain_discussion_links: offchainDiscussionLinks.map((link) =>
+      Object.assign(new OffchainDiscussionLinkDto(), {
+        platform: link.platform,
+        host: link.host,
         url: link.url,
+        title: link.title,
         confidence: link.confidence,
         last_activity_at: link.last_activity_at,
       }),
