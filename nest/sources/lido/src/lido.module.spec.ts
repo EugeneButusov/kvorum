@@ -117,7 +117,7 @@ describe('LidoSourceModule', () => {
     expect(plugin.readExtension.delegationModel('aragon_voting')).toBe('relationship-only');
     // An unrelated source type short-circuits to null without touching the (mocked) db.
     await expect(
-      plugin.readExtension.getProposalExtension('prop-1', 'compound_governor_bravo'),
+      plugin.readExtension.getProposalExtension('prop-1', 'unrelated_source'),
     ).resolves.toBeNull();
   });
 });
