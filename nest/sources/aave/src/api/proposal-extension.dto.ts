@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+// Aave proposal extension DTOs: the voting-machine + cross-chain payloads-controller surface that
+// Aave's read extension attaches to proposal detail. Assembled into the response by apps/api.
 export class ProposalVotingDto {
   @ApiPropertyOptional({ nullable: true })
   declare voting_chain_id: string | null;

@@ -53,7 +53,8 @@ function optionalInt(name: string): number | undefined {
             }),
           ],
           derivers: [threadApplier, actorAddressDeriver],
-          readExtension: makeForumReadExtension(),
+          // pgDb backs getOffchainDiscussionLinks (proposal→thread links) + curateSourceConfig.
+          readExtension: makeForumReadExtension(pgDb),
         };
       },
     },

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class DaoLinksDto {
@@ -18,11 +18,15 @@ export class DaoSourceDto {
   @ApiProperty()
   declare source_type: string;
 
-  @ApiPropertyOptional()
-  declare contract_address?: string;
-
-  @ApiPropertyOptional()
-  declare chain_id?: string;
+  // Source-specific binding config, curated by the owning source's read extension. Kept as an open
+  // map so a new source surfaces its config with no API change.
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+    },
+  })
+  declare config: Record<string, string | string[]>;
 }
 
 export class DaoListItemDto {

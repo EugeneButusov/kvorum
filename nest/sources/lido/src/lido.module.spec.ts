@@ -104,17 +104,20 @@ describe('LidoSourceModule', () => {
     expect(easyTrack.map((d) => d.kind).sort()).toEqual(['actor-address', 'projection']);
   });
 
-  it('M4 readExtension claims aragon_voting and returns expected stubs', async () => {
+  it('M4 readExtension claims all three Lido tracks', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [LidoSourceModule],
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(LIDO_SOURCE_PLUGIN);
 
-    expect(plugin.readExtension.sourceTypes).toContain('aragon_voting');
+    expect(plugin.readExtension.sourceTypes).toEqual(
+      expect.arrayContaining(['aragon_voting', 'dual_governance', 'easy_track']),
+    );
     expect(plugin.readExtension.choiceBounds('aragon_voting')).toEqual({ min: 0, max: 1 });
     expect(plugin.readExtension.delegationModel('aragon_voting')).toBe('relationship-only');
+    // An unrelated source type short-circuits to null without touching the (mocked) db.
     await expect(
-      plugin.readExtension.getProposalExtension('prop-1', 'aragon_voting'),
+      plugin.readExtension.getProposalExtension('prop-1', 'unrelated_source'),
     ).resolves.toBeNull();
   });
 });

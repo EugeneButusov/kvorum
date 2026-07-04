@@ -106,14 +106,23 @@ export class ProposalController {
       });
     }
 
-    const [actions, choices, originChainId, extension] = await Promise.all([
+    const [actions, choices, originChainId, ext] = await Promise.all([
       this.repo.findActions(row.id),
       this.repo.findChoices(row.id),
       this.repo.resolveOriginChainId(row.id, sourceType),
       getProposalExtensionFor(this.extensions, row.id, sourceType),
     ]);
 
-    return { data: toProposalDetailDto(row, actions, choices, originChainId, extension) };
+    return {
+      data: toProposalDetailDto(
+        row,
+        actions,
+        choices,
+        originChainId,
+        ext.extension,
+        ext.offchainDiscussionLinks,
+      ),
+    };
   }
 
   @ApiOkResponse({ type: ProposalListResponseDto })

@@ -1,5 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProposalPayloadGroupDto, ProposalVotingDto } from './proposal-extension.dto';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, refs } from '@nestjs/swagger';
+import type { ProposalSourceMetadata } from '@libs/domain';
+import {
+  OffchainDiscussionLinkDto,
+  PROPOSAL_METADATA_DTOS,
+  ProposalPayloadGroupDto,
+  ProposalVotingDto,
+} from '@nest/sources';
 import { PaginationDto } from '../openapi/openapi.dto';
 
 export class ProposalLinksDto {
@@ -95,6 +101,7 @@ export class ProposalListItemDto {
   declare _meta: ProposalMetaDto;
 }
 
+@ApiExtraModels(...PROPOSAL_METADATA_DTOS)
 export class ProposalDetailDto extends ProposalListItemDto {
   @ApiProperty()
   declare description: string;
@@ -113,6 +120,15 @@ export class ProposalDetailDto extends ProposalListItemDto {
 
   @ApiPropertyOptional({ nullable: true, type: [ProposalPayloadGroupDto] })
   declare payloads?: ProposalPayloadGroupDto[] | null;
+
+  // Source-specific metadata, discriminated by `kind` (== source_type). Null when the source
+  // carries none (e.g. Compound/Aave, which use `voting`/`payloads` instead). The union members are
+  // contributed by each source's nest package (aggregated as PROPOSAL_METADATA_DTOS).
+  @ApiPropertyOptional({ nullable: true, oneOf: refs(...PROPOSAL_METADATA_DTOS) })
+  declare metadata?: ProposalSourceMetadata | null;
+
+  @ApiProperty({ type: () => [OffchainDiscussionLinkDto] })
+  declare offchain_discussion_links: OffchainDiscussionLinkDto[];
 }
 
 export class ProposalDetailResponseDto {

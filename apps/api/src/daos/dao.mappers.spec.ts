@@ -1,61 +1,77 @@
-import { curateSourceConfig, toDaoSourceDto } from './dao.mappers';
+import type { SourceReadExtension } from '@libs/domain';
+import { toDaoSourceDto } from './dao.mappers';
 import { isoSeconds } from '../http/iso';
 
+// Abstract source extensions — the mapper is source-blind, so these stand in for any source:
+// `evm_source`/`bare_source` rely on the EVM default (no curateSourceConfig override); the others
+// curate arbitrary config maps to prove the mapper surfaces whatever a source returns.
+const extensions: SourceReadExtension[] = [
+  {
+    sourceTypes: ['evm_source', 'bare_source'],
+    choiceBounds: () => ({ min: 0, max: 2 }),
+    delegationModel: () => 'power-bearing',
+    getProposalExtension: () => Promise.resolve(null),
+  },
+  {
+    sourceTypes: ['scalar_source'],
+    choiceBounds: () => ({ min: 0, max: 1 }),
+    delegationModel: () => 'power-bearing',
+    getProposalExtension: () => Promise.resolve(null),
+    curateSourceConfig: (_t, raw) =>
+      typeof (raw as { key?: unknown }).key === 'string'
+        ? { binding: (raw as { key: string }).key }
+        : {},
+  },
+  {
+    sourceTypes: ['multi_field_source'],
+    choiceBounds: () => ({ min: 0, max: 0 }),
+    delegationModel: () => 'relationship-only',
+    getProposalExtension: () => Promise.resolve(null),
+    curateSourceConfig: (_t, raw) => ({
+      host: (raw as { host: string }).host,
+      tags: (raw as { tags: unknown[] }).tags.filter((c): c is string => typeof c === 'string'),
+    }),
+  },
+];
+
 describe('dao.mappers', () => {
-  it('curateSourceConfig extracts only whitelisted keys', () => {
-    expect(
-      curateSourceConfig({
-        contract_address: '0xABCD',
-        chain_id: '0x1',
-        extra: 'ignored',
-      }),
-    ).toEqual({
-      contract_address: '0xabcd',
-      chain_id: '0x1',
-    });
-  });
-
-  it('curateSourceConfig handles invalid shapes without throwing', () => {
-    expect(curateSourceConfig(null)).toEqual({});
-    expect(curateSourceConfig(['x'])).toEqual({});
-    expect(curateSourceConfig('x')).toEqual({});
-    expect(curateSourceConfig({})).toEqual({});
-  });
-
-  it('curateSourceConfig stringifies numeric chain_id', () => {
-    expect(
-      curateSourceConfig({
-        contract_address: '0xABCD',
-        chain_id: 1,
-      }),
-    ).toEqual({
-      contract_address: '0xabcd',
-      chain_id: '1',
-    });
-  });
-
-  it('toDaoSourceDto preserves source_type and curated fields', () => {
-    const dto = toDaoSourceDto({
-      source_type: 'compound_governor_bravo',
-      source_config: { contract_address: '0xEF', chain_id: '10' },
-    });
+  it('toDaoSourceDto curates a source with no override via the EVM default', () => {
+    const dto = toDaoSourceDto(
+      { source_type: 'evm_source', source_config: { contract_address: '0xEF', chain_id: '10' } },
+      extensions,
+    );
     expect(dto).toEqual({
-      source_type: 'compound_governor_bravo',
-      contract_address: '0xef',
-      chain_id: '10',
+      source_type: 'evm_source',
+      config: { contract_address: '0xef', chain_id: '10' },
     });
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('DaoSourceDto');
   });
 
-  it('omits curated-absent fields without null/undefined leakage', () => {
-    const dto = toDaoSourceDto({
-      source_type: 'alt_governor',
-      source_config: {},
+  it('toDaoSourceDto surfaces a source-curated scalar binding', () => {
+    const dto = toDaoSourceDto(
+      { source_type: 'scalar_source', source_config: { key: 'abstract-binding' } },
+      extensions,
+    );
+    expect(dto).toEqual({ source_type: 'scalar_source', config: { binding: 'abstract-binding' } });
+  });
+
+  it('toDaoSourceDto surfaces string + array config values', () => {
+    const dto = toDaoSourceDto(
+      {
+        source_type: 'multi_field_source',
+        source_config: { host: 'host.example', tags: ['a', 42] },
+      },
+      extensions,
+    );
+    expect(dto).toEqual({
+      source_type: 'multi_field_source',
+      config: { host: 'host.example', tags: ['a'] },
     });
-    expect(Object.prototype.hasOwnProperty.call(dto, 'contract_address')).toBe(false);
-    expect(Object.prototype.hasOwnProperty.call(dto, 'chain_id')).toBe(false);
-    expect(JSON.stringify(dto)).not.toContain('contract_address');
-    expect(JSON.stringify(dto)).not.toContain('chain_id');
+  });
+
+  it('emits an empty config map when nothing is curated', () => {
+    const dto = toDaoSourceDto({ source_type: 'bare_source', source_config: {} }, extensions);
+    expect(dto).toEqual({ source_type: 'bare_source', config: {} });
   });
 
   it('isoSeconds truncates milliseconds and supports null', () => {

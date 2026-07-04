@@ -54,6 +54,7 @@ describe('proposal.mappers', () => {
       [{ proposal_id: 'p1', choice_index: 0, value: 'For' }],
       '0x1',
       null,
+      [],
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
@@ -65,6 +66,44 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['voting']).toBeUndefined();
     expect((dto as Record<string, unknown>)['payloads']).toBeUndefined();
     expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+    expect(dto.metadata).toBeNull();
+    expect(dto.offchain_discussion_links).toEqual([]);
+  });
+
+  it('surfaces source metadata and off-chain discussion links', () => {
+    const extension = {
+      voting: null,
+      payloads: [],
+      metadata: {
+        kind: 'snapshot' as const,
+        space_id: 'lido-snapshot.eth',
+        voting_type: 'weighted',
+        strategies: [{ name: 'erc20-balance-of' }],
+        ipfs_hash: 'Qm...',
+        network: '1',
+        scores_state: 'final',
+        flagged: false,
+      },
+    };
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [
+      {
+        platform: 'discourse',
+        host: 'research.lido.fi',
+        url: 'https://research.lido.fi/t/123',
+        title: 'Proposal discussion',
+        confidence: 'high',
+        last_activity_at: '2026-05-15T09:00:00Z',
+      },
+    ]);
+
+    expect(dto.metadata).toEqual(extension.metadata);
+    expect(dto.offchain_discussion_links).toHaveLength(1);
+    expect(dto.offchain_discussion_links[0]?.confidence).toBe('high');
+    expect(dto.offchain_discussion_links[0]?.platform).toBe('discourse');
+    expect(dto.offchain_discussion_links[0]?.url).toBe('https://research.lido.fi/t/123');
+    expect(Object.getPrototypeOf(dto.offchain_discussion_links[0]).constructor.name).toBe(
+      'OffchainDiscussionLinkDto',
+    );
   });
 
   it('maps Aave detail with voting and grouped payloads', () => {
@@ -104,9 +143,10 @@ describe('proposal.mappers', () => {
           unindexed_target_chain: false,
         },
       ],
+      metadata: null,
     };
 
-    const dto = toProposalDetailDto(row, [], [], '0x1', extension);
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, []);
     expect(dto.origin_chain_id).toBe('0x1');
     expect(dto.voting).toEqual(extension.voting);
     expect(dto.payloads).toHaveLength(2);

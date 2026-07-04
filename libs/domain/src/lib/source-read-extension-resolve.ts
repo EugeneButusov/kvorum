@@ -1,8 +1,11 @@
 import type {
   ChoiceBounds,
+  CuratedDaoSourceConfig,
   DelegationModel,
+  OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
+  VoteChoiceView,
 } from './source-read-extension';
 
 // DI token for the aggregated array of per-source API extensions. Lives in
@@ -42,12 +45,72 @@ export function delegationModelFor(
   );
 }
 
-export function getProposalExtensionFor(
+// Everything the proposal-detail read path needs: the source-specific extension (voting/payloads/
+// metadata, or null when the source contributes none) plus the cross-source off-chain discussion
+// links. Two dispatch shapes are combined here so the caller makes a single call: `extension` is
+// resolved by the proposal's source_type; `offchainDiscussionLinks` is fanned out across all
+// extensions (a proposal of any source may carry links, only the forum contribution implements it).
+export interface ProposalExtensionResult {
+  extension: ProposalExtension | null;
+  offchainDiscussionLinks: readonly OffchainDiscussionLinkView[];
+}
+
+export async function getProposalExtensionFor(
   extensions: readonly SourceReadExtension[],
   proposalId: string,
   sourceType: string,
-): Promise<ProposalExtension | null> {
+): Promise<ProposalExtensionResult> {
   const contribution = resolveReadExtension(extensions, sourceType);
-  if (contribution === undefined) return Promise.resolve(null);
-  return contribution.getProposalExtension(proposalId, sourceType);
+  const [extension, linkBatches] = await Promise.all([
+    contribution?.getProposalExtension(proposalId, sourceType) ?? Promise.resolve(null),
+    Promise.all(extensions.map((e) => e.getOffchainDiscussionLinks?.(proposalId) ?? [])),
+  ]);
+  return { extension, offchainDiscussionLinks: linkBatches.flat() };
+}
+
+// The vote's multi-choice breakdown from its own source (resolved by source_type). Returns null when
+// the source carries no per-vote breakdown, signalling the read layer to synthesize one from
+// primary_choice — so no source-specific choice table leaks into the source-blind read repository.
+export function getVoteChoicesFor(
+  extensions: readonly SourceReadExtension[],
+  voteId: string,
+  sourceType: string,
+): Promise<readonly VoteChoiceView[] | null> {
+  const contribution = resolveReadExtension(extensions, sourceType);
+  return contribution?.getVoteChoices?.(voteId) ?? Promise.resolve(null);
+}
+
+// Coerce a raw source_config into a plain object (helper for source curateSourceConfig impls).
+export function asSourceConfigObject(rawConfig: unknown): Record<string, unknown> {
+  return rawConfig !== null && typeof rawConfig === 'object' && !Array.isArray(rawConfig)
+    ? (rawConfig as Record<string, unknown>)
+    : {};
+}
+
+// The on-chain default curation: contract_address (lowercased) + chain_id. Used for EVM sources and
+// any source that does not override curateSourceConfig. Exported so on-chain source extensions can
+// reuse it for their on-chain source types (e.g. Snapshot's delegation registries).
+export function curateEvmSourceConfig(rawConfig: unknown): CuratedDaoSourceConfig {
+  const cfg = asSourceConfigObject(rawConfig);
+  const config: CuratedDaoSourceConfig = {};
+
+  if (typeof cfg['contract_address'] === 'string') {
+    config['contract_address'] = cfg['contract_address'].toLowerCase();
+  }
+  const rawChainId = cfg['chain_id'];
+  if (typeof rawChainId === 'string') config['chain_id'] = rawChainId;
+  else if (typeof rawChainId === 'number') config['chain_id'] = String(rawChainId);
+
+  return config;
+}
+
+export function curateSourceConfigFor(
+  extensions: readonly SourceReadExtension[],
+  sourceType: string,
+  rawConfig: unknown,
+): CuratedDaoSourceConfig {
+  const contribution = resolveReadExtension(extensions, sourceType);
+  return (
+    contribution?.curateSourceConfig?.(sourceType, rawConfig) ?? curateEvmSourceConfig(rawConfig)
+  );
 }

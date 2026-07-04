@@ -178,7 +178,7 @@ const delegationMetrics: SnapshotDelegationProjectionMetrics = {
             splitDelegationApplier,
             splitDelegationActorDeriver,
           ],
-          readExtension: makeSnapshotReadExtension(),
+          readExtension: makeSnapshotReadExtension(pgDb, chDb),
         };
       },
     },

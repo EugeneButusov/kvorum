@@ -41,7 +41,7 @@ export class AaveProposalExtensionReadRepository {
       unindexed_target_chain: p.unindexed_target_chain,
     }));
 
-    return { voting, payloads: payloadViews };
+    return { voting, payloads: payloadViews, metadata: null };
   }
 }
 

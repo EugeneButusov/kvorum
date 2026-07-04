@@ -1,10 +1,15 @@
 import type { ProposalAction, ProposalChoice } from '@libs/db';
-import type { ProposalExtension, ProposalPayloadView } from '@libs/domain';
+import type {
+  OffchainDiscussionLinkView,
+  ProposalExtension,
+  ProposalPayloadView,
+} from '@libs/domain';
 import {
+  OffchainDiscussionLinkDto,
   ProposalPayloadDto,
   ProposalPayloadGroupDto,
   ProposalVotingDto,
-} from './proposal-extension.dto';
+} from '@nest/sources';
 import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -57,6 +62,7 @@ export function toProposalDetailDto(
   choices: ProposalChoice[],
   originChainId: string,
   extension: ProposalExtension | null,
+  offchainDiscussionLinks: readonly OffchainDiscussionLinkView[],
 ): ProposalDetailDto {
   const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
@@ -78,6 +84,17 @@ export function toProposalDetailDto(
       value: choice.value,
     })),
     origin_chain_id: originChainId,
+    metadata: extension?.metadata ?? null,
+    offchain_discussion_links: offchainDiscussionLinks.map((link) =>
+      Object.assign(new OffchainDiscussionLinkDto(), {
+        platform: link.platform,
+        host: link.host,
+        url: link.url,
+        title: link.title,
+        confidence: link.confidence,
+        last_activity_at: link.last_activity_at,
+      }),
+    ),
     _meta: proposalMeta(row),
   });
 

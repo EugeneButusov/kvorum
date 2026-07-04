@@ -197,6 +197,9 @@ export class VoteReadRepository {
     return rows[0];
   }
 
+  // The source-agnostic breakdown: one entry synthesized from the core pipeline's primary_choice.
+  // Sources with real multiplicity (e.g. Snapshot) surface their breakdown through their own read
+  // extension (getVoteChoices); the API read layer prefers that and only falls back here.
   async findChoicesForVote(voteId: string): Promise<VoteChoiceReadRow[]> {
     const row = await this.ch
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))

@@ -1,21 +1,35 @@
+import type { Kysely } from 'kysely';
+import type { ClickHouseDatabase, PgDatabase } from '@libs/db';
 import type {
   ChoiceBounds,
+  CuratedDaoSourceConfig,
   DelegationModel,
   ProposalExtension,
   SourceReadExtension,
+  VoteChoiceView,
 } from '@libs/domain';
+import { asSourceConfigObject, curateEvmSourceConfig } from '@libs/domain';
+import { SnapshotProposalExtensionReadRepository } from './snapshot-proposal-extension-read-repository';
+import { SnapshotVoteChoiceRepository } from '../persistence/snapshot-vote-choice-repository';
 
 // Read surface for the Snapshot source family: the off-chain `snapshot` proposal/vote source plus
-// the two on-chain delegation source types. The full read surface (choiceBounds per voting_type,
-// snapshot_proposal_metadata via getProposalExtension) lands with the read-path work.
+// the two on-chain delegation source types.
 const DELEGATION_SOURCE_TYPES = ['snapshot_delegate_registry', 'snapshot_split_delegation'];
 
-export function makeSnapshotReadExtension(): SourceReadExtension {
+export function makeSnapshotReadExtension(
+  db: Kysely<PgDatabase>,
+  chDb: Kysely<ClickHouseDatabase>,
+): SourceReadExtension {
+  const repo = new SnapshotProposalExtensionReadRepository(db);
+  const voteChoiceRepo = new SnapshotVoteChoiceRepository(chDb);
   return {
     sourceTypes: ['snapshot', ...DELEGATION_SOURCE_TYPES],
     choiceBounds(_sourceType: string): ChoiceBounds {
-      // Placeholder. Snapshot choices are 1..N and vary per proposal; refined by the read-path work.
-      return { min: 0, max: 1 };
+      // Snapshot choices are 1..N and vary per proposal, so a single static bound can only widen to
+      // avoid over-rejecting the primary_choice filter input (Int8 upper bound). Per-proposal bounds
+      // are a follow-up (the filter-validation surface); primary_choice itself is always the
+      // highest-weight choice (ADR-0072), so a permissive bound is safe here.
+      return { min: 0, max: 127 };
     },
     delegationModel(sourceType: string): DelegationModel {
       // The on-chain delegation events carry no power figure (relationship only); the off-chain
@@ -23,10 +37,23 @@ export function makeSnapshotReadExtension(): SourceReadExtension {
       return DELEGATION_SOURCE_TYPES.includes(sourceType) ? 'relationship-only' : 'power-bearing';
     },
     getProposalExtension(
-      _proposalId: string,
-      _sourceType: string,
+      proposalId: string,
+      sourceType: string,
     ): Promise<ProposalExtension | null> {
-      return Promise.resolve(null);
+      return sourceType === 'snapshot' ? repo.getExtension(proposalId) : Promise.resolve(null);
+    },
+    async getVoteChoices(voteId: string): Promise<readonly VoteChoiceView[] | null> {
+      // Snapshot's per-vote breakdown (weighted/ranked/approval/etc.) lives in snapshot_vote_choice;
+      // a missing row → null so the read layer synthesizes from primary_choice.
+      return (await voteChoiceRepo.findByVoteId(voteId)) ?? null;
+    },
+    curateSourceConfig(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
+      // The off-chain `snapshot` source binds by `space`; the delegation registries are on-chain.
+      if (sourceType !== 'snapshot') return curateEvmSourceConfig(rawConfig);
+      const cfg = asSourceConfigObject(rawConfig);
+      const config: CuratedDaoSourceConfig = {};
+      if (typeof cfg['space'] === 'string') config['space'] = cfg['space'];
+      return config;
     },
   };
 }
