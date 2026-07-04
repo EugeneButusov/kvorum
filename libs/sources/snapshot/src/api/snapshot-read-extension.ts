@@ -4,11 +4,13 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
+  OffchainDelegationView,
   ProposalExtension,
   SourceReadExtension,
   VoteChoiceView,
 } from '@libs/domain';
 import { asSourceConfigObject, curateEvmSourceConfig } from '@libs/domain';
+import { SnapshotDelegationReadRepository } from './snapshot-delegation-read-repository';
 import { SnapshotProposalExtensionReadRepository } from './snapshot-proposal-extension-read-repository';
 import { SnapshotVoteChoiceRepository } from '../persistence/snapshot-vote-choice-repository';
 
@@ -22,6 +24,7 @@ export function makeSnapshotReadExtension(
 ): SourceReadExtension {
   const repo = new SnapshotProposalExtensionReadRepository(db);
   const voteChoiceRepo = new SnapshotVoteChoiceRepository(chDb);
+  const delegationRepo = new SnapshotDelegationReadRepository(db);
   return {
     sourceTypes: ['snapshot', ...DELEGATION_SOURCE_TYPES],
     choiceBounds(_sourceType: string): ChoiceBounds {
@@ -46,6 +49,12 @@ export function makeSnapshotReadExtension(
       // Snapshot's per-vote breakdown (weighted/ranked/approval/etc.) lives in snapshot_vote_choice;
       // a missing row → null so the read layer synthesizes from primary_choice.
       return (await voteChoiceRepo.findByVoteId(voteId)) ?? null;
+    },
+    getActorOffchainDelegations(
+      daoId: string,
+      delegatorAddresses: readonly string[],
+    ): Promise<readonly OffchainDelegationView[]> {
+      return delegationRepo.findCurrentForActor(daoId, delegatorAddresses);
     },
     curateSourceConfig(sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // The off-chain `snapshot` source binds by `space`; the delegation registries are on-chain.

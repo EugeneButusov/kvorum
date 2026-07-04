@@ -1,5 +1,6 @@
 import type { DelegationReadRow } from '@libs/db';
-import type { DelegationModel } from '@libs/domain';
+import type { DelegationModel, OffchainDelegationView } from '@libs/domain';
+import { OffchainDelegationDto } from '@nest/sources';
 import { DelegationListItemDto } from './delegation.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -33,5 +34,17 @@ export function toDelegationListItemDto(
     model,
     tx_hash: row.tx_hash,
     created_at: isoSeconds(row.created_at),
+  });
+}
+
+export function toOffchainDelegationDto(view: OffchainDelegationView): OffchainDelegationDto {
+  return Object.assign(new OffchainDelegationDto(), {
+    platform: view.platform,
+    system: view.system,
+    scope: view.scope,
+    network: view.network,
+    delegate_address: view.delegate_address.toLowerCase(),
+    weight: view.weight,
+    expires_at: view.expires_at,
   });
 }

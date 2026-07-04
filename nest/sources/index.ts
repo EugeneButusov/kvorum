@@ -20,7 +20,7 @@ export {
   DualGovernanceProposalMetadataDto,
   EasyTrackProposalMetadataDto,
 } from '@nest/lido';
-export { SnapshotProposalMetadataDto } from '@nest/snapshot';
+export { SnapshotProposalMetadataDto, OffchainDelegationDto } from '@nest/snapshot';
 export { OffchainDiscussionLinkDto } from '@nest/forum';
 
 // The discriminated set of proposal-detail `metadata` variants (by source `kind`). apps/api spreads
