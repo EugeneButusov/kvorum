@@ -20,7 +20,15 @@ export const COMPOUND_ACTOR_SWEEP_EXTRACTOR: ActorSweepExtractor = {
     'compound_governor_oz',
     'compound_comp_token',
   ],
-  eventTypes: ['VoteCast', 'DelegateChanged', 'DelegateVotesChanged'],
+  eventTypes: [
+    'VoteCast',
+    'DelegateChanged',
+    'DelegateVotesChanged',
+    'ProposalCreated',
+    'ProposalQueued',
+    'ProposalExecuted',
+    'ProposalCanceled',
+  ],
   extractAddresses(eventType: string, payloadJson: string): AddressCandidate[] {
     const payload = JSON.parse(payloadJson) as Record<string, unknown>;
     switch (eventType) {
@@ -34,6 +42,11 @@ export const COMPOUND_ACTOR_SWEEP_EXTRACTOR: ActorSweepExtractor = {
         ];
       case 'DelegateVotesChanged':
         return [asAddress(payload['delegate'], 'delegate_event')];
+      case 'ProposalCreated':
+      case 'ProposalQueued':
+      case 'ProposalExecuted':
+      case 'ProposalCanceled':
+        return [];
       default:
         throw new Error(`unsupported event_type for actor sweep: ${eventType}`);
     }
