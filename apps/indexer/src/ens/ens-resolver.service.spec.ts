@@ -4,6 +4,7 @@ import { EnsResolverService } from './ens-resolver.service';
 
 vi.mock('@libs/chain', () => ({
   tickEnsResolution: vi.fn(),
+  EnsClient: class EnsClient {},
 }));
 
 vi.mock('./ens-resolver-metrics', () => ({
