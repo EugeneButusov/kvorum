@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { tickEnsResolution, type EnsClient } from '@libs/chain';
-import type { ActorRepository } from '@libs/db';
+import { tickEnsResolution, EnsClient } from '@libs/chain';
+import { ActorRepository } from '@libs/db';
 import { ensResolverMetrics } from './ens-resolver-metrics';
 
 const DEFAULT_PAGE_LIMIT = 500;

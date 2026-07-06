@@ -10,9 +10,9 @@ const PROPOSAL_EVENTS = [
 const ALPHA_VOTECAST =
   'event VoteCast(address voter, uint256 proposalId, bool support, uint256 votes)';
 const BRAVO_VOTECAST =
-  'event VoteCast(address voter, uint256 proposalId, uint8 support, uint256 votes, string reason)';
+  'event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 votes, string reason)';
 const OZ_VOTECAST =
-  'event VoteCast(address voter, uint256 proposalId, uint8 support, uint256 weight, string reason)';
+  'event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason)';
 
 export const COMPOUND_GOVERNOR_ALPHA_INTERFACE = new Interface([
   ...PROPOSAL_EVENTS,

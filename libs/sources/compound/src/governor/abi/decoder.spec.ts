@@ -88,6 +88,34 @@ describe('decodeCompoundLog', () => {
     });
   });
 
+  it('decodes a real on-chain bravo VoteCast with indexed voter in topics', () => {
+    const result = decodeCompoundLog(
+      makeLog({
+        topics: [
+          '0xb8e138887d0aa13bab447e82de9d5c1777041ecd21ca36ba824ff1e6c07ddda4',
+          '0x000000000000000000000000c1a69f906ce4366c0c77e0219b3132fea0969231',
+        ],
+        data:
+          '0x000000000000000000000000000000000000000000000000000000000000002b' +
+          '0000000000000000000000000000000000000000000000000000000000000001' +
+          '00000000000000000000000000000000000000000000000002c68af0bb140000' +
+          '0000000000000000000000000000000000000000000000000000000000000080' +
+          '0000000000000000000000000000000000000000000000000000000000000000',
+      }),
+      'compound_governor_bravo',
+    );
+    expect(result).toEqual({
+      type: 'VoteCast',
+      payload: {
+        voter: '0xc1a69f906ce4366c0c77e0219b3132fea0969231',
+        proposalId: '43',
+        primaryChoice: 1,
+        votingPowerReported: '200000000000000000',
+        compound: { supportRaw: 1, reason: '' },
+      },
+    });
+  });
+
   it('decodes oz VoteCast weight field', () => {
     const encoded = COMPOUND_GOVERNOR_OZ_INTERFACE.encodeEventLog(
       COMPOUND_GOVERNOR_OZ_INTERFACE.getEvent('VoteCast')!,
