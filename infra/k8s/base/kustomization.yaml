@@ -1,0 +1,21 @@
+# Environment-agnostic production topology for the Kvorum backend.
+# Overlays set namespace, image tag, replica/resource sizing, and the exposure
+# component. NOTHING here should need to change to scale up (add nodes, split
+# workloads, raise replicas) — those are overlay concerns. See overlays/prod.
+#
+# migrate-job.yaml is intentionally excluded: migrations run as an ordered pre-roll
+# step, not as part of this (unordered) apply. See migrate-job.yaml header.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - api-hpa.yaml
+  - indexer-deployment.yaml
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/managed-by: kustomize

@@ -1,0 +1,30 @@
+# Production overlay — DOKS, ~$50/mo target.
+#
+# Topology: 2× s-1vcpu-2gb nodes. api and indexer split onto separate nodes via the
+# required pod anti-affinity in base/. ClickHouse (Elestio), Postgres (DO Managed)
+# and Redis (Upstash) are external, wired through the in-cluster kvorum-secrets
+# Secret (see secret.example.yaml — created out-of-band, never committed).
+#
+# CI sets the image tag on deploy:
+#   kustomize edit set image ghcr.io/kvorum/kvorum=ghcr.io/<owner>/kvorum:<sha>
+#
+# Scale-up levers (all here, never in base/):
+#   - add a node → soft topology-spread fans API replicas out automatically
+#   - raise api-hpa maxReplicas (patch below)
+#   - split onto dedicated node pools → add a nodeSelector patch
+#   - swap components/expose-tunnel → components/expose-lb for a DO load balancer
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kvorum
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+components:
+  - ../../components/expose-tunnel
+
+images:
+  - name: ghcr.io/kvorum/kvorum
+    newTag: latest

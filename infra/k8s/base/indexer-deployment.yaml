@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvorum-indexer
+  labels:
+    app.kubernetes.io/name: kvorum-indexer
+    app.kubernetes.io/part-of: kvorum
+spec:
+  # HARD SINGLETON. The indexer owns the live chain pollers (EventPoller / head
+  # poller), which are not leader-elected — two replicas would double-poll. Never
+  # raise this above 1 and never HPA it. Recreate (not RollingUpdate) guarantees the
+  # old pod is gone before the new one starts, so two never run concurrently.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-indexer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-indexer
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: kvorum-api
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: indexer
+          image: ghcr.io/kvorum/kvorum:latest
+          command: ['node', 'dist/apps/indexer/main.js']
+          ports:
+            - name: metrics
+              containerPort: 9091
+          envFrom:
+            - configMapRef:
+                name: kvorum-config
+            - secretRef:
+                name: kvorum-secrets
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: indexer
+          # No app HTTP port — probes hit /health on the ops server (OPS_PORT).
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 768Mi

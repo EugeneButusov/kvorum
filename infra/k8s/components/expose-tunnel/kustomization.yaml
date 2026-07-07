@@ -1,0 +1,8 @@
+# Reusable exposure component: Cloudflare Tunnel. Referenced by an overlay's
+# `components:` list. Kept as a component (not base) so exposure is a swappable
+# choice per environment (tunnel here, DO-LB Ingress elsewhere/later).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - cloudflared-deployment.yaml

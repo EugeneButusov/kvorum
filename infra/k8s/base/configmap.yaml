@@ -1,0 +1,14 @@
+# Non-secret runtime configuration shared by api + indexer.
+# Secrets (DATABASE_URL, CLICKHOUSE_*, CURSOR_SECRET, CHAIN_CONFIG, ...) live in the
+# `kvorum-secrets` Secret, provisioned per-environment — see overlays/prod/secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvorum-config
+data:
+  # @libs/observability throws on import if the namespace is unset — must be present.
+  OTEL_SERVICE_NAMESPACE: kvorum
+  # Ops HTTP port (/metrics + /health) for every process.
+  OPS_PORT: '9091'
+  # API app port.
+  API_PORT: '3001'

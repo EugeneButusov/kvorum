@@ -1,0 +1,21 @@
+# ClusterIP fronting the API pods. Reached in-cluster by the cloudflared tunnel
+# (components/expose-tunnel) or by a DO-LB Ingress (components/expose-lb) — the
+# service itself is exposure-agnostic.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-api
+  labels:
+    app.kubernetes.io/name: kvorum-api
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: metrics
+      port: 9091
+      targetPort: metrics
