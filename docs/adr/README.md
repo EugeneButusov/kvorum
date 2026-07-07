@@ -47,6 +47,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-0064](0064-multi-chain-dao-source-binding.md)           | Multi-chain dao_source binding and chain-aware derivation dispatch                | Accepted                      | 2.5, 3.5, 10.5                          |
 | [ADR-0066](0066-aave-voting-power-strategy.md)               | Aave voting power strategy                                                        | Withdrawn (M3 V3 #262)        | —                                       |
 | [ADR-073](0073-seed-ahead-source-tolerance.md)               | Seed-ahead source tolerance (skip-not-crash for unbuilt source_types)             | Accepted                      | 3.3, 3.10                               |
+| [ADR-077](0077-tailwind-shadcn-design-system-mapping.md)     | Design system on Tailwind + shadcn/ui: token and component mapping                | Accepted                      | 6.2, 6.3, 6.19, 10.8, 10.9              |
 
 ## Status legend
 
