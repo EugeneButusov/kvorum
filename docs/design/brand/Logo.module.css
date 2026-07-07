@@ -1,0 +1,39 @@
+/* Kvorum logo — drop into components/Logo/ alongside Logo.tsx */
+
+.glyph {
+  /* `currentColor` is driven by `color:` on the host. Set --kv-accent and
+     --kv-surface on the host (or rely on design-system tokens). */
+  color: var(--ink, #1a1a18);
+  display: block;
+}
+
+.glyph .accent {
+  fill: var(--kv-accent, var(--accent, #00a86b));
+}
+
+.glyph .surface {
+  /* The K sits on whatever surface the logo is placed on. Default is bg-2. */
+  fill: var(--kv-surface, var(--bg-2, #f7f7f4));
+}
+
+.wordmark {
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink, #1a1a18);
+}
+
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--ink, #1a1a18);
+}
+
+/* Dark theme — when placed under [data-theme="dark"], the surface flips
+   to the dark bg automatically via the design-system tokens. */
+:global([data-theme="dark"]) .glyph .accent {
+  fill: var(--kv-accent, var(--accent, #00ff88));
+}
