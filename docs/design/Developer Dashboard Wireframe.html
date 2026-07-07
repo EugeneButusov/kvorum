@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Developer Dashboard (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .dev-header {
+    padding: 22px 24px 18px;
+    border-bottom: 1.5px solid var(--line);
+    display: flex; align-items: center; gap: 18px;
+  }
+  .dev-header h1 { margin: 0; font-size: 24px; letter-spacing: -0.01em; }
+  .dev-header .me {
+    margin-left: auto; display: flex; align-items: center; gap: 12px;
+    font-size: 12px;
+  }
+  .dev-header .me .who {
+    border: 1px solid var(--line); padding: 6px 10px; background: var(--paper);
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px;
+  }
+  .dev-header .me .signout { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); cursor: pointer; }
+
+  /* Layout grid */
+  .dev-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 22px;
+    padding: 22px 24px 32px;
+  }
+  .dev-grid .full { grid-column: 1 / -1; }
+
+  /* Keys table */
+  .keys-table {
+    border: 1.5px solid var(--line); background: var(--paper);
+  }
+  .keys-table .ah {
+    background: var(--paper-2); border-bottom: 1.5px solid var(--line);
+    padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .keys-table .ah h2 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .keys-table .ah .new-btn {
+    border: 1.5px solid var(--line); background: var(--ink); color: var(--paper);
+    padding: 7px 14px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; font-weight: 600;
+  }
+  .keys-table table thead th { padding: 10px 14px; }
+  .keys-table table tbody td { padding: 14px; }
+  .keys-table .keystr {
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px;
+    background: var(--paper-2); border: 1px solid var(--line-soft);
+    padding: 3px 7px; display: inline-block;
+  }
+  .keys-table .label-tag {
+    display: inline-block; border: 1px solid var(--line); padding: 1px 7px;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    background: var(--paper);
+  }
+  .keys-table .actions { display: flex; gap: 6px; justify-content: flex-end; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .keys-table .actions a { color: var(--ink-2); border: 1px solid var(--line-soft); padding: 3px 7px; }
+  .keys-table .actions a.danger { color: var(--note); border-color: var(--note); }
+
+  /* Stat box */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1.5px solid var(--line); background: var(--paper); }
+  .stat-grid .s { padding: 14px; border-right: 1.5px solid var(--line); }
+  .stat-grid .s:last-child { border-right: 0; }
+  .stat-grid .s .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .stat-grid .s .v { font-size: 22px; font-weight: 600; margin-top: 4px; }
+  .stat-grid .s .d { font-size: 11px; color: var(--ink-2); margin-top: 2px; }
+  .stat-grid .s .v small { font-size: 12px; color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+
+  .progress {
+    height: 16px; border: 1px solid var(--line); background: var(--paper);
+    margin-top: 8px; position: relative;
+  }
+  .progress > i {
+    position: absolute; inset: 0 auto 0 0;
+    background: repeating-linear-gradient(45deg, var(--ink) 0 4px, var(--paper-2) 4px 5px);
+  }
+  .progress .lbl {
+    position: absolute; right: 6px; top: 0; bottom: 0;
+    display: flex; align-items: center;
+    color: var(--ink-2); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px;
+  }
+
+  /* Endpoint chart */
+  .ep-chart {
+    border: 1.5px dashed var(--line);
+    background:
+      repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,0.04) 8px 9px),
+      var(--paper);
+    height: 220px;
+    position: relative;
+  }
+  .ep-chart .lbl {
+    position: absolute; bottom: 10px; left: 10px;
+    background: var(--paper); border: 1px solid var(--line);
+    padding: 4px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+
+  /* Endpoint family breakdown */
+  .ep-list { display: grid; grid-template-rows: 1fr; gap: 4px; padding: 12px; }
+  .ep-row { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed var(--line-soft); }
+  .ep-row:last-child { border-bottom: 0; }
+  .ep-row .b { height: 8px; border: 1px solid var(--line); position: relative; background: var(--paper); }
+  .ep-row .b > i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+  .ep-row .v { font-family: "JetBrains Mono", ui-monospace, monospace; text-align: right; }
+
+  /* Rate limit */
+  .rl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; }
+  .rl-card { border: 1px solid var(--line); padding: 10px 12px; background: var(--paper); }
+  .rl-card .h { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .rl-card .v { font-size: 18px; font-weight: 600; margin-top: 2px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .rl-card .reset { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+
+  /* Quick links */
+  .qlink-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 14px; }
+  .qlink {
+    border: 1px solid var(--line); padding: 10px 12px; background: var(--paper);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12.5px;
+  }
+  .qlink .arrow { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); }
+  .qlink small { display: block; color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  /* Modal-like create-key panel */
+  .modal-card {
+    border: 1.5px solid var(--note); background: var(--note-bg);
+    padding: 14px 16px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+  }
+  .modal-card .icon {
+    width: 32px; height: 32px; border: 1.5px solid var(--note); display:flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--note);
+  }
+  .modal-card .keystr-big {
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13.5px;
+    background: var(--paper); padding: 8px 10px; border: 1px solid var(--line); display: inline-block;
+  }
+  .modal-card .copy {
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 7px 12px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;
+  }
+
+  .danger-zone {
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 14px 16px;
+  }
+  .danger-zone h2 { margin: 0 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--note); }
+  .danger-zone p { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }
+  .danger-zone .row { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--line-soft); }
+  .danger-zone .row:first-of-type { border-top: 0; }
+  .danger-zone .row b { flex: 1; font-size: 12.5px; }
+  .danger-zone button {
+    border: 1.5px solid var(--note); background: var(--paper); color: var(--note);
+    padding: 6px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;
+  }
+</style>
+</head>
+<body data-wf="dev">
+
+<div class="page" data-screen-label="05 Developer dashboard — wireframe">
+
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Developer dashboard</span>
+    <span class="mono">/developer  ·  spec §6.13  ·  AUTHENTICATED  ·  lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul>
+      <li>Home</li><li>Proposals</li><li>DAOs ▾</li><li class="active">Developer</li><li>API Docs ↗</li>
+    </ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color:var(--ink-3); font-size:11px;">⌘K  Search</div>
+  </nav>
+
+  <div class="dev-header">
+    <h1>Developer</h1>
+    <div class="me">
+      <span style="color:var(--ink-3); font-size:11px; text-transform:uppercase; letter-spacing:0.08em;">signed in as</span>
+      <span class="who">eugene.eth · 0xdE…f7c2</span>
+      <span class="signout">Sign out everywhere</span>
+    </div>
+  </div>
+
+  <div class="dev-grid">
+
+    <!-- Just-created key callout -->
+    <div class="full anno" data-anno="§6.13 new-key reveal">
+      <div class="modal-card">
+        <div class="icon">⚿</div>
+        <div>
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color: var(--note);">New API key — copy now</div>
+          <div style="margin-top:4px;"><span class="keystr-big">kvm_live_3f4a9c2b8e7d1f0a6c5e4d3b2a190f8e</span></div>
+          <div style="font-size:11.5px; color: var(--ink-2); margin-top:6px;">This is the only time the full key will be shown. After dismissing, only the prefix and last 4 are visible (per §4.3).</div>
+        </div>
+        <button class="copy">Copy &amp; dismiss</button>
+      </div>
+    </div>
+
+    <!-- 1. API Keys -->
+    <div class="full anno" data-anno="§6.13 · 1 API keys">
+      <div class="keys-table">
+        <div class="ah">
+          <h2>1 · API keys</h2>
+          <button class="new-btn">+ Create key</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Label</th>
+            <th style="width: 280px;">Key</th>
+            <th style="width: 130px;">Created</th>
+            <th style="width: 130px;">Last used</th>
+            <th style="width: 120px;">Requests (mo)</th>
+            <th style="width: 200px; text-align:right;"></th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><b>production</b><br/><span class="label-tag">tier: free</span></td>
+              <td><span class="keystr">kvm_live_3f4a…0f8e</span> <span style="color: var(--note); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; margin-left: 6px;">new</span></td>
+              <td class="mono" style="font-size: 11.5px;">2026-05-04</td>
+              <td class="mono" style="font-size: 11.5px;">—</td>
+              <td class="mono">0</td>
+              <td><div class="actions"><a>rotate</a><a class="danger">revoke</a></div></td>
+            </tr>
+            <tr>
+              <td><b>staging</b><br/><span class="label-tag">tier: free</span></td>
+              <td><span class="keystr">kvm_live_a82b…d4f1</span></td>
+              <td class="mono" style="font-size: 11.5px;">2026-04-22</td>
+              <td class="mono" style="font-size: 11.5px;">3m ago</td>
+              <td class="mono">12,408</td>
+              <td><div class="actions"><a>rotate</a><a class="danger">revoke</a></div></td>
+            </tr>
+            <tr>
+              <td><b>local-dev</b><br/><span class="label-tag">tier: free</span></td>
+              <td><span class="keystr">kvm_live_91c4…7a2e</span></td>
+              <td class="mono" style="font-size: 11.5px;">2026-03-08</td>
+              <td class="mono" style="font-size: 11.5px;">2d ago</td>
+              <td class="mono">2,114</td>
+              <td><div class="actions"><a>rotate</a><a class="danger">revoke</a></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. Usage -->
+    <div class="anno" data-anno="§6.13 · 2 usage">
+      <div class="section">
+        <header><h2>2 · Usage · last 30 days</h2><span class="ref">all keys combined</span></header>
+        <div class="body">
+          <div class="ep-chart">
+            <div class="lbl">request volume by day · stacked by endpoint family</div>
+          </div>
+          <div class="ep-list" style="padding: 12px 0 0;">
+            <div class="ep-row"><span>/proposals</span><span class="b"><i style="width:74%;"></i></span><span class="v">10,892</span></div>
+            <div class="ep-row"><span>/votes</span><span class="b"><i style="width:48%;"></i></span><span class="v">7,043</span></div>
+            <div class="ep-row"><span>/daos/{slug}/health</span><span class="b"><i style="width:32%;"></i></span><span class="v">4,711</span></div>
+            <div class="ep-row"><span>/actors</span><span class="b"><i style="width:18%;"></i></span><span class="v">2,640</span></div>
+            <div class="ep-row"><span>/forum</span><span class="b"><i style="width:8%;"></i></span><span class="v">1,182</span></div>
+          </div>
+          <div style="padding: 12px 14px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span>Monthly quota · free tier</span>
+              <span class="mono">14,522 / 50,000 requests · 29%</span>
+            </div>
+            <div class="progress"><i style="width: 29%;"></i><span class="lbl">29%</span></div>
+            <div style="font-size: 11px; color: var(--ink-3); margin-top: 6px;">Resets 2026-06-01 · upgrade tiers ship post-v1</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Rate limits + Quick links + Stats -->
+    <div>
+      <div class="stat-grid anno" data-anno="§6.13 · headline">
+        <div class="s"><div class="l">Active keys</div><div class="v">3</div><div class="d">all on free tier</div></div>
+        <div class="s"><div class="l">Requests today</div><div class="v">487<small>↓ 12%</small></div><div class="d">vs yesterday</div></div>
+        <div class="s"><div class="l">Error rate (24h)</div><div class="v">0.4%<small>2 / 487</small></div><div class="d">all 4xx</div></div>
+      </div>
+
+      <div class="section anno" style="margin-top: 14px;" data-anno="§6.13 · 3 rate limit">
+        <header><h2>3 · Rate limit status</h2><span class="ref">current key · staging</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="rl-grid">
+            <div class="rl-card">
+              <div class="h">Per minute</div>
+              <div class="v">12 / 60</div>
+              <div class="reset">Resets in 24s</div>
+              <div class="progress" style="margin-top: 8px;"><i style="width: 20%;"></i></div>
+            </div>
+            <div class="rl-card">
+              <div class="h">Per day</div>
+              <div class="v">487 / 10,000</div>
+              <div class="reset">Resets in 7h 22m</div>
+              <div class="progress" style="margin-top: 8px;"><i style="width: 5%;"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section anno" style="margin-top: 14px;" data-anno="§6.13 · 4 quick links">
+        <header><h2>4 · Quick links</h2><span class="ref">docs &amp; ops</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="qlink-grid">
+            <div class="qlink"><div><b>API documentation</b><small>OpenAPI · interactive</small></div><span class="arrow">↗</span></div>
+            <div class="qlink"><div><b>OpenAPI spec</b><small>download yaml</small></div><span class="arrow">↓</span></div>
+            <div class="qlink"><div><b>Status page</b><small>ingestion · API · degraded modes</small></div><span class="arrow">↗</span></div>
+            <div class="qlink"><div><b>Support</b><small>github issues · email</small></div><span class="arrow">↗</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="full anno" data-anno="§6.13 account ops">
+      <div class="danger-zone">
+        <h2>Account</h2>
+        <p>Account-level actions. Account deletion is permanent and immediate per §6.14 (KNOWN-020).</p>
+        <div class="row"><b>Add recovery email to SIWE account</b><button>Add email</button></div>
+        <div class="row"><b>Sign out everywhere · invalidate all sessions</b><button>Sign out</button></div>
+        <div class="row"><b>Delete account · revokes all keys, removes account</b><button>Delete</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot live"></span>usage refreshed on navigation</span>
+    <span>only authenticated section in Kvorum (§6.13)</span>
+    <span>kvorum.xyz/developer</span>
+  </div>
+
+</div>
+
+<div class="legend-card">
+  <b>Developer dashboard</b> · sole authenticated section (§6.13). API key management, usage charts, rate-limit status, quick links to docs &amp; status. Tier is a column on the API key (§1.6) — paid tiers slot in without re-architecture.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

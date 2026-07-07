@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Developer</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.13 — developer dashboard. Next.js: app/developer/page.module.css */
+  main.dev { max-width: var(--max-page); margin: 0 auto;
+             padding: var(--space-7) var(--gutter) var(--space-16);
+             display: flex; flex-direction: column; gap: 32px; }
+
+  .head { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+          padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+  .head h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600; letter-spacing: var(--tracking-tight); }
+  .head .lede { margin-top: 6px; color: var(--ink-2); font-size: var(--fs-14); max-width: 56ch; line-height: var(--lh-prose); }
+  .head .actions { display: flex; gap: 10px; }
+  .head .actions button {
+    font-family: var(--font-mono); font-size: var(--fs-12); padding: 8px 14px;
+    border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); cursor: pointer;
+  }
+  .head .actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 700; }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+  .kpis .cell { padding: 16px 20px; border-right: 1px solid var(--line); }
+  .kpis .cell:last-child { border-right: 0; }
+  .kpis .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .kpis .v { font-family: var(--font-mono); font-size: var(--fs-24); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpis .delta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--accent); margin-left: 8px; font-weight: 600; }
+  .kpis .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; }
+
+  /* 7-day usage chart */
+  .chart {
+    display: grid; grid-template-columns: 1fr 240px; gap: 0; border: 1px solid var(--line); padding: 0;
+  }
+  .chart .lhs { padding: 18px 22px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+  .chart .lhs .head { display: flex; align-items: center; gap: 14px; padding: 0; border: 0; }
+  .chart .lhs .head h3 { margin: 0; font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .chart .lhs .head .seg { display: flex; margin-left: auto; }
+  .chart .lhs .head .seg button { font-family: var(--font-mono); font-size: var(--fs-11); padding: 4px 10px;
+                                     border: 1px solid var(--line-2); border-right: 0; background: var(--bg-2); color: var(--ink-2); }
+  .chart .lhs .head .seg button:last-child { border-right: 1px solid var(--line-2); }
+  .chart .lhs .head .seg button.on { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .chart .lhs .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; height: 160px; align-items: end;
+                       padding-top: 12px; border-bottom: 1px solid var(--line-3); }
+  .chart .lhs .bars .day { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: end; }
+  .chart .lhs .bars .day .stack { width: 100%; display: flex; flex-direction: column-reverse; }
+  .chart .lhs .bars .day .stack i { display: block; }
+  .chart .lhs .bars .day .stack .ok { background: var(--accent); }
+  .chart .lhs .bars .day .stack .err { background: var(--warn); }
+  .chart .lhs .bars .day .stack .cache { background: var(--ink-3); }
+  .chart .lhs .bars .day .lbl { font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3); }
+  .chart .lhs .legend { display: flex; gap: 16px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .chart .lhs .legend .sw { width: 10px; height: 10px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .chart .lhs .legend .sw.ok { background: var(--accent); }
+  .chart .lhs .legend .sw.err { background: var(--warn); }
+  .chart .lhs .legend .sw.cache { background: var(--ink-3); }
+
+  .chart .rhs { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-2); }
+  .chart .rhs h4 { margin: 0; font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); font-weight: 600; }
+  .chart .rhs .stat { display: flex; justify-content: space-between; align-items: baseline;
+                       font-family: var(--font-mono); font-size: var(--fs-12); padding: 6px 0; border-bottom: 1px dashed var(--line-3); }
+  .chart .rhs .stat:last-child { border-bottom: 0; }
+  .chart .rhs .stat .l { color: var(--ink-3); }
+  .chart .rhs .stat .v { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .chart .rhs .stat .v.ok { color: var(--accent); }
+  .chart .rhs .stat .v.warn { color: var(--warn); }
+
+  /* Tables */
+  .data-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+  .data-tbl thead th { text-align: left; padding: 10px 14px; font-family: var(--font-mono); font-size: var(--fs-105);
+                       font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                       border-bottom: 1px solid var(--line-2); background: var(--bg); white-space: nowrap; }
+  .data-tbl tbody tr { border-bottom: 1px dashed var(--line-3); }
+  .data-tbl tbody tr:hover { background: var(--bg-2); }
+  .data-tbl tbody td { padding: 12px 14px; vertical-align: middle; }
+  .data-tbl .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .data-tbl .label { font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink); font-weight: 600; }
+  .data-tbl .key {
+    font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2);
+    background: var(--bg-3); padding: 3px 8px; border: 1px solid var(--line-2); display: inline-block;
+  }
+  .data-tbl .badge { font-family: var(--font-mono); font-size: var(--fs-10); padding: 2px 7px; border: 1px solid;
+                     text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .data-tbl .badge.live { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-bg); }
+  :root[data-theme="dark"] .data-tbl .badge.live { color: var(--accent); }
+  .data-tbl .badge.test { color: var(--ink-3); border-color: var(--line-2); }
+  .data-tbl .badge.revoked { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+  .data-tbl .row-actions { font-family: var(--font-mono); font-size: var(--fs-11); display: flex; gap: 10px; }
+  .data-tbl .row-actions a { color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .data-tbl .row-actions a:hover { color: var(--accent); border-color: var(--accent); }
+  .data-tbl .row-actions a.danger { color: var(--warn); }
+  .data-tbl .row-actions a.danger:hover { border-color: var(--warn); }
+  .data-tbl .last { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+
+  .billing { display: grid; grid-template-columns: 1fr 280px; gap: 0; border: 1px solid var(--line); }
+  .billing .lhs { padding: 18px 22px; border-right: 1px solid var(--line); }
+  .billing .lhs h3 { margin: 0 0 12px; font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .billing .lhs .row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; padding: 8px 0;
+                       border-bottom: 1px dashed var(--line-3); font-size: var(--fs-13); align-items: baseline; }
+  .billing .lhs .row:last-child { border-bottom: 0; }
+  .billing .lhs .row .l { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); }
+  .billing .lhs .row .v { font-family: var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .billing .rhs { padding: 18px 22px; background: var(--bg-2); display: flex; flex-direction: column; gap: 12px; }
+  .billing .rhs .price { font-family: var(--font-mono); font-size: var(--fs-30); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .billing .rhs .price small { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; }
+  .billing .rhs .meter { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .billing .rhs .meter .bar { height: 4px; background: var(--bg-3); margin-top: 6px; position: relative; }
+  .billing .rhs .meter .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+  .billing .rhs .meter .bar i.warn { background: var(--warn); }
+  .billing .rhs button { padding: 8px 14px; background: var(--ink); color: var(--bg-2); border: 0;
+                          font-family: var(--font-mono); font-size: var(--fs-12); cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="#" class="active">Developer</a>
+    <a href="api-docs.html">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <span class="id">Developer</span>
+  <span style="margin-left:auto; color:var(--ink-3);">eugene@gmail.com · plan: pro · /developer</span>
+</div>
+
+<main class="dev" data-screen-label="Hi-fi · Developer dashboard">
+
+  <section class="head">
+    <div>
+      <h1>Developer</h1>
+      <p class="lede">API keys, usage, webhooks. Read-only API; no mutating endpoints. Rate limit per key, billed per 1k requests above plan quota.</p>
+    </div>
+    <div class="actions">
+      <button>Invite teammate</button>
+      <button>View logs ↗</button>
+      <button class="primary">+ Create API key</button>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="kpis tnum">
+    <div class="cell">
+      <div class="l">Requests · 7d</div>
+      <div class="v">284,118 <span class="delta">+12.4%</span></div>
+      <div class="sub">vs prior 7d</div>
+    </div>
+    <div class="cell">
+      <div class="l">Error rate</div>
+      <div class="v" style="color: var(--accent);">0.18%</div>
+      <div class="sub">512 errors · 4xx + 5xx</div>
+    </div>
+    <div class="cell">
+      <div class="l">p50 / p99</div>
+      <div class="v">42 / 218 <span style="font-size: var(--fs-12); color: var(--ink-3); font-weight: 500;">ms</span></div>
+      <div class="sub">stable vs prior 7d</div>
+    </div>
+    <div class="cell">
+      <div class="l">Quota used</div>
+      <div class="v">28.4%</div>
+      <div class="sub">284k / 1.0M · resets in 23d</div>
+    </div>
+  </section>
+
+  <!-- Usage chart -->
+  <section class="chart">
+    <div class="lhs">
+      <div class="head">
+        <h3>Requests · 7 days</h3>
+        <div class="seg">
+          <button class="on">7d</button>
+          <button>30d</button>
+          <button>90d</button>
+        </div>
+      </div>
+      <div class="bars">
+        <div class="day"><div class="stack"><i class="cache" style="height: 18px;"></i><i class="ok" style="height: 78px;"></i><i class="err" style="height: 2px;"></i></div><span class="lbl">Mon</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 22px;"></i><i class="ok" style="height: 92px;"></i><i class="err" style="height: 1px;"></i></div><span class="lbl">Tue</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 26px;"></i><i class="ok" style="height: 104px;"></i><i class="err" style="height: 3px;"></i></div><span class="lbl">Wed</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 24px;"></i><i class="ok" style="height: 89px;"></i><i class="err" style="height: 2px;"></i></div><span class="lbl">Thu</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 30px;"></i><i class="ok" style="height: 118px;"></i><i class="err" style="height: 4px;"></i></div><span class="lbl">Fri</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 18px;"></i><i class="ok" style="height: 64px;"></i><i class="err" style="height: 1px;"></i></div><span class="lbl">Sat</span></div>
+        <div class="day"><div class="stack"><i class="cache" style="height: 14px;"></i><i class="ok" style="height: 48px;"></i><i class="err" style="height: 1px;"></i></div><span class="lbl">Sun</span></div>
+      </div>
+      <div class="legend">
+        <span><span class="sw ok"></span>200 OK · cache miss</span>
+        <span><span class="sw cache"></span>200 OK · cache hit</span>
+        <span><span class="sw err"></span>4xx + 5xx</span>
+      </div>
+    </div>
+    <div class="rhs tnum">
+      <h4>By endpoint · 7d</h4>
+      <div class="stat"><span class="l">/proposals</span><span class="v">141k</span></div>
+      <div class="stat"><span class="l">/proposals/:id</span><span class="v">82k</span></div>
+      <div class="stat"><span class="l">/daos/:slug/health</span><span class="v">38k</span></div>
+      <div class="stat"><span class="l">/delegates/:addr</span><span class="v">17k</span></div>
+      <div class="stat"><span class="l">/webhooks (POST)</span><span class="v">412</span></div>
+      <h4 style="margin-top: 6px;">Errors · top 3</h4>
+      <div class="stat"><span class="l">429 rate limit</span><span class="v warn">312</span></div>
+      <div class="stat"><span class="l">404 not found</span><span class="v warn">147</span></div>
+      <div class="stat"><span class="l">500 internal</span><span class="v warn">53</span></div>
+    </div>
+  </section>
+
+  <!-- API keys -->
+  <section class="kv-section">
+    <header><h2><span class="num">01</span>API keys</h2><span class="ref">3 active · 1 revoked</span></header>
+    <div class="card" style="padding: 0;">
+      <table class="data-tbl">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Key</th>
+            <th>Env</th>
+            <th style="text-align: right;">Requests · 7d</th>
+            <th>Last used</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="label">prod-frontend</span></td>
+            <td><span class="key">kv_live_4f9c…2be1</span></td>
+            <td><span class="badge live">Live</span></td>
+            <td class="num">214,887</td>
+            <td class="last">38s ago</td>
+            <td class="last">2025-08-14</td>
+            <td><div class="row-actions"><a href="#">view</a><a href="#">rotate</a><a href="#" class="danger">revoke</a></div></td>
+          </tr>
+          <tr>
+            <td><span class="label">prod-webhooks</span></td>
+            <td><span class="key">kv_live_a82d…c41f</span></td>
+            <td><span class="badge live">Live</span></td>
+            <td class="num">62,412</td>
+            <td class="last">2m ago</td>
+            <td class="last">2025-09-22</td>
+            <td><div class="row-actions"><a href="#">view</a><a href="#">rotate</a><a href="#" class="danger">revoke</a></div></td>
+          </tr>
+          <tr>
+            <td><span class="label">eugene-laptop</span></td>
+            <td><span class="key">kv_test_71ab…8842</span></td>
+            <td><span class="badge test">Test</span></td>
+            <td class="num">6,819</td>
+            <td class="last">14m ago</td>
+            <td class="last">2026-01-08</td>
+            <td><div class="row-actions"><a href="#">view</a><a href="#">rotate</a><a href="#" class="danger">revoke</a></div></td>
+          </tr>
+          <tr style="opacity: 0.55;">
+            <td><span class="label">old-staging</span></td>
+            <td><span class="key">kv_live_••••…••••</span></td>
+            <td><span class="badge revoked">Revoked</span></td>
+            <td class="num">0</td>
+            <td class="last">revoked 2025-12-04</td>
+            <td class="last">2025-04-11</td>
+            <td><div class="row-actions"><a href="#">archive</a></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Webhooks -->
+  <section class="kv-section">
+    <header><h2><span class="num">02</span>Webhooks</h2><span class="ref">2 endpoints · 1 healthy · 1 backoff</span></header>
+    <div class="card" style="padding: 0;">
+      <table class="data-tbl">
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Events</th>
+            <th>Status</th>
+            <th style="text-align: right;">Deliveries · 7d</th>
+            <th style="text-align: right;">Failures</th>
+            <th>Last delivery</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="key">https://api.example.com/kvorum/in</span></td>
+            <td><span style="font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2);">proposal.created · proposal.tally · mismatch.flagged</span></td>
+            <td><span class="badge live">Healthy</span></td>
+            <td class="num">412</td>
+            <td class="num" style="color: var(--ink-3);">0</td>
+            <td class="last">38s ago · 200</td>
+            <td><div class="row-actions"><a href="#">edit</a><a href="#">test</a><a href="#" class="danger">delete</a></div></td>
+          </tr>
+          <tr>
+            <td><span class="key">https://discord.com/api/webhooks/9…</span></td>
+            <td><span style="font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2);">proposal.tally (active only)</span></td>
+            <td><span class="badge" style="color: var(--note-ink); border: 1px solid var(--note); background: var(--note-bg);">Backoff</span></td>
+            <td class="num">218</td>
+            <td class="num" style="color: var(--warn);">14</td>
+            <td class="last">11m ago · 503</td>
+            <td><div class="row-actions"><a href="#">retry</a><a href="#">edit</a><a href="#" class="danger">delete</a></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Billing -->
+  <section class="kv-section">
+    <header><h2><span class="num">03</span>Plan &amp; billing</h2><span class="ref">pro · billed monthly</span></header>
+    <div class="billing">
+      <div class="lhs">
+        <h3>Current plan</h3>
+        <div class="row"><span class="l">Plan</span><span class="v">Pro</span></div>
+        <div class="row"><span class="l">Billing cycle</span><span class="v">2026-05-01 → 2026-06-01</span></div>
+        <div class="row"><span class="l">Included quota</span><span class="v">1,000,000 requests / mo</span></div>
+        <div class="row"><span class="l">Overage rate</span><span class="v">$0.40 / 1k requests</span></div>
+        <div class="row"><span class="l">Overage this cycle</span><span class="v" style="color: var(--ink-3);">— (28.4% of quota used)</span></div>
+        <div class="row"><span class="l">Concurrent webhooks</span><span class="v">5 (3 unused)</span></div>
+        <div class="row"><span class="l">Support SLA</span><span class="v">≤ 24h business · email</span></div>
+      </div>
+      <div class="rhs tnum">
+        <div class="meter">This cycle's spend</div>
+        <div class="price">$48 <small>/ month</small></div>
+        <div class="meter">
+          Quota usage<br/>
+          <div class="bar"><i style="width: 28%;"></i></div>
+          <div style="display: flex; justify-content: space-between; margin-top: 4px;"><span>284k / 1.0M</span><span>resets in 23d</span></div>
+        </div>
+        <button>Upgrade plan →</button>
+        <a href="#" style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); border-bottom: 1px solid var(--line-2); align-self: start;">view invoices →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI panel: anomaly detection -->
+  <section class="kv-section">
+    <header><h2><span class="num">04</span>Anomaly watch</h2><span class="ref">last 24h · auto</span></header>
+    <div class="ai-panel" aria-label="AI generated content">
+      <div class="ai-head">
+        <span class="ai-mark">AI</span>
+        <span>Usage anomalies · prod-frontend key</span>
+        <span class="model">claude · 24h window</span>
+      </div>
+      <div class="ai-body" style="padding: 16px 20px;">
+        <p style="margin: 0; color: var(--ink); font-size: var(--fs-13); line-height: 1.55;">
+          <b>One anomaly detected.</b> Discord webhook (<code>discord.com/api/webhooks/9…</code>) entered 30s exponential backoff at 11:42 UTC after 14 consecutive 503s. Upstream looks recovered as of 11:51. Auto-resume scheduled at next event. <a href="#" style="color: var(--accent); border-bottom: 1px solid;">view event log →</a>
+        </p>
+      </div>
+      <div class="ai-foot">
+        <span>inputs: webhook delivery log · key request log · upstream health</span>
+        <a href="#">configure alerts →</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>developer · 4 keys · 2 webhooks</div>
+  <div class="item">api v1.0 · 12ms p50</div>
+  <div class="item">build a4f9c2 · /developer</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

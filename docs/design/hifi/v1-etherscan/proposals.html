@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Proposals · cross-DAO</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.5 — Proposals list. In Next.js: app/proposals/page.module.css */
+  main.props {
+    max-width: var(--max-page);
+    margin: 0 auto;
+    padding: var(--space-7) var(--gutter) var(--space-16);
+    display: flex; flex-direction: column; gap: var(--space-6);
+  }
+
+  .page-head { display: flex; align-items: end; justify-content: space-between; gap: var(--space-6);
+               border-bottom: 1px solid var(--line); padding-bottom: var(--space-5); }
+  .page-head h1 { margin: 0; font-family: var(--font-mono); font-size: var(--fs-30); font-weight: 600;
+                  letter-spacing: var(--tracking-tight); }
+  .page-head h1 .num { color: var(--ink-3); font-weight: 500; margin-right: 8px; }
+  .page-head .lede { margin-top: 6px; color: var(--ink-2); font-size: var(--fs-14); max-width: 60ch; }
+  .page-head .counts { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-3);
+                       text-align: right; line-height: 1.6; }
+  .page-head .counts b { color: var(--ink); font-weight: 600; font-size: var(--fs-13); }
+
+  /* Filter strip */
+  .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+             border: 1px solid var(--line-3); background: var(--bg-2); padding: 10px 14px; }
+  .filters .group { display: flex; align-items: center; gap: 8px; }
+  .filters .group .lbl { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3);
+                         text-transform: uppercase; letter-spacing: 0.06em; }
+  .filters .sep { width: 1px; height: 24px; background: var(--line-3); }
+  .filters .search { flex: 1; min-width: 240px; border: 1px solid var(--line-2); padding: 6px 10px;
+                     display: flex; gap: 8px; align-items: center; font-family: var(--font-mono);
+                     font-size: var(--fs-12); color: var(--ink-3); background: var(--bg); }
+  .filters .search input { flex: 1; border: 0; background: transparent; outline: none; color: var(--ink); }
+  .filters .clear { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                    border: 1px solid var(--line-3); padding: 4px 10px; }
+
+  /* Proposals table */
+  .ptable-wrap { border: 1px solid var(--line-3); background: var(--bg-2); }
+  .ptable { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+  .ptable thead th { padding: 10px 14px; text-align: left;
+                     font-family: var(--font-mono); font-size: var(--fs-105); font-weight: 600;
+                     color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                     border-bottom: 1px solid var(--line-2); background: var(--bg);
+                     position: sticky; top: 0; z-index: 1; }
+  .ptable thead th .arr { color: var(--ink-4); margin-left: 4px; }
+  .ptable tbody td { padding: 14px; border-bottom: 1px solid var(--line-3); vertical-align: top; }
+  .ptable tbody tr:hover td { background: var(--bg); }
+  .ptable tbody tr.flagged td { background: color-mix(in oklab, var(--warn-bg), transparent 60%); }
+  .ptable tbody tr.flagged:hover td { background: color-mix(in oklab, var(--warn-bg), transparent 40%); }
+
+  .ptable .id   { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-3); white-space: nowrap; }
+  .ptable .ttl  { color: var(--ink); font-weight: 600; font-size: var(--fs-14); line-height: 1.35;
+                  display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  .ptable .ttl .flag { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--warn);
+                       border: 1px solid var(--warn); padding: 1px 5px; text-transform: uppercase;
+                       letter-spacing: 0.06em; font-weight: 700; }
+  .ptable .meta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; }
+  .ptable .ai   { font-size: var(--fs-12); color: var(--ink-2); margin-top: 6px; line-height: 1.45;
+                  max-width: 64ch; padding-left: 10px; border-left: 2px solid var(--ai-line); }
+  .ptable .ai .mark { font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ai-mark);
+                      font-weight: 700; margin-right: 6px; letter-spacing: 0.08em; }
+  .ptable .ai .mark::before { content: "△ "; }
+
+  .ptable .tally { width: 220px; }
+  .ptable .tally .bar { display: grid; grid-template-columns: 50px 1fr 44px; gap: 6px;
+                        align-items: center; font-family: var(--font-mono); font-size: var(--fs-11); padding: 1px 0; }
+  .ptable .tally .bar .l { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .ptable .tally .bar .track { height: 5px; background: var(--bg-3); position: relative; }
+  .ptable .tally .bar .track i { position: absolute; left: 0; top: 0; bottom: 0; }
+  .ptable .tally .bar.for     .track i { background: var(--for); }
+  .ptable .tally .bar.against .track i { background: var(--against); }
+  .ptable .tally .bar.abstain .track i { background: var(--abstain); }
+  .ptable .tally .bar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  .ptable .when { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-2); white-space: nowrap; }
+  .ptable .when .live { color: var(--accent); }
+  .ptable .when .closed { color: var(--ink-3); }
+
+  .pager { display: flex; justify-content: space-between; align-items: center;
+           padding: 10px 14px; border-top: 1px solid var(--line-3);
+           font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); }
+  .pager .ctrls button { border: 1px solid var(--line-2); padding: 4px 12px; margin-left: 4px;
+                          font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-2); }
+  .pager .ctrls button:hover { border-color: var(--line); color: var(--ink); }
+  .pager .ctrls button:disabled { color: var(--ink-4); cursor: default; }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="#" class="active">Proposals</a>
+    <a href="#">DAOs</a>
+    <a href="#">Delegates</a>
+    <a href="#">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="#">Kvorum</a><span class="sep">/</span>
+  <span class="id">Proposals</span>
+  <span style="margin-left:auto; color:var(--ink-3);">cross-DAO · last sync 12s ago <span class="dot live" style="margin-left:6px;"></span></span>
+</div>
+
+<main class="props" data-screen-label="Hi-fi · Proposals list">
+
+  <div class="page-head">
+    <div>
+      <h1><span class="num">§6.5</span>Proposals</h1>
+      <div class="lede">Every proposal across tracked DAOs, normalized. Filter by DAO, state, severity. Mismatch flags surface inline.</div>
+    </div>
+    <div class="counts tnum">
+      <b>2,418</b> total · <b>11</b> active · <b>3</b> flagged<br/>
+      <span style="color:var(--ink-3);">indexed across 3 DAOs · 5 governors</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="group">
+      <span class="lbl">DAO</span>
+      <div class="seg">
+        <button class="on">All</button>
+        <button>Compound</button>
+        <button>Aave</button>
+        <button>Lido</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="lbl">State</span>
+      <div class="seg">
+        <button class="on">All</button>
+        <button>Active</button>
+        <button>Queued</button>
+        <button>Passed</button>
+        <button>Defeated</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <span class="lbl">Flag</span>
+      <div class="seg">
+        <button class="on">Any</button>
+        <button>Severe</button>
+        <button>Material</button>
+        <button>Clean</button>
+      </div>
+    </div>
+    <div class="search" style="margin-left:auto;">
+      <span>⌕</span><input placeholder="filter by title, address, calldata…"/><span class="kbd">/</span>
+    </div>
+    <button class="clear">clear ✕</button>
+  </div>
+
+  <!-- Table -->
+  <div class="ptable-wrap">
+    <table class="ptable tnum">
+      <thead><tr>
+        <th style="width: 80px;">ID</th>
+        <th>Proposal</th>
+        <th style="width: 110px;">DAO</th>
+        <th style="width: 100px;">State</th>
+        <th style="width: 240px;">Tally</th>
+        <th style="width: 130px;">Ends / closed <span class="arr">↓</span></th>
+      </tr></thead>
+      <tbody>
+
+        <tr>
+          <td class="id">#247</td>
+          <td>
+            <div class="ttl">Risk parameters update — cUSDC, cDAI</div>
+            <div class="meta">proposer 0x9d…04 · governor · started 2d ago</div>
+            <div class="ai"><span class="mark">AI</span>Tightens collateral factors on stablecoin markets to reduce systemic risk after recent depeg event.</div>
+          </td>
+          <td><span class="pill dao-compound">Compound</span></td>
+          <td><span class="state-pill active">active</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:78%"></i></span><span class="v">78%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:19%"></i></span><span class="v">19%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:3%"></i></span><span class="v">3%</span></div>
+          </td>
+          <td class="when"><span class="live">ends 3h 12m</span><br/><span style="color:var(--ink-3);">2026-05-04 18:14</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">AIP-394</td>
+          <td>
+            <div class="ttl">Onboard rsETH on Ethereum &amp; Arbitrum</div>
+            <div class="meta">proposer 0xab…f1 · governor v3 · 2 payloads · cross-chain</div>
+            <div class="ai"><span class="mark">AI</span>Adds rsETH as collateral with 70% LTV on Ethereum and Arbitrum; enables borrowing against LST exposure.</div>
+          </td>
+          <td><span class="pill dao-aave">Aave</span></td>
+          <td><span class="state-pill active">active</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:92%"></i></span><span class="v">92%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:5%"></i></span><span class="v">5%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:3%"></i></span><span class="v">3%</span></div>
+          </td>
+          <td class="when"><span class="live">ends 1d 4h</span><br/><span style="color:var(--ink-3);">2026-05-05 22:00</span></td>
+        </tr>
+
+        <tr class="flagged">
+          <td class="id">#248</td>
+          <td>
+            <div class="ttl">Update interest-rate curve, cETH market <span class="flag">⚠ mismatch</span></div>
+            <div class="meta">proposer 0x12…aa · governor · binding · timelock 2d</div>
+            <div class="ai"><span class="mark">FLAG</span>Description says "modest tweak"; calldata also re-points an oracle to a new address. <a href="proposal-system.html" style="color:var(--warn); border-bottom:1px solid var(--warn);">See mismatch analysis →</a></div>
+          </td>
+          <td><span class="pill dao-compound">Compound</span></td>
+          <td><span class="state-pill active">active</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:41%"></i></span><span class="v">41%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:52%"></i></span><span class="v">52%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:7%"></i></span><span class="v">7%</span></div>
+          </td>
+          <td class="when"><span class="live">ends 2d 8h</span><br/><span style="color:var(--ink-3);">2026-05-07 02:00</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">#246</td>
+          <td>
+            <div class="ttl">cWBTC migration to v3 market</div>
+            <div class="meta">proposer 0x4f…b2 · governor · binding · timelock 2d</div>
+            <div class="ai"><span class="mark">AI</span>Migrates cWBTC liquidity to the v3 collateral market; deprecates the legacy isolated cWBTC.</div>
+          </td>
+          <td><span class="pill dao-compound">Compound</span></td>
+          <td><span class="state-pill queued">queued</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:88%"></i></span><span class="v">88%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:9%"></i></span><span class="v">9%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:3%"></i></span><span class="v">3%</span></div>
+          </td>
+          <td class="when"><span class="closed">passed 1d ago</span><br/><span style="color:var(--ink-3);">execute by 2026-05-06</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">AIP-388</td>
+          <td>
+            <div class="ttl">Risk parameters update · 3 chains</div>
+            <div class="meta">proposer 0xee…7c · governor v3 · 4 payloads</div>
+            <div class="ai"><span class="mark">AI</span>Adjusts borrow caps and supply caps across Ethereum, Arbitrum, Optimism. No new collateral.</div>
+          </td>
+          <td><span class="pill dao-aave">Aave</span></td>
+          <td><span class="state-pill executed">executed</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:96%"></i></span><span class="v">96%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:2%"></i></span><span class="v">2%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:2%"></i></span><span class="v">2%</span></div>
+          </td>
+          <td class="when"><span class="closed">executed 38m ago</span><br/><span style="color:var(--ink-3);">2026-05-04 13:42</span></td>
+        </tr>
+
+        <tr class="flagged">
+          <td class="id">#244</td>
+          <td>
+            <div class="ttl">Comptroller upgrade <span class="flag" style="color:var(--warn);">⚠ severe</span></div>
+            <div class="meta">proposer 0x8e…11 · governor · binding · executed</div>
+            <div class="ai"><span class="mark">FLAG</span>Calldata re-points an oracle to address <code style="font-family:var(--font-mono); color:var(--ink);">0x4f…b2c</code> not mentioned in proposal text.</div>
+          </td>
+          <td><span class="pill dao-compound">Compound</span></td>
+          <td><span class="state-pill executed">executed</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:73%"></i></span><span class="v">73%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:24%"></i></span><span class="v">24%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:3%"></i></span><span class="v">3%</span></div>
+          </td>
+          <td class="when"><span class="closed">closed 2w ago</span><br/><span style="color:var(--ink-3);">2026-04-18</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">LDO-2034</td>
+          <td>
+            <div class="ttl">Aragon vote: Increase Curve liquidity incentives Q3</div>
+            <div class="meta">aragon · 7d period · binding</div>
+            <div class="ai"><span class="mark">AI</span>Direct +5M LDO toward Curve gauges to defend stETH liquidity vs competing LSTs.</div>
+          </td>
+          <td><span class="pill" style="border-color:#00a3ff;color:#0078c2;">Lido</span></td>
+          <td><span class="state-pill active">active</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:62%"></i></span><span class="v">62%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:26%"></i></span><span class="v">26%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:12%"></i></span><span class="v">12%</span></div>
+          </td>
+          <td class="when"><span class="live">ends 2d 11h</span><br/><span style="color:var(--ink-3);">2026-05-07 05:00</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">AIP-381</td>
+          <td>
+            <div class="ttl">Risk steward update <span class="flag" style="color:var(--note); border-color:var(--note);">⚠ material</span></div>
+            <div class="meta">proposer 0xee…7c · governor v3 · executed</div>
+            <div class="ai"><span class="mark">FLAG</span>Grants risk-steward role to additional address beyond the one named in the description.</div>
+          </td>
+          <td><span class="pill dao-aave">Aave</span></td>
+          <td><span class="state-pill executed">executed</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:81%"></i></span><span class="v">81%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:14%"></i></span><span class="v">14%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:5%"></i></span><span class="v">5%</span></div>
+          </td>
+          <td class="when"><span class="closed">closed 3w ago</span><br/><span style="color:var(--ink-3);">2026-04-11</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">#243</td>
+          <td>
+            <div class="ttl">Adjust borrow rate model — cUSDT</div>
+            <div class="meta">proposer 0x9d…04 · governor · defeated · quorum not met</div>
+            <div class="ai"><span class="mark">AI</span>Proposed lower kink rate; defeated due to dissent from top delegates citing yield drag.</div>
+          </td>
+          <td><span class="pill dao-compound">Compound</span></td>
+          <td><span class="state-pill defeated">defeated</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:31%"></i></span><span class="v">31%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:64%"></i></span><span class="v">64%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:5%"></i></span><span class="v">5%</span></div>
+          </td>
+          <td class="when"><span class="closed">closed 1mo ago</span><br/><span style="color:var(--ink-3);">2026-04-04</span></td>
+        </tr>
+
+        <tr>
+          <td class="id">AIP-376</td>
+          <td>
+            <div class="ttl">GHO bridge to Arbitrum — phase 1</div>
+            <div class="meta">proposer 0xab…f1 · governor v3 · binding · executed</div>
+            <div class="ai"><span class="mark">AI</span>Phase-1 deployment of GHO native bridge with conservative supply cap and revocable admin.</div>
+          </td>
+          <td><span class="pill dao-aave">Aave</span></td>
+          <td><span class="state-pill passed">passed</span></td>
+          <td class="tally">
+            <div class="bar for"><span class="l">For</span><span class="track"><i style="width:89%"></i></span><span class="v">89%</span></div>
+            <div class="bar against"><span class="l">Agst</span><span class="track"><i style="width:7%"></i></span><span class="v">7%</span></div>
+            <div class="bar abstain"><span class="l">Abst</span><span class="track"><i style="width:4%"></i></span><span class="v">4%</span></div>
+          </td>
+          <td class="when"><span class="closed">closed 6w ago</span><br/><span style="color:var(--ink-3);">2026-03-21</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>Showing 1–10 of 2,418</span>
+      <div class="ctrls">
+        <button disabled>← prev</button>
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+        <span style="color: var(--ink-4); margin: 0 6px;">…</span>
+        <button>242</button>
+        <button>next →</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>cross-DAO index · last sync 12s ago</div>
+  <div class="item">2,418 proposals · 5 governors · 3 DAOs</div>
+  <div class="item">build a4f9c2 · kvorum.xyz</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+  document.querySelectorAll('.seg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sibs = btn.parentElement.querySelectorAll('button');
+      sibs.forEach(s => s.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+</script>
+</body>
+</html>

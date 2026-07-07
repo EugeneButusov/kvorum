@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — DAOs</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.6 — DAOs index. Next.js: app/daos/page.module.css */
+  main.daos { max-width: var(--max-page); margin: 0 auto;
+              padding: var(--space-7) var(--gutter) var(--space-16);
+              display: flex; flex-direction: column; gap: 28px; }
+
+  .head { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: end;
+          padding-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
+  .head h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600; letter-spacing: var(--tracking-tight); }
+  .head .lede { margin-top: 8px; color: var(--ink-2); font-size: var(--fs-14); max-width: 60ch; line-height: var(--lh-prose); }
+  .head .stats { display: flex; border: 1px solid var(--line); }
+  .head .stat { padding: 12px 18px; border-right: 1px solid var(--line); min-width: 120px; }
+  .head .stat:last-child { border-right: 0; }
+  .head .stat .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .head .stat .v { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .toolbar { display: flex; gap: 14px; align-items: center; padding: 12px 14px;
+             border: 1px solid var(--line-3); background: var(--bg-2); }
+  .toolbar .seg { display: flex; }
+  .toolbar .seg button { font-family: var(--font-mono); font-size: var(--fs-115); padding: 6px 12px;
+                         border: 1px solid var(--line-2); border-right: 0; background: var(--bg-2); color: var(--ink-2); }
+  .toolbar .seg button:last-child { border-right: 1px solid var(--line-2); }
+  .toolbar .seg button.on { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .toolbar .label { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .toolbar select { font-family: var(--font-mono); font-size: var(--fs-12); padding: 6px 10px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .count { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); }
+
+  /* DAO table */
+  .dao-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+  .dao-tbl thead th { text-align: left; padding: 10px 14px; font-family: var(--font-mono); font-size: var(--fs-105);
+                      font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                      border-bottom: 1px solid var(--line-2); background: var(--bg-2); white-space: nowrap; }
+  .dao-tbl tbody tr { border-bottom: 1px solid var(--line-3); }
+  .dao-tbl tbody tr:hover { background: var(--bg-2); }
+  .dao-tbl tbody td { padding: 12px 14px; vertical-align: middle; }
+  .dao-tbl .name { display: flex; align-items: center; gap: 10px; }
+  .dao-tbl .name .glyph { width: 28px; height: 28px; border: 1px solid var(--line-2); display: grid; place-items: center;
+                          font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 700; }
+  .dao-tbl .name .ttl { font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
+  .dao-tbl .name .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .dao-tbl .grade { font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 700; padding: 3px 9px; border: 1.5px solid; display: inline-block; }
+  .dao-tbl .grade.A { color: var(--accent-ink); background: var(--accent-bg); border-color: var(--accent); }
+  :root[data-theme="dark"] .dao-tbl .grade.A { color: var(--accent); }
+  .dao-tbl .grade.B { color: var(--ink); border-color: var(--line); background: var(--bg-2); }
+  .dao-tbl .grade.C { color: var(--note-ink); background: var(--note-bg); border-color: var(--note); }
+  .dao-tbl .grade.F { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+  .dao-tbl .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .dao-tbl .delegate { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2); }
+  .dao-tbl .delegate small { display: block; color: var(--ink-3); font-size: var(--fs-11); margin-top: 2px; }
+  .dao-tbl .spark { display: flex; align-items: end; gap: 2px; height: 26px; }
+  .dao-tbl .spark i { width: 4px; background: var(--ink); }
+  .dao-tbl .spark i.up { background: var(--accent); }
+  .dao-tbl .spark i.dn { background: var(--ink-3); }
+  .dao-tbl .flags { font-family: var(--font-mono); font-size: var(--fs-11); display: flex; gap: 4px; }
+  .dao-tbl .flags .f { padding: 2px 6px; border: 1px solid; }
+  .dao-tbl .flags .f.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+  .dao-tbl .flags .f.note { color: var(--note-ink); border-color: var(--note); background: var(--note-bg); }
+  .dao-tbl .flags .f.ok   { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-bg); }
+  :root[data-theme="dark"] .dao-tbl .flags .f.ok { color: var(--accent); }
+  .dao-tbl .row-watch { padding: 4px 8px; border: 1px solid var(--line-2); font-family: var(--font-mono);
+                        font-size: var(--fs-11); color: var(--ink-3); cursor: pointer; }
+  .dao-tbl .row-watch:hover { color: var(--ink); border-color: var(--ink); }
+  .dao-tbl .row-watch.on { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .dao-tbl tr.queued { opacity: 0.55; }
+  .dao-tbl tr.queued td:first-child::before { content: "QUEUED"; font-family: var(--font-mono); font-size: var(--fs-10);
+                                              padding: 1px 5px; border: 1px dashed var(--line-2); color: var(--ink-3);
+                                              margin-right: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="#" class="active">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="developer.html">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <span class="id">DAOs</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/daos · 12 tracked · 4 in queue</span>
+</div>
+
+<main class="daos" data-screen-label="Hi-fi · DAOs index">
+
+  <section class="head">
+    <div>
+      <h1>DAOs</h1>
+      <p class="lede">Every DAO Kvorum tracks. Coverage rolls out behind a queue — vote with the watch column, the team prioritizes by demand. Click any row for proposals, health, delegates, treasury.</p>
+    </div>
+    <div class="stats tnum">
+      <div class="stat"><div class="l">Tracked</div><div class="v">12</div></div>
+      <div class="stat"><div class="l">Queued</div><div class="v">4</div></div>
+      <div class="stat"><div class="l">Combined TVL</div><div class="v">$8.4B</div></div>
+      <div class="stat"><div class="l">Open flags</div><div class="v" style="color:var(--warn);">7</div></div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <span class="label">Filter</span>
+    <div class="seg">
+      <button class="on">All 12</button>
+      <button>Tracked</button>
+      <button>Watching</button>
+      <button>Queued</button>
+    </div>
+    <span class="label" style="margin-left:14px;">Sort</span>
+    <select>
+      <option>Health grade</option>
+      <option>TVL</option>
+      <option>Recent activity</option>
+      <option>Open flags</option>
+      <option>Name (A→Z)</option>
+    </select>
+    <span class="spacer"></span>
+    <span class="count">12 results · refreshed 38s ago</span>
+  </div>
+
+  <div class="card" style="padding:0;">
+    <table class="dao-tbl">
+      <thead>
+        <tr>
+          <th></th>
+          <th>DAO</th>
+          <th style="text-align:center;">Health</th>
+          <th style="text-align:right;">TVL</th>
+          <th style="text-align:right;">Treasury</th>
+          <th style="text-align:right;">Particip.</th>
+          <th>Top delegate</th>
+          <th style="text-align:center;">90d activity</th>
+          <th>Flags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><button class="row-watch on">★</button></td>
+          <td><a href="health.html" class="name"><span class="glyph">C</span><span><span class="ttl">Compound</span><span class="sub">cmp · governor bravo</span></span></a></td>
+          <td style="text-align:center;"><span class="grade A">A−</span></td>
+          <td class="num">$2.8B</td>
+          <td class="num">$487M</td>
+          <td class="num">38.4%</td>
+          <td class="delegate">a16z<small>0xa16z…0001 · 12.4%</small></td>
+          <td><div class="spark"><i style="height:30%"></i><i style="height:45%"></i><i class="up" style="height:60%"></i><i style="height:50%"></i><i style="height:65%"></i><i class="up" style="height:80%"></i><i style="height:70%"></i><i class="up" style="height:90%"></i><i style="height:75%"></i><i style="height:60%"></i></div></td>
+          <td><div class="flags"><span class="f warn">2</span></div></td>
+          <td><a href="health.html" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch on">★</button></td>
+          <td><a href="#" class="name"><span class="glyph">U</span><span><span class="ttl">Uniswap</span><span class="sub">uni · gov v2</span></span></a></td>
+          <td style="text-align:center;"><span class="grade A">A</span></td>
+          <td class="num">$3.2B</td>
+          <td class="num">$1.4B</td>
+          <td class="num">42.8%</td>
+          <td class="delegate">L2BEAT<small>0xL2…be · 8.2%</small></td>
+          <td><div class="spark"><i style="height:50%"></i><i style="height:60%"></i><i class="up" style="height:70%"></i><i class="up" style="height:80%"></i><i style="height:75%"></i><i class="up" style="height:90%"></i><i class="up" style="height:95%"></i><i style="height:85%"></i><i class="up" style="height:90%"></i><i class="up" style="height:100%"></i></div></td>
+          <td><div class="flags"><span class="f ok">0</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">A</span><span><span class="ttl">Aave</span><span class="sub">aave · gov v3</span></span></a></td>
+          <td style="text-align:center;"><span class="grade B">B+</span></td>
+          <td class="num">$1.9B</td>
+          <td class="num">$312M</td>
+          <td class="num">31.2%</td>
+          <td class="delegate">ACI<small>0xac…1 · 14.6%</small></td>
+          <td><div class="spark"><i style="height:40%"></i><i class="dn" style="height:30%"></i><i style="height:50%"></i><i style="height:55%"></i><i class="up" style="height:65%"></i><i style="height:55%"></i><i class="up" style="height:75%"></i><i style="height:60%"></i><i style="height:70%"></i><i class="up" style="height:80%"></i></div></td>
+          <td><div class="flags"><span class="f note">1</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">M</span><span><span class="ttl">MakerDAO</span><span class="sub">mkr · executive spell</span></span></a></td>
+          <td style="text-align:center;"><span class="grade C">C</span></td>
+          <td class="num">$5.1B</td>
+          <td class="num">$2.1B</td>
+          <td class="num">14.7%</td>
+          <td class="delegate">PaperImperium<small>ENS: paper.eth · 18.9%</small></td>
+          <td><div class="spark"><i style="height:60%"></i><i class="dn" style="height:40%"></i><i style="height:50%"></i><i class="dn" style="height:35%"></i><i style="height:45%"></i><i class="dn" style="height:30%"></i><i style="height:40%"></i><i style="height:35%"></i><i class="dn" style="height:25%"></i><i style="height:30%"></i></div></td>
+          <td><div class="flags"><span class="f warn">3</span><span class="f note">2</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch on">★</button></td>
+          <td><a href="#" class="name"><span class="glyph">E</span><span><span class="ttl">ENS</span><span class="sub">ens · governor</span></span></a></td>
+          <td style="text-align:center;"><span class="grade A">A−</span></td>
+          <td class="num">$148M</td>
+          <td class="num">$74M</td>
+          <td class="num">35.9%</td>
+          <td class="delegate">brantly.eth<small>ENS · 6.3%</small></td>
+          <td><div class="spark"><i style="height:40%"></i><i style="height:55%"></i><i class="up" style="height:70%"></i><i style="height:60%"></i><i class="up" style="height:75%"></i><i style="height:65%"></i><i class="up" style="height:80%"></i><i style="height:70%"></i><i class="up" style="height:85%"></i><i style="height:75%"></i></div></td>
+          <td><div class="flags"><span class="f ok">0</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">A</span><span><span class="ttl">Arbitrum</span><span class="sub">arb · security council</span></span></a></td>
+          <td style="text-align:center;"><span class="grade B">B</span></td>
+          <td class="num">$0.94B</td>
+          <td class="num">$3.4B</td>
+          <td class="num">19.8%</td>
+          <td class="delegate">Wintermute<small>0x73…cc · 4.1%</small></td>
+          <td><div class="spark"><i style="height:50%"></i><i style="height:55%"></i><i style="height:60%"></i><i class="up" style="height:75%"></i><i class="dn" style="height:50%"></i><i style="height:60%"></i><i class="up" style="height:80%"></i><i style="height:65%"></i><i style="height:70%"></i><i style="height:60%"></i></div></td>
+          <td><div class="flags"><span class="f note">1</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">L</span><span><span class="ttl">Lido</span><span class="sub">ldo · easy track</span></span></a></td>
+          <td style="text-align:center;"><span class="grade B">B+</span></td>
+          <td class="num">$28.4B</td>
+          <td class="num">$214M</td>
+          <td class="num">11.3%</td>
+          <td class="delegate">stETH whale (anon)<small>0x9d…22 · 22.4%</small></td>
+          <td><div class="spark"><i style="height:30%"></i><i style="height:25%"></i><i style="height:30%"></i><i style="height:35%"></i><i style="height:30%"></i><i style="height:40%"></i><i style="height:35%"></i><i style="height:45%"></i><i style="height:40%"></i><i class="up" style="height:55%"></i></div></td>
+          <td><div class="flags"><span class="f warn">1</span><span class="f note">1</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">O</span><span><span class="ttl">Optimism</span><span class="sub">op · token house + citizens</span></span></a></td>
+          <td style="text-align:center;"><span class="grade B">B</span></td>
+          <td class="num">$0.47B</td>
+          <td class="num">$1.8B</td>
+          <td class="num">26.7%</td>
+          <td class="delegate">Linda Xie<small>ENS: lindaxie.eth · 3.8%</small></td>
+          <td><div class="spark"><i style="height:55%"></i><i class="up" style="height:65%"></i><i style="height:60%"></i><i class="up" style="height:75%"></i><i style="height:65%"></i><i style="height:70%"></i><i class="up" style="height:80%"></i><i style="height:70%"></i><i style="height:75%"></i><i class="up" style="height:85%"></i></div></td>
+          <td><div class="flags"><span class="f ok">0</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">G</span><span><span class="ttl">Gitcoin</span><span class="sub">gtc · governor</span></span></a></td>
+          <td style="text-align:center;"><span class="grade C">C+</span></td>
+          <td class="num">$48M</td>
+          <td class="num">$23M</td>
+          <td class="num">22.1%</td>
+          <td class="delegate">Disruption Joe<small>ENS · 9.7%</small></td>
+          <td><div class="spark"><i class="dn" style="height:25%"></i><i style="height:30%"></i><i style="height:35%"></i><i class="dn" style="height:20%"></i><i style="height:30%"></i><i style="height:40%"></i><i style="height:35%"></i><i style="height:30%"></i><i class="up" style="height:50%"></i><i style="height:40%"></i></div></td>
+          <td><div class="flags"><span class="f note">2</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">F</span><span><span class="ttl">Frax</span><span class="sub">fxs · veFXS gauges</span></span></a></td>
+          <td style="text-align:center;"><span class="grade B">B−</span></td>
+          <td class="num">$1.1B</td>
+          <td class="num">$84M</td>
+          <td class="num">29.5%</td>
+          <td class="delegate">samkazemian<small>ENS: sam.eth · 31.2%</small></td>
+          <td><div class="spark"><i style="height:50%"></i><i style="height:55%"></i><i style="height:60%"></i><i style="height:55%"></i><i class="up" style="height:70%"></i><i style="height:65%"></i><i style="height:60%"></i><i style="height:70%"></i><i class="up" style="height:80%"></i><i style="height:75%"></i></div></td>
+          <td><div class="flags"><span class="f warn">1</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">N</span><span><span class="ttl">Nouns</span><span class="sub">nouns · prop house</span></span></a></td>
+          <td style="text-align:center;"><span class="grade A">A−</span></td>
+          <td class="num">$24M</td>
+          <td class="num">$71M</td>
+          <td class="num">52.4%</td>
+          <td class="delegate">noun40.eth<small>ENS · 2.1%</small></td>
+          <td><div class="spark"><i class="up" style="height:75%"></i><i style="height:70%"></i><i class="up" style="height:85%"></i><i style="height:80%"></i><i class="up" style="height:90%"></i><i style="height:75%"></i><i class="up" style="height:95%"></i><i style="height:80%"></i><i class="up" style="height:90%"></i><i style="height:85%"></i></div></td>
+          <td><div class="flags"><span class="f ok">0</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+        <tr>
+          <td><button class="row-watch">+</button></td>
+          <td><a href="#" class="name"><span class="glyph">B</span><span><span class="ttl">Balancer</span><span class="sub">bal · veBAL gauges</span></span></a></td>
+          <td style="text-align:center;"><span class="grade C">C</span></td>
+          <td class="num">$1.04B</td>
+          <td class="num">$36M</td>
+          <td class="num">17.2%</td>
+          <td class="delegate">Karpatkey<small>ENS · 11.4%</small></td>
+          <td><div class="spark"><i class="dn" style="height:30%"></i><i style="height:35%"></i><i class="dn" style="height:25%"></i><i style="height:30%"></i><i style="height:40%"></i><i class="dn" style="height:30%"></i><i style="height:35%"></i><i style="height:40%"></i><i style="height:35%"></i><i style="height:30%"></i></div></td>
+          <td><div class="flags"><span class="f note">2</span></div></td>
+          <td><a href="#" style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--accent);">→</a></td>
+        </tr>
+
+        <tr class="queued">
+          <td></td>
+          <td><span class="name"><span class="glyph">S</span><span><span class="ttl">Safe</span><span class="sub">safe · gov forum only</span></span></span></td>
+          <td style="text-align:center;color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="delegate" style="color:var(--ink-3);">—</td>
+          <td style="color:var(--ink-3); font-family: var(--font-mono); font-size:var(--fs-11);">— · ETA Q3</td>
+          <td><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-3);">request →</span></td>
+          <td></td>
+        </tr>
+        <tr class="queued">
+          <td></td>
+          <td><span class="name"><span class="glyph">D</span><span><span class="ttl">dYdX</span><span class="sub">dydx · cosmos sdk</span></span></span></td>
+          <td style="text-align:center;color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="delegate" style="color:var(--ink-3);">—</td>
+          <td style="color:var(--ink-3); font-family: var(--font-mono); font-size:var(--fs-11);">— · cosmos adapter</td>
+          <td><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-3);">request →</span></td>
+          <td></td>
+        </tr>
+        <tr class="queued">
+          <td></td>
+          <td><span class="name"><span class="glyph">C</span><span><span class="ttl">Curve</span><span class="sub">crv · veCRV gauges</span></span></span></td>
+          <td style="text-align:center;color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="delegate" style="color:var(--ink-3);">—</td>
+          <td style="color:var(--ink-3); font-family: var(--font-mono); font-size:var(--fs-11);">— · ETA Q3</td>
+          <td><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-3);">request →</span></td>
+          <td></td>
+        </tr>
+        <tr class="queued">
+          <td></td>
+          <td><span class="name"><span class="glyph">G</span><span><span class="ttl">GMX</span><span class="sub">gmx · esGMX gauges</span></span></span></td>
+          <td style="text-align:center;color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="num" style="color:var(--ink-3);">—</td>
+          <td class="delegate" style="color:var(--ink-3);">—</td>
+          <td style="color:var(--ink-3); font-family: var(--font-mono); font-size:var(--fs-11);">— · forum-only</td>
+          <td><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-3);">request →</span></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); display: flex; gap: 12px;">
+    <span>★ in watch column = on your watchlist</span>
+    <span>·</span>
+    <span>greyed rows = adapters on the queue, click "request" to upvote</span>
+  </div>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>directory · last refresh 38s ago</div>
+  <div class="item">12 tracked · 4 queued · 7 open flags</div>
+  <div class="item">build a4f9c2 · /daos</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

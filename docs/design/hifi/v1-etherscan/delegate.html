@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — a16z (delegate)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.10 — actor / delegate profile. Next.js: app/delegates/[id]/page.module.css */
+  main.actor { max-width: var(--max-page); margin: 0 auto;
+               padding: var(--space-7) var(--gutter) var(--space-16);
+               display: flex; flex-direction: column; gap: 32px; }
+
+  .head {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center;
+    padding-bottom: var(--space-6); border-bottom: 1px solid var(--line);
+  }
+  .avatar {
+    width: 96px; height: 96px; border: 1.5px solid var(--ink); border-radius: 50%;
+    background: repeating-conic-gradient(var(--ink) 0% 12.5%, var(--bg-2) 12.5% 25%);
+    display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700;
+    font-size: var(--fs-30); color: var(--ink); position: relative; overflow: hidden;
+  }
+  .avatar::before { content: "a16z"; position: absolute; inset: 0; display: grid; place-items: center;
+                    background: var(--bg-2); font-size: var(--fs-20); color: var(--ink); }
+
+  .head h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600; letter-spacing: var(--tracking-tight);
+             display: flex; align-items: baseline; gap: 12px; }
+  .head h1 .verified {
+    font-family: var(--font-mono); font-size: var(--fs-11); padding: 3px 8px;
+    border: 1.5px solid var(--accent); color: var(--accent-ink); background: var(--accent-bg);
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+  }
+  :root[data-theme="dark"] .head h1 .verified { color: var(--accent); }
+  .head .addr { font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink-2); margin-top: 6px;
+                display: flex; gap: 14px; align-items: center; }
+  .head .addr .copy { font-size: var(--fs-11); color: var(--ink-3); border-bottom: 1px dashed var(--line-2); cursor: pointer; }
+  .head .links { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); margin-top: 10px;
+                 display: flex; gap: 16px; flex-wrap: wrap; }
+  .head .links a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+  .head .links a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .head .actions { display: flex; flex-direction: column; gap: 8px; }
+  .head .actions button { font-family: var(--font-mono); font-size: var(--fs-12); padding: 8px 14px;
+                          border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); }
+  .head .actions button.primary { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .head .actions button.primary:hover { color: var(--accent); }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); }
+  .kpis .cell { padding: 14px 18px; border-right: 1px solid var(--line); }
+  .kpis .cell:last-child { border-right: 0; }
+  .kpis .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .kpis .v { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpis .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 2px; }
+
+  /* Per-DAO power table */
+  .power-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+  .power-tbl thead th { text-align: left; padding: 10px 14px; font-family: var(--font-mono); font-size: var(--fs-105);
+                        font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                        border-bottom: 1px solid var(--line-2); background: var(--bg); white-space: nowrap; }
+  .power-tbl tbody tr { border-bottom: 1px dashed var(--line-3); }
+  .power-tbl tbody td { padding: 10px 14px; vertical-align: middle; }
+  .power-tbl .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .power-tbl .track { width: 120px; height: 6px; background: var(--bg-3); position: relative; }
+  .power-tbl .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+  .power-tbl .track i.warn { background: var(--warn); }
+
+  /* Voting record */
+  .record { display: flex; flex-direction: column; }
+  .record .row { display: grid; grid-template-columns: 60px 80px 1fr 90px 110px 28px; gap: 14px;
+                 padding: 10px 14px; border-bottom: 1px dashed var(--line-3); align-items: center;
+                 font-size: var(--fs-13); }
+  .record .row .id { font-family: var(--font-mono); color: var(--ink-3); font-size: var(--fs-12); }
+  .record .row .ttl { color: var(--ink); font-weight: 500; line-height: 1.35; }
+  .record .row .ttl .pill { margin-right: 6px; vertical-align: middle; }
+  .record .row .when { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); text-align: right; }
+  .record .row .arrow { color: var(--ink-3); font-family: var(--font-mono); }
+  .record .row:hover { background: var(--bg-2); }
+  .record .row .rationale-mark {
+    font-family: var(--font-mono); font-size: var(--fs-10); padding: 1px 5px;
+    background: var(--ai-mark); color: var(--ai-bg); font-weight: 700; letter-spacing: 0.06em;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .record .row .rationale-mark::before { content: "△ "; }
+
+  /* Voting patterns AI synthesis */
+  .pattern { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 1px solid var(--line); }
+  .pattern .col { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .pattern .col:last-child { border-right: 0; }
+  .pattern .col .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); margin-bottom: 6px; }
+  .pattern .col .v { font-family: var(--font-mono); font-size: var(--fs-24); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pattern .col .desc { font-size: var(--fs-13); color: var(--ink-2); line-height: 1.5; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="#" class="active">Delegates</a>
+    <a href="developer.html">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="#">Delegates</a><span class="sep">/</span>
+  <span class="id">a16z · 0xa16z…0001</span>
+  <span class="copy" title="Copy address">⎘ copy address</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/delegates/a16z · last vote 3h ago</span>
+</div>
+
+<main class="actor" data-screen-label="Hi-fi · Delegate profile">
+
+  <section class="head">
+    <div class="avatar"></div>
+    <div>
+      <h1>a16z <span class="verified">✓ verified</span></h1>
+      <div class="addr"><code>0xa16z…0001</code><span>·</span><code>ENS: a16z.eth</code><span class="copy">⎘ copy</span></div>
+      <div class="links">
+        <a href="#">a16zcrypto.com ↗</a>
+        <a href="#">@a16zcrypto ↗</a>
+        <a href="#">Karma score 92 ↗</a>
+        <span style="color:var(--ink-3);">·</span>
+        <span>Joined governance 2021-03</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary">★ Watch</button>
+      <button>Delegate to →</button>
+    </div>
+  </section>
+
+  <!-- KPI strip -->
+  <section class="kpis tnum">
+    <div class="cell"><div class="l">Total VP</div><div class="v">$24.8M</div><div class="sub">across 6 DAOs</div></div>
+    <div class="cell"><div class="l">Proposals voted</div><div class="v">412</div><div class="sub">of 458 eligible</div></div>
+    <div class="cell"><div class="l">Particip. rate</div><div class="v" style="color:var(--accent);">90.0%</div><div class="sub">↑ 4pp QoQ</div></div>
+    <div class="cell"><div class="l">w/ rationale</div><div class="v">381</div><div class="sub">92% of votes</div></div>
+    <div class="cell"><div class="l">Forum posts</div><div class="v">87</div><div class="sub">last 90d</div></div>
+  </section>
+
+  <!-- §1 AI synthesis -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">01</span>Voting profile · synthesis</h2>
+      <span class="ref">90-day rolling · 28 votes analyzed</span>
+    </header>
+    <div class="ai-panel" aria-label="AI generated content">
+      <div class="ai-head">
+        <span class="ai-mark">AI</span>
+        <span>Pattern · a16z, 90 days across Compound + Uniswap + Optimism</span>
+        <span class="model">claude · 28 votes · 14 rationales</span>
+      </div>
+      <div class="ai-body" style="padding: 18px 20px;">
+        <p style="margin: 0; color: var(--ink); font-size: var(--fs-14); line-height: var(--lh-prose);">
+          a16z votes consistently with risk-conservative blocs — <b>aligned with Gauntlet 84% of the time</b> on parameter changes, breaking only on
+          long-tail asset onboardings. Frequently cites <b>capital efficiency</b> and <b>cross-protocol externalities</b> in rationales.
+          Posts forum analysis 4–9 days before voting; rarely changes choice once posted. Voted "against" twice on borrow-cap increases that ultimately passed.
+        </p>
+      </div>
+      <div class="pattern" style="border-top: 1px solid var(--line); border-bottom: 0; border-left: 0; border-right: 0;">
+        <div class="col">
+          <div class="l">Most common stance</div>
+          <div class="v">For</div>
+          <div class="desc">87% of votes are For. Against on 9% (mostly borrow-cap increases). Abstain on 4%.</div>
+        </div>
+        <div class="col">
+          <div class="l">Aligned with</div>
+          <div class="v">Gauntlet</div>
+          <div class="desc">84% co-vote rate. Next: Polychain (71%), Robot Ventures (68%).</div>
+        </div>
+        <div class="col">
+          <div class="l">Conflicts</div>
+          <div class="v" style="color: var(--note-ink);">2</div>
+          <div class="desc">Disclosed: portfolio companies on Compound, Uniswap. <a href="#" style="color:var(--accent); border-bottom:1px solid;">view disclosures →</a></div>
+        </div>
+      </div>
+      <div class="ai-foot">
+        <span>inputs: onchain votes · forum posts · self-disclosed conflicts</span>
+        <a href="#">view sources →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- §2 Power across DAOs -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">02</span>Voting power across DAOs</h2>
+      <span class="ref">snapshot at block 21,840,210</span>
+    </header>
+    <div class="card" style="padding:0;">
+      <table class="power-tbl">
+        <thead>
+          <tr><th>DAO</th><th></th><th style="text-align:right;">VP</th><th style="text-align:right;">% of supply</th><th style="text-align:right;">Rank</th><th style="text-align:right;">Last vote</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill dao-compound">Compound</span></td><td><div class="track"><i class="warn" style="width:100%"></i></div></td><td class="num">312.4k COMP</td><td class="num">12.4%</td><td class="num">#1</td><td class="num">3h ago</td></tr>
+          <tr><td><span class="pill dao-uniswap">Uniswap</span></td><td><div class="track"><i style="width:65%"></i></div></td><td class="num">2.41M UNI</td><td class="num">2.4%</td><td class="num">#7</td><td class="num">2d ago</td></tr>
+          <tr><td><span class="pill" style="background: color-mix(in oklab, #FF0420, transparent 90%); color: #FF0420;">Optimism</span></td><td><div class="track"><i style="width:38%"></i></div></td><td class="num">14.2M OP</td><td class="num">1.4%</td><td class="num">#12</td><td class="num">1w ago</td></tr>
+          <tr><td><span class="pill" style="background: color-mix(in oklab, #B6509E, transparent 90%); color: #B6509E;">Aave</span></td><td><div class="track"><i style="width:24%"></i></div></td><td class="num">186k AAVE</td><td class="num">1.2%</td><td class="num">#14</td><td class="num">3w ago</td></tr>
+          <tr><td><span class="pill" style="background: color-mix(in oklab, #5298FF, transparent 90%); color: #5298FF;">ENS</span></td><td><div class="track"><i style="width:18%"></i></div></td><td class="num">412k ENS</td><td class="num">0.9%</td><td class="num">#19</td><td class="num">6w ago</td></tr>
+          <tr><td><span class="pill" style="background: color-mix(in oklab, #28A0F0, transparent 90%); color: #28A0F0;">Arbitrum</span></td><td><div class="track"><i style="width:12%"></i></div></td><td class="num">8.4M ARB</td><td class="num">0.6%</td><td class="num">#28</td><td class="num">8w ago</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- §3 Voting record -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">03</span>Voting record</h2>
+      <span class="ref">last 12 votes · △ = rationale on file</span>
+    </header>
+    <div class="card record" style="padding: 0;">
+      <div class="row">
+        <span class="id">#248</span>
+        <span><span class="vote-tag against">Against</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span>Update interest-rate curve, cETH market<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill active">active</span></span>
+        <span></span>
+        <span class="when">3h ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">#247</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span>Risk parameters update — cUSDC, cDAI<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill active">active</span></span>
+        <span></span>
+        <span class="when">5h ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">UNI-71</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-uniswap">Uniswap</span>Deploy v4 to Base mainnet</span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span></span>
+        <span class="when">2d ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">#246</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span>cWBTC migration to v3 market<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill queued">queued</span></span>
+        <span></span>
+        <span class="when">3d ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">UNI-70</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-uniswap">Uniswap</span>Fee switch — split to UNI stakers (phase 1)<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span></span>
+        <span class="when">1w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">#245</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span>Grants multisig signer rotation</span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span></span>
+        <span class="when">1w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">OP-128</span>
+        <span><span class="vote-tag abstain">Abstain</span></span>
+        <span class="ttl"><span class="pill" style="background: color-mix(in oklab, #FF0420, transparent 90%); color: #FF0420;">Optimism</span>RetroPGF round 5 — citizens' house allocation<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span></span>
+        <span class="when">2w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="id">#244</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span>Comptroller upgrade<span class="rationale-mark">RATIONALE</span></span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span></span>
+        <span class="when">2w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row" style="background: var(--bg-2);">
+        <span class="id"></span>
+        <span></span>
+        <span class="ttl" style="color: var(--ink-3); font-family: var(--font-mono); font-size: var(--fs-12);"><a href="#" style="color:var(--ink-3); border-bottom: 1px solid var(--line-2);">view all 412 votes →</a></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- §4 Forum activity -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">04</span>Forum activity</h2>
+      <span class="ref">last 90 days · synthesized + linked</span>
+    </header>
+    <div class="grid-2" style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;">
+      <div class="card">
+        <header>Recent posts <span class="src">87 in 90d · avg lead time 6.4 days before vote</span></header>
+        <div style="padding: 4px 0;">
+          <div style="padding: 12px 18px; border-bottom: 1px dashed var(--line-3);">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); display: flex; gap: 10px;"><span class="pill dao-compound">Compound</span><span>5 posts · linked → #248</span><span style="margin-left:auto;">3d ago</span></div>
+            <div style="margin-top: 6px; font-size: var(--fs-13); color: var(--ink); line-height: 1.45;">"We see the proposed kink at 92% as a meaningful step toward capital efficiency on cETH but want to flag the borrow-cap interaction — see thread for parameter sweep…"</div>
+          </div>
+          <div style="padding: 12px 18px; border-bottom: 1px dashed var(--line-3);">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); display: flex; gap: 10px;"><span class="pill dao-uniswap">Uniswap</span><span>3 posts · linked → UNI-71</span><span style="margin-left:auto;">2w ago</span></div>
+            <div style="margin-top: 6px; font-size: var(--fs-13); color: var(--ink); line-height: 1.45;">"v4 deployment to Base aligns with our thesis on multi-chain liquidity. Recommend coordinated launch with bridge security audit complete first…"</div>
+          </div>
+          <div style="padding: 12px 18px;">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); display: flex; gap: 10px;"><span class="pill" style="background: color-mix(in oklab, #FF0420, transparent 90%); color: #FF0420;">Optimism</span><span>2 posts · linked → OP-128</span><span style="margin-left:auto;">3w ago</span></div>
+            <div style="margin-top: 6px; font-size: var(--fs-13); color: var(--ink); line-height: 1.45;">"Abstaining: not enough information on retroactive impact metrics. Would welcome a follow-up post-mortem after distributions land…"</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <header>Disclosed conflicts <span class="src">self-reported + Karma matches</span></header>
+        <div style="padding: 14px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="border-left: 2px solid var(--note); padding-left: 10px;">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--note-ink); text-transform: uppercase; letter-spacing: 0.06em;">Compound · portfolio</div>
+            <div style="font-size: var(--fs-13); color: var(--ink); margin-top: 4px;">a16z holds equity in 3 protocols building on Compound v3. Last disclosed 2025-11-12.</div>
+          </div>
+          <div style="border-left: 2px solid var(--note); padding-left: 10px;">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--note-ink); text-transform: uppercase; letter-spacing: 0.06em;">Uniswap · portfolio</div>
+            <div style="font-size: var(--fs-13); color: var(--ink); margin-top: 4px;">a16z holds equity in 5 protocols routing through Uniswap v3 / v4. Last disclosed 2025-11-12.</div>
+          </div>
+          <div style="margin-top: 8px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);">
+            ✓ no undisclosed conflicts detected by Karma cross-check
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>delegate · last activity 3h ago</div>
+  <div class="item">412 votes · 6 DAOs · verified delegate</div>
+  <div class="item">build a4f9c2 · /delegates/a16z</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

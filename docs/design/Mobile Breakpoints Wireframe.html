@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Mobile (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .mobile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; padding: 32px 24px; justify-items: center; }
+  .device {
+    width: 360px;
+    border: 2px solid var(--line); background: var(--paper);
+    box-shadow: 6px 6px 0 0 rgba(0,0,0,0.08);
+    display: grid; grid-template-rows: auto auto 1fr auto;
+  }
+  .device .label {
+    background: var(--ink); color: var(--paper);
+    padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    display: flex; justify-content: space-between;
+  }
+  .device .status {
+    padding: 4px 12px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px;
+    border-bottom: 1.5px solid var(--line); background: var(--paper-2);
+    display: flex; justify-content: space-between; color: var(--ink-2);
+  }
+  .device .topbar {
+    padding: 10px 12px; border-bottom: 1.5px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .device .topbar .logo { border: 1.5px solid var(--line); padding: 3px 8px; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; }
+  .device .topbar .ham { width: 22px; height: 22px; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; }
+  .device .topbar .search-mini { flex: 1; border: 1.5px solid var(--line); padding: 5px 8px; font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+
+  .device .content { padding: 12px; overflow: hidden; }
+  .device .footer-tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1.5px solid var(--line); background: var(--paper-2);
+  }
+  .device .footer-tabs span {
+    padding: 10px 0; text-align: center;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2);
+    border-right: 1px solid var(--line-soft);
+  }
+  .device .footer-tabs span.on { background: var(--ink); color: var(--paper); font-weight: 600; }
+  .device .footer-tabs span:last-child { border-right: 0; }
+
+  .m-prop-card {
+    border: 1.5px solid var(--line); padding: 10px;
+    margin-bottom: 8px; font-size: 12px;
+  }
+  .m-prop-card .meta {
+    display: flex; gap: 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+  .m-prop-card .meta .pill { border: 1px solid var(--line); padding: 1px 5px; font-size: 9.5px; }
+  .m-prop-card h4 { margin: 0 0 5px; font-size: 13px; line-height: 1.3; }
+  .m-prop-card .tally-mini {
+    display: flex; align-items: stretch; gap: 1px; height: 6px; margin-top: 6px;
+    background: var(--ink-4); border: 1px solid var(--line);
+  }
+  .m-prop-card .tally-mini i:first-child { background: var(--ink); }
+  .m-prop-card .tally-mini i:nth-child(2) { background: var(--ink-2); }
+  .m-prop-card .tally-mini i:nth-child(3) { background: var(--ink-4); }
+
+  .m-section-h {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3);
+    margin: 6px 0 6px;
+  }
+
+  .m-banner {
+    background: var(--note-bg); border: 1.5px solid var(--note);
+    padding: 8px 10px; font-size: 11px; margin-bottom: 10px;
+  }
+  .m-banner b { color: var(--note); }
+
+  .m-tally-row {
+    display: grid; grid-template-columns: 50px 1fr auto; gap: 8px; align-items: center;
+    font-size: 11px; padding: 4px 0;
+  }
+  .m-tally-row .bar { height: 8px; border: 1px solid var(--line); position: relative; background: var(--paper); }
+  .m-tally-row .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+  .m-tally-row.against .bar > i { background: var(--ink-2); }
+  .m-tally-row.abstain .bar > i { background: var(--ink-4); }
+  .m-tally-row .num { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; }
+
+  .m-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .m-stat-grid .s {
+    border: 1.5px solid var(--line); padding: 8px;
+  }
+  .m-stat-grid .s .l { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .m-stat-grid .s .v { font-size: 18px; font-weight: 600; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .m-anno {
+    margin-top: 10px; font-size: 10px; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    border-top: 1px dashed var(--line-soft); padding-top: 6px;
+  }
+  .m-anno b { color: var(--ink); }
+
+  .m-ai {
+    border: 1.5px solid var(--line); padding: 10px;
+    background: repeating-linear-gradient(135deg, transparent 0 14px, rgba(0,0,0,0.025) 14px 15px), var(--paper);
+    font-size: 11px; line-height: 1.45; margin-bottom: 10px;
+  }
+  .m-ai .h { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px; }
+
+  .m-action {
+    border: 1.5px solid var(--line); padding: 8px;
+    margin-bottom: 6px; font-size: 11px;
+  }
+  .m-action .who { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10px; color: var(--ink-3); }
+</style>
+</head>
+<body data-wf="mobile">
+
+<div class="page" data-screen-label="12 Mobile breakpoints — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Mobile breakpoints</span>
+    <span class="mono">375 / 414 / 768 · responsive · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div style="padding: 18px 24px; border-bottom: 1.5px solid var(--line); background: var(--paper-2);">
+    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px;">375pt · iPhone 14 / SE / Android equivalents</div>
+    <h1 style="margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em;">Mobile · the three pages that matter</h1>
+    <p style="margin: 0; font-size: 12.5px; color: var(--ink-2);">
+      Homepage, proposal detail, DAO health. Everything else (developer dashboard, API docs)
+      is desktop-first; we render it but don't optimize.
+    </p>
+  </div>
+
+  <div class="mobile-grid">
+
+    <!-- HOMEPAGE -->
+    <div class="device anno" data-anno="375pt · home">
+      <div class="label"><span>Homepage · §6.4</span><span>375 × 812</span></div>
+      <div class="status"><span>9:41</span><span>● ● ●</span></div>
+      <div class="topbar">
+        <div class="ham">≡</div>
+        <div class="logo">KVORUM</div>
+        <div class="search-mini"><span>🔎</span><span>Search</span></div>
+      </div>
+      <div class="content">
+        <div class="m-section-h">Active across DAOs · 14</div>
+        <div class="m-prop-card">
+          <div class="meta"><span class="pill">COMPOUND</span><span class="pill">ACTIVE</span><span style="margin-left:auto;">2d 4h</span></div>
+          <h4>Set IRM v3 for cUSDC market</h4>
+          <div class="tally-mini"><i style="flex:62;"></i><i style="flex:31;"></i><i style="flex:7;"></i></div>
+        </div>
+        <div class="m-prop-card">
+          <div class="meta"><span class="pill">AAVE</span><span class="pill">ACTIVE</span><span style="margin-left:auto;">5h</span></div>
+          <h4>Add wstETH to Polygon market</h4>
+          <div class="tally-mini"><i style="flex:84;"></i><i style="flex:11;"></i><i style="flex:5;"></i></div>
+        </div>
+        <div class="m-prop-card" style="border-color: var(--note);">
+          <div class="meta"><span class="pill" style="background: var(--note); color: var(--paper); border-color: var(--note);">⚠ MISMATCH</span><span class="pill">COMPOUND</span></div>
+          <h4>#246 — undisclosed treasury action</h4>
+          <div style="font-size: 10.5px; color: var(--ink-2); margin-top: 4px;">Calldata diverges from description. Severe.</div>
+        </div>
+
+        <div class="m-section-h">DAO health · snapshot</div>
+        <div class="m-stat-grid">
+          <div class="s"><div class="l">Compound</div><div class="v">B+</div></div>
+          <div class="s"><div class="l">Aave</div><div class="v">A−</div></div>
+        </div>
+      </div>
+      <div class="footer-tabs">
+        <span class="on">Home</span><span>Props</span><span>DAOs</span><span>Search</span>
+      </div>
+    </div>
+
+    <!-- PROPOSAL DETAIL -->
+    <div class="device anno" data-anno="375pt · detail">
+      <div class="label"><span>Proposal detail · §6.9</span><span>375 × 812</span></div>
+      <div class="status"><span>9:41</span><span>● ● ●</span></div>
+      <div class="topbar">
+        <div class="ham">‹</div>
+        <div class="search-mini" style="flex: 1;"><span>compound / #248</span></div>
+        <div class="ham">⋯</div>
+      </div>
+      <div class="content">
+        <div style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px;">
+          Compound · #248 · ACTIVE · ends 2d 4h
+        </div>
+        <h2 style="margin: 0 0 8px; font-size: 17px; line-height: 1.25;">Set IRM v3 for cUSDC market</h2>
+
+        <div class="m-banner" style="background: var(--paper-2); border-color: var(--line);">
+          <b style="color: var(--ink);">No mismatch.</b> Calldata matches description (auto-checked).
+        </div>
+
+        <div class="m-ai">
+          <div class="h">△ AI summary · 0.86 conf</div>
+          Migrates the cUSDC market to IRM v3. Curve params change kink to 80%, base 0%, multiplier 4.5%. Reduces idle yield on protocol reserves.
+        </div>
+
+        <div class="m-section-h">Tally · live</div>
+        <div class="m-tally-row"><span>For</span><span class="bar"><i style="width:62%;"></i></span><span class="num">14.9M</span></div>
+        <div class="m-tally-row against"><span>Against</span><span class="bar"><i style="width:31%;"></i></span><span class="num">7.4M</span></div>
+        <div class="m-tally-row abstain"><span>Abstain</span><span class="bar"><i style="width:7%;"></i></span><span class="num">1.5M</span></div>
+
+        <div class="m-section-h">Actions · 3</div>
+        <div class="m-action">
+          <div class="who">Comptroller._supportMarket</div>
+          cToken=0x39…f8e1 · sets cUSDC market interest model
+        </div>
+        <div class="m-action">
+          <div class="who">cUSDC._setInterestRateModel</div>
+          newInterestRateModel=0xa2…91dc
+        </div>
+      </div>
+      <div class="footer-tabs">
+        <span>Home</span><span class="on">Props</span><span>DAOs</span><span>Search</span>
+      </div>
+    </div>
+
+    <!-- DAO HEALTH -->
+    <div class="device anno" data-anno="375pt · health">
+      <div class="label"><span>DAO health · §6.7</span><span>375 × 812</span></div>
+      <div class="status"><span>9:41</span><span>● ● ●</span></div>
+      <div class="topbar">
+        <div class="ham">‹</div>
+        <div class="logo" style="font-size: 13px;">COMPOUND</div>
+        <div class="ham">⋯</div>
+      </div>
+      <div class="content">
+        <div style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px;">Health snapshot · 90d</div>
+        <div class="m-stat-grid">
+          <div class="s"><div class="l">Grade</div><div class="v">B+</div></div>
+          <div class="s"><div class="l">Active</div><div class="v">7</div></div>
+          <div class="s"><div class="l">Participation</div><div class="v">38.4%</div></div>
+          <div class="s"><div class="l">Flags</div><div class="v" style="color: var(--note);">2</div></div>
+        </div>
+
+        <div class="m-section-h" style="margin-top: 12px;">Activity · 12mo</div>
+        <div style="height: 100px; border: 1.5px dashed var(--line); background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,0.04) 8px 9px), var(--paper); display: flex; align-items: end; justify-content: center; padding: 8px; color: var(--ink-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;">
+          chart · proposals/mo
+        </div>
+
+        <div class="m-section-h">Top delegates</div>
+        <div class="m-action">
+          <div class="who">a16z · 12.4M COMP</div>
+          187 votes · alignment 0.82
+        </div>
+        <div class="m-action">
+          <div class="who">Gauntlet · 4.1M COMP</div>
+          172 votes · alignment 0.91
+        </div>
+
+        <div class="m-section-h">Open flags · 2</div>
+        <div class="m-action" style="border-color: var(--note);">
+          <div class="who" style="color: var(--note);">⚠ #246 · severe</div>
+          Calldata diverges from description.
+        </div>
+      </div>
+      <div class="footer-tabs">
+        <span>Home</span><span>Props</span><span class="on">DAOs</span><span>Search</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tablet -->
+  <div style="padding: 22px 24px;">
+    <div class="section anno" data-anno="768pt · tablet">
+      <header><h2>Tablet · 768pt</h2><span class="ref">two-column reflow rules</span></header>
+      <div class="body" style="font-size: 12.5px; color: var(--ink-2);">
+        <ul style="margin: 0; padding-left: 18px;">
+          <li>Topnav stays full · ⌘K and primary CTAs visible. Hamburger appears below 720pt only.</li>
+          <li>Two-column layouts collapse into stacked single column at 920pt; sidebars become anchored sub-nav at the top of each section.</li>
+          <li>Tables become cards below 720pt. Rows render as a meta-line + headline + tally-bar — exactly the mobile pattern.</li>
+          <li>AI panels keep the hatched background but lose the right-rail provenance footer (folds into the head row).</li>
+          <li>Charts: shrink to 200px tall, x-axis labels every other tick.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="freshness">
+    <span>3 prioritized phone screens · tablet via reflow rules · desktop-first elsewhere</span>
+    <span>375pt minimum hit target 44pt · sticky bottom tab bar · sticky topbar w/ search</span>
+    <span>kvorum.xyz</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>Mobile</b> · only the three browsing-heavy pages (home / detail / health) get bespoke phone treatment. Bottom tab bar replaces the desktop topnav. Tables convert to stacked cards. AI panels stay first-class. Developer dashboard and API docs are usable on phone but not optimized.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

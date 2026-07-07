@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — All Proposals (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+  }
+  .sidebar {
+    border-right: 1.5px solid var(--line);
+    background: var(--paper-2);
+    padding: 16px;
+  }
+  .sidebar h3 {
+    margin: 0 0 6px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+  }
+  .filter-group { padding: 10px 0; border-bottom: 1px dashed var(--line-soft); }
+  .filter-group:last-child { border-bottom: 0; }
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; padding: 3px 0; color: var(--ink);
+  }
+  .check input { accent-color: var(--ink); }
+  .check .count { margin-left: auto; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
+  .toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; padding: 4px 0;
+  }
+  .toggle .sw {
+    width: 28px; height: 14px; border: 1px solid var(--line); position: relative; background: var(--paper);
+  }
+  .toggle .sw::after {
+    content: ""; position: absolute; top: 1px; left: 1px;
+    width: 10px; height: 10px; background: var(--ink-4); transition: left 0.15s;
+  }
+  .toggle.on .sw { background: var(--ink); }
+  .toggle.on .sw::after { left: 15px; background: var(--paper); }
+  .daterange {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;
+  }
+  .daterange input {
+    border: 1px solid var(--line); background: var(--paper);
+    padding: 4px 6px; font-size: 11px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    width: 100%;
+  }
+
+  .listpane { padding: 0; }
+  .listpane .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 24px;
+    border-bottom: 1.5px solid var(--line);
+    background: var(--paper);
+  }
+  .listpane h1 { margin: 0; font-size: 18px; }
+  .listpane .topbar .meta { color: var(--ink-3); font-size: 11.5px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .sort {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+  }
+  .sort select {
+    border: 1px solid var(--line); background: var(--paper);
+    padding: 4px 8px; font-size: 12px;
+  }
+
+  .url-state {
+    padding: 8px 24px;
+    background: var(--note-bg);
+    border-bottom: 1.5px dashed var(--line-soft);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    overflow-x: auto; white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 110px 1fr 100px 120px 200px 120px 60px;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--line-soft);
+    align-items: center;
+    font-size: 12.5px;
+  }
+  .row.head {
+    background: var(--paper-2); border-bottom: 1.5px solid var(--line);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+    font-weight: 500;
+  }
+  .row .ttl { font-weight: 600; line-height: 1.3; }
+  .row .ttl small { display: block; font-weight: normal; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; margin-top: 2px; }
+  .row .state {
+    display: inline-block; border: 1px solid var(--line); padding: 1px 6px;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .row .state.active { background: var(--ink); color: var(--paper); }
+  .row .state.executed { background: var(--paper-2); }
+  .row .state.defeated { background: var(--paper); color: var(--ink-2); }
+  .row .state.succeeded { background: var(--warn-bg); }
+  .row .when { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-2); font-size: 11.5px; }
+  .row .arrow { text-align: right; color: var(--ink-3); }
+  .row .mini-tally {
+    display: grid; grid-template-rows: 1fr; gap: 2px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px;
+  }
+  .row .mini-tally .b {
+    height: 6px; border: 1px solid var(--line); position: relative; background: var(--paper);
+  }
+  .row .mini-tally .b > i {
+    position: absolute; inset: 0 auto 0 0;
+    background: var(--ink);
+  }
+  .row .mini-tally .v { color: var(--ink-2); display: flex; gap: 8px; }
+
+  .infinite {
+    padding: 24px; text-align: center; color: var(--ink-3); font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+</style>
+</head>
+<body data-wf="list">
+
+<div class="page" data-screen-label="02 All proposals — wireframe">
+
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / All proposals (cross-DAO)</span>
+    <span class="mono">/proposals  ·  spec §6.5  ·  lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul>
+      <li>Home</li>
+      <li class="active">Proposals</li>
+      <li>DAOs ▾</li>
+      <li>Developer</li>
+      <li>API Docs ↗</li>
+    </ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color:var(--ink-3); font-size:11px;">⌘K  Search</div>
+  </nav>
+
+  <div class="layout">
+
+    <!-- ── Filter sidebar ──────────────────────────── -->
+    <aside class="sidebar anno" data-anno="§6.5 filters">
+
+      <h3 style="font-size:13px; color:var(--ink); margin-bottom:14px; text-transform: none; letter-spacing: 0; font-weight: 600;">Filters</h3>
+
+      <div class="filter-group">
+        <h3>DAO</h3>
+        <label class="check"><input type="checkbox" checked /> Compound <span class="count">812</span></label>
+        <label class="check"><input type="checkbox" checked /> Aave <span class="count">643</span></label>
+        <label class="check"><input type="checkbox" checked /> Lido <span class="count">963</span></label>
+      </div>
+
+      <div class="filter-group">
+        <h3>State</h3>
+        <label class="check"><input type="checkbox" checked /> Active <span class="count">11</span></label>
+        <label class="check"><input type="checkbox" checked /> Succeeded <span class="count">42</span></label>
+        <label class="check"><input type="checkbox" checked /> Executed <span class="count">1,728</span></label>
+        <label class="check"><input type="checkbox" /> Defeated <span class="count">389</span></label>
+        <label class="check"><input type="checkbox" /> Pending <span class="count">8</span></label>
+        <label class="check"><input type="checkbox" /> Queued <span class="count">3</span></label>
+        <label class="check"><input type="checkbox" /> Canceled <span class="count">94</span></label>
+        <label class="check"><input type="checkbox" /> Expired <span class="count">21</span></label>
+        <label class="check"><input type="checkbox" /> Vetoed <span class="count">2</span></label>
+      </div>
+
+      <div class="filter-group">
+        <h3>Source type</h3>
+        <label class="check"><input type="checkbox" checked /> compound_governor</label>
+        <label class="check"><input type="checkbox" checked /> aave_governor_v3</label>
+        <label class="check"><input type="checkbox" checked /> aragon_voting</label>
+        <label class="check"><input type="checkbox" checked /> snapshot</label>
+        <label class="check"><input type="checkbox" checked /> dual_governance</label>
+      </div>
+
+      <div class="filter-group">
+        <h3>Type</h3>
+        <div class="toggle on"><div class="sw"></div>Binding only</div>
+        <div class="toggle"><div class="sw"></div>Has mismatch flag</div>
+        <div class="toggle"><div class="sw"></div>Has linked forum thread</div>
+      </div>
+
+      <div class="filter-group">
+        <h3>Created</h3>
+        <div class="daterange">
+          <input value="2025-05-04" />
+          <input value="2026-05-04" />
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <button style="width: 100%; border: 1.5px solid var(--line); background: var(--paper); padding: 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer;">
+          Reset filters
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ── List pane ──────────────────────────────── -->
+    <div class="listpane">
+
+      <div class="topbar">
+        <div>
+          <h1>All proposals</h1>
+          <div class="meta">2,418 results · 1,781 after filter</div>
+        </div>
+        <div class="sort">
+          <span class="mono" style="color: var(--ink-3); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em;">sort</span>
+          <select>
+            <option>Voting close time ↓ (default)</option>
+            <option>Voting start time ↓</option>
+            <option>Creation date ↓</option>
+            <option>Vote count ↓</option>
+            <option>VP participating ↓</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="url-state anno" data-anno="§6.5 url state">
+        ?dao=compound,aave,lido&amp;state=active,succeeded,executed&amp;binding=1&amp;sort=close_desc&amp;cursor=eyJpZCI6ICJ4LXkifQ
+      </div>
+
+      <!-- header row -->
+      <div class="row head">
+        <div>DAO</div>
+        <div>Title</div>
+        <div>State</div>
+        <div>Source</div>
+        <div>Tally</div>
+        <div>Voting close</div>
+        <div></div>
+      </div>
+
+      <!-- rows -->
+      <div class="row">
+        <div><span class="pill">Compound</span></div>
+        <div class="ttl">#247 Risk parameters update — cUSDC, cDAI<small>compound_governor · 247</small></div>
+        <div><span class="state active">active</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:78%;"></i></div>
+          <div class="v"><span>For 78%</span><span>Ag 19%</span><span>Ab 3%</span></div>
+        </div>
+        <div class="when">ends 3h 12m</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Compound</span></div>
+        <div class="ttl">#248 Update interest-rate curve, cETH market &nbsp;<span class="sev material">flag</span><small>compound_governor · 248</small></div>
+        <div><span class="state active">active</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:41%;"></i></div>
+          <div class="v"><span>For 41%</span><span>Ag 52%</span><span>Ab 7%</span></div>
+        </div>
+        <div class="when">ends 2d 8h</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Aave</span></div>
+        <div class="ttl">AIP-394 Onboard rsETH on Ethereum &amp; Arbitrum<small>aave_governor_v3 · 394</small></div>
+        <div><span class="state active">active</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor v3</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:92%;"></i></div>
+          <div class="v"><span>For 92%</span><span>Ag 5%</span><span>Ab 3%</span></div>
+        </div>
+        <div class="when">ends 1d 4h</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Lido</span></div>
+        <div class="ttl">[Signaling] Increase Curve liquidity incentives Q3<small>snapshot · 0xab12…</small></div>
+        <div><span class="state active">active</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">snapshot</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:62%;"></i></div>
+          <div class="v"><span>A 62%</span><span>B 26%</span><span>C+D 12%</span></div>
+        </div>
+        <div class="when">ends 2d 11h</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Compound</span></div>
+        <div class="ttl">#246 cWBTC migration<small>compound_governor · 246</small></div>
+        <div><span class="state succeeded">succeeded</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:84%;"></i></div>
+          <div class="v"><span>For 84%</span><span>Ag 14%</span><span>Ab 2%</span></div>
+        </div>
+        <div class="when">queued · timelock 2d</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Compound</span></div>
+        <div class="ttl">#244 Comptroller upgrade &nbsp;<span class="sev severe">severe flag</span><small>compound_governor · 244</small></div>
+        <div><span class="state executed">executed</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:73%;"></i></div>
+          <div class="v"><span>For 73%</span><span>Ag 25%</span><span>Ab 2%</span></div>
+        </div>
+        <div class="when">exec Apr 18</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Aave</span></div>
+        <div class="ttl">AIP-388 Risk parameters Q2 batch<small>aave_governor_v3 · 388</small></div>
+        <div><span class="state executed">executed</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor v3 · 3 chains</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:98%;"></i></div>
+          <div class="v"><span>For 98%</span><span>Ag 1%</span><span>Ab 1%</span></div>
+        </div>
+        <div class="when">exec Apr 28</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Lido</span></div>
+        <div class="ttl">Aragon Vote #2034 Node Operator onboarding batch<small>aragon_voting · 2034</small></div>
+        <div><span class="state executed">executed</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">aragon</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:69%;"></i></div>
+          <div class="v"><span>For 69%</span><span>Ag 28%</span><span>Ab 3%</span></div>
+        </div>
+        <div class="when">exec Apr 26</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Compound</span></div>
+        <div class="ttl">#239 Reserve adjustment &nbsp;<span class="sev material">flag</span><small>compound_governor · 239</small></div>
+        <div><span class="state executed">executed</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:81%;"></i></div>
+          <div class="v"><span>For 81%</span><span>Ag 17%</span><span>Ab 2%</span></div>
+        </div>
+        <div class="when">exec Mar 02</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="row">
+        <div><span class="pill">Aave</span></div>
+        <div class="ttl">AIP-381 Risk steward update<small>aave_governor_v3 · 381</small></div>
+        <div><span class="state executed">executed</span></div>
+        <div class="mono" style="color: var(--ink-2); font-size: 11.5px;">governor v3</div>
+        <div class="mini-tally">
+          <div class="b"><i style="width:88%;"></i></div>
+          <div class="v"><span>For 88%</span><span>Ag 9%</span><span>Ab 3%</span></div>
+        </div>
+        <div class="when">exec Apr 11</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <div class="infinite">
+        — loading next 50 (cursor-paginated) —
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span>List static on load · refresh by re-navigation</span>
+    <span>Filter state encoded in URL (§6.5)</span>
+    <span>kvorum.xyz/proposals</span>
+  </div>
+
+</div>
+
+<div class="legend-card">
+  <b>All proposals (cross-DAO)</b> · single filterable, sortable view. Same component reused for the per-DAO list at <span class="mono">/daos/{slug}/proposals</span> (§6.8) with the DAO filter fixed.
+  <div class="row" style="margin-top:8px; display:flex;">
+    <span><span class="swatch solid"></span> data row</span>
+    <span><span class="swatch dashed"></span> render area</span>
+    <span><span class="swatch note"></span> spec ref</span>
+    <span class="mono">infinite scroll · 50/page · cursor-paginated</span>
+  </div>
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

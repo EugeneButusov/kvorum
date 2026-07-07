@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Design handoff</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="design-system/tokens.css" />
+<link rel="stylesheet" href="design-system/components.css" />
+<style>
+  body { padding-bottom: 80px; }
+  .doc { max-width: 1200px; margin: 0 auto; padding: 56px var(--gutter) 0; }
+  .doc h1 {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-30);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+  }
+  .doc h1 .tag {
+    color: var(--ink-3);
+    font-weight: 500;
+    margin-right: var(--space-3);
+  }
+  .doc .lede {
+    color: var(--ink-2);
+    font-size: var(--fs-16);
+    line-height: var(--lh-prose);
+    max-width: 70ch;
+    margin: 0 0 var(--space-10);
+  }
+
+  .doc h2 {
+    font-family: var(--font-mono);
+    font-size: var(--fs-13);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 48px 0 var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: var(--space-3);
+  }
+  .doc h2 .num { color: var(--ink-3); font-weight: 500; margin-right: 6px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+  }
+
+  a.card-link {
+    display: flex; flex-direction: column; gap: var(--space-2);
+    padding: 18px 20px;
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    transition: border-color var(--t-fast) var(--ease);
+    color: inherit;
+  }
+  a.card-link:hover { border-color: var(--ink); }
+  a.card-link .label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-105);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-mono-loose);
+    color: var(--ink-3);
+    display: flex; align-items: center; gap: var(--space-2);
+  }
+  a.card-link .label .num { color: var(--ink-4); }
+  a.card-link .ttl {
+    font-family: var(--font-mono);
+    font-size: var(--fs-16);
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  a.card-link .desc {
+    font-size: var(--fs-13);
+    color: var(--ink-2);
+    line-height: var(--lh-normal);
+  }
+  a.card-link .file {
+    font-family: var(--font-mono);
+    font-size: var(--fs-11);
+    color: var(--ink-3);
+    margin-top: auto;
+  }
+  a.card-link .arrow {
+    margin-left: auto;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: var(--fs-11);
+  }
+  a.card-link:hover .arrow { color: var(--accent); }
+
+  /* Featured (proposal hi-fi) row */
+  .featured {
+    border: 1.5px solid var(--ink);
+    background: var(--bg-2);
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0;
+    margin-bottom: var(--space-3);
+  }
+  .featured .lhs {
+    padding: 24px 28px;
+    display: flex; flex-direction: column; gap: var(--space-3);
+  }
+  .featured .lhs .label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-105);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-mono-loose);
+    color: var(--ink-3);
+  }
+  .featured h3 {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-24);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .featured p {
+    margin: 0;
+    font-size: var(--fs-14);
+    line-height: var(--lh-prose);
+    color: var(--ink-2);
+  }
+  .featured .actions {
+    margin-top: auto;
+    display: flex; gap: var(--space-2);
+  }
+  .featured .actions a {
+    padding: 8px 14px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-115);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .featured .actions a.primary {
+    background: var(--ink); color: var(--bg-2);
+    border-color: var(--ink);
+  }
+  .featured .actions a.primary:hover { color: var(--accent); }
+  .featured .actions a:hover { border-color: var(--ink); color: var(--ink); }
+  .featured .rhs {
+    border-left: 1px solid var(--line-3);
+    background: var(--bg);
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    min-height: 360px;
+  }
+  .featured .rhs a.preview {
+    display: block;
+    width: 100%; height: 100%;
+    position: absolute; inset: 0;
+  }
+  .featured .rhs img {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: top left;
+  }
+  .featured .rhs .badge {
+    position: absolute; top: var(--space-3); right: var(--space-3);
+    background: var(--ink); color: var(--bg-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-10);
+    padding: 4px 8px;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-mono-loose);
+    pointer-events: none;
+  }
+
+  .meta-strip {
+    display: flex; flex-wrap: wrap; gap: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--fs-115);
+    color: var(--ink-3);
+    margin-top: var(--space-6);
+  }
+  .meta-strip .item { display: flex; align-items: center; gap: var(--space-2); }
+  .meta-strip a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); padding-bottom: 1px; }
+  .meta-strip a:hover { color: var(--ink); border-color: var(--ink); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: 14px var(--gutter);
+    border-bottom: 1px solid var(--line-3);
+    background: var(--bg-2);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .toolbar .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700; font-size: var(--fs-14);
+    letter-spacing: var(--tracking-mono);
+  }
+  .toolbar .brand .glyph {
+    width: 22px; height: 22px;
+    background: var(--ink); color: var(--bg-2);
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 700;
+  }
+  .toolbar .meta {
+    font-family: var(--font-mono); font-size: var(--fs-11);
+    color: var(--ink-3);
+    margin-left: var(--space-3);
+  }
+  .toolbar .right { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; }
+</style>
+</head>
+<body>
+
+<header class="toolbar">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <span class="meta">Design handoff · v0.1 · 2026-05-04</span>
+  <div class="right">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main class="doc">
+  <h1><span class="tag mono">README</span>Kvorum — design handoff</h1>
+  <p class="lede">
+  Multi-DAO governance dashboard. Squared-off, mono-headline, info-dense. AI output is fenced; severity is exactly three colors; borders not shadows. Built to be ported to <span class="mono">Next.js + CSS Modules</span>. 11 primary screens at hi-fi · 3 phones at hi-fi.
+  </p>
+
+  <div class="meta-strip">
+    <span class="item"><span class="dot live"></span>v0.1 · system not yet 1.0</span>
+    <span class="item">Stack: Next.js (App Router) + TypeScript + CSS Modules</span>
+    <span class="item">Fonts: Inter + JetBrains Mono</span>
+  </div>
+
+  <!-- ============================== -->
+  <h2><span class="num">01</span>Start with</h2>
+
+  <div class="grid">
+    <a class="card-link" href="DESIGN-NOTES.md">
+      <span class="label"><span class="num">01.1</span>Conventions <span class="arrow">↗</span></span>
+      <span class="ttl">DESIGN-NOTES.md</span>
+      <span class="desc">Design rationale: token vocabulary, hard visual rules (no shadows, severity = 3 colors, fenced AI output), component naming map. Stack is Tailwind + shadcn per ADR-0077.</span>
+      <span class="file">/DESIGN-NOTES.md</span>
+    </a>
+    <a class="card-link" href="design-system/components.html">
+      <span class="label"><span class="num">01.2</span>Components reference <span class="arrow">↗</span></span>
+      <span class="ttl">Visual reference</span>
+      <span class="desc">Every primitive in the system, rendered with its markup. Open this in a browser to see what the dev team is targeting.</span>
+      <span class="file">/design-system/components.html</span>
+    </a>
+    <a class="card-link" href="HANDOFF.md">
+      <span class="label"><span class="num">01.3</span>Engineering handoff <span class="arrow">↗</span></span>
+      <span class="ttl">HANDOFF.md</span>
+      <span class="desc">Spec → screen map, suggested build order, "porting an HTML mock to Next.js", open questions for design.</span>
+      <span class="file">/HANDOFF.md</span>
+    </a>
+    <a class="card-link" href="design-system/README.md">
+      <span class="label"><span class="num">01.4</span>System rationale <span class="arrow">↗</span></span>
+      <span class="ttl">design-system/README</span>
+      <span class="desc">Why these colors, why mono headings, when to extend the system, versioning.</span>
+      <span class="file">/design-system/README.md</span>
+    </a>
+  </div>
+
+  <!-- ============================== -->
+  <h2><span class="num">02</span>Hi-fi screens</h2>
+  <p class="lede" style="margin-bottom: var(--space-4);">All eleven primary screens fully promoted to hi-fi. Every page consumes <span class="mono">design-system/tokens.css</span> + <span class="mono">design-system/components.css</span> — light/dark theme, squared-off, mono-headline. The proposal detail is the exemplar; everything else inherits its language.</p>
+
+  <div class="featured">
+    <div class="lhs">
+      <span class="label">§6.9 · Proposal detail · #248 Compound</span>
+      <h3>Proposal detail</h3>
+      <p>The exemplar. Top nav, breadcrumb, sticky TOC, AI summary, markdown description, mismatch analysis, action calldata, live tally with quorum, voter table, forum synthesis, similar proposals. Light + dark theme.</p>
+      <div class="actions">
+        <a class="primary" href="hifi/v1-etherscan/proposal-system.html">Open →</a>
+      </div>
+    </div>
+    <div class="rhs">
+      <a class="preview" href="hifi/v1-etherscan/proposal-system.html" title="Open hi-fi">
+        <img src="hifi/v1-etherscan/preview.png" alt="Proposal detail preview" />
+      </a>
+      <span class="badge">live · click to open</span>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top: var(--space-3);">
+    <a class="card-link" href="hifi/v1-etherscan/homepage.html">
+      <span class="label"><span class="num">§6.4</span>Homepage <span class="arrow">↗</span></span>
+      <span class="ttl">Homepage · hi-fi</span>
+      <span class="desc">Cross-DAO entry: live proposals, watchlist, delegate snapshot, search.</span>
+      <span class="file">/hifi/v1-etherscan/homepage.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/proposals.html">
+      <span class="label"><span class="num">§6.5</span>Proposals list <span class="arrow">↗</span></span>
+      <span class="ttl">Proposals · hi-fi</span>
+      <span class="desc">Filterable cross-DAO proposal feed. Feeds into proposal detail.</span>
+      <span class="file">/hifi/v1-etherscan/proposals.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/health.html">
+      <span class="label"><span class="num">§6.7</span>DAO health <span class="arrow">↗</span></span>
+      <span class="ttl">Health dashboard · hi-fi</span>
+      <span class="desc">Per-DAO health: AI takeaways, trends, concentration, treasury, recent activity.</span>
+      <span class="file">/hifi/v1-etherscan/health.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/proposal-system.html">
+      <span class="label"><span class="num">§6.9</span>Proposal detail <span class="arrow">↗</span></span>
+      <span class="ttl">Proposal · hi-fi</span>
+      <span class="desc">Full proposal page consuming the design system. Same as featured above.</span>
+      <span class="file">/hifi/v1-etherscan/proposal-system.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/daos.html">
+      <span class="label"><span class="num">§6.6</span>DAOs directory <span class="arrow">↗</span></span>
+      <span class="ttl">DAO index · hi-fi</span>
+      <span class="desc">Catalogue of supported DAOs with health grade, top delegate, recent activity.</span>
+      <span class="file">/hifi/v1-etherscan/daos.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/delegate.html">
+      <span class="label"><span class="num">§6.10</span>Delegate / actor profile <span class="arrow">↗</span></span>
+      <span class="ttl">Delegate · hi-fi</span>
+      <span class="desc">Per-address voting record, delegated power, rationales, alignment scores.</span>
+      <span class="file">/hifi/v1-etherscan/delegate.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/forum.html">
+      <span class="label"><span class="num">§6.11</span>Forum thread <span class="arrow">↗</span></span>
+      <span class="ttl">Forum view · hi-fi</span>
+      <span class="desc">DAO forum thread embedded with proposal context and AI synthesis.</span>
+      <span class="file">/hifi/v1-etherscan/forum.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/search.html">
+      <span class="label"><span class="num">§6.8</span>Search <span class="arrow">↗</span></span>
+      <span class="ttl">Search results · hi-fi</span>
+      <span class="desc">Cross-entity search: proposals, DAOs, delegates, addresses, txs, calldata.</span>
+      <span class="file">/hifi/v1-etherscan/search.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/api-docs.html">
+      <span class="label"><span class="num">§6.12</span>API docs <span class="arrow">↗</span></span>
+      <span class="ttl">API reference · hi-fi</span>
+      <span class="desc">REST endpoint reference with try-it console, schemas, code samples.</span>
+      <span class="file">/hifi/v1-etherscan/api-docs.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/developer.html">
+      <span class="label"><span class="num">§6.13</span>Developer dashboard <span class="arrow">↗</span></span>
+      <span class="ttl">Developer · hi-fi</span>
+      <span class="desc">API keys, usage charts, webhooks, billing, anomaly watch.</span>
+      <span class="file">/hifi/v1-etherscan/developer.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/auth.html">
+      <span class="label"><span class="num">§6.14</span>Auth <span class="arrow">↗</span></span>
+      <span class="ttl">Sign in / up · hi-fi</span>
+      <span class="desc">Wallet + email auth on a marketing rail. Light theme default.</span>
+      <span class="file">/hifi/v1-etherscan/auth.html</span>
+    </a>
+    <a class="card-link" href="hifi/v1-etherscan/mobile.html">
+      <span class="label"><span class="num">mobile</span>3 phones <span class="arrow">↗</span></span>
+      <span class="ttl">Mobile · hi-fi</span>
+      <span class="desc">Home, proposal detail, DAO health at 390×844. iOS bezels, sticky vote CTA, bottom tab bar.</span>
+      <span class="file">/hifi/v1-etherscan/mobile.html</span>
+    </a>
+  </div>
+
+  <!-- ============================== -->
+  <h2><span class="num">03</span>Wireframes (reference)</h2>
+  <p class="lede" style="margin-bottom: var(--space-4);">
+    All primary screens are now hi-fi (desktop + mobile). These wireframes are kept as a reference for information-architecture decisions and cross-cutting state coverage.
+  </p>
+
+  <div class="grid">
+    <a class="card-link" href="States Wireframe.html">
+      <span class="label"><span class="num">—</span>Empty / error / loading <span class="arrow">↗</span></span>
+      <span class="ttl">State coverage</span>
+      <span class="desc">Cross-cutting empty / loading / error / degraded states for every screen.</span>
+      <span class="file">/States Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Mobile Breakpoints Wireframe.html">
+      <span class="label"><span class="num">—</span>Mobile lo-fi <span class="arrow">↗</span></span>
+      <span class="ttl">Mobile breakpoints (lo-fi)</span>
+      <span class="desc">Original wireframe. Superseded by <span class="mono">hifi/v1-etherscan/mobile.html</span>.</span>
+      <span class="file">/Mobile Breakpoints Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Homepage Wireframe.html">
+      <span class="label"><span class="num">§6.4</span>Homepage <span class="arrow">↗</span></span>
+      <span class="ttl">Homepage</span>
+      <span class="desc">Lo-fi reference. Hi-fi version: <code>/hifi/v1-etherscan/homepage.html</code>.</span>
+      <span class="file">/Homepage Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Proposals List Wireframe.html">
+      <span class="label"><span class="num">§6.5</span>Proposals list <span class="arrow">↗</span></span>
+      <span class="ttl">Proposals · lo-fi</span>
+      <span class="desc">Lo-fi reference. Hi-fi version: <code>/hifi/v1-etherscan/proposals.html</code>.</span>
+      <span class="file">/Proposals List Wireframe.html</span>
+    </a>
+    <a class="card-link" href="DAOs Index Wireframe.html" style="display: none;">
+      <span class="label"><span class="num">§6.6</span>DAOs directory <span class="arrow">↗</span></span>
+      <span class="ttl">DAO index</span>
+      <span class="desc">All tracked DAOs with treasury, participation, recent activity.</span>
+      <span class="file">/DAOs Index Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Search Results Wireframe.html">
+      <span class="label"><span class="num">§6.8</span>Search <span class="arrow">↗</span></span>
+      <span class="ttl">Search results</span>
+      <span class="desc">Cross-entity search with filters by type (proposal, address, DAO).</span>
+      <span class="file">/Search Results Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Actor Profile Wireframe.html">
+      <span class="label"><span class="num">§6.10</span>Delegate / actor profile <span class="arrow">↗</span></span>
+      <span class="ttl">Actor profile</span>
+      <span class="desc">Delegate page: voting power, voting record, rationales, conflicts.</span>
+      <span class="file">/Actor Profile Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Forum Thread Wireframe.html">
+      <span class="label"><span class="num">§6.11</span>Forum thread <span class="arrow">↗</span></span>
+      <span class="ttl">Forum view</span>
+      <span class="desc">Embedded forum thread with synthesized roster + sentiment.</span>
+      <span class="file">/Forum Thread Wireframe.html</span>
+    </a>
+    <a class="card-link" href="API Docs Wireframe.html">
+      <span class="label"><span class="num">§6.12</span>API docs <span class="arrow">↗</span></span>
+      <span class="ttl">API reference</span>
+      <span class="desc">Developer-facing API documentation with try-it-out console.</span>
+      <span class="file">/API Docs Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Developer Dashboard Wireframe.html">
+      <span class="label"><span class="num">§6.13</span>Developer dashboard <span class="arrow">↗</span></span>
+      <span class="ttl">Dev dashboard</span>
+      <span class="desc">API keys, usage charts, webhooks, integrations.</span>
+      <span class="file">/Developer Dashboard Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Auth Pages Wireframe.html">
+      <span class="label"><span class="num">§6.14</span>Auth <span class="arrow">↗</span></span>
+      <span class="ttl">Sign in / up</span>
+      <span class="desc">Email + wallet sign-in, signature flow, error states.</span>
+      <span class="file">/Auth Pages Wireframe.html</span>
+    </a>
+    <a class="card-link" href="States Wireframe.html">
+      <span class="label"><span class="num">—</span>Empty / error / loading <span class="arrow">↗</span></span>
+      <span class="ttl">State coverage</span>
+      <span class="desc">Empty, loading, error, degraded, rate-limited states for every key surface.</span>
+      <span class="file">/States Wireframe.html</span>
+    </a>
+    <a class="card-link" href="Mobile Breakpoints Wireframe.html">
+      <span class="label"><span class="num">—</span>Mobile lo-fi <span class="arrow">↗</span></span>
+      <span class="ttl">Mobile breakpoints (lo-fi)</span>
+      <span class="desc">Phone + tablet layouts for the key screens. Hi-fi version now at <span class="mono">hifi/v1-etherscan/mobile.html</span>.</span>
+      <span class="file">/Mobile Breakpoints Wireframe.html</span>
+    </a>
+  </div>
+
+  <!-- ============================== -->
+  <h2><span class="num">04</span>Design system</h2>
+
+  <div class="grid">
+    <a class="card-link" href="design-system/tokens.css">
+      <span class="label"><span class="num">04.1</span>Tokens <span class="arrow">↗</span></span>
+      <span class="ttl">tokens.css</span>
+      <span class="desc">CSS custom properties: surfaces, ink, lines, accent, severity, type, space, motion. Light + dark theme.</span>
+      <span class="file">/design-system/tokens.css</span>
+    </a>
+    <a class="card-link" href="design-system/components.css">
+      <span class="label"><span class="num">04.2</span>Components <span class="arrow">↗</span></span>
+      <span class="ttl">components.css</span>
+      <span class="desc">Class-based primitives: TopNav, Crumb, Pill, StatePill, VoteTag, AIPanel, Banner, Card, Section, FieldRow, Segmented, ThemeToggle, FreshFooter.</span>
+      <span class="file">/design-system/components.css</span>
+    </a>
+    <a class="card-link" href="design-system/components.html">
+      <span class="label"><span class="num">04.3</span>Reference <span class="arrow">↗</span></span>
+      <span class="ttl">components.html</span>
+      <span class="desc">Browser-rendered visual reference for every primitive, with markup.</span>
+      <span class="file">/design-system/components.html</span>
+    </a>
+  </div>
+
+  <!-- ============================== -->
+  <h2><span class="num">05</span>Spec</h2>
+  <div class="grid">
+    <a class="card-link" href="../SPEC.md">
+      <span class="label"><span class="num">05.1</span>Product spec <span class="arrow">↗</span></span>
+      <span class="ttl">SPEC.md</span>
+      <span class="desc">Source of truth. All §N.N references in handoff materials point here.</span>
+      <span class="file">/docs/SPEC.md</span>
+    </a>
+  </div>
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>design system v0.1 · 2026-05-04</div>
+  <div class="item">DESIGN-NOTES.md + ADR-0077 drive the build</div>
+  <div class="item mono">kvorum / handoff</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>
