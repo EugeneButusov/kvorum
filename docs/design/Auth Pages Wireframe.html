@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Auth Pages (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .auth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; padding: 22px 24px 32px; }
+  .auth-card {
+    border: 1.5px solid var(--line); background: var(--paper);
+    display: grid; grid-template-rows: auto 1fr;
+  }
+  .auth-card > header {
+    background: var(--paper-2); border-bottom: 1.5px solid var(--line);
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .auth-card > header h2 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .auth-card > header .ref { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .auth-card .body { padding: 22px 22px 24px; }
+
+  .auth-card .ttl { font-size: 22px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .auth-card .sub { color: var(--ink-2); font-size: 12.5px; margin-bottom: 18px; }
+
+  .auth-btn {
+    display: flex; align-items: center; gap: 12px;
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 12px 14px; font-size: 13px;
+    width: 100%; text-align: left;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .auth-btn.primary { background: var(--ink); color: var(--paper); }
+  .auth-btn .icon {
+    width: 26px; height: 26px;
+    border: 1.5px solid currentColor; display:inline-flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px;
+  }
+  .auth-btn .meta { margin-left: auto; color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .auth-btn.primary .meta { color: var(--ink-4); }
+
+  .divider {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+    color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 14px 0;
+  }
+  .divider::before, .divider::after { content: ""; height: 1px; background: var(--line-soft); display: block; }
+
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px; }
+  .field input {
+    width: 100%; border: 1.5px solid var(--line); background: var(--paper);
+    padding: 9px 10px; font-size: 13px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .field .hint { font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+
+  .row-between { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--ink-2); margin: 6px 0 14px; }
+
+  .submit {
+    width: 100%; padding: 11px;
+    background: var(--ink); color: var(--paper);
+    border: 1.5px solid var(--line); font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    cursor: pointer;
+  }
+
+  .switch-link {
+    text-align: center; margin-top: 14px; font-size: 12px; color: var(--ink-2);
+  }
+  .switch-link a { text-decoration: underline; color: var(--ink); }
+
+  .siwe-status {
+    border: 1.5px dashed var(--line);
+    padding: 10px 12px; margin-bottom: 12px;
+    font-size: 11.5px; font-family: "JetBrains Mono", ui-monospace, monospace;
+    color: var(--ink-2);
+    background: var(--paper-2);
+  }
+  .siwe-status b { color: var(--ink); }
+
+  .nudge {
+    background: var(--note-bg); border: 1px solid var(--line);
+    padding: 8px 12px; font-size: 11.5px; margin-top: 10px;
+  }
+
+  .reset-token-info {
+    background: var(--paper-2); border: 1px dashed var(--line-soft);
+    padding: 8px 10px; font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px; color: var(--ink-2); margin-bottom: 12px;
+  }
+
+  .pwbar { display: flex; gap: 3px; margin-top: 6px; }
+  .pwbar i { flex: 1; height: 4px; background: var(--ink-4); }
+  .pwbar i.on { background: var(--ink); }
+
+  .full-card { grid-column: 1 / -1; }
+</style>
+</head>
+<body data-wf="auth">
+
+<div class="page" data-screen-label="04 Auth pages — wireframe">
+
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Auth pages</span>
+    <span class="mono">/login · /signup · /forgot-password · /reset-password  ·  spec §6.14  ·  lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul>
+      <li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li>
+    </ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color:var(--ink-3); font-size:11px;">⌘K  Search</div>
+  </nav>
+
+  <div class="auth-grid">
+
+    <!-- LOGIN -->
+    <div class="auth-card anno" data-anno="§6.14 /login">
+      <header><h2>Login</h2><span class="ref">/login · public</span></header>
+      <div class="body">
+        <h3 class="ttl">Sign in</h3>
+        <div class="sub">Access the developer dashboard. Browsing Kvorum doesn't require an account.</div>
+
+        <button class="auth-btn primary">
+          <span class="icon">Ξ</span>
+          <span><b>Connect wallet</b><br/><small style="opacity:0.7;">SIWE · EIP-4361</small></span>
+          <span class="meta">recommended</span>
+        </button>
+
+        <div class="divider"><span>or</span></div>
+
+        <div class="field"><label>Email</label><input value="dev@example.com" /></div>
+        <div class="field"><label>Password</label><input type="password" value="••••••••••••" /></div>
+        <div class="row-between">
+          <span></span><a style="text-decoration:underline; color:var(--ink-2);">Forgot password?</a>
+        </div>
+        <button class="submit">Continue with email</button>
+
+        <div class="switch-link">No account? <a>Sign up</a></div>
+
+        <div class="nudge">
+          <b>No information leakage:</b> failed attempts return a generic error. Rate-limited per IP.
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="auth-card anno" data-anno="§6.14 /signup">
+      <header><h2>Signup</h2><span class="ref">/signup</span></header>
+      <div class="body">
+        <h3 class="ttl">Create account</h3>
+        <div class="sub">SIWE skips email verification — wallet IS the identity. Email path requires a verification link.</div>
+
+        <button class="auth-btn primary">
+          <span class="icon">Ξ</span>
+          <span><b>Connect wallet</b><br/><small style="opacity:0.7;">optional recovery email after</small></span>
+          <span class="meta">recommended</span>
+        </button>
+
+        <div class="divider"><span>or with email</span></div>
+
+        <div class="field"><label>Email</label><input value="" placeholder="you@example.com" /></div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" value="••••••••••••" />
+          <div class="pwbar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+          <div class="hint">min 12 chars · checked against breach corpora · no other rules</div>
+        </div>
+        <div class="field"><label>Confirm password</label><input type="password" /></div>
+
+        <button class="submit">Create account</button>
+
+        <div class="switch-link">Have an account? <a>Sign in</a></div>
+
+        <div class="nudge">
+          No social login. Reasoning: privacy + Web3-native audience already covered by SIWE (§6.14).
+        </div>
+      </div>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div class="auth-card anno" data-anno="§6.14 /forgot-password">
+      <header><h2>Forgot password</h2><span class="ref">/forgot-password</span></header>
+      <div class="body">
+        <h3 class="ttl">Reset link</h3>
+        <div class="sub">Enter your email. We'll send a single-use link if the account exists. SIWE accounts cannot use this flow — sign in with your wallet instead.</div>
+
+        <div class="field"><label>Email</label><input value="dev@example.com" /></div>
+        <button class="submit">Send reset link</button>
+
+        <div class="nudge" style="margin-top:14px;">
+          <b>Same response either way</b> — we don't reveal whether the email is registered.<br/>
+          Token TTL: 24h · single-use · invalidates all sessions on use.
+        </div>
+
+        <div class="siwe-status" style="margin-top:14px;">
+          <b>SIWE-only account detected →</b> "This account uses Sign-In With Ethereum; sign in with your wallet."
+        </div>
+      </div>
+    </div>
+
+    <!-- RESET PASSWORD -->
+    <div class="auth-card anno" data-anno="§6.14 /reset-password">
+      <header><h2>Reset password</h2><span class="ref">/reset-password?token=…</span></header>
+      <div class="body">
+        <h3 class="ttl">Set a new password</h3>
+        <div class="reset-token-info">token=eyJhbGciOiJI…3sfQ &nbsp;·&nbsp; verified &nbsp;·&nbsp; expires in 23h 14m</div>
+
+        <div class="field">
+          <label>New password</label>
+          <input type="password" value="••••••••••••••" />
+          <div class="pwbar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        </div>
+        <div class="field"><label>Confirm</label><input type="password" /></div>
+
+        <button class="submit">Set password &amp; sign in</button>
+
+        <div class="nudge" style="margin-top:14px;">
+          On submit: password updated, all existing sessions invalidated, fresh session started, redirected to <span class="mono">/developer</span>.
+        </div>
+      </div>
+    </div>
+
+    <!-- SIWE WALKTHROUGH -->
+    <div class="auth-card full-card anno" data-anno="§6.14 SIWE flow">
+      <header><h2>SIWE flow · sequence</h2><span class="ref">happens inside "Connect wallet" button</span></header>
+      <div class="body">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+          <div class="auth-btn" style="flex-direction:column; align-items:flex-start; margin:0;">
+            <span class="icon">1</span>
+            <b>Detect wallet</b>
+            <span class="hint" style="font-size:11px; color:var(--ink-3);">Browser EIP-1193 provider · MetaMask, Rabby, Frame, WalletConnect</span>
+          </div>
+          <div class="auth-btn" style="flex-direction:column; align-items:flex-start; margin:0;">
+            <span class="icon">2</span>
+            <b>Request signature</b>
+            <span class="hint" style="font-size:11px; color:var(--ink-3);">Sign EIP-4361 message with nonce, domain, statement</span>
+          </div>
+          <div class="auth-btn" style="flex-direction:column; align-items:flex-start; margin:0;">
+            <span class="icon">3</span>
+            <b>Verify server-side</b>
+            <span class="hint" style="font-size:11px; color:var(--ink-3);">recoverAddress · check nonce single-use · within 5min</span>
+          </div>
+          <div class="auth-btn primary" style="flex-direction:column; align-items:flex-start; margin:0;">
+            <span class="icon">4</span>
+            <b>Session established</b>
+            <span class="hint" style="font-size:11px; color:var(--ink-4);">HttpOnly Secure cookie · 30d · redirect to /developer</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span>Auth-only surface · all other dashboard pages are public</span>
+    <span>Session: HttpOnly + Secure + SameSite=Strict · Redis-backed · 30d default</span>
+    <span>kvorum.xyz/login</span>
+  </div>
+
+</div>
+
+<div class="legend-card">
+  <b>Auth pages</b> · gateway to the only authenticated section (developer dashboard at <span class="mono">/developer</span>). Per §6.14, SIWE is the primary method; email/password is secondary; no social login.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

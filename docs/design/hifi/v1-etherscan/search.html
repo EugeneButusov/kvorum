@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Search</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.8 — search results. Next.js: app/search/page.module.css */
+  main.search { max-width: var(--max-page); margin: 0 auto;
+                padding: var(--space-7) var(--gutter) var(--space-16);
+                display: grid; grid-template-columns: 220px 1fr 280px; gap: 32px; }
+
+  /* big search input */
+  .qbox { grid-column: 1 / -1; padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+  .qbox .input {
+    display: flex; align-items: center; gap: 12px; padding: 18px 22px;
+    border: 1.5px solid var(--ink); background: var(--bg);
+  }
+  .qbox .input span.icon { font-family: var(--font-mono); font-size: var(--fs-20); color: var(--ink); }
+  .qbox .input input {
+    flex: 1; border: 0; outline: none; background: transparent;
+    font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 500; color: var(--ink);
+    letter-spacing: var(--tracking-tight);
+  }
+  .qbox .input .kbd { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                       padding: 3px 8px; border: 1px solid var(--line-2); }
+  .qbox .meta { margin-top: 10px; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); display: flex; gap: 18px; }
+  .qbox .meta b { color: var(--ink); }
+
+  /* Facets */
+  .facets { display: flex; flex-direction: column; gap: 18px; position: sticky; top: var(--space-4); align-self: start; }
+  .facet h4 { margin: 0 0 8px; font-family: var(--font-mono); font-size: var(--fs-105); font-weight: 600;
+              color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .facet ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .facet li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; cursor: pointer;
+              font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2); }
+  .facet li:hover { background: var(--bg-2); }
+  .facet li.on { background: var(--ink); color: var(--bg-2); }
+  .facet li .ck { width: 12px; height: 12px; border: 1px solid currentColor; display: grid; place-items: center; }
+  .facet li.on .ck::before { content: "✓"; font-size: 10px; }
+  .facet li .count { margin-left: auto; opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+  /* Results */
+  .results { display: flex; flex-direction: column; gap: 28px; }
+  .group h3 { margin: 0 0 10px; font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600;
+              color: var(--ink); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+              padding-bottom: 8px; border-bottom: 1px solid var(--line-2); display: flex; align-items: baseline; gap: 14px; }
+  .group h3 .count { font-weight: 500; color: var(--ink-3); }
+  .group h3 a.more { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                     border-bottom: 1px solid var(--line-2); }
+
+  .res-row {
+    display: grid; grid-template-columns: 60px 1fr 110px; gap: 14px; align-items: center;
+    padding: 12px 4px; border-bottom: 1px dashed var(--line-3);
+  }
+  .res-row:last-child { border-bottom: 0; }
+  .res-row .kind { font-family: var(--font-mono); font-size: var(--fs-10); padding: 2px 6px;
+                   border: 1px solid var(--line-2); text-transform: uppercase; letter-spacing: 0.06em;
+                   color: var(--ink-3); justify-self: start; }
+  .res-row .body .ttl { font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .res-row .body .ttl mark { background: var(--ai-mark-soft, var(--accent-bg)); color: var(--accent-ink); padding: 0 2px; font-weight: 700; }
+  :root[data-theme="dark"] .res-row .body .ttl mark { color: var(--accent); }
+  .res-row .body .ttl .pill { vertical-align: middle; margin-right: 6px; }
+  .res-row .body .ctx  { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2); margin-top: 4px;
+                         line-height: 1.45; }
+  .res-row .body .meta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 6px;
+                         display: flex; gap: 12px; }
+  .res-row .when { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+  .res-row:hover { background: var(--bg-2); }
+
+  /* Right rail */
+  .rail { display: flex; flex-direction: column; gap: 18px; position: sticky; top: var(--space-4); align-self: start; }
+  .rail .ai-panel .ai-body { padding: 14px 18px; }
+  .rail .recent { font-family: var(--font-mono); font-size: var(--fs-12); }
+  .rail .recent a { display: flex; gap: 10px; padding: 8px 14px; border-bottom: 1px dashed var(--line-3); color: var(--ink-2); }
+  .rail .recent a:hover { background: var(--bg-2); color: var(--ink); }
+  .rail .recent a:last-child { border-bottom: 0; }
+  .rail .recent a .icn { color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="developer.html">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="homepage.html">Home</a><span class="sep">/</span>
+  <span class="id">Search</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/search?q=cETH+borrow+cap · 24 results · 41 ms</span>
+</div>
+
+<main class="search" data-screen-label="Hi-fi · Search results">
+
+  <section class="qbox" style="grid-column: 1 / -1;">
+    <div class="input">
+      <span class="icon">⌕</span>
+      <input value="cETH borrow cap" />
+      <span class="kbd">↵ to search</span>
+      <span class="kbd">esc</span>
+    </div>
+    <div class="meta">
+      <span><b>24 results</b> · 41 ms</span>
+      <span>·</span>
+      <span>across <b>4 entity types</b></span>
+      <span>·</span>
+      <span>filters: <b>all</b></span>
+      <span style="margin-left: auto;"><a href="#" style="color: var(--ink-2); border-bottom: 1px solid var(--line-2);">copy permalink</a> · <a href="#" style="color: var(--ink-2); border-bottom: 1px solid var(--line-2);">advanced</a></span>
+    </div>
+  </section>
+
+  <!-- LEFT facets -->
+  <aside class="facets">
+    <div class="facet">
+      <h4>Type</h4>
+      <ul>
+        <li class="on"><span class="ck"></span>All <span class="count">24</span></li>
+        <li><span class="ck"></span>Proposals <span class="count">8</span></li>
+        <li><span class="ck"></span>Addresses <span class="count">3</span></li>
+        <li><span class="ck"></span>DAOs <span class="count">2</span></li>
+        <li><span class="ck"></span>Forum threads <span class="count">9</span></li>
+        <li><span class="ck"></span>Transactions <span class="count">2</span></li>
+      </ul>
+    </div>
+
+    <div class="facet">
+      <h4>DAO</h4>
+      <ul>
+        <li class="on"><span class="ck"></span>Compound <span class="count">14</span></li>
+        <li><span class="ck"></span>Aave <span class="count">5</span></li>
+        <li><span class="ck"></span>Uniswap <span class="count">3</span></li>
+        <li><span class="ck"></span>Optimism <span class="count">2</span></li>
+      </ul>
+    </div>
+
+    <div class="facet">
+      <h4>Time</h4>
+      <ul>
+        <li class="on"><span class="ck"></span>All time <span class="count">24</span></li>
+        <li><span class="ck"></span>Last 7 days <span class="count">4</span></li>
+        <li><span class="ck"></span>Last 30 days <span class="count">11</span></li>
+        <li><span class="ck"></span>Last 90 days <span class="count">19</span></li>
+      </ul>
+    </div>
+
+    <div class="facet">
+      <h4>State</h4>
+      <ul>
+        <li><span class="ck"></span>Active <span class="count">3</span></li>
+        <li><span class="ck"></span>Executed <span class="count">9</span></li>
+        <li><span class="ck"></span>Defeated <span class="count">2</span></li>
+        <li><span class="ck"></span>Queued <span class="count">1</span></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- MIDDLE results -->
+  <section class="results">
+
+    <div class="group">
+      <h3>Proposals <span class="count">· 8</span> <a class="more" href="proposals.html">view all in /proposals →</a></h3>
+
+      <a href="proposal-system.html" class="res-row" style="text-decoration: none;">
+        <span class="kind">Proposal</span>
+        <div class="body">
+          <div class="ttl"><span class="pill dao-compound">Compound</span><span class="state-pill active">active</span> #248 — Update interest-rate curve, <mark>cETH</mark> market, kink 92% jump 4.0</div>
+          <div class="ctx">"…the proposal raises kink to 92% but does not adjust <mark>cETH</mark> <mark>borrow</mark> <mark>caps</mark>; at sustained 95% utilization we model 2.4× cap-exhaustion frequency…"</div>
+          <div class="meta"><span>Compound · governor bravo</span><span>·</span><span>ends in 2d 8h</span><span>·</span><span style="color: var(--warn);">⚠ mismatch flag</span></div>
+        </div>
+        <span class="when">3h ago</span>
+      </a>
+
+      <a href="#" class="res-row" style="text-decoration: none;">
+        <span class="kind">Proposal</span>
+        <div class="body">
+          <div class="ttl"><span class="pill dao-compound">Compound</span><span class="state-pill executed">executed</span> #239 — Raise <mark>cETH</mark> <mark>borrow</mark> <mark>cap</mark> from 65k → 78k</div>
+          <div class="ctx">"…temporary measure to accommodate increased borrowing demand on <mark>cETH</mark>; cap will be revisited if utilization sustains above 88%…"</div>
+          <div class="meta"><span>Compound</span><span>·</span><span>For 78% / Against 14%</span></div>
+        </div>
+        <span class="when">3w ago</span>
+      </a>
+
+      <a href="#" class="res-row" style="text-decoration: none;">
+        <span class="kind">Proposal</span>
+        <div class="body">
+          <div class="ttl"><span class="pill" style="background: color-mix(in oklab, #B6509E, transparent 90%); color: #B6509E;">Aave</span><span class="state-pill executed">executed</span> AIP-389 — Update WETH <mark>borrow</mark> <mark>caps</mark>, mainnet</div>
+          <div class="ctx">"…increases supply cap to 1.6M and <mark>borrow</mark> <mark>cap</mark> to 1.4M; mirrors <mark>cETH</mark> changes proposed on Compound earlier this month…"</div>
+          <div class="meta"><span>Aave v3 · mainnet</span><span>·</span><span>For 91%</span></div>
+        </div>
+        <span class="when">5w ago</span>
+      </a>
+    </div>
+
+    <div class="group">
+      <h3>Forum threads <span class="count">· 9</span> <a class="more" href="forum.html">view all →</a></h3>
+
+      <a href="forum.html" class="res-row" style="text-decoration: none;">
+        <span class="kind">Forum</span>
+        <div class="body">
+          <div class="ttl"><span class="pill dao-compound">Compound</span>RFC-12482: Update IR curve, <mark>cETH</mark> market — kink 92%, jump 4.0</div>
+          <div class="ctx">"…a16z flagged a 2.4× <mark>borrow</mark> <mark>cap</mark> exhaustion risk at 95% utilization. Gauntlet acknowledged and is filing a follow-up RFC to raise <mark>cETH</mark> <mark>cap</mark> to 96k…"</div>
+          <div class="meta"><span>14 posts · 9 authors</span><span>·</span><span>linked → #248</span></div>
+        </div>
+        <span class="when">3h ago</span>
+      </a>
+
+      <a href="#" class="res-row" style="text-decoration: none;">
+        <span class="kind">Forum</span>
+        <div class="body">
+          <div class="ttl"><span class="pill dao-compound">Compound</span>RFC-12483: Increase <mark>cETH</mark> <mark>borrow</mark> <mark>cap</mark> 78k → 96k (companion to RFC-12482)</div>
+          <div class="ctx">"…filed by Gauntlet as a follow-up after the <mark>cap</mark>-exhaustion concern raised by a16z; companion to the IR curve update in proposal #248…"</div>
+          <div class="meta"><span>3 posts · 2 authors</span><span>·</span><span>not yet onchain</span></div>
+        </div>
+        <span class="when">2d ago</span>
+      </a>
+
+      <a href="#" class="res-row" style="text-decoration: none;">
+        <span class="kind">Forum</span>
+        <div class="body">
+          <div class="ttl"><span class="pill" style="background: color-mix(in oklab, #B6509E, transparent 90%); color: #B6509E;">Aave</span>WETH <mark>borrow</mark> <mark>cap</mark> historical analysis — comparing across markets</div>
+          <div class="ctx">"…compares <mark>cETH</mark>, aWETH, and stETH <mark>borrow</mark> <mark>cap</mark> regimes across 6 quarters…"</div>
+          <div class="meta"><span>22 posts · 14 authors</span></div>
+        </div>
+        <span class="when">2w ago</span>
+      </a>
+    </div>
+
+    <div class="group">
+      <h3>Addresses <span class="count">· 3</span></h3>
+
+      <a href="delegate.html" class="res-row" style="text-decoration: none;">
+        <span class="kind">Delegate</span>
+        <div class="body">
+          <div class="ttl">a16z (a16z.eth) <span style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); font-weight: 500;">0xa16z…0001</span></div>
+          <div class="ctx">"…matched on 12 forum posts mentioning <mark>cETH</mark> <mark>borrow</mark> <mark>cap</mark> across 90 days. Latest: flagged cap-exhaustion risk on RFC-12482…"</div>
+          <div class="meta"><span>312.4k COMP · 12.4%</span><span>·</span><span>verified delegate</span></div>
+        </div>
+        <span class="when">match</span>
+      </a>
+
+      <a href="#" class="res-row" style="text-decoration: none;">
+        <span class="kind">Contract</span>
+        <div class="body">
+          <div class="ttl"><mark>cETH</mark> · cToken Compound v2 <span style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); font-weight: 500;">0x4ddc…b5</span></div>
+          <div class="ctx">"…current <mark>borrow</mark> <mark>cap</mark> 78,000 ETH · supplied 412,841 ETH · utilization 87.4%…"</div>
+          <div class="meta"><span>Compound v2</span><span>·</span><span>last touched 3h ago</span></div>
+        </div>
+        <span class="when">match</span>
+      </a>
+    </div>
+
+    <div class="group">
+      <h3>DAOs <span class="count">· 2</span></h3>
+
+      <a href="health.html" class="res-row" style="text-decoration: none;">
+        <span class="kind">DAO</span>
+        <div class="body">
+          <div class="ttl"><span class="pill dao-compound">Compound</span>Compound — money markets, governor bravo</div>
+          <div class="ctx">"…active proposals touching <mark>cETH</mark> <mark>borrow</mark> <mark>cap</mark>: 1 (proposal #248) · health grade A−…"</div>
+          <div class="meta"><span>$2.8B TVL · $487M treasury</span></div>
+        </div>
+        <span class="when">match</span>
+      </a>
+    </div>
+
+  </section>
+
+  <!-- RIGHT rail -->
+  <aside class="rail">
+
+    <div class="ai-panel" aria-label="AI generated content">
+      <div class="ai-head">
+        <span class="ai-mark">AI</span>
+        <span>Synthesis</span>
+        <span class="model">claude · 24 results</span>
+      </div>
+      <div class="ai-body">
+        <p style="margin: 0; color: var(--ink); font-size: var(--fs-13); line-height: 1.5;">
+          Across results, the recurring concern is <b>cap-exhaustion at the new IR kink</b>. Two proposals (Compound #248 active, Aave AIP-389 executed) and one forum RFC-12483 (companion cap raise) sit in this cluster.
+          a16z is the most active voice flagging the risk; Gauntlet is the proposer on both.
+        </p>
+      </div>
+      <div class="ai-foot">
+        <span>auto-summarized from search</span>
+        <a href="#">refine →</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <header>Recent searches</header>
+      <div class="recent">
+        <a href="#"><span class="icn">⌕</span>cETH borrow cap</a>
+        <a href="#"><span class="icn">⌕</span>0xa16z…0001</a>
+        <a href="#"><span class="icn">⌕</span>uniswap fee switch</a>
+        <a href="#"><span class="icn">⌕</span>compound governance</a>
+        <a href="#"><span class="icn">⌕</span>retroPGF round 5</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>Tips</header>
+      <div style="padding: 14px 18px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-2); line-height: 1.7;">
+        <div><b>type:</b>proposal · <b>type:</b>delegate</div>
+        <div><b>dao:</b>compound · <b>dao:</b>aave</div>
+        <div><b>state:</b>active · <b>state:</b>executed</div>
+        <div><b>since:</b>2025-01-01</div>
+        <div style="margin-top: 6px; color: var(--ink-3);">paste 0x… or <span style="color:var(--accent);">ENS</span> for direct lookup</div>
+      </div>
+    </section>
+
+  </aside>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>search · 41 ms</div>
+  <div class="item">24 results · 4 entity types · cross-DAO</div>
+  <div class="item">build a4f9c2 · /search</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

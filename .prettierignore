@@ -17,3 +17,6 @@ node_modules/
 coverage/
 *.lock
 pnpm-lock.yaml
+
+# Design reference bundle — hand-authored HTML/CSS/JS mocks kept verbatim (see docs/design/DESIGN-NOTES.md)
+docs/design/

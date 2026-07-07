@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Actor profile (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .actor-head {
+    padding: 22px 24px; border-bottom: 1.5px solid var(--line);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center;
+  }
+  .actor-head .ava {
+    width: 88px; height: 88px;
+    border: 1.5px solid var(--line); background: var(--paper-2);
+    display:flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 28px; font-weight: 700;
+  }
+  .actor-head h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+  .actor-head .addr {
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px;
+    background: var(--paper-2); padding: 3px 8px; border: 1px solid var(--line-soft);
+    display: inline-block; margin-top: 4px;
+  }
+  .actor-head .roles { margin-top: 8px; }
+  .actor-head .quick-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0; border: 1.5px solid var(--line); background: var(--paper);
+  }
+  .actor-head .quick-stats div { padding: 10px 14px; border-right: 1.5px solid var(--line); }
+  .actor-head .quick-stats div:last-child { border-right: 0; }
+  .actor-head .quick-stats .l { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .actor-head .quick-stats .v { font-size: 18px; font-weight: 600; margin-top: 2px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; padding: 22px 24px 32px; }
+  .grid2 .col { display: grid; gap: 22px; align-content: start; }
+
+  .vote-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 90px 100px 1fr;
+    gap: 12px; align-items: center;
+    padding: 10px 12px; border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+  }
+  .vote-row:last-child { border-bottom: 0; }
+  .vote-row .id { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); }
+  .vote-row .ttl { font-weight: 600; }
+  .vote-row .ttl small { display:block; color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  .vote-row .choice { font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+  .vote-row .choice.for { color: var(--ink); }
+  .vote-row .choice.against { color: var(--note); }
+  .vote-row .choice.abstain { color: var(--ink-3); }
+  .vote-row .reason { color: var(--ink-2); font-style: italic; font-size: 11.5px; }
+  .vote-row .reason.empty { color: var(--ink-4); font-style: normal; }
+
+  .alignment-row {
+    display: grid; grid-template-columns: 1fr 90px 1fr 60px;
+    gap: 12px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+  }
+  .alignment-row:last-child { border-bottom: 0; }
+  .alignment-row .who { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .alignment-row .pct { text-align: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
+  .alignment-row .bar {
+    height: 8px; border: 1px solid var(--line); background: var(--paper); position: relative;
+  }
+  .alignment-row .bar > i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+  .alignment-row .n { color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; text-align: right; font-size: 11px; }
+
+  .forum-row {
+    display: grid; grid-template-columns: 80px 1fr 80px;
+    gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+  }
+  .forum-row:last-child { border-bottom: 0; }
+  .forum-row .when { color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
+  .forum-row .ttl { font-weight: 600; }
+  .forum-row .ttl small { display: block; color: var(--ink-3); font-size: 10.5px; }
+  .forum-row .meta { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--ink-2); }
+
+  .power-chart {
+    height: 180px; border: 1.5px dashed var(--line);
+    background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(0,0,0,0.04) 8px 9px), var(--paper);
+    position: relative; padding: 12px;
+  }
+  .power-chart .lbl {
+    position: absolute; bottom: 8px; left: 8px;
+    background: var(--paper); border: 1px solid var(--line);
+    padding: 3px 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body data-wf="actor">
+
+<div class="page" data-screen-label="07 Actor profile — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Actor profile</span>
+    <span class="mono">/actors/{address} · spec §6.10 · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div class="crumb">Kvorum / Compound / Delegates / <b>a16z (0xb1f8…2c4d)</b></div>
+
+  <div class="actor-head">
+    <div class="ava">a16</div>
+    <div>
+      <h1>a16z &nbsp;<span class="tag">delegate</span> <span class="tag">verified</span></h1>
+      <div class="addr">0xb1f8c41a3e95f7a82e9b5dc2c4f7e1d8a3b9c2c4d</div>
+      <div class="roles" style="font-size: 12px; color: var(--ink-2);">
+        ENS: <b>a16zgov.eth</b> · Forum: <b>@a16zcrypto</b> · First seen: 2022-03-14 · Compound · Aave · Uniswap
+      </div>
+    </div>
+    <div class="quick-stats anno" data-anno="§6.10">
+      <div><div class="l">Voting power</div><div class="v">12.4M</div><div style="font-size: 10.5px; color: var(--ink-3);">COMP · 6.2% supply</div></div>
+      <div><div class="l">Votes cast</div><div class="v">187</div><div style="font-size: 10.5px; color: var(--ink-3);">94% turnout</div></div>
+      <div><div class="l">Alignment idx</div><div class="v">0.82</div><div style="font-size: 10.5px; color: var(--ink-3);">forum ↔ vote</div></div>
+    </div>
+  </div>
+
+  <div class="subnav">
+    <a class="active">Overview</a>
+    <a>Voting history</a>
+    <a>Forum activity</a>
+    <a>Delegations</a>
+    <a>Rationales (raw)</a>
+  </div>
+
+  <div class="grid2">
+
+    <div class="col">
+
+      <!-- Voting history -->
+      <div class="section anno" data-anno="§6.10 voting">
+        <header>
+          <h2>Voting history · last 12</h2>
+          <div class="controls">
+            <span class="lbl">DAO</span>
+            <div class="grp"><span class="on">All</span><span>Compound</span><span>Aave</span></div>
+          </div>
+        </header>
+        <div class="body" style="padding: 0;">
+          <div class="vote-row">
+            <span class="id">#248</span>
+            <div class="ttl">Set IRM v3 for cUSDC<small>Compound · 2h ago</small></div>
+            <span class="choice for">For</span>
+            <span class="mono" style="font-size: 11px;">12.4M</span>
+            <span class="reason">"Aligned with our risk framework, supports modeled APY range"</span>
+          </div>
+          <div class="vote-row">
+            <span class="id">#246</span>
+            <div class="ttl">Reduce reserve factor cETH<small>Compound · 5d ago · ⚠ flagged</small></div>
+            <span class="choice against">Against</span>
+            <span class="mono" style="font-size: 11px;">12.4M</span>
+            <span class="reason">"Calldata included an undisclosed treasury transfer; cannot support"</span>
+          </div>
+          <div class="vote-row">
+            <span class="id">#245</span>
+            <div class="ttl">Add wstETH market<small>Compound · 8d ago</small></div>
+            <span class="choice for">For</span>
+            <span class="mono" style="font-size: 11px;">12.4M</span>
+            <span class="reason empty">— no rationale —</span>
+          </div>
+          <div class="vote-row">
+            <span class="id">#412</span>
+            <div class="ttl">aUSDT ceiling raise<small>Aave · 12d ago</small></div>
+            <span class="choice for">For</span>
+            <span class="mono" style="font-size: 11px;">1.1M</span>
+            <span class="reason">"Standard parameter update, conforms to risk team analysis"</span>
+          </div>
+          <div class="vote-row">
+            <span class="id">#244</span>
+            <div class="ttl">Sunset legacy v2 markets<small>Compound · 18d ago</small></div>
+            <span class="choice abstain">Abstain</span>
+            <span class="mono" style="font-size: 11px;">12.4M</span>
+            <span class="reason">"Conflict — we hold positions in two of the markets being sunset"</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voting power over time -->
+      <div class="section anno" data-anno="§6.10 power-over-time">
+        <header><h2>Voting power · 12 months</h2><span class="ref">delegations in/out · across DAOs</span></header>
+        <div class="body">
+          <div class="power-chart">
+            <div class="lbl">stacked area · COMP / AAVE / UNI · big jump 2025-11 (delegation from foundation treasury)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forum activity -->
+      <div class="section anno" data-anno="§6.10 forum">
+        <header><h2>Forum activity · recent</h2><span class="ref">linked via attestations + heuristic match (§6.18)</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="forum-row">
+            <span class="when">2h ago</span>
+            <div class="ttl">Re: IRM v3 — modeling assumptions<small>Compound forum · 14 replies</small></div>
+            <span class="meta">+8 likes</span>
+          </div>
+          <div class="forum-row">
+            <span class="when">3d ago</span>
+            <div class="ttl">Notice on cETH calldata mismatch<small>Compound forum · author · 38 replies</small></div>
+            <span class="meta">+44 likes</span>
+          </div>
+          <div class="forum-row">
+            <span class="when">9d ago</span>
+            <div class="ttl">Risk thread: wstETH listing<small>Compound forum · 6 replies</small></div>
+            <span class="meta">+12 likes</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col">
+
+      <!-- Voting bias -->
+      <div class="section anno" data-anno="§6.10 alignment">
+        <header><h2>Alignment with peers</h2><span class="ref">% votes cast on same side</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="alignment-row">
+            <span class="who">Gauntlet</span><span class="pct">88%</span>
+            <span class="bar"><i style="width: 88%;"></i></span><span class="n">152/172</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">Robert.eth</span><span class="pct">71%</span>
+            <span class="bar"><i style="width: 71%;"></i></span><span class="n">122/172</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">Tennis Finance</span><span class="pct">67%</span>
+            <span class="bar"><i style="width: 67%;"></i></span><span class="n">115/172</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">PaperImperium</span><span class="pct">22%</span>
+            <span class="bar"><i style="width: 22%;"></i></span><span class="n">38/172</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI-summarized voting style -->
+      <div class="ai-panel anno" data-anno="§6.18 AI">
+        <div class="head">
+          <span class="ai-mark">AI summary · voting style</span>
+          <span class="mono" style="color: var(--ink-3);">refreshed weekly</span>
+        </div>
+        <div class="body">
+          Votes consistently on parameter updates that align with their public risk framework.
+          Notably willing to flag and vote against proposals where on-chain calldata diverges
+          from forum description (3 cases in last 90d). Abstains when holding positions in
+          affected markets — 5 abstentions on conflict grounds.
+        </div>
+        <div class="foot">
+          <span>haiku-4-5 · 1.4k tokens · v3</span>
+          <span>cited 22 votes · 14 forum posts</span>
+        </div>
+      </div>
+
+      <!-- Delegations -->
+      <div class="section">
+        <header><h2>Delegators · 248</h2><span class="ref">accounts that delegated TO this actor</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="alignment-row">
+            <span class="who">0xa1…f3e2</span><span class="pct">3.2M</span>
+            <span class="bar"><i style="width: 26%;"></i></span><span class="n">26%</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">treasury.eth</span><span class="pct">2.8M</span>
+            <span class="bar"><i style="width: 22%;"></i></span><span class="n">22%</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">0xc8…1b9d</span><span class="pct">1.4M</span>
+            <span class="bar"><i style="width: 11%;"></i></span><span class="n">11%</span>
+          </div>
+          <div class="alignment-row">
+            <span class="who">+ 245 more</span><span class="pct">5.0M</span>
+            <span class="bar"><i style="width: 41%;"></i></span><span class="n">41%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Identity -->
+      <div class="section">
+        <header><h2>Identity</h2><span class="ref">verified handles</span></header>
+        <div class="body" style="display: grid; gap: 6px; font-size: 12.5px;">
+          <div style="display: flex; justify-content: space-between;"><span>ENS</span><b class="mono">a16zgov.eth</b></div>
+          <div style="display: flex; justify-content: space-between;"><span>Forum</span><b>@a16zcrypto</b></div>
+          <div style="display: flex; justify-content: space-between;"><span>Twitter</span><b>@a16zcrypto</b></div>
+          <div style="display: flex; justify-content: space-between;"><span>Web</span><b>a16zcrypto.com</b></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot ok"></span>Fresh · synced 38s ago</span>
+    <span>identity attestations + heuristic forum-handle match (§6.18)</span>
+    <span>kvorum.xyz/actors/0xb1f8…2c4d</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>Actor profile</b> · single voter / delegate page (§6.10). Header carries the cross-DAO voting power; tabs split overview / voting / forum / delegations. Right column: peer alignment, AI voting-style summary, delegators, identity attestations. Each vote row exposes the rationale text inline so you can scan stance without clicking.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

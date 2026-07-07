@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Proposal Detail (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 0;
+  }
+  .anchor-nav {
+    border-right: 1.5px solid var(--line);
+    background: var(--paper-2);
+    padding: 16px 0;
+    position: sticky; top: 0; align-self: start;
+    height: fit-content;
+  }
+  .anchor-nav h3 {
+    margin: 0 16px 10px; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+  }
+  .anchor-nav a {
+    display: block; padding: 7px 16px; font-size: 12.5px; color: var(--ink-2);
+    border-left: 3px solid transparent;
+  }
+  .anchor-nav a.active { color: var(--ink); font-weight: 600; border-left-color: var(--ink); background: var(--paper); }
+  .anchor-nav .num { color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10px; margin-right: 6px; }
+
+  .detail-content {
+    padding: 0 24px 32px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+
+  /* Proposal header */
+  .p-header {
+    border-bottom: 1.5px solid var(--line);
+    padding: 22px 0 18px;
+    margin-bottom: 0;
+  }
+  .p-header .meta-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-size: 11.5px; color: var(--ink-2);
+  }
+  .p-header h1 {
+    margin: 8px 0 6px;
+    font-size: 26px; line-height: 1.25; letter-spacing: -0.01em;
+    text-wrap: pretty;
+  }
+  .p-header .source {
+    color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px;
+  }
+  .p-header .ext-link {
+    margin-left: auto;
+    border: 1px solid var(--line);
+    padding: 4px 10px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .p-header .flag-banner {
+    margin-top: 14px;
+    border: 1.5px solid var(--line);
+    background: var(--note-bg);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12.5px;
+  }
+  .p-header .flag-banner .arrow {
+    margin-left: auto; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  /* Description block */
+  .description {
+    border: 1.5px solid var(--line); background: var(--paper);
+    max-height: 280px; overflow: hidden; position: relative;
+    padding: 14px 16px;
+    font-size: 13px; line-height: 1.55;
+    color: var(--ink);
+  }
+  .description::after {
+    content: ""; position: absolute; left:0; right:0; bottom:0; height: 60px;
+    background: linear-gradient(to bottom, transparent, var(--paper));
+  }
+  .description h4 { margin: 0 0 6px; font-size: 13px; }
+  .description p { margin: 0 0 8px; }
+  .desc-toggle {
+    text-align: center; padding: 8px;
+    border-top: 1px dashed var(--line-soft); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2);
+  }
+
+  /* Mismatch analysis */
+  .mismatch-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .mismatch-box {
+    border: 1px solid var(--line); padding: 10px 12px; background: var(--paper);
+  }
+  .mismatch-box h4 {
+    margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+  }
+  .mismatch-box ul { margin: 0; padding-left: 18px; font-size: 12px; }
+  .mismatch-box ul li { margin-bottom: 4px; }
+  .discrepancy {
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    margin-top: 10px;
+    background: var(--note-bg);
+  }
+  .discrepancy .h { display: flex; gap: 8px; align-items: center; font-size: 11.5px; margin-bottom: 4px; }
+
+  /* Action card */
+  .action-card {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    margin-bottom: 10px;
+  }
+  .action-card .ah {
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--line);
+    padding: 8px 12px;
+    display: flex; gap: 12px; align-items: center;
+    font-size: 11.5px;
+  }
+  .action-card .ah .idx {
+    border: 1px solid var(--line); padding: 1px 6px; font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .action-card .ah .chain {
+    margin-left: auto; color: var(--ink-2); font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .action-card .ab { padding: 10px 12px; font-size: 12px; }
+  .action-card .field { display: grid; grid-template-columns: 130px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line-soft); }
+  .action-card .field:last-child { border-bottom: 0; }
+  .action-card .field .k { color: var(--ink-3); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; padding-top: 2px; }
+  .action-card .field .v { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; word-break: break-all; }
+
+  /* Tally section */
+  .tally-grid {
+    display: grid; grid-template-columns: 2fr 1fr; gap: 18px;
+  }
+  .quorum-bar {
+    display: grid; grid-template-rows: auto auto; gap: 4px; margin-top: 12px;
+  }
+  .quorum-bar .b {
+    height: 14px; border: 1px solid var(--line); position: relative; background: var(--paper);
+  }
+  .quorum-bar .b > i {
+    position: absolute; inset: 0 auto 0 0; background:
+    repeating-linear-gradient(45deg, var(--ink) 0 4px, var(--paper-2) 4px 5px);
+  }
+  .quorum-bar .b > .threshold {
+    position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--note);
+  }
+  .tally-stats {
+    border: 1px solid var(--line); padding: 12px;
+    font-size: 12px;
+    background: var(--paper);
+  }
+  .tally-stats .s { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--line-soft); }
+  .tally-stats .s:last-child { border-bottom: 0; }
+  .tally-stats .s b { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 500; }
+
+  /* Voters table */
+  .voters-controls {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 0; font-size: 11.5px;
+    border-bottom: 1px dashed var(--line-soft); margin-bottom: 8px;
+  }
+  .voters-controls input {
+    border: 1px solid var(--line); background: var(--paper);
+    padding: 4px 8px; font-size: 11.5px; min-width: 200px;
+  }
+
+  /* Similar */
+  .similar-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  }
+  .similar-card {
+    border: 1px solid var(--line); padding: 10px 12px; background: var(--paper);
+    display: grid; grid-template-rows: auto auto auto; gap: 4px;
+  }
+  .similar-card .top { display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .similar-card .ttl { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .similar-card .meta { font-size: 11px; color: var(--ink-2); display: flex; justify-content: space-between; }
+  .similar-card .score { font-family: "JetBrains Mono", ui-monospace, monospace; }
+</style>
+</head>
+<body data-wf="detail">
+
+<div class="page" data-screen-label="03 Proposal detail — wireframe">
+
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Proposal detail</span>
+    <span class="mono">/daos/compound/proposals/compound_governor/248  ·  spec §6.9  ·  lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul>
+      <li>Home</li>
+      <li class="active">Proposals</li>
+      <li>DAOs ▾</li>
+      <li>Developer</li>
+      <li>API Docs ↗</li>
+    </ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color:var(--ink-3); font-size:11px;">⌘K  Search</div>
+  </nav>
+
+  <div class="crumb">DAOs &nbsp;›&nbsp; <b>Compound</b> &nbsp;›&nbsp; Proposals &nbsp;›&nbsp; #248</div>
+
+  <div class="layout">
+
+    <!-- Anchored sub-nav -->
+    <nav class="anchor-nav anno" data-anno="§6.9 anchored sub-nav">
+      <h3>On this page</h3>
+      <a class="active"><span class="num">01</span>Summary</a>
+      <a><span class="num">02</span>Description</a>
+      <a><span class="num">03</span>Mismatch</a>
+      <a><span class="num">04</span>Actions</a>
+      <a><span class="num">05</span>Tally</a>
+      <a><span class="num">06</span>Voters</a>
+      <a><span class="num">07</span>Forum</a>
+      <a><span class="num">08</span>Similar</a>
+    </nav>
+
+    <div class="detail-content">
+
+      <!-- Header -->
+      <div class="p-header anno" data-anno="§6.9 header">
+        <div class="meta-row">
+          <span class="pill">Compound</span>
+          <span class="pill">governor</span>
+          <span class="state mono" style="border:1px solid var(--line); padding:1px 6px; background:var(--ink); color:var(--paper); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">active</span>
+          <span class="source">compound_governor · 248</span>
+          <span style="color:var(--ink-3);">started 2d ago · ends in 2d 8h</span>
+          <a class="ext-link">view on tally ↗</a>
+        </div>
+        <h1>#248 Update interest-rate curve, cETH market</h1>
+        <div class="meta-row">
+          <span>Proposed by <b style="color:var(--ink);">delegate.eth</b> <span class="mono" style="color:var(--ink-3);">0x12…aa</span></span>
+          <span>·</span>
+          <span>VP @ block <span class="mono">19,854,210</span></span>
+        </div>
+        <div class="flag-banner">
+          <span class="sev material">material</span>
+          <strong>Discrepancy detected</strong>
+          <span style="color:var(--ink-2);">Calldata also re-points an oracle to a new address not mentioned in the description. <span class="mono" style="color:var(--ink-3);">medium confidence</span></span>
+          <span class="arrow">↓ jump to mismatch ↓</span>
+        </div>
+      </div>
+
+      <!-- 1. Summary (AI) -->
+      <div class="anno" data-anno="§6.9 summary (AI)">
+        <header style="background:var(--paper-2); border:1.5px solid var(--line); border-bottom:0; padding:12px 16px; display:flex; justify-content:space-between; align-items:baseline;">
+          <h2 style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:0.02em;">01 · Summary</h2>
+          <span class="ref" style="font-size:10.5px; color:var(--ink-3); letter-spacing:0.08em; text-transform:uppercase;">AI · structured fields</span>
+        </header>
+        <div class="ai-panel" style="border-top:0;">
+          <div class="head">
+            <span class="ai-mark">Summary by Kvorum</span>
+            <span style="text-transform:none; letter-spacing:0; color:var(--ink-3); font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10.5px;">model claude-haiku-4-5 · gen 4h ago · view source ↗</span>
+          </div>
+          <div class="body">
+            <p style="margin:0 0 10px;"><b>TL;DR.</b> Lowers the kink point on the cETH interest-rate curve from 80% to 70% utilization, increasing borrow rates earlier under high demand. Side-effect: re-points the cETH oracle to a new feed.</p>
+            <div style="display:grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-size:12px;">
+              <div style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">Type</div><div>Parameter change · binding</div>
+              <div style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">Affected</div><div class="mono">cETH market · Comptroller</div>
+              <div style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">Key change</div><div>Kink 80% → 70%; jumpRate 109% → 130%</div>
+              <div style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">Beneficiaries</div><div>Suppliers in high-utilization regimes</div>
+              <div style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">Funding</div><div>—</div>
+            </div>
+          </div>
+          <div class="foot"><span>provenance disclosed on click</span><span>view source ↗</span></div>
+        </div>
+      </div>
+
+      <!-- 2. Description -->
+      <div class="section anno" data-anno="§6.9 description">
+        <header><h2>02 · Description</h2><span class="ref">source of truth · markdown</span></header>
+        <div class="description">
+          <h4>Update interest-rate curve, cETH market</h4>
+          <p>This proposal updates the interest-rate model on the cETH market to better respond to high-utilization periods. Recent observations show that during stress events, utilization climbed past 90% with insufficient rate response, leading to thin available liquidity for redemptions.</p>
+          <p>The proposed change lowers the kink point from 80% to 70% and increases the jump multiplier so that borrow rates rise more steeply once the kink is crossed. This is a modest tweak to align with parameters used in similar markets across the protocol.</p>
+          <p>No other parameters of the cETH market are affected by this proposal. Risk has been reviewed by Gauntlet and the Risk WG.</p>
+        </div>
+        <div class="desc-toggle">↓ expand full description (3,212 words) ↓</div>
+      </div>
+
+      <!-- 3. Mismatch analysis -->
+      <div class="anno" data-anno="§6.9 mismatch (AI)">
+        <header style="background:var(--paper-2); border:1.5px solid var(--line); border-bottom:0; padding:12px 16px; display:flex; justify-content:space-between; align-items:baseline;">
+          <h2 style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:0.02em;">03 · Mismatch analysis</h2>
+          <span><span class="sev material">material</span> <span style="color:var(--ink-3); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; margin-left:6px;">medium confidence</span></span>
+        </header>
+        <div class="ai-panel" style="border-top:0;">
+          <div class="head">
+            <span class="ai-mark">Mismatch detector by Kvorum</span>
+            <span style="text-transform:none; letter-spacing:0; color:var(--ink-3); font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10.5px;">model claude-sonnet-4-5 · gen 4h ago</span>
+          </div>
+          <div class="body">
+            <div class="mismatch-grid">
+              <div class="mismatch-box">
+                <h4>Description claims</h4>
+                <ul>
+                  <li>Lower kink from 80% → 70%</li>
+                  <li>Increase jump multiplier</li>
+                  <li>"No other parameters … are affected"</li>
+                </ul>
+              </div>
+              <div class="mismatch-box">
+                <h4>Calldata actions</h4>
+                <ul>
+                  <li><span class="mono">_setInterestRateModel(...)</span></li>
+                  <li><span class="mono">_setPriceOracle(0x9d…04)</span> ← not described</li>
+                </ul>
+              </div>
+            </div>
+            <div class="discrepancy">
+              <div class="h"><span class="sev material">material</span> <strong>Action 2 is undisclosed</strong></div>
+              <div style="font-size:12px; color:var(--ink);">Action index 1 calls <span class="mono">_setPriceOracle</span> on the Comptroller, switching the price oracle to <span class="mono">0x9d04…</span>. This contradicts the description's claim that "no other parameters are affected." Reviewers should verify the new oracle's source and ownership before voting.</div>
+            </div>
+          </div>
+          <div class="foot"><span>2 actions analyzed · 1 discrepancy flagged</span><span>view source ↗</span></div>
+        </div>
+      </div>
+
+      <!-- 4. Actions -->
+      <div class="section anno" data-anno="§6.9 actions">
+        <header><h2>04 · Actions</h2><span class="ref">2 actions · all on chain 1</span></header>
+        <div class="body">
+          <div class="action-card">
+            <div class="ah">
+              <span class="idx">#0</span>
+              <strong>cETH.<span class="mono">_setInterestRateModel</span></strong>
+              <span class="chain">chain 1 · ethereum</span>
+            </div>
+            <div class="ab">
+              <div class="field"><div class="k">Target</div><div class="v">0x4ddc…d5b3 · cETH</div></div>
+              <div class="field"><div class="k">Value</div><div class="v">0 wei</div></div>
+              <div class="field"><div class="k">Function</div><div class="v">_setInterestRateModel(address)</div></div>
+              <div class="field"><div class="k">Argument 0</div><div class="v">0x7f8c…91ab · JumpRateModelV2</div></div>
+              <div class="field"><div class="k">Calldata</div><div class="v">0xb31f4d8e000000…91ab <span style="color:var(--ink-3);">[expand ↓]</span></div></div>
+            </div>
+          </div>
+          <div class="action-card" style="border-color: var(--note);">
+            <div class="ah" style="background: var(--note-bg);">
+              <span class="idx">#1</span>
+              <strong>Comptroller.<span class="mono">_setPriceOracle</span></strong>
+              <span class="sev material">undisclosed</span>
+              <span class="chain">chain 1 · ethereum</span>
+            </div>
+            <div class="ab">
+              <div class="field"><div class="k">Target</div><div class="v">0x3d98…1c00 · Comptroller</div></div>
+              <div class="field"><div class="k">Value</div><div class="v">0 wei</div></div>
+              <div class="field"><div class="k">Function</div><div class="v">_setPriceOracle(address)</div></div>
+              <div class="field"><div class="k">Argument 0</div><div class="v">0x9d04…<b>cdc7</b> · ⚠ unknown contract</div></div>
+              <div class="field"><div class="k">Calldata</div><div class="v">0x55a8a85b000000…cdc7 <span style="color:var(--ink-3);">[expand ↓]</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Tally -->
+      <div class="section anno" data-anno="§6.9 tally · polled 10s">
+        <header>
+          <h2>05 · Tally</h2>
+          <span class="ref"><span class="dot live"></span>polled every 10s · last updated 4s ago</span>
+        </header>
+        <div class="body">
+          <div class="tally-grid">
+            <div>
+              <div class="tally" style="font-size:12px;">
+                <div class="row" style="display:flex; align-items:center; gap:8px;"><span class="label" style="width:90px; color:var(--ink-2); text-transform:uppercase; font-size:11px; letter-spacing:0.06em;">For</span><span class="bar" style="flex:1; height:18px; border:1px solid var(--line); background:var(--paper); position:relative;"><i style="position:absolute; inset:0 59% 0 0; background: repeating-linear-gradient(45deg, var(--ink) 0 4px, var(--paper-2) 4px 5px);"></i></span><span class="num" style="width:140px; text-align:right; font-family:'JetBrains Mono',ui-monospace,monospace;">41.0%  ·  342k COMP</span></div>
+                <div class="row against" style="display:flex; align-items:center; gap:8px;"><span class="label" style="width:90px; color:var(--ink-2); text-transform:uppercase; font-size:11px; letter-spacing:0.06em;">Against</span><span class="bar" style="flex:1; height:18px; border:1px solid var(--line); background:var(--paper); position:relative;"><i style="position:absolute; inset:0 48% 0 0; background: repeating-linear-gradient(45deg, var(--ink-2) 0 4px, var(--paper-2) 4px 5px);"></i></span><span class="num" style="width:140px; text-align:right; font-family:'JetBrains Mono',ui-monospace,monospace;">52.0%  ·  434k COMP</span></div>
+                <div class="row abstain" style="display:flex; align-items:center; gap:8px;"><span class="label" style="width:90px; color:var(--ink-2); text-transform:uppercase; font-size:11px; letter-spacing:0.06em;">Abstain</span><span class="bar" style="flex:1; height:18px; border:1px solid var(--line); background:var(--paper); position:relative;"><i style="position:absolute; inset:0 93% 0 0; background: repeating-linear-gradient(45deg, var(--ink-4) 0 4px, var(--paper-2) 4px 5px);"></i></span><span class="num" style="width:140px; text-align:right; font-family:'JetBrains Mono',ui-monospace,monospace;">7.0%  ·  58k COMP</span></div>
+              </div>
+              <div class="quorum-bar">
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--ink-2);">
+                  <span>Quorum progress</span>
+                  <span class="mono">834k / 400k required <span style="color: #2c7a2c;">✓ met</span></span>
+                </div>
+                <div class="b"><i style="width: 83%;"></i><span class="threshold" style="left: 40%;"></span></div>
+                <div style="font-size:10.5px; color:var(--ink-3); display:flex; justify-content:space-between;">
+                  <span>0</span><span class="mono" style="margin-left: 32%;">↑ quorum 400k</span><span>1M</span>
+                </div>
+              </div>
+            </div>
+            <div class="tally-stats">
+              <div class="s"><span>Voters</span><b>187</b></div>
+              <div class="s"><span>VP participating</span><b>834k COMP</b></div>
+              <div class="s"><span>% of theoretical max</span><b>27.2%</b></div>
+              <div class="s"><span>Quorum threshold</span><b>400k COMP</b></div>
+              <div class="s"><span>Outcome (current)</span><b style="color: #c43a1f;">Defeating</b></div>
+              <div class="s"><span>VP block</span><b class="mono">19,854,210</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Voters -->
+      <div class="section anno" data-anno="§6.9 voters table">
+        <header><h2>06 · Voters</h2><span class="ref">187 votes · 50/page · sortable</span></header>
+        <div class="body" style="padding-top: 8px;">
+          <div class="voters-controls">
+            <span class="mono" style="color:var(--ink-3); text-transform:uppercase; font-size:10.5px; letter-spacing:0.08em;">filter</span>
+            <div class="controls"><div class="grp"><span class="on">all</span><span>For</span><span>Against</span><span>Abstain</span></div></div>
+            <input placeholder="filter by address or name" />
+            <span class="mono" style="margin-left:auto; color:var(--ink-3); font-size:11px;">sort: VP ↓</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Voter</th><th style="width:90px;">Choice</th><th style="width:140px;">Voting power</th><th style="width:80px;">% of total</th><th>Rationale</th><th style="width:120px;">Cast</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><b>a16zCrypto.eth</b><br/><span class="mono" style="color:var(--ink-3); font-size:10.5px;">0xab…f1</span></td>
+                <td><span class="state mono" style="background:var(--paper-2); border:1px solid var(--line); padding:1px 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">Against</span></td>
+                <td class="mono">182,403 COMP</td>
+                <td class="mono">21.9%</td>
+                <td style="font-size:11.5px;">Undisclosed oracle change is unacceptable. Will reconsider after revision.</td>
+                <td class="mono" style="font-size:11px;">2026-05-02</td>
+              </tr>
+              <tr>
+                <td><b>delegate.eth</b><br/><span class="mono" style="color:var(--ink-3); font-size:10.5px;">0x12…aa</span></td>
+                <td><span class="state mono" style="background:var(--ink); color:var(--paper); border:1px solid var(--line); padding:1px 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">For</span></td>
+                <td class="mono">142,000 COMP</td>
+                <td class="mono">17.0%</td>
+                <td style="font-size:11.5px;">Self-vote, proposer.</td>
+                <td class="mono" style="font-size:11px;">2026-05-02</td>
+              </tr>
+              <tr>
+                <td><b>gauntlet.eth</b><br/><span class="mono" style="color:var(--ink-3); font-size:10.5px;">0x9d…04</span></td>
+                <td><span class="state mono" style="background:var(--paper-2); border:1px solid var(--line); padding:1px 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">Against</span></td>
+                <td class="mono">124,500 COMP</td>
+                <td class="mono">14.9%</td>
+                <td style="font-size:11.5px;">Pending clarification on oracle replacement.</td>
+                <td class="mono" style="font-size:11px;">2026-05-03</td>
+              </tr>
+              <tr>
+                <td><b>blockchainCols</b><br/><span class="mono" style="color:var(--ink-3); font-size:10.5px;">0x55…2e</span></td>
+                <td><span class="state mono" style="background:var(--ink); color:var(--paper); border:1px solid var(--line); padding:1px 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">For</span></td>
+                <td class="mono">87,200 COMP</td>
+                <td class="mono">10.4%</td>
+                <td style="font-size:11.5px; color:var(--ink-3);">— no rationale —</td>
+                <td class="mono" style="font-size:11px;">2026-05-02</td>
+              </tr>
+              <tr>
+                <td><b>monetSupply</b><br/><span class="mono" style="color:var(--ink-3); font-size:10.5px;">0x4f…ae</span></td>
+                <td><span class="state mono" style="background:var(--paper); color:var(--ink-2); border:1px solid var(--line); padding:1px 6px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em;">Abstain</span></td>
+                <td class="mono">52,800 COMP</td>
+                <td class="mono">6.3%</td>
+                <td style="font-size:11.5px;">Conflict of interest disclosed.</td>
+                <td class="mono" style="font-size:11px;">2026-05-03</td>
+              </tr>
+              <tr>
+                <td colspan="6" style="text-align:center; color:var(--ink-3); font-size:11.5px; padding:14px;">
+                  + 182 more · <span class="mono">load next 50 ↓</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 7. Forum -->
+      <div class="section anno" data-anno="§6.9 forum (AI synth)">
+        <header>
+          <h2>07 · Forum</h2>
+          <span class="ref">linked thread · high confidence</span>
+        </header>
+        <div class="desc">Linked: <a class="mono" style="color: var(--ink); text-decoration: underline;">comp.xyz/t/4892</a> · 28 posts · 14 unique participants · last activity 6h ago</div>
+        <div class="body">
+          <div class="ai-panel">
+            <div class="head">
+              <span class="ai-mark">Forum synthesis by Kvorum</span>
+              <span style="text-transform:none; letter-spacing:0; color:var(--ink-3); font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10.5px;">model claude-haiku-4-5 · gen 6h ago</span>
+            </div>
+            <div class="body">
+              <div class="mismatch-grid">
+                <div class="mismatch-box">
+                  <h4>Arguments for</h4>
+                  <ul>
+                    <li>Aligns cETH curve with comparable markets</li>
+                    <li>Risk WG and Gauntlet have signed off on parameters</li>
+                  </ul>
+                </div>
+                <div class="mismatch-box">
+                  <h4>Arguments against</h4>
+                  <ul>
+                    <li>Oracle change was added late and not flagged in description</li>
+                    <li>Unclear ownership/source of new oracle 0x9d04…cdc7</li>
+                    <li>"No other parameters affected" is misleading</li>
+                  </ul>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:10px; font-size:12px;">
+                <div><b>Unresolved:</b> Will the proposer revise to remove or document the oracle change?</div>
+                <div><b>Sentiment:</b> <span class="dot warn"></span>mixed → leaning negative · 12 of 14 participants</div>
+              </div>
+            </div>
+            <div class="foot"><span>view full thread ↗</span><span>provenance disclosed on click</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Similar -->
+      <div class="section anno" data-anno="§6.9 similar · embedding search">
+        <header><h2>08 · Similar proposals</h2><span class="ref">cross-DAO · embedding similarity</span></header>
+        <div class="body">
+          <div class="similar-grid">
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Compound</span></span><span class="score">0.91</span></div>
+              <div class="ttl">#198 cUSDC interest-rate curve update</div>
+              <div class="meta"><span>executed · Sep 2024</span><span>For 79%</span></div>
+            </div>
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Aave</span></span><span class="score">0.87</span></div>
+              <div class="ttl">AIP-264 Update WETH IR strategy</div>
+              <div class="meta"><span>executed · Jan 2025</span><span>For 92%</span></div>
+            </div>
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Compound</span></span><span class="score">0.84</span></div>
+              <div class="ttl">#171 Lower kink on cDAI</div>
+              <div class="meta"><span>defeated · Jul 2024</span><span>For 38%</span></div>
+            </div>
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Aave</span></span><span class="score">0.79</span></div>
+              <div class="ttl">AIP-202 Risk parameters Q4 batch</div>
+              <div class="meta"><span>executed · Dec 2024</span><span>For 95%</span></div>
+            </div>
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Compound</span></span><span class="score">0.76</span></div>
+              <div class="ttl">#155 Adjust jump multipliers protocol-wide</div>
+              <div class="meta"><span>executed · May 2024</span><span>For 88%</span></div>
+            </div>
+            <div class="similar-card">
+              <div class="top"><span><span class="pill">Lido</span></span><span class="score">0.72</span></div>
+              <div class="ttl">[Snapshot] Update wstETH oracle parameters</div>
+              <div class="meta"><span>passed · Mar 2025</span><span>Opt A 71%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot live"></span>tally polled · last updated 4s ago</span>
+    <span>summary, mismatch, forum: cached AI output (§6.18)</span>
+    <span>kvorum.xyz/daos/compound/proposals/compound_governor/248</span>
+  </div>
+
+</div>
+
+<div class="legend-card">
+  <b>Proposal detail</b> · the deep view (§6.9). Most-shared, most-linked page in Kvorum. AI-generated panels (Summary, Mismatch, Forum synthesis) use the consistent <span class="mono">ai-panel</span> treatment per §6.18 — labeled, sourced, provenance-disclosed.
+  <div class="row" style="margin-top:8px; display:flex;">
+    <span><span class="swatch solid"></span> indexed-fact panel</span>
+    <span><span class="swatch dashed"></span> chart placeholder</span>
+    <span style="border:1px solid var(--line); padding:0 6px; background: var(--paper); display:inline-block;"><small style="font-family:monospace;">△ AI</small></span> AI-generated panel
+    <span><span class="swatch note"></span> spec ref</span>
+  </div>
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

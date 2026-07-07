@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — API docs (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .docs-grid { display: grid; grid-template-columns: 240px 1fr 380px; min-height: 760px; }
+  .docs-grid > * { border-right: 1.5px solid var(--line); }
+  .docs-grid > *:last-child { border-right: 0; }
+
+  .docs-side { background: var(--paper-2); padding: 14px 0; font-size: 12.5px; }
+  .docs-side .grp { padding: 0; }
+  .docs-side .grp h3 {
+    margin: 14px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-3); padding: 0 16px;
+  }
+  .docs-side a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 16px; color: var(--ink-2);
+    border-left: 2px solid transparent;
+  }
+  .docs-side a.active { background: var(--paper); color: var(--ink); font-weight: 600; border-left-color: var(--ink); }
+  .docs-side a .verb {
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 9.5px;
+    border: 1px solid var(--line); padding: 0px 4px; min-width: 38px; text-align: center;
+    background: var(--paper);
+  }
+  .verb.GET { background: var(--paper); color: var(--ink); }
+  .verb.POST { background: var(--ink); color: var(--paper); }
+
+  .docs-main { padding: 22px 28px; background: var(--paper); }
+  .docs-main h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+  .docs-main .endpoint-line {
+    margin: 6px 0 18px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 14px;
+  }
+  .endpoint-line .verb {
+    font-size: 11px; padding: 3px 9px; border: 1.5px solid var(--line); font-weight: 600;
+  }
+  .endpoint-line .verb.GET { background: var(--paper); }
+  .endpoint-line .path {
+    background: var(--paper-2); padding: 5px 10px; border: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+
+  .docs-main h2 { margin: 24px 0 8px; font-size: 16px; letter-spacing: 0.02em; }
+  .docs-main p { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+
+  .param-tbl thead th { padding: 8px 10px; }
+  .param-tbl tbody td { padding: 10px; vertical-align: top; font-size: 12px; }
+  .param-tbl tbody td.name { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
+  .param-tbl tbody td.type { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-2); }
+  .param-tbl tbody td .req { color: var(--note); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; margin-left: 6px; }
+
+  .auth-callout {
+    border: 1.5px solid var(--line); background: var(--note-bg);
+    padding: 10px 14px; font-size: 12.5px; margin: 14px 0;
+  }
+  .auth-callout b { color: var(--ink); }
+
+  .docs-tryit { background: var(--paper-2); padding: 14px 16px; }
+  .docs-tryit h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .docs-tryit .field { margin-bottom: 10px; }
+  .docs-tryit .field label {
+    display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+    margin-bottom: 3px;
+  }
+  .docs-tryit .field input, .docs-tryit .field select {
+    width: 100%; border: 1.5px solid var(--line); background: var(--paper);
+    padding: 6px 9px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px;
+  }
+  .docs-tryit .send {
+    width: 100%; padding: 9px;
+    background: var(--ink); color: var(--paper); border: 1.5px solid var(--line);
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    cursor: pointer;
+  }
+
+  .response-block {
+    border: 1.5px solid var(--line); background: var(--ink); color: #d3cabb;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; line-height: 1.55;
+    padding: 12px 14px; overflow: auto;
+  }
+  .response-block .num { color: #8a8a8a; }
+  .response-block .key { color: #f4f1ea; }
+  .response-block .str { color: #a8d8a8; }
+  .response-block .nul { color: #c43a1f; }
+  .response-block .pun { color: #8a8a8a; }
+
+  .response-status {
+    display: flex; align-items: center; gap: 8px; padding: 8px 0; margin-top: 10px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .response-status .pill.ok { background: var(--paper); border: 1px solid var(--line); }
+
+  .lang-tabs {
+    display: flex; gap: 0; border: 1px solid var(--line); margin-bottom: 6px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .lang-tabs span { padding: 6px 12px; border-right: 1px solid var(--line); cursor: pointer; }
+  .lang-tabs span:last-child { border-right: 0; }
+  .lang-tabs span.on { background: var(--ink); color: var(--paper); }
+</style>
+</head>
+<body data-wf="apidocs">
+
+<div class="page" data-screen-label="10 API docs — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / API docs</span>
+    <span class="mono">/docs · spec §6.12 · public · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li class="active">API Docs</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search docs</div>
+  </nav>
+
+  <div class="docs-grid">
+
+    <!-- LEFT: TOC -->
+    <div class="docs-side">
+      <div class="grp">
+        <h3>Getting started</h3>
+        <a><span class="verb" style="visibility:hidden;">···</span>Overview</a>
+        <a><span class="verb" style="visibility:hidden;">···</span>Authentication</a>
+        <a><span class="verb" style="visibility:hidden;">···</span>Rate limits</a>
+        <a><span class="verb" style="visibility:hidden;">···</span>Versioning</a>
+        <a><span class="verb" style="visibility:hidden;">···</span>Errors</a>
+      </div>
+      <div class="grp">
+        <h3>Proposals</h3>
+        <a><span class="verb GET">GET</span>List proposals</a>
+        <a class="active"><span class="verb GET">GET</span>Get proposal</a>
+        <a><span class="verb GET">GET</span>Get tally</a>
+        <a><span class="verb GET">GET</span>Get mismatches</a>
+      </div>
+      <div class="grp">
+        <h3>Votes</h3>
+        <a><span class="verb GET">GET</span>List votes</a>
+        <a><span class="verb GET">GET</span>Get vote</a>
+      </div>
+      <div class="grp">
+        <h3>DAOs</h3>
+        <a><span class="verb GET">GET</span>List DAOs</a>
+        <a><span class="verb GET">GET</span>Get DAO</a>
+        <a><span class="verb GET">GET</span>Get health</a>
+      </div>
+      <div class="grp">
+        <h3>Actors</h3>
+        <a><span class="verb GET">GET</span>List actors</a>
+        <a><span class="verb GET">GET</span>Get actor</a>
+      </div>
+      <div class="grp">
+        <h3>Forum</h3>
+        <a><span class="verb GET">GET</span>List threads</a>
+        <a><span class="verb GET">GET</span>Get thread</a>
+      </div>
+    </div>
+
+    <!-- MIDDLE: docs body -->
+    <div class="docs-main anno" data-anno="§6.12 endpoint detail">
+      <h1>Get proposal</h1>
+      <div class="endpoint-line">
+        <span class="verb GET">GET</span>
+        <span class="path">/v1/proposals/{dao_slug}/{proposal_id}</span>
+      </div>
+      <p>
+        Returns a single proposal with its full description, on-chain calldata, action breakdown,
+        latest tally, mismatch analysis, and provenance metadata. The AI-summary block is included
+        when available; absence indicates either the summary has not been computed or
+        confidence dropped below the publish threshold (§6.18).
+      </p>
+
+      <div class="auth-callout">
+        <b>Auth.</b> Public endpoint. An API key is required only above the anonymous rate limit
+        (60 req/min). Pass it as <span class="mono">Authorization: Bearer kvm_live_…</span>.
+      </div>
+
+      <h2>Path parameters</h2>
+      <table class="param-tbl">
+        <thead><tr><th style="width: 130px;">Name</th><th style="width: 100px;">Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="name">dao_slug<span class="req">required</span></td><td class="type">string</td><td>Slug of the DAO. One of <span class="mono">compound</span>, <span class="mono">aave</span>, <span class="mono">lido</span>.</td></tr>
+          <tr><td class="name">proposal_id<span class="req">required</span></td><td class="type">string</td><td>The DAO-native proposal identifier (numeric for Compound/Aave; uuid for Lido Easy Track).</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Query parameters</h2>
+      <table class="param-tbl">
+        <thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="name">include</td><td class="type">string[]</td><td>Comma-separated. One or more of <span class="mono">tally,actions,mismatches,summary,forum</span>. Default: all.</td></tr>
+          <tr><td class="name">format</td><td class="type">enum</td><td><span class="mono">json</span> (default) or <span class="mono">json+sse</span> for live subscription via SSE channel.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Response · 200 OK</h2>
+      <p>Schema below truncated. Full OpenAPI spec on the right.</p>
+
+    </div>
+
+    <!-- RIGHT: try-it + response -->
+    <div class="docs-tryit anno" data-anno="§6.12 try-it">
+      <h3>Try it</h3>
+
+      <div class="field">
+        <label>API key (optional)</label>
+        <input value="kvm_live_3f4a…0f8e" />
+      </div>
+      <div class="field">
+        <label>dao_slug</label>
+        <select><option>compound</option><option>aave</option><option>lido</option></select>
+      </div>
+      <div class="field">
+        <label>proposal_id</label>
+        <input value="248" />
+      </div>
+      <div class="field">
+        <label>include</label>
+        <input value="tally,actions,mismatches,summary" />
+      </div>
+
+      <button class="send">Send request →</button>
+
+      <div class="response-status">
+        <span class="pill ok"><span class="dot ok" style="margin-right: 4px;"></span>200 OK</span>
+        <span class="mono" style="color: var(--ink-3); font-size: 10.5px;">142ms · 4.2kb · cached</span>
+      </div>
+
+      <div class="lang-tabs">
+        <span class="on">cURL</span><span>JS</span><span>Python</span><span>Response</span>
+      </div>
+      <div class="response-block" style="background: var(--paper-2); color: var(--ink); margin-bottom: 10px;">
+<span class="pun">$ </span><span class="key">curl</span> <span class="str">https://api.kvorum.xyz/v1/proposals/compound/248</span> \<br/>&nbsp;&nbsp;-H <span class="str">"Authorization: Bearer kvm_live_…"</span>
+      </div>
+
+      <h3 style="margin-top: 14px;">Response · JSON</h3>
+      <div class="response-block">
+<span class="pun">{</span><br/>
+&nbsp;&nbsp;<span class="key">"id"</span><span class="pun">:</span> <span class="str">"248"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;<span class="key">"dao"</span><span class="pun">:</span> <span class="str">"compound"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;<span class="key">"state"</span><span class="pun">:</span> <span class="str">"active"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;<span class="key">"title"</span><span class="pun">:</span> <span class="str">"Set IRM v3 for cUSDC market"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;<span class="key">"tally"</span><span class="pun">: {</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"for"</span><span class="pun">:</span> <span class="num">14882011</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"against"</span><span class="pun">:</span> <span class="num">7411902</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"abstain"</span><span class="pun">:</span> <span class="num">1502401</span><br/>
+&nbsp;&nbsp;<span class="pun">},</span><br/>
+&nbsp;&nbsp;<span class="key">"mismatches"</span><span class="pun">: [],</span><br/>
+&nbsp;&nbsp;<span class="key">"summary"</span><span class="pun">: {</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"text"</span><span class="pun">:</span> <span class="str">"Migrates cUSDC to IRM v3…"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"model"</span><span class="pun">:</span> <span class="str">"haiku-4-5"</span><span class="pun">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"confidence"</span><span class="pun">:</span> <span class="num">0.86</span><br/>
+&nbsp;&nbsp;<span class="pun">},</span><br/>
+&nbsp;&nbsp;<span class="key">"updated_at"</span><span class="pun">:</span> <span class="str">"2026-05-04T13:42:08Z"</span><br/>
+<span class="pun">}</span>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 11px; color: var(--ink-3);">
+        SDK: <a class="tag">npm i @kvorum/sdk</a> &nbsp;<a class="tag">↗ OpenAPI yaml</a> &nbsp;<a class="tag">↗ Postman</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot ok"></span>OpenAPI 3.1 · auto-generated from server</span>
+    <span>API key from /developer (§6.13) · public docs (§6.12)</span>
+    <span>kvorum.xyz/docs</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>API docs</b> · public reference (§6.12). Three-pane shell: TOC left, prose-and-schema middle, persistent try-it + response right. Try-it pre-fills with the developer's key when signed in. Each endpoint is auto-generated from OpenAPI 3.1 — same spec downloadable from the developer dashboard.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

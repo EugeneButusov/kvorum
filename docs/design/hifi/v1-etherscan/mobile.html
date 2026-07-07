@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Mobile (Hi-fi)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* ============================================================
+     Mobile hi-fi (§6.4 / §6.9 / §6.7 condensed to phone)
+     In Next.js: components/mobile/* + app/(mobile)/page.module.css
+     ============================================================ */
+
+  /* Page chrome */
+  main.mobile-stage {
+    max-width: var(--max-page);
+    margin: 0 auto;
+    padding: var(--space-7) var(--gutter) var(--space-16);
+    display: flex; flex-direction: column; gap: var(--space-8);
+  }
+  .stage-head { display: grid; grid-template-columns: 1fr auto; gap: var(--space-6); align-items: end;
+                padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+  .stage-head h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600;
+                   line-height: 1.1; letter-spacing: var(--tracking-tight); }
+  .stage-head .lede { margin-top: 10px; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-prose); max-width: 64ch; }
+  .stage-head .lede b { color: var(--ink); font-weight: 600; }
+  .stage-head .toggle {
+    display: flex; gap: 0; border: 1px solid var(--line-2);
+  }
+  .stage-head .toggle button {
+    padding: 8px 14px; font-family: var(--font-mono); font-size: var(--fs-12);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+    border-right: 1px solid var(--line-2); color: var(--ink-3);
+  }
+  .stage-head .toggle button:last-child { border-right: 0; }
+  .stage-head .toggle button.on { background: var(--ink); color: var(--bg-2); }
+
+  /* Device row */
+  .device-row {
+    display: grid; grid-template-columns: repeat(3, max-content); gap: var(--space-6);
+    justify-content: start; padding-bottom: var(--space-4); overflow-x: auto;
+  }
+  .device-col { display: flex; flex-direction: column; gap: var(--space-3); align-items: center; }
+  .device-label {
+    width: 100%; max-width: 390px; display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--font-mono); font-size: var(--fs-105); text-transform: uppercase;
+    letter-spacing: var(--tracking-mono-loose); color: var(--ink-3);
+    border-bottom: 1px dashed var(--line-3); padding-bottom: var(--space-2);
+  }
+  .device-label b { color: var(--ink); font-weight: 600; }
+
+  /* iPhone bezel */
+  .phone {
+    width: 390px; height: 844px;
+    background: var(--ink);
+    padding: 12px;
+    border-radius: 56px;
+    box-shadow:
+      0 0 0 1px var(--ink),
+      inset 0 0 0 2px #222,
+      0 24px 48px -16px rgba(0,0,0,0.35),
+      0 8px 24px -8px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  :root[data-theme="dark"] .phone {
+    box-shadow:
+      0 0 0 1px #2a2a25,
+      inset 0 0 0 2px #2a2a25,
+      0 24px 48px -16px rgba(0,0,0,0.7);
+  }
+  .phone .screen {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .phone .notch {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 36px; background: #000; border-radius: 24px; z-index: 30;
+    pointer-events: none;
+  }
+  .phone .home-indicator {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 134px; height: 5px; background: var(--ink); opacity: 0.65; border-radius: 999px; z-index: 30;
+  }
+
+  /* iOS status bar */
+  .ios-status {
+    height: 54px; flex: 0 0 54px;
+    padding: 20px 32px 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+    font-weight: 600; font-size: 15px; color: var(--ink);
+  }
+  .ios-status .right { display: flex; gap: 6px; align-items: center; }
+  .ios-status .right svg { display: block; }
+
+  /* App topbar */
+  .m-topbar {
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--line-2);
+    background: var(--bg-2);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 10px;
+    min-height: 48px;
+  }
+  .m-topbar .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--line-2);
+    display: grid; place-items: center;
+    color: var(--ink); font-family: var(--font-mono); font-size: var(--fs-14);
+  }
+  .m-topbar .brand-mini {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 700;
+    letter-spacing: var(--tracking-mono-loose);
+  }
+  .m-topbar .brand-mini .glyph {
+    width: 24px; height: 24px; background: var(--ink); color: var(--bg-2);
+    display: grid; place-items: center; font-size: var(--fs-11);
+  }
+  .m-topbar .search {
+    flex: 1; height: 36px;
+    border: 1px solid var(--line-2);
+    display: flex; align-items: center; padding: 0 10px; gap: 8px;
+    font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3);
+  }
+  .m-topbar .title-stack {
+    flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  }
+  .m-topbar .title-stack .crumb {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+  }
+  .m-topbar .title-stack .ttl {
+    font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Scrollable body */
+  .m-body {
+    flex: 1 1 auto; overflow-y: auto;
+    padding: 14px 14px 0;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .m-body::-webkit-scrollbar { width: 0; }
+
+  /* Bottom tab bar */
+  .m-tabs {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--line-2);
+    background: var(--bg-2);
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    padding-bottom: 22px;
+  }
+  .m-tabs a {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 10px 0 6px;
+    font-family: var(--font-mono); font-size: var(--fs-10);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+    color: var(--ink-3);
+    border-right: 1px solid var(--line-3);
+  }
+  .m-tabs a:last-child { border-right: 0; }
+  .m-tabs a .icon {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 700;
+    color: var(--ink-2);
+  }
+  .m-tabs a.on { color: var(--ink); }
+  .m-tabs a.on .icon {
+    background: var(--ink); color: var(--bg-2);
+    width: 28px; height: 22px;
+  }
+
+  /* ---- Shared content primitives ---- */
+  .m-section-h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-family: var(--font-mono); font-size: var(--fs-105);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+    color: var(--ink-3);
+    padding: 0 2px 6px;
+    border-bottom: 1px solid var(--line-3);
+  }
+  .m-section-h .l { color: var(--ink); font-weight: 600; }
+  .m-section-h .r { color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+
+  .m-card {
+    border: 1px solid var(--line-2);
+    background: var(--bg-2);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .m-card.flagged { border-color: var(--warn); }
+
+  .m-card .top {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .m-card .pills { display: flex; gap: 6px; }
+  .m-card .ends {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .m-card h3 {
+    margin: 0; font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600;
+    line-height: 1.3;
+  }
+  .m-card h3 .num { color: var(--ink-3); font-weight: 500; margin-right: 4px; }
+  .m-card .meta {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+  }
+  .m-card .tally-mini { display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
+  .m-card .tally-mini .row {
+    display: grid; grid-template-columns: 44px 1fr 36px; gap: 8px; align-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-10);
+  }
+  .m-card .tally-mini .l { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .m-card .tally-mini .track { height: 5px; background: var(--bg-3); position: relative; }
+  .m-card .tally-mini .track i { position: absolute; inset: 0 auto 0 0; }
+  .m-card .tally-mini .row.for     .track i { background: var(--for); }
+  .m-card .tally-mini .row.against .track i { background: var(--against); }
+  .m-card .tally-mini .row.abstain .track i { background: var(--abstain); }
+  .m-card .tally-mini .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  /* ---- HOME: hero numbers ---- */
+  .m-hero {
+    border: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  .m-hero .stat {
+    padding: 10px 12px;
+    border-right: 1px solid var(--line-3);
+    border-bottom: 1px solid var(--line-3);
+  }
+  .m-hero .stat:nth-child(2n) { border-right: 0; }
+  .m-hero .stat:nth-last-child(-n+2) { border-bottom: 0; }
+  .m-hero .stat .l { font-family: var(--font-mono); font-size: var(--fs-10); text-transform: uppercase;
+                     letter-spacing: var(--tracking-mono-loose); color: var(--ink-3); }
+  .m-hero .stat .v { font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+                     margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .m-hero .stat .delta { font-family: var(--font-mono); font-size: var(--fs-10); color: var(--accent); margin-left: 4px; }
+
+  /* ---- HOME: DAO health row ---- */
+  .m-health-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .m-health-row .card {
+    border: 1px solid var(--line-2); background: var(--bg-2);
+    padding: 10px;
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center;
+  }
+  .m-health-row .card .name {
+    grid-column: 1; font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 600;
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+  }
+  .m-health-row .card .grade {
+    grid-column: 2; grid-row: 1 / span 2;
+    font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 700;
+    padding: 2px 8px; border: 1px solid;
+  }
+  .m-health-row .card .grade.a { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-bg); }
+  .m-health-row .card .grade.b { color: var(--ink); border-color: var(--ink-3); }
+  .m-health-row .card .grade.c { color: var(--note-ink); border-color: var(--note); background: var(--note-bg); }
+  :root[data-theme="dark"] .m-health-row .card .grade.a { color: var(--accent); }
+  :root[data-theme="dark"] .m-health-row .card .grade.c { color: var(--note); }
+  .m-health-row .card .sub {
+    grid-column: 1; font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+  }
+
+  /* ---- PROPOSAL: header ---- */
+  .m-prop-head {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .m-prop-head .pills-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .m-prop-head h2 {
+    margin: 0; font-family: var(--font-mono); font-size: 18px; font-weight: 600;
+    line-height: 1.25; letter-spacing: var(--tracking-tight);
+  }
+  .m-prop-head h2 .num { color: var(--ink-3); font-weight: 500; margin-right: 6px; }
+  .m-prop-head .meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    padding-top: 4px; border-top: 1px dashed var(--line-3);
+  }
+  .m-prop-head .meta b { color: var(--ink); font-weight: 600; }
+
+  .m-banner {
+    border: 1px solid var(--ok);
+    background: var(--accent-bg); color: var(--accent-ink);
+    padding: 10px 12px;
+    font-family: var(--font-mono); font-size: var(--fs-11);
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .m-banner.warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn-ink); }
+  .m-banner b { font-weight: 700; }
+  :root[data-theme="dark"] .m-banner { color: var(--accent); }
+  :root[data-theme="dark"] .m-banner.warn { color: var(--warn); }
+
+  /* AI panel (mobile) */
+  .m-ai {
+    border: 1.5px solid var(--ai-line);
+    background:
+      repeating-linear-gradient(135deg, transparent 0 11px, rgba(0,0,0,0.025) 11px 12px),
+      var(--ai-bg);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative;
+  }
+  :root[data-theme="dark"] .m-ai {
+    background:
+      repeating-linear-gradient(135deg, transparent 0 11px, rgba(255,255,255,0.04) 11px 12px),
+      var(--ai-bg);
+  }
+  .m-ai .mark-row { display: flex; align-items: center; gap: 8px; }
+  .m-ai .mark {
+    background: var(--ai-mark); color: var(--ai-bg);
+    padding: 2px 6px; font-family: var(--font-mono); font-size: var(--fs-10);
+    font-weight: 700; letter-spacing: var(--tracking-mono-loose);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .m-ai .mark::before { content: "△"; }
+  .m-ai .conf {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    margin-left: auto;
+  }
+  .m-ai .body {
+    font-family: var(--font-mono); font-size: var(--fs-115); line-height: 1.5; color: var(--ink);
+  }
+  .m-ai .foot {
+    border-top: 1px dashed var(--ink-4);
+    padding-top: 6px;
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    display: flex; flex-wrap: wrap; gap: 6px 10px;
+  }
+
+  /* Full tally — proposal page */
+  .m-tally-full { display: flex; flex-direction: column; gap: 8px; }
+  .m-tally-full .stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--line-2);
+  }
+  .m-tally-full .stat-grid .s {
+    padding: 8px 10px; border-right: 1px solid var(--line-3);
+  }
+  .m-tally-full .stat-grid .s:last-child { border-right: 0; }
+  .m-tally-full .stat-grid .l {
+    font-family: var(--font-mono); font-size: var(--fs-10); text-transform: uppercase;
+    letter-spacing: var(--tracking-mono-loose); color: var(--ink-3);
+  }
+  .m-tally-full .stat-grid .v {
+    font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600;
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+  }
+  .m-tally-full .stat-grid .v.warn { color: var(--warn); }
+  .m-tally-full .stat-grid .v.ok { color: var(--ok); }
+
+  .m-tally-full .row {
+    display: grid; grid-template-columns: 60px 1fr 64px; gap: 8px; align-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-115);
+  }
+  .m-tally-full .row .l { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-10); }
+  .m-tally-full .row .track { height: 8px; background: var(--bg-3); position: relative; }
+  .m-tally-full .row .track i { position: absolute; inset: 0 auto 0 0; }
+  .m-tally-full .row.for     .track i { background: var(--for); }
+  .m-tally-full .row.against .track i { background: var(--against); }
+  .m-tally-full .row.abstain .track i { background: var(--abstain); }
+  .m-tally-full .row .v { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Actions list */
+  .m-action {
+    border: 1px solid var(--line-2);
+    background: var(--bg-2);
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .m-action .who {
+    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink);
+    font-weight: 600;
+  }
+  .m-action .arg {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-2);
+    word-break: break-all;
+  }
+  .m-action .arg .k { color: var(--ink-3); }
+
+  /* Sticky vote CTA above tab bar */
+  .m-vote-cta {
+    flex: 0 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid var(--line-2);
+    background: var(--bg-2);
+  }
+  .m-vote-cta button {
+    padding: 14px 0;
+    font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 700;
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+    border-right: 1px solid var(--line-3);
+    color: var(--ink);
+  }
+  .m-vote-cta button:last-child { border-right: 0; }
+  .m-vote-cta button.for     { color: var(--for); }
+  .m-vote-cta button.against { color: var(--against); }
+  .m-vote-cta button.abstain { color: var(--abstain); }
+
+  /* ---- HEALTH page chart placeholder ---- */
+  .m-chart {
+    height: 120px; border: 1px solid var(--line-2);
+    background:
+      linear-gradient(to top, var(--bg-3) 0%, var(--bg-3) 1px, transparent 1px),
+      repeating-linear-gradient(90deg, transparent 0 24px, rgba(0,0,0,0.04) 24px 25px),
+      var(--bg-2);
+    position: relative; overflow: hidden;
+  }
+  .m-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .m-chart .y {
+    position: absolute; top: 6px; left: 8px;
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+  }
+  .m-chart .x {
+    position: absolute; bottom: 4px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+  }
+
+  /* Delegate row */
+  .m-delegate {
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
+    padding: 10px 0; border-bottom: 1px dashed var(--line-3);
+  }
+  .m-delegate:last-child { border-bottom: 0; }
+  .m-delegate .avatar {
+    width: 28px; height: 28px; background: var(--bg-3);
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 700; color: var(--ink-2);
+    border-radius: var(--r-pill);
+  }
+  .m-delegate .who {
+    font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600;
+  }
+  .m-delegate .sub {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    margin-top: 1px;
+  }
+  .m-delegate .right {
+    text-align: right;
+    font-family: var(--font-mono); font-size: var(--fs-115); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .m-delegate .right .sub { font-weight: 400; }
+
+  /* Flag list (health) */
+  .m-flag {
+    border: 1px solid var(--line-2);
+    border-left: 3px solid var(--warn);
+    background: var(--bg-2);
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .m-flag.note { border-left-color: var(--note); }
+  .m-flag .title {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 600;
+  }
+  .m-flag .title .sev {
+    font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 700;
+    padding: 1px 5px; border: 1px solid var(--warn);
+    color: var(--warn); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .m-flag.note .title .sev { color: var(--note); border-color: var(--note); }
+  .m-flag .excerpt {
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-2);
+    line-height: 1.45;
+  }
+
+  /* Footer caption row under each phone */
+  .device-foot {
+    width: 100%; max-width: 390px;
+    font-family: var(--font-mono); font-size: var(--fs-10); color: var(--ink-3);
+    line-height: var(--lh-snug);
+    padding-top: var(--space-2);
+  }
+  .device-foot .k { color: var(--ink); font-weight: 600; }
+
+  /* Reflow rules card */
+  .reflow {
+    border: 1px solid var(--line-2);
+    background: var(--bg-2);
+    padding: var(--space-5);
+    display: grid; grid-template-columns: 220px 1fr; gap: var(--space-6);
+  }
+  .reflow header h3 {
+    margin: 0 0 6px; font-family: var(--font-mono); font-size: var(--fs-16); font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+  }
+  .reflow header p {
+    margin: 0; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+    line-height: var(--lh-snug);
+  }
+  .reflow .rules {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-6);
+  }
+  .reflow .rule {
+    display: grid; grid-template-columns: 56px 1fr; gap: var(--space-3); align-items: baseline;
+    padding: var(--space-2) 0; border-top: 1px dashed var(--line-3);
+  }
+  .reflow .rule .bp {
+    font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 600;
+    color: var(--accent);
+  }
+  .reflow .rule .what {
+    font-size: var(--fs-12); line-height: var(--lh-snug); color: var(--ink-2);
+  }
+  .reflow .rule .what b { color: var(--ink); font-weight: 600; }
+
+  /* Small helpers */
+  .pill.dao-compound { color: #007a55; border-color: var(--dao-compound); }
+  :root[data-theme="dark"] .pill.dao-compound { color: var(--dao-compound); }
+  .pill.dao-aave { color: #6e2f5f; border-color: var(--dao-aave); }
+  :root[data-theme="dark"] .pill.dao-aave { color: var(--dao-aave); }
+</style>
+</head>
+<body>
+
+<!-- Topnav (system: .kv-topnav) -->
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="developer.html">Developer</a>
+    <a href="api-docs.html">API Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, DAOs, delegates…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" type="button">◐ Theme</button>
+    <button class="connect" type="button">Connect</button>
+  </div>
+</header>
+
+<!-- Crumb -->
+<div class="kv-crumb">
+  <span class="path"><a href="../../index.html">Kvorum</a> / hi-fi · etherscan / <b>Mobile · §6.4 · §6.9 · §6.7</b></span>
+  <span class="ref mono">390×844 · iOS 17 · safe-area aware</span>
+</div>
+
+<main class="mobile-stage" data-screen-label="Hi-fi · Mobile (3 phone screens)">
+
+  <!-- Stage head -->
+  <section class="stage-head">
+    <div>
+      <h1>The three pages <span style="color:var(--accent);">that matter on phone</span></h1>
+      <p class="lede">
+        Kvorum is desktop-first. On mobile we ship only the three browse-heavy surfaces —
+        <b>home, proposal detail, DAO health</b> — at full fidelity. Everything else
+        (developer dashboard, API docs, forum threads, delegate profiles)
+        renders via reflow rules but isn't optimized.
+      </p>
+    </div>
+    <div class="toggle">
+      <button class="on" type="button" data-th="light">Light</button>
+      <button type="button" data-th="dark">Dark</button>
+    </div>
+  </section>
+
+  <!-- Phones -->
+  <section class="device-row">
+
+    <!-- ============================================================
+         PHONE 1 — HOMEPAGE
+         ============================================================ -->
+    <div class="device-col">
+      <div class="device-label"><b>01 · Home</b><span>/m · §6.4</span></div>
+
+      <div class="phone" aria-label="Kvorum mobile · homepage">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ios-status">
+            <span>9:41</span>
+            <span class="right">
+              <svg width="17" height="11" viewBox="0 0 17 11" aria-hidden="true">
+                <rect x="0" y="7" width="3" height="4" fill="currentColor"/>
+                <rect x="4" y="5" width="3" height="6" fill="currentColor"/>
+                <rect x="8" y="3" width="3" height="8" fill="currentColor"/>
+                <rect x="12" y="0" width="3" height="11" fill="currentColor"/>
+              </svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" aria-hidden="true">
+                <path d="M8 3.2c2.1 0 4 .9 5.3 2.2l1-1C12.7 2.7 10.4 1.6 8 1.6S3.3 2.7 1.7 4.4l1 1C4 4.1 5.9 3.2 8 3.2zM8 6.6c1.2 0 2.3.5 3.1 1.3l1-1C11 5.8 9.5 5 8 5s-3 .8-4.1 1.9l1 1C5.7 7.1 6.8 6.6 8 6.6zm0 3a1.3 1.3 0 100 2.6 1.3 1.3 0 000-2.6z" fill="currentColor"/>
+              </svg>
+              <svg width="24" height="11" viewBox="0 0 24 11" aria-hidden="true">
+                <rect x="0.5" y="0.5" width="21" height="10" rx="2" fill="none" stroke="currentColor" opacity="0.5"/>
+                <rect x="2" y="2" width="18" height="7" fill="currentColor"/>
+                <rect x="22.5" y="3.5" width="1" height="4" fill="currentColor" opacity="0.5"/>
+              </svg>
+            </span>
+          </div>
+
+          <div class="m-topbar">
+            <button class="icon-btn" type="button" aria-label="Menu">≡</button>
+            <div class="brand-mini"><div class="glyph">K</div>KVORUM</div>
+            <div class="spacer" style="flex:1;"></div>
+            <button class="icon-btn" type="button" aria-label="Search">⌕</button>
+          </div>
+
+          <div class="m-body">
+
+            <!-- Hero stats -->
+            <div class="m-hero tnum">
+              <div class="stat"><div class="l">Proposals</div><div class="v">2,418<span class="delta">↑12</span></div></div>
+              <div class="stat"><div class="l">Votes cast</div><div class="v">147,302</div></div>
+              <div class="stat"><div class="l">Threads</div><div class="v">894</div></div>
+              <div class="stat"><div class="l">Open flags</div><div class="v" style="color:var(--warn);">3</div></div>
+            </div>
+
+            <!-- Active proposals -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Active · 14</span>
+                <span class="r"><span class="dot live"></span>polled 30s · ends ↑</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:10px; padding-top:10px;">
+
+                <article class="m-card">
+                  <div class="top">
+                    <div class="pills">
+                      <span class="pill dao-compound">Compound</span>
+                      <span class="state-pill active">active</span>
+                    </div>
+                    <span class="ends"><span class="dot live"></span>3h 12m</span>
+                  </div>
+                  <h3><span class="num">#247</span>Risk parameters update — cUSDC, cDAI</h3>
+                  <div class="tally-mini">
+                    <div class="row for"><span class="l">For</span><span class="track"><i style="width:78%"></i></span><span class="v">78.0%</span></div>
+                    <div class="row against"><span class="l">Against</span><span class="track"><i style="width:19%"></i></span><span class="v">19.0%</span></div>
+                  </div>
+                </article>
+
+                <article class="m-card flagged">
+                  <div class="top">
+                    <div class="pills">
+                      <span class="pill dao-compound">Compound</span>
+                      <span class="state-pill active">active</span>
+                    </div>
+                    <span class="ends" style="color:var(--warn);">⚠ 2d 8h</span>
+                  </div>
+                  <h3><span class="num">#248</span>Update interest-rate curve, cETH</h3>
+                  <div class="meta">⚠ description ≠ calldata · oracle re-point</div>
+                </article>
+
+                <article class="m-card">
+                  <div class="top">
+                    <div class="pills">
+                      <span class="pill dao-aave">Aave</span>
+                      <span class="state-pill active">active</span>
+                    </div>
+                    <span class="ends"><span class="dot live"></span>1d 4h</span>
+                  </div>
+                  <h3><span class="num">AIP-394</span>Onboard rsETH · Eth &amp; Arb</h3>
+                  <div class="tally-mini">
+                    <div class="row for"><span class="l">For</span><span class="track"><i style="width:92%"></i></span><span class="v">92.0%</span></div>
+                    <div class="row against"><span class="l">Against</span><span class="track"><i style="width:5%"></i></span><span class="v">5.0%</span></div>
+                  </div>
+                </article>
+
+              </div>
+            </div>
+
+            <!-- DAO health snapshot -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">DAO health</span>
+                <span class="r">90d</span>
+              </div>
+              <div class="m-health-row" style="padding-top:10px;">
+                <div class="card">
+                  <div class="name">Compound</div>
+                  <div class="grade b">B+</div>
+                  <div class="sub">38.4% turnout · 2 flags</div>
+                </div>
+                <div class="card">
+                  <div class="name">Aave</div>
+                  <div class="grade a">A−</div>
+                  <div class="sub">52.1% turnout · 0 flags</div>
+                </div>
+                <div class="card">
+                  <div class="name">Uniswap</div>
+                  <div class="grade b">B</div>
+                  <div class="sub">31.7% turnout · 1 flag</div>
+                </div>
+                <div class="card">
+                  <div class="name">Optimism</div>
+                  <div class="grade c">C+</div>
+                  <div class="sub">18.0% turnout · 4 flags</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:14px;"></div>
+          </div>
+
+          <div class="m-tabs">
+            <a class="on" href="#"><span class="icon">◆</span><span>Home</span></a>
+            <a href="#"><span class="icon">≣</span><span>Props</span></a>
+            <a href="#"><span class="icon">◐</span><span>DAOs</span></a>
+            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+
+      <div class="device-foot">
+        <span class="k">Sticky topbar</span> stays on scroll · proposals stack as cards with mini tally bars ·
+        DAO health is a 2×2 grid · bottom tab bar replaces desktop topnav.
+      </div>
+    </div>
+
+    <!-- ============================================================
+         PHONE 2 — PROPOSAL DETAIL
+         ============================================================ -->
+    <div class="device-col">
+      <div class="device-label"><b>02 · Proposal detail</b><span>/m/p/[id] · §6.9</span></div>
+
+      <div class="phone" aria-label="Kvorum mobile · proposal detail">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ios-status">
+            <span>9:41</span>
+            <span class="right">
+              <svg width="17" height="11" viewBox="0 0 17 11" aria-hidden="true">
+                <rect x="0" y="7" width="3" height="4" fill="currentColor"/>
+                <rect x="4" y="5" width="3" height="6" fill="currentColor"/>
+                <rect x="8" y="3" width="3" height="8" fill="currentColor"/>
+                <rect x="12" y="0" width="3" height="11" fill="currentColor"/>
+              </svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" aria-hidden="true">
+                <path d="M8 3.2c2.1 0 4 .9 5.3 2.2l1-1C12.7 2.7 10.4 1.6 8 1.6S3.3 2.7 1.7 4.4l1 1C4 4.1 5.9 3.2 8 3.2zM8 6.6c1.2 0 2.3.5 3.1 1.3l1-1C11 5.8 9.5 5 8 5s-3 .8-4.1 1.9l1 1C5.7 7.1 6.8 6.6 8 6.6zm0 3a1.3 1.3 0 100 2.6 1.3 1.3 0 000-2.6z" fill="currentColor"/>
+              </svg>
+              <svg width="24" height="11" viewBox="0 0 24 11" aria-hidden="true">
+                <rect x="0.5" y="0.5" width="21" height="10" rx="2" fill="none" stroke="currentColor" opacity="0.5"/>
+                <rect x="2" y="2" width="18" height="7" fill="currentColor"/>
+                <rect x="22.5" y="3.5" width="1" height="4" fill="currentColor" opacity="0.5"/>
+              </svg>
+            </span>
+          </div>
+
+          <div class="m-topbar">
+            <button class="icon-btn" type="button" aria-label="Back">‹</button>
+            <div class="title-stack">
+              <div class="crumb">compound / governor</div>
+              <div class="ttl">#248 · cETH IRM update</div>
+            </div>
+            <button class="icon-btn" type="button" aria-label="More">⋯</button>
+          </div>
+
+          <div class="m-body">
+
+            <!-- Header -->
+            <div class="m-prop-head">
+              <div class="pills-row">
+                <span class="pill dao-compound">Compound</span>
+                <span class="state-pill active">active</span>
+                <span class="ends"><span class="dot live"></span>ends 2d 8h</span>
+              </div>
+              <h2><span class="num">#248</span>Update interest-rate curve, cETH market</h2>
+              <div class="meta">
+                <span><b>Proposer</b> 0x12…aa</span>
+                <span><b>Type</b> binding</span>
+                <span><b>Timelock</b> 2d</span>
+                <span><b>Quorum</b> 400K COMP</span>
+              </div>
+            </div>
+
+            <!-- Mismatch banner -->
+            <div class="m-banner warn">
+              <span style="font-weight:700;">⚠</span>
+              <span><b>Calldata mismatch detected.</b> Description claims rate-curve tweak; calldata also re-points the cETH oracle. <a href="#" style="text-decoration:underline; color:inherit;">View analysis →</a></span>
+            </div>
+
+            <!-- AI summary -->
+            <div class="m-ai">
+              <div class="mark-row">
+                <span class="mark">AI</span>
+                <span class="conf">0.78 conf · 6 inputs</span>
+              </div>
+              <div class="body">
+                Re-fits the kink on cETH's interest-rate model (kink → 80%, base → 0%, mult → 4.5%) and replaces the price oracle with <span class="mono">0xa2…91dc</span>. The oracle change is <b>not described</b> in the proposal text.
+              </div>
+              <div class="foot">
+                <span>model: claude-3.7-sonnet</span>
+                <span>inputs: text · 3 actions · forum (4 posts)</span>
+                <span>generated 2h ago</span>
+              </div>
+            </div>
+
+            <!-- Tally -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Tally · live</span>
+                <span class="r"><span class="dot live"></span>updated 8s ago</span>
+              </div>
+              <div class="m-tally-full" style="padding-top:10px;">
+                <div class="stat-grid tnum">
+                  <div class="s"><div class="l">Quorum</div><div class="v ok">412K / 400K</div></div>
+                  <div class="s"><div class="l">Voters</div><div class="v">218</div></div>
+                  <div class="s"><div class="l">Outcome</div><div class="v warn">Defeating</div></div>
+                </div>
+                <div class="row for"><span class="l">For</span><span class="track"><i style="width:41%"></i></span><span class="v">169K</span></div>
+                <div class="row against"><span class="l">Against</span><span class="track"><i style="width:52%"></i></span><span class="v">214K</span></div>
+                <div class="row abstain"><span class="l">Abstain</span><span class="track"><i style="width:7%"></i></span><span class="v">29K</span></div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Actions · 2</span>
+                <span class="r">on-chain calldata</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; padding-top:10px;">
+                <div class="m-action">
+                  <div class="who">cETH._setInterestRateModel</div>
+                  <div class="arg"><span class="k">newInterestRateModel=</span>0xa2…91dc</div>
+                </div>
+                <div class="m-action" style="border-color: var(--warn);">
+                  <div class="who" style="color: var(--warn);">⚠ cETH._setPriceOracle</div>
+                  <div class="arg"><span class="k">newOracle=</span>0x7f…3e02 <span style="color:var(--warn);">· not in description</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:14px;"></div>
+          </div>
+
+          <!-- Sticky vote CTA above tab bar -->
+          <div class="m-vote-cta">
+            <button class="for" type="button">▲ For</button>
+            <button class="against" type="button">▼ Against</button>
+            <button class="abstain" type="button">— Abstain</button>
+          </div>
+
+          <div class="m-tabs">
+            <a href="#"><span class="icon">◆</span><span>Home</span></a>
+            <a class="on" href="#"><span class="icon">≣</span><span>Props</span></a>
+            <a href="#"><span class="icon">◐</span><span>DAOs</span></a>
+            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+
+      <div class="device-foot">
+        <span class="k">AI panel</span> stays full first-class — hatched bg, △ AI mark, model + inputs in foot ·
+        sticky <span class="k">For / Against / Abstain</span> bar sits above tab bar so the action is never offscreen.
+      </div>
+    </div>
+
+    <!-- ============================================================
+         PHONE 3 — DAO HEALTH
+         ============================================================ -->
+    <div class="device-col">
+      <div class="device-label"><b>03 · DAO health</b><span>/m/daos/[slug]/health · §6.7</span></div>
+
+      <div class="phone" aria-label="Kvorum mobile · DAO health">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="ios-status">
+            <span>9:41</span>
+            <span class="right">
+              <svg width="17" height="11" viewBox="0 0 17 11" aria-hidden="true">
+                <rect x="0" y="7" width="3" height="4" fill="currentColor"/>
+                <rect x="4" y="5" width="3" height="6" fill="currentColor"/>
+                <rect x="8" y="3" width="3" height="8" fill="currentColor"/>
+                <rect x="12" y="0" width="3" height="11" fill="currentColor"/>
+              </svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" aria-hidden="true">
+                <path d="M8 3.2c2.1 0 4 .9 5.3 2.2l1-1C12.7 2.7 10.4 1.6 8 1.6S3.3 2.7 1.7 4.4l1 1C4 4.1 5.9 3.2 8 3.2zM8 6.6c1.2 0 2.3.5 3.1 1.3l1-1C11 5.8 9.5 5 8 5s-3 .8-4.1 1.9l1 1C5.7 7.1 6.8 6.6 8 6.6zm0 3a1.3 1.3 0 100 2.6 1.3 1.3 0 000-2.6z" fill="currentColor"/>
+              </svg>
+              <svg width="24" height="11" viewBox="0 0 24 11" aria-hidden="true">
+                <rect x="0.5" y="0.5" width="21" height="10" rx="2" fill="none" stroke="currentColor" opacity="0.5"/>
+                <rect x="2" y="2" width="18" height="7" fill="currentColor"/>
+                <rect x="22.5" y="3.5" width="1" height="4" fill="currentColor" opacity="0.5"/>
+              </svg>
+            </span>
+          </div>
+
+          <div class="m-topbar">
+            <button class="icon-btn" type="button" aria-label="Back">‹</button>
+            <div class="title-stack">
+              <div class="crumb">daos / compound</div>
+              <div class="ttl">Health · 90d</div>
+            </div>
+            <button class="icon-btn" type="button" aria-label="Share">↗</button>
+          </div>
+
+          <div class="m-body">
+
+            <!-- DAO header card -->
+            <div style="display:flex; align-items:center; gap:12px; padding-bottom:8px; border-bottom: 1px solid var(--line-3);">
+              <div style="width:40px; height:40px; background: var(--dao-compound); display:grid; place-items:center; color:#003020; font-family:var(--font-mono); font-size:var(--fs-16); font-weight:700;">C</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-family:var(--font-mono); font-size:var(--fs-14); font-weight:600;">Compound</div>
+                <div style="font-family:var(--font-mono); font-size:var(--fs-10); color:var(--ink-3);">comp.compound.finance · governor-bravo</div>
+              </div>
+              <div style="font-family:var(--font-mono); font-size:22px; font-weight:700; padding:4px 10px; border:1px solid var(--ink-3); color:var(--ink);">B+</div>
+            </div>
+
+            <!-- Stat grid -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Snapshot</span>
+                <span class="r">vs prev 90d</span>
+              </div>
+              <div class="m-hero tnum" style="margin-top:10px;">
+                <div class="stat"><div class="l">Active props</div><div class="v">7<span class="delta">↑2</span></div></div>
+                <div class="stat"><div class="l">Participation</div><div class="v">38.4%<span class="delta">↑1.2</span></div></div>
+                <div class="stat"><div class="l">Pass rate</div><div class="v">71%</div></div>
+                <div class="stat"><div class="l">Open flags</div><div class="v" style="color:var(--warn);">2</div></div>
+              </div>
+            </div>
+
+            <!-- Activity chart -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Activity · 12mo</span>
+                <span class="r">proposals/mo</span>
+              </div>
+              <div class="m-chart" style="margin-top:10px;" aria-label="Activity chart">
+                <div class="y">12</div>
+                <svg viewBox="0 0 320 120" preserveAspectRatio="none">
+                  <polyline fill="none" stroke="var(--ink)" stroke-width="1.5"
+                            points="6,86 32,72 58,78 84,58 110,62 136,44 162,52 188,38 214,46 240,28 266,34 292,22 314,30"/>
+                  <polyline fill="var(--accent-bg)" stroke="none" opacity="0.6"
+                            points="6,86 32,72 58,78 84,58 110,62 136,44 162,52 188,38 214,46 240,28 266,34 292,22 314,30 314,120 6,120"/>
+                </svg>
+                <div class="x"><span>Mar</span><span>Jun</span><span>Sep</span><span>Dec</span><span>Mar</span></div>
+              </div>
+            </div>
+
+            <!-- Top delegates -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Top delegates</span>
+                <span class="r">by voting power</span>
+              </div>
+              <div style="padding-top:4px;">
+                <div class="m-delegate">
+                  <div class="avatar">A</div>
+                  <div><div class="who">a16z</div><div class="sub">187 votes · alignment 0.82</div></div>
+                  <div class="right">12.4M<div class="sub">COMP</div></div>
+                </div>
+                <div class="m-delegate">
+                  <div class="avatar">G</div>
+                  <div><div class="who">Gauntlet</div><div class="sub">172 votes · alignment 0.91</div></div>
+                  <div class="right">4.1M<div class="sub">COMP</div></div>
+                </div>
+                <div class="m-delegate">
+                  <div class="avatar">B</div>
+                  <div><div class="who">blck.eth</div><div class="sub">156 votes · alignment 0.74</div></div>
+                  <div class="right">2.8M<div class="sub">COMP</div></div>
+                </div>
+                <div class="m-delegate">
+                  <div class="avatar">P</div>
+                  <div><div class="who">PaperImperium</div><div class="sub">141 votes · alignment 0.69</div></div>
+                  <div class="right">1.9M<div class="sub">COMP</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Open flags -->
+            <div>
+              <div class="m-section-h">
+                <span class="l">Open flags · 2</span>
+                <span class="r" style="color:var(--warn);">!</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; padding-top:10px;">
+                <div class="m-flag">
+                  <div class="title">
+                    <span>#248 · IRM update</span>
+                    <span class="sev">Severe</span>
+                  </div>
+                  <div class="excerpt">Calldata also re-points the cETH oracle. Not described in proposal text.</div>
+                </div>
+                <div class="m-flag note">
+                  <div class="title">
+                    <span>#246 · Treasury swap</span>
+                    <span class="sev">Material</span>
+                  </div>
+                  <div class="excerpt">Recipient address shares 0 prior interactions with governance.</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:14px;"></div>
+          </div>
+
+          <div class="m-tabs">
+            <a href="#"><span class="icon">◆</span><span>Home</span></a>
+            <a href="#"><span class="icon">≣</span><span>Props</span></a>
+            <a class="on" href="#"><span class="icon">◐</span><span>DAOs</span></a>
+            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+
+      <div class="device-foot">
+        <span class="k">DAO header</span> uses the brand swatch + grade pill · 2×2 stat grid replaces the desktop side-rail ·
+        chart shrinks to 120px, x-axis labels every quarter.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Reflow rules -->
+  <section class="reflow">
+    <header>
+      <h3>Reflow rules</h3>
+      <p>What the rest of the dashboard does at &lt;720pt. Desktop-first pages still load — they just don't get bespoke treatment.</p>
+    </header>
+    <div class="rules">
+      <div class="rule"><div class="bp">≥1024</div><div class="what"><b>Desktop.</b> Full topnav, sidebars, two-column layouts as designed.</div></div>
+      <div class="rule"><div class="bp">920–1023</div><div class="what"><b>Tablet wide.</b> Sidebars collapse into anchored sub-nav at the top of each section. Tables stay.</div></div>
+      <div class="rule"><div class="bp">720–919</div><div class="what"><b>Tablet narrow.</b> Two-column → stacked. Charts shrink to 200pt tall. Topnav still full-width.</div></div>
+      <div class="rule"><div class="bp">≤719</div><div class="what"><b>Phone.</b> Tables → stacked cards. Topnav → hamburger + brand + search. Bottom tab bar replaces nav.</div></div>
+      <div class="rule"><div class="bp">≤375</div><div class="what"><b>Phone min.</b> Hit targets ≥ 44pt enforced. Sticky vote CTA on proposal detail. Notch + safe-area aware.</div></div>
+      <div class="rule"><div class="bp">All</div><div class="what"><b>AI panels</b> keep their hatched background and △ AI mark at every breakpoint — never collapse to plain text.</div></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>3 phones drawn at 1× (390×844) · iOS 17 status bar</div>
+  <div class="item">design system: tokens + components only — no mobile-only primitives</div>
+  <div class="item">kvorum.xyz / mobile</div>
+</footer>
+
+<script>
+  // Theme toggle — page + topnav button
+  const html = document.documentElement;
+  const toggles = document.querySelectorAll('.stage-head .toggle button');
+  const navBtn = document.getElementById('themeToggle');
+
+  function setTheme(th) {
+    html.setAttribute('data-theme', th);
+    toggles.forEach(b => b.classList.toggle('on', b.dataset.th === th));
+    try { localStorage.setItem('kv:theme', th); } catch (e) {}
+  }
+  toggles.forEach(b => b.addEventListener('click', () => setTheme(b.dataset.th)));
+  navBtn?.addEventListener('click', () => setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+  try {
+    const saved = localStorage.getItem('kv:theme');
+    if (saved) setTheme(saved);
+  } catch (e) {}
+</script>
+
+</body>
+</html>

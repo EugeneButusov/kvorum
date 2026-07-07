@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Homepage (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  /* Homepage-specific */
+  .hero {
+    padding: 28px 24px 22px;
+    border-bottom: 1.5px solid var(--line);
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+  }
+  .hero h1 { margin: 0; font-size: 32px; letter-spacing: -0.01em; line-height: 1.2; max-width: 720px; }
+  .hero .stats { display: flex; gap: 0; border: 1.5px solid var(--line); }
+  .hero .stat { padding: 10px 18px; border-right: 1.5px solid var(--line); }
+  .hero .stat:last-child { border-right: 0; }
+  .hero .stat .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .hero .stat .v { font-size: 22px; font-weight: 600; margin-top: 2px; }
+
+  /* Active proposal cards (horizontal) */
+  .h-scroll {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(320px, 1fr);
+    gap: 12px; overflow-x: auto; padding-bottom: 6px;
+  }
+  .prop-card {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    padding: 12px;
+    display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 8px;
+    min-height: 220px;
+  }
+  .prop-card .top { display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .prop-card .title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+  .prop-card .meta { font-size: 11px; color: var(--ink-2); }
+  .prop-card .tldr { font-size: 11.5px; color: var(--ink-2); border-top: 1px dashed var(--line-soft); padding-top: 6px; }
+  .prop-card .tldr small { display:block; color: var(--ink-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+
+  /* Health snapshot trio */
+  .health-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .dao-card {
+    border: 1px solid var(--line);
+    padding: 14px;
+    background: var(--paper);
+  }
+  .dao-card h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .dao-card .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed var(--line-soft); font-size: 11.5px; }
+  .dao-card .row:last-child { border-bottom: 0; }
+  .dao-card .row b { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 500; }
+  .dao-card a.cta { display: block; margin-top: 8px; text-align: center; padding: 6px; border: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Activity feed */
+  .feed { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; }
+  .feed .item { display: grid; grid-template-columns: 90px 90px 90px 1fr; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+  .feed .item:last-child { border-bottom: 0; }
+  .feed .item .t { color: var(--ink-3); }
+  .feed .item .d { color: var(--ink-2); }
+  .feed .item .k { color: var(--ink); }
+  .feed .item .body { color: var(--ink); font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body data-wf="home">
+
+<div class="page" data-screen-label="01 Homepage — wireframe">
+
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Homepage</span>
+    <span class="mono">/  ·  spec §6.4  ·  lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul>
+      <li class="active">Home</li>
+      <li>Proposals</li>
+      <li>DAOs ▾</li>
+      <li>Developer</li>
+      <li>API Docs ↗</li>
+    </ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color:var(--ink-3); font-size:11px;">⌘K  Search</div>
+    <div class="topnav .btn" style="border:1.5px solid var(--line); padding:6px 14px; font-size:12px;">Sign in</div>
+  </nav>
+
+  <!-- 1. Tagline + cross-DAO stats -->
+  <div class="hero anno" data-anno="§6.4-1 hero + stats">
+    <div>
+      <h1>Governance intelligence for DeFi DAOs.</h1>
+      <div style="margin-top: 8px; color: var(--ink-2); font-size: 13px;">
+        Indexed across <b>Compound</b>, <b>Aave</b>, <b>Lido</b>. Free dashboard, free API. <span class="mono" style="color: var(--ink-3);">no auth required for browsing</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Proposals</div><div class="v">2,418</div></div>
+      <div class="stat"><div class="l">Votes</div><div class="v">147,302</div></div>
+      <div class="stat"><div class="l">Forum threads</div><div class="v">894</div></div>
+      <div class="stat"><div class="l">DAOs</div><div class="v">3</div></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- 2. Active proposals -->
+    <div class="section anno" data-anno="§6.4-2 active proposals">
+      <header>
+        <h2>Active now · across all DAOs</h2>
+        <span class="ref"><span class="dot live"></span>polled every 30s · sorted by close time ↑</span>
+      </header>
+      <div class="desc">Each card → proposal detail. Cards include mismatch indicator and AI TL;DR.</div>
+      <div class="body">
+        <div class="h-scroll">
+
+          <div class="prop-card">
+            <div class="top"><span><span class="pill">Compound</span> <span class="pill">governor</span></span><span>ends in 3h 12m</span></div>
+            <div class="title">#247 Risk parameters update — cUSDC, cDAI</div>
+            <div class="meta mono">proposer 0x9d…04 · started 2d ago</div>
+            <div class="tally">
+              <div class="row"><span class="label">For</span><span class="bar"><i style="right:22%"></i></span><span class="num">78.0%</span></div>
+              <div class="row against"><span class="label">Against</span><span class="bar"><i style="right:81%"></i></span><span class="num">19.0%</span></div>
+              <div class="row abstain"><span class="label">Abstain</span><span class="bar"><i style="right:97%"></i></span><span class="num">3.0%</span></div>
+            </div>
+            <div class="tldr"><small>summary by kvorum</small>Tightens collateral factors on stablecoin markets to reduce systemic risk after recent depeg event.</div>
+          </div>
+
+          <div class="prop-card">
+            <div class="top"><span><span class="pill">Aave</span> <span class="pill">governor v3</span></span><span>ends in 1d 4h</span></div>
+            <div class="title">AIP-394 Onboard rsETH on Ethereum &amp; Arbitrum</div>
+            <div class="meta mono">cross-chain · 2 payloads</div>
+            <div class="tally">
+              <div class="row"><span class="label">For</span><span class="bar"><i style="right:8%"></i></span><span class="num">92.0%</span></div>
+              <div class="row against"><span class="label">Against</span><span class="bar"><i style="right:95%"></i></span><span class="num">5.0%</span></div>
+              <div class="row abstain"><span class="label">Abstain</span><span class="bar"><i style="right:97%"></i></span><span class="num">3.0%</span></div>
+            </div>
+            <div class="tldr"><small>summary by kvorum</small>Adds rsETH as collateral with 70% LTV; enables borrowing against LST exposure.</div>
+          </div>
+
+          <div class="prop-card">
+            <div class="top"><span><span class="pill">Lido</span> <span class="pill">snapshot</span></span><span>ends in 2d 11h</span></div>
+            <div class="title">[Signaling] Increase Curve liquidity incentives Q3</div>
+            <div class="meta mono">non-binding · ranked-choice 4 opts</div>
+            <div class="tally">
+              <div class="row"><span class="label">Opt A</span><span class="bar"><i style="right:38%"></i></span><span class="num">62.0%</span></div>
+              <div class="row against"><span class="label">Opt B</span><span class="bar"><i style="right:74%"></i></span><span class="num">26.0%</span></div>
+              <div class="row abstain"><span class="label">Opt C+D</span><span class="bar"><i style="right:88%"></i></span><span class="num">12.0%</span></div>
+            </div>
+            <div class="tldr"><small>summary by kvorum</small>Direct +5M LDO toward Curve gauges to defend stETH liquidity vs competing LSTs.</div>
+          </div>
+
+          <div class="prop-card">
+            <div class="top"><span><span class="pill">Compound</span></span><span>ends in 2d 8h <span class="sev material" style="margin-left:6px;">flag</span></span></div>
+            <div class="title">#248 Update interest-rate curve, cETH market</div>
+            <div class="meta mono">proposer 0x12…aa · binding</div>
+            <div class="tally">
+              <div class="row"><span class="label">For</span><span class="bar"><i style="right:59%"></i></span><span class="num">41.0%</span></div>
+              <div class="row against"><span class="label">Against</span><span class="bar"><i style="right:48%"></i></span><span class="num">52.0%</span></div>
+              <div class="row abstain"><span class="label">Abstain</span><span class="bar"><i style="right:93%"></i></span><span class="num">7.0%</span></div>
+            </div>
+            <div class="tldr"><small>summary · ⚠ mismatch</small>Description says "modest tweak"; calldata also re-points an oracle. See mismatch analysis.</div>
+          </div>
+
+          <div class="prop-card" style="border-style: dashed;">
+            <div class="top"><span style="color:var(--ink-3);">+ 6 more active</span><span></span></div>
+            <div class="title" style="color:var(--ink-3);">scroll horizontally →</div>
+            <div></div><div></div>
+            <div class="tldr" style="border:0; color: var(--ink-3); padding:0;">all active proposals on /proposals</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Recent mismatch flags -->
+    <div class="section anno" data-anno="§6.4-3 mismatch flags">
+      <header>
+        <h2>Recent discrepancies · flagship feature</h2>
+        <span class="ref">last 30 days · severity ≥ material</span>
+      </header>
+      <div class="desc">Empty-state honesty (§6.18): when no flags, this section says "no discrepancies detected" rather than disappearing.</div>
+      <div class="body">
+        <table>
+          <thead><tr>
+            <th style="width: 90px;">Severity</th>
+            <th>Proposal</th>
+            <th style="width: 130px;">DAO</th>
+            <th style="width: 130px;">Detected</th>
+            <th>Excerpt</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sev severe">severe</span></td>
+              <td><b>#244 Comptroller upgrade</b></td>
+              <td>Compound</td>
+              <td class="mono">Apr 18, 2026</td>
+              <td>Calldata re-points an oracle to a new address not mentioned in the proposal text.</td>
+            </tr>
+            <tr>
+              <td><span class="sev material">material</span></td>
+              <td><b>AIP-381 Risk steward update</b></td>
+              <td>Aave</td>
+              <td class="mono">Apr 11, 2026</td>
+              <td>Grants role to additional address beyond the one named in the description.</td>
+            </tr>
+            <tr>
+              <td><span class="sev material">material</span></td>
+              <td><b>#239 Reserve adjustment</b></td>
+              <td>Compound</td>
+              <td class="mono">Mar 02, 2026</td>
+              <td>Numerical mismatch: calldata sets 0.20; description says "approximately 15%".</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. DAO health snapshot trio -->
+    <div class="section anno" data-anno="§6.4-4 health snapshot">
+      <header>
+        <h2>DAO health · at a glance</h2>
+        <span class="ref">click any card → full health dashboard</span>
+      </header>
+      <div class="body">
+        <div class="health-trio">
+          <div class="dao-card">
+            <h3><span class="pill">Compound</span> <span style="color: var(--ink-3); font-size: 11px; font-weight: normal;">/daos/compound</span></h3>
+            <div class="row"><span>Pass rate (90d)</span><b>71%</b></div>
+            <div class="row"><span>Top-10 VP share</span><b>42.7% ↑</b></div>
+            <div class="row"><span>Participation avg.</span><b>38.4% ↓</b></div>
+            <div class="row"><span>Open flags</span><b>2</b></div>
+            <a class="cta" href="DAO Health Dashboard Wireframe.html">View health →</a>
+          </div>
+          <div class="dao-card">
+            <h3><span class="pill">Aave</span> <span style="color: var(--ink-3); font-size: 11px; font-weight: normal;">/daos/aave</span></h3>
+            <div class="row"><span>Pass rate (90d)</span><b>84%</b></div>
+            <div class="row"><span>Top-10 VP share</span><b>51.2% →</b></div>
+            <div class="row"><span>Participation avg.</span><b>44.1% →</b></div>
+            <div class="row"><span>Open flags</span><b>1</b></div>
+            <a class="cta">View health →</a>
+          </div>
+          <div class="dao-card">
+            <h3><span class="pill">Lido</span> <span style="color: var(--ink-3); font-size: 11px; font-weight: normal;">3 tracks</span></h3>
+            <div class="row"><span>Aragon pass rate</span><b>78%</b></div>
+            <div class="row"><span>Snapshot turnout</span><b>62.4%</b></div>
+            <div class="row"><span>Dual-gov state</span><b class="mono">normal</b></div>
+            <div class="row"><span>Open flags</span><b>0</b></div>
+            <a class="cta">View health →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Recent activity feed -->
+    <div class="section anno" data-anno="§6.4-5 activity feed">
+      <header>
+        <h2>Recent activity · all DAOs</h2>
+        <span class="ref"><span class="dot live"></span>polled every 30s · last 30 events</span>
+      </header>
+      <div class="body">
+        <div class="feed">
+          <div class="item"><span class="t">2m ago</span><span class="d">Compound</span><span class="k">vote.cast</span><span class="body">0x9d…04 voted <b>For</b> on #247 with <span class="mono">42.1k COMP</span></span></div>
+          <div class="item"><span class="t">5m ago</span><span class="d">Aave</span><span class="k">vote.cast</span><span class="body">0xab…f1 voted <b>For</b> on AIP-394 with <span class="mono">88.2k AAVE</span></span></div>
+          <div class="item"><span class="t">11m ago</span><span class="d">Lido</span><span class="k">proposal.created</span><span class="body">"Increase Curve liquidity incentives Q3" · snapshot</span></div>
+          <div class="item"><span class="t">23m ago</span><span class="d">Compound</span><span class="k">delegation</span><span class="body">240k COMP delegated to 0xab…f1 <span class="dot warn"></span><span style="color:var(--ink-3);">+2σ event</span></span></div>
+          <div class="item"><span class="t">38m ago</span><span class="d">Aave</span><span class="k">proposal.executed</span><span class="body">AIP-388 Risk parameters · 3 chains</span></div>
+          <div class="item"><span class="t">1h ago</span><span class="d">Compound</span><span class="k">proposal.queued</span><span class="body">#246 cWBTC migration · timelock 2d</span></div>
+          <div class="item"><span class="t">2h ago</span><span class="d">Lido</span><span class="k">vote.threshold</span><span class="body">Aragon vote #2034 crossed 50% quorum</span></div>
+          <div class="item"><span class="t">3h ago</span><span class="d">Compound</span><span class="k">vote.cast</span><span class="body">0x12…aa voted <b>Against</b> on #248 · rationale provided</span></div>
+          <div class="item"><span class="t">— more —</span><span class="d"></span><span class="k"></span><span class="body" style="color: var(--ink-3);">22 older events · scroll for more</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot live"></span>active &amp; feed sections live · last updated 12s ago</span>
+    <span>stats &amp; flags &amp; health: static on load (§6.16)</span>
+    <span>kvorum.xyz/</span>
+  </div>
+
+</div>
+
+<div class="legend-card">
+  <b>Homepage wireframe</b> · entry point for all three user segments. Implicit positioning through what's shown, not marketing copy (§6.4).
+  <div class="row" style="margin-top:8px;">
+    <span><span class="swatch solid"></span> data block</span>
+    <span><span class="swatch dashed"></span> chart placeholder</span>
+    <span><span class="swatch note"></span> spec reference</span>
+    <span class="mono">→ hover/click → proposal or DAO detail</span>
+  </div>
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

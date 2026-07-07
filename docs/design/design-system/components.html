@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum · Components reference</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<style>
+  /* Page-only styles — not part of the system */
+  body { padding-bottom: 80px; }
+  .doc-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px var(--gutter);
+    border-bottom: 1px solid var(--line-3);
+    background: var(--bg-2);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .doc-toolbar h1 {
+    margin: 0; font-family: var(--font-mono);
+    font-size: var(--fs-14); font-weight: 600;
+    letter-spacing: var(--tracking-mono);
+  }
+  .doc-toolbar .meta {
+    font-family: var(--font-mono); font-size: var(--fs-11);
+    color: var(--ink-3);
+  }
+  .doc-toolbar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  .doc { max-width: 1200px; margin: 0 auto; padding: 32px var(--gutter); }
+  .doc h2 {
+    font-family: var(--font-mono); font-size: var(--fs-13);
+    font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 48px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .doc h2:first-child { margin-top: 0; }
+  .doc h2 .num { color: var(--ink-3); font-weight: 500; margin-right: 6px; }
+  .doc h2 .file {
+    margin-left: auto;
+    font-size: var(--fs-105); color: var(--ink-3);
+    font-weight: 400; letter-spacing: 0.04em; text-transform: none;
+  }
+  .doc p.intro {
+    color: var(--ink-2); font-size: var(--fs-13);
+    line-height: var(--lh-prose);
+    margin: 0 0 20px; max-width: 70ch;
+  }
+
+  .specimen {
+    border: 1px solid var(--line-3);
+    background: var(--bg);
+    padding: 28px;
+    display: flex; flex-direction: column; gap: 16px;
+    align-items: flex-start;
+  }
+  .specimen.row { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .specimen.fill { padding: 0; background: var(--bg-2); align-items: stretch; }
+
+  .codeblock {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-115);
+    background: var(--bg-3);
+    color: var(--ink-2);
+    border: 1px solid var(--line-3);
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .codeblock .tag { color: var(--accent-ink); }
+  :root[data-theme="dark"] .codeblock .tag { color: var(--accent); }
+  .codeblock .attr { color: var(--ink-3); }
+  .codeblock .str { color: var(--warn); }
+  :root[data-theme="dark"] .codeblock .str { color: var(--note); }
+
+  .legend {
+    font-family: var(--font-mono); font-size: var(--fs-11);
+    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+
+  /* Token swatch grid */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .swatch {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    display: flex; flex-direction: column;
+  }
+  .swatch .chip { height: 64px; border-bottom: 1px solid var(--line-3); }
+  .swatch .meta { padding: 8px 10px; font-family: var(--font-mono); font-size: var(--fs-105); }
+  .swatch .meta .name { color: var(--ink); display: block; }
+  .swatch .meta .hex  { color: var(--ink-3); display: block; margin-top: 2px; }
+
+  /* Type specimens */
+  .type-row {
+    display: grid; grid-template-columns: 130px 1fr;
+    gap: 16px; align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--line-3);
+  }
+  .type-row:last-child { border: 0; }
+  .type-row .label {
+    font-family: var(--font-mono); font-size: var(--fs-105);
+    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .type-row .specimen-text { color: var(--ink); }
+
+  /* Spacing scale */
+  .spacing-row {
+    display: grid; grid-template-columns: 80px 1fr;
+    gap: 16px; align-items: center; padding: 6px 0;
+  }
+  .spacing-row .label {
+    font-family: var(--font-mono); font-size: var(--fs-115);
+    color: var(--ink-3);
+  }
+  .spacing-row .bar { background: var(--ink); height: 8px; }
+</style>
+</head>
+<body>
+
+<header class="doc-toolbar">
+  <h1>Kvorum / Design System / Components</h1>
+  <span class="meta">v0.1 · 2026-05-04</span>
+  <div class="right">
+    <span class="legend">Theme</span>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main class="doc">
+  <p class="intro">
+    Visual reference for every primitive in <span class="mono">design-system/components.css</span>.
+    Each section shows the rendered specimen and the canonical markup. In Next.js, port each primitive to a CSS-Module
+    (e.g. <span class="mono">components/Pill/Pill.module.css</span>) — the contract here is the floor.
+    Anything not on this page is page-specific and lives next to its screen.
+  </p>
+
+  <!-- ============ TOKENS ============ -->
+  <h2><span class="num">T1</span>Color tokens<span class="file">tokens.css · :root</span></h2>
+  <div class="specimen">
+    <span class="legend">Surfaces &amp; ink</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--bg)"></div><div class="meta"><span class="name">--bg</span><span class="hex">page</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--bg-2)"></div><div class="meta"><span class="name">--bg-2</span><span class="hex">card</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--bg-3)"></div><div class="meta"><span class="name">--bg-3</span><span class="hex">sunken / track</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink)"></div><div class="meta"><span class="name">--ink</span><span class="hex">primary text</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-2)"></div><div class="meta"><span class="name">--ink-2</span><span class="hex">secondary</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-3)"></div><div class="meta"><span class="name">--ink-3</span><span class="hex">tertiary / mono labels</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-4)"></div><div class="meta"><span class="name">--ink-4</span><span class="hex">disabled</span></div></div>
+    </div>
+
+    <span class="legend" style="margin-top:16px">Lines</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--line)"></div><div class="meta"><span class="name">--line</span><span class="hex">strong divider</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--line-2)"></div><div class="meta"><span class="name">--line-2</span><span class="hex">default border</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--line-3)"></div><div class="meta"><span class="name">--line-3</span><span class="hex">subtle / dashed</span></div></div>
+    </div>
+
+    <span class="legend" style="margin-top:16px">Accent &amp; severity</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--accent)"></div><div class="meta"><span class="name">--accent</span><span class="hex">terminal green</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--accent-bg)"></div><div class="meta"><span class="name">--accent-bg</span><span class="hex">accent fill</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--warn)"></div><div class="meta"><span class="name">--warn</span><span class="hex">red — mismatch</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--warn-bg)"></div><div class="meta"><span class="name">--warn-bg</span><span class="hex">warn fill</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--note)"></div><div class="meta"><span class="name">--note</span><span class="hex">amber — undecided</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--note-bg)"></div><div class="meta"><span class="name">--note-bg</span><span class="hex">note fill</span></div></div>
+    </div>
+
+    <span class="legend" style="margin-top:16px">AI panel</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--ai-bg)"></div><div class="meta"><span class="name">--ai-bg</span><span class="hex">paper-yellow</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ai-line)"></div><div class="meta"><span class="name">--ai-line</span><span class="hex">strong border</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ai-mark)"></div><div class="meta"><span class="name">--ai-mark</span><span class="hex">label fill</span></div></div>
+    </div>
+
+    <span class="legend" style="margin-top:16px">Vote choice</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--for)"></div><div class="meta"><span class="name">--for</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--against)"></div><div class="meta"><span class="name">--against</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--abstain)"></div><div class="meta"><span class="name">--abstain</span></div></div>
+    </div>
+
+    <span class="legend" style="margin-top:16px">DAO swatches (pill borders, dot indicators)</span>
+    <div class="swatch-grid" style="width:100%">
+      <div class="swatch"><div class="chip" style="background:var(--dao-compound)"></div><div class="meta"><span class="name">--dao-compound</span><span class="hex">#00d395</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-uniswap)"></div><div class="meta"><span class="name">--dao-uniswap</span><span class="hex">#ff007a</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-aave)"></div><div class="meta"><span class="name">--dao-aave</span><span class="hex">#b6509e</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-arb)"></div><div class="meta"><span class="name">--dao-arb</span><span class="hex">#28a0f0</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-op)"></div><div class="meta"><span class="name">--dao-op</span><span class="hex">#ff0420</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-ens)"></div><div class="meta"><span class="name">--dao-ens</span><span class="hex">#5298ff</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-lido)"></div><div class="meta"><span class="name">--dao-lido</span><span class="hex">#00a3ff</span></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--dao-mkr)"></div><div class="meta"><span class="name">--dao-mkr</span><span class="hex">#1aab9b</span></div></div>
+    </div>
+  </div>
+
+  <h2><span class="num">T2</span>Type scale<span class="file">tokens.css · --fs-*</span></h2>
+  <div class="specimen" style="display:block">
+    <div class="type-row"><span class="label">--fs-30 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-30); font-weight:600; letter-spacing:var(--tracking-tight)">#248 Update interest-rate curve</span></div>
+    <div class="type-row"><span class="label">--fs-24 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-24); font-weight:600">Section title</span></div>
+    <div class="type-row"><span class="label">--fs-20 / sans</span><span class="specimen-text" style="font-size:var(--fs-20); font-weight:600">Card title</span></div>
+    <div class="type-row"><span class="label">--fs-16 / sans</span><span class="specimen-text" style="font-size:var(--fs-16)">Lead paragraph — used for AI tl;dr.</span></div>
+    <div class="type-row"><span class="label">--fs-14 / sans</span><span class="specimen-text" style="font-size:var(--fs-14)">Body — descriptions, prose blocks. Line height --lh-prose (1.62).</span></div>
+    <div class="type-row"><span class="label">--fs-13 / sans</span><span class="specimen-text" style="font-size:var(--fs-13)">Default body — most UI text. Line height --lh-normal (1.5).</span></div>
+    <div class="type-row"><span class="label">--fs-125 / mono</span><span class="specimen-text mono tnum" style="font-size:var(--fs-125)">0xC00e94Cb… &nbsp; 1,247,902 COMP</span></div>
+    <div class="type-row"><span class="label">--fs-115 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-115)">Dense table content, calldata.</span></div>
+    <div class="type-row"><span class="label">--fs-11 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-11); text-transform:uppercase; letter-spacing:0.06em">Pill · uppercase · tracking 0.06em</span></div>
+    <div class="type-row"><span class="label">--fs-105 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-105); text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-3)">Section caption · 105 mono · ink-3</span></div>
+    <div class="type-row"><span class="label">--fs-10 / mono</span><span class="specimen-text mono" style="font-size:var(--fs-10); color:var(--ink-3)">⌘K · keyboard hints, micro labels</span></div>
+  </div>
+
+  <h2><span class="num">T3</span>Spacing scale<span class="file">tokens.css · --space-*</span></h2>
+  <div class="specimen" style="display:block">
+    <div class="spacing-row"><span class="label">--space-1 (4)</span><div class="bar" style="width:4px"></div></div>
+    <div class="spacing-row"><span class="label">--space-2 (8)</span><div class="bar" style="width:8px"></div></div>
+    <div class="spacing-row"><span class="label">--space-3 (12)</span><div class="bar" style="width:12px"></div></div>
+    <div class="spacing-row"><span class="label">--space-4 (16)</span><div class="bar" style="width:16px"></div></div>
+    <div class="spacing-row"><span class="label">--space-5 (20)</span><div class="bar" style="width:20px"></div></div>
+    <div class="spacing-row"><span class="label">--space-6 (24)</span><div class="bar" style="width:24px"></div></div>
+    <div class="spacing-row"><span class="label">--space-7 (28)</span><div class="bar" style="width:28px"></div></div>
+    <div class="spacing-row"><span class="label">--space-8 (32)</span><div class="bar" style="width:32px"></div></div>
+    <div class="spacing-row"><span class="label">--space-10 (40)</span><div class="bar" style="width:40px"></div></div>
+    <div class="spacing-row"><span class="label">--space-12 (48)</span><div class="bar" style="width:48px"></div></div>
+    <div class="spacing-row"><span class="label">--space-16 (64)</span><div class="bar" style="width:64px"></div></div>
+  </div>
+
+  <!-- ============ COMPONENTS ============ -->
+  <h2><span class="num">C1</span>Top navigation<span class="file">.kv-topnav</span></h2>
+  <p class="intro">Used on every page. 56px tall, ink underline below. Hosts brand, primary nav, search, theme toggle, wallet connect. Active link gets a 2px <span class="mono">--accent</span> underline.</p>
+  <div class="specimen fill">
+    <header class="kv-topnav">
+      <div class="brand"><div class="glyph">K</div>KVORUM</div>
+      <nav>
+        <a href="#">Home</a>
+        <a href="#" class="active">Proposals</a>
+        <a href="#">DAOs</a>
+        <a href="#">Delegates</a>
+        <a href="#">Developer</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+      <div class="actions">
+        <button class="theme-toggle" title="Toggle theme">◐</button>
+        <button class="connect">Connect wallet</button>
+      </div>
+    </header>
+  </div>
+  <pre class="codeblock"><span class="tag">&lt;header</span> <span class="attr">className=</span><span class="str">"kv-topnav"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;div</span> <span class="attr">className=</span><span class="str">"brand"</span><span class="tag">&gt;</span><span class="tag">&lt;div</span> <span class="attr">className=</span><span class="str">"glyph"</span><span class="tag">&gt;</span>K<span class="tag">&lt;/div&gt;</span>KVORUM<span class="tag">&lt;/div&gt;</span>
+  <span class="tag">&lt;nav&gt;</span>
+    <span class="tag">&lt;a</span> <span class="attr">className=</span><span class="str">"active"</span><span class="tag">&gt;</span>Proposals<span class="tag">&lt;/a&gt;</span>
+  <span class="tag">&lt;/nav&gt;</span>
+  <span class="tag">&lt;div</span> <span class="attr">className=</span><span class="str">"search"</span><span class="tag">&gt;</span>…<span class="tag">&lt;/div&gt;</span>
+  <span class="tag">&lt;button</span> <span class="attr">className=</span><span class="str">"connect"</span><span class="tag">&gt;</span>Connect wallet<span class="tag">&lt;/button&gt;</span>
+<span class="tag">&lt;/header&gt;</span></pre>
+
+  <h2><span class="num">C2</span>Breadcrumb<span class="file">.kv-crumb</span></h2>
+  <div class="specimen fill">
+    <div class="kv-crumb">
+      <a href="#">DAOs</a><span class="sep">/</span>
+      <a href="#">Compound</a><span class="sep">/</span>
+      <a href="#">Proposals</a><span class="sep">/</span>
+      <span class="id">#248</span>
+      <span class="copy" title="Copy URL">⎘ copy</span>
+      <span style="margin-left:auto; color:var(--ink-3);">compound_governor · 0x309a…f1c8</span>
+    </div>
+  </div>
+
+  <h2><span class="num">C3</span>Pill<span class="file">.pill / .pill.dao-*</span></h2>
+  <p class="intro">A bordered tag for taxonomies. DAO-specific variants tint the border with the DAO swatch.</p>
+  <div class="specimen row">
+    <span class="pill">PARAMETER</span>
+    <span class="pill">RISK</span>
+    <span class="pill dao-compound">COMPOUND</span>
+    <span class="pill dao-uniswap">UNISWAP</span>
+    <span class="pill dao-aave">AAVE</span>
+    <span class="pill dao-arb">ARBITRUM</span>
+  </div>
+
+  <h2><span class="num">C4</span>State pill<span class="file">.state-pill.&#123;state&#125;</span></h2>
+  <div class="specimen row">
+    <span class="state-pill active">ACTIVE</span>
+    <span class="state-pill passed">PASSED</span>
+    <span class="state-pill executed">EXECUTED</span>
+    <span class="state-pill defeated">DEFEATED</span>
+    <span class="state-pill queued">QUEUED</span>
+    <span class="state-pill draft">DRAFT</span>
+  </div>
+
+  <h2><span class="num">C5</span>Vote tag<span class="file">.vote-tag.&#123;choice&#125;</span></h2>
+  <div class="specimen row">
+    <span class="vote-tag for">FOR</span>
+    <span class="vote-tag against">AGAINST</span>
+    <span class="vote-tag abstain">ABSTAIN</span>
+  </div>
+
+  <h2><span class="num">C6</span>Live dot<span class="file">.dot.live</span></h2>
+  <div class="specimen row">
+    <span class="mono" style="font-size:var(--fs-115); color:var(--ink-3); display:inline-flex; align-items:center; gap:8px"><span class="dot live"></span> LIVE — vote ends in 14h 22m</span>
+  </div>
+
+  <h2><span class="num">C7</span>AI panel<span class="file">.ai-panel</span></h2>
+  <p class="intro">All AI-generated content lives here. The hatch background and black <span class="mono">△ AI</span> mark are the system's promise: not human writing, model is named, inputs are linked.</p>
+  <div class="specimen fill">
+    <div class="ai-panel">
+      <div class="ai-head">
+        <span class="ai-mark">AI · summary</span>
+        <span class="model">claude-sonnet-4 · 2026-05-04 14:02 UTC</span>
+      </div>
+      <div class="ai-body">
+        <p class="mono" style="margin:0; font-size:var(--fs-14); line-height:var(--lh-normal); color:var(--ink)">
+          <b>tl;dr</b> Updates the cETH interest-rate curve to soften kink at 80% utilization. Author claims this is a parameter-only change; calldata also updates the price-feed router — a scope mismatch flagged below.
+        </p>
+      </div>
+      <div class="ai-foot">
+        <span>Inputs: description · 17 calldata args · 4 forum posts</span>
+        <a href="#">View prompt ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="num">C8</span>Section header<span class="file">.kv-section &gt; header</span></h2>
+  <div class="specimen fill" style="padding:24px 32px">
+    <section class="kv-section" style="width:100%">
+      <header>
+        <h2><span class="num">03</span>MISMATCH</h2>
+        <div class="ref"><span class="dot live"></span> AUTO · 2 FLAGS · CONFIDENCE 0.86</div>
+      </header>
+    </section>
+  </div>
+
+  <h2><span class="num">C9</span>Severity banner<span class="file">.banner.&#123;warn|note|ok&#125;</span></h2>
+  <div class="specimen" style="display:block; gap:12px">
+    <div class="banner warn" style="margin-bottom:12px">
+      <div class="glyph">!</div>
+      <div><b>Scope mismatch.</b> Author description says "parameter-only" but calldata target #2 calls <span class="mono">_setPriceOracle</span>.</div>
+      <span class="conf">CONF 0.86</span>
+      <button class="jump">JUMP TO §03</button>
+    </div>
+    <div class="banner note" style="margin-bottom:12px">
+      <div class="glyph">i</div>
+      <div><b>Vote ends in 14h 22m.</b> Quorum at 64% — not yet met.</div>
+    </div>
+    <div class="banner ok">
+      <div class="glyph">✓</div>
+      <div><b>Quorum met.</b> 412k of 400k COMP voting power has cast.</div>
+    </div>
+  </div>
+
+  <h2><span class="num">C10</span>Card<span class="file">.card / .card.flagged</span></h2>
+  <div class="specimen" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; padding:0; background:transparent; border:0">
+    <div class="card">
+      <header>Author claims <span class="src">parsed from description</span></header>
+      <ul style="margin:0; padding:10px 14px 12px 30px; font-size:var(--fs-125)">
+        <li>Updates one parameter on cETH market</li>
+        <li>No oracle changes</li>
+        <li>No new contracts deployed</li>
+      </ul>
+    </div>
+    <div class="card flagged">
+      <header>Calldata <span class="src">decoded · 4 actions</span></header>
+      <ul style="margin:0; padding:10px 14px 12px 30px; font-size:var(--fs-125)">
+        <li><span class="mono">_setInterestRateModel</span> on cETH ✓</li>
+        <li style="list-style:none; margin-left:-16px; padding:4px 8px; background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--warn); display:flex; align-items:center; gap:8px">
+          <span style="background:var(--warn); color:var(--warn-bg); width:14px; height:14px; display:grid; place-items:center; font-family:var(--font-mono); font-weight:700; font-size:11px">!</span>
+          <span class="mono"><b>_setPriceOracle</b> on Comptroller — undisclosed</span>
+        </li>
+        <li><span class="mono">_setReserveFactor</span> on cETH ✓</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2><span class="num">C11</span>Field row<span class="file">.field</span></h2>
+  <div class="specimen fill">
+    <div class="card" style="width:100%">
+      <header>Action #2 · _setPriceOracle</header>
+      <div class="field">
+        <span class="k">Target</span>
+        <span class="v"><span>0x309a…f1c8</span><span style="color:var(--ink-3); font-family:var(--font-sans); font-size:var(--fs-115); border-left:1px solid var(--line-3); padding-left:8px">Comptroller</span></span>
+      </div>
+      <div class="field">
+        <span class="k">Function</span>
+        <span class="v">_setPriceOracle(address)</span>
+      </div>
+      <div class="field">
+        <span class="k">arg[0]</span>
+        <span class="v"><span>0xb000…2b1f</span><span style="color:var(--warn); background:var(--warn-bg); padding:1px 6px; border:1px solid var(--warn); font-family:var(--font-sans); font-size:var(--fs-115); font-weight:600">UNVERIFIED</span></span>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="num">C12</span>Segmented control<span class="file">.seg</span></h2>
+  <div class="specimen row">
+    <div class="seg">
+      <button class="on">ALL</button>
+      <button>FOR</button>
+      <button>AGAINST</button>
+      <button>ABSTAIN</button>
+    </div>
+  </div>
+
+  <h2><span class="num">C13</span>Theme toggle<span class="file">.theme-toggle</span></h2>
+  <div class="specimen row">
+    <button class="theme-toggle">◐</button>
+    <span class="legend">Click toolbar toggle at top to switch theme globally</span>
+  </div>
+
+  <h2><span class="num">C14</span>Footer<span class="file">.kv-footer</span></h2>
+  <div class="specimen fill">
+    <footer class="kv-footer">
+      <div class="item"><span class="dot live"></span><span>Synced 2s ago · block 21,943,118</span></div>
+      <div class="item">Build a3f49e1 · v0.1.0</div>
+      <div class="item">Kvorum · k.eth</div>
+    </footer>
+  </div>
+</main>
+
+<script>
+  const root = document.documentElement;
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const cur = root.getAttribute('data-theme') || 'light';
+    const next = cur === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    document.querySelectorAll('.theme-toggle').forEach(b => b.textContent = next === 'dark' ? '☀' : '◐');
+  });
+</script>
+</body>
+</html>
