@@ -21,9 +21,10 @@ function makeInsertChain(opts: { throws?: unknown } = {}) {
   const execute = opts.throws
     ? vi.fn().mockRejectedValue(opts.throws)
     : vi.fn().mockResolvedValue(undefined);
-  const values = vi.fn().mockReturnValue({ execute });
+  const onConflict = vi.fn().mockReturnValue({ execute });
+  const values = vi.fn().mockReturnValue({ onConflict });
   const insertInto = vi.fn().mockReturnValue({ values });
-  return { insertInto, values, execute };
+  return { insertInto, values, onConflict, execute };
 }
 
 describe('DlqRepository', () => {
@@ -36,6 +37,38 @@ describe('DlqRepository', () => {
     expect(chain.insertInto).toHaveBeenCalledWith('ingestion_dlq');
     expect(chain.values).toHaveBeenCalledWith(DLQ_ROW);
     expect(chain.execute).toHaveBeenCalledOnce();
+  });
+
+  it('#1b — upserts on the (archive tuple, stage) partial index, bumping retries/error', async () => {
+    const chain = makeInsertChain();
+    const repo = new DlqRepository({ insertInto: chain.insertInto } as never);
+
+    await repo.insert(DLQ_ROW);
+
+    const oc = {
+      columns: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      doUpdateSet: vi.fn().mockReturnThis(),
+    };
+    (chain.onConflict.mock.calls[0]![0] as (b: typeof oc) => unknown)(oc);
+
+    expect(oc.columns).toHaveBeenCalledWith([
+      'archive_source_type',
+      'archive_chain_id',
+      'archive_tx_hash',
+      'archive_log_index',
+      'archive_block_hash',
+      'stage',
+    ]);
+    expect(oc.where).toHaveBeenCalledWith('archive_source_type', 'is not', null);
+    expect(oc.doUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        retries: expect.anything(),
+        last_attempt_at: expect.anything(),
+        error: expect.anything(),
+        payload: expect.anything(),
+      }),
+    );
   });
 
   it('#2 — propagates PG errors', async () => {

@@ -232,4 +232,77 @@ describeWithDb('DlqRepository (integration)', () => {
       }),
     ).rejects.toThrow(RollbackSignal);
   });
+
+  it('insert() dedups repeated failures of the same (tuple, stage) into one row', async () => {
+    const DEDUP_TX = '0x' + '9'.repeat(64);
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const repo = new DlqRepository(trx as never);
+
+        await repo.insert({
+          ...BASE_DLQ_ROW,
+          stage: 'dedup_stage',
+          archive_tx_hash: DEDUP_TX,
+          retries: 5,
+          error: { message: 'first' },
+        });
+        await repo.insert({
+          ...BASE_DLQ_ROW,
+          stage: 'dedup_stage',
+          archive_tx_hash: DEDUP_TX,
+          retries: 42,
+          error: { message: 'later' },
+          last_attempt_at: new Date('2026-02-02T00:00:00Z'),
+        });
+
+        const rows = await trx
+          .selectFrom('ingestion_dlq')
+          .selectAll()
+          .where('archive_tx_hash', '=', DEDUP_TX)
+          .where('stage', '=', 'dedup_stage')
+          .execute();
+
+        expect(rows).toHaveLength(1); // one row, not two
+        expect(rows[0]?.retries).toBe(42); // greatest(5, 42)
+        expect(rows[0]?.error).toEqual({ message: 'later' }); // latest error wins
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('insert() does NOT dedup rows with no archive origin (archive_source_type NULL)', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const repo = new DlqRepository(trx as never);
+        const nullRow: NewIngestionDlq = {
+          stage: 'null_tuple_stage',
+          source: 'indexer.decode',
+          payload: { note: 'decode failure before any archive write' },
+          error: { message: 'decode' },
+          retries: 1,
+          first_seen_at: new Date('2026-01-01T00:00:00Z'),
+          last_attempt_at: new Date('2026-01-01T00:00:00Z'),
+          archive_source_type: null,
+          archive_chain_id: null,
+          archive_tx_hash: null,
+          archive_log_index: null,
+          archive_block_hash: null,
+        };
+        await repo.insert(nullRow);
+        await repo.insert(nullRow);
+
+        const rows = await trx
+          .selectFrom('ingestion_dlq')
+          .selectAll()
+          .where('stage', '=', 'null_tuple_stage')
+          .where('archive_source_type', 'is', null)
+          .execute();
+
+        expect(rows).toHaveLength(2); // partial index excludes NULLs → both insert
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
 });
