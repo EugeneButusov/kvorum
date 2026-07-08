@@ -151,34 +151,49 @@
   }
   .m-body::-webkit-scrollbar { width: 0; }
 
-  /* Bottom tab bar */
-  .m-tabs {
-    flex: 0 0 auto;
-    border-top: 1px solid var(--line-2);
-    background: var(--bg-2);
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    padding-bottom: 22px;
+  /* Slide-over nav drawer — opened by the ≡ button in the topbar.
+     Replaces a bottom tab bar (per ADR / design-decisions #390): Kvorum has
+     7+ top-level destinations, so an on-demand drawer scales where a tab bar
+     doesn't, and search stays promoted in the topbar. */
+  .m-scrim {
+    position: absolute; top: 54px; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: color-mix(in oklab, var(--ink), transparent 55%);
   }
-  .m-tabs a {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 10px 0 6px;
-    font-family: var(--font-mono); font-size: var(--fs-10);
-    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
-    color: var(--ink-3);
-    border-right: 1px solid var(--line-3);
+  .m-drawer {
+    position: absolute; top: 54px; left: 0; bottom: 0; z-index: 21;
+    width: 80%; max-width: 300px;
+    background: var(--bg-2); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
   }
-  .m-tabs a:last-child { border-right: 0; }
-  .m-tabs a .icon {
-    width: 22px; height: 22px;
-    display: grid; place-items: center;
-    font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 700;
-    color: var(--ink-2);
+  .m-drawer .d-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 16px; border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 700;
+    letter-spacing: var(--tracking-mono-loose);
   }
-  .m-tabs a.on { color: var(--ink); }
-  .m-tabs a.on .icon {
-    background: var(--ink); color: var(--bg-2);
-    width: 28px; height: 22px;
+  .m-drawer .d-head .glyph {
+    width: 24px; height: 24px; background: var(--ink); color: var(--bg-2);
+    display: grid; place-items: center; font-size: var(--fs-11);
   }
+  .m-drawer .d-search {
+    margin: 12px 14px 8px; height: 34px;
+    border: 1px solid var(--line-2);
+    display: flex; align-items: center; gap: 8px; padding: 0 10px;
+    font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3);
+  }
+  .m-drawer nav { display: flex; flex-direction: column; padding: 0 8px; }
+  .m-drawer nav a {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 10px; border-bottom: 1px dashed var(--line-3);
+    font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink-2);
+  }
+  .m-drawer nav a:last-child { border-bottom: 0; }
+  .m-drawer nav a .ic {
+    width: 22px; height: 22px; display: grid; place-items: center;
+    font-size: var(--fs-13); color: var(--ink-3);
+  }
+  .m-drawer nav a.on { color: var(--ink); font-weight: 600; }
+  .m-drawer nav a.on .ic { background: var(--ink); color: var(--bg-2); }
 
   /* ---- Shared content primitives ---- */
   .m-section-h {
@@ -389,7 +404,7 @@
   }
   .m-action .arg .k { color: var(--ink-3); }
 
-  /* Sticky vote CTA above tab bar */
+  /* Sticky vote CTA — pinned to the bottom of the phone */
   .m-vote-cta {
     flex: 0 0 auto;
     display: grid; grid-template-columns: 1fr 1fr 1fr;
@@ -705,19 +720,27 @@
             <div style="height:14px;"></div>
           </div>
 
-          <div class="m-tabs">
-            <a class="on" href="#"><span class="icon">◆</span><span>Home</span></a>
-            <a href="#"><span class="icon">≣</span><span>Props</span></a>
-            <a href="#"><span class="icon">◐</span><span>DAOs</span></a>
-            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
-          </div>
+          <!-- Menu open: the ≡ button opens a slide-over drawer (not a bottom tab bar) -->
+          <div class="m-scrim"></div>
+          <aside class="m-drawer">
+            <div class="d-head"><span class="glyph">K</span>KVORUM</div>
+            <div class="d-search"><span>⌕</span><span>Search proposals, addresses…</span></div>
+            <nav>
+              <a class="on" href="homepage.html"><span class="ic">◆</span>Home</a>
+              <a href="proposals.html"><span class="ic">≣</span>Proposals</a>
+              <a href="daos.html"><span class="ic">◐</span>DAOs</a>
+              <a href="delegate.html"><span class="ic">◑</span>Delegates</a>
+              <a href="developer.html"><span class="ic">⌗</span>Developer</a>
+              <a href="api-docs.html"><span class="ic">↗</span>Docs</a>
+            </nav>
+          </aside>
           <div class="home-indicator"></div>
         </div>
       </div>
 
       <div class="device-foot">
         <span class="k">Sticky topbar</span> stays on scroll · proposals stack as cards with mini tally bars ·
-        DAO health is a 2×2 grid · bottom tab bar replaces desktop topnav.
+        DAO health is a 2×2 grid · the ≡ button opens a slide-over drawer for nav.
       </div>
     </div>
 
@@ -838,26 +861,21 @@
             <div style="height:14px;"></div>
           </div>
 
-          <!-- Sticky vote CTA above tab bar -->
+          <!-- Sticky vote CTA — pinned to the bottom of the phone -->
           <div class="m-vote-cta">
             <button class="for" type="button">▲ For</button>
             <button class="against" type="button">▼ Against</button>
             <button class="abstain" type="button">— Abstain</button>
           </div>
 
-          <div class="m-tabs">
-            <a href="#"><span class="icon">◆</span><span>Home</span></a>
-            <a class="on" href="#"><span class="icon">≣</span><span>Props</span></a>
-            <a href="#"><span class="icon">◐</span><span>DAOs</span></a>
-            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
-          </div>
+          <!-- No bottom tab bar — nav is the slide-over drawer (opened by the ≡ button, shown open in phone 1) -->
           <div class="home-indicator"></div>
         </div>
       </div>
 
       <div class="device-foot">
         <span class="k">AI panel</span> stays full first-class — hatched bg, △ AI mark, model + inputs in foot ·
-        sticky <span class="k">For / Against / Abstain</span> bar sits above tab bar so the action is never offscreen.
+        sticky <span class="k">For / Against / Abstain</span> bar sits at the bottom of the screen so the action is never offscreen.
       </div>
     </div>
 
@@ -1000,12 +1018,7 @@
             <div style="height:14px;"></div>
           </div>
 
-          <div class="m-tabs">
-            <a href="#"><span class="icon">◆</span><span>Home</span></a>
-            <a href="#"><span class="icon">≣</span><span>Props</span></a>
-            <a class="on" href="#"><span class="icon">◐</span><span>DAOs</span></a>
-            <a href="#"><span class="icon">⌕</span><span>Search</span></a>
-          </div>
+          <!-- No bottom tab bar — nav is the slide-over drawer (opened by the ≡ button, shown open in phone 1) -->
           <div class="home-indicator"></div>
         </div>
       </div>
@@ -1028,7 +1041,7 @@
       <div class="rule"><div class="bp">≥1024</div><div class="what"><b>Desktop.</b> Full topnav, sidebars, two-column layouts as designed.</div></div>
       <div class="rule"><div class="bp">920–1023</div><div class="what"><b>Tablet wide.</b> Sidebars collapse into anchored sub-nav at the top of each section. Tables stay.</div></div>
       <div class="rule"><div class="bp">720–919</div><div class="what"><b>Tablet narrow.</b> Two-column → stacked. Charts shrink to 200pt tall. Topnav still full-width.</div></div>
-      <div class="rule"><div class="bp">≤719</div><div class="what"><b>Phone.</b> Tables → stacked cards. Topnav → hamburger + brand + search. Bottom tab bar replaces nav.</div></div>
+      <div class="rule"><div class="bp">≤719</div><div class="what"><b>Phone.</b> Tables → stacked cards. Topnav → hamburger (opens a slide-over drawer) + brand + search.</div></div>
       <div class="rule"><div class="bp">≤375</div><div class="what"><b>Phone min.</b> Hit targets ≥ 44pt enforced. Sticky vote CTA on proposal detail. Notch + safe-area aware.</div></div>
       <div class="rule"><div class="bp">All</div><div class="what"><b>AI panels</b> keep their hatched background and △ AI mark at every breakpoint — never collapse to plain text.</div></div>
     </div>
