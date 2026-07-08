@@ -35,10 +35,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .columns(['stage', 'first_seen_at'])
     .execute();
 
-  // Partial composite btree for dlq retry archive-tuple lookups.
+  // Unique partial index on the archive tuple + stage. DlqRepository.insert upserts against it so
+  // repeated failures of the same archive event collapse into one row (bumping retries/error)
+  // instead of inserting one row per attempt — a single poison message must not flood the DLQ.
   await sql`
-    CREATE INDEX idx_ingestion_dlq_archive_tuple
-    ON ingestion_dlq (archive_source_type, archive_chain_id, archive_tx_hash, archive_log_index, archive_block_hash)
+    CREATE UNIQUE INDEX idx_ingestion_dlq_archive_tuple_stage
+    ON ingestion_dlq (archive_source_type, archive_chain_id, archive_tx_hash, archive_log_index, archive_block_hash, stage)
     WHERE archive_source_type IS NOT NULL
   `.execute(db);
 
