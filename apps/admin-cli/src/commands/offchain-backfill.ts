@@ -45,10 +45,10 @@ export interface OffChainDrainOutcome {
  * committing each tick through the sink (enqueue or --direct), resuming from the persisted cursor.
  *
  * `PollResult` has no `done` flag (the transport was built for perpetual live polling), so completion
- * is inferred: the drain stops after `quiescenceTicks` consecutive ticks that both return zero items
- * AND leave the cursor unadvanced. A conservative default (K=3) avoids stopping at a transient sparse
- * window. SIGINT/SIGTERM aborts via the signal (ADR-047); the persisted cursor makes a partial run
- * resumable.
+ * is inferred: the drain stops after `quiescenceTicks` consecutive ticks that leave the cursor
+ * unadvanced (no forward progress) — whether the tick was empty or re-read the same tip page. A
+ * conservative default (K=3) avoids stopping at a transient sparse window. SIGINT/SIGTERM aborts via
+ * the signal (ADR-047); the persisted cursor makes a partial run resumable.
  */
 export async function runOffChainDrain(input: {
   source: SourceContext;
@@ -73,7 +73,10 @@ export async function runOffChainDrain(input: {
     itemsProcessed += result.items.length;
     const advanced = !cursorsEqual(cursor, result.nextCursor);
     cursor = result.nextCursor;
-    if (result.items.length === 0 && !advanced) quiescent += 1;
+    // Quiescent = no forward progress (the cursor did not advance). This covers both "caught up, the
+    // tick is empty" and the boundary re-read, where the tip page keeps returning the same items at
+    // an unchanged cursor — the sink dedups them, but items>0 must not reset quiescence forever.
+    if (!advanced) quiescent += 1;
     else quiescent = 0;
 
     input.onTick?.({ tick: ticks, items: result.items.length, quiescent });
@@ -159,8 +162,24 @@ export class EnqueueOffChainProducer implements QueueProducerPort {
     items: readonly PollItem[],
     nextCursor: JsonValue | null,
   ): Promise<void> {
-    for (const item of items) {
-      await this.boss.send(OFF_CHAIN_ARCHIVE_QUEUE, buildJob(source, item));
+    try {
+      for (const item of items) {
+        await this.boss.send(OFF_CHAIN_ARCHIVE_QUEUE, buildJob(source, item));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // The enqueue sink needs the indexer's off-chain consumer running to create + drain the queue.
+      // A standalone backfill has no consumer, so point the operator at --direct instead of leaving
+      // them with a bare "queue does not exist".
+      if (/queue .*does not exist|does not exist/i.test(message)) {
+        throw new Error(
+          `Off-chain enqueue failed: the '${OFF_CHAIN_ARCHIVE_QUEUE}' pg-boss queue does not exist. ` +
+            `The enqueue sink requires the indexer off-chain consumer to be running. For a standalone ` +
+            `backfill, re-run with --direct to write the archive in-process.`,
+          { cause: error },
+        );
+      }
+      throw error;
     }
     await pgDb
       .transaction()
