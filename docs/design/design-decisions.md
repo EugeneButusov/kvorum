@@ -32,7 +32,8 @@ a responsive branch; desktop layout is unchanged.
 **Scope.** This fixes the *pattern* only. Per KNOWN-019, full per-page mobile
 hi-fi still **defers to v1.1** — proposal detail (`hifi/v1-etherscan/mobile.html`)
 remains the one worked example; other pages reflow with the drawer + single-column
-stacking until then.
+stacking until then. `mobile.html` now demonstrates the open drawer (first phone
+frame); the earlier bottom-tab treatment was removed to match this decision (#406).
 
 ## 2. Wallet connection states (#391) · Resolved (v1)
 

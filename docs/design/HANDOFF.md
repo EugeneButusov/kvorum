@@ -44,21 +44,25 @@ The product spec lives at `../SPEC.md` (repo root), not inside this folder.
 
 ## Spec → screen map
 
-| §     | Spec section         | Wireframe                             | Hi-fi                                    |
-| ----- | -------------------- | ------------------------------------- | ---------------------------------------- |
-| §6.4  | Homepage             | `Homepage Wireframe.html`             | `hifi/v1-etherscan/homepage.html` ✓      |
-| §6.5  | Cross-DAO proposals  | `Proposals List Wireframe.html`       | `hifi/v1-etherscan/proposals.html` ✓     |
-| §6.6  | DAO directory        | `DAOs Index Wireframe.html`           | `hifi/v1-etherscan/daos.html` ✓          |
-| §6.7  | DAO health dashboard | `DAO Health Dashboard Wireframe.html` | `hifi/v1-etherscan/health.html` ✓        |
-| §6.8  | Search results       | `Search Results Wireframe.html`       | `hifi/v1-etherscan/search.html` ✓        |
-| §6.9  | **Proposal detail**  | `Proposal Detail Wireframe.html`      | **`hifi/v1-etherscan/proposal.html`** ✓  |
-| §6.10 | Actor / delegate     | `Actor Profile Wireframe.html`        | `hifi/v1-etherscan/delegate.html` ✓      |
-| §6.11 | Forum thread         | `Forum Thread Wireframe.html`         | `hifi/v1-etherscan/forum.html` ✓         |
-| §6.12 | API docs             | `API Docs Wireframe.html`             | `hifi/v1-etherscan/api-docs.html` ✓      |
-| §6.13 | Developer dashboard  | `Developer Dashboard Wireframe.html`  | `hifi/v1-etherscan/developer.html` ✓     |
-| §6.14 | Auth                 | `Auth Pages Wireframe.html`           | `hifi/v1-etherscan/auth.html` ✓          |
-| —     | Mobile (proposal)    | `Mobile Breakpoints Wireframe.html`   | `hifi/v1-etherscan/mobile.html` ✓        |
-| —     | Empty / error states | `States Wireframe.html`               | wireframe only — built from spec (§10.8) |
+Mapped to the actual SPEC §6.2 IA (section labels corrected in the acceptance review). See `README.md` for the clickable index.
+
+| §     | Spec section              | Hi-fi                                       |
+| ----- | ------------------------- | ------------------------------------------- |
+| §6.4  | Homepage                  | `hifi/v1-etherscan/homepage.html` ✓         |
+| §6.5  | All proposals (cross-DAO) | `hifi/v1-etherscan/proposals.html` ✓        |
+| §6.6  | DAO landing               | `hifi/v1-etherscan/dao.html` ✓              |
+| §6.7  | DAO health dashboard      | `hifi/v1-etherscan/health.html` ✓           |
+| §6.8  | DAO proposals list        | `hifi/v1-etherscan/dao-proposals.html` ✓    |
+| §6.9  | **Proposal detail**       | **`hifi/v1-etherscan/proposal.html`** ✓     |
+| §6.10 | Cross-DAO actor           | `hifi/v1-etherscan/actor.html` ✓            |
+| §6.11 | Delegate scorecard        | `hifi/v1-etherscan/delegate.html` ✓         |
+| §6.12 | Forum thread              | `hifi/v1-etherscan/forum.html` ✓            |
+| §6.13 | Developer dashboard       | `hifi/v1-etherscan/developer.html` ✓        |
+| §6.14 | Auth (login)              | `hifi/v1-etherscan/auth.html` ✓ (signup/forgot/reset → M6, #405) |
+| §6.15 | Empty / error states      | `States Wireframe.html` (wireframe, per §10.8) |
+| —     | Mobile (proposal)         | `hifi/v1-etherscan/mobile.html` ✓ (slide-over drawer) |
+
+Bonus pages beyond the §6.2 IA: `daos.html` (DAO directory), `search.html` (search results), `api-docs.html` (static docs, §6.21 out of scope).
 
 ## Suggested build order
 

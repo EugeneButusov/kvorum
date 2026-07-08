@@ -6,9 +6,14 @@ Method: four independent reviews (proposal detail; cross-DAO surfaces; identity 
 social; platform + states), each reading the relevant `../SPEC.md` sections and
 mocks under `hifi/v1-etherscan/`, then synthesized here.
 
-**Result: PASS — milestone can close.** 9 of the 11 functional page types plus the
-cross-cutting sections sign off clean; the remaining gaps are tracked (#404–#406)
-and none blocks M6.
+**Result: PASS — milestone can close.** Every functional page type and the
+cross-cutting sections sign off clean. The three page mocks originally missing
+(§6.6, §6.8, §6.10) were subsequently built and the mobile nav reconciled
+(closing #404 and #406); the one remaining item, the auth signup/forgot/reset
+flows (#405), is a deliberate build-from-spec deferral to M6.
+
+> **Update (post-review).** #404 and #406 are now resolved — see "Resolution" below.
+> The per-page verdicts and gap list are preserved as the review record.
 
 ## Per-page verdicts
 
@@ -16,11 +21,11 @@ and none blocks M6.
 | ----- | ------------------------ | ----------------------------- | -------------- |
 | §6.4  | Homepage                 | `homepage.html`               | ✅ Sign-off    |
 | §6.5  | All proposals (cross-DAO)| `proposals.html`              | ✅ Sign-off    |
-| §6.6  | DAO landing              | — (no mock)                   | ⚠️ Gap → #404  |
+| §6.6  | DAO landing              | `dao.html`                    | ✅ Sign-off (added) |
 | §6.7  | DAO health dashboard     | `health.html`                 | ✅ Sign-off\*  |
-| §6.8  | DAO proposals list       | — (no mock)                   | ⚠️ Gap → #404  |
+| §6.8  | DAO proposals list       | `dao-proposals.html`          | ✅ Sign-off (added) |
 | §6.9  | Proposal detail          | `proposal.html`               | ✅ Sign-off    |
-| §6.10 | Cross-DAO actor          | — (`delegate.html` is §6.11)  | ⚠️ Gap → #404  |
+| §6.10 | Cross-DAO actor          | `actor.html`                  | ✅ Sign-off (added) |
 | §6.11 | Delegate scorecard       | `delegate.html`               | ✅ Sign-off\*  |
 | §6.12 | Forum thread             | `forum.html`                  | ✅ Sign-off    |
 | §6.13 | Developer dashboard      | `developer.html`              | ✅ Sign-off    |
@@ -47,26 +52,39 @@ pills); borders not shadows (1.5px AI-panel exception intentional); tabular
 numerics on every number column; the §6.3 delegate identity chip and voting-power
 figure render per contract.
 
-## Gaps (tracked, non-blocking)
+## Gaps found by the review (record)
 
 1. **Missing page mocks — §6.6 DAO landing, §6.8 DAO proposals list, §6.10
-   cross-DAO actor** → **#404**. Each is largely a composition of already-designed
-   primitives; design as an early-M6 top-up.
+   cross-DAO actor** → **#404**. _Resolved — see below._
 2. **Auth — signup / forgot / reset not mocked** (only login) → **#405**. Build
    from spec in M6 (like the error pages). The password-rule copy error
-   (`8+ chars` → `minimum 12 characters`, SPEC §6.14) is **fixed** in this change.
+   (`8+ chars` → `minimum 12 characters`, SPEC §6.14) is **fixed**.
 3. **Mobile nav — `mobile.html` bottom-tab vs the slide-over-drawer decision**
-   (`design-decisions.md` #390) → **#406**. Reconcile so M6 builds one pattern.
+   (`design-decisions.md` #390) → **#406**. _Resolved — see below._
+
+## Resolution
+
+- **#404 — closed.** The three missing mocks were built against the design system:
+  `dao.html` (§6.6 DAO landing), `dao-proposals.html` (§6.8 DAO proposals list),
+  `actor.html` (§6.10 cross-DAO actor, incl. the cross-DAO alignment heatmap that
+  distinguishes it from the §6.11 scorecard). Every functional page type now has a
+  mock.
+- **#406 — closed.** `mobile.html` now shows the **slide-over drawer** (open state
+  in the first phone frame, opened by the top-bar `≡`); the bottom tab bar and its
+  prose references are removed, matching `design-decisions.md` #390.
+- **#405 — deferred to M6 by decision** (build signup/forgot/reset from the §6.14
+  spec, as with the error pages). The password copy error is already fixed.
+- The mislabeled section comments in `daos.html` / `search.html` / `api-docs.html`
+  were corrected.
 
 ## Notes (no action required)
 
 - **Bonus coverage.** `daos.html` (DAO directory) and `search.html` (search
   results) are useful pages **beyond** the §6.2 IA (which exposes DAOs as a nav
-  dropdown and search as a nav component, not dedicated pages). Their in-file
-  `§6.6`/`§6.8` comments are mislabeled — treat as unnumbered extras or fold into
-  the IA later; not gaps.
-- **`api-docs.html`** is out of scope per SPEC §6.21 (static docs); its `§6.12`
-  comment is mislabeled (§6.12 is the forum thread). Kept as discretionary polish.
+  dropdown and search as a nav component, not dedicated pages). Kept as unnumbered
+  extras; comments corrected.
+- **`api-docs.html`** is out of scope per SPEC §6.21 (static docs). Kept as
+  discretionary polish; comment corrected.
 - **Under-specification found (§10.8 risk).** The gaps above are design
   completeness, not spec ambiguity — no new clarifying ADR was needed beyond
   ADR-077 and `design-decisions.md`.
