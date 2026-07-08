@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import { parseFrontmatter } from './frontmatter.js';
+import { PromptTemplateError } from './types.js';
+
+const VALID = `---
+name: fixture_greeting
+version: v1.0
+model: claude-haiku-4-5
+schema: FixtureSchema
+description: Produces a greeting: with a colon in the description.
+---
+Hello {{name}}, welcome to {{place}}.
+`;
+
+describe('parseFrontmatter', () => {
+  it('parses the 5 keys and returns the body', () => {
+    const { frontmatter, body } = parseFrontmatter(VALID);
+    expect(frontmatter).toEqual({
+      name: 'fixture_greeting',
+      version: 'v1.0',
+      model: 'claude-haiku-4-5',
+      schema: 'FixtureSchema',
+      description: 'Produces a greeting: with a colon in the description.',
+    });
+    expect(body).toBe('Hello {{name}}, welcome to {{place}}.\n');
+  });
+
+  it('splits on the first ": " so descriptions may contain colons', () => {
+    expect(parseFrontmatter(VALID).frontmatter.description).toContain(': ');
+  });
+
+  it('throws when a required key is missing', () => {
+    const raw = VALID.replace('model: claude-haiku-4-5\n', '');
+    expect(() => parseFrontmatter(raw)).toThrow(/missing required key: "model"/);
+  });
+
+  it('throws on an unknown key', () => {
+    const raw = VALID.replace('description:', 'extra: nope\ndescription:');
+    expect(() => parseFrontmatter(raw)).toThrow(/unknown frontmatter key: "extra"/);
+  });
+
+  it('throws on a duplicate key', () => {
+    const raw = VALID.replace('version: v1.0\n', 'version: v1.0\nversion: v9\n');
+    expect(() => parseFrontmatter(raw)).toThrow(/duplicate frontmatter key: "version"/);
+  });
+
+  it('throws when the closing fence is missing', () => {
+    const raw = '---\nname: x\n';
+    expect(() => parseFrontmatter(raw)).toThrow(PromptTemplateError);
+  });
+
+  it('throws when there is no opening fence', () => {
+    expect(() => parseFrontmatter('no fence here')).toThrow(/must start with/);
+  });
+});
