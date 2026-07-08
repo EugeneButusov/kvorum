@@ -8,12 +8,21 @@ import type { PgDatabase } from './schema/pg';
 // by the pg driver. Do NOT register custom pg-types parsers for these OIDs —
 // string precision is load-bearing for numeric(78,0) value_wei and bigint block
 // numbers, and SPEC §4.7 wire format expects big-int strings as a passthrough.
+export const pgPool = new Pool({
+  connectionString: process.env['DATABASE_URL'],
+});
+
+// An idle pooled client can emit 'error' when the server drops the connection
+// (Postgres restart, idle timeout, network blip). `pg` re-emits an 'error' with
+// no listener as an uncaught exception, which crashes the whole process. Log and
+// swallow it — the pool discards the broken client and the next acquire opens a
+// fresh connection. KNOWN-001: replace console with a structured logger in M2.
+pgPool.on('error', (err: Error) => {
+  console.error('[pg-pool] idle client error (connection recycled):', err.message);
+});
+
 export const pgDb = new Kysely<PgDatabase>({
-  dialect: new PostgresDialect({
-    pool: new Pool({
-      connectionString: process.env['DATABASE_URL'],
-    }),
-  }),
+  dialect: new PostgresDialect({ pool: pgPool }),
 });
 
 export const chDb = new Kysely<ClickHouseDatabase>({
