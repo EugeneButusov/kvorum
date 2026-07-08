@@ -84,15 +84,15 @@ per ADR-077**, so treat the mock as the layout/behaviour spec, not code to copy:
 4. If a mock colour has no matching token — stop, add the token to `tokens.css`
    (light + dark), then continue.
 
-## Open questions for design
+## Open questions for design — resolved
 
-These are intentionally unresolved — flag in PR review or async:
+These are now settled in [`design-decisions.md`](design-decisions.md):
 
-- **Mobile chrome** — wireframe has the breakpoints but no hi-fi yet. Hamburger? Bottom-tab? Search-first?
-- **Wallet states** — connecting / wrong-chain / signature-pending visuals. Wireframe has placeholders.
-- **Empty state for new DAOs** — what does the proposal list look like when a DAO has zero proposals?
-- **Notifications** — neither wireframe nor hi-fi yet. Email + in-app?
-- **AI panel error states** — what does the panel look like when summary fails / is rate-limited / is stale?
+- **Mobile chrome** — top bar + slide-over drawer, search promoted to the bar; full per-page mobile hi-fi defers to v1.1 (KNOWN-019). _Resolved (v1)._
+- **Wallet states** — SIWE flow states specced (connecting / wrong-chain / signature-pending / connected / error) within the severity vocabulary. _Resolved (v1)._
+- **Empty state for new DAOs** — squared empty-state card, distinct from loading/error. _Resolved (v1)._
+- **AI panel error states** — stale / rate-limited / failed, all kept inside the fenced `AIPanel`. _Resolved (v1)._
+- **Notifications** — out of v1; in-app bell + email digests recorded for v1.1. _Deferred._
 
 ## Versioning
 

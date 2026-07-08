@@ -7,6 +7,7 @@ HTML (not Figma; SPEC §10.8 amended by [ADR-077](../adr/0077-tailwind-shadcn-de
 - **Browsable landing:** open [`index.html`](index.html) in a browser.
 - **Design rationale + hard rules:** [`DESIGN-NOTES.md`](DESIGN-NOTES.md)
 - **Engineering handoff:** [`HANDOFF.md`](HANDOFF.md)
+- **Resolved design questions (mobile, wallet, empty/error, AI-panel, notifications):** [`design-decisions.md`](design-decisions.md)
 - **Stack contract (tokens → Tailwind, primitive → shadcn):** [ADR-077](../adr/0077-tailwind-shadcn-design-system-mapping.md)
 
 > **Build stack.** These mocks are the visual/interaction target; the dashboard
