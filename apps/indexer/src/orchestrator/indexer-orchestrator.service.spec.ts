@@ -281,7 +281,7 @@ describe('IndexerOrchestratorService', () => {
     expect(driver.start).not.toHaveBeenCalled();
   });
 
-  it('#5 — chain not in CHAIN_CONFIG: throws BEFORE any driver.start()', async () => {
+  it('#5 — chain not in CHAIN_CONFIG: source skipped with a warn, does NOT crash ingestion', async () => {
     vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 0x1
     mockDaoSourceRepo.findAll.mockResolvedValue([
       makeSource('src-1', 'compound_governor_bravo', '0x999'),
@@ -291,8 +291,24 @@ describe('IndexerOrchestratorService', () => {
     const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
     const svc = module.get(IndexerOrchestratorService);
 
-    await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
+    // A subset-of-chains deployment legitimately has un-configured chains; skip, don't abort.
+    await expect(svc.onApplicationBootstrap()).resolves.not.toThrow();
     expect(driver.start).not.toHaveBeenCalled();
+  });
+
+  it('#5a — configured + un-configured sources: configured one still starts', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]); // only chain 0x1
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-off', 'compound_governor_bravo', '0x999'), // un-configured chain → skipped
+      makeSource('src-on', 'compound_governor_bravo', '0x1'), // configured → started
+    ]);
+
+    const driver = makeFakeDriver();
+    const module = await buildModule([makeFakePlugin('compound_governor_bravo')], driver);
+    const svc = module.get(IndexerOrchestratorService);
+
+    await svc.onApplicationBootstrap();
+    expect(driver.start).toHaveBeenCalledTimes(1);
   });
 
   it('#5b — unsupported chain for plugin: source skipped, driver.start() not called', async () => {
@@ -632,11 +648,11 @@ describe('IndexerOrchestratorService', () => {
       await svc.drain();
     });
 
-    it('#P3 — missing chainConfig for EVM still throws even when a poll source is present', async () => {
+    it('#P3 — missing chainConfig for EVM skips that source; a poll source still starts', async () => {
       vi.mocked(parseChainConfigFromEnv).mockReturnValue([]); // no chains
       mockDaoSourceRepo.findAll.mockResolvedValue([
-        makeSource('src-1', 'compound_governor_bravo', '0x1'), // EVM, no chain cfg
-        makeSource('src-poll-1', 'snapshot', 'off-chain'),
+        makeSource('src-1', 'compound_governor_bravo', '0x1'), // EVM, no chain cfg → skipped
+        makeSource('src-poll-1', 'snapshot', 'off-chain'), // poll → unaffected, starts
       ]);
 
       const evmDriver = makeFakeDriver();
@@ -662,9 +678,9 @@ describe('IndexerOrchestratorService', () => {
       }).compile();
 
       const svc = module.get(IndexerOrchestratorService);
-      await expect(svc.onApplicationBootstrap()).rejects.toThrow(/No chain config/);
-      expect(evmDriver.start).not.toHaveBeenCalled();
-      expect(pollDriver.start).not.toHaveBeenCalled();
+      await expect(svc.onApplicationBootstrap()).resolves.not.toThrow();
+      expect(evmDriver.start).not.toHaveBeenCalled(); // EVM source on un-configured chain skipped
+      expect(pollDriver.start).toHaveBeenCalledTimes(1); // poll source unaffected
     });
   });
 });
