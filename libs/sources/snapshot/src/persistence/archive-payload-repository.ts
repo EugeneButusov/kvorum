@@ -35,4 +35,21 @@ export class SnapshotArchivePayloadRepository {
       payload: value.payload,
     }));
   }
+
+  /** Fetch the current (max-version) payload for a single external_id, or undefined if none is
+   *  archived. Used by the vote deriver to inspect a vote's parent proposal (flagged/deleted) when
+   *  no `proposal` row exists. */
+  async fetchByExternalId(externalId: string): Promise<string | undefined> {
+    const found = await this.chDb
+      .selectFrom('archive_event_snapshot')
+      .select(['version', 'payload'])
+      .where('external_id', '=', externalId)
+      .execute();
+
+    let latest: { version: number; payload: string } | undefined;
+    for (const row of found) {
+      if (latest === undefined || row.version > latest.version) latest = row;
+    }
+    return latest?.payload;
+  }
 }

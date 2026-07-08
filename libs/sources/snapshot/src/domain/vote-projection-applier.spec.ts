@@ -36,6 +36,8 @@ function makeDeps(p: SnapshotVotePayload) {
       fetchLatest: vi
         .fn()
         .mockResolvedValue([{ external_id: 'vote:0xv', payload: JSON.stringify(p) }]),
+      // Default: the parent proposal is not archived → orphan votes retry (not skipped).
+      fetchByExternalId: vi.fn().mockResolvedValue(undefined),
     },
     proposals: {
       findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
@@ -146,14 +148,55 @@ describe('SnapshotVoteProjectionApplier', () => {
     expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
   });
 
-  it('fails when the proposal is not found', async () => {
+  it('retries when the proposal has no row and is not yet archived (genuinely pending)', async () => {
     const applier = build(payload());
     deps.proposals.findBySource.mockResolvedValue(undefined);
+    // fetchByExternalId defaults to undefined → parent not archived → retry, don't skip.
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.payloads.fetchByExternalId).toHaveBeenCalledWith('prop:0xprop');
+    expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
+    expect(deps.archive.markDerived).not.toHaveBeenCalled();
+  });
+
+  it('retries an orphan vote whose parent proposal is archived but NOT flagged/deleted', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', flagged: false }),
+    );
 
     await applier.applyBatch([ROW]);
 
     expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
     expect(deps.archive.markDerived).not.toHaveBeenCalled();
+  });
+
+  it('skips (marks derived) an orphan vote whose parent proposal is flagged — poison guard', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', flagged: true }),
+    );
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
+    expect(deps.archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
+
+  it('skips an orphan vote whose parent proposal is deleted — poison guard', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', deleted: true }),
+    );
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
+    expect(deps.archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
   it('fails when the archive payload is missing', async () => {
