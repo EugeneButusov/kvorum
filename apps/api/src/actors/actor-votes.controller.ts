@@ -24,6 +24,7 @@ import {
   canonicalQuery,
   decodeCursor,
   parseLimit,
+  sortAndSeek,
 } from '../pagination/cursor';
 import { parseQuery } from '../query/query-parser';
 
@@ -73,16 +74,19 @@ export class ActorVotesController {
     const rows = await this.voteRepo.listForActor(resolved.actor.id);
 
     const sort = parsed.sort[0] ?? ACTOR_VOTE_QUERY.defaultSort[0];
-    const page = buildPagination(rows, limit, (row) => ({
-      type: sort?.field === 'voting_power_reported' ? 'numeric' : 'time',
+    const sortKeyOf = (row: (typeof rows)[number]) => ({
+      type: (sort?.field === 'voting_power_reported' ? 'numeric' : 'time') as 'numeric' | 'time',
       value:
         sort?.field === 'voting_power_reported'
           ? row.voting_power_reported
           : new Date(row.cast_at).toISOString(),
       tiebreak: row.id,
-      dir: sort?.dir ?? 'desc',
+      dir: (sort?.dir ?? 'desc') as 'asc' | 'desc',
       q: canonical,
-    }));
+    });
+    // Seek past the incoming cursor before paginating; otherwise every page returns the first rows.
+    const seeked = sortAndSeek(rows, cursor, sortKeyOf);
+    const page = buildPagination(seeked, limit, sortKeyOf);
 
     return {
       data: page.data.map(toActorVoteListItemDto),
