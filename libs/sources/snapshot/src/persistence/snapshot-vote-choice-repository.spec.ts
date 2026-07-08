@@ -55,4 +55,62 @@ describe('SnapshotVoteChoiceRepository', () => {
     const absent = new SnapshotVoteChoiceRepository(mockCh([]).db);
     expect(await absent.existsForVote('r1')).toBe(false);
   });
+
+  it('computeChoiceScores sums approval votes (full vp per approved choice)', async () => {
+    const repo = new SnapshotVoteChoiceRepository(
+      mockCh([
+        { vote_id: 'v1', choices: c([0, 2]), vp: '100', version: '1' }, // approves 0 and 2
+        { vote_id: 'v2', choices: c([0]), vp: '50', version: '1' }, // approves 0
+      ]).db,
+    );
+    expect(await repo.computeChoiceScores('p1')).toEqual([150, 0, 100]);
+  });
+
+  it('computeChoiceScores sums weighted votes (fractional weight × vp)', async () => {
+    const repo = new SnapshotVoteChoiceRepository(
+      mockCh([
+        {
+          vote_id: 'v1',
+          choices: '[{"choice_index":0,"weight":"0.5"},{"choice_index":1,"weight":"0.5"}]',
+          vp: '100',
+          version: '1',
+        },
+      ]).db,
+    );
+    expect(await repo.computeChoiceScores('p1')).toEqual([50, 50]);
+  });
+
+  it('computeChoiceScores strips binary-float artifacts from fractional weights', async () => {
+    const repo = new SnapshotVoteChoiceRepository(
+      mockCh([
+        {
+          vote_id: 'v1',
+          choices: '[{"choice_index":1,"weight":"0.6"},{"choice_index":2,"weight":"0.4"}]',
+          vp: '3', // 0.6*3 = 1.7999…998, 0.4*3 = 1.2000…002 in raw float
+          version: '1',
+        },
+      ]).db,
+    );
+    expect(await repo.computeChoiceScores('p1')).toEqual([0, 1.8, 1.2]);
+  });
+
+  it('computeChoiceScores keeps the max-version row per vote', async () => {
+    const repo = new SnapshotVoteChoiceRepository(
+      mockCh([
+        { vote_id: 'v1', choices: c([0]), vp: '10', version: '2026-01-01 00:00:00' },
+        { vote_id: 'v1', choices: c([1]), vp: '99', version: '2026-01-02 00:00:00' }, // newer wins
+      ]).db,
+    );
+    expect(await repo.computeChoiceScores('p1')).toEqual([0, 99]);
+  });
+
+  it('computeChoiceScores returns null when the proposal has no votes', async () => {
+    const repo = new SnapshotVoteChoiceRepository(mockCh([]).db);
+    expect(await repo.computeChoiceScores('p1')).toBeNull();
+  });
 });
+
+// Approval-style choices JSON (each selected choice weight 1.0), for the score-aggregation tests.
+function c(indices: number[]): string {
+  return JSON.stringify(indices.map((choice_index) => ({ choice_index, weight: '1.0' })));
+}

@@ -26,6 +26,7 @@ export class SnapshotProposalExtensionReadRepository {
       network: row.network,
       scores_state: row.scores_state,
       flagged: row.flagged,
+      choice_scores: null, // populated by the read extension for approval/weighted (needs CH)
     };
     return { voting: null, payloads: [], metadata };
   }

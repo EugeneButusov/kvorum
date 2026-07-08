@@ -2959,6 +2959,14 @@
           },
           "flagged": {
             "type": "boolean"
+          },
+          "choice_scores": {
+            "nullable": true,
+            "description": "Per-choice voting-power tally (0-indexed), summed from the full vote breakdown. Present for approval and weighted/quadratic proposals (whose tally the single primary_choice cannot represent); null otherwise.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           }
         },
         "required": ["kind", "space_id", "flagged"]

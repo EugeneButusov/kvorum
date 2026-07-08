@@ -26,4 +26,14 @@ export class SnapshotProposalMetadataDto {
 
   @ApiProperty()
   declare flagged: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: [Number],
+    description:
+      'Per-choice voting-power tally (0-indexed), summed from the full vote breakdown. Present for ' +
+      'approval and weighted/quadratic proposals (whose tally the single primary_choice cannot ' +
+      'represent); null otherwise.',
+  })
+  declare choice_scores: number[] | null;
 }
