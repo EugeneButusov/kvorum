@@ -51,6 +51,13 @@ describe('AnthropicProvider.completeStructured', () => {
   it('has id "anthropic"', () => {
     expect(new AnthropicProvider(mockClient()).id).toBe('anthropic');
   });
+
+  it('rejects when the model has no configured pricing', async () => {
+    const provider = new AnthropicProvider(mockClient());
+    await expect(
+      provider.completeStructured({ ...req, model: 'claude-unknown-9' }),
+    ).rejects.toThrow('No Anthropic pricing configured for model "claude-unknown-9"');
+  });
 });
 
 describe('AnthropicProvider batch primitives', () => {
@@ -91,5 +98,31 @@ describe('AnthropicProvider batch primitives', () => {
     const provider = new AnthropicProvider(mockClient({ batches }));
     const out = await provider.fetchBatch({ id: 'b', provider: 'anthropic' });
     expect(out).toEqual({ status: 'in_progress', results: [] });
+  });
+
+  it('fetchBatch throws when no submitBatch model record exists for the batch (e.g. after a process restart)', async () => {
+    const batches = {
+      retrieve: vi.fn().mockResolvedValue({ processing_status: 'ended' }),
+      results: vi.fn().mockReturnValue(
+        (async function* () {
+          yield {
+            custom_id: 'p-1',
+            result: {
+              type: 'succeeded',
+              message: {
+                content: [{ type: 'text', text: '{"tldr":"y"}' }],
+                usage: { input_tokens: 10, output_tokens: 2 },
+              },
+            },
+          };
+        })(),
+      ),
+    };
+    // Fresh provider — no prior submitBatch call, so the model map is empty.
+    const provider = new AnthropicProvider(mockClient({ batches }));
+
+    await expect(provider.fetchBatch({ id: 'batch_123', provider: 'anthropic' })).rejects.toThrow(
+      'Cannot price batch result for custom_id "p-1": no submitBatch model record for batch "batch_123" in this process',
+    );
   });
 });

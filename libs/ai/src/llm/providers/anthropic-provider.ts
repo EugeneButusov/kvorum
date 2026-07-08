@@ -70,17 +70,13 @@ export class AnthropicProvider implements LlmProvider {
   constructor(private readonly client: Anthropic) {}
 
   async completeStructured(req: ProviderCompletionRequest): Promise<ProviderCompletionResult> {
-    // `output_config.format` is GA on the non-beta `messages.create` surface in the pinned
-    // SDK version, but the cast keeps this call site isolated from SDK-version typing churn
-    // (e.g. a future version narrowing `format` to a stricter schema type).
     const msg = (await this.client.messages.create({
       model: req.model,
       max_tokens: DEFAULT_MAX_TOKENS,
       ...(req.system ? { system: req.system } : {}),
       messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
       output_config: { format: { type: 'json_schema', schema: req.jsonSchema } },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)) as unknown as AnthropicMessage;
+    })) as unknown as AnthropicMessage;
 
     return {
       parsed: JSON.parse(firstText(msg)),
@@ -99,8 +95,7 @@ export class AnthropicProvider implements LlmProvider {
           messages: item.request.messages.map((m) => ({ role: m.role, content: m.content })),
           output_config: { format: { type: 'json_schema', schema: item.request.jsonSchema } },
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      })) as any,
+      })),
     });
 
     const modelsByCustomId = new Map(items.map((item) => [item.customId, item.request.model]));
@@ -125,19 +120,20 @@ export class AnthropicProvider implements LlmProvider {
       if (entry.result.type !== 'succeeded' || !entry.result.message) continue;
       const message = entry.result.message;
       // The Message Batches results stream does not reliably echo the request model, so
-      // resolve pricing from the model we recorded in submitBatch; fall back to zero-cost
-      // if we have no record for this batch (e.g. process restarted between submit and fetch).
+      // resolve pricing from the model we recorded in submitBatch. If this process never saw
+      // the matching submitBatch call (e.g. a worker restarted between submit and fetch), we
+      // cannot safely price the result — silently booking $0 would violate the pricing
+      // contract, so we throw instead.
       const model = modelsByCustomId?.get(entry.custom_id);
+      if (!model) {
+        throw new Error(
+          `Cannot price batch result for custom_id "${entry.custom_id}": no submitBatch model record for batch "${handle.id}" in this process`,
+        );
+      }
       results.push({
         customId: entry.custom_id,
         parsed: JSON.parse(firstText(message)),
-        cost: model
-          ? cost(model, message.usage, true)
-          : {
-              totalUsd: 0,
-              inputTokens: message.usage.input_tokens,
-              outputTokens: message.usage.output_tokens,
-            },
+        cost: cost(model, message.usage, true),
       });
     }
     return { status: 'ended', results };
