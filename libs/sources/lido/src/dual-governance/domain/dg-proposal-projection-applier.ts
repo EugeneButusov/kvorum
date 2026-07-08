@@ -46,7 +46,13 @@ type ProposalFlowEvent = Extract<
   { type: (typeof PROPOSAL_FLOW_EVENT_TYPES)[number] }
 >;
 
-export type DualGovernanceProposalOutcome = 'derived' | 'deferred' | 'failed';
+export type DualGovernanceProposalOutcome = 'derived' | 'deferred' | 'failed' | 'skipped';
+
+// A `ProposalSubmitted`'s metadata is a co-transaction (`ProposalSubmittedMeta`) in the SAME tx. If
+// it is not in the tx's archive it will never appear (a tx is immutable), so after this many attempts
+// — well past the point the archive is complete for the block — we stop retrying and skip the event
+// rather than let it poison the derivation queue and inflate the DLQ forever.
+const META_MISSING_SKIP_ATTEMPTS = Number(process.env['DG_META_MISSING_SKIP_ATTEMPTS'] ?? 3);
 export type DualGovernanceProposalFailureReason =
   | 'payload_missing'
   | 'decode_error'
@@ -139,7 +145,8 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
 
       try {
         const outcome = await this.handle(row, event);
-        if (outcome === 'derived') await this.deps.archive.markDerived(row.id);
+        if (outcome === 'derived' || outcome === 'skipped')
+          await this.deps.archive.markDerived(row.id);
         this.record(row, outcome, null);
       } catch (error) {
         const reason =
@@ -152,7 +159,7 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
   private async handle(
     row: ArchiveDerivationRow,
     event: ProposalFlowEvent,
-  ): Promise<'derived' | 'deferred'> {
+  ): Promise<'derived' | 'deferred' | 'skipped'> {
     switch (event.type) {
       case 'ProposalSubmitted':
         return this.handleSubmitted(row, event.payload);
@@ -173,7 +180,7 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
   private async handleSubmitted(
     row: ArchiveDerivationRow,
     payload: TimelockProposalSubmittedPayload,
-  ): Promise<'derived' | 'deferred'> {
+  ): Promise<'derived' | 'deferred' | 'skipped'> {
     const daoId = await this.requireDaoId(row);
 
     // Coverage gate (ADR-0074 §4): defer until the Aragon archive has reached this block, so a co-tx
@@ -199,7 +206,19 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
       origin = 'aragon';
       aragonSourceId = voteId;
     } else {
-      proposalId = await this.ensureDirectProposal(row, daoId, payload);
+      const directId = await this.ensureDirectProposal(row, daoId, payload);
+      if (directId === null) {
+        // Metadata co-tx permanently absent (see ensureDirectProposal) — skip so this event stops
+        // retrying forever and inflating the DLQ. Recorded distinctly from a genuine failure.
+        this.logger.warn('dg_proposal_submitted_skipped_meta_missing', {
+          dao_source_id: row.dao_source_id,
+          dg_proposal_id: payload.id,
+          tx_hash: row.tx_hash,
+          attempts: row.derivation_attempt_count,
+        });
+        return 'skipped';
+      }
+      proposalId = directId;
       origin = 'direct';
       aragonSourceId = null;
     }
@@ -231,13 +250,19 @@ export class DualGovernanceProposalProjectionApplier implements ProjectionDerive
     return 'derived';
   }
 
+  /** Returns the proposal id, or `null` when the co-tx metadata is permanently absent and the
+   *  retry bound is exhausted (caller skips the event). Below the bound it still throws
+   *  `meta_missing` to retry — a defensive window in case the archive write is briefly behind. */
   private async ensureDirectProposal(
     row: ArchiveDerivationRow,
     daoId: string,
     payload: TimelockProposalSubmittedPayload,
-  ): Promise<string> {
+  ): Promise<string | null> {
     const meta = await this.findCoTxMeta(row, payload.id);
-    if (meta === undefined) throw new DgProposalApplyError('meta_missing');
+    if (meta === undefined) {
+      if (row.derivation_attempt_count >= META_MISSING_SKIP_ATTEMPTS) return null;
+      throw new DgProposalApplyError('meta_missing');
+    }
 
     const proposer = await this.deps.actors.findOrCreateActorAddress(
       meta.proposerAccount,

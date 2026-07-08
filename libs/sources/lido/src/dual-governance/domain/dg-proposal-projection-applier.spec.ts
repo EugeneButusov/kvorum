@@ -253,6 +253,38 @@ describe('DualGovernanceProposalProjectionApplier', () => {
     );
   });
 
+  it('retries a direct submission with missing co-tx meta while below the skip threshold', async () => {
+    const { deps, archive, metrics } = makeDeps({
+      payload: SUBMITTED,
+      voteId: undefined,
+      metaRows: [], // no ProposalSubmittedMeta in the tx
+    });
+    await new DualGovernanceProposalProjectionApplier(deps).applyBatch([
+      makeRow({ derivation_attempt_count: 0 }),
+    ]);
+    expect(archive.markDerived).not.toHaveBeenCalled();
+    expect(archive.incrementAttemptCount).toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'meta_missing' }),
+    );
+  });
+
+  it('skips a direct submission whose co-tx meta stays absent past the skip threshold', async () => {
+    const { deps, archive, ledger, metrics } = makeDeps({
+      payload: SUBMITTED,
+      voteId: undefined,
+      metaRows: [], // co-tx meta permanently absent
+    });
+    await new DualGovernanceProposalProjectionApplier(deps).applyBatch([
+      makeRow({ derivation_attempt_count: 3 }), // >= META_MISSING_SKIP_ATTEMPTS
+    ]);
+    // skipped, not failed: leaves the derivation queue, no proposal minted, no DLQ inflation.
+    expect(archive.markDerived).toHaveBeenCalledWith('row-x');
+    expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
+    expect(ledger.upsertSubmission).not.toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'skipped' }));
+  });
+
   it('defers a submission until the Aragon archive covers its block (no DLQ, no markDerived)', async () => {
     const { deps, ledger, archive, metrics } = makeDeps({
       payload: SUBMITTED,
