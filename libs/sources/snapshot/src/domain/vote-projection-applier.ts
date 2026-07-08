@@ -87,7 +87,19 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
       sourceType: SOURCE_TYPE,
       sourceId: proposalSourceId,
     });
-    if (proposal === undefined) throw new Error(`no_proposal ${proposalSourceId}`);
+    if (proposal === undefined) {
+      // No `proposal` row for this vote's parent. Distinguish an intentionally-excluded proposal
+      // (spam `flagged` or `deleted` — the proposal projector skips these, so a row never appears)
+      // from one that simply hasn't been derived yet. The former must be skipped: otherwise the vote
+      // throws `no_proposal` and retries forever, saturating the derivation queue (poison message).
+      // The latter must keep retrying so an in-flight proposal's votes are never dropped.
+      if (await this.parentProposalIsExcluded(proposalSourceId)) {
+        await this.deps.archive.markDerived(row.id);
+        this.record('skipped_orphan_excluded');
+        return;
+      }
+      throw new Error(`no_proposal ${proposalSourceId}`);
+    }
 
     const metadata = await this.deps.snapshotProposals.findMetadata(proposal.id);
     if (metadata === undefined) throw new Error(`no_metadata ${proposal.id}`);
@@ -148,6 +160,21 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
     await this.deps.voteWrite.insertBatch(voteRows);
     await this.deps.archive.markDerived(row.id);
     this.record(incomingIsNewer ? 'derived' : 'superseded');
+  }
+
+  /** True when the vote's parent proposal is archived but flagged/deleted — the proposal projector
+   *  intentionally creates no `proposal` row for these, so their votes have no home and must be
+   *  skipped rather than retried. False when the proposal payload is absent or a normal proposal
+   *  (not yet derived → the caller retries so the vote is never dropped). */
+  private async parentProposalIsExcluded(proposalSourceId: string): Promise<boolean> {
+    const payloadJson = await this.deps.payloads.fetchByExternalId(`prop:${proposalSourceId}`);
+    if (payloadJson === undefined) return false;
+    try {
+      const p = JSON.parse(payloadJson) as { flagged?: boolean; deleted?: boolean };
+      return p.flagged === true || p.deleted === true;
+    } catch {
+      return false;
+    }
   }
 
   private async fail(row: OffchainArchiveRow, reason: string, error: unknown): Promise<void> {
