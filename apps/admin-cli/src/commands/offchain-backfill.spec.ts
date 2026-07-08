@@ -7,7 +7,7 @@ import type {
   QueueProducerPort,
   SourceContext,
 } from '@sources/core';
-import { cursorsEqual, runOffChainDrain } from './offchain-backfill.js';
+import { cursorsEqual, EnqueueOffChainProducer, runOffChainDrain } from './offchain-backfill.js';
 
 const source: SourceContext = {
   daoSourceId: 'src-1',
@@ -117,6 +117,29 @@ describe('runOffChainDrain', () => {
     expect(outcome.ticks).toBe(4);
   });
 
+  it('treats a boundary re-read (items > 0 but cursor unchanged) as quiescent and stops', async () => {
+    // The tip page keeps returning the same item at an unchanged cursor. Old logic reset quiescence
+    // on any non-empty tick and looped forever; the drain must now terminate.
+    const { listener } = scriptedListener([
+      { items: [item('a')], nextCursor: { skip: 1 } }, // advances → not quiescent
+      { items: [item('b')], nextCursor: { skip: 1 } }, // re-read, cursor unchanged → quiescent #1
+      { items: [item('b')], nextCursor: { skip: 1 } }, // quiescent #2
+      { items: [item('b')], nextCursor: { skip: 1 } }, // quiescent #3 → stop
+    ]);
+    const { producer } = fakeProducer();
+
+    const outcome = await runOffChainDrain({
+      source,
+      listener,
+      producer,
+      options: opts,
+      signal: new AbortController().signal,
+    });
+
+    expect(outcome.status).toBe('completed');
+    expect(outcome.ticks).toBe(4);
+  });
+
   it('resumes from the persisted cursor on the first poll', async () => {
     const { listener, cursorsSeen } = scriptedListener([
       { items: [], nextCursor: { skip: 9 } },
@@ -156,5 +179,28 @@ describe('runOffChainDrain', () => {
 
     expect(outcome.status).toBe('cancelled');
     expect(outcome.ticks).toBe(1);
+  });
+});
+
+describe('EnqueueOffChainProducer', () => {
+  it('rethrows a missing-queue error with a hint to use --direct', async () => {
+    const boss = {
+      send: vi.fn().mockRejectedValue(new Error('Queue off_chain_archive does not exist')),
+    };
+    const cursorRepo = { load: vi.fn(), upsert: vi.fn() };
+    const producer = new EnqueueOffChainProducer(boss as never, cursorRepo as never);
+
+    await expect(producer.commitTick(source, [item('a')], { skip: 1 })).rejects.toThrow(/--direct/);
+    expect(cursorRepo.upsert).not.toHaveBeenCalled(); // cursor not advanced on failure
+  });
+
+  it('propagates unrelated send errors unchanged', async () => {
+    const boss = { send: vi.fn().mockRejectedValue(new Error('connection reset')) };
+    const cursorRepo = { load: vi.fn(), upsert: vi.fn() };
+    const producer = new EnqueueOffChainProducer(boss as never, cursorRepo as never);
+
+    await expect(producer.commitTick(source, [item('a')], { skip: 1 })).rejects.toThrow(
+      'connection reset',
+    );
   });
 });

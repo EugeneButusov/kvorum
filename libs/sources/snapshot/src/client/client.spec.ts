@@ -174,14 +174,62 @@ describe('SnapshotClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('threads the abort signal into fetch', async () => {
+  it('threads the abort signal into fetch (aborting the tick signal aborts the request)', async () => {
     const fetchMock = vi.fn().mockResolvedValue(gql({ proposals: [] }));
     vi.stubGlobal('fetch', fetchMock);
-    const signal = liveSignal();
+    const controller = new AbortController();
 
     const client = new SnapshotClient();
-    await client.fetchProposals({ space: 's', createdGte: 0, first: 100, skip: 0, signal });
-    expect(fetchMock.mock.calls[0]![1].signal).toBe(signal);
+    await client.fetchProposals({
+      space: 's',
+      createdGte: 0,
+      first: 100,
+      skip: 0,
+      signal: controller.signal,
+    });
+
+    // fetch gets a composed signal (tick ∪ per-request timeout); aborting the tick propagates.
+    const passed = fetchMock.mock.calls[0]![1].signal as AbortSignal;
+    expect(passed).toBeInstanceOf(AbortSignal);
+    expect(passed.aborted).toBe(false);
+    controller.abort(new Error('tick done'));
+    expect(passed.aborted).toBe(true);
+  });
+
+  it('gives 429s a larger, separate retry budget than 5xx/network errors', async () => {
+    // 6 consecutive 429s then success: exceeds maxRetries (4) but within rateLimitMaxRetries.
+    const fetchMock = vi.fn();
+    for (let i = 0; i < 6; i++) {
+      fetchMock.mockResolvedValueOnce(
+        new Response('', { status: 429, headers: { 'retry-after': '0' } }),
+      );
+    }
+    fetchMock.mockResolvedValueOnce(gql({ votes: [{ id: 'v1', created: 1 }] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient({ maxRetries: 4, rateLimitMaxRetries: 8, backoffBaseMs: 1 });
+    const rows = await client.fetchVotes({
+      space: 's',
+      createdGte: 0,
+      first: 100,
+      skip: 0,
+      signal: liveSignal(),
+    });
+
+    expect(rows).toEqual([{ id: 'v1', created: 1 }]);
+    expect(fetchMock).toHaveBeenCalledTimes(7); // survived 6 rate-limits
+  });
+
+  it('gives up on 429s once the rate-limit budget is exhausted', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 429, headers: { 'retry-after': '0' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new SnapshotClient({ rateLimitMaxRetries: 2, backoffBaseMs: 1 });
+    await expect(
+      client.fetchVotes({ space: 's', createdGte: 0, first: 100, skip: 0, signal: liveSignal() }),
+    ).rejects.toThrow(/retry budget exhausted/i);
   });
 
   it('does not retry a non-429 4xx client error', async () => {
