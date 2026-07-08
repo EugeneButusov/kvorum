@@ -8,6 +8,7 @@ HTML (not Figma; SPEC §10.8 amended by [ADR-077](../adr/0077-tailwind-shadcn-de
 - **Design rationale + hard rules:** [`DESIGN-NOTES.md`](DESIGN-NOTES.md)
 - **Engineering handoff:** [`HANDOFF.md`](HANDOFF.md)
 - **Resolved design questions (mobile, wallet, empty/error, AI-panel, notifications):** [`design-decisions.md`](design-decisions.md)
+- **M5.5 acceptance sign-off (per-page verdicts + gaps):** [`ACCEPTANCE.md`](ACCEPTANCE.md)
 - **Stack contract (tokens → Tailwind, primitive → shadcn):** [ADR-077](../adr/0077-tailwind-shadcn-design-system-mapping.md)
 
 > **Build stack.** These mocks are the visual/interaction target; the dashboard
