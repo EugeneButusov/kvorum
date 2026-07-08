@@ -86,7 +86,13 @@ export class SnapshotVoteChoiceRepository {
         scores[choice_index] = (scores[choice_index] ?? 0) + Number(weight) * vpNum;
       }
     }
-    for (let i = 0; i < scores.length; i++) if (scores[i] === undefined) scores[i] = 0;
+    // Fill choice gaps with 0 and strip binary-float artifacts (e.g. 0.6 × 3 = 1.7999…998) so the
+    // API surfaces the clean tally Snapshot itself shows; 12 significant figures preserves genuine
+    // precision at any voting-power scale.
+    for (let i = 0; i < scores.length; i++) {
+      const s = scores[i];
+      scores[i] = s === undefined ? 0 : Number(s.toPrecision(12));
+    }
     return scores;
   }
 }

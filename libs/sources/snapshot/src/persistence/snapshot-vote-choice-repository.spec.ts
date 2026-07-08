@@ -80,6 +80,20 @@ describe('SnapshotVoteChoiceRepository', () => {
     expect(await repo.computeChoiceScores('p1')).toEqual([50, 50]);
   });
 
+  it('computeChoiceScores strips binary-float artifacts from fractional weights', async () => {
+    const repo = new SnapshotVoteChoiceRepository(
+      mockCh([
+        {
+          vote_id: 'v1',
+          choices: '[{"choice_index":1,"weight":"0.6"},{"choice_index":2,"weight":"0.4"}]',
+          vp: '3', // 0.6*3 = 1.7999…998, 0.4*3 = 1.2000…002 in raw float
+          version: '1',
+        },
+      ]).db,
+    );
+    expect(await repo.computeChoiceScores('p1')).toEqual([0, 1.8, 1.2]);
+  });
+
   it('computeChoiceScores keeps the max-version row per vote', async () => {
     const repo = new SnapshotVoteChoiceRepository(
       mockCh([
