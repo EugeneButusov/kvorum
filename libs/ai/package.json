@@ -7,8 +7,6 @@
   "types": "./src/index.d.ts",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
-    "@libs/domain": "workspace:*",
-    "@libs/utils": "workspace:*",
     "openai": "^6.45.0",
     "tslib": "^2.3.0",
     "zod": "^4.0.0"

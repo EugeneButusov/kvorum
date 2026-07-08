@@ -27,4 +27,16 @@ describe('OpenAiEmbeddingProvider.embed', () => {
   it('has id "openai"', () => {
     expect(new OpenAiEmbeddingProvider(mockClient(vi.fn())).id).toBe('openai');
   });
+
+  it('rejects when the model has no configured pricing', async () => {
+    const create = vi.fn().mockResolvedValue({
+      data: [{ embedding: [0.1, 0.2, 0.3] }],
+      usage: { prompt_tokens: 1000 },
+    });
+    const provider = new OpenAiEmbeddingProvider(mockClient(create));
+
+    await expect(provider.embed({ model: 'text-embedding-unknown-9', input: 'x' })).rejects.toThrow(
+      'No OpenAI embedding pricing configured for model "text-embedding-unknown-9"',
+    );
+  });
 });
