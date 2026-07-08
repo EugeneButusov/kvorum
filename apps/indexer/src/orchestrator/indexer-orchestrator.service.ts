@@ -114,9 +114,17 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       if (spec.kind !== 'poll') {
         chainCfg = chainsByChainId.get(src.chain_id);
         if (!chainCfg) {
-          throw new Error(
-            `No chain config for chain_id="${src.chain_id}" (dao_source ${src.id}); add it to CHAIN_CONFIG`,
-          );
+          // The source's chain is not in CHAIN_CONFIG. Migrations seed every source for every DAO
+          // (e.g. Aave payloads_controller spans ~11 chains), so a deployment scoped to a subset of
+          // chains legitimately has un-configured chains. Skip with a warn + metric rather than
+          // crashing all ingestion — mirrors the no-plugin skip above (ADR-0073).
+          this.logger.warn('dao_source_chain_unconfigured', {
+            source_type: src.source_type,
+            chain_id: src.chain_id,
+            dao_source_id: src.id,
+          });
+          orchestratorMetrics.daoSourceChainUnconfigured.add(1, { chain_id: src.chain_id });
+          continue;
         }
       }
 
