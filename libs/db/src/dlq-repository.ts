@@ -1,4 +1,5 @@
 import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
 import type {
   IngestionDlq,
   NewIngestionDlq,
@@ -15,8 +16,35 @@ export interface DlqDepthRow {
 export class DlqRepository {
   constructor(private readonly pgDb: Kysely<PgDatabase>) {}
 
+  /**
+   * Upsert a DLQ row. Repeated failures of the same archive event (same tuple + stage) collapse into
+   * a single row — bumping retries/last_attempt_at/error — instead of inserting one row per attempt
+   * (which let a single poison event inflate the table to thousands of rows). Rows with no archive
+   * origin (archive_source_type NULL) fall outside the partial unique index, so they insert as before.
+   */
   async insert(row: NewIngestionDlq): Promise<void> {
-    await this.pgDb.insertInto('ingestion_dlq').values(row).execute();
+    await this.pgDb
+      .insertInto('ingestion_dlq')
+      .values(row)
+      .onConflict((oc) =>
+        oc
+          .columns([
+            'archive_source_type',
+            'archive_chain_id',
+            'archive_tx_hash',
+            'archive_log_index',
+            'archive_block_hash',
+            'stage',
+          ])
+          .where('archive_source_type', 'is not', null)
+          .doUpdateSet({
+            retries: sql`greatest(ingestion_dlq.retries, excluded.retries)`,
+            last_attempt_at: sql`excluded.last_attempt_at`,
+            error: sql`excluded.error`,
+            payload: sql`excluded.payload`,
+          }),
+      )
+      .execute();
   }
 
   async depthByStageAndSource(): Promise<DlqDepthRow[]> {
