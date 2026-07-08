@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import {
   assertCursorMatchesQuery,
   buildPagination,
@@ -277,6 +278,26 @@ describe('sortAndSeek (in-memory keyset)', () => {
     resetCursorConfigForTests();
   });
 
+  // A validly-signed cursor whose payload is `raw` bytes — exercises decode paths past the tag check.
+  const signedCursor = (raw: string) => {
+    const enc = Buffer.from(raw, 'utf8').toString('base64url');
+    const tag = createHmac('sha256', 'test-secret')
+      .update(enc, 'utf8')
+      .digest()
+      .toString('base64url');
+    return `${enc}.${tag}`;
+  };
+
+  it('decodeCursor rejects a validly-signed but non-JSON payload', () => {
+    expect(() => decodeCursor(signedCursor('not json'))).toThrow(/cursor is invalid/i);
+  });
+
+  it('decodeCursor rejects a validly-signed payload that fails the schema', () => {
+    expect(() => decodeCursor(signedCursor(JSON.stringify({ foo: 1 })))).toThrow(
+      /cursor is invalid/i,
+    );
+  });
+
   type Row = { id: string; cast_at: string; vp: string };
   const Q = '{}'; // canonical-query string; schema requires length >= 2
   const timeKey = (r: Row) => ({
@@ -323,12 +344,19 @@ describe('sortAndSeek (in-memory keyset)', () => {
   });
 
   it('compareSortKeys orders numeric values by magnitude, not lexically', () => {
-    const k = (v: string) => ({
+    const k = (v: string, tb = '') => ({
       type: 'numeric' as const,
       value: v,
-      tiebreak: '',
+      tiebreak: tb,
       dir: 'asc' as const,
     });
     expect(compareSortKeys(k('9'), k('100'))).toBeLessThan(0); // 9 < 100 (would be > 0 lexically)
+    expect(compareSortKeys(k('100'), k('9'))).toBeGreaterThan(0); // 100 > 9
+    expect(compareSortKeys(k('5', 'a'), k('5', 'b'))).toBeLessThan(0); // equal value → tiebreak decides
+  });
+
+  it('parseLimit accepts an array-valued query param (first element)', () => {
+    expect(parseLimit(['5'])).toBe(5);
+    expect(parseLimit([])).toBe(50); // empty array → default
   });
 });
