@@ -48,4 +48,45 @@ export class SnapshotVoteChoiceRepository {
       .execute();
     return rows.length > 0;
   }
+
+  /**
+   * Per-choice score for a proposal, summed from the full breakdown: score[i] = Σ over current
+   * (non-superseded) votes of weight_i × vp. This is the correct tally for approval (each approved
+   * choice gets weight 1.0 → full vp) and weighted/quadratic (fractional weights) voting, which the
+   * single `primary_choice` in vote_events cannot represent. Returns null when the proposal has no
+   * derived votes. The array is 0-indexed and dense up to the highest choice that received a vote.
+   */
+  async computeChoiceScores(proposalId: string): Promise<number[] | null> {
+    const rows = await this.chDb
+      .selectFrom('snapshot_vote_choice')
+      .select(['vote_id', 'choices', 'vp', 'version'])
+      .where('vote_id', 'in', (qb) =>
+        qb
+          .selectFrom('vote_events_projection')
+          .select('vote_id')
+          .where('proposal_id', '=', proposalId)
+          .where('superseded', '=', 0),
+      )
+      .execute();
+    if (rows.length === 0) return null;
+
+    // ReplacingMergeTree: keep the greatest version per vote_id (parts may be unmerged). `version`
+    // is a DateTime64 string; lexical comparison is chronological, as findByVoteId also relies on.
+    const latest = new Map<string, { choices: string; vp: string; version: string }>();
+    for (const r of rows) {
+      const prev = latest.get(r.vote_id);
+      if (prev === undefined || r.version > prev.version) latest.set(r.vote_id, r);
+    }
+
+    const scores: number[] = [];
+    for (const { choices, vp } of latest.values()) {
+      const vpNum = Number(vp);
+      const parsed = JSON.parse(choices) as { choice_index: number; weight: string }[];
+      for (const { choice_index, weight } of parsed) {
+        scores[choice_index] = (scores[choice_index] ?? 0) + Number(weight) * vpNum;
+      }
+    }
+    for (let i = 0; i < scores.length; i++) if (scores[i] === undefined) scores[i] = 0;
+    return scores;
+  }
 }

@@ -37,6 +37,7 @@ describe('SnapshotProposalExtensionReadRepository', () => {
         network: '1',
         scores_state: 'final',
         flagged: false,
+        choice_scores: null, // the CH-backed enrichment happens in the read extension, not this repo
       },
     });
   });
