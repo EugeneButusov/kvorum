@@ -173,6 +173,17 @@ describe('SnapshotVoteProjectionApplier', () => {
     expect(deps.archive.markDerived).not.toHaveBeenCalled();
   });
 
+  it('retries an orphan vote whose parent proposal payload is malformed JSON (cannot classify)', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue('not json');
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).not.toHaveBeenCalled();
+    expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
+  });
+
   it('skips (marks derived) an orphan vote whose parent proposal is flagged — poison guard', async () => {
     const applier = build(payload());
     deps.proposals.findBySource.mockResolvedValue(undefined);
