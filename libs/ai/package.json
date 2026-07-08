@@ -6,6 +6,9 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@libs/domain": "workspace:*",
+    "@libs/utils": "workspace:*",
+    "zod": "^4.0.0",
     "tslib": "^2.3.0"
   },
   "scripts": {
