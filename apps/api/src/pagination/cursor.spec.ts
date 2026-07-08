@@ -2,9 +2,11 @@ import {
   assertCursorMatchesQuery,
   buildPagination,
   canonicalQuery,
+  compareSortKeys,
   decodeCursor,
   encodeCursor,
   parseLimit,
+  sortAndSeek,
 } from './cursor';
 import { resetCursorConfigForTests } from './cursor.config';
 import { ProblemException } from '../http/problem-exception';
@@ -266,5 +268,67 @@ describe('cursor', () => {
 
     expect(decodeCursor(encodeCursor(numeric))).toEqual(numeric);
     expect(decodeCursor(encodeCursor(bigint))).toEqual(bigint);
+  });
+});
+
+describe('sortAndSeek (in-memory keyset)', () => {
+  beforeEach(() => {
+    process.env['CURSOR_SECRET'] = 'test-secret';
+    resetCursorConfigForTests();
+  });
+
+  type Row = { id: string; cast_at: string; vp: string };
+  const Q = '{}'; // canonical-query string; schema requires length >= 2
+  const timeKey = (r: Row) => ({
+    type: 'time' as const,
+    value: r.cast_at,
+    tiebreak: r.id,
+    dir: 'desc' as const,
+    q: Q,
+  });
+
+  // Two votes share the same second (common for Snapshot) so the tiebreak actually matters.
+  const rows: Row[] = [
+    { id: 'a', cast_at: '2024-01-03T00:00:00.000Z', vp: '30' },
+    { id: 'c', cast_at: '2024-01-01T00:00:00.000Z', vp: '10' },
+    { id: 'b', cast_at: '2024-01-01T00:00:00.000Z', vp: '20' }, // same second as c
+  ];
+
+  it('sorts desc by value then tiebreak when there is no cursor', () => {
+    expect(sortAndSeek(rows, undefined, timeKey).map((r) => r.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('seeks strictly past the cursor position, breaking same-value ties by tiebreak', () => {
+    // cursor at {value: 2024-01-01, tiebreak: 'c'} → only 'b' (same second, id 'b' < 'c') remains.
+    const cursor = {
+      type: 'time' as const,
+      value: '2024-01-01T00:00:00.000Z',
+      tiebreak: 'c',
+      dir: 'desc' as const,
+      q: Q,
+    };
+    expect(sortAndSeek(rows, cursor, timeKey).map((r) => r.id)).toEqual(['b']);
+  });
+
+  it('never loops: paging with limit 1 visits every row exactly once', () => {
+    const seen: string[] = [];
+    let cursor: ReturnType<typeof decodeCursor> | undefined;
+    for (let guard = 0; guard < 10; guard++) {
+      const page = buildPagination(sortAndSeek(rows, cursor, timeKey), 1, timeKey);
+      seen.push(...page.data.map((r) => r.id));
+      if (!page.pagination.next_cursor) break;
+      cursor = decodeCursor(page.pagination.next_cursor);
+    }
+    expect(seen).toEqual(['a', 'c', 'b']); // full, ordered, no repeats — the infinite loop is gone
+  });
+
+  it('compareSortKeys orders numeric values by magnitude, not lexically', () => {
+    const k = (v: string) => ({
+      type: 'numeric' as const,
+      value: v,
+      tiebreak: '',
+      dir: 'asc' as const,
+    });
+    expect(compareSortKeys(k('9'), k('100'))).toBeLessThan(0); // 9 < 100 (would be > 0 lexically)
   });
 });

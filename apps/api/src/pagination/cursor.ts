@@ -110,6 +110,50 @@ export function parseLimit(raw: unknown): number {
   return value;
 }
 
+type SortKey = Pick<CursorPayload, 'type' | 'value' | 'tiebreak' | 'dir'>;
+
+function compareCursorValues(type: CursorPayload['type'], a: unknown, b: unknown): number {
+  if (type === 'time') return String(a).localeCompare(String(b));
+  // numeric / bigint — exact integer comparison (UInt256 voting power, bigint block numbers)
+  const ba = BigInt(String(a));
+  const bb = BigInt(String(b));
+  return ba < bb ? -1 : ba > bb ? 1 : 0;
+}
+
+/**
+ * Total order over sort keys honoring `dir`: sorting rows with this yields page order (desc → largest
+ * value first), and `compareSortKeys(rowKey, cursorKey) > 0` means the row sorts strictly AFTER the
+ * cursor. `tiebreak` breaks equal values by string so it matches regardless of the source dialect's
+ * native id ordering (ClickHouse UUID order ≠ lexical, so we never rely on the DB's tiebreak order).
+ */
+export function compareSortKeys(a: SortKey, b: SortKey): number {
+  const v = compareCursorValues(a.type, a.value, b.value);
+  const base = v !== 0 ? v : String(a.tiebreak).localeCompare(String(b.tiebreak));
+  return a.dir === 'asc' ? base : -base;
+}
+
+/**
+ * In-memory keyset for controllers that fetch a fully-sorted list and paginate in memory
+ * (ClickHouse-backed votes / actor-votes): sort by the cursor's ordering, then drop every row up to
+ * and including the cursor position. Callers MUST apply this before buildPagination — otherwise the
+ * incoming cursor is ignored and every page returns the first `limit` rows (pagination loops forever).
+ */
+export function sortAndSeek<T>(
+  rows: T[],
+  cursor: CursorPayload | undefined,
+  keyOf: (row: T) => SortKey,
+): T[] {
+  const sorted = [...rows].sort((a, b) => compareSortKeys(keyOf(a), keyOf(b)));
+  if (cursor === undefined) return sorted;
+  const cursorKey: SortKey = {
+    type: cursor.type,
+    value: cursor.value,
+    tiebreak: cursor.tiebreak,
+    dir: cursor.dir,
+  };
+  return sorted.filter((row) => compareSortKeys({ ...keyOf(row), dir: cursor.dir }, cursorKey) > 0);
+}
+
 export function buildPagination<T>(
   rows: T[],
   limit: number,
