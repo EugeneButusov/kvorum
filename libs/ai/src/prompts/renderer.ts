@@ -18,6 +18,10 @@ function interpolate(body: string, vars: Record<string, string>): string {
   return out;
 }
 
+// `inputContent` becomes the LLMClient input_hash, one component of the #432 cache key
+// (feature, prompt_version, input_hash). `vars` MUST contain only the substantive content of
+// the request — never volatile fields (timestamps, request IDs, locale), or every call will
+// cache-miss despite identical content. See the design's cache-key contract.
 function canonicalInputContent(vars: Record<string, string>): string {
   const sorted: Record<string, string> = {};
   for (const key of Object.keys(vars).sort()) {

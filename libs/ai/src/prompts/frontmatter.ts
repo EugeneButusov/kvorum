@@ -16,12 +16,33 @@ function requireKey(parsed: Map<string, string>, key: RequiredKey): string {
   return value;
 }
 
+// Finds the index of the `\n` that starts the closing "---" fence line, i.e. a line
+// containing exactly "---" with nothing else. A candidate match is only valid when the
+// character right after "---" is either a newline or end-of-string — this rejects
+// look-alikes such as "----" or "---foo" that merely start with "---".
+function findClosingFenceIndex(normalized: string, fromIndex: number): number {
+  let searchFrom = fromIndex;
+  for (;;) {
+    const candidate = normalized.indexOf('\n---', searchFrom);
+    if (candidate === -1) {
+      return -1;
+    }
+    const afterFenceIdx = candidate + 4;
+    const charAfterFence =
+      afterFenceIdx < normalized.length ? normalized[afterFenceIdx] : undefined;
+    if (charAfterFence === undefined || charAfterFence === '\n') {
+      return candidate;
+    }
+    searchFrom = candidate + 4;
+  }
+}
+
 export function parseFrontmatter(raw: string): ParsedTemplate {
   const normalized = raw.replace(/\r\n/g, '\n');
   if (!normalized.startsWith('---\n')) {
     throw new PromptTemplateError('template must start with a "---" frontmatter fence');
   }
-  const closeIdx = normalized.indexOf('\n---', 4);
+  const closeIdx = findClosingFenceIndex(normalized, 4);
   if (closeIdx === -1) {
     throw new PromptTemplateError('template frontmatter is missing its closing "---" fence');
   }

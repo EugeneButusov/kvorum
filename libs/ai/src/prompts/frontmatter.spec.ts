@@ -52,4 +52,32 @@ describe('parseFrontmatter', () => {
   it('throws when there is no opening fence', () => {
     expect(() => parseFrontmatter('no fence here')).toThrow(/must start with/);
   });
+
+  it('rejects a non-fence line like "----" as the closing fence', () => {
+    const raw = '---\nname: x\nversion: v1.0\nmodel: m\nschema: s\ndescription: d\n----\n';
+    expect(() => parseFrontmatter(raw)).toThrow(/missing its closing "---" fence/);
+  });
+
+  it('parses correctly with a normal "\\n---\\n" close', () => {
+    const { body } = parseFrontmatter(VALID);
+    expect(body).toBe('Hello {{name}}, welcome to {{place}}.\n');
+  });
+
+  it('parses correctly with a "---" close at end-of-file (no trailing body)', () => {
+    const raw = '---\nname: x\nversion: v1.0\nmodel: m\nschema: s\ndescription: d\n---';
+    const { frontmatter, body } = parseFrontmatter(raw);
+    expect(frontmatter).toEqual({
+      name: 'x',
+      version: 'v1.0',
+      model: 'm',
+      schema: 's',
+      description: 'd',
+    });
+    expect(body).toBe('');
+  });
+
+  it('throws on an invalid frontmatter line with no ": " separator', () => {
+    const raw = VALID.replace('description:', 'garbage\ndescription:');
+    expect(() => parseFrontmatter(raw)).toThrow(/invalid frontmatter line/);
+  });
 });
