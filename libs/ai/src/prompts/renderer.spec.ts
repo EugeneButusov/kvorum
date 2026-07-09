@@ -37,6 +37,16 @@ describe('render', () => {
     }
   });
 
+  it('collects all missing vars, sorted, when multiple are absent', () => {
+    try {
+      render(template({ body: '{{a}} {{b}} {{c}}' }), { b: 'x' });
+      throw new Error('expected throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(PromptRenderError);
+      expect((err as PromptRenderError).missingKeys).toEqual(['a', 'c']);
+    }
+  });
+
   it('ignores extra provided vars', () => {
     const r = render(template(), { name: 'Ada', place: 'Kvorum', unused: 'x' });
     expect(r.messages[0]?.content).toBe('Hello Ada, welcome to Kvorum.');

@@ -13,7 +13,7 @@ function interpolate(body: string, vars: Record<string, string>): string {
     return value;
   });
   if (missing.size > 0) {
-    throw new PromptRenderError([...missing]);
+    throw new PromptRenderError([...missing].sort());
   }
   return out;
 }
