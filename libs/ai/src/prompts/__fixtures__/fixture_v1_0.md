@@ -5,5 +5,4 @@ model: claude-haiku-4-5
 schema: FixtureSchema
 description: A fixture template for tests.
 ---
-
 Hello {{name}}, welcome to {{place}}.
