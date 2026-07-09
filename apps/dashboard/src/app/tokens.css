@@ -60,6 +60,15 @@
   --dao-ens: #5298ff;
   --dao-lido: #00a3ff;
   --dao-mkr: #1aab9b;
+
+  /* DAO pill text — darkened for legibility on the light paper background.
+     (The bright swatch above tints the pill border; the -ink value is the text.)
+     Dark theme uses the swatch itself as text — see the dark block below.
+     Add more per-DAO -ink values here as their pages need them. */
+  --dao-compound-ink: #00875a;
+  --dao-uniswap-ink: #c2005f;
+  --dao-aave-ink: #903b80;
+  --dao-arb-ink: #1d7fc1;
 }
 
 :root[data-theme='dark'] {
@@ -95,6 +104,12 @@
   --for: #00ff88;
   --against: #ff5a3c;
   --abstain: #82827a;
+
+  /* On dark surfaces the bright DAO swatch is legible as text directly. */
+  --dao-compound-ink: var(--dao-compound);
+  --dao-uniswap-ink: var(--dao-uniswap);
+  --dao-aave-ink: var(--dao-aave);
+  --dao-arb-ink: var(--dao-arb);
 }
 
 /* ============================================================

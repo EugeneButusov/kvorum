@@ -8,6 +8,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "next build",
     "dev": "next dev --turbopack",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }
