@@ -73,6 +73,16 @@ module.exports = {
         h1: ['30px', { lineHeight: '1.2' }],
         hero: ['40px', { lineHeight: '1.2' }],
       },
+      keyframes: {
+        // LiveDot pulse — an expanding, fading --ok ring (references the token, no hex).
+        'kv-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 color-mix(in oklab, var(--ok), transparent 60%)' },
+          '50%': { boxShadow: '0 0 0 5px color-mix(in oklab, var(--ok), transparent 90%)' },
+        },
+      },
+      animation: {
+        'kv-pulse': 'kv-pulse 1.6s ease-in-out infinite',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],
