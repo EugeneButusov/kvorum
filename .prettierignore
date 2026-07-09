@@ -24,4 +24,6 @@ docs/design/
 # Prompt template fixtures — literal frontmatter+body content asserted byte-for-byte in tests;
 # Prettier's markdown formatter inserts a blank line after the frontmatter fence and a trailing
 # newline, corrupting the fixtures' asserted body text.
+# M5-2: production templates added under libs/ai/src/prompts/*.md (non-fixture) will need a
+# matching entry here — their frontmatter+body is parsed literally and must not be reformatted.
 libs/ai/src/prompts/__fixtures__/*.md
