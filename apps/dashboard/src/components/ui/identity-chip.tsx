@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from './avatar';
@@ -12,22 +13,28 @@ export function truncateAddress(address: string): string {
 
 export type IdentityChipProps = {
   address: string;
-  /** ENS / platform handle, when known. Falls back to the truncated address. */
+  /**
+   * Display name. Precedence is the caller's to resolve — ENS preferred, then the
+   * delegate-platform name, then (omit and) fall back to the shortened address.
+   */
   name?: string;
   imageSrc?: string;
   copyable?: boolean;
+  /** When set, the name/address links to the delegate scorecard (DAO-scoped). */
+  scorecardHref?: string;
   className?: string;
 };
 
 /**
- * Presentational identity chip: avatar + name/address + copy. The data-aware
- * enrichment (ENS→platform→address resolution, scorecard link) layers on top.
+ * Identity chip: avatar + name/address + copy, optionally linking to the scorecard.
+ * ENS→platform→address resolution happens upstream and arrives via `name`.
  */
 export function IdentityChip({
   address,
   name,
   imageSrc,
   copyable = true,
+  scorecardHref,
   className,
 }: IdentityChipProps) {
   const [copied, setCopied] = useState(false);
@@ -50,7 +57,13 @@ export function IdentityChip({
         {imageSrc ? <AvatarImage src={imageSrc} alt="" /> : null}
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
-      <span className="text-ink">{label}</span>
+      {scorecardHref ? (
+        <Link href={scorecardHref} className="text-ink hover:text-accent">
+          {label}
+        </Link>
+      ) : (
+        <span className="text-ink">{label}</span>
+      )}
       {name != null && (
         <span className="text-caption text-ink-4" title={address}>
           {truncateAddress(address)}

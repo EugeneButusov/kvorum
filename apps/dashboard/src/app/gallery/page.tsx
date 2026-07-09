@@ -3,6 +3,7 @@
 // Interim component gallery: renders every primitive + variant against the design
 // reference so the library can be eyeballed in light and dark. Not a product route.
 import { ThemeToggleDemo } from '@/components/theme-toggle-demo';
+import { AIPanel } from '@/components/ui/ai-panel';
 import { Banner } from '@/components/ui/banner';
 import {
   Breadcrumb,
@@ -32,9 +33,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { FieldRow } from '@/components/ui/field-row';
+import { Fresh } from '@/components/ui/fresh';
 import { IdentityChip } from '@/components/ui/identity-chip';
 import { Input } from '@/components/ui/input';
+import { LiveDot } from '@/components/ui/live-dot';
+import { Mismatch } from '@/components/ui/mismatch';
 import { Pill } from '@/components/ui/pill';
+import { Power } from '@/components/ui/power';
+import { Section as KvSection } from '@/components/ui/section';
 import { Segmented, SegmentedItem } from '@/components/ui/segmented';
 import {
   Select,
@@ -65,6 +72,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { VoteTag } from '@/components/ui/vote-tag';
+
+const MIN = 60_000;
+const HOUR = 3_600_000;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -301,6 +311,85 @@ export default function GalleryPage() {
             </TooltipTrigger>
             <TooltipContent>Reference block 21,000,000</TooltipContent>
           </Tooltip>
+        </Section>
+
+        <Section title="Section / FieldRow">
+          <div className="w-full max-w-2xl">
+            <KvSection number="01" title="Decoded actions" reference="Ethereum · block 21,000,000">
+              <div className="border border-line-3 bg-bg-2">
+                <FieldRow label="target">0x6b17…1d0f</FieldRow>
+                <FieldRow label="function">transfer(address,uint256)</FieldRow>
+                <FieldRow label="value">1,000,000 USDC</FieldRow>
+              </div>
+            </KvSection>
+          </div>
+        </Section>
+
+        <Section title="AIPanel — states">
+          <div className="w-full max-w-2xl space-y-4">
+            <AIPanel
+              provenance={{
+                model: 'claude-sonnet',
+                promptVersion: 'v3',
+                generatedAt: Date.now() - 5 * MIN,
+                inputHref: '#',
+              }}
+              sourceHref="#"
+              confidence="high"
+            >
+              <p>
+                This proposal renews the safety-module budget for another six months at the current
+                emission rate, with no change to the reward token.
+              </p>
+            </AIPanel>
+            <AIPanel state="loading" provenance={{ model: 'claude-sonnet' }} />
+            <AIPanel
+              state="stale"
+              provenance={{ model: 'claude-sonnet', generatedAt: Date.now() - 3 * HOUR }}
+              sourceHref="#"
+            >
+              <p>Last-good summary retained while the inputs changed.</p>
+            </AIPanel>
+            <AIPanel state="rate-limited" provenance={{ model: 'claude-sonnet' }} sourceHref="#" />
+            <AIPanel
+              state="failed"
+              provenance={{ model: 'claude-sonnet' }}
+              fallbackHref="#"
+              sourceHref="#"
+              confidence="low"
+            />
+          </div>
+        </Section>
+
+        <Section title="Mismatch / Power / Fresh / LiveDot">
+          <Mismatch
+            severity="material"
+            summary="Calldata sends to a different treasury than the prose states."
+            href="#"
+          />
+          <Mismatch
+            severity="severe"
+            summary="Recipient address is not mentioned anywhere in the proposal."
+            href="#"
+          />
+          <Power
+            value={1234567}
+            unit="COMP"
+            referenceBlock={21000000}
+            composition={{ delegatedIn: 900000, self: 334567, total: 1234567 }}
+          />
+          <span className="inline-flex items-center gap-2">
+            <LiveDot live />
+            <Fresh timestamp={Date.now() - 8000} />
+          </span>
+        </Section>
+
+        <Section title="IdentityChip (scorecard link)">
+          <IdentityChip
+            address="0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+            name="vitalik.eth"
+            scorecardHref="#"
+          />
         </Section>
       </main>
     </TooltipProvider>
