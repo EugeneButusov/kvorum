@@ -1,6 +1,7 @@
 import './global.css';
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { QueryProvider } from '@/components/query-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 
 // Fonts self-hosted at build via next/font; exposed as CSS vars that tokens.css
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           storageKey="kv:theme"
           disableTransitionOnChange
         >
-          {children}
+          <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>
     </html>
