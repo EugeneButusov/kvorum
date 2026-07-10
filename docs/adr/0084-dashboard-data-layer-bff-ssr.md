@@ -1,4 +1,4 @@
-# ADR-084 — Dashboard data layer: typed client, same-origin BFF, SSR & adaptive polling
+# ADR-084 — Dashboard data layer: typed client, same-origin BFF, SSR & polling
 
 - **Status**: Accepted
 - **Date**: 2026-07-09
@@ -68,23 +68,21 @@ refetch; a `304` resolves to the cached body with **no state change and no re-re
 BFF is a transparent pass-through for the conditional-GET contract the API already
 implements (`etag.interceptor.ts`).
 
-### 5. Adaptive polling (the ADR-035 client)
+### 5. Polling — fixed intervals now, ADR-035 quota backoff deferred
 
-An openapi-fetch response middleware records the latest `RateLimit-Limit`/`-Remaining`/
-`-Reset` into a small external store (`useSyncExternalStore`). A pure
-`pollInterval(kind, quota)` maps remaining quota to an interval per ADR-035:
+Fixed cadences per **§6.16** (`POLL_INTERVAL_MS`): tally 10 s while active, homepage
+active-proposals + activity feed 30 s. These are wired as TanStack Query's
+`refetchInterval`. Freshness derives from the query's `dataUpdatedAt` (the `<Fresh>`
+component); failures surface a "retrying" state (§6.16), never a silent stale.
 
-| Remaining / limit | `tally` | `feed` |
-| ----------------- | ------- | ------ |
-| ≥ 25%             | 10 s    | 30 s   |
-| 10–25%            | 20 s    | 60 s   |
-| < 10%             | paused  | paused |
-
-It is wired as TanStack Query's `refetchInterval` (returning `false` pauses). Freshness
-derives from the query's `dataUpdatedAt` (the `<Fresh>` component); the paused state reads
-"Live updates paused — refresh to retry" (§6.3); failures surface a "retrying" state, not a
-silent stale. Quota is tracked per tab; the privileged tier's headroom (ADR-035) makes
-cross-tab coordination unnecessary.
+The **ADR-035 quota-adaptive backoff** (back off as `RateLimit-Remaining` drops — ≥25% →
+10 s/30 s, 10–25% → 2×, <10% → paused with "Live updates paused") is **deferred**, because
+the API only emits `RateLimit-*` headers once it resolves a key/tier, and reads are keyless
+today (see §2). Adding the backoff now would be dead machinery reading headers that never
+arrive. It lands with the auth backend that provides the header source — re-introduced as a
+`refetchInterval` function over the fixed base, so the §6.16 cadences here are the base it
+backs off from. This is a deliberate deferral of ADR-035's "client lands in M6-1.5" to
+"lands when the quota signal exists," recorded here rather than shipped dormant.
 
 ## Alternatives considered
 
@@ -92,20 +90,21 @@ cross-tab coordination unnecessary.
   anonymous tier, it would leak rate-limit fairness across all anonymous users of a shared
   IP, and it complicates the ADR-035 backoff signal. The BFF is the clean reconciliation.
 - **SWR instead of TanStack Query.** Equivalent for fetching; TanStack Query is the locked
-  choice and its `refetchInterval`-as-function is a direct fit for adaptive polling.
+  choice and its `refetchInterval` (including as a function) is a direct fit for §6.16 polling
+  and the later ADR-035 backoff.
 - **Generate a full client (orval).** See §1.
 
 ## Consequences
 
 - The browser never talks to the API directly; all reads are same-origin. CORS is a non-issue,
   and the browser never holds a key once one exists.
-- Page epics bind to `createApiClient` + typed hooks + `pollInterval`; the contract is typed
-  end to end and regenerated from `openapi.json`.
+- Page epics bind to `createApiClient` + typed hooks + `POLL_INTERVAL_MS`; the contract is
+  typed end to end and regenerated from `openapi.json`.
 - The env surface gains one server-only var (`BACKEND_API_URL`), documented in `.env.example`.
   Reads are open today; when the auth backend enforces keys, the server-side / session key is
   attached at the BFF seam (secrets via the vault, ADR-028) — no caller churn.
-- Because reads are keyless today, the API returns no `RateLimit-*` headers, so the adaptive
-  poll runs at base intervals until tiers exist — a graceful default (`pollInterval` treats
-  unknown quota optimistically).
-- Verified in M6-1.5 with synthetic tests (the `pollInterval` tiers, the BFF proxy/header
-  pass-through); the live end-to-end lights up as pages bind real data.
+- Polling runs at the fixed §6.16 cadences now; the ADR-035 quota backoff is deferred until
+  the API emits `RateLimit-*` headers (the auth backend supplies the quota signal), then slots
+  in over the same base intervals — no caller churn.
+- Verified in M6-1.5 with synthetic tests (the BFF proxy / header pass-through / `304`); the
+  live end-to-end lights up as pages bind real data.
