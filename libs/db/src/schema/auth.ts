@@ -11,8 +11,11 @@ export type ExecutorKind = 'ssh' | 'sudo' | 'env' | 'unknown';
 
 export interface UsersTable {
   id: Generated<string>;
-  email: string;
-  display_name: string;
+  // Nullable since M6-2: wallet (SIWE) accounts carry no email/display_name. A CHECK guarantees
+  // every row still has at least one identity anchor (email OR wallet_address).
+  email: string | null;
+  display_name: string | null;
+  wallet_address: string | null;
   role: UserRole;
   banned_at: Date | null;
   banned_reason: string | null;

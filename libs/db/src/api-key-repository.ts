@@ -19,9 +19,10 @@ type ActiveApiKeyRow = {
   api_key_last_used_at: Date | null;
   api_key_revoked_at: Date | null;
   user_id: string;
-  user_email: string;
-  user_display_name: string;
+  user_email: string | null;
+  user_display_name: string | null;
   user_role: User['role'];
+  user_wallet_address: string | null;
   user_banned_at: Date | null;
   user_banned_reason: string | null;
   user_created_at: Date;
@@ -49,6 +50,7 @@ export class ApiKeyRepository {
         'users.email as user_email',
         'users.display_name as user_display_name',
         'users.role as user_role',
+        'users.wallet_address as user_wallet_address',
         'users.banned_at as user_banned_at',
         'users.banned_reason as user_banned_reason',
         'users.created_at as user_created_at',
@@ -166,6 +168,7 @@ export class ApiKeyRepository {
         id: row.user_id,
         email: row.user_email,
         display_name: row.user_display_name,
+        wallet_address: row.user_wallet_address,
         role: row.user_role,
         banned_at: row.user_banned_at,
         banned_reason: row.user_banned_reason,

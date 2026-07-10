@@ -40,6 +40,8 @@ export async function createRealApp(): Promise<INestApplication> {
     })
     .compile();
   const app = moduleRef.createNestApplication();
+  const { default: cookieParser } = await import('cookie-parser');
+  app.use(cookieParser());
   configureOpenApi(app);
   await app.init();
   return app;
