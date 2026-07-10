@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
+
 import { Crumb } from '@/components/shell/crumb';
+
+// Per-page canonical — each page sets its own; SEO pages add title/description/OG too.
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 export default function HomePage() {
   return (
