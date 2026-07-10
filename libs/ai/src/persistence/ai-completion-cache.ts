@@ -25,12 +25,14 @@ export interface CachedCompletion<T> {
  */
 export class AiCompletionCache {
   private readonly outputs: AiOutputRepository;
+  private readonly costs: AiCostLogRepository;
 
   constructor(
     private readonly db: Kysely<PgDatabase>,
     private readonly llm: LLMClient,
   ) {
     this.outputs = new AiOutputRepository(db);
+    this.costs = new AiCostLogRepository(db);
   }
 
   async complete<T>(req: CompletionRequest<T>, ctx: CostContext): Promise<CachedCompletion<T>> {
@@ -54,7 +56,7 @@ export class AiCompletionCache {
   }
 
   private async writeGenerated<T>(
-    db: Kysely<PgDatabase>,
+    executor: Kysely<PgDatabase>,
     req: CompletionRequest<T>,
     inputHash: string,
     result: CompletionResult<T>,
@@ -62,25 +64,31 @@ export class AiCompletionCache {
   ): Promise<void> {
     const now = new Date();
     const costUsd = String(result.cost.totalUsd);
-    await new AiCostLogRepository(db).insert({
-      timestamp: now,
-      feature_name: req.feature,
-      model: req.model,
-      input_tokens: result.cost.inputTokens,
-      output_tokens: result.cost.outputTokens,
-      cost_usd: costUsd,
-      dao_id: ctx.daoId,
-      entity_reference: ctx.entityReference,
-    });
-    await new AiOutputRepository(db).insert({
-      feature_name: req.feature,
-      prompt_version: req.promptVersion,
-      input_hash: inputHash,
-      model: req.model,
-      output: result.output,
-      cost_usd: costUsd,
-      generated_at: now,
-      source_provenance: result.provenance,
-    });
+    await this.costs.insert(
+      {
+        timestamp: now,
+        feature_name: req.feature,
+        model: req.model,
+        input_tokens: result.cost.inputTokens,
+        output_tokens: result.cost.outputTokens,
+        cost_usd: costUsd,
+        dao_id: ctx.daoId,
+        entity_reference: ctx.entityReference,
+      },
+      executor,
+    );
+    await this.outputs.insert(
+      {
+        feature_name: req.feature,
+        prompt_version: req.promptVersion,
+        input_hash: inputHash,
+        model: req.model,
+        output: result.output,
+        cost_usd: costUsd,
+        generated_at: now,
+        source_provenance: result.provenance,
+      },
+      executor,
+    );
   }
 }

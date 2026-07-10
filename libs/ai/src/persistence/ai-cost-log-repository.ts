@@ -6,8 +6,10 @@ import type { NewAiCostLog } from './schema.js';
 export class AiCostLogRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
-  async insert(row: NewAiCostLog): Promise<void> {
-    await this.db.insertInto('ai_cost_log').values(row).execute();
+  /** `executor` (a transaction handle) overrides `this.db` so one repo instance can participate
+   *  in a caller's transaction. */
+  async insert(row: NewAiCostLog, executor: Kysely<PgDatabase> = this.db): Promise<void> {
+    await executor.insertInto('ai_cost_log').values(row).execute();
   }
 
   /**
