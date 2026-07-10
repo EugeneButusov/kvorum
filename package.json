@@ -28,6 +28,7 @@
     "loadtest:analytics": "tsx apps/api/scripts/autocannon-analytics.ts"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/swagger": "^11.4.3",
     "@nestjs/testing": "^11.0.0",
