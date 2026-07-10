@@ -11,8 +11,8 @@ export function createApiClient({ baseUrl, apiKey }: ApiClientOptions) {
   });
 }
 
-/** Browser client → same-origin BFF; the browser never talks to the API directly (ADR-084). */
-export const browserApi = createApiClient({ baseUrl: '/api/kv' });
+/** Browser client → same-origin BFF at `/api/*`; the browser never talks to the API directly (ADR-084). */
+export const browserApi = createApiClient({ baseUrl: '/api' });
 
 /**
  * Server client → direct to the API for SSR / RSC. Reads are currently open; when the auth

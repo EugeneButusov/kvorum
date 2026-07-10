@@ -30,7 +30,7 @@ describe('BFF GET proxy', () => {
       });
     });
 
-    const req = new Request('http://localhost:3000/api/kv/v1/daos?limit=5', {
+    const req = new Request('http://localhost:3000/api/v1/daos?limit=5', {
       headers: { 'if-none-match': '"abc"' },
     });
     const res = await GET(req, params(['v1', 'daos']));
@@ -49,7 +49,7 @@ describe('BFF GET proxy', () => {
       async () => new Response(null, { status: 304, headers: { ETag: '"abc"' } }),
     );
 
-    const req = new Request('http://localhost:3000/api/kv/v1/daos', {
+    const req = new Request('http://localhost:3000/api/v1/daos', {
       headers: { 'if-none-match': '"abc"' },
     });
     const res = await GET(req, params(['v1', 'daos']));

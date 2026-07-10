@@ -38,16 +38,20 @@ untyped `fetch` (loses contract typing).
 
 ### 2. Same-origin BFF — a Next catch-all route handler
 
-A single route handler at `app/api/kv/[...path]/route.ts` proxies **GET** reads to the API
-(base URL from server-only env `BACKEND_API_URL` — never `NEXT_PUBLIC_*`). It passes
+A single catch-all route handler at `app/api/[...path]/route.ts` proxies **GET** reads to the
+API (base URL from server-only env `BACKEND_API_URL` — never `NEXT_PUBLIC_*`). It passes
 `If-None-Match` through and returns the upstream `ETag`, `Cache-Control`, `RateLimit-*`,
 `Retry-After` headers and status (including `304`) verbatim. The browser calls same-origin
-`/api/kv/v1/…` and **never talks to the API directly**, reconciling DR-001 with the
+`/api/v1/…` (mapping straight to the backend's `/v1/…`) and **never talks to the API
+directly**, reconciling DR-001 with the
 (eventually) token-gated API. Reads are open today, so the handler attaches no key; it is the
 **seam** where a server-side key is injected once the auth backend enforces one — the browser
 still never holds it. When sessions land (M6-2/M6-6) that seam attaches the session-provisioned
 `kv_dashboard_*` key (ADR-035) for logged-in developers, with no change to callers. Only GET is
-proxied in M6 (reads); the developer key-CRUD mutations arrive with the auth backend.
+proxied in M6 (reads); the developer key-CRUD mutations arrive with the auth backend. In
+production the dashboard and API are separate origins (dashboard at
+`kvorum.watch`/`dashboard.kvorum.watch`, API at `api.kvorum.watch`), so the dashboard's own
+`/api/*` is unambiguous and needs no extra namespace.
 
 ### 3. SSR-vs-client policy
 
@@ -58,7 +62,7 @@ proxied in M6 (reads); the developer key-CRUD mutations arrive with the auth bac
   **polled** sections (tally, activity feed, developer dashboard).
 
 A single `createApiClient({ baseUrl, apiKey? })` backs both: server callers pass the API URL
-(and, once enforcement lands, the key); browser callers point at `/api/kv`. `apiKey` is
+(and, once enforcement lands, the key); browser callers point at `/api`. `apiKey` is
 optional — the injection seam — and unused while reads are open.
 
 ### 4. ETag / conditional-GET plumbing
