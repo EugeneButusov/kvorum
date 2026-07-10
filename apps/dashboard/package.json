@@ -9,6 +9,7 @@
     "build": "next build",
     "dev": "next dev --turbopack",
     "lint": "eslint src",
+    "gen:api": "openapi-typescript ../../docs/openapi.json -o src/lib/api/schema.d.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   }

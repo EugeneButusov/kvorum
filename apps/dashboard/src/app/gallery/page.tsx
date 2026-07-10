@@ -2,7 +2,7 @@
 
 // Interim component gallery: renders every primitive + variant against the design
 // reference so the library can be eyeballed in light and dark. Not a product route.
-import { ThemeToggleDemo } from '@/components/theme-toggle-demo';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { AIPanel } from '@/components/ui/ai-panel';
 import { Banner } from '@/components/ui/banner';
 import {
@@ -91,7 +91,7 @@ export default function GalleryPage() {
       <main className="min-h-screen space-y-8 bg-bg p-8 text-ink">
         <header className="flex items-center justify-between border-b border-line pb-4">
           <h1 className="font-mono text-h1">Component gallery</h1>
-          <ThemeToggleDemo />
+          <ThemeToggle />
         </header>
 
         <Section title="Button">
