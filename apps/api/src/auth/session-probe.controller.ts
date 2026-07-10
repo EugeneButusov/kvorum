@@ -1,4 +1,5 @@
 import { Controller, Get, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import type { Response } from 'express';
 import {
   clearSessionCookies,
@@ -14,6 +15,10 @@ import {
 // over real HTTP, so the session substrate has deterministic e2e coverage before SIWE exists. There
 // is deliberately NO unauthenticated login route here — e2e seeds a session via SessionStore
 // in-process. The real SIWE auth controller replaces this in M6-2.2; delete this file then.
+//
+// @ApiExcludeController keeps these throwaway routes out of the committed OpenAPI contract — the
+// real auth/keys surface is documented + regenerated in M6-2.4.
+@ApiExcludeController()
 @Controller('v1/_session')
 export class SessionProbeController {
   constructor(
