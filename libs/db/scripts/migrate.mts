@@ -50,6 +50,27 @@ class MultiDirMigrationProvider implements MigrationProvider {
       }
     }
 
+    // Non-source libs that own their own DDL (e.g. libs/ai owns the AI-infra tables,
+    // co-located with its repos per the libs/sources persistence pattern). Named
+    // <lib>_NNN_* so they sort among the source migrations.
+    const extraLibMigrationDirs = [path.join(repoRoot, 'libs/ai/migrations-postgres')];
+    for (const migrDir of extraLibMigrationDirs) {
+      let files: string[];
+      try {
+        files = await fs.readdir(migrDir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (file.endsWith('.ts') || file.endsWith('.js')) {
+          entries.push({
+            name: path.basename(file, path.extname(file)),
+            filePath: path.join(migrDir, file),
+          });
+        }
+      }
+    }
+
     entries.sort((a, b) => a.name.localeCompare(b.name));
 
     const migrations: Record<string, Migration> = {};
