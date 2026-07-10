@@ -1,6 +1,7 @@
-// Same-origin backend-for-frontend (ADR-084). Proxies GET reads to the API, injecting the
-// server-side key so the browser never holds one, and passing the conditional-GET +
-// rate-limit contract straight through.
+// Same-origin backend-for-frontend (ADR-084). Proxies GET reads to the API and passes the
+// conditional-GET + rate-limit contract straight through. The read API is currently open
+// (key enforcement + tiers arrive with the auth backend); this handler is the seam where a
+// server-side key gets injected then — the browser still never holds one.
 
 // Upstream → downstream headers worth forwarding (the ETag / cache / rate-limit contract).
 const PASS_THROUGH = [
@@ -14,15 +15,13 @@ const PASS_THROUGH = [
 ];
 
 export async function GET(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
-  const apiUrl = process.env.KVORUM_API_URL ?? 'http://localhost:3001';
-  const apiKey = process.env.KVORUM_API_KEY;
+  const apiUrl = process.env.BACKEND_API_URL ?? 'http://localhost:3001';
 
   const { path } = await ctx.params;
   const target = new URL(`${apiUrl}/${path.map(encodeURIComponent).join('/')}`);
   target.search = new URL(req.url).search;
 
   const headers = new Headers();
-  if (apiKey) headers.set('Authorization', `Bearer ${apiKey}`);
   const ifNoneMatch = req.headers.get('if-none-match');
   if (ifNoneMatch) headers.set('If-None-Match', ifNoneMatch);
 

@@ -29,10 +29,11 @@ export function createApiClient({ baseUrl, apiKey }: ApiClientOptions) {
 /** Browser client → same-origin BFF; the browser never holds a key (ADR-084). */
 export const browserApi = createApiClient({ baseUrl: '/api/kv' });
 
-/** Server client → direct to the API with the server-side key (SSR / RSC). */
+/**
+ * Server client → direct to the API for SSR / RSC. Reads are currently open; when the auth
+ * backend lands, the server-side / session key is attached here (via createApiClient's
+ * `apiKey`) — the browser still never holds one.
+ */
 export function serverApi() {
-  return createApiClient({
-    baseUrl: process.env.KVORUM_API_URL ?? 'http://localhost:3001',
-    apiKey: process.env.KVORUM_API_KEY,
-  });
+  return createApiClient({ baseUrl: process.env.BACKEND_API_URL ?? 'http://localhost:3001' });
 }

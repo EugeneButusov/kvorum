@@ -11,10 +11,11 @@ The dashboard binds to the M4 read API (OpenAPI 3.1, `docs/openapi.json`): entit
 analytical endpoints, all cursor-paginated, ETagged, and rate-limited. Two constraints
 shape the data layer:
 
-- **DR-001** — the dashboard is fully browseable with no login, yet **every API request
-  needs an API key** (the API resolves a tier from `request.apiKey`; there is no anonymous
-  read tier). A key must therefore be attached to reads without ever shipping one to the
-  browser.
+- **DR-001** — the dashboard is fully browseable with no login. The API **will** resolve a
+  tier from `request.apiKey` once the auth backend lands; **today reads are open** (the
+  rate-limit interceptor passes through when `request.apiKey` is undefined, and nothing sets
+  it yet). When enforcement arrives, a key must be attached to reads **server-side**, without
+  ever shipping one to the browser — so the data layer needs a server seam for that key now.
 - **ADR-035 / §6.16** — polling on active data must adapt to remaining rate-limit quota
   (`RateLimit-Remaining`, already emitted by the API alongside `-Limit`/`-Reset`), over
   `If-None-Match`/`304`, with an honest freshness indicator and a paused state at low quota.
@@ -37,26 +38,28 @@ untyped `fetch` (loses contract typing).
 
 ### 2. Same-origin BFF — a Next catch-all route handler
 
-A single route handler at `app/api/kv/[...path]/route.ts` proxies **GET** reads to the API,
-injecting `Authorization: Bearer <server-side key>` from server-only env
-(`KVORUM_API_URL`, `KVORUM_API_KEY` — never `NEXT_PUBLIC_*`). It passes `If-None-Match`
-through and returns the upstream `ETag`, `Cache-Control`, `RateLimit-*`, `Retry-After`
-headers and status (including `304`) verbatim. The browser calls same-origin `/api/kv/v1/…`
-and **never holds a key**, reconciling DR-001 with the token-gated API. Only GET is proxied
-in M6 (reads); the developer key-CRUD mutations arrive with the auth backend and use the
-session cookie. When sessions land (M6-2/M6-6) the BFF upgrades from the env key to the
-session-provisioned `kv_dashboard_*` key (ADR-035) with no change to callers.
+A single route handler at `app/api/kv/[...path]/route.ts` proxies **GET** reads to the API
+(base URL from server-only env `BACKEND_API_URL` — never `NEXT_PUBLIC_*`). It passes
+`If-None-Match` through and returns the upstream `ETag`, `Cache-Control`, `RateLimit-*`,
+`Retry-After` headers and status (including `304`) verbatim. The browser calls same-origin
+`/api/kv/v1/…` and **never talks to the API directly**, reconciling DR-001 with the
+(eventually) token-gated API. Reads are open today, so the handler attaches no key; it is the
+**seam** where a server-side key is injected once the auth backend enforces one — the browser
+still never holds it. When sessions land (M6-2/M6-6) that seam attaches the session-provisioned
+`kv_dashboard_*` key (ADR-035) for logged-in developers, with no change to callers. Only GET is
+proxied in M6 (reads); the developer key-CRUD mutations arrive with the auth backend.
 
 ### 3. SSR-vs-client policy
 
-- **Server components** fetch directly from the API (bypassing the BFF hop) with the
-  server-side key, for the SEO-relevant pages that must SSR (proposal detail, lists, DAO
-  landing, forum, actor — §10.9 / AC #5).
+- **Server components** fetch directly from the API (bypassing the BFF hop), for the
+  SEO-relevant pages that must SSR (proposal detail, lists, DAO landing, forum, actor —
+  §10.9 / AC #5); the server-side key attaches here too once enforcement lands.
 - **Client components** fetch through the BFF via TanStack Query, for interactive and
   **polled** sections (tally, activity feed, developer dashboard).
 
-A single `createApiClient({ baseUrl, apiKey? })` backs both: server callers pass the API
-URL + key; browser callers point at `/api/kv` with no key.
+A single `createApiClient({ baseUrl, apiKey? })` backs both: server callers pass the API URL
+(and, once enforcement lands, the key); browser callers point at `/api/kv`. `apiKey` is
+optional — the injection seam — and unused while reads are open.
 
 ### 4. ETag / conditional-GET plumbing
 
@@ -94,12 +97,15 @@ cross-tab coordination unnecessary.
 
 ## Consequences
 
-- The browser never holds an API key; all reads are same-origin. CORS is a non-issue.
+- The browser never talks to the API directly; all reads are same-origin. CORS is a non-issue,
+  and the browser never holds a key once one exists.
 - Page epics bind to `createApiClient` + typed hooks + `pollInterval`; the contract is typed
   end to end and regenerated from `openapi.json`.
-- The env surface gains two server-only vars (`KVORUM_API_URL`, `KVORUM_API_KEY`);
-  documented in `.env.example`. M7 wires the real key/secret via the vault (ADR-028).
-- The BFF is the single seam where the env key becomes the session `kv_dashboard_*` key when
-  auth ships — no caller churn.
+- The env surface gains one server-only var (`BACKEND_API_URL`), documented in `.env.example`.
+  Reads are open today; when the auth backend enforces keys, the server-side / session key is
+  attached at the BFF seam (secrets via the vault, ADR-028) — no caller churn.
+- Because reads are keyless today, the API returns no `RateLimit-*` headers, so the adaptive
+  poll runs at base intervals until tiers exist — a graceful default (`pollInterval` treats
+  unknown quota optimistically).
 - Verified in M6-1.5 with synthetic tests (the `pollInterval` tiers, the BFF proxy/header
   pass-through); the live end-to-end lights up as pages bind real data.

@@ -8,15 +8,14 @@ describe('BFF GET proxy', () => {
   const realFetch = global.fetch;
 
   beforeEach(() => {
-    process.env.KVORUM_API_URL = 'http://api.test';
-    process.env.KVORUM_API_KEY = 'kv_test_secret';
+    process.env.BACKEND_API_URL = 'http://api.test';
   });
   afterEach(() => {
     global.fetch = realFetch;
     vi.restoreAllMocks();
   });
 
-  it('injects the server key, forwards If-None-Match, and passes headers through', async () => {
+  it('proxies to the API, forwards If-None-Match, and passes headers through (reads are open)', async () => {
     const captured: { url?: string; headers?: Headers } = {};
     global.fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
       captured.url = url.toString();
@@ -37,7 +36,8 @@ describe('BFF GET proxy', () => {
     const res = await GET(req, params(['v1', 'daos']));
 
     expect(captured.url).toBe('http://api.test/v1/daos?limit=5');
-    expect(captured.headers?.get('Authorization')).toBe('Bearer kv_test_secret');
+    // No key is attached yet — key enforcement + injection arrive with the auth backend.
+    expect(captured.headers?.has('Authorization')).toBe(false);
     expect(captured.headers?.get('If-None-Match')).toBe('"abc"');
     expect(res.status).toBe(200);
     expect(res.headers.get('etag')).toBe('"abc"');
@@ -56,17 +56,5 @@ describe('BFF GET proxy', () => {
 
     expect(res.status).toBe(304);
     expect(await res.text()).toBe('');
-  });
-
-  it('does not attach an Authorization header when no key is configured', async () => {
-    delete process.env.KVORUM_API_KEY;
-    let seen: Headers | undefined;
-    global.fetch = vi.fn(async (_url: string | URL, init?: RequestInit) => {
-      seen = new Headers(init?.headers);
-      return new Response('{}', { status: 200 });
-    });
-
-    await GET(new Request('http://localhost:3000/api/kv/health'), params(['health']));
-    expect(seen?.has('Authorization')).toBe(false);
   });
 });
