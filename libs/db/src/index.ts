@@ -5,6 +5,12 @@ export { AiOutputRepository } from './ai-output-repository';
 export { AiCostLogRepository } from './ai-cost-log-repository';
 export { AiDlqRepository } from './ai-dlq-repository';
 export {
+  AiCompletionCache,
+  type AiOutputLookup,
+  type GeneratedCompletion,
+  type CacheResult,
+} from './ai-completion-cache';
+export {
   ActorAddressCollisionError,
   ActorAlreadyMergedError,
   ActorNotFoundForAddressError,
@@ -147,3 +153,4 @@ export type {
   SelectorIndex,
   SelectorIndexTable,
 } from './schema/pg';
+export type { AiOutput, NewAiOutput, AiCostLog, NewAiCostLog, AiDlq, NewAiDlq } from './schema/pg';
