@@ -375,6 +375,12 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.110.0
         version: 0.110.0(zod@4.4.3)
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../db
+      kysely:
+        specifier: ^0.29.0
+        version: 0.29.0
       openai:
         specifier: ^6.45.0
         version: 6.45.0(ws@8.21.0)(zod@4.4.3)

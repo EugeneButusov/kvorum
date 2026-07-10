@@ -7,3 +7,12 @@ export * from './llm/fake-provider.js';
 export * from './llm/providers/anthropic-provider.js';
 export * from './llm/providers/openai-embedding-provider.js';
 export * from './prompts/index.js';
+export * from './persistence/schema.js';
+export { AiOutputRepository } from './persistence/ai-output-repository.js';
+export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';
+export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
+export {
+  AiCompletionCache,
+  type CostContext,
+  type CachedCompletion,
+} from './persistence/ai-completion-cache.js';
