@@ -2,6 +2,8 @@ export { pgDb, chDb } from './client';
 export { AdminAuditRepository } from './admin-audit-repository';
 export { AbiCacheRepository } from './abi-cache-repository';
 export { AiOutputRepository } from './ai-output-repository';
+export { AiCostLogRepository } from './ai-cost-log-repository';
+export { AiDlqRepository } from './ai-dlq-repository';
 export {
   ActorAddressCollisionError,
   ActorAlreadyMergedError,
