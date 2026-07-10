@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
-import type Redis from 'ioredis';
 import { ApiKeyRepository, UserRepository, pgDb } from '@libs/db';
 import { ApiKeyGuard, AUTH_CONFIG } from './api-key.guard';
 import { parseAuthConfigFromEnv } from './auth.config';
-import { createSessionRedis, SESSION_REDIS } from './session/session-redis.client';
+import { createSessionRedis } from './session/session-redis.client';
 import { parseSessionConfigFromEnv, type SessionConfig } from './session/session.config';
 import { SessionGuard } from './session/session.guard';
 import { SessionStore } from './session/session.store';
@@ -32,14 +31,9 @@ export const SESSION_CONFIG = Symbol('SESSION_CONFIG');
     // ── Session (cookie) auth — independent of the global ApiKeyGuard ──
     { provide: SESSION_CONFIG, useFactory: () => parseSessionConfigFromEnv(process.env) },
     {
-      provide: SESSION_REDIS,
-      useFactory: (config: SessionConfig) => createSessionRedis(config.redisUrl),
-      inject: [SESSION_CONFIG],
-    },
-    {
       provide: SessionStore,
-      useFactory: (redis: Redis) => new SessionStore(redis),
-      inject: [SESSION_REDIS],
+      useFactory: (config: SessionConfig) => new SessionStore(createSessionRedis(config.redisUrl)),
+      inject: [SESSION_CONFIG],
     },
     {
       provide: SessionGuard,
