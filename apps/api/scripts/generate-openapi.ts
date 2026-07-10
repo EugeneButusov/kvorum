@@ -17,6 +17,8 @@ async function main(): Promise<void> {
   ]);
 
   const app = await NestFactory.create(AppModule, { logger: false });
+  const { default: cookieParser } = await import('cookie-parser');
+  app.use(cookieParser());
   await app.init();
 
   try {
