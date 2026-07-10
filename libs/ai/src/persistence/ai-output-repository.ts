@@ -1,5 +1,6 @@
 import type { Kysely } from 'kysely';
-import type { AiOutput, NewAiOutput, PgDatabase } from './schema/pg';
+import type { PgDatabase } from '@libs/db';
+import type { AiOutput, NewAiOutput } from './schema.js';
 
 export class AiOutputRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}

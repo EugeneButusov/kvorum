@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { AiCostLogRepository } from './ai-cost-log-repository';
-import { pgDb } from './client';
-import type { NewAiCostLog } from './schema/pg';
+import { pgDb } from '@libs/db';
+import { AiCostLogRepository } from './ai-cost-log-repository.js';
+import type { NewAiCostLog } from './schema.js';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 class RollbackSignal extends Error {}

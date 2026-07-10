@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
-import type { NewAiCostLog, PgDatabase } from './schema/pg';
+import type { PgDatabase } from '@libs/db';
+import type { NewAiCostLog } from './schema.js';
 
 export class AiCostLogRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}

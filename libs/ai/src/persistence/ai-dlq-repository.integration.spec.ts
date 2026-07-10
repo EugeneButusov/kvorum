@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { AiDlqRepository } from './ai-dlq-repository';
-import { pgDb } from './client';
-import type { NewAiDlq } from './schema/pg';
+import { pgDb } from '@libs/db';
+import { AiDlqRepository } from './ai-dlq-repository.js';
+import type { NewAiDlq } from './schema.js';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 class RollbackSignal extends Error {}

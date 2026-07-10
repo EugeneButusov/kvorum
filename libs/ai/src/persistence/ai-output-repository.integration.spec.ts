@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { AiOutputRepository } from './ai-output-repository';
-import { pgDb } from './client';
-import type { NewAiOutput } from './schema/pg';
+import { pgDb } from '@libs/db';
+import { AiOutputRepository } from './ai-output-repository.js';
+import type { NewAiOutput } from './schema.js';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 

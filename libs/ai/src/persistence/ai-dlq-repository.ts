@@ -1,5 +1,6 @@
 import type { Kysely } from 'kysely';
-import type { NewAiDlq, PgDatabase } from './schema/pg';
+import type { PgDatabase } from '@libs/db';
+import type { NewAiDlq } from './schema.js';
 
 export class AiDlqRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}

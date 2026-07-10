@@ -9,7 +9,7 @@ export interface AiOutputTable {
   output: unknown; // jsonb
   cost_usd: string; // numeric(12,6) → JS string
   generated_at: Date;
-  source_provenance: unknown; // jsonb — the #430 Provenance object
+  source_provenance: unknown; // jsonb — the Provenance object
 }
 export type AiOutput = Selectable<AiOutputTable>;
 export type NewAiOutput = Insertable<AiOutputTable>;
@@ -42,3 +42,15 @@ export interface AiDlqTable {
 }
 export type AiDlq = Selectable<AiDlqTable>;
 export type NewAiDlq = Insertable<AiDlqTable>;
+
+// ── Declaration merging ───────────────────────────────────────────────────────
+// The DDL for these tables is a core migration (libs/db/migrations/0008_ai_infra.ts);
+// their Kysely types live here and merge into @libs/db's PgDatabase so repos in this
+// lib type against Kysely<PgDatabase> without libs/db owning AI-specific types.
+declare module '@libs/db' {
+  interface PgDatabase {
+    ai_output: AiOutputTable;
+    ai_cost_log: AiCostLogTable;
+    ai_dlq: AiDlqTable;
+  }
+}

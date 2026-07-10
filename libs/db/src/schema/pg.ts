@@ -4,7 +4,6 @@ import type {
   ActorAddressSourceTable,
   ActorAddressTable,
 } from './actor-address';
-import type { AiOutputTable, AiCostLogTable, AiDlqTable } from './ai';
 import type { AdminAuditTable, ApiKeyTable, UsersTable } from './auth';
 import type {
   ActorTable,
@@ -77,17 +76,6 @@ export type {
   SelectorIndexTable,
 } from './abi';
 export type {
-  AiOutput,
-  AiOutputTable,
-  NewAiOutput,
-  AiCostLog,
-  AiCostLogTable,
-  NewAiCostLog,
-  AiDlq,
-  AiDlqTable,
-  NewAiDlq,
-} from './ai';
-export type {
   ArchiveEvent,
   ArchiveEventTable,
   ArchiveEventUpdate,
@@ -138,7 +126,4 @@ export interface PgDatabase {
   actor_address_redirect: ActorAddressRedirectTable;
   actor_address_source: ActorAddressSourceTable;
   seen_log: SeenLogTable;
-  ai_output: AiOutputTable;
-  ai_cost_log: AiCostLogTable;
-  ai_dlq: AiDlqTable;
 }
