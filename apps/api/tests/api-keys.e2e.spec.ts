@@ -75,7 +75,6 @@ describeHttpIf('API keys (M6-2.3)', () => {
 
     expect(created.body.key).toMatch(/^kv_live_[A-Za-z0-9_-]{32}$/);
     expect(created.body.status).toBe('active');
-    expect(created.body.current_month_requests).toBe(0);
 
     const list = await request(app.getHttpServer())
       .get('/v1/keys')
@@ -136,29 +135,5 @@ describeHttpIf('API keys (M6-2.3)', () => {
       .set('Cookie', a.cookie)
       .set('x-csrf-token', a.csrf)
       .expect(200);
-  });
-
-  it('usage endpoint reports per-family counts + quota after an authenticated request', async () => {
-    const s = await login(app, WALLET_A);
-    const created = await request(app.getHttpServer())
-      .post('/v1/keys')
-      .set('Cookie', s.cookie)
-      .set('x-csrf-token', s.csrf)
-      .send({})
-      .expect(201);
-
-    // Exercise a read endpoint with the new key so the usage interceptor records a 'daos' tick.
-    await request(app.getHttpServer())
-      .get('/v1/daos')
-      .set('Authorization', `Bearer ${created.body.key}`)
-      .expect(200);
-
-    const usage = await request(app.getHttpServer())
-      .get(`/v1/keys/${created.body.id}/usage`)
-      .set('Cookie', s.cookie)
-      .expect(200);
-    expect(usage.body.quota).toEqual({ per_minute: 60, per_day: 10_000 });
-    expect(usage.body.by_family.daos).toBeGreaterThanOrEqual(1);
-    expect(usage.body.current_month_requests).toBeGreaterThanOrEqual(1);
   });
 });

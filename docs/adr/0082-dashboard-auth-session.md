@@ -91,12 +91,12 @@ This ADR fixes the session substrate (this task, M6-2.1). SIWE message/verify/no
   sets the old key's `expires_at = now() + grace` (≤24h, §4.3), so in-flight callers can swap over;
   immediate revoke still uses `revoked_at`.
 - **API key CRUD** (`/v1/keys`, session-authenticated — the developer dashboard's self-service
-  surface): create (full `kv_live_` key shown once), list (prefix + last-4 + month request count +
-  status), rotate (grace), revoke. Ownership-scoped; any dashboard-tier (internal) key is hidden.
-- **Usage tracking.** The rate-limit sliding-window counters only hold the current window, so usage
-  is aggregated separately: an interceptor increments per-key/per-family daily counters (+ a month
-  total) in Redis on each authenticated request; the usage endpoint returns the trailing-30-day
-  breakdown by endpoint family + current-month quota status (§6.13).
+  surface): create (full `kv_live_` key shown once), list (prefix + last-4 + status), rotate (grace),
+  revoke. Ownership-scoped; any dashboard-tier (internal) key is hidden.
+- **Usage analytics deferred.** §6.13's usage view (30-day request volume by endpoint family, quota
+  progress) is **not built here**: it has no data until key enforcement is on, and per-request usage
+  analytics belongs in ClickHouse (the existing analytics store), not a bespoke Redis-counter
+  subsystem. Deferred until enforcement lands and its home is decided.
 
 ### Dashboard → API authentication (supersedes ADR-035's per-session key)
 

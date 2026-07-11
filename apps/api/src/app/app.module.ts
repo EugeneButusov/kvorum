@@ -27,7 +27,6 @@ import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
-import { UsageModule } from '../usage/usage.module';
 import { VotesController } from '../votes/votes.controller';
 
 @Module({
@@ -43,7 +42,6 @@ import { VotesController } from '../votes/votes.controller';
     ProposalModule,
     RateLimitModule,
     SourcesModule,
-    UsageModule,
     VotesModule,
   ],
   controllers: [
