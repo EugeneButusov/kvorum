@@ -1,5 +1,5 @@
-export { KEY_PREFIX, parseBearerToken } from './bearer';
-export type { ParsedBearerToken } from './bearer';
+export { KEY_PREFIX, DASHBOARD_KEY_PREFIX, KEY_PREFIXES, parseBearerToken } from './bearer';
+export type { ParsedBearerToken, KeyPrefix } from './bearer';
 
 export { hashApiKey, verifyApiKey } from './hash';
 

@@ -4,6 +4,7 @@ import type Redis from 'ioredis';
 import { ApiKeyRepository, UserRepository, pgDb } from '@libs/db';
 import { ApiKeyGuard, AUTH_CONFIG } from './api-key.guard';
 import { parseAuthConfigFromEnv } from './auth.config';
+import { DashboardKeyService } from './session/dashboard-key.service';
 import { createSessionRedis, SESSION_REDIS } from './session/session-redis.client';
 import { parseSessionConfigFromEnv, type SessionConfig } from './session/session.config';
 import { SessionGuard } from './session/session.guard';
@@ -51,6 +52,12 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
       useFactory: (store: SessionStore, users: UserRepository) => new SessionGuard(store, users),
       inject: [SessionStore, UserRepository],
     },
+    {
+      provide: DashboardKeyService,
+      useFactory: (keys: ApiKeyRepository, peppers: ReturnType<typeof parseAuthConfigFromEnv>) =>
+        new DashboardKeyService(keys, peppers),
+      inject: [ApiKeyRepository, AUTH_CONFIG],
+    },
     // ── SIWE (wallet) auth ──
     { provide: SIWE_CONFIG, useFactory: () => parseSiweConfigFromEnv(process.env) },
     {
@@ -68,8 +75,11 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
   // deps in the host module's injector, so they must be visible there.
   exports: [
     ApiKeyGuard,
+    AUTH_CONFIG,
+    ApiKeyRepository,
     SessionGuard,
     SessionStore,
+    DashboardKeyService,
     SESSION_CONFIG,
     UserRepository,
     NonceStore,

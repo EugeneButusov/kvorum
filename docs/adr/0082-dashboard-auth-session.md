@@ -83,6 +83,28 @@ This ADR fixes the session substrate (this task, M6-2.1). SIWE message/verify/no
   `POST /v1/auth/logout`, `POST /v1/auth/logout-all`. Excluded from the committed OpenAPI until the
   unified auth+keys regeneration (M6-2.4).
 
+### Developer keys, rotation grace & usage
+
+- **Key prefixes.** `libs/auth` recognises a set of prefixes (`kv_live_` public, `kv_dashboard_`
+  privileged); §4.3 reserves extra prefixes for tier/scope without breaking consumers. The guard
+  looks up by full-key hash, so it's prefix-agnostic.
+- **Rotation grace.** A nullable `api_key.expires_at` column: a key is active when
+  `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`. Rotation mints a new key and
+  sets the old key's `expires_at = now() + grace` (≤24h, §4.3), so in-flight callers can swap over;
+  immediate revoke still uses `revoked_at`.
+- **Key CRUD** (`/v1/developer/keys`, session-authenticated): create (full key shown once), list
+  (prefix + last-4 + month request count + status), rotate (grace), revoke. Ownership-scoped; the
+  `kv_dashboard_` key is internal and hidden from this surface.
+- **Usage tracking.** The rate-limit sliding-window counters only hold the current window, so usage
+  is aggregated separately: an interceptor increments per-key/per-family daily counters (+ a month
+  total) in Redis on each authenticated request; the usage endpoint returns the trailing-30-day
+  breakdown by endpoint family + current-month quota status (§6.13).
+- **Session-scoped `kv_dashboard_` key (ADR-035).** Provisioned on session creation (SIWE verify),
+  revoked on logout / logout-all. Its plaintext lives in the server-side Redis session record (never
+  sent to the browser) for the same-origin BFF to attach (ADR-084, M6-6) — reconciling ADR-035's
+  "key provisioned at session creation" with ADR-084's "browser never holds a key". A safety-net
+  `expires_at` equal to the session lifetime prevents a TTL-lapsed session from leaving a live key.
+
 ### Identity schema (additive)
 
 - `users.wallet_address` — nullable, `UNIQUE`, lowercased (a CHECK enforces it); the SIWE anchor.

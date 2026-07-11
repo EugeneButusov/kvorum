@@ -22,10 +22,12 @@ import { AuthController } from '../auth/auth.controller';
 import { CacheModule } from '../cache/cache.module';
 import { DaoController } from '../daos/dao.controller';
 import { DelegationsController } from '../delegations/delegations.controller';
+import { DeveloperKeysController } from '../developer/developer-keys.controller';
 import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
+import { UsageModule } from '../usage/usage.module';
 import { VotesController } from '../votes/votes.controller';
 
 @Module({
@@ -41,6 +43,7 @@ import { VotesController } from '../votes/votes.controller';
     ProposalModule,
     RateLimitModule,
     SourcesModule,
+    UsageModule,
     VotesModule,
   ],
   controllers: [
@@ -56,6 +59,7 @@ import { VotesController } from '../votes/votes.controller';
     ActorAnalyticsController,
     DaoAnalyticsController,
     AuthController,
+    DeveloperKeysController,
   ],
   providers: [
     AppService,

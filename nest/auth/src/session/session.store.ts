@@ -7,6 +7,10 @@ export interface SessionRecord {
   csrfToken: string;
   createdAt: number;
   lastSeenAt: number;
+  // The session-scoped kv_dashboard_ key (ADR-035): id (for revocation) + plaintext for the
+  // same-origin BFF to attach server-side. Server-side only — never sent to the browser.
+  dashboardKeyId?: string;
+  dashboardKey?: string;
 }
 
 export interface CreatedSession {
@@ -35,11 +39,21 @@ const opaqueToken = (): string => randomBytes(32).toString('base64url');
 export class SessionStore {
   constructor(private readonly redis: Redis) {}
 
-  async create(userId: string): Promise<CreatedSession> {
+  async create(
+    userId: string,
+    extra?: { dashboardKeyId?: string; dashboardKey?: string },
+  ): Promise<CreatedSession> {
     const id = opaqueToken();
     const csrfToken = opaqueToken();
     const now = Date.now();
-    const record: SessionRecord = { userId, csrfToken, createdAt: now, lastSeenAt: now };
+    const record: SessionRecord = {
+      userId,
+      csrfToken,
+      createdAt: now,
+      lastSeenAt: now,
+      ...(extra?.dashboardKeyId !== undefined ? { dashboardKeyId: extra.dashboardKeyId } : {}),
+      ...(extra?.dashboardKey !== undefined ? { dashboardKey: extra.dashboardKey } : {}),
+    };
     try {
       await this.redis
         .multi()

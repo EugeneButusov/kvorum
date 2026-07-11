@@ -1,18 +1,18 @@
 import { randomBytes } from 'crypto';
-import { KEY_PREFIX } from './bearer';
+import { KEY_PREFIX, type KeyPrefix } from './bearer';
 
 export interface GeneratedApiKey {
   key: string;
-  prefix: string;
+  prefix: KeyPrefix;
   lastFour: string;
 }
 
-export function generateApiKey(): GeneratedApiKey {
+export function generateApiKey(prefix: KeyPrefix = KEY_PREFIX): GeneratedApiKey {
   const random = randomBytes(24).toString('base64url');
-  const key = `${KEY_PREFIX}${random}`;
+  const key = `${prefix}${random}`;
   return {
     key,
-    prefix: KEY_PREFIX,
+    prefix,
     lastFour: key.slice(-4),
   };
 }

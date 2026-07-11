@@ -1,4 +1,4 @@
-import { KEY_PREFIX, parseBearerToken } from './bearer';
+import { DASHBOARD_KEY_PREFIX, KEY_PREFIX, parseBearerToken } from './bearer';
 
 describe('parseBearerToken', () => {
   it('parses a valid bearer key', () => {
@@ -11,6 +11,14 @@ describe('parseBearerToken', () => {
     });
   });
 
+  it('parses a valid dashboard-prefixed key', () => {
+    const key = `${DASHBOARD_KEY_PREFIX}aB01_-aB01_-aB01_-aB01_-aB01_-aB`;
+    expect(parseBearerToken(`Bearer ${key}`)).toEqual({
+      key,
+      prefix: DASHBOARD_KEY_PREFIX,
+    });
+  });
+
   it('returns null for missing header', () => {
     expect(parseBearerToken(undefined)).toBeNull();
   });
@@ -20,7 +28,7 @@ describe('parseBearerToken', () => {
     expect(parseBearerToken(`Basic ${key}`)).toBeNull();
   });
 
-  it('returns null for wrong prefix', () => {
+  it('returns null for an unknown prefix', () => {
     expect(parseBearerToken('Bearer kv_test_aB01_-aB01_-aB01_-aB01_-aB01_-aB')).toBeNull();
   });
 

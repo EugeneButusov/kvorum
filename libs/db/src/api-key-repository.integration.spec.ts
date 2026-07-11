@@ -271,6 +271,67 @@ describeWithDb('ApiKeyRepository (integration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
+  it('expireAt keeps a key active during grace and inactive once it lapses', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 20) });
+        const repo = new ApiKeyRepository(trx as never);
+
+        // In-grace: expires in the future → still authenticates.
+        await repo.expireAt(seeded.apiKeyId, new Date(Date.now() + 3_600_000));
+        expect((await repo.findActiveByHash(seeded.keyHash))?.apiKey.id).toBe(seeded.apiKeyId);
+
+        // Lapsed: expires in the past → no longer authenticates.
+        await repo.expireAt(seeded.apiKeyId, new Date(Date.now() - 1_000));
+        await expect(repo.findActiveByHash(seeded.keyHash)).resolves.toBeUndefined();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('findByIdForUser scopes to the owning user', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 21) });
+        const repo = new ApiKeyRepository(trx as never);
+
+        expect((await repo.findByIdForUser(seeded.apiKeyId, seeded.userId))?.id).toBe(
+          seeded.apiKeyId,
+        );
+        await expect(
+          repo.findByIdForUser(seeded.apiKeyId, '00000000-0000-0000-0000-000000000000'),
+        ).resolves.toBeUndefined();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('revokeActiveDashboardKeysForUser revokes only the dashboard-tier keys', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 22) }); // authenticated_free
+        const repo = new ApiKeyRepository(trx as never);
+        await repo.create({
+          userId: seeded.userId,
+          keyHash: Buffer.alloc(32, 23),
+          prefix: 'kv_dashboard_',
+          lastFour: 'dddd',
+          tier: 'dashboard',
+        });
+
+        await repo.revokeActiveDashboardKeysForUser(seeded.userId);
+
+        // Dashboard key revoked; the free key still authenticates.
+        await expect(repo.findActiveByHash(Buffer.alloc(32, 23))).resolves.toBeUndefined();
+        expect((await repo.findActiveByHash(seeded.keyHash))?.apiKey.id).toBe(seeded.apiKeyId);
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
   it('listByUser() returns keys without key_hash and filters by user', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {
