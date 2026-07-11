@@ -9,9 +9,13 @@ export const siweVerifySchema = z.object({
   email: z.string().email().optional(),
 });
 
+// The class is never instantiated — the ZodValidationPipe returns the parsed plain object, and the
+// class exists only as the pipe's metatype + decorator target. So the fields are `declare` (ambient
+// type only, zero runtime emit) rather than `!`, which would assert a runtime assignment that never
+// happens.
 @ZodSchema(siweVerifySchema)
 export class SiweVerifyDto {
-  message!: string;
-  signature!: string;
-  email?: string;
+  declare message: string;
+  declare signature: string;
+  declare email?: string;
 }
