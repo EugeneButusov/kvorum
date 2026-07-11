@@ -30,6 +30,10 @@ import {
 import { SiweVerifyDto } from './siwe.dto';
 import { AuthIpRateLimitGuard } from '../rate-limit/auth-ip-rate-limit.guard';
 
+// Keys under which the session's provisioned API key is stashed in the session's opaque data bag.
+const SESSION_API_KEY_ID = 'apiKeyId';
+const SESSION_API_KEY = 'apiKey';
+
 // Dashboard auth surface (SPEC §6.14). All routes are @Public() (no API key); the SIWE endpoints
 // are per-IP rate-limited, the session/logout endpoints are cookie-authenticated via SessionGuard.
 // @ApiExcludeController for now — the unified auth+keys OpenAPI regen is M6-2.4.
@@ -82,8 +86,8 @@ export class AuthController {
     // the session record for the BFF, never returned to the browser.
     const sessionKey = await this.sessionKeys.provision(user.id);
     const { id, csrfToken } = await this.sessions.create(user.id, {
-      apiKeyId: sessionKey.id,
-      apiKey: sessionKey.key,
+      [SESSION_API_KEY_ID]: sessionKey.id,
+      [SESSION_API_KEY]: sessionKey.key,
     });
     setSessionCookies(res, { sessionId: id, csrfToken }, this.config);
     return { userId: user.id, address: result.address };
@@ -105,7 +109,7 @@ export class AuthController {
     @Req() req: SessionRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const apiKeyId = req.session!.apiKeyId;
+    const apiKeyId = req.session!.data?.[SESSION_API_KEY_ID];
     await this.sessions.destroy(req.session!.id);
     if (apiKeyId !== undefined) {
       await this.sessionKeys.revoke(apiKeyId);
