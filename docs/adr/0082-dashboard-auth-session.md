@@ -63,6 +63,26 @@ This ADR fixes the session substrate (this task, M6-2.1). SIWE message/verify/no
 - **Redis-down → 503, never 401.** A session-store outage surfaces `503 service-unavailable`; an
   outage must not read as "logged out" (mirrors the rate limiter's Redis-down stance).
 
+### SIWE (wallet login)
+
+- **Flow:** `POST /v1/auth/siwe/nonce` issues a server-generated nonce (stored in Redis, 10-min TTL);
+  the client puts it in the EIP-4361 message the wallet signs; `POST /v1/auth/siwe/verify` validates
+  and establishes a session.
+- **Replay protection:** the nonce is **single-use**, consumed atomically with `GETDEL` on verify —
+  a signature can never be replayed. The signature is checked _before_ the nonce is spent, so a bad
+  signature doesn't burn a nonce (nonce spend is DoS-bounded by the per-IP limit instead).
+- **Domain binding:** the EIP-4361 `domain` is verified against `SIWE_DOMAIN` (explicit config), not
+  the request `Host` header (spoofable). Verified with `siwe` v3 + the existing `ethers` v6.
+- **Identity:** verify upserts the user by wallet address (`upsertByWalletAddress`), then mints a
+  session. An optional recovery email may be captured (not verification-gated for SIWE, per §6.14);
+  a collision with another account returns 409.
+- **Per-IP rate-limiting:** the auth endpoints carry an `auth_ip` tier (tight per-IP budget) via a
+  guard reusing the sliding-window limiter — blunts enumeration/brute-forcing (§6.14, §7.3). Client
+  IP comes from `req.ip`, so Express `trust proxy` is configured to the known proxy hop count.
+- **Endpoints:** `POST /v1/auth/siwe/nonce`, `POST /v1/auth/siwe/verify`, `GET /v1/auth/session`,
+  `POST /v1/auth/logout`, `POST /v1/auth/logout-all`. Excluded from the committed OpenAPI until the
+  unified auth+keys regeneration (M6-2.4).
+
 ### Identity schema (additive)
 
 - `users.wallet_address` — nullable, `UNIQUE`, lowercased (a CHECK enforces it); the SIWE anchor.

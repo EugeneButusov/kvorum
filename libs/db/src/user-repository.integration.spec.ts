@@ -76,6 +76,26 @@ describeWithDb('UserRepository (integration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
+  it('setRecoveryEmail attaches an email and reports conflict when taken by another account', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const repo = new UserRepository(trx as never);
+        const a = await repo.upsertByWalletAddress({ walletAddress: randomWallet() });
+        const b = await repo.upsertByWalletAddress({ walletAddress: randomWallet() });
+        const email = `recovery-${Math.random().toString(36).slice(2, 8)}@example.com`;
+
+        await expect(repo.setRecoveryEmail(a.id, email)).resolves.toBe('ok');
+        const reloaded = await repo.findById(a.id);
+        expect(reloaded?.email).toBe(email);
+
+        // The same email (any case) on a different account collides with the unique constraint.
+        await expect(repo.setRecoveryEmail(b.id, email.toUpperCase())).resolves.toBe('conflict');
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
   it('findByWalletAddress lowercases the lookup and returns undefined for unknown addresses', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {

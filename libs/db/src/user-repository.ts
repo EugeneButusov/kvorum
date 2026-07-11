@@ -50,4 +50,29 @@ export class UserRepository {
       .returningAll()
       .executeTakeFirstOrThrow();
   }
+
+  // Attaches a recovery email to a (typically SIWE) account. Lowercased to match the email CHECK.
+  // Returns 'conflict' when the address already belongs to another account (the unique constraint),
+  // so callers can surface a 409 rather than a 500.
+  async setRecoveryEmail(userId: string, email: string): Promise<'ok' | 'conflict'> {
+    try {
+      await this.db
+        .updateTable('users')
+        .set({ email: email.toLowerCase(), updated_at: new Date() })
+        .where('id', '=', userId)
+        .execute();
+      return 'ok';
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        return 'conflict';
+      }
+      throw error;
+    }
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      error != null && typeof error === 'object' && (error as { code?: unknown }).code === '23505'
+    );
+  }
 }

@@ -1,5 +1,8 @@
 import Redis from 'ioredis';
 
+// Shared connection token: both SessionStore and the SIWE NonceStore inject this one client.
+export const SESSION_REDIS = Symbol('SESSION_REDIS');
+
 // lazyConnect is mandatory: generate-openapi.ts and AppModule-boot unit tests construct this module
 // with REDIS_URL set but no Redis listening. Connecting on construction would error/hang those
 // paths; instead the socket opens on the first command. Mirrors the rate-limiter client.
