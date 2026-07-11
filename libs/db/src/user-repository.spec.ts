@@ -61,4 +61,30 @@ describe('UserRepository', () => {
       expect.objectContaining({ email: 'mixed@example.com', display_name: 'Mixed', role: 'user' }),
     );
   });
+
+  it('setRecoveryEmail lowercases the email and returns ok', async () => {
+    const execute = vi.fn(async () => []);
+    const where = vi.fn().mockReturnValue({ execute });
+    const set = vi.fn().mockReturnValue({ where });
+    const updateTable = vi.fn().mockReturnValue({ set });
+
+    const repo = new UserRepository({ updateTable } as never);
+
+    await expect(repo.setRecoveryEmail('u1', 'Foo@Bar.COM')).resolves.toBe('ok');
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ email: 'foo@bar.com' }));
+    expect(where).toHaveBeenCalledWith('id', '=', 'u1');
+  });
+
+  it('setRecoveryEmail returns conflict on a unique violation', async () => {
+    const execute = vi.fn(async () => {
+      throw { code: '23505' };
+    });
+    const where = vi.fn().mockReturnValue({ execute });
+    const set = vi.fn().mockReturnValue({ where });
+    const updateTable = vi.fn().mockReturnValue({ set });
+
+    const repo = new UserRepository({ updateTable } as never);
+
+    await expect(repo.setRecoveryEmail('u1', 'taken@example.com')).resolves.toBe('conflict');
+  });
 });
