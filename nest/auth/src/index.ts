@@ -12,7 +12,6 @@ export {
   type CreatedSession,
 } from './session/session.store';
 export { SessionUser } from './session/session-user.decorator';
-export { SessionKeyService } from './session/session-key.service';
 export {
   setSessionCookies,
   clearSessionCookies,

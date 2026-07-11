@@ -7,9 +7,6 @@ export interface SessionRecord {
   csrfToken: string;
   createdAt: number;
   lastSeenAt: number;
-  // Opaque app-attached data, carried verbatim and never interpreted by the store. The auth app uses
-  // it to stash the session's provisioned API key; the session substrate stays generic.
-  data?: Record<string, string>;
 }
 
 export interface CreatedSession {
@@ -38,17 +35,11 @@ const opaqueToken = (): string => randomBytes(32).toString('base64url');
 export class SessionStore {
   constructor(private readonly redis: Redis) {}
 
-  async create(userId: string, data?: Record<string, string>): Promise<CreatedSession> {
+  async create(userId: string): Promise<CreatedSession> {
     const id = opaqueToken();
     const csrfToken = opaqueToken();
     const now = Date.now();
-    const record: SessionRecord = {
-      userId,
-      csrfToken,
-      createdAt: now,
-      lastSeenAt: now,
-      ...(data !== undefined ? { data } : {}),
-    };
+    const record: SessionRecord = { userId, csrfToken, createdAt: now, lastSeenAt: now };
     try {
       await this.redis
         .multi()

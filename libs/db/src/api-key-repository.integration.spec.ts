@@ -308,30 +308,6 @@ describeWithDb('ApiKeyRepository (integration)', () => {
     ).rejects.toThrow(RollbackSignal);
   });
 
-  it('revokeActiveDashboardKeysForUser revokes only the dashboard-tier keys', async () => {
-    await expect(
-      pgDb.transaction().execute(async (trx) => {
-        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 22) }); // authenticated_free
-        const repo = new ApiKeyRepository(trx as never);
-        await repo.create({
-          userId: seeded.userId,
-          keyHash: Buffer.alloc(32, 23),
-          prefix: 'kv_dashboard_',
-          lastFour: 'dddd',
-          tier: 'dashboard',
-        });
-
-        await repo.revokeActiveDashboardKeysForUser(seeded.userId);
-
-        // Dashboard key revoked; the free key still authenticates.
-        await expect(repo.findActiveByHash(Buffer.alloc(32, 23))).resolves.toBeUndefined();
-        expect((await repo.findActiveByHash(seeded.keyHash))?.apiKey.id).toBe(seeded.apiKeyId);
-
-        throw new RollbackSignal();
-      }),
-    ).rejects.toThrow(RollbackSignal);
-  });
-
   it('listByUser() returns keys without key_hash and filters by user', async () => {
     await expect(
       pgDb.transaction().execute(async (trx) => {

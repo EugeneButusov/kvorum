@@ -7,7 +7,6 @@ import {
   describeHttpIf,
   resetDaoProposalApiTables,
 } from './dao-proposal-api.e2e.helpers';
-import { pgDb } from '../../../libs/db/src/client';
 
 const SIWE_DOMAIN = 'localhost:3000';
 const WALLET_A = new Wallet(`0x${'1'.repeat(64)}`);
@@ -161,39 +160,5 @@ describeHttpIf('developer keys (M6-2.3)', () => {
     expect(usage.body.quota).toEqual({ per_minute: 60, per_day: 10_000 });
     expect(usage.body.by_family.daos).toBeGreaterThanOrEqual(1);
     expect(usage.body.current_month_requests).toBeGreaterThanOrEqual(1);
-  });
-
-  it('a SIWE session provisions a dashboard-tier key and logout revokes it', async () => {
-    const s = await login(app, WALLET_A);
-
-    const provisioned = await pgDb
-      .selectFrom('api_key')
-      .select(['id', 'prefix', 'revoked_at'])
-      .where('user_id', '=', s.userId)
-      .where('tier', '=', 'dashboard')
-      .execute();
-    expect(provisioned).toHaveLength(1);
-    expect(provisioned[0]!.prefix).toBe('kv_dashboard_');
-    expect(provisioned[0]!.revoked_at).toBeNull();
-
-    // The dashboard key is internal — it must NOT appear in the developer key list.
-    const list = await request(app.getHttpServer())
-      .get('/v1/developer/keys')
-      .set('Cookie', s.cookie)
-      .expect(200);
-    expect(list.body.data).toHaveLength(0);
-
-    await request(app.getHttpServer())
-      .post('/v1/auth/logout')
-      .set('Cookie', s.cookie)
-      .set('x-csrf-token', s.csrf)
-      .expect(201);
-
-    const afterLogout = await pgDb
-      .selectFrom('api_key')
-      .select(['revoked_at'])
-      .where('id', '=', provisioned[0]!.id)
-      .executeTakeFirstOrThrow();
-    expect(afterLogout.revoked_at).not.toBeNull();
   });
 });

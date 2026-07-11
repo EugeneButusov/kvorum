@@ -17,7 +17,6 @@ import { UserRepository } from '@libs/db';
 import {
   clearSessionCookies,
   NonceStore,
-  SessionKeyService,
   Public,
   SessionGuard,
   SessionStore,
@@ -30,10 +29,6 @@ import {
 import { SiweVerifyDto } from './siwe.dto';
 import { AuthIpRateLimitGuard } from '../rate-limit/auth-ip-rate-limit.guard';
 
-// Keys under which the session's provisioned API key is stashed in the session's opaque data bag.
-const SESSION_API_KEY_ID = 'apiKeyId';
-const SESSION_API_KEY = 'apiKey';
-
 // Dashboard auth surface (SPEC §6.14). All routes are @Public() (no API key); the SIWE endpoints
 // are per-IP rate-limited, the session/logout endpoints are cookie-authenticated via SessionGuard.
 // @ApiExcludeController for now — the unified auth+keys OpenAPI regen is M6-2.4.
@@ -45,7 +40,6 @@ export class AuthController {
     private readonly nonces: NonceStore,
     private readonly users: UserRepository,
     private readonly sessions: SessionStore,
-    private readonly sessionKeys: SessionKeyService,
     @Inject(SESSION_CONFIG) private readonly config: SessionConfig,
   ) {}
 
@@ -82,13 +76,7 @@ export class AuthController {
       }
     }
 
-    // Provision the session-scoped privileged key (ADR-035); its plaintext is stashed server-side in
-    // the session record for the BFF, never returned to the browser.
-    const sessionKey = await this.sessionKeys.provision(user.id);
-    const { id, csrfToken } = await this.sessions.create(user.id, {
-      [SESSION_API_KEY_ID]: sessionKey.id,
-      [SESSION_API_KEY]: sessionKey.key,
-    });
+    const { id, csrfToken } = await this.sessions.create(user.id);
     setSessionCookies(res, { sessionId: id, csrfToken }, this.config);
     return { userId: user.id, address: result.address };
   }
@@ -109,11 +97,7 @@ export class AuthController {
     @Req() req: SessionRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const apiKeyId = req.session!.data?.[SESSION_API_KEY_ID];
     await this.sessions.destroy(req.session!.id);
-    if (apiKeyId !== undefined) {
-      await this.sessionKeys.revoke(apiKeyId);
-    }
     clearSessionCookies(res, this.config);
     return { ok: true };
   }
@@ -125,10 +109,7 @@ export class AuthController {
     @Req() req: SessionRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const userId = req.session!.userId;
-    await this.sessions.destroyAllForUser(userId);
-    // Revoke every session's API key for this user, not just the current one.
-    await this.sessionKeys.revokeAllForUser(userId);
+    await this.sessions.destroyAllForUser(req.session!.userId);
     clearSessionCookies(res, this.config);
     return { ok: true };
   }

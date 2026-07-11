@@ -167,17 +167,6 @@ export class ApiKeyRepository {
       .execute();
   }
 
-  // Immediately revoke every still-active dashboard-tier key for a user (sign-out-everywhere).
-  async revokeActiveDashboardKeysForUser(userId: string): Promise<void> {
-    await this.db
-      .updateTable('api_key')
-      .set({ revoked_at: sql`now()` })
-      .where('user_id', '=', userId)
-      .where('tier', '=', 'dashboard')
-      .where('revoked_at', 'is', null)
-      .execute();
-  }
-
   async revoke(id: string): Promise<'revoked' | 'already_revoked' | 'not_found'> {
     const row = await this.db
       .selectFrom('api_key')

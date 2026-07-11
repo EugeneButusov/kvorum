@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { generateApiKey, hashApiKey, KEY_PREFIX, type PepperSet } from '@libs/auth';
+import { generateApiKey, hashApiKey, type PepperSet } from '@libs/auth';
 import { ApiKeyRepository, type SafeApiKey, type User } from '@libs/db';
 import { AUTH_CONFIG, Public, SessionGuard, SessionUser } from '@nest/auth';
 import { CreateKeyDto } from './developer-keys.dto';
@@ -32,8 +32,8 @@ type KeyView = {
 };
 
 // Developer key management (SPEC §6.13). Session-authenticated (cookie), @Public() to skip the global
-// ApiKeyGuard. Only the developer's own kv_live_ keys are visible/manageable — the session-scoped
-// kv_dashboard_ key is internal and hidden here. @ApiExcludeController until the unified OpenAPI regen.
+// ApiKeyGuard. Only the developer's own kv_live_ keys are visible/manageable; any dashboard-tier key
+// (internal infrastructure) is hidden here. @ApiExcludeController until the unified OpenAPI regen.
 @ApiExcludeController()
 @Public()
 @UseGuards(SessionGuard)
@@ -50,7 +50,7 @@ export class DeveloperKeysController {
     @SessionUser() user: User,
     @Body() body: CreateKeyDto,
   ): Promise<KeyView & { key: string }> {
-    const generated = generateApiKey(KEY_PREFIX);
+    const generated = generateApiKey();
     const created = await this.keys.create({
       userId: user.id,
       keyHash: hashApiKey(this.peppers.current, generated.key),
@@ -78,7 +78,7 @@ export class DeveloperKeysController {
     @Param('id') id: string,
   ): Promise<KeyView & { key: string }> {
     const existing = await this.ownedDeveloperKey(id, user.id);
-    const generated = generateApiKey(KEY_PREFIX);
+    const generated = generateApiKey();
     const created = await this.keys.create({
       userId: user.id,
       keyHash: hashApiKey(this.peppers.current, generated.key),

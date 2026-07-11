@@ -1,4 +1,4 @@
-import { DASHBOARD_KEY_PREFIX, KEY_PREFIX, parseBearerToken } from './bearer';
+import { KEY_PREFIX, parseBearerToken } from './bearer';
 
 describe('parseBearerToken', () => {
   it('parses a valid bearer key', () => {
@@ -8,14 +8,6 @@ describe('parseBearerToken', () => {
     expect(parseBearerToken(`Bearer ${key}`)).toEqual({
       key,
       prefix: KEY_PREFIX,
-    });
-  });
-
-  it('parses a valid dashboard-prefixed key', () => {
-    const key = `${DASHBOARD_KEY_PREFIX}aB01_-aB01_-aB01_-aB01_-aB01_-aB`;
-    expect(parseBearerToken(`Bearer ${key}`)).toEqual({
-      key,
-      prefix: DASHBOARD_KEY_PREFIX,
     });
   });
 

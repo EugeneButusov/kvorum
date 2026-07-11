@@ -78,32 +78,41 @@ This ADR fixes the session substrate (this task, M6-2.1). SIWE message/verify/no
   a collision with another account returns 409.
 - **Per-IP rate-limiting:** the auth endpoints carry an `auth_ip` tier (tight per-IP budget) via a
   guard reusing the sliding-window limiter — blunts enumeration/brute-forcing (§6.14, §7.3). Client
-  IP comes from `req.ip`, so Express `trust proxy` is configured to the known proxy hop count.
+  IP comes from `req.ip`, resolved from `X-Forwarded-For` only for connections from an allowlisted
+  proxy (`trust proxy` = IP/CIDR list), so a direct client can't spoof it.
 - **Endpoints:** `POST /v1/auth/siwe/nonce`, `POST /v1/auth/siwe/verify`, `GET /v1/auth/session`,
   `POST /v1/auth/logout`, `POST /v1/auth/logout-all`. Excluded from the committed OpenAPI until the
   unified auth+keys regeneration (M6-2.4).
 
 ### Developer keys, rotation grace & usage
 
-- **Key prefixes.** `libs/auth` recognises a set of prefixes (`kv_live_` public, `kv_dashboard_`
-  privileged); §4.3 reserves extra prefixes for tier/scope without breaking consumers. The guard
-  looks up by full-key hash, so it's prefix-agnostic.
 - **Rotation grace.** A nullable `api_key.expires_at` column: a key is active when
   `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`. Rotation mints a new key and
   sets the old key's `expires_at = now() + grace` (≤24h, §4.3), so in-flight callers can swap over;
   immediate revoke still uses `revoked_at`.
-- **Key CRUD** (`/v1/developer/keys`, session-authenticated): create (full key shown once), list
-  (prefix + last-4 + month request count + status), rotate (grace), revoke. Ownership-scoped; the
-  `kv_dashboard_` key is internal and hidden from this surface.
+- **Key CRUD** (`/v1/developer/keys`, session-authenticated): create (full `kv_live_` key shown
+  once), list (prefix + last-4 + month request count + status), rotate (grace), revoke.
+  Ownership-scoped; any dashboard-tier (internal) key is hidden from this surface.
 - **Usage tracking.** The rate-limit sliding-window counters only hold the current window, so usage
   is aggregated separately: an interceptor increments per-key/per-family daily counters (+ a month
   total) in Redis on each authenticated request; the usage endpoint returns the trailing-30-day
   breakdown by endpoint family + current-month quota status (§6.13).
-- **Session-scoped `kv_dashboard_` key (ADR-035).** Provisioned on session creation (SIWE verify),
-  revoked on logout / logout-all. Its plaintext lives in the server-side Redis session record (never
-  sent to the browser) for the same-origin BFF to attach (ADR-084, M6-6) — reconciling ADR-035's
-  "key provisioned at session creation" with ADR-084's "browser never holds a key". A safety-net
-  `expires_at` equal to the session lifetime prevents a TTL-lapsed session from leaving a live key.
+
+### Dashboard → API authentication (supersedes ADR-035's per-session key)
+
+ADR-035 proposed a per-session `kv_dashboard_` key provisioned on login. **We drop that.** The
+dashboard is first-party UI over public, read-only data — not a third-party API consumer — so it
+needs no developer-style credential:
+
+- **No per-session key, no privileged mint.** A per-session bearer key is _net-negative_ security:
+  it works directly against the API from anywhere (bypassing the session cookie's HttpOnly /
+  SameSite=Strict / CSRF / BFF protections), and minting one per session multiplies that surface.
+- **Reads stay keyless; abuse is bounded per-IP** at the edge where the real client IP is visible.
+  Because the browser → BFF → API path makes every dashboard request arrive from the BFF's
+  connection, the limit MUST key on the **forwarded** client IP (`X-Forwarded-For`), trusted **only**
+  from an allowlisted proxy (`trust proxy` = IP/CIDR list) so a direct client can't spoof it.
+- If the public API ever hard-enforces "no anonymous" (§4.3), first-party/internal traffic is
+  exempted at the edge rather than issued a credential. (Per-IP limiting on the read path is M6-6.)
 
 ### Identity schema (additive)
 
