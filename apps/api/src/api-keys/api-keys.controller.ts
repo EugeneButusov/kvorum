@@ -13,7 +13,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { generateApiKey, hashApiKey, type PepperSet } from '@libs/auth';
 import { ApiKeyRepository, type SafeApiKey, type User } from '@libs/db';
 import { AUTH_CONFIG, Public, SessionGuard, SessionUser } from '@nest/auth';
-import { CreateKeyDto } from './developer-keys.dto';
+import { CreateKeyDto } from './api-keys.dto';
 import { TIERS } from '../rate-limit/rate-limit.config';
 import { UsageStore } from '../usage/usage.store';
 
@@ -31,14 +31,15 @@ type KeyView = {
   current_month_requests: number;
 };
 
-// Developer key management (SPEC §6.13). Session-authenticated (cookie), @Public() to skip the global
-// ApiKeyGuard. Only the developer's own kv_live_ keys are visible/manageable; any dashboard-tier key
-// (internal infrastructure) is hidden here. @ApiExcludeController until the unified OpenAPI regen.
+// API key management (SPEC §6.13, the developer dashboard). Session-authenticated (cookie), @Public()
+// to skip the global ApiKeyGuard. Only the user's own kv_live_ keys are visible/manageable; any
+// dashboard-tier key (internal infrastructure) is hidden here. @ApiExcludeController until the
+// unified OpenAPI regen.
 @ApiExcludeController()
 @Public()
 @UseGuards(SessionGuard)
-@Controller('v1/developer/keys')
-export class DeveloperKeysController {
+@Controller('v1/keys')
+export class ApiKeysController {
   constructor(
     private readonly keys: ApiKeyRepository,
     @Inject(AUTH_CONFIG) private readonly peppers: PepperSet,

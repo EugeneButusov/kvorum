@@ -48,7 +48,7 @@ async function login(app: INestApplication, wallet: Wallet): Promise<Session> {
   };
 }
 
-describeHttpIf('developer keys (M6-2.3)', () => {
+describeHttpIf('API keys (M6-2.3)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -67,7 +67,7 @@ describeHttpIf('developer keys (M6-2.3)', () => {
   it('create returns the full key once; list shows prefix + last-4 without the secret', async () => {
     const s = await login(app, WALLET_A);
     const created = await request(app.getHttpServer())
-      .post('/v1/developer/keys')
+      .post('/v1/keys')
       .set('Cookie', s.cookie)
       .set('x-csrf-token', s.csrf)
       .send({ label: 'ci' })
@@ -78,7 +78,7 @@ describeHttpIf('developer keys (M6-2.3)', () => {
     expect(created.body.current_month_requests).toBe(0);
 
     const list = await request(app.getHttpServer())
-      .get('/v1/developer/keys')
+      .get('/v1/keys')
       .set('Cookie', s.cookie)
       .expect(200);
     expect(list.body.data).toHaveLength(1);
@@ -89,21 +89,21 @@ describeHttpIf('developer keys (M6-2.3)', () => {
   it('rotate issues a new key and marks the old one expiring (grace)', async () => {
     const s = await login(app, WALLET_A);
     const created = await request(app.getHttpServer())
-      .post('/v1/developer/keys')
+      .post('/v1/keys')
       .set('Cookie', s.cookie)
       .set('x-csrf-token', s.csrf)
       .send({})
       .expect(201);
 
     const rotated = await request(app.getHttpServer())
-      .post(`/v1/developer/keys/${created.body.id}/rotate`)
+      .post(`/v1/keys/${created.body.id}/rotate`)
       .set('Cookie', s.cookie)
       .set('x-csrf-token', s.csrf)
       .expect(201);
     expect(rotated.body.key).not.toBe(created.body.key);
 
     const list = await request(app.getHttpServer())
-      .get('/v1/developer/keys')
+      .get('/v1/keys')
       .set('Cookie', s.cookie)
       .expect(200);
     const statuses = (list.body.data as Array<{ id: string; status: string }>).reduce<
@@ -117,7 +117,7 @@ describeHttpIf('developer keys (M6-2.3)', () => {
     const a = await login(app, WALLET_A);
     const b = await login(app, WALLET_B);
     const created = await request(app.getHttpServer())
-      .post('/v1/developer/keys')
+      .post('/v1/keys')
       .set('Cookie', a.cookie)
       .set('x-csrf-token', a.csrf)
       .send({})
@@ -125,14 +125,14 @@ describeHttpIf('developer keys (M6-2.3)', () => {
 
     // B cannot revoke A's key.
     await request(app.getHttpServer())
-      .delete(`/v1/developer/keys/${created.body.id}`)
+      .delete(`/v1/keys/${created.body.id}`)
       .set('Cookie', b.cookie)
       .set('x-csrf-token', b.csrf)
       .expect(404);
 
     // A can.
     await request(app.getHttpServer())
-      .delete(`/v1/developer/keys/${created.body.id}`)
+      .delete(`/v1/keys/${created.body.id}`)
       .set('Cookie', a.cookie)
       .set('x-csrf-token', a.csrf)
       .expect(200);
@@ -141,7 +141,7 @@ describeHttpIf('developer keys (M6-2.3)', () => {
   it('usage endpoint reports per-family counts + quota after an authenticated request', async () => {
     const s = await login(app, WALLET_A);
     const created = await request(app.getHttpServer())
-      .post('/v1/developer/keys')
+      .post('/v1/keys')
       .set('Cookie', s.cookie)
       .set('x-csrf-token', s.csrf)
       .send({})
@@ -154,7 +154,7 @@ describeHttpIf('developer keys (M6-2.3)', () => {
       .expect(200);
 
     const usage = await request(app.getHttpServer())
-      .get(`/v1/developer/keys/${created.body.id}/usage`)
+      .get(`/v1/keys/${created.body.id}/usage`)
       .set('Cookie', s.cookie)
       .expect(200);
     expect(usage.body.quota).toEqual({ per_minute: 60, per_day: 10_000 });
