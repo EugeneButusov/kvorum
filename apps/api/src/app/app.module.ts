@@ -18,6 +18,7 @@ import { ActorVotesController } from '../actors/actor-votes.controller';
 import { ActorsController } from '../actors/actors.controller';
 import { ActorAnalyticsController } from '../analytics/actor-analytics.controller';
 import { DaoAnalyticsController } from '../analytics/dao-analytics.controller';
+import { ApiKeysController } from '../api-keys/api-keys.controller';
 import { AuthController } from '../auth/auth.controller';
 import { CacheModule } from '../cache/cache.module';
 import { DaoController } from '../daos/dao.controller';
@@ -56,6 +57,7 @@ import { VotesController } from '../votes/votes.controller';
     ActorAnalyticsController,
     DaoAnalyticsController,
     AuthController,
+    ApiKeysController,
   ],
   providers: [
     AppService,

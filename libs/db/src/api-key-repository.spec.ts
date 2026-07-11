@@ -30,6 +30,7 @@ describe('ApiKeyRepository', () => {
       api_key_created_at: now,
       api_key_last_used_at: null,
       api_key_revoked_at: null,
+      api_key_expires_at: null,
       user_id: 'u1',
       user_email: 'test@example.com',
       user_display_name: 'Test',
@@ -64,6 +65,7 @@ describe('ApiKeyRepository', () => {
         created_at: now,
         last_used_at: null,
         revoked_at: null,
+        expires_at: null,
       },
       user: {
         id: 'u1',
@@ -92,6 +94,7 @@ describe('ApiKeyRepository', () => {
       api_key_created_at: now,
       api_key_last_used_at: null,
       api_key_revoked_at: null,
+      api_key_expires_at: null,
       user_id: 'u2',
       user_email: null,
       user_display_name: null,

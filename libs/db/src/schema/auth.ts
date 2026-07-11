@@ -38,6 +38,8 @@ export interface ApiKeyTable {
   created_at: Generated<Date>;
   last_used_at: Date | null;
   revoked_at: Date | null;
+  // Rotation grace / session-key safety net: the key is inactive once now() passes this (if set).
+  expires_at: Date | null;
 }
 
 export type ApiKey = Selectable<ApiKeyTable>;

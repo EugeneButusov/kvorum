@@ -68,6 +68,8 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
   // deps in the host module's injector, so they must be visible there.
   exports: [
     ApiKeyGuard,
+    AUTH_CONFIG,
+    ApiKeyRepository,
     SessionGuard,
     SessionStore,
     SESSION_CONFIG,
