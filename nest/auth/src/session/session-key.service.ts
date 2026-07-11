@@ -2,11 +2,10 @@ import { DASHBOARD_KEY_PREFIX, generateApiKey, hashApiKey, type PepperSet } from
 import { ApiKeyRepository } from '@libs/db';
 import { SESSION_TTL_SECONDS } from './session.config';
 
-// Mints and revokes the session-scoped kv_dashboard_ key (ADR-035): a privileged (dashboard-tier)
-// key provisioned when a session is created and revoked when it ends. It also carries an expires_at
-// equal to the session lifetime, so a session that lapses by TTL (no explicit logout) can't leave a
-// live key behind.
-export class DashboardKeyService {
+// Mints and revokes the API key that belongs to a session (ADR-035): a privileged key provisioned
+// when a session is created and revoked when it ends. It carries an expires_at equal to the session
+// lifetime, so a session that lapses by TTL (no explicit logout) can't leave a live key behind.
+export class SessionKeyService {
   constructor(
     private readonly keys: ApiKeyRepository,
     private readonly peppers: PepperSet,

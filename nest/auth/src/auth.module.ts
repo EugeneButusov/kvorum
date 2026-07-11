@@ -4,7 +4,7 @@ import type Redis from 'ioredis';
 import { ApiKeyRepository, UserRepository, pgDb } from '@libs/db';
 import { ApiKeyGuard, AUTH_CONFIG } from './api-key.guard';
 import { parseAuthConfigFromEnv } from './auth.config';
-import { DashboardKeyService } from './session/dashboard-key.service';
+import { SessionKeyService } from './session/session-key.service';
 import { createSessionRedis, SESSION_REDIS } from './session/session-redis.client';
 import { parseSessionConfigFromEnv, type SessionConfig } from './session/session.config';
 import { SessionGuard } from './session/session.guard';
@@ -53,9 +53,9 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
       inject: [SessionStore, UserRepository],
     },
     {
-      provide: DashboardKeyService,
+      provide: SessionKeyService,
       useFactory: (keys: ApiKeyRepository, peppers: ReturnType<typeof parseAuthConfigFromEnv>) =>
-        new DashboardKeyService(keys, peppers),
+        new SessionKeyService(keys, peppers),
       inject: [ApiKeyRepository, AUTH_CONFIG],
     },
     // ── SIWE (wallet) auth ──
@@ -79,7 +79,7 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
     ApiKeyRepository,
     SessionGuard,
     SessionStore,
-    DashboardKeyService,
+    SessionKeyService,
     SESSION_CONFIG,
     UserRepository,
     NonceStore,

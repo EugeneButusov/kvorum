@@ -16,8 +16,8 @@ import type { Response } from 'express';
 import { UserRepository } from '@libs/db';
 import {
   clearSessionCookies,
-  DashboardKeyService,
   NonceStore,
+  SessionKeyService,
   Public,
   SessionGuard,
   SessionStore,
@@ -41,7 +41,7 @@ export class AuthController {
     private readonly nonces: NonceStore,
     private readonly users: UserRepository,
     private readonly sessions: SessionStore,
-    private readonly dashboardKeys: DashboardKeyService,
+    private readonly sessionKeys: SessionKeyService,
     @Inject(SESSION_CONFIG) private readonly config: SessionConfig,
   ) {}
 
@@ -80,10 +80,10 @@ export class AuthController {
 
     // Provision the session-scoped privileged key (ADR-035); its plaintext is stashed server-side in
     // the session record for the BFF, never returned to the browser.
-    const dashboardKey = await this.dashboardKeys.provision(user.id);
+    const sessionKey = await this.sessionKeys.provision(user.id);
     const { id, csrfToken } = await this.sessions.create(user.id, {
-      dashboardKeyId: dashboardKey.id,
-      dashboardKey: dashboardKey.key,
+      apiKeyId: sessionKey.id,
+      apiKey: sessionKey.key,
     });
     setSessionCookies(res, { sessionId: id, csrfToken }, this.config);
     return { userId: user.id, address: result.address };
@@ -105,10 +105,10 @@ export class AuthController {
     @Req() req: SessionRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const dashboardKeyId = req.session!.dashboardKeyId;
+    const apiKeyId = req.session!.apiKeyId;
     await this.sessions.destroy(req.session!.id);
-    if (dashboardKeyId !== undefined) {
-      await this.dashboardKeys.revoke(dashboardKeyId);
+    if (apiKeyId !== undefined) {
+      await this.sessionKeys.revoke(apiKeyId);
     }
     clearSessionCookies(res, this.config);
     return { ok: true };
@@ -123,8 +123,8 @@ export class AuthController {
   ): Promise<{ ok: true }> {
     const userId = req.session!.userId;
     await this.sessions.destroyAllForUser(userId);
-    // Revoke every session's dashboard key for this user, not just the current one.
-    await this.dashboardKeys.revokeAllForUser(userId);
+    // Revoke every session's API key for this user, not just the current one.
+    await this.sessionKeys.revokeAllForUser(userId);
     clearSessionCookies(res, this.config);
     return { ok: true };
   }

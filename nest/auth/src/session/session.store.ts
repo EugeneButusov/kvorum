@@ -7,10 +7,10 @@ export interface SessionRecord {
   csrfToken: string;
   createdAt: number;
   lastSeenAt: number;
-  // The session-scoped kv_dashboard_ key (ADR-035): id (for revocation) + plaintext for the
-  // same-origin BFF to attach server-side. Server-side only — never sent to the browser.
-  dashboardKeyId?: string;
-  dashboardKey?: string;
+  // The API key this session owns (ADR-035): id (for revocation) + plaintext for the same-origin
+  // BFF to attach server-side. Server-side only — never sent to the browser.
+  apiKeyId?: string;
+  apiKey?: string;
 }
 
 export interface CreatedSession {
@@ -41,7 +41,7 @@ export class SessionStore {
 
   async create(
     userId: string,
-    extra?: { dashboardKeyId?: string; dashboardKey?: string },
+    extra?: { apiKeyId?: string; apiKey?: string },
   ): Promise<CreatedSession> {
     const id = opaqueToken();
     const csrfToken = opaqueToken();
@@ -51,8 +51,8 @@ export class SessionStore {
       csrfToken,
       createdAt: now,
       lastSeenAt: now,
-      ...(extra?.dashboardKeyId !== undefined ? { dashboardKeyId: extra.dashboardKeyId } : {}),
-      ...(extra?.dashboardKey !== undefined ? { dashboardKey: extra.dashboardKey } : {}),
+      ...(extra?.apiKeyId !== undefined ? { apiKeyId: extra.apiKeyId } : {}),
+      ...(extra?.apiKey !== undefined ? { apiKey: extra.apiKey } : {}),
     };
     try {
       await this.redis
