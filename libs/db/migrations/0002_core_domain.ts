@@ -144,6 +144,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     WHERE voting_starts_at IS NULL OR voting_ends_at IS NULL
   `.execute(db);
 
+  // Supports the M5-1.4 AI trigger scan: `WHERE state IN (...) AND state_updated_at >= cutoff`.
+  await db.schema
+    .createIndex('idx_proposal_state_updated_at')
+    .on('proposal')
+    .columns(['state', 'state_updated_at desc'])
+    .execute();
+
   // ── proposal_action ──────────────────────────────────────────────────────────
   await db.schema
     .createTable('proposal_action')
