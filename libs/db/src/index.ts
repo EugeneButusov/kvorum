@@ -66,7 +66,7 @@ export {
   DelegationFlowProjectionWriter,
   ZERO_DELEGATE_ADDRESS,
 } from './delegation-flow-projection-writer';
-export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
+export type { ProposalTallyRow, VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
 export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
 export type { CurrentVoteRow, ProposalVoterRow } from './vote-events-projection-read-repository';

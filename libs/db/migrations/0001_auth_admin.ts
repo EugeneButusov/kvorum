@@ -56,6 +56,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('created_at', 'timestamptz', (col) => col.notNull().defaultTo(sql`now()`))
     .addColumn('last_used_at', 'timestamptz')
     .addColumn('revoked_at', 'timestamptz')
+    // Rotation grace / session-key safety net: a key is active while
+    // revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()).
+    .addColumn('expires_at', 'timestamptz')
     .execute();
 
   // Partial index covers the dominant "list active keys for user" query path.

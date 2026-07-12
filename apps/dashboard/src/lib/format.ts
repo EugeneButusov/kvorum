@@ -15,6 +15,32 @@ export function formatRelativeTime(input: Date | number, now: number = Date.now(
   return `${Math.round(months / 12)}y ago`;
 }
 
+const dateOnly = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
+const dateTime = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+  timeZoneName: 'short',
+});
+
+/** Absolute date, e.g. "Jul 12, 2026". */
+export function formatDate(input: Date | number | string): string {
+  return dateOnly.format(new Date(input));
+}
+
+/** Absolute date + time in UTC, e.g. "Jul 12, 2026, 08:30 UTC". */
+export function formatDateTime(input: Date | number | string): string {
+  return dateTime.format(new Date(input));
+}
+
 const compact = new Intl.NumberFormat('en-US', {
   notation: 'compact',
   maximumFractionDigits: 1,

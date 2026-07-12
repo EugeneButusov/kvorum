@@ -19,6 +19,10 @@
     "@libs/observability": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "tslib": "^2.3.0"
+    "ethers": "^6.16.0",
+    "ioredis": "^5.10.1",
+    "siwe": "^3.0.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.0.0"
   }
 }

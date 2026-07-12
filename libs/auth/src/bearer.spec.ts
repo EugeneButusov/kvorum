@@ -20,7 +20,7 @@ describe('parseBearerToken', () => {
     expect(parseBearerToken(`Basic ${key}`)).toBeNull();
   });
 
-  it('returns null for wrong prefix', () => {
+  it('returns null for an unknown prefix', () => {
     expect(parseBearerToken('Bearer kv_test_aB01_-aB01_-aB01_-aB01_-aB01_-aB')).toBeNull();
   });
 

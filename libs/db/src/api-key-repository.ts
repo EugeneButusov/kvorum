@@ -18,10 +18,12 @@ type ActiveApiKeyRow = {
   api_key_created_at: Date;
   api_key_last_used_at: Date | null;
   api_key_revoked_at: Date | null;
+  api_key_expires_at: Date | null;
   user_id: string;
-  user_email: string;
-  user_display_name: string;
+  user_email: string | null;
+  user_display_name: string | null;
   user_role: User['role'];
+  user_wallet_address: string | null;
   user_banned_at: Date | null;
   user_banned_reason: string | null;
   user_created_at: Date;
@@ -45,10 +47,12 @@ export class ApiKeyRepository {
         'api_key.created_at as api_key_created_at',
         'api_key.last_used_at as api_key_last_used_at',
         'api_key.revoked_at as api_key_revoked_at',
+        'api_key.expires_at as api_key_expires_at',
         'users.id as user_id',
         'users.email as user_email',
         'users.display_name as user_display_name',
         'users.role as user_role',
+        'users.wallet_address as user_wallet_address',
         'users.banned_at as user_banned_at',
         'users.banned_reason as user_banned_reason',
         'users.created_at as user_created_at',
@@ -56,6 +60,13 @@ export class ApiKeyRepository {
       ])
       .where('api_key.key_hash', '=', keyHash)
       .where('api_key.revoked_at', 'is', null)
+      // Rotation grace: a rotated key stays valid until expires_at lapses.
+      .where((eb) =>
+        eb.or([
+          eb('api_key.expires_at', 'is', null),
+          eb('api_key.expires_at', '>', sql<Date>`now()`),
+        ]),
+      )
       .executeTakeFirst();
 
     if (row === undefined) {
@@ -112,6 +123,7 @@ export class ApiKeyRepository {
     lastFour: string;
     label?: string;
     tier?: ApiKeyTier;
+    expiresAt?: Date;
   }): Promise<SafeApiKey> {
     const row = await this.db
       .insertInto('api_key')
@@ -122,11 +134,37 @@ export class ApiKeyRepository {
         last_four: input.lastFour,
         label: input.label ?? null,
         tier: input.tier ?? 'authenticated_free',
+        expires_at: input.expiresAt ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
     const { key_hash: _ignored, ...rest } = row;
     return rest;
+  }
+
+  // Ownership-scoped lookup for the developer key-CRUD endpoints (rotate/revoke).
+  async findByIdForUser(id: string, userId: string): Promise<SafeApiKey | undefined> {
+    const row = await this.db
+      .selectFrom('api_key')
+      .selectAll()
+      .where('id', '=', id)
+      .where('user_id', '=', userId)
+      .executeTakeFirst();
+    if (row === undefined) {
+      return undefined;
+    }
+    const { key_hash: _ignored, ...rest } = row;
+    return rest;
+  }
+
+  // Rotation grace: keep a key valid until `when`, after which findActiveByHash treats it inactive.
+  async expireAt(id: string, when: Date): Promise<void> {
+    await this.db
+      .updateTable('api_key')
+      .set({ expires_at: when })
+      .where('id', '=', id)
+      .where('revoked_at', 'is', null)
+      .execute();
   }
 
   async revoke(id: string): Promise<'revoked' | 'already_revoked' | 'not_found'> {
@@ -161,11 +199,13 @@ export class ApiKeyRepository {
         created_at: row.api_key_created_at,
         last_used_at: row.api_key_last_used_at,
         revoked_at: row.api_key_revoked_at,
+        expires_at: row.api_key_expires_at,
       },
       user: {
         id: row.user_id,
         email: row.user_email,
         display_name: row.user_display_name,
+        wallet_address: row.user_wallet_address,
         role: row.user_role,
         banned_at: row.user_banned_at,
         banned_reason: row.user_banned_reason,

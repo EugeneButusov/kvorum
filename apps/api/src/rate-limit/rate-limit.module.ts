@@ -1,5 +1,6 @@
 import { Module, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuthIpRateLimitGuard } from './auth-ip-rate-limit.guard';
 import { parseRateLimitConfigFromEnv } from './rate-limit.config';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
 import {
@@ -73,7 +74,15 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
       useFactory: (redis: SlidingWindowRedis) => new RedisLifecycle(redis),
       inject: [RATE_LIMIT_REDIS],
     },
+    {
+      provide: AuthIpRateLimitGuard,
+      useFactory: (rateLimiter: RateLimiter) => new AuthIpRateLimitGuard(rateLimiter),
+      inject: [RATE_LIMITER],
+    },
   ],
+  // Exported so the auth controller can @UseGuards(AuthIpRateLimitGuard); RATE_LIMITER travels with
+  // it because @UseGuards re-resolves the guard's deps in the host module's injector.
+  exports: [AuthIpRateLimitGuard, RATE_LIMITER],
 })
 export class RateLimitModule {}
 

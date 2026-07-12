@@ -7,12 +7,14 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { DaoReadRepository, ProposalReadRepository } from '@libs/db';
+import { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import {
   SOURCE_READ_EXTENSIONS,
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
+import { assembleTally, extractChoiceScores } from './proposal-tally';
+import { ProposalTallyResponseDto } from './proposal-tally.dto';
 import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
@@ -37,6 +39,7 @@ export class ProposalController {
   constructor(
     private readonly repo: ProposalReadRepository,
     private readonly daoRepo: DaoReadRepository,
+    private readonly voteRepo: VoteReadRepository,
     @Inject(SOURCE_READ_EXTENSIONS)
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
@@ -122,6 +125,41 @@ export class ProposalController {
         ext.extension,
         ext.offchainDiscussionLinks,
       ),
+    };
+  }
+
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: ProposalTallyResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  @Get('daos/:slug/proposals/:source_type/:source_id/tally')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 10, staleWhileRevalidateSecs: 60 })
+  async tally(
+    @Param('slug') slug: string,
+    @Param('source_type') sourceType: string,
+    @Param('source_id') sourceId: string,
+  ): Promise<ProposalTallyResponseDto> {
+    const row = await this.repo.findOne(slug, sourceType, sourceId);
+    if (row === undefined) {
+      throw problemException('not-found', {
+        detail: `No proposal found for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    const [aggregate, choices, ext] = await Promise.all([
+      this.voteRepo.tallyForProposal(row.id),
+      this.repo.findChoices(row.id),
+      getProposalExtensionFor(this.extensions, row.id, sourceType),
+    ]);
+
+    return {
+      data: assembleTally({
+        declaredChoices: choices.map((c) => c.choice_index),
+        aggregate,
+        choiceScores: extractChoiceScores(ext.extension?.metadata ?? null),
+      }),
     };
   }
 

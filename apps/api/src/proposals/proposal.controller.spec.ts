@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DaoReadRepository, ProposalReadRepository } from '@libs/db';
+import type { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import type { SourceReadExtension } from '@libs/domain';
 import { ProposalController } from './proposal.controller';
 import { ProblemException } from '../http/problem-exception';
 import type { ApiListQueryDto } from '../openapi/query.dto';
+
+function makeVoteRepo(overrides?: Partial<VoteReadRepository>): VoteReadRepository {
+  return {
+    tallyForProposal: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  } as unknown as VoteReadRepository;
+}
 
 // One contribution covering every source type the detail tests exercise, so the
 // getProposalExtensionFor helper resolves it by source type (not the null default).
@@ -63,6 +70,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -76,6 +84,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -91,6 +100,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -122,6 +132,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -143,6 +154,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -164,6 +176,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -185,6 +198,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -206,6 +220,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -227,6 +242,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -248,6 +264,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -274,6 +291,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         extensions,
       );
 
@@ -336,6 +354,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         extensions,
       );
 
@@ -357,6 +376,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -378,6 +398,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -393,6 +414,7 @@ describe('ProposalController', () => {
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
         daoRepo as unknown as DaoReadRepository,
+        makeVoteRepo(),
         makeExtensions(),
       );
 
@@ -411,6 +433,85 @@ describe('ProposalController', () => {
 
       const out = await controller.listCrossDao({ cursor: cursorStr } as ApiListQueryDto);
       expect(out.data).toHaveLength(0);
+    });
+  });
+
+  describe('tally', () => {
+    it('assembles the per-choice tally from the summed votes', async () => {
+      const repo = {
+        findOne: vi.fn().mockResolvedValue(baseProposalRow),
+        findChoices: vi.fn().mockResolvedValue([
+          { choice_index: 0, value: 'For' },
+          { choice_index: 1, value: 'Against' },
+        ]),
+      };
+      const voteRepo = makeVoteRepo({
+        tallyForProposal: vi.fn().mockResolvedValue([
+          { primary_choice: 0, voting_power: '300', voter_count: 2 },
+          { primary_choice: 1, voting_power: '100', voter_count: 1 },
+        ]),
+      });
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        { findDaoBySlug: vi.fn() } as unknown as DaoReadRepository,
+        voteRepo,
+        makeExtensions({ getProposalExtension: vi.fn().mockResolvedValue(null) }),
+      );
+
+      const out = await controller.tally('compound', 'compound_governor_bravo', '42');
+      expect(out.data.source).toBe('votes');
+      expect(out.data.total_voting_power).toBe('400');
+      expect(out.data.total_voters).toBe(3);
+      expect(out.data.choices).toEqual([
+        { choice_index: 0, voting_power: '300', voter_count: 2, pct: 75 },
+        { choice_index: 1, voting_power: '100', voter_count: 1, pct: 25 },
+      ]);
+    });
+
+    it('prefers the source choice_scores when present (Snapshot approval/weighted)', async () => {
+      const repo = {
+        findOne: vi.fn().mockResolvedValue(baseProposalRow),
+        findChoices: vi.fn().mockResolvedValue([
+          { choice_index: 0, value: 'For' },
+          { choice_index: 1, value: 'Against' },
+        ]),
+      };
+      const voteRepo = makeVoteRepo({
+        tallyForProposal: vi
+          .fn()
+          .mockResolvedValue([{ primary_choice: 0, voting_power: '1', voter_count: 5 }]),
+      });
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        { findDaoBySlug: vi.fn() } as unknown as DaoReadRepository,
+        voteRepo,
+        makeExtensions({
+          getProposalExtension: vi.fn().mockResolvedValue({
+            voting: null,
+            payloads: [],
+            metadata: { kind: 'snapshot', choice_scores: [100, 300] },
+          }),
+        }),
+      );
+
+      const out = await controller.tally('compound', 'compound_governor_bravo', '42');
+      expect(out.data.source).toBe('choice_scores');
+      expect(out.data.choices[0]).toMatchObject({ choice_index: 0, voting_power: '100', pct: 25 });
+      expect(out.data.choices[1]).toMatchObject({ choice_index: 1, voting_power: '300', pct: 75 });
+    });
+
+    it('throws not-found when the proposal is missing', async () => {
+      const repo = { findOne: vi.fn().mockResolvedValue(undefined) };
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        { findDaoBySlug: vi.fn() } as unknown as DaoReadRepository,
+        makeVoteRepo(),
+        makeExtensions(),
+      );
+
+      await expect(
+        controller.tally('compound', 'compound_governor_bravo', '999'),
+      ).rejects.toBeInstanceOf(ProblemException);
     });
   });
 });
