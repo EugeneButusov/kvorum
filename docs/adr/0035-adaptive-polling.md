@@ -15,6 +15,13 @@
 > remains for a possible operator-minted first-party service key, but nothing provisions one per
 > session.
 
+> **Adaptive-polling half implemented (2026-07, M6-3.2).** The proposal-detail tally polls the
+> `.../tally` aggregate every 10s while `active`, sending `If-None-Match` (304 on unchanged tallies),
+> and backs off per the quota tiers below (`useTally` + `tallyIntervalMs`/`parseQuota` read
+> `RateLimit-Remaining`/`-Limit` off the response). Until the per-IP read limiter emits those headers
+> (M6-6), the remaining-quota fraction is null and the client holds the base 10s cadence without
+> pausing — the tier logic activates automatically once the headers appear.
+
 ## Context
 
 SPEC §4.4 sets the authenticated free tier at 60 requests/minute, 10,000 requests/day. SPEC §6.16 specifies dashboard polling at 10-second intervals on active proposal tally and 30-second intervals on the homepage's active proposals + activity feed. SPEC §4.9 commits to ETag-based conditional requests so polling on unchanged resources returns 304 with negligible bandwidth.
