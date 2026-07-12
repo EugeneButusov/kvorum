@@ -70,6 +70,16 @@ export class UserRepository {
     }
   }
 
+  // Permanently deletes an account (SPEC §6.14 / KNOWN-020). The api_key FK is onDelete('restrict'),
+  // so the keys must go before the user row — deleting them permanently revokes them. Wrapped in a
+  // transaction so a partial delete can't leave orphaned keys or a half-removed account.
+  async deleteAccount(userId: string): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      await trx.deleteFrom('api_key').where('user_id', '=', userId).execute();
+      await trx.deleteFrom('users').where('id', '=', userId).execute();
+    });
+  }
+
   private isUniqueViolation(error: unknown): boolean {
     return (
       error != null && typeof error === 'object' && (error as { code?: unknown }).code === '23505'
