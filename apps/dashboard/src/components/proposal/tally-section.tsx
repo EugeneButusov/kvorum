@@ -1,8 +1,7 @@
 'use client';
 
 import { stateToVariant } from './state';
-import { Fresh } from '@/components/ui/fresh';
-import { LiveDot } from '@/components/ui/live-dot';
+import { Freshness } from '@/components/ui/freshness';
 import { Section } from '@/components/ui/section';
 import { formatCompactNumber } from '@/lib/format';
 import {
@@ -51,7 +50,18 @@ export function TallySection({ tally, detail }: { tally: TallyData; detail: Prop
     forSeg && decisive && decisive > 0 ? Math.round((forSeg.power / decisive) * 1000) / 10 : null;
 
   return (
-    <Section number="05" title="Tally" reference={<Freshness active={active} live={live} />}>
+    <Section
+      number="05"
+      title="Tally"
+      reference={
+        <Freshness
+          active={active}
+          updatedAt={live.updatedAt}
+          isError={live.isError}
+          isPaused={live.isPaused}
+        />
+      }
+    >
       <p className="-mt-1 font-mono text-caption text-ink-4">
         {presented.source === 'choice_scores' ? 'Per-choice scores' : 'Summed from votes'}
       </p>
@@ -111,42 +121,5 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dt className="uppercase tracking-[0.04em] text-ink-4">{label}</dt>
       <dd className="text-body text-ink">{value}</dd>
     </div>
-  );
-}
-
-/**
- * Honest freshness (§6.16): a live dot + "updated N ago" while polling, "— retrying" on error, and
- * an explicit paused message when quota runs out. Nothing on a settled (non-active) proposal.
- */
-function Freshness({
-  active,
-  live,
-}: {
-  active: boolean;
-  live: { updatedAt: number; isError: boolean; isPaused: boolean; isLive: boolean };
-}) {
-  if (!active) return null;
-
-  if (live.isPaused) {
-    return (
-      <span className="text-note-ink" role="status">
-        Live updates paused — refresh to retry
-      </span>
-    );
-  }
-
-  if (live.isError) {
-    return (
-      <span className="flex items-center gap-1.5 text-warn-ink" role="status">
-        <Fresh timestamp={live.updatedAt} /> — retrying
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex items-center gap-1.5" role="status">
-      <LiveDot live />
-      <Fresh timestamp={live.updatedAt} />
-    </span>
   );
 }
