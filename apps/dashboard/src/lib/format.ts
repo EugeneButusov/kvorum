@@ -41,6 +41,34 @@ export function formatDateTime(input: Date | number | string): string {
   return dateTime.format(new Date(input));
 }
 
+/**
+ * Relative voting deadline, e.g. "ends in 3d" (future) / "ended 2w ago" (past). Null-safe so a
+ * proposal without a close time renders nothing.
+ */
+export function formatDeadline(
+  input: Date | number | string | null,
+  now: number = Date.now(),
+): string | null {
+  if (input == null) return null;
+  const then = new Date(input).getTime();
+  if (Number.isNaN(then)) return null;
+  const future = then >= now;
+  const seconds = Math.abs(Math.round((then - now) / 1000));
+  const unit =
+    seconds < 60
+      ? `${seconds}s`
+      : seconds < 3600
+        ? `${Math.round(seconds / 60)}m`
+        : seconds < 86_400
+          ? `${Math.round(seconds / 3600)}h`
+          : seconds < 2_592_000
+            ? `${Math.round(seconds / 86_400)}d`
+            : seconds < 31_536_000
+              ? `${Math.round(seconds / 2_592_000)}mo`
+              : `${Math.round(seconds / 31_536_000)}y`;
+  return future ? `ends in ${unit}` : `ended ${unit} ago`;
+}
+
 const compact = new Intl.NumberFormat('en-US', {
   notation: 'compact',
   maximumFractionDigits: 1,
