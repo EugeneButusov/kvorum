@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
+import { readPositiveInt } from '@libs/utils';
 import { AiFeatureHandlerRegistry } from './ai-feature-handler.registry';
-import { readPositiveInt } from '../app/env-helpers';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';

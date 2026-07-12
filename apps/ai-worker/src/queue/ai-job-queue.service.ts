@@ -3,10 +3,10 @@ import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/comm
 import { sql } from 'kysely';
 import { PgBoss } from 'pg-boss';
 import { pgDb } from '@libs/db';
+import { readPositiveInt } from '@libs/utils';
 import { FEATURE_QUEUE } from './ai-queue-names';
 import type { AiJob } from './ai-queue-names';
 import type { AiQueueJob, AiQueuePort, AiSendOptions } from './ai-queue.port';
-import { readPositiveInt } from '../app/env-helpers';
 
 /** Default forensics window for AI jobs: 7 days. Overridable via AI_JOB_TTL_SECONDS. */
 const DEFAULT_JOB_TTL_SECONDS = 7 * 24 * 60 * 60;

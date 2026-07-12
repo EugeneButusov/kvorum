@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { readPositiveInt } from '@libs/utils';
 import { AiTriggerScanner } from './ai-trigger-scanner';
-import { readPositiveInt } from '../app/env-helpers';
 
 // @Interval args are evaluated at module load; env is set at process start (indexer does the same).
 const SCAN_MS = readPositiveInt('AI_TRIGGER_SCAN_MS', 60_000);

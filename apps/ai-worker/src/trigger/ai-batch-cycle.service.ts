@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { readPositiveInt } from '@libs/utils';
 import { AiTriggerScanner } from './ai-trigger-scanner';
-import { readPositiveInt } from '../app/env-helpers';
 
 const BATCH_CYCLE_MS = readPositiveInt('AI_BATCH_CYCLE_MS', 4 * 60 * 60 * 1000); // 4h
 const BATCH_LOOKBACK_MS = readPositiveInt('AI_BATCH_LOOKBACK_MS', 8 * 60 * 60 * 1000); // 8h

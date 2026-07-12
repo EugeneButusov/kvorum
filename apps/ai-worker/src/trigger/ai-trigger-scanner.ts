@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ProposalRepository } from '@libs/db';
 import type { ProposalState } from '@libs/db';
+import { readPositiveInt } from '@libs/utils';
 import { AiTriggerConfig } from './ai-trigger-config';
-import { readPositiveInt } from '../app/env-helpers';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';

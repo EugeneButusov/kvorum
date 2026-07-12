@@ -4,10 +4,10 @@ import { Interval } from '@nestjs/schedule';
 import type { Kysely } from 'kysely';
 import type { PgDatabase } from '@libs/db';
 import { ProposalActionRepository } from '@libs/db';
+import { readIntervalMs, readPositiveInt } from '@libs/utils';
 import type { DecodeResult } from '@sources/core';
 import { CalldataDecoder } from '@sources/core';
 import { calldataDecodeMetrics } from './calldata-decode-metrics';
-import { readIntervalMs, readPositiveInt } from '../app/env-helpers';
 
 const INTERVAL_MS = readIntervalMs('INDEXER_CALLDATA_DECODE_INTERVAL_MS', 10_000);
 const BATCH_SIZE = readPositiveInt('INDEXER_CALLDATA_DECODE_BATCH_SIZE', 100);
