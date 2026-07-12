@@ -2,6 +2,14 @@
   "name": "ai-worker",
   "version": "0.0.0",
   "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@nestjs/schedule": "^6.1.3",
+    "kysely": "^0.29.0",
+    "openai": "^6.45.0",
+    "pg-boss": "^12.18.2",
+    "zod": "^4.0.0"
+  },
   "scripts": {
     "start": "node ../../dist/apps/ai-worker/main.js",
     "start:dev": "pnpm run build:dev && node ../../dist/apps/ai-worker/main.js",

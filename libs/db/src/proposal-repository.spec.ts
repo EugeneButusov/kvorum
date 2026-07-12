@@ -102,6 +102,18 @@ function makePendingTimestampSelectChain(returnValue: unknown[]) {
   return { selectFrom, ...chain };
 }
 
+// Chainable select mock for `.select().where().where().execute()` (array result). `select`/`where`
+// return the same chain so calls accumulate on one vi.fn (we assert the captured args).
+function makeSelectManyChain(rows: unknown[]) {
+  const execute = vi.fn().mockResolvedValue(rows);
+  const chain = { select: vi.fn(), where: vi.fn(), execute };
+  chain.select.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  const selectFrom = vi.fn().mockReturnValue(chain);
+
+  return { selectFrom, select: chain.select, where: chain.where, execute };
+}
+
 interface ConflictBuilder {
   constraint(name: string): { doNothing(): unknown };
   columns(columns: readonly string[]): { doNothing(): unknown };
@@ -414,5 +426,30 @@ describe('ProposalRepository', () => {
     expect(update.set).toHaveBeenCalledWith(expect.any(Function));
     expect(update.where).toHaveBeenCalledWith('id', '=', 'proposal-1');
     expect(update.execute).toHaveBeenCalledOnce();
+  });
+
+  it('finds recently transitioned proposals by state set and cutoff', async () => {
+    const select = makeSelectManyChain([{ id: 'p1' }, { id: 'p2' }]);
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
+    const since = new Date('2026-07-11T11:00:00Z');
+
+    await expect(repo.findRecentlyTransitioned(['pending', 'active'], since)).resolves.toEqual([
+      { id: 'p1' },
+      { id: 'p2' },
+    ]);
+
+    expect(select.selectFrom).toHaveBeenCalledWith('proposal');
+    expect(select.select).toHaveBeenCalledWith('id');
+    expect(select.where).toHaveBeenCalledWith('state', 'in', ['pending', 'active']);
+    expect(select.where).toHaveBeenCalledWith('state_updated_at', '>=', since);
+  });
+
+  it('short-circuits to [] without querying when the state set is empty', async () => {
+    const select = makeSelectManyChain([]);
+    const repo = new ProposalRepository({ selectFrom: select.selectFrom } as never);
+
+    await expect(repo.findRecentlyTransitioned([], new Date())).resolves.toEqual([]);
+
+    expect(select.selectFrom).not.toHaveBeenCalled();
   });
 });

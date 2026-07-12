@@ -8,6 +8,7 @@ import {
   type OffchainArchiveRow,
 } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
+import { readIntervalMs } from '@libs/utils';
 import {
   SOURCE_PLUGINS,
   type OffchainProjectionDeriver,
@@ -15,7 +16,6 @@ import {
   type SourcePlugin,
 } from '@sources/core';
 import { derivationMetrics } from './derivation-metrics';
-import { readIntervalMs } from '../app/env-helpers';
 
 const DERIVATION_INTERVAL_MS = readIntervalMs('DERIVATION_INTERVAL_MS', 5_000);
 const DEFAULT_DERIVATION_BATCH_SIZE = 50;

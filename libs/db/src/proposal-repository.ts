@@ -154,6 +154,21 @@ export class ProposalRepository {
     return Number(result?.numUpdatedRows ?? 0n);
   }
 
+  /** Proposals whose state is in `states` and that transitioned at/after `since`. Drives the
+   *  M5-1.4 AI trigger scan (index: idx_proposal_state_updated_at). Returns bare ids. */
+  async findRecentlyTransitioned(
+    states: readonly ProposalState[],
+    since: Date,
+  ): Promise<{ id: string }[]> {
+    if (states.length === 0) return [];
+    return this.db
+      .selectFrom('proposal')
+      .select('id')
+      .where('state', 'in', states)
+      .where('state_updated_at', '>=', since)
+      .execute();
+  }
+
   /**
    * Absolute state set for authoritative cross-source reclassification — bypasses the monotonic,
    * terminal-locked `advanceState` guard. Used by the Lido Dual Governance proposal deriver (AB3): a
