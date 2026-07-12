@@ -244,6 +244,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['ProposalController_tally'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/proposals': {
     parameters: {
       query?: never;
@@ -711,6 +727,27 @@ export interface components {
     };
     ProposalDetailResponseDto: {
       data: components['schemas']['ProposalDetailDto'];
+    };
+    ProposalTallyChoiceDto: {
+      choice_index: number;
+      /** @description Summed voting power for the choice. UInt256 base units when source=votes; the raw per-choice score when source=choice_scores — interpret via `source`. */
+      voting_power: string;
+      voter_count: number;
+      /** @description Share of participating power, 0–100, to two decimals. */
+      pct: number;
+    };
+    ProposalTallyDto: {
+      choices: components['schemas']['ProposalTallyChoiceDto'][];
+      total_voting_power: string;
+      total_voters: number;
+      /**
+       * @description Where the tally came from: `votes` (summed primary_choice) or `choice_scores` (a source-provided per-choice breakdown for approval/weighted proposals).
+       * @enum {string}
+       */
+      source: 'votes' | 'choice_scores';
+    };
+    ProposalTallyResponseDto: {
+      data: components['schemas']['ProposalTallyDto'];
     };
     CrossDaoSummaryDto: {
       dao_slug: string;
@@ -1505,6 +1542,45 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ProposalDetailResponseDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ProposalController_tally: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        source_type: string;
+        source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProposalTallyResponseDto'];
         };
       };
       401: {
