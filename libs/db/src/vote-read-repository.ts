@@ -30,6 +30,13 @@ export type VoteChoiceReadRow = {
   weight: string;
 };
 
+export type ProposalTallyRow = {
+  primary_choice: number;
+  /** Summed voting power for the choice, UInt256 base units (exact string). */
+  voting_power: string;
+  voter_count: number;
+};
+
 type VoteEventsProjectionTable = {
   vote_id: string;
   proposal_id: string;
@@ -112,6 +119,32 @@ export class VoteReadRepository {
         } satisfies VoteReadRow,
       ];
     });
+  }
+
+  /**
+   * Aggregate the current votes for a proposal into a per-choice tally in one query. The projection
+   * holds exactly one `superseded = 0` row per (proposal, voter), so a plain GROUP BY is the exact
+   * tally — no argMax/dedup and no row-by-row transfer, regardless of turnout. `voting_power` is
+   * UInt256, so `sum(...)` stays exact and the driver returns it as a decimal string.
+   */
+  async tallyForProposal(proposalId: string): Promise<ProposalTallyRow[]> {
+    const rows = await this.ch
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
+      .select([
+        'v.primary_choice',
+        sql<string>`sum(v.voting_power)`.as('voting_power'),
+        sql<string>`count()`.as('voter_count'),
+      ])
+      .where('v.proposal_id', '=', proposalId)
+      .where('v.superseded', '=', 0)
+      .groupBy('v.primary_choice')
+      .execute();
+
+    return rows.map((row) => ({
+      primary_choice: row.primary_choice,
+      voting_power: row.voting_power,
+      voter_count: Number(row.voter_count),
+    }));
   }
 
   async listForActor(actorId: string): Promise<VoteReadRow[]> {

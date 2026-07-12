@@ -1387,6 +1387,75 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
+      "get": {
+        "operationId": "ProposalController_tally",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalTallyResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/proposals": {
       "get": {
         "operationId": "ProposalController_listCrossDao",
@@ -3294,6 +3363,58 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ProposalDetailDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "ProposalTallyChoiceDto": {
+        "type": "object",
+        "properties": {
+          "choice_index": {
+            "type": "number"
+          },
+          "voting_power": {
+            "type": "string",
+            "description": "Summed voting power for the choice. UInt256 base units when source=votes; the raw per-choice score when source=choice_scores — interpret via `source`."
+          },
+          "voter_count": {
+            "type": "number"
+          },
+          "pct": {
+            "type": "number",
+            "description": "Share of participating power, 0–100, to two decimals."
+          }
+        },
+        "required": ["choice_index", "voting_power", "voter_count", "pct"]
+      },
+      "ProposalTallyDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalTallyChoiceDto"
+            }
+          },
+          "total_voting_power": {
+            "type": "string"
+          },
+          "total_voters": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["votes", "choice_scores"],
+            "description": "Where the tally came from: `votes` (summed primary_choice) or `choice_scores` (a source-provided per-choice breakdown for approval/weighted proposals)."
+          }
+        },
+        "required": ["choices", "total_voting_power", "total_voters", "source"]
+      },
+      "ProposalTallyResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalTallyDto"
           }
         },
         "required": ["data"]
