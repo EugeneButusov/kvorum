@@ -1,3 +1,5 @@
+/** Parse a millisecond-interval env var, falling back to `fallback` for unset/malformed/non-positive
+ *  values. Uses `Number`, so fractional values are accepted (e.g. intervals). */
 export function readIntervalMs(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;
@@ -5,6 +7,8 @@ export function readIntervalMs(envName: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/** Parse a positive-integer env var, falling back to `fallback` for unset/malformed/non-positive
+ *  values. Uses `parseInt`, so trailing/fractional garbage truncates to the leading integer. */
 export function readPositiveInt(envName: string, fallback: number): number {
   const raw = process.env[envName];
   if (raw === undefined) return fallback;

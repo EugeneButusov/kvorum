@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ActorRepository, ArchiveActorResolutionRepository, DlqRepository } from '@libs/db';
 import type { ArchiveEventType } from '@libs/domain';
+import { readIntervalMs } from '@libs/utils';
 import type { ActorSweepAdapter, ActorSweepRow } from '@sources/core';
-import { readIntervalMs } from '../app/env-helpers';
 
 const ACTOR_SWEEP_INTERVAL_MS = readIntervalMs('ACTOR_SWEEP_INTERVAL_MS', 5_000);
 const DEFAULT_ACTOR_SWEEP_BATCH_SIZE = 50;

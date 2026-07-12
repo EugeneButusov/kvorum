@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readIntervalMs, readPositiveInt } from './env-helpers';
+import { readIntervalMs, readPositiveInt } from './env.js';
 
 describe('readIntervalMs', () => {
   it('returns fallback when env var is not set', () => {
@@ -44,6 +44,12 @@ describe('readPositiveInt', () => {
 
   it('returns fallback when env var is zero', () => {
     process.env['__TEST_INT__'] = '0';
+    expect(readPositiveInt('__TEST_INT__', 10)).toBe(10);
+    delete process.env['__TEST_INT__'];
+  });
+
+  it('returns fallback when env var is negative', () => {
+    process.env['__TEST_INT__'] = '-5';
     expect(readPositiveInt('__TEST_INT__', 10)).toBe(10);
     delete process.env['__TEST_INT__'];
   });

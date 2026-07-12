@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { readIntervalMs, readPositiveInt } from '@libs/utils';
 import {
   ForumLinkRepository,
   computeProposalLinks,
   forumMetrics,
   type LinkCandidateThread,
 } from '@sources/forum';
-import { readIntervalMs, readPositiveInt } from '../app/env-helpers';
 
 const FORUM_LINK_INTERVAL_MS = readIntervalMs('FORUM_LINK_INTERVAL_MS', 15_000);
 const DEFAULT_BATCH_SIZE = 200;

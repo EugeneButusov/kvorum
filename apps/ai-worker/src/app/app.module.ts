@@ -1,8 +1,37 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AiJobDlqRepository } from '@libs/ai';
+import { ProposalRepository, pgDb } from '@libs/db';
 import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
+import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
+import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
+import { AiJobConsumer } from '../consumer/ai-job.consumer';
+import { AiQueueMetricsService } from '../metrics/ai-queue-metrics.service';
+import { AiJobQueueService } from '../queue/ai-job-queue.service';
+import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
+import { AiBatchCycleService } from '../trigger/ai-batch-cycle.service';
+import { AiTriggerConfig } from '../trigger/ai-trigger-config';
+import { AiTriggerScanService } from '../trigger/ai-trigger-scan.service';
+import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
 
 @Module({
-  providers: [ShutdownLogger, OpsServer],
+  imports: [ScheduleModule.forRoot()],
+  providers: [
+    ShutdownLogger,
+    OpsServer,
+    AiJobQueueService,
+    { provide: AI_QUEUE_PORT, useExisting: AiJobQueueService },
+    { provide: ProposalRepository, useFactory: () => new ProposalRepository(pgDb) },
+    { provide: AiJobDlqRepository, useFactory: () => new AiJobDlqRepository(pgDb) },
+    AiFeatureHandlerRegistry,
+    AiJobConsumer,
+    AiJobDlqBridge,
+    AiTriggerConfig,
+    AiTriggerScanner,
+    AiTriggerScanService,
+    AiBatchCycleService,
+    AiQueueMetricsService,
+  ],
 })
 export class AppModule {}
