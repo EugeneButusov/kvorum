@@ -1,3 +1,8 @@
+'use client';
+
+import { stateToVariant } from './state';
+import { Fresh } from '@/components/ui/fresh';
+import { LiveDot } from '@/components/ui/live-dot';
 import { Section } from '@/components/ui/section';
 import { formatCompactNumber } from '@/lib/format';
 import {
@@ -6,6 +11,7 @@ import {
   type TallyData,
   type TallyKind,
 } from '@/lib/proposals/detail';
+import { useTally } from '@/lib/proposals/use-tally';
 import { cn } from '@/lib/utils';
 
 const BAR_FILL: Record<TallyKind, string> = {
@@ -20,13 +26,19 @@ function asNumber(value: unknown): number | null {
 }
 
 /**
- * Tally (§6.9): a stacked bar of the per-choice voting power, the breakdown, participation, the
- * leading outcome, and configured thresholds where the source carries them. The figures come from
- * the server-side aggregate (GET .../tally) — exact per-choice power + percentages in one request.
- * The 10s polling arrives in a follow-up; this renders the aggregate as loaded.
+ * Tally (§6.9 / §6.16): a stacked bar of the per-choice voting power, the breakdown, participation,
+ * the leading outcome, and configured thresholds. Figures come from the server-side aggregate; while
+ * the proposal is `active` it polls every 10s (backing off with quota, ADR-035), updating in place
+ * with an honest freshness indicator. `tally` is the SSR seed.
  */
 export function TallySection({ tally, detail }: { tally: TallyData; detail: ProposalDetailView }) {
-  const presented = presentTally(tally, detail.choices);
+  const active = stateToVariant(detail.state) === 'active';
+  const live = useTally(
+    { slug: detail.daoSlug, source_type: detail.sourceType, source_id: detail.sourceId },
+    { active, initialTally: tally },
+  );
+
+  const presented = presentTally(live.tally, detail.choices);
   const meta = detail.metadata;
   const supportRequiredPct =
     meta?.kind === 'aragon_voting' ? asNumber(meta.support_required_pct) : null;
@@ -39,15 +51,11 @@ export function TallySection({ tally, detail }: { tally: TallyData; detail: Prop
     forSeg && decisive && decisive > 0 ? Math.round((forSeg.power / decisive) * 1000) / 10 : null;
 
   return (
-    <Section
-      number="05"
-      title="Tally"
-      reference={
-        <span>
-          {presented.source === 'choice_scores' ? 'per-choice scores' : 'summed from votes'}
-        </span>
-      }
-    >
+    <Section number="05" title="Tally" reference={<Freshness active={active} live={live} />}>
+      <p className="-mt-1 font-mono text-caption text-ink-4">
+        {presented.source === 'choice_scores' ? 'Per-choice scores' : 'Summed from votes'}
+      </p>
+
       {/* Stacked bar */}
       <div
         className="flex h-8 w-full overflow-hidden border border-line-2 bg-bg-3"
@@ -103,5 +111,42 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dt className="uppercase tracking-[0.04em] text-ink-4">{label}</dt>
       <dd className="text-body text-ink">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * Honest freshness (§6.16): a live dot + "updated N ago" while polling, "— retrying" on error, and
+ * an explicit paused message when quota runs out. Nothing on a settled (non-active) proposal.
+ */
+function Freshness({
+  active,
+  live,
+}: {
+  active: boolean;
+  live: { updatedAt: number; isError: boolean; isPaused: boolean; isLive: boolean };
+}) {
+  if (!active) return null;
+
+  if (live.isPaused) {
+    return (
+      <span className="text-note-ink" role="status">
+        Live updates paused — refresh to retry
+      </span>
+    );
+  }
+
+  if (live.isError) {
+    return (
+      <span className="flex items-center gap-1.5 text-warn-ink" role="status">
+        <Fresh timestamp={live.updatedAt} /> — retrying
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5" role="status">
+      <LiveDot live />
+      <Fresh timestamp={live.updatedAt} />
+    </span>
   );
 }
