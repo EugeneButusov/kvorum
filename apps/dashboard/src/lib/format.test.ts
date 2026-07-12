@@ -1,4 +1,21 @@
-import { formatCompactNumber, formatPower, formatRelativeTime } from './format';
+import { formatCompactNumber, formatDeadline, formatPower, formatRelativeTime } from './format';
+
+describe('formatDeadline', () => {
+  const now = 1_000_000_000_000;
+  it.each([
+    [now + 3 * 86_400_000, 'ends in 3d'],
+    [now + 2 * 3_600_000, 'ends in 2h'],
+    [now - 14 * 86_400_000, 'ended 14d ago'],
+    [now - 40 * 86_400_000, 'ended 1mo ago'],
+  ] as const)('formats %s', (t, expected) => {
+    expect(formatDeadline(t, now)).toBe(expected);
+  });
+
+  it('is null-safe', () => {
+    expect(formatDeadline(null)).toBeNull();
+    expect(formatDeadline('not-a-date')).toBeNull();
+  });
+});
 
 describe('formatRelativeTime', () => {
   const now = 1_000_000_000_000;
