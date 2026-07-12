@@ -142,29 +142,31 @@ export function normalizeVote(dto: RawVote): VoteView {
 }
 
 // —— Tally ————————————————————————————————————————————————————————————————————————
+//
+// The tally is aggregated server-side (GET .../tally) — exact per-choice power + percentages,
+// one cheap request at any turnout. This layer only labels and display-scales it; no summing.
 
 export type TallyKind = 'for' | 'against' | 'abstain';
+
+/** The server tally aggregate (per-choice power + exact percentages). */
+export type TallyData = components['schemas']['ProposalTallyDto'];
 
 export type TallySegment = {
   choiceIndex: number;
   label: string;
   kind: TallyKind;
-  /** Human-scaled power (token units), for display. */
+  /** Display-scaled power (token units). */
   power: number;
-  /** 0–100, derived from the exact BigInt sums. */
+  /** 0–100, computed exactly server-side. */
   pct: number;
+  voterCount: number;
 };
 
-export type Tally = {
+export type PresentedTally = {
   segments: TallySegment[];
-  /** Human-scaled total participating power. */
   totalPower: number;
-  /** Number of distinct votes counted; null when derived from a pre-aggregated source. */
-  voterCount: number | null;
-  /** Where the numbers came from — surfaced to the reader honestly. */
-  source: 'choice_scores' | 'votes';
-  /** True when the vote set was capped before it was exhausted (sum is a lower bound). */
-  partial: boolean;
+  totalVoters: number;
+  source: 'votes' | 'choice_scores';
   leading: TallySegment | null;
 };
 
@@ -180,107 +182,43 @@ function labelFor(choices: ChoiceView[], index: number): string {
   return choices.find((c) => c.index === index)?.value ?? `Choice ${index + 1}`;
 }
 
-/** Scale a UInt256 base-unit sum to a display number without losing magnitude. */
-function scalePower(base: bigint): number {
-  const whole = base / 10n ** POWER_DECIMALS;
-  const frac = Number(base % 10n ** POWER_DECIMALS) / Number(10n ** POWER_DECIMALS);
-  return Number(whole) + frac;
-}
-
 /** Human-scaled power for a single reported (UInt256 base-unit) value; 0 on a non-integer string. */
 export function scaleReportedPower(reported: string): number {
   try {
-    return scalePower(BigInt(reported));
+    const base = BigInt(reported);
+    const whole = base / 10n ** POWER_DECIMALS;
+    const frac = Number(base % 10n ** POWER_DECIMALS) / Number(10n ** POWER_DECIMALS);
+    return Number(whole) + frac;
   } catch {
     return 0;
   }
 }
 
-/** Percentage of `part` within `total`, to two decimals, from exact BigInt math. */
-function pct(part: bigint, total: bigint): number {
-  if (total === 0n) return 0;
-  return Number((part * 10000n) / total) / 100;
+// A tally power figure is UInt256 base units when summed from votes, or an already-human score
+// for Snapshot approval/weighted — `source` disambiguates which scaling to apply for display.
+function scaleTallyValue(value: string, source: TallyData['source']): number {
+  return source === 'votes' ? scaleReportedPower(value) : Number(value) || 0;
 }
 
-export type DeriveTallyOptions = { partial?: boolean };
-
-/**
- * Derive the tally. Snapshot approval/weighted proposals carry a pre-summed `choice_scores`
- * (already human-scaled floats) — use it directly. Everything else sums `voting_power_reported`
- * (UInt256 base units) grouped by `primary_choice` across the votes.
- */
-export function deriveTally(
-  detail: Pick<ProposalDetailView, 'choices' | 'metadata'>,
-  votes: readonly VoteView[],
-  options: DeriveTallyOptions = {},
-): Tally {
-  const meta = detail.metadata;
-  if (meta?.kind === 'snapshot' && meta.choice_scores && meta.choice_scores.length > 0) {
-    return fromChoiceScores(detail.choices, meta.choice_scores, votes.length);
-  }
-  return fromVotes(detail.choices, votes, options.partial ?? false);
-}
-
-function fromChoiceScores(choices: ChoiceView[], scores: number[], voterCount: number): Tally {
-  const total = scores.reduce((sum, s) => sum + (s > 0 ? s : 0), 0);
-  const segments: TallySegment[] = scores.map((power, index) => {
-    const label = labelFor(choices, index);
+/** Map the server tally aggregate onto render-ready segments, labelled from the proposal's choices. */
+export function presentTally(data: TallyData, choices: ChoiceView[]): PresentedTally {
+  const segments: TallySegment[] = data.choices.map((choice) => {
+    const label = labelFor(choices, choice.choice_index);
     return {
-      choiceIndex: index,
+      choiceIndex: choice.choice_index,
       label,
       kind: classifyChoice(label),
-      power,
-      pct: total > 0 ? Math.round((power / total) * 10000) / 100 : 0,
+      power: scaleTallyValue(choice.voting_power, data.source),
+      pct: choice.pct,
+      voterCount: choice.voter_count,
     };
   });
-  return {
-    segments,
-    totalPower: total,
-    voterCount: voterCount > 0 ? voterCount : null,
-    source: 'choice_scores',
-    partial: false,
-    leading: leadingOf(segments),
-  };
-}
-
-function fromVotes(choices: ChoiceView[], votes: readonly VoteView[], partial: boolean): Tally {
-  const sums = new Map<number, bigint>();
-  for (const vote of votes) {
-    if (vote.primaryChoice == null) continue;
-    let power: bigint;
-    try {
-      power = BigInt(vote.votingPowerReported);
-    } catch {
-      continue; // non-integer power string — skip rather than poison the sum
-    }
-    if (power < 0n) continue;
-    sums.set(vote.primaryChoice, (sums.get(vote.primaryChoice) ?? 0n) + power);
-  }
-
-  // Present every declared choice (even at zero power) plus any choice indices seen only in votes.
-  const indices = new Set<number>([...choices.map((c) => c.index), ...sums.keys()]);
-  const total = [...sums.values()].reduce((a, b) => a + b, 0n);
-
-  const segments: TallySegment[] = [...indices]
-    .sort((a, b) => a - b)
-    .map((index) => {
-      const base = sums.get(index) ?? 0n;
-      const label = labelFor(choices, index);
-      return {
-        choiceIndex: index,
-        label,
-        kind: classifyChoice(label),
-        power: scalePower(base),
-        pct: pct(base, total),
-      };
-    });
 
   return {
     segments,
-    totalPower: scalePower(total),
-    voterCount: votes.length,
-    source: 'votes',
-    partial,
+    totalPower: scaleTallyValue(data.total_voting_power, data.source),
+    totalVoters: data.total_voters,
+    source: data.source,
     leading: leadingOf(segments),
   };
 }

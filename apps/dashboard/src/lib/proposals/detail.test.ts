@@ -1,27 +1,13 @@
 import {
   classifyChoice,
-  deriveTally,
   normalizeProposalDetail,
   normalizeVote,
+  presentTally,
   scaleReportedPower,
-  type VoteView,
+  type TallyData,
 } from './detail';
 
 const E18 = 1_000_000_000_000_000_000n; // 1 token, 18 decimals
-
-function vote(power: bigint, choice: number | null, over: Partial<VoteView> = {}): VoteView {
-  return {
-    voteId: `v-${power}-${choice}`,
-    votingChainId: '1',
-    voter: { address: `0x${'0'.repeat(40)}`, displayName: null },
-    votingPowerReported: power.toString(),
-    votingPowerVerified: true,
-    primaryChoice: choice,
-    castAt: '2026-07-01T00:00:00Z',
-    reason: null,
-    ...over,
-  };
-}
 
 const CHOICES = [
   { index: 0, value: 'For' },
@@ -44,91 +30,54 @@ describe('classifyChoice', () => {
   });
 });
 
-describe('deriveTally — from votes', () => {
-  it('sums power by choice and derives percentages', () => {
-    const votes = [vote(200n * E18, 0), vote(100n * E18, 0), vote(100n * E18, 1)];
-    const tally = deriveTally({ choices: CHOICES, metadata: null }, votes);
+describe('presentTally — from votes', () => {
+  const tally: TallyData = {
+    source: 'votes',
+    total_voting_power: (400n * E18).toString(),
+    total_voters: 3,
+    choices: [
+      { choice_index: 0, voting_power: (300n * E18).toString(), voter_count: 2, pct: 75 },
+      { choice_index: 1, voting_power: (100n * E18).toString(), voter_count: 1, pct: 25 },
+    ],
+  };
 
-    expect(tally.source).toBe('votes');
-    expect(tally.voterCount).toBe(3);
-    expect(tally.totalPower).toBe(400);
-
-    const forSeg = tally.segments.find((s) => s.kind === 'for');
-    const againstSeg = tally.segments.find((s) => s.kind === 'against');
-    const abstainSeg = tally.segments.find((s) => s.kind === 'abstain');
-    expect(forSeg?.pct).toBe(75);
-    expect(againstSeg?.pct).toBe(25);
-    expect(abstainSeg?.pct).toBe(0); // declared choice with no votes still surfaces
-    expect(tally.leading?.kind).toBe('for');
-  });
-
-  it('keeps UInt256 precision beyond Number.MAX_SAFE_INTEGER', () => {
-    // Two equal, huge powers → 50/50 with no float drift.
-    const huge = 12_345_678_901_234_567_890_123_456_789n;
-    const tally = deriveTally({ choices: CHOICES, metadata: null }, [vote(huge, 0), vote(huge, 1)]);
-    expect(tally.segments.find((s) => s.kind === 'for')?.pct).toBe(50);
-    expect(tally.segments.find((s) => s.kind === 'against')?.pct).toBe(50);
-  });
-
-  it('skips negative and non-integer power strings without poisoning the sum', () => {
-    const votes = [
-      vote(100n * E18, 0),
-      { ...vote(0n, 1), votingPowerReported: '-5' },
-      { ...vote(0n, 1), votingPowerReported: '1.5' },
-    ];
-    const tally = deriveTally({ choices: CHOICES, metadata: null }, votes);
-    expect(tally.segments.find((s) => s.kind === 'for')?.pct).toBe(100);
-    expect(tally.totalPower).toBe(100);
-  });
-
-  it('ignores votes with no primary choice', () => {
-    const tally = deriveTally({ choices: CHOICES, metadata: null }, [
-      vote(100n * E18, 0),
-      vote(999n * E18, null),
+  it('labels, colour-classifies, and scales UInt256 power for display', () => {
+    const out = presentTally(tally, CHOICES);
+    expect(out.source).toBe('votes');
+    expect(out.totalVoters).toBe(3);
+    expect(out.totalPower).toBe(400); // scaled from base units
+    expect(out.segments).toEqual([
+      { choiceIndex: 0, label: 'For', kind: 'for', power: 300, pct: 75, voterCount: 2 },
+      { choiceIndex: 1, label: 'Against', kind: 'against', power: 100, pct: 25, voterCount: 1 },
     ]);
-    expect(tally.totalPower).toBe(100);
+    expect(out.leading?.label).toBe('For');
   });
 
-  it('propagates the partial flag', () => {
-    const tally = deriveTally({ choices: CHOICES, metadata: null }, [vote(1n * E18, 0)], {
-      partial: true,
-    });
-    expect(tally.partial).toBe(true);
+  it('falls back to a synthetic label for an undeclared choice index', () => {
+    const out = presentTally(
+      { ...tally, choices: [{ choice_index: 7, voting_power: '0', voter_count: 0, pct: 0 }] },
+      CHOICES,
+    );
+    expect(out.segments[0]!.label).toBe('Choice 8');
   });
 });
 
-describe('deriveTally — from Snapshot choice_scores', () => {
-  it('uses the pre-summed scores directly', () => {
-    const metadata = {
-      kind: 'snapshot' as const,
-      space_id: 'lido-snapshot.eth',
-      flagged: false,
-      choice_scores: [100, 300],
+describe('presentTally — from choice_scores', () => {
+  it('uses the raw scores without base-unit scaling', () => {
+    const tally: TallyData = {
+      source: 'choice_scores',
+      total_voting_power: '400',
+      total_voters: 10,
+      choices: [
+        { choice_index: 0, voting_power: '100', voter_count: 4, pct: 25 },
+        { choice_index: 1, voting_power: '300', voter_count: 6, pct: 75 },
+      ],
     };
-    const votes = [vote(1n, 0), vote(1n, 1), vote(1n, 1)];
-    const tally = deriveTally(
-      { choices: [CHOICES[0]!, CHOICES[1]!], metadata: metadata as never },
-      votes,
-    );
-
-    expect(tally.source).toBe('choice_scores');
-    expect(tally.totalPower).toBe(400);
-    expect(tally.segments.find((s) => s.kind === 'for')?.pct).toBe(25);
-    expect(tally.segments.find((s) => s.kind === 'against')?.pct).toBe(75);
-    expect(tally.voterCount).toBe(3); // still the vote count
-  });
-
-  it('falls back to summing votes when choice_scores is absent', () => {
-    const metadata = {
-      kind: 'snapshot' as const,
-      space_id: 's',
-      flagged: false,
-      choice_scores: null,
-    };
-    const tally = deriveTally({ choices: CHOICES, metadata: metadata as never }, [
-      vote(2n * E18, 0),
-    ]);
-    expect(tally.source).toBe('votes');
+    const out = presentTally(tally, CHOICES);
+    expect(out.source).toBe('choice_scores');
+    expect(out.totalPower).toBe(400); // NOT divided by 1e18
+    expect(out.segments.map((s) => s.power)).toEqual([100, 300]);
+    expect(out.leading?.label).toBe('Against');
   });
 });
 

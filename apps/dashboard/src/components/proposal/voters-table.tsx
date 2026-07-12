@@ -1,14 +1,11 @@
 'use client';
 
+import { useInfiniteQuery } from '@tanstack/react-query';
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
-  type ColumnFiltersState,
   type SortingState,
 } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
@@ -24,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { VoteTag } from '@/components/ui/vote-tag';
+import { browserApi } from '@/lib/api/client';
 import { formatRelativeTime } from '@/lib/format';
 import {
   classifyChoice,
@@ -31,6 +29,12 @@ import {
   type ChoiceView,
   type VoteView,
 } from '@/lib/proposals/detail';
+import {
+  fetchVotesPage,
+  type ProposalPath,
+  type VotesPage,
+  type VotesSort,
+} from '@/lib/proposals/votes';
 import { cn } from '@/lib/utils';
 
 type Row = {
@@ -43,29 +47,84 @@ type Row = {
 
 const columnHelper = createColumnHelper<Row>();
 
-const PAGE_SIZE = 50;
+const DEFAULT_SORT: SortingState = [{ id: 'power', desc: true }];
 
-/** Voters table (§6.9): sortable, filterable by choice, paginated. Default sort: power descending. */
-export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: ChoiceView[] }) {
-  const rows = useMemo<Row[]>(() => {
-    const labelOf = (i: number | null) =>
-      i == null ? '—' : (choices.find((c) => c.index === i)?.value ?? `Choice ${i + 1}`);
-    const total = votes.reduce((sum, v) => sum + scaleReportedPower(v.votingPowerReported), 0);
-    return votes.map((vote) => {
-      const power = scaleReportedPower(vote.votingPowerReported);
-      const label = labelOf(vote.primaryChoice);
-      return {
-        vote,
-        power,
-        choiceLabel: label,
-        choiceKind: classifyChoice(label),
-        pct: total > 0 ? (power / total) * 100 : 0,
-      };
-    });
-  }, [votes, choices]);
+/** Map the table's sort state onto the votes endpoint's `sort` param (power + time are sortable). */
+export function sortToParam(sorting: SortingState): VotesSort {
+  const first = sorting[0];
+  if (!first) return '-voting_power_reported';
+  const field = first.id === 'castAt' ? 'cast_at' : 'voting_power_reported';
+  return `${first.desc ? '-' : ''}${field}` as VotesSort;
+}
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'power', desc: true }]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+/**
+ * Voters table (§6.9): sortable by power/time, filterable by choice, paginated 50 at a time — all
+ * server-side (the endpoint owns sort/filter/cursor), so the page ships only the first 50 and the
+ * rest load on demand. `totalPower` (from the tally aggregate) makes "% of total" exact.
+ */
+export function VotersTable({
+  path,
+  choices,
+  initialPage,
+  totalPower,
+}: {
+  path: ProposalPath;
+  choices: ChoiceView[];
+  initialPage: VotesPage;
+  totalPower: number;
+}) {
+  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORT);
+  const [choiceFilter, setChoiceFilter] = useState<number | undefined>(undefined);
+
+  const sortParam = sortToParam(sorting);
+  // The SSR first page was fetched with the default sort and no filter; seed the query with it only
+  // while those hold, so a re-sort/filter fetches fresh instead of showing the seed.
+  const isDefault = sortParam === '-voting_power_reported' && choiceFilter === undefined;
+
+  const query = useInfiniteQuery({
+    queryKey: [
+      'proposal-votes',
+      path.slug,
+      path.source_type,
+      path.source_id,
+      sortParam,
+      choiceFilter,
+    ],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      fetchVotesPage(browserApi, path, {
+        sort: sortParam,
+        cursor: pageParam,
+        primaryChoice: choiceFilter,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: VotesPage) => last.nextCursor ?? undefined,
+    initialData: isDefault
+      ? { pages: [initialPage], pageParams: [undefined as string | undefined] }
+      : undefined,
+  });
+
+  const votes = useMemo(() => query.data?.pages.flatMap((p) => p.votes) ?? [], [query.data]);
+
+  const labelOf = useMemo(() => {
+    const map = new Map(choices.map((c) => [c.index, c.value]));
+    return (i: number | null) => (i == null ? '—' : (map.get(i) ?? `Choice ${i + 1}`));
+  }, [choices]);
+
+  const rows = useMemo<Row[]>(
+    () =>
+      votes.map((vote) => {
+        const power = scaleReportedPower(vote.votingPowerReported);
+        const label = labelOf(vote.primaryChoice);
+        return {
+          vote,
+          power,
+          choiceLabel: label,
+          choiceKind: classifyChoice(label),
+          pct: totalPower > 0 ? (power / totalPower) * 100 : 0,
+        };
+      }),
+    [votes, labelOf, totalPower],
+  );
 
   const columns = useMemo(
     () => [
@@ -89,7 +148,6 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
         id: 'choice',
         header: 'Choice',
         enableSorting: false,
-        filterFn: (row, _id, value: string) => row.original.choiceLabel === value,
         cell: (ctx) => <VoteTag choice={ctx.row.original.choiceKind}>{ctx.getValue()}</VoteTag>,
       }),
       columnHelper.accessor('power', {
@@ -100,6 +158,7 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
       columnHelper.accessor('pct', {
         id: 'pct',
         header: '% of total',
+        enableSorting: false,
         cell: (ctx) => (
           <span className="tabular-nums text-ink-3">{ctx.getValue().toFixed(2)}%</span>
         ),
@@ -132,8 +191,6 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
             <span className="text-ink-4">—</span>
           );
         },
-        sortingFn: (a, b) =>
-          String(a.original.vote.castAt ?? '').localeCompare(String(b.original.vote.castAt ?? '')),
       }),
     ],
     [],
@@ -142,27 +199,16 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnFilters },
+    state: { sorting },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    manualSorting: true,
+    manualFiltering: true,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: PAGE_SIZE } },
   });
 
-  const distinctChoices = useMemo(
-    () => [...new Set(rows.map((r) => r.choiceLabel))].filter((l) => l !== '—'),
-    [rows],
-  );
-  const choiceFilter = (table.getColumn('choice')?.getFilterValue() as string | undefined) ?? '';
-  const filteredCount = table.getFilteredRowModel().rows.length;
-  const pageIndex = table.getState().pagination.pageIndex;
-  const from = filteredCount === 0 ? 0 : pageIndex * PAGE_SIZE + 1;
-  const to = Math.min((pageIndex + 1) * PAGE_SIZE, filteredCount);
+  const distinctChoices = useMemo(() => choices.filter((c) => c.value !== '—'), [choices]);
 
-  if (votes.length === 0) {
+  if (initialPage.votes.length === 0 && votes.length === 0 && !query.isFetching) {
     return <p className="font-mono text-mono-body text-ink-3">No votes recorded yet.</p>;
   }
 
@@ -171,19 +217,16 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
       {/* Choice filter */}
       <div className="flex flex-wrap items-center gap-2 font-mono text-caption">
         <span className="text-ink-3">Filter:</span>
-        <FilterChip
-          active={choiceFilter === ''}
-          onClick={() => table.getColumn('choice')?.setFilterValue(undefined)}
-        >
+        <FilterChip active={choiceFilter === undefined} onClick={() => setChoiceFilter(undefined)}>
           All
         </FilterChip>
-        {distinctChoices.map((label) => (
+        {distinctChoices.map((c) => (
           <FilterChip
-            key={label}
-            active={choiceFilter === label}
-            onClick={() => table.getColumn('choice')?.setFilterValue(label)}
+            key={c.index}
+            active={choiceFilter === c.index}
+            onClick={() => setChoiceFilter(c.index)}
           >
-            {label}
+            {c.value}
           </FilterChip>
         ))}
       </div>
@@ -232,17 +275,17 @@ export function VotersTable({ votes, choices }: { votes: VoteView[]; choices: Ch
 
       {/* Pagination */}
       <div className="flex items-center justify-between font-mono text-caption text-ink-3">
-        <span>
-          {from}–{to} of {filteredCount}
-        </span>
-        <div className="flex gap-2">
-          <PageButton onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-            ← Prev
-          </PageButton>
-          <PageButton onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Next →
-          </PageButton>
-        </div>
+        <span>{query.isError ? 'Failed to load votes' : `Showing ${rows.length}`}</span>
+        {query.hasNextPage && (
+          <button
+            type="button"
+            onClick={() => query.fetchNextPage()}
+            disabled={query.isFetchingNextPage}
+            className="border border-line-3 px-2 py-0.5 text-ink-2 transition-colors hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -268,27 +311,6 @@ function FilterChip({
           ? 'border-primary bg-primary text-bg-2'
           : 'border-line-3 text-ink-2 hover:border-ink-3',
       )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PageButton({
-  onClick,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="border border-line-3 px-2 py-0.5 text-ink-2 transition-colors hover:border-ink-3 disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>

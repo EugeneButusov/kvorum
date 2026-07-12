@@ -14,9 +14,21 @@ import { TallySection } from '@/components/proposal/tally-section';
 import { VotersTable } from '@/components/proposal/voters-table';
 import { Section } from '@/components/ui/section';
 import { serverApi } from '@/lib/api/client';
-import { normalizeProposalDetail, type ProposalDetailView } from '@/lib/proposals/detail';
+import {
+  normalizeProposalDetail,
+  presentTally,
+  type ProposalDetailView,
+  type TallyData,
+} from '@/lib/proposals/detail';
 import { sourceLabel } from '@/lib/proposals/source';
-import { fetchAllVotes, type ProposalPath } from '@/lib/proposals/votes';
+import { fetchVotesPage, type ProposalPath, type VotesPage } from '@/lib/proposals/votes';
+
+const EMPTY_TALLY: TallyData = {
+  choices: [],
+  total_voting_power: '0',
+  total_voters: 0,
+  source: 'votes',
+};
 
 type Params = Promise<ProposalPath>;
 
@@ -51,19 +63,31 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
+async function loadTally(path: ProposalPath): Promise<TallyData> {
+  try {
+    const { data, error } = await serverApi().GET(
+      '/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally',
+      { params: { path } },
+    );
+    if (error || !data) return EMPTY_TALLY;
+    return data.data;
+  } catch {
+    return EMPTY_TALLY; // a tally-fetch failure degrades the section, never 500s the page
+  }
+}
+
 export default async function ProposalDetailPage({ params }: { params: Params }) {
   const path = await params;
   const detail = await loadDetail(path);
   if (!detail) notFound();
 
-  // Votes back both the tally and the voters table; a failure degrades to an empty tally, not a 500.
-  let votes: Awaited<ReturnType<typeof fetchAllVotes>>['votes'] = [];
-  let partial = false;
-  try {
-    ({ votes, partial } = await fetchAllVotes(serverApi(), path));
-  } catch {
-    votes = [];
-  }
+  // The tally is a cheap server-side aggregate; the voters table pages through the votes on its own,
+  // so we SSR only its first page. Both degrade to empty rather than 500 the page.
+  const [tally, initialVotes] = await Promise.all([
+    loadTally(path),
+    fetchVotesPage(serverApi(), path).catch<VotesPage>(() => ({ votes: [], nextCursor: null })),
+  ]);
+  const tallyTotalPower = presentTally(tally, detail.choices).totalPower;
 
   return (
     <div className="flex flex-col gap-8">
@@ -84,11 +108,16 @@ export default async function ProposalDetailPage({ params }: { params: Params })
             <ActionsSection detail={detail} />
           </Anchor>
           <Anchor id="tally">
-            <TallySection detail={detail} votes={votes} partial={partial} />
+            <TallySection tally={tally} detail={detail} />
           </Anchor>
           <Anchor id="voters">
-            <Section number="06" title="Voters" reference={<span>{votes.length} counted</span>}>
-              <VotersTable votes={votes} choices={detail.choices} />
+            <Section number="06" title="Voters" reference={<span>{tally.total_voters} total</span>}>
+              <VotersTable
+                path={path}
+                choices={detail.choices}
+                initialPage={initialVotes}
+                totalPower={tallyTotalPower}
+              />
             </Section>
           </Anchor>
           <Anchor id="forum">

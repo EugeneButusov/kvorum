@@ -1,22 +1,14 @@
-'use client';
-
 import { Section } from '@/components/ui/section';
 import { formatCompactNumber } from '@/lib/format';
 import {
-  deriveTally,
+  presentTally,
   type ProposalDetailView,
+  type TallyData,
   type TallyKind,
-  type VoteView,
 } from '@/lib/proposals/detail';
 import { cn } from '@/lib/utils';
 
 const BAR_FILL: Record<TallyKind, string> = {
-  for: 'bg-vote-for',
-  against: 'bg-vote-against',
-  abstain: 'bg-ink-3',
-};
-
-const DOT_FILL: Record<TallyKind, string> = {
   for: 'bg-vote-for',
   against: 'bg-vote-against',
   abstain: 'bg-ink-3',
@@ -28,28 +20,20 @@ function asNumber(value: unknown): number | null {
 }
 
 /**
- * Tally (§6.9): a stacked bar of the per-choice voting power, the numeric breakdown, participation,
- * the leading outcome, and configured thresholds where the source carries them. The figures are
- * derived client-side — Snapshot approval/weighted from `choice_scores`, everything else summed
- * from the votes (BigInt, so UInt256 power stays exact). The 10s polling arrives in a follow-up.
+ * Tally (§6.9): a stacked bar of the per-choice voting power, the breakdown, participation, the
+ * leading outcome, and configured thresholds where the source carries them. The figures come from
+ * the server-side aggregate (GET .../tally) — exact per-choice power + percentages in one request.
+ * The 10s polling arrives in a follow-up; this renders the aggregate as loaded.
  */
-export function TallySection({
-  detail,
-  votes,
-  partial,
-}: {
-  detail: ProposalDetailView;
-  votes: VoteView[];
-  partial: boolean;
-}) {
-  const tally = deriveTally(detail, votes, { partial });
+export function TallySection({ tally, detail }: { tally: TallyData; detail: ProposalDetailView }) {
+  const presented = presentTally(tally, detail.choices);
   const meta = detail.metadata;
   const supportRequiredPct =
     meta?.kind === 'aragon_voting' ? asNumber(meta.support_required_pct) : null;
   const minQuorumPct = meta?.kind === 'aragon_voting' ? asNumber(meta.min_accept_quorum_pct) : null;
 
-  const forSeg = tally.segments.find((s) => s.kind === 'for');
-  const againstSeg = tally.segments.find((s) => s.kind === 'against');
+  const forSeg = presented.segments.find((s) => s.kind === 'for');
+  const againstSeg = presented.segments.find((s) => s.kind === 'against');
   const decisive = forSeg && againstSeg ? forSeg.power + againstSeg.power : null;
   const currentSupportPct =
     forSeg && decisive && decisive > 0 ? Math.round((forSeg.power / decisive) * 1000) / 10 : null;
@@ -59,29 +43,18 @@ export function TallySection({
       number="05"
       title="Tally"
       reference={
-        <span
-          title={
-            tally.source === 'choice_scores' ? 'Snapshot per-choice scores' : 'Summed from votes'
-          }
-        >
-          {tally.source === 'choice_scores' ? 'per-choice scores' : 'summed from votes'}
+        <span>
+          {presented.source === 'choice_scores' ? 'per-choice scores' : 'summed from votes'}
         </span>
       }
     >
-      {partial && (
-        <p className="border border-note bg-note-bg px-3 py-2 font-mono text-caption text-note-ink">
-          Showing the top {formatCompactNumber(votes.length)} voters by power — the totals below are
-          a lower bound.
-        </p>
-      )}
-
       {/* Stacked bar */}
       <div
         className="flex h-8 w-full overflow-hidden border border-line-2 bg-bg-3"
         role="img"
-        aria-label={tally.segments.map((s) => `${s.label} ${s.pct}%`).join(', ')}
+        aria-label={presented.segments.map((s) => `${s.label} ${s.pct}%`).join(', ')}
       >
-        {tally.segments
+        {presented.segments
           .filter((s) => s.pct > 0)
           .map((s) => (
             <div
@@ -94,9 +67,9 @@ export function TallySection({
 
       {/* Per-choice breakdown */}
       <ul className="flex flex-col gap-1.5 font-mono text-mono-body">
-        {tally.segments.map((s) => (
+        {presented.segments.map((s) => (
           <li key={s.choiceIndex} className="flex items-center gap-3">
-            <span className={cn('h-2.5 w-2.5 shrink-0', DOT_FILL[s.kind])} aria-hidden />
+            <span className={cn('h-2.5 w-2.5 shrink-0', BAR_FILL[s.kind])} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-ink">{s.label}</span>
             <span className="tabular-nums text-ink-2">{s.pct.toFixed(1)}%</span>
             <span className="w-28 text-right tabular-nums text-ink-3">
@@ -108,12 +81,9 @@ export function TallySection({
 
       {/* Stats */}
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line-3 pt-4 font-mono text-caption sm:grid-cols-4">
-        <Stat
-          label="Voters"
-          value={tally.voterCount != null ? formatCompactNumber(tally.voterCount) : '—'}
-        />
-        <Stat label="VP participating" value={formatCompactNumber(tally.totalPower)} />
-        <Stat label="Outcome (current)" value={tally.leading ? tally.leading.label : '—'} />
+        <Stat label="Voters" value={formatCompactNumber(presented.totalVoters)} />
+        <Stat label="VP participating" value={formatCompactNumber(presented.totalPower)} />
+        <Stat label="Outcome (current)" value={presented.leading ? presented.leading.label : '—'} />
         <Stat
           label="Current support"
           value={currentSupportPct != null ? `${currentSupportPct}%` : '—'}
