@@ -6,7 +6,8 @@ import { useRef } from 'react';
 import type { TallyData } from './detail';
 import type { ProposalPath } from './votes';
 import { browserApi } from '@/lib/api/client';
-import { parseQuota, tallyIntervalMs, type QuotaState } from '@/lib/api/poll';
+import { POLL_INTERVAL_MS } from '@/lib/api/poll';
+import { parseQuota, quotaInterval, type QuotaState } from '@/lib/api/quota';
 
 type TallyResult = { tally: TallyData; quota: QuotaState };
 
@@ -55,7 +56,7 @@ export function useTally(
     },
     initialData: { tally: initialTally, quota: { fraction: null } },
     refetchInterval: (q) =>
-      active ? tallyIntervalMs(q.state.data?.quota.fraction ?? null) : false,
+      active ? quotaInterval(POLL_INTERVAL_MS.tally, q.state.data?.quota.fraction ?? null) : false,
     refetchOnWindowFocus: active,
   });
 

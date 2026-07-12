@@ -1,16 +1,22 @@
-import { parseQuota, tallyIntervalMs } from './poll';
+import { parseQuota, quotaInterval } from './quota';
 
-describe('tallyIntervalMs — ADR-035 quota tiers', () => {
+describe('quotaInterval — ADR-035 adaptive tiers', () => {
   it.each([
     [null, 10_000], // no quota headers → base cadence, never paused
     [1.0, 10_000],
     [0.25, 10_000],
-    [0.24, 20_000],
+    [0.24, 20_000], // 10–25% → 2× base
     [0.1, 20_000],
     [0.09, false], // < 10% → paused
     [0, false],
-  ] as const)('fraction %s → %s', (fraction, expected) => {
-    expect(tallyIntervalMs(fraction)).toBe(expected);
+  ] as const)('tally base, fraction %s → %s', (fraction, expected) => {
+    expect(quotaInterval(10_000, fraction)).toBe(expected);
+  });
+
+  it('applies the same tiers to the 30s feed base (2× at 10–25%)', () => {
+    expect(quotaInterval(30_000, 0.5)).toBe(30_000);
+    expect(quotaInterval(30_000, 0.2)).toBe(60_000);
+    expect(quotaInterval(30_000, 0.05)).toBe(false);
   });
 });
 
