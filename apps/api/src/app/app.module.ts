@@ -12,6 +12,7 @@ import { VotesModule } from '@nest/votes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
+import { AccountController } from '../account/account.controller';
 import { ActorProposalsController } from '../actors/actor-proposals.controller';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { ActorVotesController } from '../actors/actor-votes.controller';
@@ -58,6 +59,7 @@ import { VotesController } from '../votes/votes.controller';
     DaoAnalyticsController,
     AuthController,
     ApiKeysController,
+    AccountController,
   ],
   providers: [
     AppService,

@@ -114,6 +114,25 @@ needs no developer-style credential:
 - If the public API ever hard-enforces "no anonymous" (§4.3), first-party/internal traffic is
   exempted at the edge rather than issued a credential. (Per-IP limiting on the read path is M6-6.)
 
+### Account deletion (KNOWN-020)
+
+- `DELETE /v1/account` (session-authenticated, CSRF-enforced) permanently deletes the caller's own
+  account: a PG transaction deletes the user's `api_key` rows (the FK is `onDelete('restrict')`, so
+  keys go first — deleting them revokes them) then the `users` row, followed by
+  `destroyAllForUser` (all sessions) and cookie clearing.
+- **Recovery-email hash deferred.** KNOWN-020's "hash the email for re-registration prevention" lands
+  with the email/password fast-follow, where the signup check that consumes the hash also lives —
+  there is no consumer yet (SIWE re-registration is wallet-keyed, not email-keyed).
+
+### The auth/keys/account surface stays out of the public OpenAPI
+
+`docs/openapi.json` is the **public read-API contract** (bearer-key auth, for third-party
+developers, and the source for the dashboard's `openapi-typescript` types). The auth / keys / account
+endpoints are **session/cookie-authed, dashboard-internal** — a different audience and security
+model — so they keep `@ApiExcludeController()` and are absent from the committed spec. The dashboard
+types those calls in M6-6 (hand-written, or a separate internal spec); mixing them into the public
+contract is deliberately avoided.
+
 ### Identity schema (additive)
 
 - `users.wallet_address` — nullable, `UNIQUE`, lowercased (a CHECK enforces it); the SIWE anchor.
@@ -132,6 +151,7 @@ wallet_address IS NOT NULL`.
 - **Deferred to the fast-follow (not built here):** argon2id passwords + breach/length checks,
   email verification, forgot/reset token lifecycle, and Resend (ADR-083). The `/forgot-password` +
   `/reset-password` pages render an "email accounts coming soon" state until then.
-- **Out of scope of this ADR (later M6-2 tasks):** SIWE nonce/replay + per-IP auth rate-limiting,
-  `kv_dashboard_*` key provisioning + usage endpoints, account deletion + email-hash (KNOWN-020),
-  and the OpenAPI regeneration.
+- **Deferred beyond M6-2:** the recovery-email hash + its signup check (email/password fast-follow);
+  per-IP limiting on the read path + the first-party "no anonymous" exemption (M6-6); usage analytics
+  (deferred, belongs in ClickHouse). The per-session `kv_dashboard_*` key was dropped entirely
+  (supersedes ADR-035 — see "Dashboard → API authentication").
