@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AiQueueMetricsService } from './ai-queue-metrics.service';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 
@@ -16,5 +16,47 @@ describe('AiQueueMetricsService', () => {
     const queueCount = Object.values(FEATURE_QUEUE).length * 2; // main + dlq
     expect(getQueueStats).toHaveBeenCalledTimes(queueCount);
     expect(getOldestJobAgeSeconds).toHaveBeenCalledTimes(queueCount);
+  });
+
+  it('completes tick() without throwing when stats/age resolve undefined/null', async () => {
+    const getQueueStats = vi.fn().mockResolvedValue(undefined);
+    const getOldestJobAgeSeconds = vi.fn().mockResolvedValue(null);
+    const port = { send: vi.fn(), work: vi.fn(), getQueueStats, getOldestJobAgeSeconds };
+    const svc = new AiQueueMetricsService(port as never) as unknown as WithTick;
+
+    await expect(svc.tick()).resolves.toBeUndefined();
+
+    const queueCount = Object.values(FEATURE_QUEUE).length * 2; // main + dlq
+    expect(getQueueStats).toHaveBeenCalledTimes(queueCount);
+    expect(getOldestJobAgeSeconds).toHaveBeenCalledTimes(queueCount);
+  });
+
+  describe('bootstrap/shutdown polling lifecycle', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('starts polling on bootstrap and stops ticking after shutdown', async () => {
+      const getQueueStats = vi.fn().mockResolvedValue({ queuedCount: 1 });
+      const getOldestJobAgeSeconds = vi.fn().mockResolvedValue(5);
+      const port = { send: vi.fn(), work: vi.fn(), getQueueStats, getOldestJobAgeSeconds };
+      const svc = new AiQueueMetricsService(port as never);
+
+      svc.onApplicationBootstrap();
+      await vi.runOnlyPendingTimersAsync(); // let the immediate tick() settle
+
+      const callsAfterBootstrap = getQueueStats.mock.calls.length;
+      expect(callsAfterBootstrap).toBeGreaterThan(0);
+
+      svc.onApplicationShutdown();
+      await vi.advanceTimersByTimeAsync(60_000); // well past the default 15s interval
+
+      expect(getQueueStats.mock.calls.length).toBe(callsAfterBootstrap);
+    });
   });
 });

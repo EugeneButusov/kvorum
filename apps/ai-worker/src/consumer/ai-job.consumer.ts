@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { AiFeatureHandlerRegistry } from './ai-feature-handler.registry';
+import { readPositiveInt } from '../app/env-helpers';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
@@ -16,7 +17,7 @@ export class AiJobConsumer implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const concurrency = Number(process.env['AI_JOB_CONCURRENCY'] ?? 1);
+    const concurrency = readPositiveInt('AI_JOB_CONCURRENCY', 1);
     for (const { main } of Object.values(FEATURE_QUEUE)) {
       await this.queue.work<AiJob>(main, { localConcurrency: concurrency }, async (jobs) => {
         for (const job of jobs) {

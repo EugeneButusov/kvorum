@@ -6,6 +6,7 @@ import { pgDb } from '@libs/db';
 import { FEATURE_QUEUE } from './ai-queue-names';
 import type { AiJob } from './ai-queue-names';
 import type { AiQueueJob, AiQueuePort, AiSendOptions } from './ai-queue.port';
+import { readPositiveInt } from '../app/env-helpers';
 
 /** Default forensics window for AI jobs: 7 days. Overridable via AI_JOB_TTL_SECONDS. */
 const DEFAULT_JOB_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -33,7 +34,7 @@ export class AiJobQueueService
     this.boss.on('error', (e: Error) => this.logger.error('pgboss_error', e));
     await this.boss.start();
 
-    const ttl = parseInt(process.env['AI_JOB_TTL_SECONDS'] ?? String(DEFAULT_JOB_TTL_SECONDS), 10);
+    const ttl = readPositiveInt('AI_JOB_TTL_SECONDS', DEFAULT_JOB_TTL_SECONDS);
 
     for (const { main, dlq } of Object.values(FEATURE_QUEUE)) {
       // DLQ must exist before the main queue references it as deadLetter.

@@ -3,7 +3,7 @@ import { AiJobDlqRepository } from '@libs/ai';
 import { pgDb } from '@libs/db';
 import { AiJobDlqBridge } from './ai-job-dlq.bridge';
 import { AiJobQueueService } from '../queue/ai-job-queue.service';
-import { AI_SUMMARIZE_DLQ_QUEUE } from '../queue/ai-queue-names';
+import { AI_SUMMARIZE_DLQ_QUEUE, FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import type { AiQueueJob } from '../queue/ai-queue.port';
 
@@ -35,6 +35,27 @@ describe('AiJobDlqBridge.record', () => {
     expect(row.error.message).toContain('job-123');
     expect(row.first_seen_at).toBeInstanceOf(Date);
     expect(row.last_seen_at).toBeInstanceOf(Date);
+  });
+});
+
+describe('AiJobDlqBridge.onApplicationBootstrap', () => {
+  it('registers work() on all four *_dlq queues', async () => {
+    const work = vi.fn().mockResolvedValue(undefined);
+    const port = {
+      send: vi.fn(),
+      work,
+      getQueueStats: vi.fn(),
+      getOldestJobAgeSeconds: vi.fn(),
+    };
+    const bridge = new AiJobDlqBridge(port, { insert: vi.fn() } as never);
+
+    await bridge.onApplicationBootstrap();
+
+    const dlqQueues = Object.values(FEATURE_QUEUE).map((q) => q.dlq);
+    expect(work).toHaveBeenCalledTimes(dlqQueues.length);
+    for (const queueName of dlqQueues) {
+      expect(work).toHaveBeenCalledWith(queueName, { localConcurrency: 1 }, expect.any(Function));
+    }
   });
 });
 

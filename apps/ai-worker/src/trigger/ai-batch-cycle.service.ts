@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { AiTriggerScanner } from './ai-trigger-scanner';
+import { readPositiveInt } from '../app/env-helpers';
 
-const BATCH_CYCLE_MS = Number(process.env['AI_BATCH_CYCLE_MS'] ?? 4 * 60 * 60 * 1000); // 4h
-const BATCH_LOOKBACK_MS = Number(process.env['AI_BATCH_LOOKBACK_MS'] ?? 8 * 60 * 60 * 1000); // 8h
+const BATCH_CYCLE_MS = readPositiveInt('AI_BATCH_CYCLE_MS', 4 * 60 * 60 * 1000); // 4h
+const BATCH_LOOKBACK_MS = readPositiveInt('AI_BATCH_LOOKBACK_MS', 8 * 60 * 60 * 1000); // 8h
 
 /** Batch sweep / reconcile: re-scans a wider window every 4h. In M5-2 this maps to the Anthropic
  *  Batch-API submission window for batch-mode features; here it is the safety-net rescan. */

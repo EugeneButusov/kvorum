@@ -27,6 +27,11 @@ export class AiJobDlqBridge implements OnApplicationBootstrap {
     this.logger.log('ai_job_dlq_bridge_registered');
   }
 
+  // KNOWN-030: no try/catch around the ai_job_dlq insert below — a transient PG failure here
+  // retries the job on the *_dlq queue (pg-boss redelivers on a throwing handler) and, once
+  // retries are exhausted, the dead-lettered record is silently lost. `attempts` is hardcoded to
+  // 0 because pg-boss does not surface the exhausted retry count via `includeMetadata` on the
+  // dead-letter copy. Mirrors indexer's ArchiveLogDlqBridge; deferred by design.
   private async record(job: AiQueueJob<AiJob>): Promise<void> {
     const now = new Date();
     const data = job.data;

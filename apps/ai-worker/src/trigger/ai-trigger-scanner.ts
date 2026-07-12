@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ProposalRepository } from '@libs/db';
 import type { ProposalState } from '@libs/db';
 import { AiTriggerConfig } from './ai-trigger-config';
+import { readPositiveInt } from '../app/env-helpers';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
@@ -37,8 +38,9 @@ export class AiTriggerScanner {
   private async scanProposalSummaries(lookbackMs: number): Promise<number> {
     const since = new Date(Date.now() - lookbackMs);
     const rows = await this.proposals.findRecentlyTransitioned(TRIGGER_STATES, since);
-    const throttle = Number(
-      process.env['AI_SINGLETON_THROTTLE_SECONDS'] ?? DEFAULT_SINGLETON_THROTTLE_SECONDS,
+    const throttle = readPositiveInt(
+      'AI_SINGLETON_THROTTLE_SECONDS',
+      DEFAULT_SINGLETON_THROTTLE_SECONDS,
     );
 
     let count = 0;

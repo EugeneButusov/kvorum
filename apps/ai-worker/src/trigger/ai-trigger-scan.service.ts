@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { AiTriggerScanner } from './ai-trigger-scanner';
+import { readPositiveInt } from '../app/env-helpers';
 
 // @Interval args are evaluated at module load; env is set at process start (indexer does the same).
-const SCAN_MS = Number(process.env['AI_TRIGGER_SCAN_MS'] ?? 60_000);
-const LOOKBACK_MS = Number(process.env['AI_TRIGGER_LOOKBACK_MS'] ?? 600_000); // 10 min
+const SCAN_MS = readPositiveInt('AI_TRIGGER_SCAN_MS', 60_000);
+const LOOKBACK_MS = readPositiveInt('AI_TRIGGER_LOOKBACK_MS', 600_000); // 10 min
 
 /** Low-latency trigger path: scans recent proposal transitions every AI_TRIGGER_SCAN_MS. */
 @Injectable()
