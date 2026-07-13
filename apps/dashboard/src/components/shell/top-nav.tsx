@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-import { ConnectButton } from './connect-button';
 import { SearchBox } from './search-box';
+import { WalletMenu } from './wallet-menu';
 import { Logo } from '@/components/brand/Logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
@@ -93,7 +93,7 @@ export function TopNav() {
 
       <div className="flex flex-1 items-center justify-end gap-2 md:gap-3 md:pl-4">
         <SearchBox className="hidden lg:flex" />
-        <ConnectButton className="hidden md:inline-flex" />
+        <WalletMenu className="hidden md:inline-flex" />
         <ThemeToggle />
 
         <Sheet open={open} onOpenChange={setOpen}>
@@ -126,7 +126,7 @@ export function TopNav() {
                 </Link>
               ))}
             </nav>
-            <ConnectButton />
+            <WalletMenu />
           </SheetContent>
         </Sheet>
       </div>
