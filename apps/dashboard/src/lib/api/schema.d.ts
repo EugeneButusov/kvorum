@@ -356,6 +356,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/forum/{external_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['ForumThreadController_getThread'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -833,6 +849,29 @@ export interface components {
       peers: components['schemas']['DelegateAlignmentPeerDto'][];
       pagination: components['schemas']['PaginationDto'];
       _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    ForumThreadLinkedProposalDto: {
+      source_type: string;
+      source_id: string;
+      title: Record<string, never> | null;
+      /** @enum {string} */
+      confidence: 'high' | 'medium' | 'low';
+    };
+    ForumThreadDto: {
+      /** @description Discourse topic id (the {external_id} in the URL). */
+      external_id: string;
+      host: string;
+      /** @description Canonical link to the thread on the source Discourse instance. */
+      source_url: string;
+      title: Record<string, never> | null;
+      /** @description Concatenated post bodies (the ingested thread content); no per-post breakdown. */
+      raw_content: Record<string, never> | null;
+      post_count: Record<string, never> | null;
+      last_activity_at: Record<string, never> | null;
+      linked_proposals: components['schemas']['ForumThreadLinkedProposalDto'][];
+    };
+    ForumThreadResponseDto: {
+      data: components['schemas']['ForumThreadDto'];
     };
   };
   responses: never;
@@ -1906,6 +1945,34 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ProblemDto'];
         };
+      };
+    };
+  };
+  ForumThreadController_getThread: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        external_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForumThreadResponseDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
