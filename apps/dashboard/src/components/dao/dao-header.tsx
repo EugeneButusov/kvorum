@@ -1,4 +1,4 @@
-import { truncateAddress } from '@/components/ui/identity-chip';
+import { truncateAddress } from '@/lib/format';
 
 /** DAO header (§6.6 §1): name, description, primary token, and the external links. */
 export function DaoHeader({
