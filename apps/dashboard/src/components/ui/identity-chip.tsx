@@ -4,12 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import { truncateAddress } from '@/lib/format';
 import { cn } from '@/lib/utils';
-
-/** Shorten a 0x address to `0x1234…abcd`. */
-export function truncateAddress(address: string): string {
-  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
-}
 
 export type IdentityChipProps = {
   address: string;

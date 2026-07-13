@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
-import { truncateAddress } from '@/components/ui/identity-chip';
 import { Section } from '@/components/ui/section';
+import { truncateAddress } from '@/lib/format';
 import type { ProposalActionView, ProposalDetailView } from '@/lib/proposals/detail';
 
 /**
