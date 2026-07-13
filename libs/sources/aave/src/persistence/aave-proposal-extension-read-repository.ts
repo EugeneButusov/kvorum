@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import { isoSeconds, type PgDatabase } from '@libs/db';
 import type { ProposalExtension, ProposalPayloadView, ProposalVotingView } from '@libs/domain';
 import './schema';
 
@@ -36,15 +36,10 @@ export class AaveProposalExtensionReadRepository {
       payloads_controller_address: p.payloads_controller_address,
       payload_id: p.payload_id,
       status: p.status,
-      executed_at_destination:
-        p.executed_at_destination === null ? null : toIsoSeconds(p.executed_at_destination),
+      executed_at_destination: isoSeconds(p.executed_at_destination),
       unindexed_target_chain: p.unindexed_target_chain,
     }));
 
     return { voting, payloads: payloadViews, metadata: null };
   }
-}
-
-function toIsoSeconds(date: Date): string {
-  return `${date.toISOString().slice(0, 19)}Z`;
 }

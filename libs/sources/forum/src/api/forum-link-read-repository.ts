@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import { isoSeconds, type PgDatabase } from '@libs/db';
 import type { OffchainDiscussionLinkView } from '@libs/domain';
 import '../persistence/schema';
 
@@ -36,7 +36,7 @@ export class ForumLinkReadRepository {
         url: `https://${row.forum_host}/t/${row.forum_topic_id}`,
         title: row.title,
         confidence: row.confidence,
-        last_activity_at: row.last_activity_at === null ? null : toIsoSeconds(row.last_activity_at),
+        last_activity_at: isoSeconds(row.last_activity_at),
       }))
       .sort(
         (a, b) =>
@@ -44,8 +44,4 @@ export class ForumLinkReadRepository {
           (b.last_activity_at ?? '').localeCompare(a.last_activity_at ?? ''),
       );
   }
-}
-
-function toIsoSeconds(date: Date): string {
-  return `${date.toISOString().slice(0, 19)}Z`;
 }

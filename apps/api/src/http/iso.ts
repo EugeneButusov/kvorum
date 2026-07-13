@@ -1,11 +1,3 @@
-export function isoSeconds(value: Date | null): string | null {
-  if (value === null) {
-    return null;
-  }
-
-  return `${value.toISOString().slice(0, 19)}Z`;
-}
-
-export function toIsoDate(value: Date): string {
-  return isoSeconds(value)!;
-}
+// Re-export of the canonical seconds-precision ISO helpers (@libs/db). Kept as a local alias so the
+// mappers' import path stays stable and `toIsoDate` reads naturally at the call site.
+export { isoSeconds, isoSecondsRequired as toIsoDate } from '@libs/db';
