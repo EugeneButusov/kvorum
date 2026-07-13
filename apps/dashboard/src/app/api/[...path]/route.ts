@@ -70,3 +70,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ path: string[]
   });
   return relay(upstream, upstream.body);
 }
+
+export async function DELETE(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
+  const { path } = await ctx.params;
+
+  // Key revoke + account deletion (§6.13) — mutating, so cookie + CSRF are forwarded like POST.
+  const headers = new Headers();
+  for (const name of ['cookie', 'x-csrf-token']) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+
+  const upstream = await fetch(targetUrl(req, path), {
+    method: 'DELETE',
+    headers,
+    cache: 'no-store',
+  });
+  return relay(upstream, upstream.status === 204 ? null : upstream.body);
+}
