@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { AiJobDlqRepository } from '@libs/ai';
+import { AiCostLogRepository, AiJobDlqRepository } from '@libs/ai';
 import { ProposalRepository, pgDb } from '@libs/db';
 import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
+import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
+import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
 import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
 import { AiJobConsumer } from '../consumer/ai-job.consumer';
@@ -32,6 +34,9 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     AiTriggerScanService,
     AiBatchCycleService,
     AiQueueMetricsService,
+    AiBudgetState,
+    { provide: AiCostLogRepository, useFactory: () => new AiCostLogRepository(pgDb) },
+    AiBudgetCapService,
   ],
 })
 export class AppModule {}
