@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { readPositiveInt } from '@libs/utils';
 import { AiFeatureHandlerRegistry } from './ai-feature-handler.registry';
+import { AiBudgetState } from '../budget/ai-budget-state';
+import { aiMetrics } from '../metrics/ai-metrics';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
@@ -14,6 +16,7 @@ export class AiJobConsumer implements OnApplicationBootstrap {
   constructor(
     @Inject(AI_QUEUE_PORT) private readonly queue: AiQueuePort,
     private readonly registry: AiFeatureHandlerRegistry,
+    private readonly budgetState: AiBudgetState,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -29,15 +32,27 @@ export class AiJobConsumer implements OnApplicationBootstrap {
   }
 
   private async handle(job: AiJob): Promise<void> {
+    if (this.budgetState.isDisabled(job.feature)) {
+      aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'skipped_budget_disabled' });
+      this.logger.warn('ai_job_budget_disabled_skip', {
+        feature: job.feature,
+        entityRef: job.entityRef,
+      });
+      return;
+    }
+
     const handler = this.registry.get(job.feature);
     if (handler === undefined) {
       // Graceful skip (ack): a feature whose handler ships in M5-2 must not flood the DLQ.
+      aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'skipped_no_handler' });
       this.logger.warn('ai_job_no_handler_skip', {
         feature: job.feature,
         entityRef: job.entityRef,
       });
       return;
     }
+
     await handler.handle(job);
+    aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'dispatched' });
   }
 }

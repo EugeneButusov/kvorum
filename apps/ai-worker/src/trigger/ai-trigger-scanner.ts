@@ -3,6 +3,7 @@ import { ProposalRepository } from '@libs/db';
 import type { ProposalState } from '@libs/db';
 import { readPositiveInt } from '@libs/utils';
 import { AiTriggerConfig } from './ai-trigger-config';
+import { AiBudgetState } from '../budget/ai-budget-state';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
 import type { AiJob } from '../queue/ai-queue-names';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
@@ -25,11 +26,15 @@ export class AiTriggerScanner {
     @Inject(AI_QUEUE_PORT) private readonly queue: AiQueuePort,
     private readonly config: AiTriggerConfig,
     private readonly proposals: ProposalRepository,
+    private readonly budgetState: AiBudgetState,
   ) {}
 
   async run(lookbackMs: number): Promise<number> {
     let enqueued = 0;
-    if (this.config.isEnabled('proposal_summarizer')) {
+    if (
+      this.config.isEnabled('proposal_summarizer') &&
+      !this.budgetState.isDisabled('proposal_summarizer')
+    ) {
       enqueued += await this.scanProposalSummaries(lookbackMs);
     }
     return enqueued;
