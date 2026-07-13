@@ -151,6 +151,33 @@ export async function fetchPassRate(api: Api, slug: string, from?: string): Prom
   }
 }
 
+// —— Top delegates ————————————————————————————————————————————————————————————————
+
+export type TopDelegate = { address: string; label: string; power: number };
+
+/** The N actors holding the most current voting power (delegation-flow nodes), descending. */
+export async function fetchTopDelegates(api: Api, slug: string, n = 5): Promise<TopDelegate[]> {
+  try {
+    const { data, error } = await api.GET('/v1/daos/{slug}/analytics/delegation-flow', {
+      params: { path: { slug }, query: {} },
+    });
+    if (error || !data) return [];
+    return data.nodes
+      .map((node) => ({
+        address: node.primary_address,
+        label:
+          (typeof node.display_name === 'string' && node.display_name) ||
+          `${node.primary_address.slice(0, 6)}…${node.primary_address.slice(-4)}`,
+        power: scalePower(node.current_voting_power),
+      }))
+      .filter((d) => d.power > 0)
+      .sort((a, b) => b.power - a.power)
+      .slice(0, n);
+  } catch {
+    return [];
+  }
+}
+
 // —— Delegation flow ——————————————————————————————————————————————————————————————
 
 export type DelegationFlowView = { nodes: FlowNode[]; edges: FlowEdge[] };

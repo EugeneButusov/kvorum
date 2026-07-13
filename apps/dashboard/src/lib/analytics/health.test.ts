@@ -1,7 +1,55 @@
-import { rangeFrom, toConcentrationView, toDelegationFlowView, toPassRateView } from './health';
+import { vi } from 'vitest';
+
+import {
+  fetchTopDelegates,
+  rangeFrom,
+  toConcentrationView,
+  toDelegationFlowView,
+  toPassRateView,
+} from './health';
 import type { components } from '@/lib/api/schema';
 
 const E18 = 10n ** 18n;
+
+describe('fetchTopDelegates', () => {
+  it('ranks nodes by current voting power, scales it, and falls back to a truncated address', async () => {
+    const GET = vi.fn().mockResolvedValue({
+      data: {
+        nodes: [
+          {
+            actor_id: 'a',
+            primary_address: '0xaaaa000000000000000000000000000000000000',
+            display_name: 'whale.eth',
+            current_voting_power: (5n * E18).toString(),
+          },
+          {
+            actor_id: 'b',
+            primary_address: '0xbbbb000000000000000000000000000000000000',
+            display_name: null,
+            current_voting_power: (9n * E18).toString(),
+          },
+          {
+            actor_id: 'c',
+            primary_address: '0xcccc000000000000000000000000000000000000',
+            display_name: null,
+            current_voting_power: '0',
+          },
+        ],
+        edges: [],
+      },
+      error: null,
+    });
+    const top = await fetchTopDelegates({ GET } as never, 'lido', 5);
+    expect(top.map((d) => d.power)).toEqual([9, 5]); // sorted desc; zero-power dropped
+    expect(top[0]!.label).toBe('0xbbbb…0000'); // null display_name → truncated address
+    expect(top[1]!.label).toBe('whale.eth');
+  });
+
+  it('returns empty on a network failure', async () => {
+    const GET = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+    expect(await fetchTopDelegates({ GET } as never, 'lido')).toEqual([]);
+  });
+});
 
 function concRow(
   bucket: string,
