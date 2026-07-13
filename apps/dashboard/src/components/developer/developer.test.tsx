@@ -1,11 +1,19 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
+import { WagmiProvider } from 'wagmi';
 
 import { ApiKeysSection } from './api-keys-section';
 import { DeveloperDashboard } from './developer-dashboard';
 import { KeyStatusBadge } from './key-status-badge';
+import { wagmiConfig } from '../../lib/wallet/config';
 import type { ApiKey } from '@/lib/developer/keys';
+
+const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/developer',
+}));
 
 const KEY: ApiKey = {
   id: 'k1',
@@ -22,7 +30,11 @@ function renderWithClient(ui: React.ReactNode, seed?: (client: QueryClient) => v
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
   seed?.(client);
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </WagmiProvider>,
+  );
 }
 
 describe('KeyStatusBadge', () => {
@@ -37,15 +49,23 @@ describe('KeyStatusBadge', () => {
 });
 
 describe('DeveloperDashboard', () => {
-  it('shows the sign-in gate when there is no session', () => {
+  beforeEach(() => replace.mockClear());
+
+  it('redirects to login with a return URL when there is no session', () => {
     renderWithClient(<DeveloperDashboard />, (client) => {
       client.setQueryData(['auth', 'session'], null);
     });
-    expect(screen.getByText('Sign in to continue')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
-      'href',
-      '/login?next=/developer',
-    );
+    expect(replace).toHaveBeenCalledWith('/login?next=%2Fdeveloper');
+  });
+
+  it('renders the sections when signed in', () => {
+    renderWithClient(<DeveloperDashboard />, (client) => {
+      client.setQueryData(['auth', 'session'], { userId: 'u1', address: '0xabc' });
+      client.setQueryData(['developer', 'keys'], []);
+    });
+    expect(screen.getByRole('heading', { name: /API keys/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Account/ })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 });
 

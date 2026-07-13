@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDisconnect } from 'wagmi';
 
 import { fetchSession, logout, logoutEverywhere, type Session } from './client';
+import { SESSION_QUERY_KEY } from './session-key';
 
-export const SESSION_QUERY_KEY = ['auth', 'session'] as const;
+export { SESSION_QUERY_KEY };
 
 /**
  * The current dashboard session. `data === null` means signed out (a 401 is a normal state, not an
