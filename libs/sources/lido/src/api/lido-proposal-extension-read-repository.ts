@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import { isoSeconds, isoSecondsRequired, type PgDatabase } from '@libs/db';
 import type { ProposalExtension } from '@libs/domain';
 import type {
   AragonProposalMetadataView,
@@ -41,9 +41,9 @@ export class LidoProposalExtensionReadRepository {
       app_version: row.app_version,
       support_required_pct: row.support_required_pct,
       min_accept_quorum_pct: row.min_accept_quorum_pct,
-      main_phase_ends_at: toIsoSeconds(row.main_phase_ends_at),
-      objection_phase_ends_at: toIsoSeconds(row.objection_phase_ends_at),
-      executed_at: toIsoSeconds(row.executed_at),
+      main_phase_ends_at: isoSeconds(row.main_phase_ends_at),
+      objection_phase_ends_at: isoSeconds(row.objection_phase_ends_at),
+      executed_at: isoSeconds(row.executed_at),
     };
     return { voting: null, payloads: [], metadata };
   }
@@ -63,10 +63,10 @@ export class LidoProposalExtensionReadRepository {
       status: row.status,
       executor: row.executor,
       aragon_source_id: row.aragon_source_id,
-      submitted_at: toIsoSecondsRequired(row.submitted_at),
-      scheduled_at: toIsoSeconds(row.scheduled_at),
-      executed_at: toIsoSeconds(row.executed_at),
-      cancelled_at: toIsoSeconds(row.cancelled_at),
+      submitted_at: isoSecondsRequired(row.submitted_at),
+      scheduled_at: isoSeconds(row.scheduled_at),
+      executed_at: isoSeconds(row.executed_at),
+      cancelled_at: isoSeconds(row.cancelled_at),
     };
     return { voting: null, payloads: [], metadata };
   }
@@ -83,17 +83,9 @@ export class LidoProposalExtensionReadRepository {
       kind: 'easy_track',
       motion_id: row.motion_id,
       factory_address: row.factory_address,
-      objection_ends_at: toIsoSecondsRequired(row.objection_ends_at),
+      objection_ends_at: isoSecondsRequired(row.objection_ends_at),
       state: row.state,
     };
     return { voting: null, payloads: [], metadata };
   }
-}
-
-function toIsoSeconds(date: Date | null): string | null {
-  return date === null ? null : toIsoSecondsRequired(date);
-}
-
-function toIsoSecondsRequired(date: Date): string {
-  return `${date.toISOString().slice(0, 19)}Z`;
 }
