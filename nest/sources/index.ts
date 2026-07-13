@@ -1,4 +1,5 @@
 export { SourcesModule } from './sources.module';
+export { SourceApiModule } from './source-api.module';
 export { buildDriverMetrics, stateReconcilerMetrics } from './reconcile-metrics';
 // Re-export the plugin collection token + type so source-blind consumers (apps/api)
 // can inject them without importing @sources/* (eslint-banned under apps/api/src).

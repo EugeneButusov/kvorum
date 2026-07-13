@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { PgDatabase } from '@libs/db';
+import { isoSeconds, type PgDatabase } from '@libs/db';
 import type { OffchainDelegationView } from '@libs/domain';
 import { DELEGATION_EVENT_TYPE, DELEGATION_SYSTEM } from '../delegation/constants';
 import {
@@ -98,10 +98,6 @@ function toView(row: SnapshotDelegation, cur: CurrentDelegate): OffchainDelegati
     network: row.network,
     delegate_address: cur.delegate_address,
     weight: cur.weight,
-    expires_at: cur.expires_at === null ? null : toIsoSeconds(cur.expires_at),
+    expires_at: isoSeconds(cur.expires_at),
   };
-}
-
-function toIsoSeconds(date: Date): string {
-  return `${date.toISOString().slice(0, 19)}Z`;
 }

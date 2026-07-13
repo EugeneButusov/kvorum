@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import Script from 'next/script';
 
-import { QueryProvider } from '@/components/query-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { WalletProvider } from '@/components/wallet-provider';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 
 // Fonts self-hosted at build via next/font; exposed as CSS vars that tokens.css
@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           storageKey="kv:theme"
           disableTransitionOnChange
         >
-          <QueryProvider>{children}</QueryProvider>
+          <WalletProvider>{children}</WalletProvider>
         </ThemeProvider>
         {plausibleDomain && (
           <Script defer data-domain={plausibleDomain} src="https://plausible.io/js/script.js" />

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, vi } from 'vitest';
 
-import { GET } from './route';
+import { GET, POST } from './route';
 
 const params = (path: string[]) => ({ params: Promise.resolve({ path }) });
 
@@ -56,5 +56,65 @@ describe('BFF GET proxy', () => {
 
     expect(res.status).toBe(304);
     expect(await res.text()).toBe('');
+  });
+
+  it('forwards the cookie header upstream on reads (session-authed BFF)', async () => {
+    const captured: { headers?: Headers } = {};
+    global.fetch = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+      captured.headers = new Headers(init?.headers);
+      return new Response('{}', { status: 200 });
+    });
+
+    const req = new Request('http://localhost:3000/api/v1/auth/session', {
+      headers: { cookie: 'kv_session=abc' },
+    });
+    await GET(req, params(['v1', 'auth', 'session']));
+    expect(captured.headers?.get('Cookie')).toBe('kv_session=abc');
+  });
+});
+
+describe('BFF POST proxy', () => {
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.BACKEND_API_URL = 'http://api.test';
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('forwards body, cookie and CSRF header upstream and relays Set-Cookie back', async () => {
+    const captured: { url?: string; headers?: Headers; body?: string } = {};
+    global.fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      captured.url = url.toString();
+      captured.headers = new Headers(init?.headers);
+      captured.body = init?.body as string;
+      return new Response('{"userId":"u1","address":"0xabc"}', {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'set-cookie': 'kv_session=sess; Path=/; HttpOnly',
+        },
+      });
+    });
+
+    const req = new Request('http://localhost:3000/api/v1/auth/siwe/verify', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'kv_csrf=tok',
+        'x-csrf-token': 'tok',
+      },
+      body: JSON.stringify({ message: 'm', signature: 's' }),
+    });
+    const res = await POST(req, params(['v1', 'auth', 'siwe', 'verify']));
+
+    expect(captured.url).toBe('http://api.test/v1/auth/siwe/verify');
+    expect(captured.headers?.get('cookie')).toBe('kv_csrf=tok');
+    expect(captured.headers?.get('x-csrf-token')).toBe('tok');
+    expect(JSON.parse(captured.body ?? '{}')).toEqual({ message: 'm', signature: 's' });
+    expect(res.status).toBe(200);
+    expect(res.headers.getSetCookie()).toContain('kv_session=sess; Path=/; HttpOnly');
   });
 });
