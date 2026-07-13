@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { SiweDialog } from './siwe-dialog';
+import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSession } from '@/lib/auth/use-session';
 
 type Mode = 'login' | 'signup';
+type Method = 'siwe' | 'email';
 
 const COPY: Record<
   Mode,
@@ -28,14 +30,16 @@ const COPY: Record<
 };
 
 /**
- * The SIWE-first auth panel shared by /login and /signup (§6.14). Wallet is the primary path; the
- * email path is a documented fast-follow and renders as a disabled affordance. On an established
- * session it redirects to `next` (already open-redirect-sanitised by the server page).
+ * The auth panel shared by /login and /signup (§6.14). Wallet (SIWE) is the primary path; the email
+ * path is a documented fast-follow, so the "Continue with email" toggle swaps to a stubbed form that
+ * states its absence rather than pretending to work. On an established session it redirects to
+ * `next` (already open-redirect-sanitised by the server page).
  */
 export function SiweConnectPanel({ mode, next }: { mode: Mode; next: string }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState<Method>('siwe');
   const [email, setEmail] = useState('');
   const copy = COPY[mode];
 
@@ -43,6 +47,54 @@ export function SiweConnectPanel({ mode, next }: { mode: Mode; next: string }) {
   useEffect(() => {
     if (session) router.replace(next);
   }, [session, next, router]);
+
+  const altLink = (
+    <p className="text-center text-small text-ink-3">
+      {copy.alt.prompt}{' '}
+      <Link href={copy.alt.href} className="text-primary hover:underline">
+        {copy.alt.label}
+      </Link>
+    </p>
+  );
+
+  if (method === 'email') {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-mono text-lead font-semibold text-ink">{copy.heading}</h1>
+          <p className="text-small text-ink-3">Sign in with your email and password.</p>
+        </div>
+
+        <Banner severity="note" glyph="i">
+          Email accounts are coming soon. For now, Kvorum supports Sign-In With Ethereum only.
+        </Banner>
+
+        <fieldset disabled className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-caption uppercase tracking-[0.06em] text-ink-3">
+              Email
+            </span>
+            <Input type="email" placeholder="you@example.com" autoComplete="email" />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-caption uppercase tracking-[0.06em] text-ink-3">
+              Password
+            </span>
+            <Input type="password" placeholder="••••••••••••" autoComplete="current-password" />
+          </label>
+          <Button type="submit" className="w-full">
+            Continue with email
+          </Button>
+        </fieldset>
+
+        <Button variant="ghost" onClick={() => setMethod('siwe')} className="w-full">
+          ← Sign in with your wallet instead
+        </Button>
+
+        {altLink}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,19 +133,11 @@ export function SiweConnectPanel({ mode, next }: { mode: Mode; next: string }) {
         <span className="h-px flex-1 bg-line-3" />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Button variant="outline" disabled className="w-full">
-          Continue with email
-        </Button>
-        <span className="text-center text-caption text-ink-4">Email accounts coming soon.</span>
-      </div>
+      <Button variant="outline" onClick={() => setMethod('email')} className="w-full">
+        Continue with email
+      </Button>
 
-      <p className="text-center text-small text-ink-3">
-        {copy.alt.prompt}{' '}
-        <Link href={copy.alt.href} className="text-primary hover:underline">
-          {copy.alt.label}
-        </Link>
-      </p>
+      {altLink}
 
       <SiweDialog
         open={open}
