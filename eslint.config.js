@@ -10,6 +10,8 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/libs/db/src/generated/**',
       '**/vitest.config.*.timestamp*',
+      // Design reference bundle: hand-authored HTML/CSS/JS mocks, not application source.
+      'docs/design/**',
     ],
   },
   ...tseslint.configs.recommended,

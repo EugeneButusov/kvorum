@@ -36,6 +36,8 @@ function makeDeps(p: SnapshotVotePayload) {
       fetchLatest: vi
         .fn()
         .mockResolvedValue([{ external_id: 'vote:0xv', payload: JSON.stringify(p) }]),
+      // Default: the parent proposal is not archived → orphan votes retry (not skipped).
+      fetchByExternalId: vi.fn().mockResolvedValue(undefined),
     },
     proposals: {
       findDaoIdForSource: vi.fn().mockResolvedValue('dao-1'),
@@ -146,14 +148,66 @@ describe('SnapshotVoteProjectionApplier', () => {
     expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
   });
 
-  it('fails when the proposal is not found', async () => {
+  it('retries when the proposal has no row and is not yet archived (genuinely pending)', async () => {
     const applier = build(payload());
     deps.proposals.findBySource.mockResolvedValue(undefined);
+    // fetchByExternalId defaults to undefined → parent not archived → retry, don't skip.
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.payloads.fetchByExternalId).toHaveBeenCalledWith('prop:0xprop');
+    expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
+    expect(deps.archive.markDerived).not.toHaveBeenCalled();
+  });
+
+  it('retries an orphan vote whose parent proposal is archived but NOT flagged/deleted', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', flagged: false }),
+    );
 
     await applier.applyBatch([ROW]);
 
     expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
     expect(deps.archive.markDerived).not.toHaveBeenCalled();
+  });
+
+  it('retries an orphan vote whose parent proposal payload is malformed JSON (cannot classify)', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue('not json');
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).not.toHaveBeenCalled();
+    expect(deps.archive.incrementAttemptCount).toHaveBeenCalledWith('r1');
+  });
+
+  it('skips (marks derived) an orphan vote whose parent proposal is flagged — poison guard', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', flagged: true }),
+    );
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
+    expect(deps.archive.incrementAttemptCount).not.toHaveBeenCalled();
+  });
+
+  it('skips an orphan vote whose parent proposal is deleted — poison guard', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined);
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', deleted: true }),
+    );
+
+    await applier.applyBatch([ROW]);
+
+    expect(deps.archive.markDerived).toHaveBeenCalledWith('r1');
+    expect(deps.archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
   it('fails when the archive payload is missing', async () => {
@@ -189,5 +243,47 @@ describe('SnapshotVoteProjectionApplier', () => {
     const applier = build(payload());
     await applier.applyBatch([]);
     expect(deps.payloads.fetchLatest).not.toHaveBeenCalled();
+  });
+
+  it('memoises dao/proposal/metadata lookups across votes on one proposal in a batch', async () => {
+    const applier = build(payload());
+    const mk = (id: string, voter: string) => JSON.stringify(payload({ id, voter }));
+    deps.payloads.fetchLatest.mockResolvedValue([
+      { external_id: 'vote:v1', payload: mk('v1', '0x' + '11'.repeat(20)) },
+      { external_id: 'vote:v2', payload: mk('v2', '0x' + '22'.repeat(20)) },
+      { external_id: 'vote:v3', payload: mk('v3', '0x' + '33'.repeat(20)) },
+    ]);
+    const rows = ['v1', 'v2', 'v3'].map((v, i) => ({
+      ...ROW,
+      id: `r${i}`,
+      external_id: `vote:${v}`,
+    }));
+
+    await applier.applyBatch(rows);
+
+    // Three votes on the same proposal → one lookup each (was one per vote).
+    expect(deps.proposals.findDaoIdForSource).toHaveBeenCalledTimes(1);
+    expect(deps.proposals.findBySource).toHaveBeenCalledTimes(1);
+    expect(deps.snapshotProposals.findMetadata).toHaveBeenCalledTimes(1);
+    // The supersession-sensitive vote-events write stays per vote.
+    expect(deps.voteWrite.insertBatch).toHaveBeenCalledTimes(3);
+  });
+
+  it('memoises the flagged/deleted parent check per batch (poison votes read the payload once)', async () => {
+    const applier = build(payload());
+    deps.proposals.findBySource.mockResolvedValue(undefined); // orphan votes
+    deps.payloads.fetchByExternalId.mockResolvedValue(
+      JSON.stringify({ id: '0xprop', flagged: true }),
+    );
+    deps.payloads.fetchLatest.mockResolvedValue([
+      { external_id: 'vote:v1', payload: JSON.stringify(payload({ id: 'v1' })) },
+      { external_id: 'vote:v2', payload: JSON.stringify(payload({ id: 'v2' })) },
+    ]);
+    const rows = ['v1', 'v2'].map((v, i) => ({ ...ROW, id: `r${i}`, external_id: `vote:${v}` }));
+
+    await applier.applyBatch(rows);
+
+    expect(deps.payloads.fetchByExternalId).toHaveBeenCalledTimes(1); // cached across both poison votes
+    expect(deps.archive.markDerived).toHaveBeenCalledTimes(2); // both skipped
   });
 });

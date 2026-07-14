@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — DAOs index (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .dao-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 22px 24px; }
+  .dao-card {
+    border: 1.5px solid var(--line); background: var(--paper);
+    display: grid; grid-template-rows: auto auto 1fr auto;
+  }
+  .dao-card .h {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-bottom: 1.5px solid var(--line); background: var(--paper-2);
+  }
+  .dao-card .logo {
+    width: 36px; height: 36px; border: 1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 700; background: var(--paper);
+  }
+  .dao-card .h .name { font-size: 14px; font-weight: 600; }
+  .dao-card .h small { display:block; color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .dao-card .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); padding: 0;
+  }
+  .dao-card .stats div { padding: 10px 12px; border-right: 1px solid var(--line-soft); }
+  .dao-card .stats div:last-child { border-right: 0; }
+  .dao-card .stats .l { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .dao-card .stats .v { font-size: 16px; font-weight: 600; margin-top: 2px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .dao-card .body {
+    padding: 12px 14px; border-top: 1px solid var(--line-soft);
+    font-size: 12px; color: var(--ink-2);
+  }
+  .dao-card .body b { color: var(--ink); }
+  .dao-card .body .row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--line-soft); }
+  .dao-card .body .row:last-child { border-bottom: 0; }
+  .dao-card .foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-top: 1.5px solid var(--line); background: var(--paper-2);
+    font-size: 11px;
+  }
+  .dao-card .foot a { font-weight: 600; }
+  .dao-card .foot .meta { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+  .dao-card .flag-strip {
+    background: var(--note-bg); border-top: 1px solid var(--line);
+    padding: 6px 14px; font-size: 11px;
+  }
+  .filters-row {
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    padding: 14px 24px; border-bottom: 1.5px solid var(--line);
+    background: var(--paper-2);
+  }
+  .search-box {
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 6px 12px; min-width: 280px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px;
+  }
+  .search-box .k { color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; }
+</style>
+</head>
+<body data-wf="daos">
+
+<div class="page" data-screen-label="06 DAOs index — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / DAOs index</span>
+    <span class="mono">/daos · spec §6.6 · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li class="active">DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div style="padding: 22px 24px 8px;">
+    <h1 style="margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em;">Tracked DAOs</h1>
+    <div style="color: var(--ink-2); font-size: 13px;">
+      Kvorum indexes <b>3 DAOs</b> at v1 launch. Each DAO has on-chain governance + forum + an actor graph.
+      Add-DAO requests open via GitHub issue → vetted manually before ingestion.
+    </div>
+  </div>
+
+  <div class="filters-row">
+    <div class="search-box">
+      <span>🔎</span><span style="flex:1; color: var(--ink-3);">Search DAOs</span><span class="k">⌘K</span>
+    </div>
+    <div class="controls">
+      <span class="lbl">Sort</span>
+      <div class="grp"><span class="on">Activity</span><span>Health</span><span>A-Z</span></div>
+    </div>
+    <div class="controls">
+      <span class="lbl">Status</span>
+      <div class="grp"><span class="on">All</span><span>Healthy</span><span>Flagged</span></div>
+    </div>
+    <div class="spacer" style="flex: 1;"></div>
+    <a class="tag">+ Suggest a DAO ↗</a>
+  </div>
+
+  <div class="dao-grid">
+
+    <!-- COMPOUND -->
+    <div class="dao-card anno" data-anno="primary">
+      <div class="h">
+        <div class="logo">C</div>
+        <div>
+          <div class="name">Compound</div>
+          <small>compound · ethereum mainnet</small>
+        </div>
+        <div style="margin-left:auto;"><span class="pill">v1 launch</span></div>
+      </div>
+      <div class="stats">
+        <div><div class="l">Active</div><div class="v">7</div></div>
+        <div><div class="l">Health</div><div class="v">B+</div></div>
+        <div><div class="l">Flags</div><div class="v" style="color: var(--note);">2</div></div>
+      </div>
+      <div class="body">
+        <div class="row"><span>Last proposal</span><b>2h ago</b></div>
+        <div class="row"><span>Top delegate</span><b>a16z · 12.4M COMP</b></div>
+        <div class="row"><span>Participation (90d)</span><b>38.4% ↓</b></div>
+        <div class="row"><span>Forum posts (7d)</span><b>147</b></div>
+      </div>
+      <div class="flag-strip">
+        ⚠ Mismatch on prop #246 · undisclosed action · <a style="text-decoration: underline;">view</a>
+      </div>
+      <div class="foot">
+        <a href="DAO Health Dashboard Wireframe.html">View health →</a>
+        <span class="meta">15,402 voters · 248 props</span>
+      </div>
+    </div>
+
+    <!-- AAVE -->
+    <div class="dao-card anno" data-anno="primary">
+      <div class="h">
+        <div class="logo">A</div>
+        <div>
+          <div class="name">Aave</div>
+          <small>aave · ethereum mainnet</small>
+        </div>
+        <div style="margin-left:auto;"><span class="pill">v1 launch</span></div>
+      </div>
+      <div class="stats">
+        <div><div class="l">Active</div><div class="v">4</div></div>
+        <div><div class="l">Health</div><div class="v">A−</div></div>
+        <div><div class="l">Flags</div><div class="v">0</div></div>
+      </div>
+      <div class="body">
+        <div class="row"><span>Last proposal</span><b>5h ago</b></div>
+        <div class="row"><span>Top delegate</span><b>ACI · 1.8M AAVE</b></div>
+        <div class="row"><span>Participation (90d)</span><b>52.1% ↑</b></div>
+        <div class="row"><span>Forum posts (7d)</span><b>89</b></div>
+      </div>
+      <div class="foot">
+        <a>View health →</a>
+        <span class="meta">8,914 voters · 412 props</span>
+      </div>
+    </div>
+
+    <!-- LIDO -->
+    <div class="dao-card anno" data-anno="primary">
+      <div class="h">
+        <div class="logo">L</div>
+        <div>
+          <div class="name">Lido</div>
+          <small>lido · ethereum mainnet · easy + aragon</small>
+        </div>
+        <div style="margin-left:auto;"><span class="pill">v1 launch</span></div>
+      </div>
+      <div class="stats">
+        <div><div class="l">Active</div><div class="v">3</div></div>
+        <div><div class="l">Health</div><div class="v">B</div></div>
+        <div><div class="l">Flags</div><div class="v" style="color: var(--note);">1</div></div>
+      </div>
+      <div class="body">
+        <div class="row"><span>Last proposal</span><b>1d ago</b></div>
+        <div class="row"><span>Top delegate</span><b>Lido Node Op · 240k LDO</b></div>
+        <div class="row"><span>Participation (90d)</span><b>27.6% ↓</b></div>
+        <div class="row"><span>Forum posts (7d)</span><b>62</b></div>
+      </div>
+      <div class="flag-strip">
+        ⚠ Forum sentiment ↘ vs. prop #181 vote outcome · <a style="text-decoration: underline;">view</a>
+      </div>
+      <div class="foot">
+        <a>View health →</a>
+        <span class="meta">3,221 voters · 188 props</span>
+      </div>
+    </div>
+
+    <!-- COMING SOON -->
+    <div class="dao-card" style="opacity: 0.55;">
+      <div class="h">
+        <div class="logo" style="color: var(--ink-3);">U</div>
+        <div>
+          <div class="name">Uniswap</div>
+          <small>uniswap · proposed · post-v1</small>
+        </div>
+        <div style="margin-left:auto;"><span class="pill">queued</span></div>
+      </div>
+      <div class="body" style="padding: 28px 14px; text-align: center; color: var(--ink-3);">
+        Ingestion adapter not yet built. <br/>Track via the suggest-a-DAO issue.
+      </div>
+      <div class="foot">
+        <a>Issue #14 ↗</a>
+        <span class="meta">scheduled v1.2</span>
+      </div>
+    </div>
+    <div class="dao-card" style="opacity: 0.55;">
+      <div class="h">
+        <div class="logo" style="color: var(--ink-3);">E</div>
+        <div>
+          <div class="name">ENS</div>
+          <small>ens · proposed · post-v1</small>
+        </div>
+        <div style="margin-left:auto;"><span class="pill">queued</span></div>
+      </div>
+      <div class="body" style="padding: 28px 14px; text-align: center; color: var(--ink-3);">
+        Ingestion adapter not yet built. <br/>Track via the suggest-a-DAO issue.
+      </div>
+      <div class="foot">
+        <a>Issue #19 ↗</a>
+        <span class="meta">scheduled v1.2</span>
+      </div>
+    </div>
+    <div class="dao-card" style="opacity: 0.55; border-style: dashed;">
+      <div class="h">
+        <div class="logo" style="color: var(--ink-3);">+</div>
+        <div>
+          <div class="name">Suggest a DAO</div>
+          <small>open a github issue with adapter requirements</small>
+        </div>
+      </div>
+      <div class="body" style="padding: 28px 14px; text-align: center; color: var(--ink-3);">
+        Need the governor address, forum URL, and a contact for the proposer team.
+      </div>
+      <div class="foot">
+        <a>Open issue ↗</a>
+        <span class="meta">manual review</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span>Index: 3 active · 2 queued · adapters per DAO</span>
+    <span>Each card links to /daos/{slug}/health (§6.7)</span>
+    <span>kvorum.xyz/daos</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>DAOs index</b> · catalogue of every DAO Kvorum tracks (§6.6). Sorted by activity by default. Cards summarize health grade, active proposals, top delegate, participation, forum heat, and flags. Greyed cards represent ingestion adapters not yet built.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

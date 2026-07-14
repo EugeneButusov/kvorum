@@ -29,6 +29,19 @@ export interface SnapshotVoteProjectionApplierDeps {
   logger: Logger;
 }
 
+type ProposalRow = Awaited<ReturnType<ProposalRepository['findBySource']>>;
+type ProposalMetadata = Awaited<ReturnType<SnapshotProposalRepository['findMetadata']>>;
+
+/** Per-`applyBatch` memoisation of the repository lookups that repeat across votes on the same
+ *  proposal. Keyed so a value of `undefined` (dao/proposal not found) is still cached — distinguished
+ *  from "not looked up yet" by `Map.has`. */
+interface BatchLookupCache {
+  daoId: Map<string, string | undefined>;
+  proposal: Map<string, ProposalRow>;
+  metadata: Map<string, ProposalMetadata>;
+  excluded: Map<string, boolean>;
+}
+
 /** Derives archived Snapshot votes into the core `vote_events_*` pipeline (primary_choice + rounded
  *  voting_power + supersession) and the `snapshot_vote_choice` protocol table (full breakdown). Votes
  *  derive continuously — a non-shielded vote's choice + vp are final at cast (snapshot block), so this
@@ -47,6 +60,16 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
     const payloads = await this.deps.payloads.fetchLatest(rows);
     const byExternalId = new Map(payloads.map((row) => [row.external_id, row.payload]));
 
+    // Per-batch memoisation: dao/proposal/metadata/excluded do not change within a batch (proposals
+    // derive before their votes), and a batch is dominated by votes on a handful of proposals — so a
+    // 150-vote batch on ~10 proposals goes from ~450 repository round-trips to ~20.
+    const cache: BatchLookupCache = {
+      daoId: new Map(),
+      proposal: new Map(),
+      metadata: new Map(),
+      excluded: new Map(),
+    };
+
     for (const row of rows) {
       const payloadJson = byExternalId.get(row.external_id);
       if (payloadJson === undefined) {
@@ -61,14 +84,18 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
         continue;
       }
       try {
-        await this.apply(row, payload);
+        await this.apply(row, payload, cache);
       } catch (err) {
         await this.fail(row, 'projection_apply_error', err);
       }
     }
   }
 
-  private async apply(row: OffchainArchiveRow, payload: SnapshotVotePayload): Promise<void> {
+  private async apply(
+    row: OffchainArchiveRow,
+    payload: SnapshotVotePayload,
+    cache: BatchLookupCache,
+  ): Promise<void> {
     const proposalSourceId = payload.proposal?.id;
     const voter = payload.voter;
     if (proposalSourceId == null || voter == null || payload.created == null) {
@@ -79,17 +106,25 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
       throw new Error(`snapshot vote ${payload.id} voter is not a 42-char address`);
     }
 
-    const daoId = await this.deps.proposals.findDaoIdForSource(row.dao_source_id);
+    const daoId = await this.daoIdFor(row.dao_source_id, cache);
     if (daoId === undefined) throw new Error(`unknown dao_source ${row.dao_source_id}`);
 
-    const proposal = await this.deps.proposals.findBySource({
-      daoId,
-      sourceType: SOURCE_TYPE,
-      sourceId: proposalSourceId,
-    });
-    if (proposal === undefined) throw new Error(`no_proposal ${proposalSourceId}`);
+    const proposal = await this.proposalFor(daoId, proposalSourceId, cache);
+    if (proposal === undefined) {
+      // No `proposal` row for this vote's parent. Distinguish an intentionally-excluded proposal
+      // (spam `flagged` or `deleted` — the proposal projector skips these, so a row never appears)
+      // from one that simply hasn't been derived yet. The former must be skipped: otherwise the vote
+      // throws `no_proposal` and retries forever, saturating the derivation queue (poison message).
+      // The latter must keep retrying so an in-flight proposal's votes are never dropped.
+      if (await this.parentProposalIsExcluded(proposalSourceId, cache)) {
+        await this.deps.archive.markDerived(row.id);
+        this.record('skipped_orphan_excluded');
+        return;
+      }
+      throw new Error(`no_proposal ${proposalSourceId}`);
+    }
 
-    const metadata = await this.deps.snapshotProposals.findMetadata(proposal.id);
+    const metadata = await this.metadataFor(proposal.id, cache);
     if (metadata === undefined) throw new Error(`no_metadata ${proposal.id}`);
 
     const decoded = decodeVoteChoice(metadata.voting_type, payload.choice, metadata.choice_count);
@@ -148,6 +183,73 @@ export class SnapshotVoteProjectionApplier implements OffchainProjectionDeriver 
     await this.deps.voteWrite.insertBatch(voteRows);
     await this.deps.archive.markDerived(row.id);
     this.record(incomingIsNewer ? 'derived' : 'superseded');
+  }
+
+  private async daoIdFor(
+    daoSourceId: string,
+    cache: BatchLookupCache,
+  ): Promise<string | undefined> {
+    if (!cache.daoId.has(daoSourceId)) {
+      cache.daoId.set(daoSourceId, await this.deps.proposals.findDaoIdForSource(daoSourceId));
+    }
+    return cache.daoId.get(daoSourceId);
+  }
+
+  private async proposalFor(
+    daoId: string,
+    proposalSourceId: string,
+    cache: BatchLookupCache,
+  ): Promise<ProposalRow> {
+    const key = `${daoId} ${proposalSourceId}`;
+    if (!cache.proposal.has(key)) {
+      cache.proposal.set(
+        key,
+        await this.deps.proposals.findBySource({
+          daoId,
+          sourceType: SOURCE_TYPE,
+          sourceId: proposalSourceId,
+        }),
+      );
+    }
+    return cache.proposal.get(key);
+  }
+
+  private async metadataFor(
+    proposalId: string,
+    cache: BatchLookupCache,
+  ): Promise<ProposalMetadata> {
+    if (!cache.metadata.has(proposalId)) {
+      cache.metadata.set(proposalId, await this.deps.snapshotProposals.findMetadata(proposalId));
+    }
+    return cache.metadata.get(proposalId);
+  }
+
+  /** True when the vote's parent proposal is archived but flagged/deleted — the proposal projector
+   *  intentionally creates no `proposal` row for these, so their votes have no home and must be
+   *  skipped rather than retried. False when the proposal payload is absent or a normal proposal
+   *  (not yet derived → the caller retries so the vote is never dropped). Memoised per batch because
+   *  a flagged proposal is a poison magnet — every one of its votes would otherwise re-read the CH
+   *  payload. */
+  private async parentProposalIsExcluded(
+    proposalSourceId: string,
+    cache: BatchLookupCache,
+  ): Promise<boolean> {
+    const cached = cache.excluded.get(proposalSourceId);
+    if (cached !== undefined) return cached;
+    const payloadJson = await this.deps.payloads.fetchByExternalId(`prop:${proposalSourceId}`);
+    const excluded = this.classifyExcluded(payloadJson);
+    cache.excluded.set(proposalSourceId, excluded);
+    return excluded;
+  }
+
+  private classifyExcluded(payloadJson: string | undefined): boolean {
+    if (payloadJson === undefined) return false;
+    try {
+      const p = JSON.parse(payloadJson) as { flagged?: boolean; deleted?: boolean };
+      return p.flagged === true || p.deleted === true;
+    } catch {
+      return false;
+    }
   }
 
   private async fail(row: OffchainArchiveRow, reason: string, error: unknown): Promise<void> {

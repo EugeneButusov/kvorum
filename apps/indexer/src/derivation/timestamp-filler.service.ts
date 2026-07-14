@@ -7,8 +7,8 @@ import {
   type PendingTimestampFillRow,
   type TimestampFillInput,
 } from '@libs/db';
+import { readIntervalMs } from '@libs/utils';
 import { derivationMetrics } from './derivation-metrics';
-import { readIntervalMs } from '../app/env-helpers';
 
 const TIMESTAMP_FILL_INTERVAL_MS = readIntervalMs('TIMESTAMP_FILL_INTERVAL_MS', 15_000);
 const DEFAULT_TIMESTAMP_FILL_BATCH_SIZE = 25;

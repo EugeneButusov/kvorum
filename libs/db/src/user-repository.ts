@@ -8,6 +8,36 @@ export class UserRepository {
     return this.db.selectFrom('users').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
+  async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('wallet_address', '=', walletAddress.toLowerCase())
+      .executeTakeFirst();
+  }
+
+  // Idempotent insert-or-return keyed on wallet_address; used by the SIWE verify path. The address
+  // is lowercased to satisfy the users_wallet_address_lowercase CHECK. Wallet accounts carry no
+  // email/display_name at creation. ON CONFLICT DO NOTHING + a fallback SELECT covers the race
+  // where two verifies for a new address land concurrently.
+  async upsertByWalletAddress(input: { walletAddress: string }): Promise<User> {
+    const walletAddress = input.walletAddress.toLowerCase();
+    const inserted = await this.db
+      .insertInto('users')
+      .values({ wallet_address: walletAddress, role: 'user', updated_at: new Date() })
+      .onConflict((oc) => oc.column('wallet_address').doNothing())
+      .returningAll()
+      .executeTakeFirst();
+    if (inserted !== undefined) {
+      return inserted;
+    }
+    const existing = await this.findByWalletAddress(walletAddress);
+    if (existing === undefined) {
+      throw new Error(`upsertByWalletAddress: row vanished for ${walletAddress}`);
+    }
+    return existing;
+  }
+
   async create(input: { email: string; displayName: string; role: UserRole }): Promise<User> {
     return this.db
       .insertInto('users')
@@ -19,5 +49,40 @@ export class UserRepository {
       })
       .returningAll()
       .executeTakeFirstOrThrow();
+  }
+
+  // Attaches a recovery email to a (typically SIWE) account. Lowercased to match the email CHECK.
+  // Returns 'conflict' when the address already belongs to another account (the unique constraint),
+  // so callers can surface a 409 rather than a 500.
+  async setRecoveryEmail(userId: string, email: string): Promise<'ok' | 'conflict'> {
+    try {
+      await this.db
+        .updateTable('users')
+        .set({ email: email.toLowerCase(), updated_at: new Date() })
+        .where('id', '=', userId)
+        .execute();
+      return 'ok';
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        return 'conflict';
+      }
+      throw error;
+    }
+  }
+
+  // Permanently deletes an account (SPEC §6.14 / KNOWN-020). The api_key FK is onDelete('restrict'),
+  // so the keys must go before the user row — deleting them permanently revokes them. Wrapped in a
+  // transaction so a partial delete can't leave orphaned keys or a half-removed account.
+  async deleteAccount(userId: string): Promise<void> {
+    await this.db.transaction().execute(async (trx) => {
+      await trx.deleteFrom('api_key').where('user_id', '=', userId).execute();
+      await trx.deleteFrom('users').where('id', '=', userId).execute();
+    });
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      error != null && typeof error === 'object' && (error as { code?: unknown }).code === '23505'
+    );
   }
 }

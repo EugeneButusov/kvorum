@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Forum thread</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.11 — forum thread. Next.js: app/forum/[id]/page.module.css */
+  main.forum {
+    max-width: var(--max-page); margin: 0 auto;
+    padding: var(--space-7) var(--gutter) var(--space-16);
+    display: grid; grid-template-columns: 1fr 320px; gap: 32px;
+  }
+  .col-main { display: flex; flex-direction: column; gap: 28px; }
+  .col-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: var(--space-4); align-self: start; }
+
+  .head { padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+  .head .meta { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-3);
+                text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); display: flex; gap: 14px; align-items: center; }
+  .head h1 { margin: 12px 0 10px; font-family: var(--font-mono); font-size: 28px; font-weight: 600;
+             line-height: 1.25; letter-spacing: var(--tracking-tight); }
+  .head .stats { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); display: flex; gap: 18px; }
+  .head .stats b { color: var(--ink-2); font-weight: 500; }
+
+  /* Posts */
+  .post {
+    border: 1px solid var(--line-3); background: var(--bg-2);
+    display: grid; grid-template-columns: 200px 1fr; gap: 0;
+  }
+  .post.op { border-color: var(--ink); }
+  .post.flagged { border-color: var(--warn); }
+  .post .author {
+    padding: 16px; border-right: 1px solid var(--line-3); background: var(--bg);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .post .author .ava {
+    width: 48px; height: 48px; border: 1.5px solid var(--ink); border-radius: 50%;
+    background: var(--bg-2); display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 700; color: var(--ink);
+  }
+  .post .author .name { font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
+  .post .author .sub  { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); line-height: 1.5; }
+  .post .author .badge {
+    font-family: var(--font-mono); font-size: var(--fs-10); padding: 2px 6px;
+    border: 1px solid; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; align-self: flex-start;
+  }
+  .post .author .badge.delegate { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-bg); }
+  :root[data-theme="dark"] .post .author .badge.delegate { color: var(--accent); }
+  .post .author .badge.team { color: var(--ink); border-color: var(--line); }
+  .post .author .badge.contributor { color: var(--note-ink); border-color: var(--note); background: var(--note-bg); }
+  .post .author .vp { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 2px; }
+  .post .author .vp b { color: var(--ink); font-weight: 600; }
+
+  .post .body { padding: 16px 22px; }
+  .post .body header {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px dashed var(--line-3);
+    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+  }
+  .post .body header .when b { color: var(--ink-2); }
+  .post .body p { margin: 0 0 12px; color: var(--ink); font-size: var(--fs-14); line-height: var(--lh-prose); }
+  .post .body p:last-child { margin-bottom: 0; }
+  .post .body p code, .post .body code { font-family: var(--font-mono); font-size: 0.92em; padding: 1px 6px;
+                                          background: var(--bg-3); color: var(--ink); }
+  .post .body blockquote {
+    margin: 12px 0; padding: 8px 14px; border-left: 2px solid var(--line); background: var(--bg);
+    font-size: var(--fs-13); color: var(--ink-2); font-style: normal;
+  }
+  .post .body footer {
+    margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line-3);
+    display: flex; gap: 14px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+  }
+  .post .body footer a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+  .post .body footer a:hover { color: var(--accent); border-color: var(--accent); }
+  .post .body footer .like.on { color: var(--accent); }
+
+  /* Sentiment bar */
+  .sent-bar { display: flex; height: 22px; border: 1px solid var(--line-3); }
+  .sent-bar > div { padding: 4px 10px; font-family: var(--font-mono); font-size: var(--fs-10); display: flex; align-items: center;
+                    color: var(--bg-2); }
+  :root[data-theme="dark"] .sent-bar > div { color: var(--bg); }
+  .sent-bar .sup { background: var(--for); }
+  .sent-bar .neu { background: var(--abstain); color: var(--ink); }
+  .sent-bar .opp { background: var(--against); }
+  .sent-bar .uns { background: var(--ink-3); color: var(--ink); }
+
+  /* Roster */
+  .roster { display: flex; flex-direction: column; }
+  .roster .row {
+    display: grid; grid-template-columns: 24px 1fr 70px; gap: 10px;
+    padding: 8px 14px; border-bottom: 1px dashed var(--line-3); align-items: center;
+    font-size: var(--fs-12);
+  }
+  .roster .row .ava { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ink); background: var(--bg);
+                      display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 700; }
+  .roster .row .who { font-family: var(--font-mono); color: var(--ink); }
+  .roster .row .who small { display: block; color: var(--ink-3); font-size: var(--fs-10); margin-top: 1px; }
+  .roster .row .stance { font-family: var(--font-mono); font-size: var(--fs-10); padding: 1px 6px; text-align: center;
+                         text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .roster .row .stance.sup { color: var(--for); border: 1px solid var(--for); }
+  .roster .row .stance.opp { color: var(--against); border: 1px solid var(--against); }
+  .roster .row .stance.neu { color: var(--note-ink); border: 1px solid var(--note); }
+  .roster .row .stance.uns { color: var(--ink-3); border: 1px solid var(--line-2); }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="developer.html">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="daos.html">DAOs</a><span class="sep">/</span>
+  <a href="health.html">Compound</a><span class="sep">/</span>
+  <a href="#">Forum</a><span class="sep">/</span>
+  <span class="id">RFC-248 · Update IR curve, cETH</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">comp.xyz/forum/12482 · linked → proposal #248</span>
+</div>
+
+<main class="forum" data-screen-label="Hi-fi · Forum thread">
+
+  <section class="col-main">
+
+    <header class="head">
+      <div class="meta">
+        <span class="pill dao-compound">Compound</span>
+        <span>RFC-12482</span>
+        <span style="color:var(--ink-2);">·</span>
+        <span>Risk parameters</span>
+        <span style="margin-left:auto; color:var(--ink-2);">linked → <a href="proposal-system.html" style="color:var(--accent); border-bottom:1px solid;">proposal #248</a></span>
+      </div>
+      <h1>RFC: Update interest-rate curve, cETH market — kink at 92%, jump multiplier 4.0</h1>
+      <div class="stats">
+        <span><b>14 posts</b></span>
+        <span>·</span>
+        <span><b>9 unique authors</b></span>
+        <span>·</span>
+        <span>opened <b>11 days ago</b></span>
+        <span>·</span>
+        <span>last activity <b>3h ago</b></span>
+      </div>
+    </header>
+
+    <!-- AI synthesis up top -->
+    <section class="kv-section">
+      <header><h2><span class="num">01</span>Thread synthesis</h2><span class="ref">14 posts · regen 38m ago</span></header>
+      <div class="ai-panel" aria-label="AI generated content">
+        <div class="ai-head">
+          <span class="ai-mark">AI</span>
+          <span>RFC-12482 · Compound forum</span>
+          <span class="model">claude · 14 posts · 9 authors</span>
+        </div>
+        <div class="ai-body" style="padding: 18px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div>
+            <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">tl;dr</div>
+            <p style="margin: 0; color: var(--ink); font-size: var(--fs-13); line-height: 1.55;">
+              Gauntlet proposes raising the kink to 92% and jump multiplier to 4.0 to push utilization on cETH. <b>5 supportive</b>, <b>3 opposed</b> (mostly on borrow-cap interaction risk), <b>1 neutral</b>. a16z flagged a <b>2.4× borrow-cap risk</b> at 95% utilization that the thread has not yet addressed.
+            </p>
+          </div>
+          <div>
+            <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Sentiment</div>
+            <div class="sent-bar">
+              <div class="sup" style="flex: 5;">5 support</div>
+              <div class="neu" style="flex: 1;">1 neut</div>
+              <div class="opp" style="flex: 3;">3 opp.</div>
+              <div class="uns" style="flex: 5;">5 unstated</div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 8px; line-height: 1.5;">
+              Estimated VP weight if posters voted as stated: <b style="color: var(--ink);">For 38% / Against 24% / Abstain 8%</b> · 30% unstated.
+            </div>
+          </div>
+        </div>
+        <div class="ai-foot">
+          <span>inputs: 14 forum posts · author voting history · linked rationales</span>
+          <a href="#">view sources →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Posts -->
+    <article class="post op">
+      <div class="author">
+        <div class="ava">G</div>
+        <span class="name">Gauntlet</span>
+        <span class="badge contributor">RISK · OP</span>
+        <span class="sub">gauntlet.eth<br/>0xab…f1<br/>3,142 posts</span>
+        <span class="vp"><b>169.2k</b> COMP · 6.7%</span>
+      </div>
+      <div class="body">
+        <header>
+          <span class="when">opened <b>11d ago</b></span>
+          <span>#1 · @gauntlet</span>
+        </header>
+        <p><b>Summary:</b> we propose raising the kink point on the cETH IR curve from 90% to 92% and increasing the jump multiplier from 3.5 to 4.0. Goal: incentivize utilization at the upper band where ETH borrowing demand is currently capped by suboptimal rate ceilings.</p>
+        <p><b>Parameter sweep</b> — see <code>cETH_ir_curve_v3.csv</code> attached. Headline: at 95% utilization, borrow APR moves from 11.2% → 13.8%; supply APR moves 7.4% → 8.9%. We model a <code>+18% net protocol revenue</code> at current utilization patterns over 90 days.</p>
+        <blockquote>Risks: cETH borrow caps remain at 78k; if utilization sustains above the new kink, cap exhaustion accelerates. Mitigations modeled in §3 of the parameter sweep.</blockquote>
+        <p>Snapshot signal targets <b>≥75% support</b> before onchain. Voting is open at <code>snapshot.org/#/comp.eth/proposal/0x4f...</code>.</p>
+        <footer>
+          <a href="#" class="like on">↑ 28 liked</a>
+          <a href="#">⎘ copy link</a>
+          <a href="#">↪ reply</a>
+          <span style="margin-left:auto;">edited 9d ago</span>
+        </footer>
+      </div>
+    </article>
+
+    <article class="post flagged">
+      <div class="author">
+        <div class="ava">a</div>
+        <span class="name">a16z</span>
+        <span class="badge delegate">VERIFIED · DELEGATE</span>
+        <span class="sub">a16z.eth<br/>0xa16z…0001<br/>87 posts (90d)</span>
+        <span class="vp"><b>312.4k</b> COMP · 12.4%</span>
+      </div>
+      <div class="body">
+        <header>
+          <span class="when"><b>9d ago</b></span>
+          <span>#3 · @a16z · linked → vote: Against</span>
+        </header>
+        <p>Appreciate the detailed sweep. We have a concern with the borrow-cap interaction at the new kink. The model in §3 assumes utilization plateaus at 95% — but our backtest of analogous markets shows a <b>2.4× cap-exhaustion frequency</b> within 30 days when curves shift this aggressively.</p>
+        <p>Recommendation: <b>kink at 91% (not 92%)</b> for one cycle; revisit in 30 days with cap utilization data. We're voting Against in current form. Happy to coordinate with the Gauntlet team on a v2 parameter set.</p>
+        <p>Cross-posting our analysis: <a href="#" style="color:var(--accent); border-bottom: 1px solid;">forum.compound.finance/t/12483 ↗</a></p>
+        <footer>
+          <a href="#" class="like on">↑ 41 liked</a>
+          <a href="#">⎘ copy link</a>
+          <a href="#">↪ reply</a>
+          <span style="margin-left:auto; color: var(--warn);">⚠ flagged by Kvorum: cap-exhaustion concern unaddressed</span>
+        </footer>
+      </div>
+    </article>
+
+    <article class="post">
+      <div class="author">
+        <div class="ava">P</div>
+        <span class="name">PaperImperium</span>
+        <span class="badge delegate">DELEGATE</span>
+        <span class="sub">paper.eth<br/>0x55…d9<br/>1,847 posts</span>
+        <span class="vp"><b>87.4k</b> COMP · 3.5%</span>
+      </div>
+      <div class="body">
+        <header><span class="when"><b>8d ago</b></span><span>#5 · linked → vote: Against</span></header>
+        <p>Concur with @a16z. The asymmetry matters: even if we're wrong and 92% is fine, the cost of running it for one cycle is 30 days of higher rates. The cost of being wrong on 92% in a borrow-cap-constrained market is liquidations.</p>
+        <p>Voting Against. Open to revisiting after a smaller-step adjustment.</p>
+        <footer>
+          <a href="#" class="like">↑ 12 liked</a>
+          <a href="#">⎘ copy link</a>
+          <a href="#">↪ reply</a>
+        </footer>
+      </div>
+    </article>
+
+    <article class="post">
+      <div class="author">
+        <div class="ava">G</div>
+        <span class="name">Gauntlet</span>
+        <span class="badge contributor">RISK</span>
+        <span class="sub">gauntlet.eth<br/>0xab…f1<br/>3,142 posts</span>
+        <span class="vp"><b>169.2k</b> COMP · 6.7%</span>
+      </div>
+      <div class="body">
+        <header><span class="when"><b>3d ago</b></span><span>#11 · @gauntlet</span></header>
+        <p>Updated <code>cETH_ir_curve_v3.csv</code> with @a16z's backtest assumption baked in. Result confirms cap-exhaustion frequency rises ~2.1× (close to the 2.4× cited). We're not changing the proposal — we believe the upside justifies it — but flagging this means voters should consider <b>raising borrow caps in tandem</b>.</p>
+        <p>Filing a follow-up RFC for cap raise to <b>96k</b> (from 78k) within the same proposal envelope. Will link here when posted.</p>
+        <footer>
+          <a href="#" class="like on">↑ 18 liked</a>
+          <a href="#">⎘ copy link</a>
+          <a href="#">↪ reply</a>
+        </footer>
+      </div>
+    </article>
+
+    <div style="text-align: center; padding: 14px; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3);">
+      <a href="#" style="border-bottom: 1px solid var(--line-2); color: var(--ink-2);">show 10 more posts →</a>
+    </div>
+
+  </section>
+
+  <!-- SIDE -->
+  <aside class="col-side">
+
+    <section class="card">
+      <header>Linked proposal</header>
+      <div style="padding: 14px 16px;">
+        <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); display: flex; gap: 8px; align-items: center;">
+          <span class="state-pill active">active</span>
+          <span>#248 · ends 2d 8h</span>
+        </div>
+        <a href="proposal-system.html" style="display: block; margin-top: 8px; font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600; color: var(--ink); line-height: 1.4;">Update interest-rate curve, cETH market — kink 92%, jump 4.0</a>
+        <div style="margin-top: 10px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-2);">
+          For <b style="color: var(--for); font-variant-numeric: tabular-nums;">41%</b> · Agst <b style="color: var(--against); font-variant-numeric: tabular-nums;">52%</b> · Abst <b>7%</b>
+        </div>
+        <div style="margin-top: 10px; padding: 8px 10px; background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); font-family: var(--font-mono); font-size: var(--fs-11);">
+          ⚠ mismatch flag · cap-exhaustion concern open
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>Roster · stance + VP</header>
+      <div class="roster">
+        <div class="row"><span class="ava">G</span><span class="who">Gauntlet<small>OP · proposal author</small></span><span class="stance sup">For</span></div>
+        <div class="row"><span class="ava">a</span><span class="who">a16z<small>verified delegate</small></span><span class="stance opp">Agst</span></div>
+        <div class="row"><span class="ava">P</span><span class="who">PaperImperium<small>delegate</small></span><span class="stance opp">Agst</span></div>
+        <div class="row"><span class="ava">R</span><span class="who">Robot Ventures<small>delegate</small></span><span class="stance sup">For</span></div>
+        <div class="row"><span class="ava">B</span><span class="who">Blck<small>delegate</small></span><span class="stance sup">For</span></div>
+        <div class="row"><span class="ava">M</span><span class="who">Michigan Blockchain<small>delegate</small></span><span class="stance neu">Neut</span></div>
+        <div class="row"><span class="ava">P</span><span class="who">Polychain<small>delegate</small></span><span class="stance opp">Agst</span></div>
+        <div class="row"><span class="ava">w</span><span class="who">Wintermute<small>delegate</small></span><span class="stance sup">For</span></div>
+        <div class="row"><span class="ava">T</span><span class="who">Tane<small>delegate</small></span><span class="stance sup">For</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>Activity · 14 posts</header>
+      <div style="padding: 12px 16px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); line-height: 1.7;">
+        <div><b style="color:var(--ink);">11d ago</b> · opened by Gauntlet</div>
+        <div><b style="color:var(--ink);">9d ago</b> · a16z flagged cap risk</div>
+        <div><b style="color:var(--ink);">8d ago</b> · 4 delegates posted</div>
+        <div><b style="color:var(--ink);">5d ago</b> · onchain proposal opened</div>
+        <div><b style="color:var(--ink);">3d ago</b> · Gauntlet update</div>
+        <div><b style="color:var(--ink);">3h ago</b> · last reply</div>
+      </div>
+    </section>
+
+  </aside>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>forum mirror · last sync 8m ago</div>
+  <div class="item">14 posts · 9 authors · linked proposal #248</div>
+  <div class="item">build a4f9c2 · /forum/comp-12482</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

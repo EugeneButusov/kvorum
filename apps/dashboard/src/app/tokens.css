@@ -1,0 +1,256 @@
+/* ============================================================
+   Kvorum · Design tokens
+   Globals: surfaces, ink, lines, accent, severity, type, space.
+   Use as :root variables. Light theme default; dark via [data-theme="dark"].
+
+   Stack target: Next.js + CSS Modules.
+   In Next.js, import this once in app/globals.css (or layout) so the
+   variables are available everywhere. Component CSS modules then read
+   `var(--ink)` etc. — no need to re-declare.
+   ============================================================ */
+
+:root,
+:root[data-theme='light'] {
+  /* --- Surfaces --- */
+  --bg: #f7f7f4; /* page background, off-paper */
+  --bg-2: #ffffff; /* card surface */
+  --bg-3: #efefe9; /* sunken / track */
+
+  /* --- Ink (text) --- */
+  --ink: #0e0e0c; /* primary text, strong borders */
+  --ink-2: #444440; /* secondary text */
+  --ink-3: #6f6f68; /* tertiary, captions, mono labels — AA 5.06:1 on card (§6.19) */
+  --ink-4: #b3b3aa; /* disabled, faint */
+
+  /* --- Lines --- */
+  --line: #1a1a17; /* strong divider, header underlines */
+  --line-2: #d4d4cc; /* default border */
+  --line-3: #e6e6df; /* subtle divider, dashed */
+
+  /* --- Accent (terminal green) --- */
+  /* Darkened from #00a86b for WCAG AA (§6.19): passes 4.5:1 both as link text and as a
+     button fill under white labels. Dark mode keeps the brighter green (already AA). */
+  --accent: #00804f;
+  --accent-bg: #d6f3e4;
+  --accent-ink: #003d22;
+
+  /* --- Severity --- */
+  --warn: #c43a1f; /* red — mismatches, defeats, errors */
+  --warn-bg: #fbe1da;
+  --warn-ink: #6a1308;
+  --note: #d97706; /* amber — undecided, queued */
+  --note-bg: #fce8c5;
+  --note-ink: #5a3208;
+  --ok: #00a86b; /* alias of accent for status */
+
+  /* --- AI panel (paper-yellow, hatched) --- */
+  --ai-bg: #f3f1e8;
+  --ai-line: #1a1a17;
+  --ai-mark: #0e0e0c;
+
+  /* --- Vote choices --- */
+  --for: #00a86b;
+  --against: #c43a1f;
+  --abstain: #7a7a73;
+
+  /* --- DAO brand swatches (used for pill borders, dot indicators) --- */
+  --dao-compound: #00d395;
+  --dao-uniswap: #ff007a;
+  --dao-aave: #b6509e;
+  --dao-arb: #28a0f0;
+  --dao-op: #ff0420;
+  --dao-ens: #5298ff;
+  --dao-lido: #00a3ff;
+  --dao-mkr: #1aab9b;
+
+  /* DAO pill text — darkened for legibility on the light paper background.
+     (The bright swatch above tints the pill border; the -ink value is the text.)
+     Dark theme uses the swatch itself as text — see the dark block below.
+     Add more per-DAO -ink values here as their pages need them. */
+  --dao-compound-ink: #00875a;
+  --dao-uniswap-ink: #c2005f;
+  --dao-aave-ink: #903b80;
+  --dao-arb-ink: #1d7fc1;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0c0d0a;
+  --bg-2: #15170f;
+  --bg-3: #1d1e16;
+
+  --ink: #ecebe2;
+  --ink-2: #b8b7ad;
+  --ink-3: #82827a;
+  --ink-4: #4a4a44;
+
+  --line: #ecebe2;
+  --line-2: #2a2b22;
+  --line-3: #1d1e16;
+
+  --accent: #00ff88;
+  --accent-bg: #003d22;
+  --accent-ink: #9bf3c3;
+
+  --warn: #ff5a3c;
+  --warn-bg: #3a1108;
+  --warn-ink: #ffb3a4;
+  --note: #ffae45;
+  --note-bg: #3a2408;
+  --note-ink: #ffd9a8;
+  --ok: #00ff88;
+
+  --ai-bg: #1a1c12;
+  --ai-line: #ecebe2;
+  --ai-mark: #ecebe2;
+
+  --for: #00ff88;
+  --against: #ff5a3c;
+  --abstain: #82827a;
+
+  /* On dark surfaces the bright DAO swatch is legible as text directly. */
+  --dao-compound-ink: var(--dao-compound);
+  --dao-uniswap-ink: var(--dao-uniswap);
+  --dao-aave-ink: var(--dao-aave);
+  --dao-arb-ink: var(--dao-arb);
+}
+
+/* ============================================================
+   Type scale, weights, families
+   ============================================================ */
+:root {
+  /* Font families reference the next/font CSS variables set in app/layout.tsx
+     (Inter + JetBrains Mono, loaded via next/font/google). */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Paper — theme-invariant off-white for text/glyphs on solid fills (green/red).
+     Backs shadcn --primary-foreground / --destructive-foreground so no raw hex
+     ever leaks outside this file (ADR-077 §2). Same value in light and dark. */
+  --paper: #f7f7f4;
+
+  /* Type scale (px) */
+  --fs-10: 10px; /* mono micro: kbd hints, table sub-labels */
+  --fs-105: 10.5px; /* mono caption: section labels, src tags */
+  --fs-11: 11px; /* mono small: pills */
+  --fs-115: 11.5px; /* mono body: dense tables */
+  --fs-12: 12px; /* small body */
+  --fs-125: 12.5px; /* default dense body */
+  --fs-13: 13px; /* body */
+  --fs-14: 14px; /* body-lg, prose */
+  --fs-16: 16px; /* lead */
+  --fs-20: 20px; /* h3 / card title */
+  --fs-24: 24px; /* h2 */
+  --fs-30: 30px; /* h1 page title */
+  --fs-40: 40px; /* hero (rare) */
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.5;
+  --lh-prose: 1.62;
+
+  --tracking-mono: 0.04em;
+  --tracking-mono-loose: 0.08em;
+  --tracking-tight: -0.01em;
+}
+
+/* ============================================================
+   Spacing scale (4px base, multiples of 4 only)
+   ============================================================ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+}
+
+/* ============================================================
+   Layout
+   ============================================================ */
+:root {
+  --max-page: 1440px; /* page max width */
+  --aside-w: 220px; /* left rail / TOC width */
+  --gutter: 32px; /* page horizontal padding */
+  --gutter-sm: 16px;
+}
+
+/* ============================================================
+   Radii — kept minimal. Kvorum is squared-off by default.
+   Only used on a small handful of pillows (avatars, dots).
+   ============================================================ */
+:root {
+  --r-0: 0;
+  --r-sm: 2px;
+  --r-pill: 999px;
+}
+
+/* ============================================================
+   Motion
+   ============================================================ */
+:root {
+  --t-fast: 120ms;
+  --t-normal: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ============================================================
+   Base reset & typographic defaults
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Mono utility — apply to anything that should render in JetBrains Mono. */
+.mono,
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-feature-settings: 'ss02', 'cv11';
+}
+
+/* Tabular numerics — apply to anything showing aligned numbers. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Governance intelligence for DeFi DAOs</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* Page-only styles — homepage (§6.4)
+     In Next.js: app/page.module.css */
+  main.home {
+    max-width: var(--max-page);
+    margin: 0 auto;
+    padding: var(--space-7) var(--gutter) var(--space-16);
+    display: flex; flex-direction: column; gap: 44px;
+  }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: 1fr auto; gap: var(--space-10); align-items: end;
+          padding-bottom: var(--space-7); border-bottom: 1px solid var(--line); }
+  .hero h1 { margin: 0; font-family: var(--font-mono); font-size: 40px; font-weight: 600;
+             line-height: 1.05; letter-spacing: var(--tracking-tight); max-width: 18ch; text-wrap: pretty; }
+  .hero h1 .accent { color: var(--accent); }
+  .hero .lede { margin-top: 14px; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-prose); max-width: 56ch; }
+  .hero .lede b { color: var(--ink); font-weight: 600; }
+  .hero .stats { display: flex; border: 1px solid var(--line); }
+  .hero .stat { padding: var(--space-3) 22px; border-right: 1px solid var(--line); min-width: 120px; }
+  .hero .stat:last-child { border-right: 0; }
+  .hero .stat .l { font-family: var(--font-mono); font-size: var(--fs-105); text-transform: uppercase;
+                   letter-spacing: var(--tracking-mono-loose); color: var(--ink-3); }
+  .hero .stat .v { font-family: var(--font-mono); font-size: var(--fs-24); font-weight: 600; margin-top: 4px;
+                   font-variant-numeric: tabular-nums; }
+  .hero .stat .delta { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--accent); margin-left: 6px; }
+
+  /* Active proposals row */
+  .row-scroll {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(340px, 1fr);
+    gap: 14px; overflow-x: auto; padding-bottom: 10px;
+  }
+  .row-scroll::-webkit-scrollbar { height: 6px; }
+  .row-scroll::-webkit-scrollbar-thumb { background: var(--line-2); }
+  .prop {
+    border: 1px solid var(--line-3); background: var(--bg-2);
+    padding: 16px 18px;
+    display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 10px;
+    min-height: 240px;
+  }
+  .prop.flagged { border-color: var(--warn); }
+  .prop > .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .prop > .top .pills { display: flex; gap: 6px; }
+  .prop > .top .ends { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                       text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 6px; }
+  .prop h3 { margin: 0; font-family: var(--font-mono); font-size: var(--fs-16); font-weight: 600; line-height: 1.3; }
+  .prop h3 .num { color: var(--ink-3); font-weight: 500; margin-right: 4px; }
+  .prop .meta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .prop .tally { display: flex; flex-direction: column; gap: 4px; padding: 8px 0;
+                 border-top: 1px dashed var(--line-3); border-bottom: 1px dashed var(--line-3); }
+  .prop .tally .bar { display: grid; grid-template-columns: 60px 1fr 50px; gap: 8px; align-items: center;
+                      font-family: var(--font-mono); font-size: var(--fs-11); }
+  .prop .tally .bar .l { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .prop .tally .bar .track { height: 6px; background: var(--bg-3); position: relative; }
+  .prop .tally .bar .track i { position: absolute; left: 0; top: 0; bottom: 0; }
+  .prop .tally .bar.for     .track i { background: var(--for); }
+  .prop .tally .bar.against .track i { background: var(--against); }
+  .prop .tally .bar.abstain .track i { background: var(--abstain); }
+  .prop .tally .bar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .prop .ai-snippet { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-2);
+                      line-height: 1.45; display: flex; gap: 8px; align-items: flex-start; }
+  .prop .ai-snippet .mark { background: var(--ai-mark); color: var(--ai-bg); padding: 1px 5px;
+                            font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 700;
+                            letter-spacing: 0.08em; flex: 0 0 auto; }
+  .prop .ai-snippet .mark::before { content: "△"; margin-right: 3px; }
+  .prop.flagged .ai-snippet .mark { background: var(--warn); color: var(--warn-bg); }
+  .prop.more { border-style: dashed; display: grid; place-content: center; min-height: 240px;
+               color: var(--ink-3); font-family: var(--font-mono); font-size: var(--fs-13); text-align: center; }
+
+  /* Mismatch flags table */
+  .flags-table { width: 100%; border-collapse: collapse; font-size: var(--fs-125); }
+  .flags-table thead th { text-align: left; padding: 10px 14px;
+                          font-family: var(--font-mono); font-size: var(--fs-105); font-weight: 600;
+                          text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3);
+                          border-bottom: 1px solid var(--line-2); background: var(--bg); }
+  .flags-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line-3); vertical-align: top; }
+  .flags-table tbody tr:hover td { background: var(--bg); }
+  .flags-table .sev { font-family: var(--font-mono); font-size: var(--fs-11); font-weight: 700;
+                      text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 8px; display: inline-block;
+                      border: 1px solid; }
+  .flags-table .sev.severe   { background: var(--warn); color: var(--bg-2); border-color: var(--warn); }
+  .flags-table .sev.material { background: var(--note); color: var(--bg-2); border-color: var(--note); }
+  .flags-table .ttl { font-weight: 600; color: var(--ink); }
+  .flags-table .ttl + .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 2px; }
+  .flags-table .excerpt { color: var(--ink-2); font-size: var(--fs-13); line-height: 1.45; max-width: 52ch; }
+  .flags-table .when, .flags-table .dao { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-2); }
+  :root[data-theme="dark"] .flags-table .sev.severe,
+  :root[data-theme="dark"] .flags-table .sev.material { color: var(--bg); }
+
+  /* Health trio */
+  .health-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .h-card { border: 1px solid var(--line-3); background: var(--bg-2); display: flex; flex-direction: column; }
+  .h-card > header { display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+                     border-bottom: 1px solid var(--line-3); background: var(--bg); }
+  .h-card > header .name { font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600;
+                           letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+  .h-card > header .grade { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-13);
+                            font-weight: 700; padding: 2px 8px; border: 1px solid; }
+  .h-card .grade.a { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-bg); }
+  .h-card .grade.b { color: var(--ink); border-color: var(--ink-3); background: var(--bg); }
+  .h-card .grade.c { color: var(--note-ink); border-color: var(--note); background: var(--note-bg); }
+  :root[data-theme="dark"] .h-card .grade.a { color: var(--accent); }
+  :root[data-theme="dark"] .h-card .grade.b { color: var(--ink); }
+  :root[data-theme="dark"] .h-card .grade.c { color: var(--note); }
+
+  .h-card .stats { padding: 6px 16px 12px; }
+  .h-card .stat-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline;
+                      padding: 8px 0; border-bottom: 1px dashed var(--line-3); font-size: var(--fs-13); }
+  .h-card .stat-row:last-child { border-bottom: 0; }
+  .h-card .stat-row .k { color: var(--ink-2); }
+  .h-card .stat-row .v { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .h-card .stat-row .trend { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .h-card .stat-row .trend.up   { color: var(--accent); }
+  .h-card .stat-row .trend.down { color: var(--warn); }
+  .h-card > footer { padding: 10px 16px; border-top: 1px solid var(--line-3); margin-top: auto;
+                     font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                     display: flex; justify-content: space-between; }
+  .h-card > footer a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); padding-bottom: 1px; }
+  .h-card > footer a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Activity feed */
+  .feed { font-family: var(--font-mono); font-size: var(--fs-125); border: 1px solid var(--line-3); background: var(--bg-2); }
+  .feed .ev { display: grid; grid-template-columns: 80px 100px 130px 1fr; gap: 16px; align-items: baseline;
+              padding: 8px 16px; border-bottom: 1px dashed var(--line-3); }
+  .feed .ev:last-child { border-bottom: 0; }
+  .feed .ev .t { color: var(--ink-3); }
+  .feed .ev .dao { color: var(--ink); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--fs-11); }
+  .feed .ev .k { color: var(--accent); font-size: var(--fs-115); }
+  .feed .ev .body { font-family: var(--font-sans); font-size: var(--fs-13); color: var(--ink); }
+  .feed .ev .body b { font-weight: 600; }
+  .feed .ev .body code { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2); }
+  .feed .ev.warn .k { color: var(--warn); }
+  .feed .more { padding: 12px 16px; color: var(--ink-3); font-size: var(--fs-115); border-top: 1px solid var(--line-3); }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="#" class="active">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="#">DAOs</a>
+    <a href="#">Delegates</a>
+    <a href="#">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<main class="home" data-screen-label="Hi-fi · Homepage">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div>
+      <h1>Governance intelligence<br/>for DeFi <span class="accent">DAOs</span>.</h1>
+      <p class="lede">
+        Indexed across <b>Compound</b>, <b>Aave</b>, <b>Lido</b>. Mismatch detection between proposal text and onchain calldata. Free dashboard, free API, no auth required for browsing.
+      </p>
+    </div>
+    <div class="stats tnum">
+      <div class="stat"><div class="l">Proposals</div><div class="v">2,418<span class="delta">↑12</span></div></div>
+      <div class="stat"><div class="l">Votes cast</div><div class="v">147,302</div></div>
+      <div class="stat"><div class="l">Forum threads</div><div class="v">894</div></div>
+      <div class="stat"><div class="l">Open flags</div><div class="v" style="color:var(--warn);">3</div></div>
+    </div>
+  </section>
+
+  <!-- §1 Active proposals -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">01</span>Active now · across all DAOs</h2>
+      <span class="ref"><span class="dot live"></span>polled every 30s · sorted by close time ↑</span>
+    </header>
+    <div class="row-scroll">
+
+      <article class="prop">
+        <div class="top">
+          <div class="pills"><span class="pill dao-compound">Compound</span><span class="state-pill active">active</span></div>
+          <span class="ends"><span class="dot live"></span>ends in 3h 12m</span>
+        </div>
+        <h3><span class="num">#247</span>Risk parameters update — cUSDC, cDAI</h3>
+        <div class="meta">proposer 0x9d…04 · started 2d ago · governor</div>
+        <div class="tally">
+          <div class="bar for"><span class="l">For</span><span class="track"><i style="width:78%"></i></span><span class="v">78.0%</span></div>
+          <div class="bar against"><span class="l">Against</span><span class="track"><i style="width:19%"></i></span><span class="v">19.0%</span></div>
+          <div class="bar abstain"><span class="l">Abstain</span><span class="track"><i style="width:3%"></i></span><span class="v">3.0%</span></div>
+        </div>
+        <div class="ai-snippet"><span class="mark">AI</span><span>Tightens collateral factors on stablecoin markets to reduce systemic risk after recent depeg event.</span></div>
+      </article>
+
+      <article class="prop">
+        <div class="top">
+          <div class="pills"><span class="pill dao-aave">Aave</span><span class="state-pill active">active</span></div>
+          <span class="ends"><span class="dot live"></span>ends in 1d 4h</span>
+        </div>
+        <h3><span class="num">AIP-394</span>Onboard rsETH on Ethereum &amp; Arbitrum</h3>
+        <div class="meta">cross-chain · 2 payloads · governor v3</div>
+        <div class="tally">
+          <div class="bar for"><span class="l">For</span><span class="track"><i style="width:92%"></i></span><span class="v">92.0%</span></div>
+          <div class="bar against"><span class="l">Against</span><span class="track"><i style="width:5%"></i></span><span class="v">5.0%</span></div>
+          <div class="bar abstain"><span class="l">Abstain</span><span class="track"><i style="width:3%"></i></span><span class="v">3.0%</span></div>
+        </div>
+        <div class="ai-snippet"><span class="mark">AI</span><span>Adds rsETH as collateral with 70% LTV; enables borrowing against LST exposure.</span></div>
+      </article>
+
+      <article class="prop flagged">
+        <div class="top">
+          <div class="pills"><span class="pill dao-compound">Compound</span><span class="state-pill active">active</span></div>
+          <span class="ends" style="color:var(--warn);">⚠ mismatch · ends 2d 8h</span>
+        </div>
+        <h3><span class="num">#248</span>Update interest-rate curve, cETH market</h3>
+        <div class="meta">proposer 0x12…aa · binding · timelock 2d</div>
+        <div class="tally">
+          <div class="bar for"><span class="l">For</span><span class="track"><i style="width:41%"></i></span><span class="v">41.0%</span></div>
+          <div class="bar against"><span class="l">Against</span><span class="track"><i style="width:52%"></i></span><span class="v">52.0%</span></div>
+          <div class="bar abstain"><span class="l">Abstain</span><span class="track"><i style="width:7%"></i></span><span class="v">7.0%</span></div>
+        </div>
+        <div class="ai-snippet"><span class="mark">FLAG</span><span>Description says "modest tweak"; calldata also re-points an oracle. See mismatch analysis.</span></div>
+      </article>
+
+      <article class="prop">
+        <div class="top">
+          <div class="pills"><span class="pill" style="border-color:#00a3ff;color:#0078c2;">Lido</span><span class="state-pill active">active</span></div>
+          <span class="ends"><span class="dot live"></span>ends in 2d 11h</span>
+        </div>
+        <h3>[Signaling] Increase Curve liquidity incentives Q3</h3>
+        <div class="meta">non-binding · ranked-choice 4 opts · snapshot</div>
+        <div class="tally">
+          <div class="bar for"><span class="l">Opt A</span><span class="track"><i style="width:62%"></i></span><span class="v">62.0%</span></div>
+          <div class="bar against"><span class="l">Opt B</span><span class="track"><i style="width:26%"></i></span><span class="v">26.0%</span></div>
+          <div class="bar abstain"><span class="l">Opt C+D</span><span class="track"><i style="width:12%"></i></span><span class="v">12.0%</span></div>
+        </div>
+        <div class="ai-snippet"><span class="mark">AI</span><span>Direct +5M LDO toward Curve gauges to defend stETH liquidity vs competing LSTs.</span></div>
+      </article>
+
+      <article class="prop more">
+        <div>+ 6 more active<br/><span style="color:var(--ink-4);">scroll horizontally →</span><br/><br/><a href="proposals.html" style="color:var(--accent); border-bottom: 1px solid var(--accent);">All proposals →</a></div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- §2 Mismatch flags -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">02</span>Recent discrepancies · flagship feature</h2>
+      <span class="ref">last 30 days · severity ≥ material</span>
+    </header>
+    <div class="card">
+      <table class="flags-table tnum">
+        <thead><tr>
+          <th style="width: 100px;">Severity</th>
+          <th>Proposal</th>
+          <th style="width: 110px;">DAO</th>
+          <th style="width: 110px;">Detected</th>
+          <th>What we found</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sev severe">severe</span></td>
+            <td><div class="ttl">#244 Comptroller upgrade</div><div class="sub">/proposals/compound/244</div></td>
+            <td class="dao">Compound</td>
+            <td class="when">Apr 18, 2026</td>
+            <td class="excerpt">Calldata re-points an oracle to a new address (0x4f…b2c) not mentioned in the proposal text.</td>
+          </tr>
+          <tr>
+            <td><span class="sev material">material</span></td>
+            <td><div class="ttl">AIP-381 Risk steward update</div><div class="sub">/proposals/aave/aip-381</div></td>
+            <td class="dao">Aave</td>
+            <td class="when">Apr 11, 2026</td>
+            <td class="excerpt">Grants role to additional address beyond the one named in the description.</td>
+          </tr>
+          <tr>
+            <td><span class="sev material">material</span></td>
+            <td><div class="ttl">#239 Reserve adjustment</div><div class="sub">/proposals/compound/239</div></td>
+            <td class="dao">Compound</td>
+            <td class="when">Mar 02, 2026</td>
+            <td class="excerpt">Numerical mismatch: calldata sets 0.20; description says "approximately 15%".</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- §3 DAO health snapshot -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">03</span>DAO health · at a glance</h2>
+      <span class="ref">click any card → full health dashboard</span>
+    </header>
+    <div class="health-trio">
+      <article class="h-card">
+        <header><span class="pill dao-compound">Compound</span><span class="name">Compound</span><span class="grade a">A−</span></header>
+        <div class="stats">
+          <div class="stat-row"><span class="k">Pass rate (90d)</span><span class="v">71%</span><span class="trend up">↑ 4pp</span></div>
+          <div class="stat-row"><span class="k">Top-10 VP share</span><span class="v">42.7%</span><span class="trend up">↑ concentration</span></div>
+          <div class="stat-row"><span class="k">Participation avg.</span><span class="v">38.4%</span><span class="trend down">↓ 2pp</span></div>
+          <div class="stat-row"><span class="k">Open mismatch flags</span><span class="v" style="color:var(--warn);">2</span><span class="trend"></span></div>
+        </div>
+        <footer><span>/daos/compound</span><a href="health.html">Full health →</a></footer>
+      </article>
+      <article class="h-card">
+        <header><span class="pill dao-aave">Aave</span><span class="name">Aave</span><span class="grade a">A</span></header>
+        <div class="stats">
+          <div class="stat-row"><span class="k">Pass rate (90d)</span><span class="v">84%</span><span class="trend up">↑ 1pp</span></div>
+          <div class="stat-row"><span class="k">Top-10 VP share</span><span class="v">51.2%</span><span class="trend">→ flat</span></div>
+          <div class="stat-row"><span class="k">Participation avg.</span><span class="v">44.1%</span><span class="trend">→ flat</span></div>
+          <div class="stat-row"><span class="k">Open mismatch flags</span><span class="v" style="color:var(--note);">1</span><span class="trend"></span></div>
+        </div>
+        <footer><span>/daos/aave</span><a href="#">Full health →</a></footer>
+      </article>
+      <article class="h-card">
+        <header><span class="pill" style="border-color:#00a3ff;color:#0078c2;">Lido</span><span class="name">Lido <span style="color:var(--ink-3); font-weight:400;">3 tracks</span></span><span class="grade b">B+</span></header>
+        <div class="stats">
+          <div class="stat-row"><span class="k">Aragon pass rate</span><span class="v">78%</span><span class="trend">→ flat</span></div>
+          <div class="stat-row"><span class="k">Snapshot turnout</span><span class="v">62.4%</span><span class="trend up">↑ 5pp</span></div>
+          <div class="stat-row"><span class="k">Dual-gov state</span><span class="v" style="color:var(--accent);">normal</span><span class="trend"></span></div>
+          <div class="stat-row"><span class="k">Open mismatch flags</span><span class="v">0</span><span class="trend"></span></div>
+        </div>
+        <footer><span>/daos/lido</span><a href="#">Full health →</a></footer>
+      </article>
+    </div>
+  </section>
+
+  <!-- §4 Activity feed -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">04</span>Recent activity · all DAOs</h2>
+      <span class="ref"><span class="dot live"></span>polled every 30s · last 30 events</span>
+    </header>
+    <div class="feed">
+      <div class="ev">
+        <span class="t">2m ago</span><span class="dao">Compound</span><span class="k">vote.cast</span>
+        <span class="body"><code>0x9d…04</code> voted <b style="color:var(--for);">For</b> on #247 with <code>42.1k COMP</code></span>
+      </div>
+      <div class="ev">
+        <span class="t">5m ago</span><span class="dao">Aave</span><span class="k">vote.cast</span>
+        <span class="body"><code>0xab…f1</code> voted <b style="color:var(--for);">For</b> on AIP-394 with <code>88.2k AAVE</code></span>
+      </div>
+      <div class="ev">
+        <span class="t">11m ago</span><span class="dao">Lido</span><span class="k">proposal.created</span>
+        <span class="body">"Increase Curve liquidity incentives Q3" · snapshot signaling vote</span>
+      </div>
+      <div class="ev warn">
+        <span class="t">23m ago</span><span class="dao">Compound</span><span class="k">delegation</span>
+        <span class="body"><code>240k COMP</code> delegated to <code>0xab…f1</code> · <span style="color:var(--warn);">+2σ event flagged</span></span>
+      </div>
+      <div class="ev">
+        <span class="t">38m ago</span><span class="dao">Aave</span><span class="k">proposal.executed</span>
+        <span class="body">AIP-388 Risk parameters · 3 chains · timelock cleared</span>
+      </div>
+      <div class="ev">
+        <span class="t">1h ago</span><span class="dao">Compound</span><span class="k">proposal.queued</span>
+        <span class="body">#246 cWBTC migration · timelock 2d</span>
+      </div>
+      <div class="ev">
+        <span class="t">2h ago</span><span class="dao">Lido</span><span class="k">vote.threshold</span>
+        <span class="body">Aragon vote #2034 crossed 50% quorum</span>
+      </div>
+      <div class="ev">
+        <span class="t">3h ago</span><span class="dao">Compound</span><span class="k">vote.cast</span>
+        <span class="body"><code>0x12…aa</code> voted <b style="color:var(--against);">Against</b> on #248 · rationale provided</span>
+      </div>
+      <div class="more">22 older events · <a href="#" style="color:var(--accent);">load more →</a></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>active &amp; feed sections live · last updated 8s ago</div>
+  <div class="item">stats &amp; flags &amp; health: static on load (§6.16)</div>
+  <div class="item">build a4f9c2 · kvorum.xyz</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

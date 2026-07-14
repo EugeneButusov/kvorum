@@ -6,7 +6,12 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "^2.3.0"
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@libs/db": "workspace:*",
+    "kysely": "^0.29.0",
+    "openai": "^6.45.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.0.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",

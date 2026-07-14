@@ -10,19 +10,21 @@ class RollbackSignal extends Error {}
 
 async function seedUserAndApiKey(
   trx: typeof pgDb,
-  opts?: { revoked?: boolean; lastUsedAt?: Date | null; keyHash?: Buffer },
+  opts?: { revoked?: boolean; lastUsedAt?: Date | null; keyHash?: Buffer; walletOnly?: boolean },
 ) {
   const rand = Math.random().toString(36).slice(2, 10);
-  const [user] = await trx
-    .insertInto('users')
-    .values({
-      email: `api-key-spec-${rand}@example.com`,
-      display_name: `API Key Spec ${rand}`,
-      role: 'user',
-      updated_at: new Date(),
-    })
-    .returning(['id'])
-    .execute();
+  // A wallet-only (SIWE) account carries no email/display_name; wallet_address is the identity
+  // anchor. Lowercased to satisfy the users_wallet_address_lowercase CHECK.
+  const walletAddress = opts?.walletOnly ? `0x${rand.repeat(6).slice(0, 40)}` : null;
+  const userValues = opts?.walletOnly
+    ? { wallet_address: walletAddress, role: 'user' as const, updated_at: new Date() }
+    : {
+        email: `api-key-spec-${rand}@example.com`,
+        display_name: `API Key Spec ${rand}`,
+        role: 'user' as const,
+        updated_at: new Date(),
+      };
+  const [user] = await trx.insertInto('users').values(userValues).returning(['id']).execute();
 
   const [apiKey] = await trx
     .insertInto('api_key')
@@ -39,7 +41,7 @@ async function seedUserAndApiKey(
     .returning(['id', 'key_hash'])
     .execute();
 
-  return { userId: user!.id, apiKeyId: apiKey!.id, keyHash: apiKey!.key_hash };
+  return { userId: user!.id, apiKeyId: apiKey!.id, keyHash: apiKey!.key_hash, walletAddress };
 }
 
 afterAll(async () => {
@@ -59,6 +61,28 @@ describeWithDb('ApiKeyRepository (integration)', () => {
         expect(row?.apiKey.id).toBe(seeded.apiKeyId);
         expect(row?.apiKey.user_id).toBe(seeded.userId);
         expect(row?.user.email).toContain('@example.com');
+        expect(row?.apiKey).not.toHaveProperty('key_hash');
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('findActiveByHash round-trips a wallet-only user (null email/display_name)', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, {
+          keyHash: Buffer.alloc(32, 12),
+          walletOnly: true,
+        });
+        const repo = new ApiKeyRepository(trx as never);
+
+        const row = await repo.findActiveByHash(seeded.keyHash);
+
+        expect(row).toBeDefined();
+        expect(row?.user.email).toBeNull();
+        expect(row?.user.display_name).toBeNull();
+        expect(row?.user.wallet_address).toBe(seeded.walletAddress);
         expect(row?.apiKey).not.toHaveProperty('key_hash');
 
         throw new RollbackSignal();
@@ -241,6 +265,43 @@ describeWithDb('ApiKeyRepository (integration)', () => {
 
         // revoked key must not be findable
         await expect(repo.findActiveByHash(seeded.keyHash)).resolves.toBeUndefined();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('expireAt keeps a key active during grace and inactive once it lapses', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 20) });
+        const repo = new ApiKeyRepository(trx as never);
+
+        // In-grace: expires in the future → still authenticates.
+        await repo.expireAt(seeded.apiKeyId, new Date(Date.now() + 3_600_000));
+        expect((await repo.findActiveByHash(seeded.keyHash))?.apiKey.id).toBe(seeded.apiKeyId);
+
+        // Lapsed: expires in the past → no longer authenticates.
+        await repo.expireAt(seeded.apiKeyId, new Date(Date.now() - 1_000));
+        await expect(repo.findActiveByHash(seeded.keyHash)).resolves.toBeUndefined();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('findByIdForUser scopes to the owning user', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const seeded = await seedUserAndApiKey(trx, { keyHash: Buffer.alloc(32, 21) });
+        const repo = new ApiKeyRepository(trx as never);
+
+        expect((await repo.findByIdForUser(seeded.apiKeyId, seeded.userId))?.id).toBe(
+          seeded.apiKeyId,
+        );
+        await expect(
+          repo.findByIdForUser(seeded.apiKeyId, '00000000-0000-0000-0000-000000000000'),
+        ).resolves.toBeUndefined();
 
         throw new RollbackSignal();
       }),

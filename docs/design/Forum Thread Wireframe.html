@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Forum thread (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .thread-head {
+    padding: 22px 24px;
+    border-bottom: 1.5px solid var(--line);
+  }
+  .thread-head h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.01em; }
+  .thread-head .meta {
+    color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .thread-head .links { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; padding: 22px 24px 32px; }
+  .grid2 .col { display: grid; gap: 22px; align-content: start; }
+
+  .post {
+    border: 1.5px solid var(--line); background: var(--paper);
+  }
+  .post .h {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+    background: var(--paper-2);
+  }
+  .post .h .ava {
+    width: 28px; height: 28px; border: 1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700;
+    background: var(--paper);
+  }
+  .post .h .who { font-weight: 600; font-size: 12.5px; }
+  .post .h .who small { color: var(--ink-3); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; margin-left: 6px; }
+  .post .h .when { margin-left: auto; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
+  .post .body { padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--ink); }
+  .post .body p { margin: 0 0 8px; }
+  .post .body p:last-child { margin-bottom: 0; }
+  .post .foot {
+    padding: 6px 14px; border-top: 1px solid var(--line-soft);
+    display: flex; gap: 14px; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  .post.op { border-width: 2px; }
+  .post.op .h { background: var(--ink); color: var(--paper); border-bottom-color: var(--ink); }
+  .post.op .h .ava { background: var(--paper); }
+  .post.op .h .who small { color: var(--ink-4); }
+  .post.op .h .when { color: var(--ink-4); }
+
+  .post.flag {
+    background:
+      repeating-linear-gradient(135deg, transparent 0 14px, rgba(196,58,31,0.05) 14px 15px),
+      var(--paper);
+    border-color: var(--note);
+  }
+
+  .quote {
+    border-left: 3px solid var(--ink-4);
+    padding: 4px 10px;
+    color: var(--ink-2);
+    font-size: 12px;
+    margin: 0 0 8px;
+    background: var(--paper-2);
+  }
+
+  .stat-tile {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border: 1.5px solid var(--line); background: var(--paper);
+  }
+  .stat-tile div { padding: 10px 12px; border-right: 1.5px solid var(--line); }
+  .stat-tile div:last-child { border-right: 0; }
+  .stat-tile .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .stat-tile .v { font-size: 16px; font-weight: 600; margin-top: 2px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .heat-bar {
+    display: flex; align-items: stretch; gap: 1px;
+    height: 30px; padding: 0; background: var(--ink-4);
+    border: 1px solid var(--line);
+  }
+  .heat-bar i {
+    flex: 1; background: var(--paper);
+  }
+
+  .sentiment-row {
+    display: grid; grid-template-columns: 1fr 90px 60px;
+    gap: 12px; align-items: center; padding: 8px 12px;
+    border-bottom: 1px solid var(--line-soft); font-size: 12px;
+  }
+  .sentiment-row:last-child { border-bottom: 0; }
+  .sentiment-row .bar { height: 10px; border: 1px solid var(--line); position: relative; background: var(--paper); }
+  .sentiment-row .bar > i.pos { position: absolute; right: 50%; top: 0; bottom: 0; background: var(--ink); }
+  .sentiment-row .bar > i.neg { position: absolute; left: 50%; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, var(--note) 0 4px, var(--paper-2) 4px 5px); }
+  .sentiment-row .pct { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
+</style>
+</head>
+<body data-wf="forum">
+
+<div class="page" data-screen-label="08 Forum thread — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Forum thread</span>
+    <span class="mono">/forum/{thread-id} · spec §6.11 · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div class="crumb">Kvorum / Compound / Forum / <b>[Discussion] Set IRM v3 for cUSDC market</b></div>
+
+  <div class="thread-head">
+    <h1>[Discussion] Set IRM v3 for cUSDC market</h1>
+    <div class="meta">
+      <span>Compound forum</span>
+      <span>posted by <b>@gauntlet</b></span>
+      <span>opened 2026-04-28</span>
+      <span>34 posts · 14 unique authors</span>
+      <span>linked: prop #248</span>
+      <span>last activity 12m ago</span>
+    </div>
+    <div class="links">
+      <a class="tag">↗ Original on forum.compound.finance</a>
+      <a class="tag">→ Linked proposal #248</a>
+      <a class="tag">→ Linked snapshot vote</a>
+    </div>
+  </div>
+
+  <div class="grid2">
+
+    <div class="col">
+
+      <!-- AI synthesis (top) -->
+      <div class="ai-panel anno" data-anno="§6.11 / §6.18 synthesis">
+        <div class="head">
+          <span class="ai-mark">Thread synthesis</span>
+          <span class="mono" style="color: var(--ink-3);">Refreshed 4m ago · 34/34 posts ingested</span>
+        </div>
+        <div class="body" style="display: grid; gap: 12px;">
+          <div>
+            <b>Position summary.</b> Strong support for the IRM v3 rate curve overall (8 of 10 named delegates).
+            Two open concerns: (1) cliff at 80% utilization may produce flash-spikes during liquidations
+            (raised by @paperimperium, @tennis); (2) lack of timelock on the kink parameter (raised by
+            @robert-eth). Proposer responded to (1) with a sim graph; (2) is unresolved.
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div style="border: 1px solid var(--line-soft); padding: 8px;">
+              <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);">For</div>
+              <div style="font-size: 13px; margin-top: 2px;">a16z, Gauntlet, ParaFi, Tennis (with caveat), Lemma, Doe.eth</div>
+            </div>
+            <div style="border: 1px solid var(--line-soft); padding: 8px;">
+              <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);">Against</div>
+              <div style="font-size: 13px; margin-top: 2px;">PaperImperium, mhonkasalo</div>
+            </div>
+            <div style="border: 1px solid var(--line-soft); padding: 8px;">
+              <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);">Undecided</div>
+              <div style="font-size: 13px; margin-top: 2px;">Robert.eth (pending timelock answer)</div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span>haiku-4-5 · 4.2k tokens · v3</span>
+          <span>recomputed when new posts arrive (debounce 2m)</span>
+        </div>
+      </div>
+
+      <!-- OP -->
+      <div class="post op">
+        <div class="h">
+          <div class="ava">G</div>
+          <div class="who">@gauntlet <small>OP · forum staff</small></div>
+          <span class="when">2026-04-28 09:14</span>
+        </div>
+        <div class="body">
+          <p>Following up on last month's risk thread, here is the proposal to migrate cUSDC to IRM v3. Curve parameters attached. Snapshot of expected APY range under historical utilization in the linked spreadsheet.</p>
+          <p>Three changes from v2: <b>kink at 80%</b> (was 90%), <b>base 0%</b> (was 0.5%), <b>multiplier 4.5%</b> (was 4%). Rationale: shifts more rate response into the middle band, reduces idle yield on protocol-owned reserves.</p>
+          <p>Voting opens Wed. Calldata will be posted in this thread before submission.</p>
+        </div>
+        <div class="foot">
+          <span>↑ 38</span><span>14 replies</span><span>quoted by 6</span>
+        </div>
+      </div>
+
+      <!-- normal post -->
+      <div class="post">
+        <div class="h">
+          <div class="ava">a16</div>
+          <div class="who">@a16zcrypto <small>delegate · 12.4M COMP</small></div>
+          <span class="when">2026-04-28 11:02</span>
+        </div>
+        <div class="body">
+          <p>Supportive. Curve aligns with the framework we published in March. One question: are reserves on the legacy v2 cUSDC market migrating in the same upgrade or in a follow-up?</p>
+        </div>
+        <div class="foot"><span>↑ 12</span><span>3 replies</span></div>
+      </div>
+
+      <!-- flag post -->
+      <div class="post flag">
+        <div class="h">
+          <div class="ava">P</div>
+          <div class="who">@paperimperium <small>delegate · 240k COMP</small></div>
+          <span class="when">2026-04-29 03:48</span>
+        </div>
+        <div class="body">
+          <div class="quote">"shifts more rate response into the middle band, reduces idle yield on protocol-owned reserves"</div>
+          <p>Pushing back. Modeling shows the 80% kink interacts badly with concentrated liquidator activity in volatile windows. Sample run from 2024 stress test attached. Worry is a 30-second window where utilization punches through 95% during liquidations and produces a 200%+ APY tick.</p>
+          <p>Would prefer 85% kink as compromise, or a circuit-breaker at 95%.</p>
+        </div>
+        <div class="foot"><span>↑ 24</span><span>9 replies</span><span style="color: var(--note);">⚠ flagged in synthesis</span></div>
+      </div>
+
+      <!-- proposer reply -->
+      <div class="post">
+        <div class="h">
+          <div class="ava">G</div>
+          <div class="who">@gauntlet <small>OP</small></div>
+          <span class="when">2026-04-29 14:30</span>
+        </div>
+        <div class="body">
+          <div class="quote">@paperimperium — sim graph requested</div>
+          <p>Re-ran your scenario with the v3 parameters. Sustained punch-through events drop ~62% vs v2 because the slope between kink and 100% is gentler. Posted the notebook to the forum attachments. Open to a circuit-breaker as a follow-up but I think we're solving for the right thing.</p>
+        </div>
+        <div class="foot"><span>↑ 18</span><span>4 replies</span></div>
+      </div>
+
+      <div style="text-align: center; padding: 14px; color: var(--ink-3); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">
+        + 30 more posts (collapsed) · expand all
+      </div>
+
+    </div>
+
+    <div class="col">
+
+      <!-- Stats -->
+      <div class="stat-tile anno" data-anno="§6.11 stats">
+        <div><div class="l">Posts</div><div class="v">34</div></div>
+        <div><div class="l">Authors</div><div class="v">14</div></div>
+        <div><div class="l">Activity</div><div class="v">7d</div></div>
+        <div><div class="l">Sentiment</div><div class="v">+0.32</div></div>
+      </div>
+
+      <!-- Activity heatmap -->
+      <div class="section">
+        <header><h2>Activity timeline</h2><span class="ref">posts per 4h bucket</span></header>
+        <div class="body">
+          <div class="heat-bar">
+            <i style="background: var(--ink);"></i>
+            <i style="background: var(--ink-2);"></i>
+            <i></i>
+            <i style="background: var(--ink-3);"></i>
+            <i style="background: var(--ink);"></i>
+            <i style="background: var(--ink);"></i>
+            <i style="background: var(--ink-2);"></i>
+            <i></i>
+            <i></i>
+            <i style="background: var(--ink-4);"></i>
+            <i style="background: var(--ink-3);"></i>
+            <i style="background: var(--ink);"></i>
+            <i style="background: var(--ink);"></i>
+            <i style="background: var(--ink-2);"></i>
+            <i></i>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 4px; color: var(--ink-3); font-size: 10.5px; font-family: 'JetBrains Mono', monospace;">
+            <span>Apr 28</span><span>Apr 30</span><span>May 02</span><span>now</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top voices -->
+      <div class="section">
+        <header><h2>Top voices</h2><span class="ref">by replies + likes</span></header>
+        <div class="body" style="padding: 0;">
+          <div class="sentiment-row"><span><b>@gauntlet</b> · 8 posts</span><span class="bar"><i class="pos" style="width: 38%;"></i></span><span class="pct">+0.6</span></div>
+          <div class="sentiment-row"><span><b>@paperimperium</b> · 5 posts</span><span class="bar"><i class="neg" style="width: 32%;"></i></span><span class="pct">−0.4</span></div>
+          <div class="sentiment-row"><span><b>@a16zcrypto</b> · 4 posts</span><span class="bar"><i class="pos" style="width: 28%;"></i></span><span class="pct">+0.5</span></div>
+          <div class="sentiment-row"><span><b>@robert-eth</b> · 3 posts</span><span class="bar"><i class="neg" style="width: 16%;"></i></span><span class="pct">−0.1</span></div>
+        </div>
+      </div>
+
+      <!-- Linked artifacts -->
+      <div class="section">
+        <header><h2>Linked</h2><span class="ref">cross-references</span></header>
+        <div class="body" style="display: grid; gap: 6px; font-size: 12.5px;">
+          <a class="tag" style="display: block;">→ Proposal #248 (on-chain)</a>
+          <a class="tag" style="display: block;">→ Snapshot vote (off-chain temp check)</a>
+          <a class="tag" style="display: block;">→ Risk thread · Mar 2026</a>
+          <a class="tag" style="display: block;">↗ Original at forum.compound.finance</a>
+        </div>
+      </div>
+
+      <!-- Open questions -->
+      <div class="ai-panel">
+        <div class="head"><span class="ai-mark">Unresolved questions</span><span class="mono" style="color: var(--ink-3);">3 open</span></div>
+        <div class="body" style="font-size: 12px;">
+          <div style="padding: 4px 0; border-bottom: 1px dashed var(--line-soft);"><b>Q1:</b> Is reserve migration in this upgrade or follow-up? <span class="mono" style="color: var(--ink-3);">— a16z</span></div>
+          <div style="padding: 4px 0; border-bottom: 1px dashed var(--line-soft);"><b>Q2:</b> Timelock on kink param? <span class="mono" style="color: var(--ink-3);">— robert.eth</span></div>
+          <div style="padding: 4px 0;"><b>Q3:</b> Circuit-breaker at 95%? <span class="mono" style="color: var(--ink-3);">— paperimperium</span></div>
+        </div>
+        <div class="foot"><span>extracted from posts via AI</span><span>3/3 open</span></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot live"></span>Live · last post 12m ago</span>
+    <span>synthesis recomputed when posts arrive (debounce 2m)</span>
+    <span>kvorum.xyz/forum/compound-irm-v3-cusdc</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>Forum thread</b> · single discussion (§6.11). Top: AI thread-synthesis with explicit For/Against/Undecided rosters. Posts: OP highlighted, dissents flagged, AI extracts open questions to the right column. The original-link tag is mandatory — Kvorum never replaces the source of truth.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

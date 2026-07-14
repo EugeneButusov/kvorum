@@ -3440,9 +3440,9 @@ The overlap between M5 and M5.5 is intentional: design work is creative and conc
 
 **Acceptance criteria:**
 
-- All page designs exported as Figma URLs and committed to `docs/design/figma-links.md`
-- Design system implemented as a referenceable library within Figma
-- shadcn/ui component mapping documented: which page elements map to which shadcn components, where customization is needed
+- All page designs committed as self-contained hi-fi HTML mocks under `docs/design/hifi/` (amended by ADR-077 — the design was delivered as code-fidelity HTML rather than Figma; the mocks are the layout + interaction source of truth for M6)
+- Design system implemented as a referenceable library: `docs/design/design-system/` (tokens, class-based primitives, and a rendered `components.html` reference)
+- shadcn/ui component mapping documented in **ADR-077**: the token → Tailwind theme mapping plus each design primitive → shadcn component (or bespoke) inventory, including where customization is needed
 - A non-designer (i.e., you) can look at any page design and confidently know what to build
 
 **Risks:**

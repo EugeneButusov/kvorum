@@ -1,0 +1,52 @@
+name: Lighthouse
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse (dashboard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dashboard
+        run: pnpm --filter dashboard build
+
+      # Blocking gate (§7.2 / §10.9 budgets): asserts Perf ≥ 0.8 / A11y ≥ 0.95 / BP ≥ 0.9 /
+      # SEO ≥ 0.95 on the homepage + proposal-detail. Proposal detail renders its graceful
+      # "temporarily unavailable" shell here (no backend in this job), so the gate measures the
+      # SSR framework quality — meta, semantics, and shell performance — not live data.
+      - name: Run Lighthouse CI
+        run: pnpm exec lhci autorun
+        working-directory: apps/dashboard

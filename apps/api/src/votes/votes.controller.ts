@@ -30,6 +30,7 @@ import {
   canonicalQuery,
   decodeCursor,
   parseLimit,
+  sortAndSeek,
 } from '../pagination/cursor';
 import { parseQuery } from '../query/query-parser';
 
@@ -128,16 +129,20 @@ export class VotesController {
       primaryChoices,
     });
     const sort = parsed.sort[0] ?? VOTE_QUERY.defaultSort[0];
-    const page = buildPagination(rows, limit, (row) => ({
-      type: sort?.field === 'voting_power_reported' ? 'numeric' : 'time',
+    const sortKeyOf = (row: (typeof rows)[number]) => ({
+      type: (sort?.field === 'voting_power_reported' ? 'numeric' : 'time') as 'numeric' | 'time',
       value:
         sort?.field === 'voting_power_reported'
           ? row.voting_power_reported
           : new Date(row.cast_at).toISOString(),
       tiebreak: row.id,
-      dir: sort?.dir ?? 'desc',
+      dir: (sort?.dir ?? 'desc') as 'asc' | 'desc',
       q: canonical,
-    }));
+    });
+    // Apply the incoming cursor (sort + seek past its position) before paginating; without this the
+    // cursor is ignored and every page returns the first `limit` rows (infinite loop).
+    const seeked = sortAndSeek(rows, cursor, sortKeyOf);
+    const page = buildPagination(seeked, limit, sortKeyOf);
 
     return {
       data: page.data.map(toVoteListItemDto),

@@ -62,11 +62,12 @@ export { ProposalReadRepository } from './proposal-read-repository';
 export { VoteReadRepository } from './vote-read-repository';
 export { DelegationReadRepository } from './delegation-read-repository';
 export { chTimestampToDate } from './ch-timestamp';
+export { isoSeconds, isoSecondsRequired } from './iso-seconds';
 export {
   DelegationFlowProjectionWriter,
   ZERO_DELEGATE_ADDRESS,
 } from './delegation-flow-projection-writer';
-export type { VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
+export type { ProposalTallyRow, VoteChoiceReadRow, VoteReadRow } from './vote-read-repository';
 export type { DelegationReadRow } from './delegation-read-repository';
 export { VoteEventsProjectionReadRepository } from './vote-events-projection-read-repository';
 export type { CurrentVoteRow, ProposalVoterRow } from './vote-events-projection-read-repository';

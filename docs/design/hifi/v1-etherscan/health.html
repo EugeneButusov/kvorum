@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Compound · health</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.7 — DAO health. In Next.js: app/daos/[slug]/health/page.module.css */
+  main.health {
+    max-width: var(--max-page);
+    margin: 0 auto;
+    padding: var(--space-7) var(--gutter) var(--space-16);
+    display: flex; flex-direction: column; gap: 36px;
+  }
+
+  /* DAO header */
+  .dao-head {
+    display: grid; grid-template-columns: 1fr auto; gap: var(--space-8);
+    border-bottom: 1px solid var(--line); padding-bottom: var(--space-6);
+  }
+  .dao-head .id { font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink-3);
+                  text-transform: uppercase; letter-spacing: 0.06em; display: flex; gap: 10px; align-items: center; }
+  .dao-head h1 { margin: 12px 0 6px; font-family: var(--font-mono); font-size: 36px; font-weight: 600;
+                 letter-spacing: var(--tracking-tight); display: flex; align-items: baseline; gap: 14px; }
+  .dao-head h1 .grade { font-size: var(--fs-20); padding: 4px 12px; border: 1.5px solid var(--accent);
+                        background: var(--accent-bg); color: var(--accent-ink); font-weight: 700; }
+  :root[data-theme="dark"] .dao-head h1 .grade { color: var(--accent); }
+  .dao-head .lede { color: var(--ink-2); font-size: var(--fs-14); max-width: 64ch; line-height: var(--lh-prose); }
+  .dao-head .meta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+                    margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .dao-head .meta a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+  .dao-head .meta a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .dao-head .kpi { display: grid; grid-template-columns: repeat(2, auto); gap: 0; border: 1px solid var(--line); }
+  .dao-head .kpi .cell { padding: 12px 18px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 140px; }
+  .dao-head .kpi .cell:nth-child(2n) { border-right: 0; }
+  .dao-head .kpi .cell:nth-last-child(-n+2) { border-bottom: 0; }
+  .dao-head .kpi .l { font-family: var(--font-mono); font-size: var(--fs-105); text-transform: uppercase;
+                      letter-spacing: var(--tracking-mono-loose); color: var(--ink-3); }
+  .dao-head .kpi .v { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 600;
+                      margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .dao-head .kpi .delta { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-left: 6px; }
+  .dao-head .kpi .delta.up   { color: var(--accent); }
+  .dao-head .kpi .delta.down { color: var(--warn); }
+
+  /* Section grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+  /* Sparkline charts (CSS-only "barcode" sparklines as placeholder) */
+  .spark { height: 80px; border: 1px solid var(--line-3); background:
+    repeating-linear-gradient(90deg, transparent 0 22px,
+      color-mix(in oklab, var(--accent), transparent 70%) 22px 24px);
+    position: relative; padding: 10px 14px; }
+  .spark::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 14px; height: 1px;
+                   background: var(--line-2); }
+  .spark .label { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3);
+                  text-transform: uppercase; letter-spacing: 0.06em; }
+  .spark .now { position: absolute; right: 14px; top: 10px; font-family: var(--font-mono);
+                font-size: var(--fs-13); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* Concentration bar (Lorenz-style placeholder) */
+  .lorenz { height: 140px; border: 1px solid var(--line-3); background: var(--bg);
+            display: grid; grid-template-columns: repeat(20, 1fr); align-items: end; padding: 10px;
+            gap: 2px; }
+  .lorenz i { background: var(--ink); }
+  .lorenz i.warn { background: var(--warn); }
+
+  /* Treasury */
+  .treasury-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; height: 28px; border: 1px solid var(--line); }
+  .treasury-bar > div { padding: 6px 10px; font-family: var(--font-mono); font-size: var(--fs-11);
+                        color: var(--bg-2); display: flex; align-items: center; gap: 6px; border-right: 1px solid var(--bg-2); }
+  .treasury-bar > div:last-child { border-right: 0; }
+  .treasury-bar .stable { background: var(--accent); }
+  .treasury-bar .native { background: var(--ink); }
+  .treasury-bar .other  { background: var(--note); color: var(--note-ink); }
+  .treasury-bar .lp     { background: var(--ink-3); }
+  :root[data-theme="dark"] .treasury-bar .stable,
+  :root[data-theme="dark"] .treasury-bar .native,
+  :root[data-theme="dark"] .treasury-bar .other,
+  :root[data-theme="dark"] .treasury-bar .lp { color: var(--bg); }
+
+  /* Recent proposals strip */
+  .strip { display: flex; flex-direction: column; }
+  .strip .row { display: grid; grid-template-columns: 70px 1fr 110px 100px 130px; gap: 16px;
+                padding: 10px 14px; border-bottom: 1px dashed var(--line-3); align-items: center; font-size: var(--fs-13); }
+  .strip .row:last-child { border-bottom: 0; }
+  .strip .row .id { font-family: var(--font-mono); color: var(--ink-3); }
+  .strip .row .ttl { color: var(--ink); font-weight: 500; }
+  .strip .row .when { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); text-align: right; }
+
+  /* Concentration table */
+  .conc-table { width: 100%; border-collapse: collapse; font-size: var(--fs-125); }
+  .conc-table thead th { text-align: left; padding: 8px 14px; font-family: var(--font-mono);
+                         font-size: var(--fs-105); font-weight: 600; color: var(--ink-3);
+                         text-transform: uppercase; letter-spacing: 0.06em;
+                         border-bottom: 1px solid var(--line-2); background: var(--bg); }
+  .conc-table tbody td { padding: 8px 14px; border-bottom: 1px dashed var(--line-3); }
+  .conc-table .rank { font-family: var(--font-mono); color: var(--ink-3); width: 30px; }
+  .conc-table .who  { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink); }
+  .conc-table .who small { display: block; color: var(--ink-3); font-size: var(--fs-11); margin-top: 2px; }
+  .conc-table .v    { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right;
+                      color: var(--ink); }
+  .conc-table .pct  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right;
+                      color: var(--ink-2); width: 60px; }
+  .conc-table .track { width: 120px; height: 6px; background: var(--bg-3); position: relative; }
+  .conc-table .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+  .conc-table .track i.warn { background: var(--warn); }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="#" class="active">DAOs</a>
+    <a href="#">Delegates</a>
+    <a href="#">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="#">DAOs</a><span class="sep">/</span>
+  <a href="#">Compound</a><span class="sep">/</span>
+  <span class="id">Health</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/daos/compound/health · last refresh 32s ago</span>
+</div>
+
+<main class="health" data-screen-label="Hi-fi · DAO health">
+
+  <!-- Header -->
+  <section class="dao-head">
+    <div>
+      <div class="id"><span class="pill dao-compound">Compound</span><span>0xc0da…7c2 · governor bravo</span></div>
+      <h1>Compound <span class="grade">A−</span></h1>
+      <p class="lede">
+        Health rolling 90-day. Compound's pass rate is ahead of peers; participation is slipping and top-10 voting power is concentrating. No severe-class mismatch flags open this quarter.
+      </p>
+      <div class="meta">
+        <a href="#">View proposals →</a>
+        <a href="#">Top delegates →</a>
+        <a href="#">Forum threads →</a>
+        <a href="#">/daos/compound/api ↗</a>
+      </div>
+    </div>
+    <div class="kpi tnum">
+      <div class="cell"><div class="l">Pass rate (90d)</div><div class="v">71%<span class="delta up">↑ 4pp</span></div></div>
+      <div class="cell"><div class="l">Participation</div><div class="v">38.4%<span class="delta down">↓ 2pp</span></div></div>
+      <div class="cell"><div class="l">Top-10 VP</div><div class="v">42.7%<span class="delta down">↑ conc.</span></div></div>
+      <div class="cell"><div class="l">Open flags</div><div class="v" style="color:var(--warn);">2</div></div>
+    </div>
+  </section>
+
+  <!-- §1 AI takeaways -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">01</span>Health takeaways</h2>
+      <span class="ref">90-day rolling · regenerated daily</span>
+    </header>
+    <div class="ai-panel" aria-label="AI generated content">
+      <div class="ai-head">
+        <span class="ai-mark">AI</span>
+        <span>Synthesis · Compound governance, last 90 days</span>
+        <span class="model">claude · 4 inputs · 12.4k tok</span>
+      </div>
+      <div class="ai-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 18px;">
+        <div>
+          <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">↑ Strengths</div>
+          <ul style="margin: 0; padding-left: 18px; color: var(--ink); font-size: var(--fs-13); line-height: 1.6;">
+            <li>Pass rate up 4pp QoQ — fewer abandoned drafts hitting governor.</li>
+            <li>Forum-to-onchain pipeline tight: avg 8d from RFC to vote.</li>
+            <li>Zero severe mismatch flags this quarter.</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--warn); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">⚠ Watch</div>
+          <ul style="margin: 0; padding-left: 18px; color: var(--ink); font-size: var(--fs-13); line-height: 1.6;">
+            <li>Top-10 VP share up 3.2pp; one delegate now holds 12.4% alone.</li>
+            <li>Participation slipping below 40% — quorum risk on contested votes.</li>
+            <li>2 material flags open (#244, #248). See proposals strip below.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ai-foot">
+        <span>inputs: governor logs · forum threads · onchain VP snapshots</span>
+        <a href="#">view sources →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- §2 Trends -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">02</span>Trends · 90 days</h2>
+      <span class="ref">daily samples · weekend gaps preserved</span>
+    </header>
+    <div class="grid-3">
+      <div class="card">
+        <header>Participation rate <span class="src">% VP that voted</span></header>
+        <div class="spark"><span class="label">Mar 04 → May 04</span><span class="now">38.4%</span></div>
+      </div>
+      <div class="card">
+        <header>Pass rate <span class="src">passed / total</span></header>
+        <div class="spark"><span class="label">Mar 04 → May 04</span><span class="now">71%</span></div>
+      </div>
+      <div class="card">
+        <header>Forum activity <span class="src">posts / week</span></header>
+        <div class="spark"><span class="label">Mar 04 → May 04</span><span class="now">142</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §3 Concentration -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">03</span>Voting power concentration</h2>
+      <span class="ref">snapshot at block 21,840,210</span>
+    </header>
+    <div class="grid-2">
+      <div class="card">
+        <header>Top-10 holders <span class="src">42.7% of VP</span></header>
+        <table class="conc-table tnum">
+          <thead><tr><th class="rank">#</th><th>Delegate</th><th></th><th style="text-align:right;">VP (COMP)</th><th style="text-align:right;">%</th></tr></thead>
+          <tbody>
+            <tr><td class="rank">1</td><td class="who">a16z<small>0xa16z…0001 · ENS: a16z.eth</small></td><td><div class="track"><i class="warn" style="width:100%"></i></div></td><td class="v">312.4k</td><td class="pct">12.4%</td></tr>
+            <tr><td class="rank">2</td><td class="who">Gauntlet<small>0xab…f1 · ENS: gauntlet.eth</small></td><td><div class="track"><i style="width:54%"></i></div></td><td class="v">169.2k</td><td class="pct">6.7%</td></tr>
+            <tr><td class="rank">3</td><td class="who">Polychain<small>0x9d…04</small></td><td><div class="track"><i style="width:42%"></i></div></td><td class="v">131.0k</td><td class="pct">5.2%</td></tr>
+            <tr><td class="rank">4</td><td class="who">Robot Ventures<small>0x12…aa</small></td><td><div class="track"><i style="width:35%"></i></div></td><td class="v">109.5k</td><td class="pct">4.3%</td></tr>
+            <tr><td class="rank">5</td><td class="who">Blck<small>0x4f…b2</small></td><td><div class="track"><i style="width:28%"></i></div></td><td class="v">87.4k</td><td class="pct">3.5%</td></tr>
+            <tr><td class="rank">6</td><td class="who">Tane<small>0xee…7c</small></td><td><div class="track"><i style="width:23%"></i></div></td><td class="v">71.8k</td><td class="pct">2.8%</td></tr>
+            <tr><td class="rank">7</td><td class="who">PGov<small>0x8e…11</small></td><td><div class="track"><i style="width:21%"></i></div></td><td class="v">65.2k</td><td class="pct">2.6%</td></tr>
+            <tr><td class="rank">8</td><td class="who">Wintermute<small>0x73…cc</small></td><td><div class="track"><i style="width:17%"></i></div></td><td class="v">52.1k</td><td class="pct">2.1%</td></tr>
+            <tr><td class="rank">9</td><td class="who">Self-delegated whales (12)<small>aggregated</small></td><td><div class="track"><i style="width:14%"></i></div></td><td class="v">43.6k</td><td class="pct">1.7%</td></tr>
+            <tr><td class="rank">10</td><td class="who">Michigan Blockchain<small>0x55…d9</small></td><td><div class="track"><i style="width:11%"></i></div></td><td class="v">35.2k</td><td class="pct">1.4%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <header>Lorenz curve <span class="src">cumulative share by delegate rank</span></header>
+        <div style="padding: 14px;">
+          <div class="lorenz">
+            <i style="height:5%"></i><i style="height:8%"></i><i style="height:11%"></i><i style="height:13%"></i>
+            <i style="height:15%"></i><i style="height:17%"></i><i style="height:19%"></i><i style="height:21%"></i>
+            <i style="height:23%"></i><i style="height:26%"></i><i style="height:30%"></i><i style="height:35%"></i>
+            <i style="height:42%"></i><i style="height:50%"></i><i style="height:60%"></i><i style="height:71%"></i>
+            <i style="height:82%"></i><i class="warn" style="height:90%"></i><i class="warn" style="height:96%"></i><i class="warn" style="height:100%"></i>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 10px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);">
+            <span>0%</span><span>top quintile</span><span>100%</span>
+          </div>
+          <div style="margin-top: 14px; padding: 10px 12px; border: 1px solid var(--note); background: var(--note-bg); color: var(--note-ink); font-size: var(--fs-13);">
+            <b>Gini 0.74</b> · top quintile of delegates holds <b>78%</b> of VP. Concentration up 3.2pp from prior 90 days.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §4 Treasury -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">04</span>Treasury composition</h2>
+      <span class="ref">$487M total · timelock + grants multisig</span>
+    </header>
+    <div class="card" style="padding: 18px;">
+      <div class="treasury-bar">
+        <div class="stable" style="grid-column: span 2;">stables · $241M · 49%</div>
+        <div class="native">COMP · $164M · 34%</div>
+        <div class="other">other · $58M · 12%</div>
+        <div class="lp">LP · $24M · 5%</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; font-family: var(--font-mono); font-size: var(--fs-12);">
+        <div><div style="color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-105);">USDC</div><div style="font-size: var(--fs-16); font-weight: 600;">$182M</div></div>
+        <div><div style="color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-105);">USDT</div><div style="font-size: var(--fs-16); font-weight: 600;">$59M</div></div>
+        <div><div style="color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-105);">COMP self</div><div style="font-size: var(--fs-16); font-weight: 600;">$164M</div></div>
+        <div><div style="color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-105);">Burn rate (90d)</div><div style="font-size: var(--fs-16); font-weight: 600;">$8.4M</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §5 Recent activity strip -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">05</span>Recent proposals · this DAO</h2>
+      <span class="ref">last 6 · click row → detail</span>
+    </header>
+    <div class="card strip">
+      <div class="row">
+        <span class="id">#247</span>
+        <span class="ttl">Risk parameters update — cUSDC, cDAI</span>
+        <span><span class="state-pill active">active</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 78% / Agst 19%</span>
+        <span class="when"><span style="color:var(--accent);">ends 3h 12m</span></span>
+      </div>
+      <div class="row" style="background: color-mix(in oklab, var(--warn-bg), transparent 70%);">
+        <span class="id">#248</span>
+        <span class="ttl">Update interest-rate curve, cETH market <span style="font-family:var(--font-mono); font-size:var(--fs-10); color:var(--warn); border:1px solid var(--warn); padding:1px 5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; margin-left:6px;">⚠ mismatch</span></span>
+        <span><span class="state-pill active">active</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 41% / Agst 52%</span>
+        <span class="when"><span style="color:var(--accent);">ends 2d 8h</span></span>
+      </div>
+      <div class="row">
+        <span class="id">#246</span>
+        <span class="ttl">cWBTC migration to v3 market</span>
+        <span><span class="state-pill queued">queued</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 88% / Agst 9%</span>
+        <span class="when">passed 1d ago</span>
+      </div>
+      <div class="row">
+        <span class="id">#245</span>
+        <span class="ttl">Grants multisig signer rotation</span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 94% / Agst 3%</span>
+        <span class="when">5d ago</span>
+      </div>
+      <div class="row" style="background: color-mix(in oklab, var(--warn-bg), transparent 80%);">
+        <span class="id">#244</span>
+        <span class="ttl">Comptroller upgrade <span style="font-family:var(--font-mono); font-size:var(--fs-10); color:var(--warn); border:1px solid var(--warn); padding:1px 5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; margin-left:6px;">⚠ severe</span></span>
+        <span><span class="state-pill executed">executed</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 73% / Agst 24%</span>
+        <span class="when">2w ago</span>
+      </div>
+      <div class="row">
+        <span class="id">#243</span>
+        <span class="ttl">Adjust borrow rate model — cUSDT</span>
+        <span><span class="state-pill defeated">defeated</span></span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-2);">For 31% / Agst 64%</span>
+        <span class="when">1mo ago</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>health metrics · last refresh 32s ago</div>
+  <div class="item">90-day rolling window · daily samples</div>
+  <div class="item">build a4f9c2 · /daos/compound/health</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

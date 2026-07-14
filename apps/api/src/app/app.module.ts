@@ -7,17 +7,20 @@ import { DaoModule } from '@nest/daos';
 import { DelegationsModule } from '@nest/delegations';
 import { OpsServer } from '@nest/observability';
 import { ProposalModule } from '@nest/proposals';
-import { SOURCE_PLUGINS, SourcesModule, type SourcePlugin } from '@nest/sources';
+import { SOURCE_PLUGINS, SourceApiModule, SourcesModule, type SourcePlugin } from '@nest/sources';
 import { VotesModule } from '@nest/votes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health.controller';
+import { AccountController } from '../account/account.controller';
 import { ActorProposalsController } from '../actors/actor-proposals.controller';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { ActorVotesController } from '../actors/actor-votes.controller';
 import { ActorsController } from '../actors/actors.controller';
 import { ActorAnalyticsController } from '../analytics/actor-analytics.controller';
 import { DaoAnalyticsController } from '../analytics/dao-analytics.controller';
+import { ApiKeysController } from '../api-keys/api-keys.controller';
+import { AuthController } from '../auth/auth.controller';
 import { CacheModule } from '../cache/cache.module';
 import { DaoController } from '../daos/dao.controller';
 import { DelegationsController } from '../delegations/delegations.controller';
@@ -40,6 +43,7 @@ import { VotesController } from '../votes/votes.controller';
     ProposalModule,
     RateLimitModule,
     SourcesModule,
+    SourceApiModule,
     VotesModule,
   ],
   controllers: [
@@ -54,6 +58,9 @@ import { VotesController } from '../votes/votes.controller';
     ProposalController,
     ActorAnalyticsController,
     DaoAnalyticsController,
+    AuthController,
+    ApiKeysController,
+    AccountController,
   ],
   providers: [
     AppService,

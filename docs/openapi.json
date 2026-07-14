@@ -1387,6 +1387,75 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
+      "get": {
+        "operationId": "ProposalController_tally",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalTallyResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/proposals": {
       "get": {
         "operationId": "ProposalController_listCrossDao",
@@ -1960,6 +2029,50 @@
           }
         ],
         "tags": ["analytics"]
+      }
+    },
+    "/v1/daos/{slug}/forum/{external_id}": {
+      "get": {
+        "operationId": "ForumThreadController_getThread",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "external_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForumThreadResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["forum"]
       }
     }
   },
@@ -2959,6 +3072,14 @@
           },
           "flagged": {
             "type": "boolean"
+          },
+          "choice_scores": {
+            "nullable": true,
+            "description": "Per-choice voting-power tally (0-indexed), summed from the full vote breakdown. Present for approval and weighted/quadratic proposals (whose tally the single primary_choice cannot represent); null otherwise.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           }
         },
         "required": ["kind", "space_id", "flagged"]
@@ -3290,6 +3411,58 @@
         },
         "required": ["data"]
       },
+      "ProposalTallyChoiceDto": {
+        "type": "object",
+        "properties": {
+          "choice_index": {
+            "type": "number"
+          },
+          "voting_power": {
+            "type": "string",
+            "description": "Summed voting power for the choice. UInt256 base units when source=votes; the raw per-choice score when source=choice_scores — interpret via `source`."
+          },
+          "voter_count": {
+            "type": "number"
+          },
+          "pct": {
+            "type": "number",
+            "description": "Share of participating power, 0–100, to two decimals."
+          }
+        },
+        "required": ["choice_index", "voting_power", "voter_count", "pct"]
+      },
+      "ProposalTallyDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalTallyChoiceDto"
+            }
+          },
+          "total_voting_power": {
+            "type": "string"
+          },
+          "total_voters": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["votes", "choice_scores"],
+            "description": "Where the tally came from: `votes` (summed primary_choice) or `choice_scores` (a source-provided per-choice breakdown for approval/weighted proposals)."
+          }
+        },
+        "required": ["choices", "total_voting_power", "total_voters", "source"]
+      },
+      "ProposalTallyResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalTallyDto"
+          }
+        },
+        "required": ["data"]
+      },
       "CrossDaoSummaryDto": {
         "type": "object",
         "properties": {
@@ -3583,6 +3756,84 @@
           }
         },
         "required": ["focal_delegate", "peers", "pagination", "_meta"]
+      },
+      "ForumThreadLinkedProposalDto": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          }
+        },
+        "required": ["source_type", "source_id", "title", "confidence"]
+      },
+      "ForumThreadDto": {
+        "type": "object",
+        "properties": {
+          "external_id": {
+            "type": "string",
+            "description": "Discourse topic id (the {external_id} in the URL)."
+          },
+          "host": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string",
+            "description": "Canonical link to the thread on the source Discourse instance."
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "raw_content": {
+            "type": "object",
+            "nullable": true,
+            "description": "Concatenated post bodies (the ingested thread content); no per-post breakdown."
+          },
+          "post_count": {
+            "type": "object",
+            "nullable": true
+          },
+          "last_activity_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "linked_proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumThreadLinkedProposalDto"
+            }
+          }
+        },
+        "required": [
+          "external_id",
+          "host",
+          "source_url",
+          "title",
+          "raw_content",
+          "post_count",
+          "last_activity_at",
+          "linked_proposals"
+        ]
+      },
+      "ForumThreadResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ForumThreadDto"
+          }
+        },
+        "required": ["data"]
       }
     }
   }

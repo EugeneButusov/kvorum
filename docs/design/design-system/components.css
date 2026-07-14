@@ -1,0 +1,442 @@
+/* ============================================================
+   Kvorum · Component primitives (CSS reference)
+
+   These are the cross-page components. In Next.js + CSS Modules,
+   each of these maps to a `<Component>.module.css` — but the visual
+   contract here is canonical. Class names are kebab-case and
+   semantic, not utility.
+
+   Depends on: tokens.css (must be loaded first).
+   ============================================================ */
+
+/* ================================================================
+   1. Top navigation strip (`<TopNav>`)
+   - Height: 56px, bordered top + bottom by --line.
+   - Brand glyph: 22px ink square with mono "K".
+   - Active link: --accent underline, ink color.
+   ================================================================ */
+.kv-topnav {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+}
+.kv-topnav .brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-14);
+  letter-spacing: var(--tracking-mono);
+  padding-right: var(--space-7);
+  border-right: 1px solid var(--line-2);
+}
+.kv-topnav .brand .glyph {
+  width: 22px; height: 22px;
+  background: var(--ink); color: var(--bg-2);
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11); font-weight: 700;
+}
+.kv-topnav nav { display: flex; align-items: stretch; }
+.kv-topnav nav a {
+  padding: 0 var(--space-5);
+  display: flex; align-items: center;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--ink-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.kv-topnav nav a:hover { color: var(--ink); }
+.kv-topnav nav a.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+.kv-topnav .spacer { flex: 1; }
+.kv-topnav .search {
+  align-self: center;
+  border: 1px solid var(--line-2);
+  background: var(--bg);
+  padding: 6px 10px;
+  min-width: 320px;
+  display: flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+}
+.kv-topnav .search .kbd {
+  margin-left: auto;
+  border: 1px solid var(--line-2);
+  padding: 1px 5px;
+  font-size: var(--fs-10);
+}
+.kv-topnav .actions {
+  display: flex; align-items: center; gap: 6px;
+  padding-left: var(--space-4);
+}
+.kv-topnav .icon-btn {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+.kv-topnav .icon-btn:hover { border-color: var(--line); color: var(--ink); }
+.kv-topnav .connect {
+  align-self: center;
+  background: var(--ink); color: var(--bg-2);
+  padding: 7px 14px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12); font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ================================================================
+   2. Breadcrumb (`<Crumb>`)
+   ================================================================ */
+.kv-crumb {
+  border-bottom: 1px solid var(--line-3);
+  background: var(--bg-2);
+  padding: 10px var(--gutter);
+  display: flex; gap: 14px; align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-115);
+  color: var(--ink-3);
+}
+.kv-crumb a { color: var(--ink-2); }
+.kv-crumb a:hover { color: var(--ink); }
+.kv-crumb .sep { color: var(--ink-4); }
+.kv-crumb .id  { color: var(--ink); }
+.kv-crumb .copy {
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-size: var(--fs-11);
+  border: 1px solid var(--line-3);
+  padding: 1px 5px;
+}
+.kv-crumb .copy:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ================================================================
+   3. Pill (`<Pill>`)
+   - Default: bordered tag with mono caption.
+   - .dao-* variants tint border with the DAO swatch.
+   ================================================================ */
+.pill {
+  border: 1px solid var(--line-2);
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono);
+  color: var(--ink-2);
+  background: var(--bg-2);
+  display: inline-block;
+}
+.pill.dao-compound { border-color: var(--dao-compound); color: #00875a; }
+.pill.dao-uniswap  { border-color: var(--dao-uniswap);  color: #c2005f; }
+.pill.dao-aave     { border-color: var(--dao-aave);     color: #903b80; }
+.pill.dao-arb      { border-color: var(--dao-arb);      color: #1d7fc1; }
+:root[data-theme="dark"] .pill.dao-compound { color: var(--dao-compound); }
+:root[data-theme="dark"] .pill.dao-uniswap  { color: var(--dao-uniswap); }
+:root[data-theme="dark"] .pill.dao-aave     { color: var(--dao-aave); }
+:root[data-theme="dark"] .pill.dao-arb      { color: var(--dao-arb); }
+
+/* ================================================================
+   4. State pill (`<StatePill state>`)
+   - Filled status badge: active, passed, defeated, queued, executed, draft.
+   ================================================================ */
+.state-pill {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid;
+  display: inline-block;
+}
+.state-pill.active   { background: var(--accent); color: var(--bg-2); border-color: var(--accent); }
+.state-pill.passed,
+.state-pill.executed { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+.state-pill.defeated { background: var(--warn); color: var(--bg-2); border-color: var(--warn); }
+.state-pill.queued   { background: var(--note); color: var(--bg-2); border-color: var(--note); }
+.state-pill.draft    { color: var(--ink-3); border-color: var(--line-2); background: var(--bg-2); }
+:root[data-theme="dark"] .state-pill.active,
+:root[data-theme="dark"] .state-pill.passed,
+:root[data-theme="dark"] .state-pill.executed,
+:root[data-theme="dark"] .state-pill.defeated,
+:root[data-theme="dark"] .state-pill.queued { color: var(--bg); }
+
+/* ================================================================
+   5. Vote tag (`<VoteTag choice>`)
+   - For/Against/Abstain in voter rows.
+   ================================================================ */
+.vote-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-10);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono-loose);
+  padding: 3px 8px;
+  display: inline-block;
+  border: 1px solid;
+}
+.vote-tag.for     { background: var(--for);     color: var(--bg-2); border-color: var(--for); }
+.vote-tag.against { background: var(--against); color: var(--bg-2); border-color: var(--against); }
+.vote-tag.abstain { background: transparent;    color: var(--ink-2); border-color: var(--ink-3); }
+:root[data-theme="dark"] .vote-tag.for,
+:root[data-theme="dark"] .vote-tag.against { color: var(--bg); }
+
+/* ================================================================
+   6. Live dot (`<LiveDot>`)
+   - Pulsing green dot for "live" indicators (active vote, fresh data).
+   ================================================================ */
+.dot {
+  width: 6px; height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  display: inline-block;
+}
+.dot.live {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok), transparent 70%);
+  animation: kv-pulse 1.6s ease-in-out infinite;
+}
+@keyframes kv-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok), transparent 60%); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in oklab, var(--ok), transparent 90%); }
+}
+
+/* ================================================================
+   7. AI panel (`<AIPanel>`)
+   - All AI-generated content lives in this container.
+   - Diagonal hatch background + black "△ AI" label is the system's
+     promise: this is not human writing, and the user can see the
+     model + the inputs.
+   ================================================================ */
+.ai-panel {
+  border: 1.5px solid var(--ai-line);
+  background: var(--ai-bg);
+  background-image:
+    repeating-linear-gradient(135deg,
+      transparent 0 14px,
+      color-mix(in oklab, var(--ai-line), transparent 96%) 14px 15px);
+  position: relative;
+}
+.ai-panel .ai-head {
+  border-bottom: 1px solid var(--ai-line);
+  padding: 10px var(--space-4);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--ai-bg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-115);
+}
+.ai-panel .ai-mark {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--ai-mark); color: var(--ai-bg);
+  padding: 3px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  font-weight: 700;
+  letter-spacing: var(--tracking-mono-loose);
+  text-transform: uppercase;
+}
+.ai-panel .ai-mark::before { content: "△"; font-size: var(--fs-12); line-height: 1; }
+.ai-panel .ai-head .model {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: var(--fs-105);
+}
+.ai-panel .ai-body {
+  padding: var(--space-4) 18px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-3);
+}
+.ai-panel .ai-foot {
+  padding: var(--space-2) var(--space-4);
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  color: var(--ink-3);
+  background: var(--ai-bg);
+}
+.ai-panel .ai-foot a { color: var(--ink-2); }
+.ai-panel .ai-foot a:hover { color: var(--accent-ink); }
+:root[data-theme="dark"] .ai-panel .ai-foot a:hover { color: var(--accent); }
+
+/* ================================================================
+   8. Section header (`<Section number title>`)
+   - Numbered, uppercase mono, bottom-bordered.
+   ================================================================ */
+.kv-section { display: flex; flex-direction: column; gap: 14px; }
+.kv-section > header {
+  display: flex; align-items: baseline; gap: var(--space-4);
+  border-bottom: 1px solid var(--line-3);
+  padding-bottom: 10px;
+}
+.kv-section > header h2 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.kv-section > header h2 .num {
+  color: var(--ink-3);
+  margin-right: var(--space-2);
+  font-weight: 500;
+}
+.kv-section > header .ref {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+
+/* ================================================================
+   9. Severity banner (`<Banner severity>`)
+   - Strong severity-tinted band; left glyph + body + (optional) jump.
+   - Use for: mismatch alerts, degraded states, action required.
+   ================================================================ */
+.banner {
+  border: 1px solid;
+  padding: 12px var(--space-4);
+  display: flex; align-items: center; gap: 14px;
+  font-size: var(--fs-13);
+}
+.banner.warn  { border-color: var(--warn); background: var(--warn-bg); color: var(--warn-ink); }
+.banner.note  { border-color: var(--note); background: var(--note-bg); color: var(--note-ink); }
+.banner.ok    { border-color: var(--ok);   background: var(--accent-bg); color: var(--accent-ink); }
+.banner .glyph {
+  width: 20px; height: 20px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-weight: 700;
+  font-size: var(--fs-13);
+}
+.banner.warn .glyph { background: var(--warn); color: var(--warn-bg); }
+.banner.note .glyph { background: var(--note); color: var(--note-bg); }
+.banner.ok   .glyph { background: var(--ok);   color: var(--accent-bg); }
+.banner b { font-weight: 600; }
+.banner .conf {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  opacity: 0.8;
+}
+.banner .jump {
+  border: 1px solid currentColor;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  background: transparent;
+  color: inherit;
+}
+
+/* ================================================================
+   10. Card (`<Card>`)
+   - Generic surface block with thin --line-3 border on --bg-2.
+   ================================================================ */
+.card {
+  border: 1px solid var(--line-3);
+  background: var(--bg-2);
+}
+.card > header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-3);
+  display: flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono-loose);
+  color: var(--ink-3);
+  background: var(--bg);
+}
+.card > header .src {
+  margin-left: auto;
+  text-transform: none; letter-spacing: 0;
+  font-weight: 400;
+  font-size: var(--fs-10);
+  color: var(--ink-4);
+}
+.card.flagged          { border-color: var(--warn); }
+.card.flagged > header { background: var(--warn-bg); border-bottom-color: var(--warn); color: var(--warn-ink); }
+
+/* ================================================================
+   11. Field row (`<FieldRow k v>`)
+   - Two-column key/value row used inside cards (calldata, action params).
+   ================================================================ */
+.field {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  padding: var(--space-2) 14px;
+  border-bottom: 1px dashed var(--line-3);
+  align-items: center;
+}
+.field:last-child { border-bottom: 0; }
+.field .k {
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono-loose);
+}
+.field .v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-125);
+  color: var(--ink);
+  word-break: break-all;
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+}
+
+/* ================================================================
+   12. Segmented control (`<Segmented>`)
+   ================================================================ */
+.seg { display: inline-flex; border: 1px solid var(--line-2); }
+.seg button {
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--ink-2);
+  border-right: 1px solid var(--line-2);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono);
+}
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--ink); color: var(--bg-2); font-weight: 600; }
+:root[data-theme="dark"] .seg button.on { color: var(--bg); }
+
+/* ================================================================
+   13. Theme toggle (`<ThemeToggle>`)
+   ================================================================ */
+.theme-toggle {
+  align-self: center;
+  border: 1px solid var(--line-2);
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
+}
+.theme-toggle:hover { border-color: var(--line); color: var(--ink); }
+
+/* ================================================================
+   14. Footer (`<FreshFooter>`)
+   - Mono strip showing data freshness, build, last-sync.
+   ================================================================ */
+.kv-footer {
+  border-top: 1px solid var(--line-3);
+  background: var(--bg-2);
+  padding: 14px var(--gutter);
+  display: flex; justify-content: space-between; gap: var(--space-6);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--ink-3);
+}
+.kv-footer .item { display: flex; align-items: center; gap: var(--space-2); }

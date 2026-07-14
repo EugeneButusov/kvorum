@@ -10,10 +10,18 @@ export interface SnapshotClientOptions {
   url?: string;
   /** Optional Snapshot API key (raises the rate limit; provision for the AG backfill). */
   apiKey?: string;
-  /** Retry attempts on 5xx / network / 429 before giving up. Default 4. */
+  /** Retry attempts on 5xx / network / timeout before giving up. Default 4. */
   maxRetries?: number;
+  /** Retry attempts on 429 (rate limit) before giving up. Separate from `maxRetries` and larger by
+   *  default, because a keyless client hits sustained 429s that are flow control, not failure —
+   *  exhausting a small budget kills the whole drain tick. Default 8. */
+  rateLimitMaxRetries?: number;
   /** Base backoff in ms; doubles per attempt. Default 500. */
   backoffBaseMs?: number;
+  /** Per-request timeout in ms. Bounds a stalled connection (hub.snapshot.org is behind Cloudflare;
+   *  a request can be accepted and then never answered), turning a hang into a retryable error.
+   *  Default 20000. */
+  requestTimeoutMs?: number;
 }
 
 interface PageParams {
@@ -53,13 +61,17 @@ export class SnapshotClient {
   private readonly url: string;
   private readonly apiKey: string | undefined;
   private readonly maxRetries: number;
+  private readonly rateLimitMaxRetries: number;
   private readonly backoffBaseMs: number;
+  private readonly requestTimeoutMs: number;
 
   constructor(opts: SnapshotClientOptions = {}) {
     this.url = opts.url ?? DEFAULT_SNAPSHOT_GRAPHQL_URL;
     this.apiKey = opts.apiKey;
     this.maxRetries = opts.maxRetries ?? 4;
+    this.rateLimitMaxRetries = opts.rateLimitMaxRetries ?? 8;
     this.backoffBaseMs = opts.backoffBaseMs ?? 500;
+    this.requestTimeoutMs = opts.requestTimeoutMs ?? 20_000;
   }
 
   async fetchProposals(p: PageParams): Promise<SnapshotProposalRow[]> {
@@ -108,26 +120,36 @@ export class SnapshotClient {
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     if (this.apiKey) headers['x-api-key'] = this.apiKey;
 
-    let attempt = 0;
+    let attempt = 0; // 5xx / network / timeout retries
+    let rateLimitAttempt = 0; // 429 retries (separate, larger budget)
     for (;;) {
       const start = Date.now();
       try {
+        // Bound each request: the per-tick `signal` can be far off (or absent), so a stalled
+        // connection would otherwise hang the whole drain. On timeout the fetch aborts and the
+        // catch retries (the original `signal` is not aborted).
         const res = await fetch(this.url, {
           method: 'POST',
           headers,
           body: JSON.stringify({ query, variables }),
-          signal,
+          signal: AbortSignal.any([signal, AbortSignal.timeout(this.requestTimeoutMs)]),
         });
         snapshotMetrics.graphqlLatency.record(Date.now() - start, { entity });
 
         if (res.status === 429) {
           snapshotMetrics.rateLimited.add(1, { entity });
-          await this.backoff(attempt, res.headers.get('retry-after'), signal, entity);
-          attempt += 1;
+          await this.backoff(
+            rateLimitAttempt,
+            this.rateLimitMaxRetries,
+            res.headers.get('retry-after'),
+            signal,
+            entity,
+          );
+          rateLimitAttempt += 1;
           continue;
         }
         if (res.status >= 500) {
-          await this.backoff(attempt, null, signal, entity);
+          await this.backoff(attempt, this.maxRetries, null, signal, entity);
           attempt += 1;
           continue;
         }
@@ -163,15 +185,16 @@ export class SnapshotClient {
     }
   }
 
-  /** Honour Retry-After (integer seconds) when present, else exponential backoff. Throws if the
-   *  attempt budget is exhausted so the caller marks the tick failed (cursor not advanced). */
+  /** Honour Retry-After (integer seconds) when present, else exponential backoff. Throws once the
+   *  path's attempt budget is exhausted so the caller marks the tick failed (cursor not advanced). */
   private async backoff(
     attempt: number,
+    maxRetries: number,
     retryAfter: string | null,
     signal: AbortSignal,
     entity: Entity,
   ): Promise<void> {
-    if (attempt >= this.maxRetries) {
+    if (attempt >= maxRetries) {
       snapshotMetrics.graphqlErrors.add(1, { entity });
       throw new Error(`Snapshot GraphQL ${entity} retry budget exhausted`);
     }

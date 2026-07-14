@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — API docs</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* API docs (static page; out of scope per SPEC §6.21 — not §6.12, which is the forum thread, forum.html). Next.js: app/docs/page.module.css */
+  main.docs { max-width: var(--max-page); margin: 0 auto;
+              padding: var(--space-7) var(--gutter) var(--space-16);
+              display: grid; grid-template-columns: 240px 1fr 320px; gap: 32px; align-items: start; }
+
+  /* TOC */
+  .toc { position: sticky; top: var(--space-4); align-self: start;
+         font-family: var(--font-mono); font-size: var(--fs-12); }
+  .toc h4 { margin: 18px 0 6px; font-size: var(--fs-105); font-weight: 600; color: var(--ink-3);
+            text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .toc h4:first-child { margin-top: 0; }
+  .toc ul { list-style: none; padding: 0; margin: 0; }
+  .toc li a { display: flex; gap: 10px; padding: 4px 0; color: var(--ink-2);
+              border-left: 2px solid transparent; padding-left: 10px; margin-left: -10px; }
+  .toc li a:hover { color: var(--ink); border-color: var(--line); }
+  .toc li a.on  { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  .toc li a .method { font-size: var(--fs-10); padding: 1px 5px; border: 1px solid currentColor; min-width: 32px; text-align: center; }
+  .toc li a .method.GET { color: var(--accent); }
+  .toc li a .method.POST { color: var(--note-ink); }
+
+  /* Body */
+  .body-col { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
+  .body-col h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600; letter-spacing: var(--tracking-tight); }
+  .body-col .lede { margin-top: 8px; max-width: 60ch; color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-prose); padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+
+  .endpoint { display: flex; flex-direction: column; gap: 18px; }
+  .endpoint > .head { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: baseline; }
+  .endpoint .method-pill { font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 700;
+                            padding: 6px 12px; border: 1.5px solid; letter-spacing: 0.06em; }
+  .endpoint .method-pill.GET { color: var(--accent); border-color: var(--accent); }
+  .endpoint .method-pill.POST { color: var(--note-ink); border-color: var(--note); }
+  .endpoint .path { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 600; color: var(--ink); }
+  .endpoint .path .seg-var { color: var(--accent); }
+  .endpoint .stability { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .endpoint .stability.stable { color: var(--accent); }
+  .endpoint .stability.beta { color: var(--note-ink); }
+
+  .endpoint .desc { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-prose); max-width: 60ch; }
+
+  .ed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+  /* Table for params / fields */
+  .schema-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-12); }
+  .schema-tbl thead th { text-align: left; padding: 8px 12px; font-family: var(--font-mono); font-size: var(--fs-105);
+                          font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                          border-bottom: 1px solid var(--line-2); background: var(--bg-2); }
+  .schema-tbl td { padding: 8px 12px; vertical-align: top; border-bottom: 1px dashed var(--line-3); }
+  .schema-tbl .name { font-family: var(--font-mono); color: var(--ink); font-weight: 600; white-space: nowrap; }
+  .schema-tbl .name .req { color: var(--warn); margin-left: 4px; }
+  .schema-tbl .type { font-family: var(--font-mono); color: var(--accent); font-size: var(--fs-11); }
+  .schema-tbl .doc  { font-family: var(--font-mono); color: var(--ink-2); font-size: var(--fs-12); line-height: 1.5; }
+  .schema-tbl .doc code { background: var(--bg-3); padding: 1px 4px; }
+
+  /* Code blocks */
+  .code-block { background: var(--bg-code); border: 1px solid var(--line-2); padding: 14px 16px;
+                font-family: var(--font-mono); font-size: var(--fs-115); color: var(--ink); line-height: 1.55;
+                overflow-x: auto; white-space: pre; }
+  .code-block .com { color: var(--ink-3); }
+  .code-block .key { color: var(--accent); }
+  .code-block .str { color: var(--note-ink); }
+  .code-block .num { color: var(--for); }
+  .code-block .hl  { background: color-mix(in oklab, currentColor, transparent 92%); }
+
+  .code-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line-2); margin-bottom: -1px; }
+  .code-tabs button {
+    font-family: var(--font-mono); font-size: var(--fs-11); padding: 6px 14px;
+    background: transparent; border: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-right: -1px;
+  }
+  .code-tabs button.on { background: var(--bg-code); color: var(--ink); border-bottom-color: var(--bg-code); }
+
+  /* Right: try-it console */
+  .console { position: sticky; top: var(--space-4); align-self: start; display: flex; flex-direction: column; gap: 14px; }
+  .console .panel { border: 1.5px solid var(--ink); }
+  .console .panel header { padding: 10px 14px; background: var(--ink); color: var(--bg-2);
+                            font-family: var(--font-mono); font-size: var(--fs-105); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+                            display: flex; justify-content: space-between; align-items: center; }
+  .console .panel header .live { font-size: var(--fs-10); padding: 2px 6px; background: var(--accent); color: var(--ink); }
+  .console .panel .row { display: grid; grid-template-columns: 90px 1fr; padding: 10px 14px; gap: 10px;
+                          border-bottom: 1px dashed var(--line-3); align-items: center; }
+  .console .panel .row label { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .console .panel .row input, .console .panel .row select {
+    font-family: var(--font-mono); font-size: var(--fs-12); padding: 6px 10px;
+    border: 1px solid var(--line-2); background: var(--bg); color: var(--ink); outline: none;
+  }
+  .console .panel .run { padding: 14px; }
+  .console .panel .run button { width: 100%; padding: 10px; background: var(--accent); color: var(--ink);
+                                 font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 700; border: 0; cursor: pointer; }
+  .console .panel .resp { padding: 12px 14px; border-top: 1px solid var(--line-2); background: var(--bg-code); }
+  .console .panel .resp .meta { display: flex; gap: 14px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-bottom: 8px; }
+  .console .panel .resp .meta .ok { color: var(--accent); }
+  .console .panel .resp pre { margin: 0; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink); line-height: 1.5; max-height: 280px; overflow: auto; }
+
+  .ratebox { padding: 12px 14px; border: 1px solid var(--line-2); background: var(--bg-2);
+             display: flex; flex-direction: column; gap: 8px; }
+  .ratebox .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .ratebox .bar { height: 4px; background: var(--bg-3); position: relative; }
+  .ratebox .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+  .ratebox .nums { font-family: var(--font-mono); font-size: var(--fs-11); display: flex; justify-content: space-between; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="developer.html">Developer</a>
+    <a href="#" class="active">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search docs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="developer.html">Developer</a><span class="sep">/</span>
+  <span class="id">API docs · v1.0</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/docs · OpenAPI 3.1 · 24 endpoints</span>
+</div>
+
+<main class="docs" data-screen-label="Hi-fi · API docs">
+
+  <!-- LEFT TOC -->
+  <aside class="toc">
+    <h4>Getting started</h4>
+    <ul>
+      <li><a href="#">Authentication</a></li>
+      <li><a href="#">Rate limits</a></li>
+      <li><a href="#">Webhooks</a></li>
+      <li><a href="#">Errors</a></li>
+    </ul>
+
+    <h4>Proposals</h4>
+    <ul>
+      <li><a href="#" class="on"><span class="method GET">GET</span>/proposals</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/proposals/:id</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/proposals/:id/votes</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/proposals/:id/ai-summary</a></li>
+    </ul>
+
+    <h4>DAOs</h4>
+    <ul>
+      <li><a href="#"><span class="method GET">GET</span>/daos</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/daos/:slug</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/daos/:slug/health</a></li>
+    </ul>
+
+    <h4>Delegates</h4>
+    <ul>
+      <li><a href="#"><span class="method GET">GET</span>/delegates</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/delegates/:addr</a></li>
+    </ul>
+
+    <h4>Webhooks</h4>
+    <ul>
+      <li><a href="#"><span class="method POST">POST</span>/webhooks</a></li>
+      <li><a href="#"><span class="method GET">GET</span>/webhooks</a></li>
+    </ul>
+  </aside>
+
+  <!-- BODY -->
+  <section class="body-col">
+
+    <header>
+      <h1>API · v1.0</h1>
+      <p class="lede">REST + JSON. <code>Authorization: Bearer kv_live_…</code>. All responses are tabular-numeric, paginated by cursor, and timestamped at the source block. SDKs in <code>typescript</code>, <code>python</code>, <code>rust</code>.</p>
+    </header>
+
+    <article class="endpoint">
+      <div class="head">
+        <span class="method-pill GET">GET</span>
+        <span class="path">/proposals<span style="color:var(--ink-3);">?</span><span class="seg-var">dao</span><span style="color:var(--ink-3);">=</span><span class="seg-var">{slug}</span></span>
+        <span class="stability stable">✓ stable</span>
+      </div>
+      <p class="desc">List proposals across DAOs. Filter by <code>dao</code>, <code>state</code>, <code>since</code>. Returns AI summary inline if <code>summary=full</code>. Bandwidth: ~2.4 KB/proposal.</p>
+
+      <section>
+        <h3 style="font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); margin: 0 0 10px;">Query parameters</h3>
+        <table class="schema-tbl">
+          <thead><tr><th style="width: 22%;">Parameter</th><th style="width: 18%;">Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="name">dao<span class="req">*</span></td><td class="type">string</td><td class="doc">DAO slug, e.g. <code>compound</code>, <code>uniswap</code>. See <code>/daos</code> for full list. Use <code>*</code> for cross-DAO.</td></tr>
+            <tr><td class="name">state</td><td class="type">enum</td><td class="doc">One of <code>active</code>, <code>passed</code>, <code>executed</code>, <code>defeated</code>, <code>queued</code>, <code>draft</code>.</td></tr>
+            <tr><td class="name">since</td><td class="type">ISO-8601</td><td class="doc">Inclusive lower bound on <code>created_at</code>. Default: 90 days ago.</td></tr>
+            <tr><td class="name">summary</td><td class="type">enum</td><td class="doc"><code>none</code> (default) · <code>tldr</code> · <code>full</code>. Each level adds latency.</td></tr>
+            <tr><td class="name">limit</td><td class="type">int</td><td class="doc">1–100. Default 20.</td></tr>
+            <tr><td class="name">cursor</td><td class="type">string</td><td class="doc">From previous response's <code>next_cursor</code>. Opaque.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="ed-grid">
+        <div>
+          <div class="code-tabs">
+            <button class="on">cURL</button>
+            <button>TS</button>
+            <button>Python</button>
+          </div>
+          <pre class="code-block"><span class="com"># Compound · last 30 days · with tldr</span>
+curl <span class="str">"https://api.kvorum.xyz/v1/proposals?dao=compound&state=active&summary=tldr"</span> \
+  -H <span class="str">"Authorization: Bearer kv_live_4f9c…"</span> \
+  -H <span class="str">"Accept: application/json"</span></pre>
+        </div>
+        <div>
+          <div class="code-tabs">
+            <button class="on">200 OK</button>
+            <button>4xx</button>
+            <button>Schema</button>
+          </div>
+          <pre class="code-block">{
+  <span class="key">"data"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="str">"compound:248"</span>,
+      <span class="key">"dao"</span>: <span class="str">"compound"</span>,
+      <span class="key">"title"</span>: <span class="str">"Update interest-rate curve, cETH market"</span>,
+      <span class="key">"state"</span>: <span class="str">"active"</span>,
+      <span class="key">"created_block"</span>: <span class="num">21840210</span>,
+      <span class="key">"ends_at"</span>: <span class="str">"2026-05-12T18:24:00Z"</span>,
+      <span class="key">"tally"</span>: { <span class="key">"for"</span>: <span class="num">0.41</span>, <span class="key">"against"</span>: <span class="num">0.52</span>, <span class="key">"abstain"</span>: <span class="num">0.07</span> },
+      <span class="key">"flags"</span>: [<span class="str">"mismatch:cap-exhaustion"</span>],
+      <span class="key">"ai_summary"</span>: { <span class="key">"tldr"</span>: <span class="str">"Raises kink to 92%…"</span> }
+    }
+    <span class="com">// + 7 more</span>
+  ],
+  <span class="key">"next_cursor"</span>: <span class="str">"eyJpZCI6ImNvbXBvdW5kOjI0MSJ9"</span>,
+  <span class="key">"meta"</span>: { <span class="key">"latency_ms"</span>: <span class="num">142</span>, <span class="key">"cache"</span>: <span class="str">"hit"</span> }
+}</pre>
+        </div>
+      </section>
+
+      <section>
+        <h3 style="font-family: var(--font-mono); font-size: var(--fs-13); font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); margin: 0 0 10px;">Response · top-level fields</h3>
+        <table class="schema-tbl">
+          <thead><tr><th style="width: 22%;">Field</th><th style="width: 18%;">Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="name">data</td><td class="type">Proposal[]</td><td class="doc">Array of proposals matching the filter, sorted by <code>created_block</code> desc.</td></tr>
+            <tr><td class="name">next_cursor</td><td class="type">string?</td><td class="doc">Opaque cursor for the next page. Omitted on last page.</td></tr>
+            <tr><td class="name">meta.latency_ms</td><td class="type">int</td><td class="doc">Server-side latency. Excludes network.</td></tr>
+            <tr><td class="name">meta.cache</td><td class="type">enum</td><td class="doc"><code>hit</code> | <code>stale</code> | <code>miss</code>. <code>stale</code> means served from cache while a refresh is queued.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+    </article>
+
+  </section>
+
+  <!-- RIGHT: try-it -->
+  <aside class="console">
+    <div class="panel">
+      <header>Try it <span class="live">LIVE</span></header>
+      <div class="row"><label>Method</label><select><option>GET</option></select></div>
+      <div class="row"><label>dao</label><input value="compound" /></div>
+      <div class="row"><label>state</label><select><option>active</option><option>passed</option><option>executed</option></select></div>
+      <div class="row"><label>summary</label><select><option>tldr</option><option>none</option><option>full</option></select></div>
+      <div class="run"><button>Run · ⌘↵</button></div>
+      <div class="resp">
+        <div class="meta">
+          <span class="ok">● 200 OK</span>
+          <span>142 ms</span>
+          <span>cache: hit</span>
+          <span style="margin-left: auto;">copy</span>
+        </div>
+        <pre>{
+  "data": [{
+    "id": "compound:248",
+    "title": "Update interest-rate curve, cETH market",
+    "state": "active",
+    "tally": { "for": 0.41, "against": 0.52, "abstain": 0.07 }
+  }],
+  "next_cursor": "eyJpZCI6...",
+  "meta": { "latency_ms": 142 }
+}</pre>
+      </div>
+    </div>
+
+    <div class="ratebox">
+      <span class="l">Rate limit · this hour</span>
+      <div class="bar"><i style="width: 28%;"></i></div>
+      <div class="nums"><span><b style="color:var(--ink);">284</b> / 1,000</span><span>resets in 38m</span></div>
+    </div>
+
+    <div style="font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); padding: 4px 4px;">
+      <div>SDKs: <a href="#" style="color:var(--accent); border-bottom: 1px solid;">typescript ↗</a> · <a href="#" style="color:var(--accent); border-bottom: 1px solid;">python ↗</a> · <a href="#" style="color:var(--accent); border-bottom: 1px solid;">rust ↗</a></div>
+      <div style="margin-top: 6px;">OpenAPI: <a href="#" style="color:var(--ink-2); border-bottom: 1px solid var(--line-2);">openapi.yaml ↗</a></div>
+    </div>
+  </aside>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>api · v1.0 · 12ms p50</div>
+  <div class="item">24 endpoints · OpenAPI 3.1</div>
+  <div class="item">build a4f9c2 · /docs</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

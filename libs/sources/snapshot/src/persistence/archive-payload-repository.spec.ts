@@ -49,4 +49,23 @@ describe('SnapshotArchivePayloadRepository', () => {
       { external_id: 'prop:0x2', payload: '{"v":1}' },
     ]);
   });
+
+  it('fetchByExternalId returns the max-version payload for one external_id', async () => {
+    const { db, selectFrom, where } = mockChDb([
+      { external_id: 'prop:0x1', version: 1, payload: '{"v":1}' },
+      { external_id: 'prop:0x1', version: 3, payload: '{"v":3}' },
+      { external_id: 'prop:0x1', version: 2, payload: '{"v":2}' },
+    ]);
+    const repo = new SnapshotArchivePayloadRepository(db);
+
+    expect(await repo.fetchByExternalId('prop:0x1')).toBe('{"v":3}');
+    expect(selectFrom).toHaveBeenCalledWith('archive_event_snapshot');
+    expect(where).toHaveBeenCalledWith('external_id', '=', 'prop:0x1');
+  });
+
+  it('fetchByExternalId returns undefined when nothing is archived', async () => {
+    const { db } = mockChDb([]);
+    const repo = new SnapshotArchivePayloadRepository(db);
+    expect(await repo.fetchByExternalId('prop:missing')).toBeUndefined();
+  });
 });

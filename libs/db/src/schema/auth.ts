@@ -11,8 +11,11 @@ export type ExecutorKind = 'ssh' | 'sudo' | 'env' | 'unknown';
 
 export interface UsersTable {
   id: Generated<string>;
-  email: string;
-  display_name: string;
+  // Nullable since M6-2: wallet (SIWE) accounts carry no email/display_name. A CHECK guarantees
+  // every row still has at least one identity anchor (email OR wallet_address).
+  email: string | null;
+  display_name: string | null;
+  wallet_address: string | null;
   role: UserRole;
   banned_at: Date | null;
   banned_reason: string | null;
@@ -35,6 +38,8 @@ export interface ApiKeyTable {
   created_at: Generated<Date>;
   last_used_at: Date | null;
   revoked_at: Date | null;
+  // Rotation grace / session-key safety net: the key is inactive once now() passes this (if set).
+  expires_at: Date | null;
 }
 
 export type ApiKey = Selectable<ApiKeyTable>;

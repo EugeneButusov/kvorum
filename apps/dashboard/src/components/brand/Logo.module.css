@@ -1,0 +1,32 @@
+/* Kvorum logo. Colour is driven by design-system tokens; override --kv-accent /
+   --kv-surface on the host when placing the logo on a non-default surface. */
+
+.glyph {
+  color: var(--ink);
+  display: block;
+}
+
+.glyph .accent {
+  fill: var(--kv-accent, var(--accent));
+}
+
+.glyph .surface {
+  /* The carved K sits on whatever surface the logo is placed on (default --bg-2). */
+  fill: var(--kv-surface, var(--bg-2));
+}
+
+.wordmark {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--ink);
+}

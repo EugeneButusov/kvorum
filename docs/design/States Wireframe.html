@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — States (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .states-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; padding: 22px 24px 32px; }
+  .state-card {
+    border: 1.5px solid var(--line); background: var(--paper);
+    display: grid; grid-template-rows: auto 1fr;
+  }
+  .state-card > header {
+    background: var(--paper-2); border-bottom: 1.5px solid var(--line);
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  }
+  .state-card > header h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .state-card > header .ref { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .state-card .body { padding: 14px; min-height: 220px; }
+  .state-card .body p { margin: 0 0 8px; font-size: 12px; color: var(--ink-2); }
+
+  /* Shared inner mockups */
+  .empty-block {
+    border: 1.5px dashed var(--line); padding: 28px 16px;
+    text-align: center; color: var(--ink-3); font-size: 12px;
+    background: var(--paper-2);
+  }
+  .empty-block .glyph {
+    width: 44px; height: 44px; margin: 0 auto 8px;
+    border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 18px; color: var(--ink-2);
+    background: var(--paper);
+  }
+  .empty-block b { color: var(--ink); display: block; font-size: 14px; margin-bottom: 4px; }
+  .empty-block .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: center; }
+  .empty-block .actions a { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 5px 10px; border: 1px solid var(--line); }
+
+  .skel-row {
+    height: 14px; background: var(--paper-2); border: 1px solid var(--line-soft);
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--paper-2) 0 30%, var(--paper) 30% 50%, var(--paper-2) 50%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .skel-row.short { width: 60%; }
+  .skel-row.tall { height: 22px; margin-bottom: 12px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .skel-card {
+    border: 1.5px solid var(--line-soft); padding: 12px;
+    display: grid; grid-template-columns: 60px 1fr auto; gap: 12px; align-items: center;
+    margin-bottom: 8px;
+  }
+  .skel-card .blob {
+    width: 40px; height: 40px; background: var(--paper-2); border: 1px solid var(--line-soft);
+    background: linear-gradient(90deg, var(--paper-2) 0 30%, var(--paper) 30% 50%, var(--paper-2) 50%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  .err-banner {
+    border: 1.5px solid var(--note); background: var(--note-bg);
+    padding: 10px 14px; font-size: 12.5px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  }
+  .err-banner .icon {
+    width: 28px; height: 28px; border: 1.5px solid var(--note); display: flex; align-items: center; justify-content: center;
+    color: var(--note); font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .err-banner .b { color: var(--ink); font-weight: 600; font-size: 12.5px; }
+  .err-banner .meta { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; color: var(--ink-2); }
+  .err-banner button { border: 1.5px solid var(--line); background: var(--paper); padding: 5px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; }
+
+  .degraded {
+    background: var(--warn-bg); border: 1.5px solid var(--line);
+    padding: 10px 14px; font-size: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .degraded .icon {
+    width: 24px; height: 24px; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; background: var(--paper);
+  }
+
+  .no-results-mock {
+    border: 1.5px dashed var(--line); padding: 22px;
+    text-align: center; color: var(--ink-2); font-size: 13px;
+  }
+
+  .stale {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line); padding: 2px 8px;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--warn-bg);
+  }
+  .stale .dot { background: #d68a00; }
+
+  .ai-fail {
+    border: 1.5px solid var(--line);
+    background:
+      repeating-linear-gradient(135deg, transparent 0 18px, rgba(196,58,31,0.05) 18px 19px),
+      var(--paper);
+    padding: 12px 14px; font-size: 12.5px;
+  }
+  .ai-fail b { color: var(--ink); }
+  .ai-fail .actions { margin-top: 8px; display: flex; gap: 8px; }
+  .ai-fail .actions a { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 5px 10px; border: 1px solid var(--line); }
+
+  .summary-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .summary-tbl td { padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+  .summary-tbl td:first-child { font-weight: 600; }
+  .summary-tbl td:nth-child(2) { font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-2); width: 110px; }
+  .summary-tbl tr:last-child td { border-bottom: 0; }
+</style>
+</head>
+<body data-wf="states">
+
+<div class="page" data-screen-label="11 States — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / States · empty · loading · error · degraded</span>
+    <span class="mono">cross-cutting · companion to all surfaces · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div style="padding: 22px 24px 8px; border-bottom: 1.5px solid var(--line); background: var(--paper-2);">
+    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 4px;">Cross-cutting · state matrix</div>
+    <h1 style="margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em;">States to design before any backend goes in</h1>
+    <p style="margin: 0; font-size: 12.5px; color: var(--ink-2);">
+      Every list, table, AI panel, freshness indicator, and detail page needs at least: empty / loading / error / stale / degraded.
+      Below is one canonical version of each — reuse these primitives across all wireframes.
+    </p>
+  </div>
+
+  <!-- Coverage table -->
+  <div style="padding: 18px 24px 0;">
+    <div class="section">
+      <header><h2>Coverage matrix</h2><span class="ref">which surface uses which state</span></header>
+      <div class="body" style="padding: 0;">
+        <table class="summary-tbl" style="font-size: 12px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500;">Surface</th>
+              <th style="text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500;">Empty</th>
+              <th style="text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500;">Loading</th>
+              <th style="text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500;">Error</th>
+              <th style="text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500;">Stale / degraded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">Proposals list</td><td style="padding: 8px 14px;">no results · filtered out</td><td style="padding: 8px 14px;">skeleton rows ×8</td><td style="padding: 8px 14px;">retry inline</td><td style="padding: 8px 14px;">ingestion lag &gt; 60s</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">Proposal detail</td><td style="padding: 8px 14px;">404 · proposal missing</td><td style="padding: 8px 14px;">block-level skel</td><td style="padding: 8px 14px;">retry inline</td><td style="padding: 8px 14px;">tally cached &gt; 5m</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">AI panel</td><td style="padding: 8px 14px;">"summary unavailable"</td><td style="padding: 8px 14px;">streaming tokens</td><td style="padding: 8px 14px;">low-confidence redact</td><td style="padding: 8px 14px;">model fallback active</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">DAO health</td><td style="padding: 8px 14px;">new DAO · no data yet</td><td style="padding: 8px 14px;">chart skel</td><td style="padding: 8px 14px;">global banner</td><td style="padding: 8px 14px;">forum source down</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">Search</td><td style="padding: 8px 14px;">"no matches"</td><td style="padding: 8px 14px;">⌘K spinner</td><td style="padding: 8px 14px;">retry inline</td><td style="padding: 8px 14px;">index rebuilding</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">Developer</td><td style="padding: 8px 14px;">no keys yet</td><td style="padding: 8px 14px;">usage chart skel</td><td style="padding: 8px 14px;">key rotate failed</td><td style="padding: 8px 14px;">rate limit hit</td></tr>
+            <tr><td style="padding: 8px 14px; font-weight: 600;">Auth</td><td style="padding: 8px 14px;">—</td><td style="padding: 8px 14px;">SIWE pending</td><td style="padding: 8px 14px;">generic auth fail</td><td style="padding: 8px 14px;">wallet disconnected</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="states-grid">
+
+    <!-- 1. EMPTY · proposals list filtered -->
+    <div class="state-card anno" data-anno="empty · filtered">
+      <header><h2>Empty · filtered list</h2><span class="ref">proposals list (§6.5)</span></header>
+      <div class="body">
+        <div class="no-results-mock">
+          <div style="font-size: 24px; margin-bottom: 8px;">∅</div>
+          <b style="display: block; color: var(--ink); font-size: 14px; margin-bottom: 4px;">No proposals match these filters</b>
+          <span style="color: var(--ink-3);">7 active filters narrowed 248 proposals down to 0.</span>
+          <div style="margin-top: 14px; display: flex; gap: 8px; justify-content: center;">
+            <a class="tag">Clear all filters</a>
+            <a class="tag">Try last 90d</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. EMPTY · brand new DAO -->
+    <div class="state-card anno" data-anno="empty · onboarding">
+      <header><h2>Empty · new DAO</h2><span class="ref">DAO health · first ingestion</span></header>
+      <div class="body">
+        <div class="empty-block">
+          <div class="glyph">⏳</div>
+          <b>Ingestion in progress</b>
+          <span>This DAO joined Kvorum 4 hours ago. We're indexing historical proposals; data populates as it lands.</span>
+          <div style="margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-2);">
+            128 / 412 proposals ingested · ETA 38min
+          </div>
+          <div class="actions">
+            <a>Notify me when ready</a>
+            <a>View ingestion log</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. LOADING · proposals list skeleton -->
+    <div class="state-card anno" data-anno="loading · skeleton">
+      <header><h2>Loading · skeleton</h2><span class="ref">all list views</span></header>
+      <div class="body">
+        <div class="skel-card">
+          <div class="blob"></div>
+          <div><div class="skel-row tall"></div><div class="skel-row short"></div></div>
+          <div class="skel-row" style="width: 80px;"></div>
+        </div>
+        <div class="skel-card">
+          <div class="blob"></div>
+          <div><div class="skel-row tall"></div><div class="skel-row short"></div></div>
+          <div class="skel-row" style="width: 80px;"></div>
+        </div>
+        <div class="skel-card">
+          <div class="blob"></div>
+          <div><div class="skel-row tall"></div><div class="skel-row short"></div></div>
+          <div class="skel-row" style="width: 80px;"></div>
+        </div>
+        <p style="text-align: center; color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">no spinner — content-shaped placeholders</p>
+      </div>
+    </div>
+
+    <!-- 4. LOADING · streaming AI -->
+    <div class="state-card anno" data-anno="loading · ai stream">
+      <header><h2>Loading · AI streaming</h2><span class="ref">AI panel · token-by-token</span></header>
+      <div class="body">
+        <div class="ai-panel">
+          <div class="head"><span class="ai-mark">Generating summary…</span><span class="mono" style="color: var(--ink-3);">streaming · 38/~600</span></div>
+          <div class="body" style="font-size: 12.5px; line-height: 1.55;">
+            Migrates the cUSDC market to IRM v3, shifting the kink utilization from 90% to 80% to redistribute<span style="display: inline-block; width: 9px; height: 14px; background: var(--ink); animation: blink 1s steps(2) infinite; vertical-align: middle; margin-left: 2px;"></span>
+          </div>
+          <div class="foot"><span>haiku-4-5 · streaming</span><span>recompute pending</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. ERROR · network -->
+    <div class="state-card anno" data-anno="error · retryable">
+      <header><h2>Error · retryable</h2><span class="ref">block-level · keep page alive</span></header>
+      <div class="body">
+        <div class="err-banner">
+          <span class="icon">!</span>
+          <div>
+            <div class="b">Couldn't load tally</div>
+            <div class="meta">RPC upstream timeout · last good value 4m ago</div>
+          </div>
+          <button>Retry</button>
+        </div>
+        <p style="margin-top: 12px;">Errors are scoped to the block that failed. The rest of the page stays interactive.</p>
+        <p style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em;">
+          Don't full-screen-error a page unless the entire route is unreachable.
+        </p>
+      </div>
+    </div>
+
+    <!-- 6. ERROR · AI failed -->
+    <div class="state-card anno" data-anno="error · AI">
+      <header><h2>Error · AI failed</h2><span class="ref">low confidence or fallback</span></header>
+      <div class="body">
+        <div class="ai-fail">
+          <b>Summary unavailable</b>
+          <p style="font-size: 12px; color: var(--ink-2); margin: 6px 0 0;">
+            We don't publish summaries below a 0.6 confidence floor (§6.18). The structured fields below
+            (calldata, actions, tally) are unaffected and authoritative.
+          </p>
+          <div class="actions">
+            <a>View raw description</a>
+            <a>Why no summary?</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. STALE · ingestion lag -->
+    <div class="state-card anno" data-anno="stale · ingestion lag">
+      <header><h2>Stale · ingestion lag</h2><span class="ref">freshness indicator (§6.18)</span></header>
+      <div class="body">
+        <p>When chain ingestion is behind by &gt; 60s, every freshness pill on the page flips to amber.</p>
+        <div style="margin: 8px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+          <span class="stale"><span class="dot"></span>Stale · 4m behind chain</span>
+          <span class="stale"><span class="dot"></span>Forum sync paused</span>
+          <span class="stale"><span class="dot"></span>Tally cached 6m</span>
+        </div>
+        <div class="degraded" style="margin-top: 12px;">
+          <span class="icon">~</span>
+          <div>
+            <b>Reading from cache.</b> Live updates resume when ingestion catches up.
+            <span class="mono" style="display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 2px;">indexer block 19,248,011 · chain block 19,248,099</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. DEGRADED · global banner -->
+    <div class="state-card anno" data-anno="degraded · global">
+      <header><h2>Degraded · global banner</h2><span class="ref">topbar · sticky</span></header>
+      <div class="body">
+        <div style="background: var(--warn-bg); border: 1.5px solid var(--line); padding: 10px 14px; display: flex; gap: 10px; align-items: center; font-size: 12.5px;">
+          <span style="width: 24px; height: 24px; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; background: var(--paper); font-family: 'JetBrains Mono', monospace;">⚠</span>
+          <div style="flex:1;">
+            <b>Forum ingestion paused</b> — Compound Discourse rate-limited us. Other DAOs unaffected.
+            <span style="color: var(--ink-3); font-family: 'JetBrains Mono', monospace; font-size: 10.5px; display: block; margin-top: 2px;">since 13:42 UTC · auto-resumes 14:00 UTC</span>
+          </div>
+          <a class="tag">Status page ↗</a>
+          <a style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2);">×</a>
+        </div>
+        <p style="margin-top: 12px;">
+          Sticks to the top of every page until resolved. Dismissable per session. Mirrors what's on
+          status.kvorum.xyz.
+        </p>
+      </div>
+    </div>
+
+    <!-- 9. EMPTY · no API keys -->
+    <div class="state-card anno" data-anno="empty · onboarding">
+      <header><h2>Empty · no API keys yet</h2><span class="ref">developer dashboard (§6.13)</span></header>
+      <div class="body">
+        <div class="empty-block">
+          <div class="glyph">⚿</div>
+          <b>No API keys yet</b>
+          <span>Create one to start hitting <span class="mono">api.kvorum.xyz/v1</span>. Free tier: 50k req/mo, 60 req/min.</span>
+          <div class="actions">
+            <a style="background: var(--ink); color: var(--paper); border-color: var(--ink);">+ Create first key</a>
+            <a>Read the docs</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. ERROR · 404 / route -->
+    <div class="state-card anno" data-anno="error · route 404">
+      <header><h2>Error · 404 / proposal not found</h2><span class="ref">full-route fallback</span></header>
+      <div class="body">
+        <div class="empty-block">
+          <div class="glyph" style="color: var(--note); border-color: var(--note);">404</div>
+          <b>That proposal doesn't exist on Kvorum</b>
+          <span>It might have been canceled before indexing, or the slug is misspelled.</span>
+          <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-2);">
+            /proposals/compound/9999
+          </div>
+          <div class="actions">
+            <a>Compound proposals</a>
+            <a>Search</a>
+            <a>Open issue</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span>State primitives are reusable across all surfaces</span>
+    <span>Block-level errors > full-page errors · stale > silent · always show provenance</span>
+    <span>kvorum.xyz</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>States</b> · cross-cutting matrix. Three rules: errors are block-level when possible (keep the rest of the page alive), stale beats silent (always show how fresh the data is), and AI panels never fake confidence (low-confidence = redact, not hallucinate).
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>

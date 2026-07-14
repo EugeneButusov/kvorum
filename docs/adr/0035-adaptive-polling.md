@@ -3,7 +3,24 @@
 - **Status**: Accepted (schema half — `dashboard` value in `api_key_tier` enum — ratified by E1 in `docs/plan-m1-e1.md` v3; client-side adaptive polling implementation lands in M6 dashboard work)
 - **Date**: 2026-05-08 (proposed); 2026-05-10 (accepted)
 - **Spec sections affected**: 4.4, 6.16
-- **Related**: DR-001, DR-009
+- **Related**: DR-001, DR-009, ADR-082 (supersedes the privileged-tier half)
+
+> **Superseded in part (2026-07, pre-launch, ADR-082).** The "privileged dashboard tier" —
+> provisioning a per-session `kv_dashboard_` key on login — is **dropped**. The dashboard is
+> first-party UI over public read-only data, not a third-party API consumer, so it needs no
+> developer-style key: a per-session bearer key would be net-negative security (usable directly
+> against the API, bypassing the session cookie's protections). Dashboard reads stay keyless and are
+> bounded **per-IP at the edge** (on the forwarded client IP, trusted only from an allowlisted
+> proxy). The client-side adaptive-polling idea below is unaffected. The `dashboard` enum value
+> remains for a possible operator-minted first-party service key, but nothing provisions one per
+> session.
+
+> **Adaptive-polling half implemented (2026-07, M6-3.2).** The proposal-detail tally polls the
+> `.../tally` aggregate every 10s while `active`, sending `If-None-Match` (304 on unchanged tallies),
+> and backs off per the quota tiers below (`useTally` + `tallyIntervalMs`/`parseQuota` read
+> `RateLimit-Remaining`/`-Limit` off the response). Until the per-IP read limiter emits those headers
+> (M6-6), the remaining-quota fraction is null and the client holds the base 10s cadence without
+> pausing — the tier logic activates automatically once the headers appear.
 
 ## Context
 

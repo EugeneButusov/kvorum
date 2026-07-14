@@ -1,0 +1,1455 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — #248 Update interest-rate curve, cETH market</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<style>
+  /* ===========================================================
+     Kvorum hi-fi v1 — Etherscan-flavored
+     Mono-headline, info-dense, terminal-green accent.
+     =========================================================== */
+
+  :root[data-theme="light"] {
+    --bg:        #f7f7f4;       /* off-paper */
+    --bg-2:      #ffffff;
+    --bg-3:      #efefe9;
+    --ink:       #0e0e0c;
+    --ink-2:     #444440;
+    --ink-3:     #7a7a73;
+    --ink-4:     #b3b3aa;
+    --line:      #1a1a17;
+    --line-2:    #d4d4cc;
+    --line-3:    #e6e6df;
+    --accent:    #00a86b;       /* sharp terminal green */
+    --accent-bg: #d6f3e4;
+    --accent-ink:#003d22;
+    --warn:      #c43a1f;       /* severity red */
+    --warn-bg:   #fbe1da;
+    --warn-ink:  #6a1308;
+    --note:      #d97706;       /* severity amber */
+    --note-bg:   #fce8c5;
+    --note-ink:  #5a3208;
+    --ok:        #00a86b;
+    --ai-bg:     #f3f1e8;       /* AI panel — subtle paper-yellow */
+    --ai-line:   #1a1a17;
+    --ai-mark:   #0e0e0c;
+    --for:       #00a86b;
+    --against:   #c43a1f;
+    --abstain:   #7a7a73;
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0c0d0a;
+    --bg-2:      #15170f;
+    --bg-3:      #1d1e16;
+    --ink:       #ecebe2;
+    --ink-2:     #b8b7ad;
+    --ink-3:     #82827a;
+    --ink-4:     #4a4a44;
+    --line:      #ecebe2;
+    --line-2:    #2a2b22;
+    --line-3:    #1d1e16;
+    --accent:    #00ff88;
+    --accent-bg: #003d22;
+    --accent-ink:#9bf3c3;
+    --warn:      #ff5a3c;
+    --warn-bg:   #3a1108;
+    --warn-ink:  #ffb3a4;
+    --note:      #ffae45;
+    --note-bg:   #3a2408;
+    --note-ink:  #ffd9a8;
+    --ok:        #00ff88;
+    --ai-bg:     #1a1c12;
+    --ai-line:   #ecebe2;
+    --ai-mark:   #ecebe2;
+    --for:       #00ff88;
+    --against:   #ff5a3c;
+    --abstain:   #82827a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .mono, code, kbd { font-family: "JetBrains Mono", ui-monospace, monospace; font-feature-settings: "ss02", "cv11"; }
+
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* --- Top nav (Etherscan-style strip) --- */
+  .topnav {
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-2);
+    padding: 0 32px;
+    display: flex;
+    align-items: stretch;
+    height: 56px;
+    gap: 0;
+  }
+  .topnav .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700; font-size: 14px;
+    letter-spacing: 0.04em;
+    padding-right: 28px;
+    border-right: 1px solid var(--line-2);
+  }
+  .topnav .brand .glyph {
+    width: 22px; height: 22px;
+    background: var(--ink); color: var(--bg-2);
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 700;
+  }
+  .topnav nav { display: flex; align-items: stretch; }
+  .topnav nav a {
+    padding: 0 18px;
+    display: flex; align-items: center;
+    font-size: 13px; font-weight: 500;
+    color: var(--ink-2);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .topnav nav a.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .topnav nav a:hover { color: var(--ink); }
+  .topnav .spacer { flex: 1; }
+  .topnav .search {
+    align-self: center;
+    border: 1px solid var(--line-2);
+    background: var(--bg);
+    padding: 6px 10px; min-width: 320px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--ink-3);
+  }
+  .topnav .search .kbd {
+    margin-left: auto;
+    border: 1px solid var(--line-2);
+    padding: 1px 5px; font-size: 10px;
+  }
+  .topnav .actions { display: flex; align-items: center; gap: 6px; padding-left: 16px; }
+  .topnav .icon-btn {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+  }
+  .topnav .icon-btn:hover { border-color: var(--line); color: var(--ink); }
+  .topnav .connect {
+    align-self: center;
+    background: var(--ink); color: var(--bg-2);
+    padding: 7px 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* --- Page chrome --- */
+  .crumb {
+    border-bottom: 1px solid var(--line-3);
+    background: var(--bg-2);
+    padding: 10px 32px;
+    display: flex; gap: 14px; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .crumb a { color: var(--ink-2); }
+  .crumb a:hover { color: var(--ink); }
+  .crumb .sep { color: var(--ink-4); }
+  .crumb .id { color: var(--ink); }
+  .crumb .copy {
+    margin-left: 6px;
+    color: var(--ink-3);
+    font-size: 11px;
+    border: 1px solid var(--line-3); padding: 1px 5px;
+  }
+  .crumb .copy:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* --- Layout --- */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  /* --- Left anchor nav --- */
+  aside.toc {
+    border-right: 1px solid var(--line-3);
+    background: var(--bg);
+    padding: 24px 0;
+    position: sticky; top: 0; align-self: start;
+  }
+  aside.toc .lbl {
+    padding: 0 24px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  aside.toc a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 7px 24px;
+    font-size: 13px;
+    color: var(--ink-2);
+    border-left: 2px solid transparent;
+  }
+  aside.toc a .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-4);
+    width: 16px;
+  }
+  aside.toc a.active {
+    color: var(--ink);
+    border-left-color: var(--accent);
+    background: var(--bg-2);
+    font-weight: 600;
+  }
+  aside.toc a.active .num { color: var(--accent); }
+  aside.toc a:hover { color: var(--ink); }
+
+  aside.toc .sticky-actions {
+    margin: 20px 24px 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-3);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  aside.toc .sticky-actions button {
+    width: 100%;
+    border: 1px solid var(--line-2);
+    padding: 8px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    text-align: left;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  aside.toc .sticky-actions button:hover { border-color: var(--line); color: var(--ink); }
+  aside.toc .sticky-actions button.primary {
+    background: var(--ink); color: var(--bg-2);
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+  aside.toc .sticky-actions button.primary:hover { color: var(--accent); }
+  aside.toc .sticky-actions .arrow { color: var(--ink-4); }
+  aside.toc .sticky-actions button.primary .arrow { color: var(--accent); }
+
+  /* --- Main --- */
+  main.detail {
+    padding: 28px 36px 80px;
+    min-width: 0;
+    display: flex; flex-direction: column; gap: 36px;
+  }
+
+  /* --- Header --- */
+  .header .meta-strip {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .pill {
+    border: 1px solid var(--line-2);
+    padding: 2px 7px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    background: var(--bg-2);
+  }
+  .pill.dao-compound { border-color: #00d395; color: #00875a; }
+  :root[data-theme="dark"] .pill.dao-compound { color: #00d395; }
+  .state-pill {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border: 1px solid;
+  }
+  .state-pill.active { background: var(--accent); color: var(--bg-2); border-color: var(--accent); }
+  :root[data-theme="dark"] .state-pill.active { color: var(--bg); }
+
+  .header h1 {
+    margin: 14px 0 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: pretty;
+  }
+  .header h1 .num {
+    color: var(--ink-3);
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .header .sub {
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--ink-2);
+  }
+  .header .sub b { color: var(--ink); font-weight: 600; }
+  .header .sub .mono { color: var(--ink-3); }
+  .header .ext {
+    margin-left: auto;
+    border: 1px solid var(--line-2);
+    padding: 6px 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+  }
+  .header .ext:hover { border-color: var(--line); color: var(--ink); }
+
+  /* --- Mismatch banner (severity-strong) --- */
+  .flag-banner {
+    margin-top: 18px;
+    border: 1px solid var(--warn);
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 13px;
+  }
+  .flag-banner .glyph {
+    width: 20px; height: 20px; flex: 0 0 auto;
+    background: var(--warn); color: var(--warn-bg);
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 13px;
+  }
+  .flag-banner b { font-weight: 600; }
+  .flag-banner .conf { margin-left: auto; font-family: "JetBrains Mono", monospace; font-size: 11px; opacity: 0.8; }
+  .flag-banner .jump {
+    border: 1px solid var(--warn); padding: 4px 10px;
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--warn); background: transparent;
+  }
+
+  /* --- Section --- */
+  section.s {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  section.s > header {
+    display: flex; align-items: baseline; gap: 16px;
+    border-bottom: 1px solid var(--line-3);
+    padding-bottom: 10px;
+  }
+  section.s > header h2 {
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  section.s > header h2 .num {
+    color: var(--ink-3);
+    margin-right: 8px;
+    font-weight: 500;
+  }
+  section.s > header .ref {
+    margin-left: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .dot.live { box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok), transparent 70%); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ok), transparent 60%); }
+    50%      { box-shadow: 0 0 0 5px color-mix(in oklab, var(--ok), transparent 90%); }
+  }
+
+  /* --- AI panel — clearly marked --- */
+  .ai-panel {
+    border: 1.5px solid var(--ai-line);
+    background: var(--ai-bg);
+    background-image:
+      repeating-linear-gradient(135deg,
+        transparent 0 14px,
+        color-mix(in oklab, var(--ai-line), transparent 96%) 14px 15px);
+    position: relative;
+  }
+  .ai-panel .ai-head {
+    border-bottom: 1px solid var(--ai-line);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--ai-bg);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+  }
+  .ai-panel .ai-mark {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--ai-mark); color: var(--ai-bg);
+    padding: 3px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ai-panel .ai-mark::before { content: "△"; font-size: 12px; line-height: 1; }
+  .ai-panel .ai-head .model {
+    color: var(--ink-3);
+    margin-left: auto;
+    font-size: 10.5px;
+  }
+  .ai-panel .ai-body {
+    padding: 16px 18px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line-3);
+  }
+  .ai-panel .ai-foot {
+    padding: 8px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    background: var(--ai-bg);
+  }
+  .ai-panel .ai-foot a { color: var(--ink-2); }
+  .ai-panel .ai-foot a:hover { color: var(--accent-ink); }
+  :root[data-theme="dark"] .ai-panel .ai-foot a:hover { color: var(--accent); }
+
+  /* --- AI: summary contents --- */
+  .summary .tldr {
+    font-size: 14px; line-height: 1.55;
+    margin: 0 0 14px;
+    color: var(--ink);
+  }
+  .summary .tldr b { font-weight: 600; }
+  .summary .fields {
+    display: grid; grid-template-columns: 130px 1fr;
+    gap: 6px 18px; font-size: 12.5px;
+    border-top: 1px dashed var(--line-3);
+    padding-top: 10px;
+  }
+  .summary .fields dt {
+    color: var(--ink-3);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    align-self: center;
+  }
+  .summary .fields dd { margin: 0; align-self: center; }
+
+  /* --- Description --- */
+  .description {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    max-height: 320px;
+    overflow: hidden;
+    position: relative;
+    padding: 18px 22px;
+    font-size: 14px;
+    line-height: 1.62;
+  }
+  .description::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 80px;
+    background: linear-gradient(to bottom, transparent, var(--bg-2));
+    pointer-events: none;
+  }
+  .description h3 {
+    margin: 0 0 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .description p { margin: 0 0 10px; }
+  .desc-toggle {
+    margin-top: -1px;
+    border: 1px solid var(--line-3);
+    border-top: 0;
+    padding: 10px 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    background: var(--bg-2);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+  .desc-toggle:hover { color: var(--accent); }
+
+  /* --- Mismatch grid --- */
+  .mismatch-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .claim-box, .calldata-box {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+  }
+  .claim-box h4, .calldata-box h4 {
+    margin: 0;
+    padding: 10px 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    border-bottom: 1px dashed var(--line-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .claim-box h4 .src, .calldata-box h4 .src {
+    margin-left: auto;
+    text-transform: none; letter-spacing: 0;
+    font-weight: 400; font-size: 10px;
+    color: var(--ink-4);
+  }
+  .claim-box ul, .calldata-box ul {
+    margin: 0; padding: 10px 14px 12px 30px; font-size: 12.5px;
+  }
+  .claim-box li, .calldata-box li { margin-bottom: 6px; }
+  .calldata-box li.flag {
+    list-style: none;
+    margin-left: -16px;
+    padding: 4px 8px;
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    border: 1px solid var(--warn);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .calldata-box li.flag::before {
+    content: "!"; flex: 0 0 auto;
+    width: 14px; height: 14px;
+    display: grid; place-items: center;
+    background: var(--warn); color: var(--warn-bg);
+    font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 11px;
+  }
+
+  .discrepancy {
+    border: 1px solid var(--warn);
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    padding: 14px 16px;
+    display: grid; grid-template-columns: auto 1fr; gap: 12px;
+    align-items: start;
+    margin-top: 4px;
+  }
+  .discrepancy .glyph {
+    width: 22px; height: 22px;
+    background: var(--warn); color: var(--warn-bg);
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 13px;
+  }
+  .discrepancy .body strong { font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px; }
+  .discrepancy .body { font-size: 12.5px; line-height: 1.55; }
+
+  /* --- Action cards --- */
+  .actions-list { display: flex; flex-direction: column; gap: 10px; }
+  .action-card {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+  }
+  .action-card .ah {
+    padding: 10px 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line-3);
+    display: flex; align-items: center; gap: 14px;
+    font-size: 13px;
+  }
+  .action-card .ah .idx {
+    border: 1px solid var(--line-2);
+    padding: 2px 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+  .action-card .ah strong {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .action-card .ah .chain {
+    margin-left: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .action-card .ah .undisclosed {
+    background: var(--warn);
+    color: var(--warn-bg);
+    padding: 2px 7px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .action-card.flagged { border-color: var(--warn); }
+  .action-card.flagged .ah {
+    background: var(--warn-bg); border-bottom-color: var(--warn);
+    color: var(--warn-ink);
+  }
+  .action-card.flagged .ah .idx { border-color: var(--warn); color: var(--warn-ink); }
+
+  .action-card .ab {
+    padding: 4px 0;
+  }
+  .action-card .field {
+    display: grid; grid-template-columns: 140px 1fr;
+    padding: 8px 14px;
+    border-bottom: 1px dashed var(--line-3);
+    align-items: center;
+  }
+  .action-card .field:last-child { border-bottom: 0; }
+  .action-card .field .k {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .action-card .field .v {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    word-break: break-all;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .action-card .field .v .label {
+    color: var(--ink-3);
+    font-family: "Inter", sans-serif;
+    font-size: 11.5px;
+    border-left: 1px solid var(--line-3);
+    padding-left: 8px;
+    margin-left: 2px;
+  }
+  .action-card .field .v .warn-label {
+    color: var(--warn);
+    font-family: "Inter", sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: var(--warn-bg);
+    padding: 1px 6px;
+    border: 1px solid var(--warn);
+  }
+  .action-card .field .v .copy {
+    color: var(--ink-3); font-size: 11px;
+    border: 1px solid var(--line-3);
+    padding: 1px 6px;
+  }
+
+  /* --- Tally --- */
+  .tally-grid {
+    display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px;
+    align-items: start;
+  }
+  .tally-bars { display: flex; flex-direction: column; gap: 12px; }
+  .tally-bars .row { display: grid; grid-template-columns: 80px 1fr 180px; gap: 14px; align-items: center; }
+  .tally-bars .row .lbl {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-2);
+  }
+  .tally-bars .row .bar {
+    height: 22px;
+    background: var(--bg-3);
+    border: 1px solid var(--line-3);
+    position: relative;
+    overflow: hidden;
+  }
+  .tally-bars .row .bar > i {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    background: var(--for);
+  }
+  .tally-bars .row.against .bar > i { background: var(--against); }
+  .tally-bars .row.abstain .bar > i { background: var(--abstain); }
+  .tally-bars .row .num {
+    text-align: right;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .tally-bars .row .num .pct { font-weight: 600; }
+  .tally-bars .row .num .vp { color: var(--ink-3); margin-left: 8px; font-size: 11.5px; }
+
+  .quorum {
+    margin-top: 16px;
+    border-top: 1px dashed var(--line-3);
+    padding-top: 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .quorum .top {
+    display: flex; justify-content: space-between; font-size: 11.5px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--ink-2);
+  }
+  .quorum .top .met { color: var(--ok); font-weight: 600; }
+  .quorum .top .met::before { content: "✓ "; }
+  .quorum .bar {
+    height: 8px; background: var(--bg-3);
+    border: 1px solid var(--line-3);
+    position: relative;
+  }
+  .quorum .bar > i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink); }
+  .quorum .bar .threshold {
+    position: absolute; top: -3px; bottom: -3px; width: 2px;
+    background: var(--accent);
+  }
+  .quorum .bar .threshold::after {
+    content: ""; position: absolute;
+    top: -4px; left: -3px; width: 8px; height: 4px;
+    background: var(--accent);
+  }
+  .quorum .scale {
+    display: flex; justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; color: var(--ink-3);
+  }
+
+  .tally-stats {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    padding: 4px 0;
+  }
+  .tally-stats .s {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px dashed var(--line-3);
+    font-size: 12.5px;
+  }
+  .tally-stats .s:last-child { border-bottom: 0; }
+  .tally-stats .s .k {
+    color: var(--ink-3);
+    font-size: 11.5px;
+  }
+  .tally-stats .s .v {
+    font-family: "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .tally-stats .s .v.warn { color: var(--warn); font-weight: 600; }
+
+  /* --- Voters --- */
+  .voters-controls {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--line-3);
+    font-size: 12px;
+  }
+  .seg {
+    display: inline-flex; border: 1px solid var(--line-2);
+  }
+  .seg button {
+    padding: 5px 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    border-right: 1px solid var(--line-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on {
+    background: var(--ink); color: var(--bg-2); font-weight: 600;
+  }
+  .voters-controls input {
+    border: 1px solid var(--line-2);
+    background: var(--bg-2); color: var(--ink);
+    padding: 6px 10px; font-size: 12px;
+    min-width: 240px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .voters-controls input::placeholder { color: var(--ink-3); }
+  .voters-controls .sort {
+    margin-left: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+  }
+
+  table.voters {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.voters th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-3);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    background: var(--bg);
+  }
+  table.voters td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--line-3);
+    vertical-align: top;
+  }
+  table.voters tr:hover td { background: var(--bg); }
+  table.voters .voter b { display: block; font-size: 13px; }
+  table.voters .voter .addr {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+  table.voters .vp {
+    font-family: "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  table.voters .pct {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  table.voters .rationale {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    max-width: 360px;
+  }
+  table.voters .rationale.empty { color: var(--ink-4); font-style: italic; }
+  table.voters .cast {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  .vote-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    display: inline-block;
+    border: 1px solid;
+  }
+  .vote-tag.for { background: var(--for); color: var(--bg-2); border-color: var(--for); }
+  :root[data-theme="dark"] .vote-tag.for { color: var(--bg); }
+  .vote-tag.against { background: var(--against); color: var(--bg-2); border-color: var(--against); }
+  :root[data-theme="dark"] .vote-tag.against { color: var(--bg); }
+  .vote-tag.abstain { background: transparent; color: var(--ink-2); border-color: var(--ink-3); }
+
+  .table-footer {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--line-3);
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .table-footer a { color: var(--ink); border-bottom: 1px solid var(--ink); padding-bottom: 1px; }
+
+  /* --- Forum synthesis --- */
+  .forum-meta {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--ink-2);
+    padding-bottom: 4px;
+  }
+  .forum-meta a { color: var(--ink); border-bottom: 1px solid var(--line-2); }
+  .forum-stats { display: flex; gap: 14px; margin-left: auto; font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .forum-meta .pill { background: var(--bg-2); }
+
+  .roster-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-top: 12px;
+  }
+  .roster-card {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    padding: 12px 14px;
+  }
+  .roster-card h5 {
+    margin: 0 0 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .roster-card.for h5 { color: var(--for); }
+  .roster-card.against h5 { color: var(--against); }
+  .roster-card.undecided h5 { color: var(--note); }
+  .roster-card h5 .count { color: var(--ink-3); margin-left: auto; font-weight: 500; }
+  .roster-card ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); }
+  .roster-card ul li { margin-bottom: 4px; }
+  .roster-card ul li b { color: var(--ink); font-weight: 600; }
+  .roster-card .more {
+    margin-top: 6px;
+    font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-3);
+  }
+
+  /* --- Similar grid --- */
+  .similar-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .similar-card {
+    border: 1px solid var(--line-3);
+    background: var(--bg-2);
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color 0.12s ease;
+  }
+  .similar-card:hover { border-color: var(--ink); }
+  .similar-card .top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+  }
+  .similar-card .top .score {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .similar-card .ttl {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink);
+  }
+  .similar-card .meta {
+    display: flex; justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-top: auto;
+  }
+  .similar-card .meta .outcome.executed { color: var(--ok); }
+  .similar-card .meta .outcome.defeated { color: var(--against); }
+  .similar-card .meta .outcome.passed { color: var(--ok); }
+
+  /* --- Footer --- */
+  footer.fresh {
+    border-top: 1px solid var(--line-3);
+    background: var(--bg-2);
+    padding: 14px 32px;
+    display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  footer.fresh .item { display: flex; align-items: center; gap: 8px; }
+
+  /* Theme toggle */
+  .theme-toggle {
+    align-self: center;
+    border: 1px solid var(--line-2);
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .theme-toggle:hover { border-color: var(--line); color: var(--ink); }
+
+  /* utility */
+  .hex { font-family: "JetBrains Mono", monospace; color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="#">Home</a>
+    <a href="#" class="active">Proposals</a>
+    <a href="#">DAOs</a>
+    <a href="#">Delegates</a>
+    <a href="#">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="crumb">
+  <a href="#">DAOs</a>
+  <span class="sep">/</span>
+  <a href="#">Compound</a>
+  <span class="sep">/</span>
+  <a href="#">Proposals</a>
+  <span class="sep">/</span>
+  <span class="id">#248</span>
+  <span class="copy" title="Copy URL">⎘ copy</span>
+  <span style="margin-left:auto; color:var(--ink-3);">compound_governor · 0x309a…f1c8</span>
+</div>
+
+<div class="layout">
+  <aside class="toc">
+    <div class="lbl">On this page</div>
+    <a class="active"><span class="num">01</span>Summary</a>
+    <a><span class="num">02</span>Description</a>
+    <a><span class="num">03</span>Mismatch</a>
+    <a><span class="num">04</span>Actions</a>
+    <a><span class="num">05</span>Tally</a>
+    <a><span class="num">06</span>Voters</a>
+    <a><span class="num">07</span>Forum</a>
+    <a><span class="num">08</span>Similar</a>
+
+    <div class="sticky-actions">
+      <button class="primary">Cast vote <span class="arrow">→</span></button>
+      <button>Watch <span class="arrow">+</span></button>
+      <button>Share <span class="arrow">↗</span></button>
+    </div>
+  </aside>
+
+  <main class="detail">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="meta-strip">
+        <span class="pill dao-compound">⬡ Compound</span>
+        <span class="pill">governor · onchain</span>
+        <span class="state-pill active">● active</span>
+        <span style="color:var(--ink-3);">started 2d ago · ends in 2d 8h 14m</span>
+        <a class="ext">Tally ↗</a>
+      </div>
+      <h1><span class="num">#248</span>Update interest-rate curve, cETH market</h1>
+      <div class="sub">
+        <span>Proposed by <b>delegate.eth</b> <span class="mono">0x12c4…aa31</span></span>
+        <span style="color:var(--ink-4);">·</span>
+        <span>VP @ block <span class="mono">19,854,210</span></span>
+        <span style="color:var(--ink-4);">·</span>
+        <span>2 actions</span>
+      </div>
+
+      <div class="flag-banner">
+        <div class="glyph">!</div>
+        <div>
+          <b>Material discrepancy detected.</b>
+          Calldata also re-points the cETH price oracle to a new address that isn't mentioned in the description.
+        </div>
+        <span class="conf">confidence · medium</span>
+        <button class="jump">Jump to mismatch ↓</button>
+      </div>
+    </div>
+
+    <!-- 01 Summary -->
+    <section class="s" id="summary">
+      <header>
+        <h2><span class="num">01</span>Summary</h2>
+        <span class="ref">structured fields · regenerated on description change</span>
+      </header>
+      <div class="ai-panel">
+        <div class="ai-head">
+          <span class="ai-mark">AI · Summary</span>
+          <span class="model">model claude-haiku-4-5 · gen 4h ago · cached</span>
+        </div>
+        <div class="ai-body summary">
+          <p class="tldr">
+            <b>TL;DR.</b> Lowers the cETH interest-rate kink from 80% → 70% utilization and bumps the jumpRate so borrow rates climb sooner under stress. <b>Side-effect:</b> calldata also swaps the cETH price oracle to a new address that isn't named in the description.
+          </p>
+          <dl class="fields">
+            <dt>Type</dt><dd>Parameter change · binding onchain</dd>
+            <dt>Affected</dt><dd><span class="mono">cETH · Comptroller</span></dd>
+            <dt>Key change</dt><dd>kink <span class="mono">80% → 70%</span> · jumpRate <span class="mono">109% → 130%</span></dd>
+            <dt>Beneficiaries</dt><dd>Suppliers in high-utilization regimes</dd>
+            <dt>Funding</dt><dd style="color:var(--ink-3);">— none</dd>
+          </dl>
+        </div>
+        <div class="ai-foot">
+          <span>provenance · 2 source spans · <a href="#">view sources ↗</a></span>
+          <span><a href="#">regenerate</a> · <a href="#">report issue</a></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 Description -->
+    <section class="s" id="description">
+      <header>
+        <h2><span class="num">02</span>Description</h2>
+        <span class="ref">source of truth · markdown · 3,212 words</span>
+      </header>
+      <div class="description">
+        <h3>Update interest-rate curve, cETH market</h3>
+        <p>This proposal updates the interest-rate model on the cETH market to better respond to high-utilization periods. Recent observations show that during stress events, utilization climbed past 90% with insufficient rate response, leading to thin available liquidity for redemptions.</p>
+        <p>The proposed change lowers the kink point from 80% to 70% and increases the jump multiplier so that borrow rates rise more steeply once the kink is crossed. This is a modest tweak to align with parameters used in similar markets across the protocol.</p>
+        <p><b>No other parameters of the cETH market are affected by this proposal.</b> Risk has been reviewed by Gauntlet and the Risk WG, with simulated outcomes attached to the linked forum thread.</p>
+        <p>If accepted, the new model is deployed at <span class="mono">0x7f8c…91ab</span> (JumpRateModelV2) with the parameters above. Existing borrowers will see borrow rates adjust at the next interest accrual after execution.</p>
+      </div>
+      <button class="desc-toggle">↓ Expand full description (3,212 words)</button>
+    </section>
+
+    <!-- 03 Mismatch -->
+    <section class="s" id="mismatch">
+      <header>
+        <h2><span class="num">03</span>Mismatch analysis</h2>
+        <span class="ref">
+          <span class="vote-tag" style="background:var(--warn); color:var(--warn-bg); border-color:var(--warn);">material</span>
+          confidence · medium
+        </span>
+      </header>
+      <div class="ai-panel">
+        <div class="ai-head">
+          <span class="ai-mark">AI · Mismatch detector</span>
+          <span class="model">model claude-sonnet-4-5 · gen 4h ago · 2 actions analyzed</span>
+        </div>
+        <div class="ai-body">
+          <div class="mismatch-grid">
+            <div class="claim-box">
+              <h4>Description claims <span class="src">from §02</span></h4>
+              <ul>
+                <li>Lower kink from <b>80% → 70%</b></li>
+                <li>Increase jump multiplier (jumpRate <b>109% → 130%</b>)</li>
+                <li>"<i>No other parameters of the cETH market are affected</i>"</li>
+              </ul>
+            </div>
+            <div class="calldata-box">
+              <h4>Calldata actions <span class="src">from §04</span></h4>
+              <ul>
+                <li><span class="mono">cETH._setInterestRateModel(0x7f8c…91ab)</span></li>
+                <li class="flag"><span class="mono">Comptroller._setPriceOracle(0x9d04…cdc7)</span> — undisclosed</li>
+              </ul>
+            </div>
+          </div>
+          <div class="discrepancy" style="margin-top: 14px;">
+            <div class="glyph">!</div>
+            <div class="body">
+              <strong>Action #1 contradicts the description.</strong>
+              The second action calls <span class="mono">_setPriceOracle</span> on the Comptroller, switching the cETH price oracle to <span class="mono">0x9d04…cdc7</span>. This contradicts the description's claim that "<i>no other parameters are affected</i>." Reviewers should verify the new oracle's source, deployer, and ownership before voting — Kvorum doesn't recognize this contract address.
+            </div>
+          </div>
+        </div>
+        <div class="ai-foot">
+          <span>2 actions analyzed · 1 discrepancy flagged · last verified 4h ago</span>
+          <span><a href="#">view sources ↗</a> · <a href="#">dispute finding</a></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 Actions -->
+    <section class="s" id="actions">
+      <header>
+        <h2><span class="num">04</span>Actions</h2>
+        <span class="ref">2 actions · all on chain 1 · ethereum</span>
+      </header>
+      <div class="actions-list">
+        <div class="action-card">
+          <div class="ah">
+            <span class="idx">#0</span>
+            <strong>cETH<span style="color:var(--ink-3);">.</span>_setInterestRateModel</strong>
+            <span class="chain">chain 1 · ethereum</span>
+          </div>
+          <div class="ab">
+            <div class="field"><div class="k">Target</div><div class="v">0x4ddc…d5b3 <span class="label">cETH</span></div></div>
+            <div class="field"><div class="k">Value</div><div class="v">0 wei</div></div>
+            <div class="field"><div class="k">Function</div><div class="v">_setInterestRateModel(address)</div></div>
+            <div class="field"><div class="k">Argument 0</div><div class="v">0x7f8c…91ab <span class="label">JumpRateModelV2 · verified</span></div></div>
+            <div class="field"><div class="k">Calldata</div><div class="v">0xb31f4d8e000000000000000000000000<b>7f8c…91ab</b> <span class="copy">+ 0 bytes ↓</span></div></div>
+          </div>
+        </div>
+        <div class="action-card flagged">
+          <div class="ah">
+            <span class="idx">#1</span>
+            <strong>Comptroller<span style="color:var(--ink-3);">.</span>_setPriceOracle</strong>
+            <span class="undisclosed">⚠ undisclosed</span>
+            <span class="chain">chain 1 · ethereum</span>
+          </div>
+          <div class="ab">
+            <div class="field"><div class="k">Target</div><div class="v">0x3d98…1c00 <span class="label">Comptroller</span></div></div>
+            <div class="field"><div class="k">Value</div><div class="v">0 wei</div></div>
+            <div class="field"><div class="k">Function</div><div class="v">_setPriceOracle(address)</div></div>
+            <div class="field"><div class="k">Argument 0</div><div class="v">0x9d04…cdc7 <span class="warn-label">unknown contract · unverified</span></div></div>
+            <div class="field"><div class="k">Calldata</div><div class="v">0x55a8a85b000000000000000000000000<b>9d04…cdc7</b> <span class="copy">+ 0 bytes ↓</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 Tally -->
+    <section class="s" id="tally">
+      <header>
+        <h2><span class="num">05</span>Tally</h2>
+        <span class="ref"><span class="dot live"></span>polled every 10s · last updated 4s ago</span>
+      </header>
+      <div class="tally-grid">
+        <div>
+          <div class="tally-bars">
+            <div class="row">
+              <span class="lbl">For</span>
+              <span class="bar"><i style="width:41%;"></i></span>
+              <span class="num"><span class="pct">41.0%</span><span class="vp">342,103 COMP</span></span>
+            </div>
+            <div class="row against">
+              <span class="lbl">Against</span>
+              <span class="bar"><i style="width:52%;"></i></span>
+              <span class="num"><span class="pct">52.0%</span><span class="vp">434,228 COMP</span></span>
+            </div>
+            <div class="row abstain">
+              <span class="lbl">Abstain</span>
+              <span class="bar"><i style="width:7%;"></i></span>
+              <span class="num"><span class="pct">7.0%</span><span class="vp">58,419 COMP</span></span>
+            </div>
+          </div>
+          <div class="quorum">
+            <div class="top">
+              <span>Quorum progress</span>
+              <span><b>834,750</b> / 400,000 required <span class="met">met</span></span>
+            </div>
+            <div class="bar">
+              <i style="width:83%;"></i>
+              <span class="threshold" style="left:40%;"></span>
+            </div>
+            <div class="scale">
+              <span>0</span>
+              <span style="margin-left:38%;">↑ quorum 400k</span>
+              <span>1.0M</span>
+            </div>
+          </div>
+        </div>
+        <div class="tally-stats">
+          <div class="s"><span class="k">Voters</span><span class="v">187</span></div>
+          <div class="s"><span class="k">VP participating</span><span class="v">834,750 COMP</span></div>
+          <div class="s"><span class="k">% of theoretical max</span><span class="v">27.2%</span></div>
+          <div class="s"><span class="k">Quorum threshold</span><span class="v">400,000 COMP</span></div>
+          <div class="s"><span class="k">Outcome (current)</span><span class="v warn">defeating</span></div>
+          <div class="s"><span class="k">VP block</span><span class="v">19,854,210</span></div>
+          <div class="s"><span class="k">Ends in</span><span class="v">2d 8h 14m</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 Voters -->
+    <section class="s" id="voters">
+      <header>
+        <h2><span class="num">06</span>Voters</h2>
+        <span class="ref">187 votes · sortable · CSV export ↗</span>
+      </header>
+      <div class="voters-controls">
+        <div class="seg">
+          <button class="on">All · 187</button>
+          <button>For · 64</button>
+          <button>Against · 98</button>
+          <button>Abstain · 25</button>
+        </div>
+        <input placeholder="filter by address, ENS, or rationale text…" />
+        <span class="sort">sort: voting power ↓</span>
+      </div>
+      <div style="overflow:auto;">
+      <table class="voters">
+        <thead>
+          <tr>
+            <th>Voter</th>
+            <th style="width:90px;">Choice</th>
+            <th style="width:140px;">Voting power</th>
+            <th style="width:80px;">% total</th>
+            <th>Rationale</th>
+            <th style="width:110px;">Cast</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="voter"><b>a16zCrypto.eth</b><span class="addr">0xab12…34f1</span></td>
+            <td><span class="vote-tag against">Against</span></td>
+            <td class="vp">182,403 COMP</td>
+            <td class="pct">21.9%</td>
+            <td class="rationale">Undisclosed oracle change is unacceptable. Will reconsider after revision that documents <span class="mono">0x9d04…cdc7</span>.</td>
+            <td class="cast">2026-05-02<br/><span style="color:var(--ink-4);">11:42 UTC</span></td>
+          </tr>
+          <tr>
+            <td class="voter"><b>delegate.eth</b><span class="addr">0x12c4…aa31</span></td>
+            <td><span class="vote-tag for">For</span></td>
+            <td class="vp">142,000 COMP</td>
+            <td class="pct">17.0%</td>
+            <td class="rationale">Self-vote, proposer.</td>
+            <td class="cast">2026-05-02<br/><span style="color:var(--ink-4);">09:15 UTC</span></td>
+          </tr>
+          <tr>
+            <td class="voter"><b>gauntlet.eth</b><span class="addr">0x9d8b…0444</span></td>
+            <td><span class="vote-tag against">Against</span></td>
+            <td class="vp">124,500 COMP</td>
+            <td class="pct">14.9%</td>
+            <td class="rationale">Pending clarification on oracle replacement. Risk WG hasn't reviewed action #1.</td>
+            <td class="cast">2026-05-03<br/><span style="color:var(--ink-4);">02:08 UTC</span></td>
+          </tr>
+          <tr>
+            <td class="voter"><b>blockchainColumbia</b><span class="addr">0x55ce…2eaa</span></td>
+            <td><span class="vote-tag for">For</span></td>
+            <td class="vp">87,200 COMP</td>
+            <td class="pct">10.4%</td>
+            <td class="rationale empty">— no rationale —</td>
+            <td class="cast">2026-05-02<br/><span style="color:var(--ink-4);">14:31 UTC</span></td>
+          </tr>
+          <tr>
+            <td class="voter"><b>monetSupply</b><span class="addr">0x4f2a…ae00</span></td>
+            <td><span class="vote-tag abstain">Abstain</span></td>
+            <td class="vp">52,800 COMP</td>
+            <td class="pct">6.3%</td>
+            <td class="rationale">Conflict of interest disclosed (held cETH supply position at snapshot).</td>
+            <td class="cast">2026-05-03<br/><span style="color:var(--ink-4);">07:54 UTC</span></td>
+          </tr>
+          <tr>
+            <td class="voter"><b>0xMaki.eth</b><span class="addr">0x77b1…1c40</span></td>
+            <td><span class="vote-tag for">For</span></td>
+            <td class="vp">41,200 COMP</td>
+            <td class="pct">4.9%</td>
+            <td class="rationale">Parameters look reasonable; will re-examine if oracle ownership unclear.</td>
+            <td class="cast">2026-05-03<br/><span style="color:var(--ink-4);">12:11 UTC</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="table-footer">
+        + 181 more voters · <a href="#">load next 50 ↓</a>
+      </div>
+    </section>
+
+    <!-- 07 Forum -->
+    <section class="s" id="forum">
+      <header>
+        <h2><span class="num">07</span>Forum</h2>
+        <span class="ref">linked thread · high confidence synthesis</span>
+      </header>
+      <div class="forum-meta">
+        <span>Linked: <a class="mono">comp.xyz/t/4892</a></span>
+        <span class="pill">community forum</span>
+        <div class="forum-stats">
+          <span>28 posts</span>
+          <span>14 unique participants</span>
+          <span>last activity 6h ago</span>
+        </div>
+      </div>
+      <div class="ai-panel">
+        <div class="ai-head">
+          <span class="ai-mark">AI · Forum synthesis</span>
+          <span class="model">model claude-haiku-4-5 · gen 6h ago · 28 posts read</span>
+        </div>
+        <div class="ai-body">
+          <div class="roster-grid">
+            <div class="roster-card for">
+              <h5>For <span class="count">3 · 21%</span></h5>
+              <ul>
+                <li><b>delegate.eth</b> — proposer; aligns with similar markets</li>
+                <li><b>gauntlet.eth</b> — risk-modeled, parameters reasonable <i>(later switched to Against)</i></li>
+                <li><b>blockchainColumbia</b> — minor tweak, no objection</li>
+              </ul>
+            </div>
+            <div class="roster-card against">
+              <h5>Against <span class="count">8 · 57%</span></h5>
+              <ul>
+                <li><b>a16zCrypto.eth</b> — oracle change is undisclosed</li>
+                <li><b>tarun</b> — calldata diff doesn't match description</li>
+                <li><b>papercliplabs</b> — new oracle source/owner unknown</li>
+                <li><b>0xnoah</b> — would support a revised version w/o action #1</li>
+              </ul>
+              <div class="more">+ 4 more dissenters</div>
+            </div>
+            <div class="roster-card undecided">
+              <h5>Undecided <span class="count">3 · 21%</span></h5>
+              <ul>
+                <li><b>arr00.eth</b> — wants oracle deployer info</li>
+                <li><b>monetSupply</b> — disclosed COI; abstaining</li>
+                <li><b>pgov</b> — open question on rate-curve simulation inputs</li>
+              </ul>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; font-size:12.5px; padding-top:12px; border-top:1px dashed var(--line-3);">
+            <div><b style="font-family: 'JetBrains Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-3);">Open question</b><div style="margin-top:4px;">Will the proposer revise to remove or document the oracle change?</div></div>
+            <div><b style="font-family: 'JetBrains Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-3);">Sentiment</b><div style="margin-top:4px;">Mixed → leaning negative · 12 of 14 participants have engaged with the oracle question</div></div>
+          </div>
+        </div>
+        <div class="ai-foot">
+          <span>synthesis · 28 posts · 14 participants</span>
+          <span><a href="#">view full thread ↗</a> · <a href="#">view sources ↗</a></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 Similar -->
+    <section class="s" id="similar">
+      <header>
+        <h2><span class="num">08</span>Similar proposals</h2>
+        <span class="ref">cross-DAO · embedding similarity</span>
+      </header>
+      <div class="similar-grid">
+        <a class="similar-card">
+          <div class="top"><span class="pill dao-compound">Compound</span><span class="score">0.91</span></div>
+          <div class="ttl">#198 cUSDC interest-rate curve update</div>
+          <div class="meta"><span class="outcome executed">executed · Sep 2024</span><span>For 79%</span></div>
+        </a>
+        <a class="similar-card">
+          <div class="top"><span class="pill" style="border-color:#b6509e; color:#b6509e;">Aave</span><span class="score">0.87</span></div>
+          <div class="ttl">AIP-264 Update WETH IR strategy</div>
+          <div class="meta"><span class="outcome executed">executed · Jan 2025</span><span>For 92%</span></div>
+        </a>
+        <a class="similar-card">
+          <div class="top"><span class="pill dao-compound">Compound</span><span class="score">0.84</span></div>
+          <div class="ttl">#171 Lower kink on cDAI</div>
+          <div class="meta"><span class="outcome defeated">defeated · Jul 2024</span><span>For 38%</span></div>
+        </a>
+        <a class="similar-card">
+          <div class="top"><span class="pill" style="border-color:#b6509e; color:#b6509e;">Aave</span><span class="score">0.79</span></div>
+          <div class="ttl">AIP-202 Risk parameters Q4 batch</div>
+          <div class="meta"><span class="outcome executed">executed · Dec 2024</span><span>For 95%</span></div>
+        </a>
+        <a class="similar-card">
+          <div class="top"><span class="pill dao-compound">Compound</span><span class="score">0.76</span></div>
+          <div class="ttl">#155 Adjust jump multipliers protocol-wide</div>
+          <div class="meta"><span class="outcome executed">executed · May 2024</span><span>For 88%</span></div>
+        </a>
+        <a class="similar-card">
+          <div class="top"><span class="pill" style="border-color:#00a3ff; color:#0078cc;">Lido</span><span class="score">0.72</span></div>
+          <div class="ttl">[Snapshot] Update wstETH oracle parameters</div>
+          <div class="meta"><span class="outcome passed">passed · Mar 2025</span><span>Opt A 71%</span></div>
+        </a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="fresh">
+  <div class="item"><span class="dot live"></span>tally polled · last updated 4s ago</div>
+  <div class="item">summary, mismatch, forum: cached AI output · regenerated on description change</div>
+  <div class="item mono">kvorum.xyz/daos/compound/proposals/compound_governor/248</div>
+</footer>
+
+<script>
+  // Theme toggle
+  const tt = document.getElementById('themeToggle');
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  tt.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+
+</body>
+</html>

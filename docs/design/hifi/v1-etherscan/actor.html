@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — a16z (actor · cross-DAO)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.10 — cross-DAO actor. In Next.js: app/actors/[address]/page.module.css */
+  main.actor { max-width: var(--max-page); margin: 0 auto;
+               padding: var(--space-7) var(--gutter) var(--space-16);
+               display: flex; flex-direction: column; gap: 32px; }
+
+  /* Identity header */
+  .head {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center;
+    padding-bottom: var(--space-6); border-bottom: 1px solid var(--line);
+  }
+  .avatar {
+    width: 96px; height: 96px; border: 1.5px solid var(--ink); border-radius: 50%;
+    background: repeating-conic-gradient(var(--ink) 0% 12.5%, var(--bg-2) 12.5% 25%);
+    display: grid; place-items: center; position: relative; overflow: hidden;
+  }
+  .avatar::before { content: "a16z"; position: absolute; inset: 0; display: grid; place-items: center;
+                    background: var(--bg-2); font-family: var(--font-mono); font-weight: 700;
+                    font-size: var(--fs-20); color: var(--ink); }
+
+  .head h1 { margin: 0; font-family: var(--font-mono); font-size: 32px; font-weight: 600; letter-spacing: var(--tracking-tight);
+             display: flex; align-items: baseline; gap: 12px; }
+  .head h1 .scope {
+    font-family: var(--font-mono); font-size: var(--fs-11); padding: 3px 8px;
+    border: 1px solid var(--line-2); color: var(--ink-3); background: var(--bg-2);
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+  }
+  .head .addr { font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink-2); margin-top: 6px;
+                display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .head .addr .copy { font-size: var(--fs-11); color: var(--ink-3); border-bottom: 1px dashed var(--line-2); cursor: pointer; }
+  .head .links { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-3); margin-top: 10px;
+                 display: flex; gap: 16px; flex-wrap: wrap; }
+  .head .links a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+  .head .links a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .head .actions { display: flex; flex-direction: column; gap: 8px; }
+  .head .actions button { font-family: var(--font-mono); font-size: var(--fs-12); padding: 8px 14px;
+                          border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); }
+  .head .actions button.primary { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .head .actions button.primary:hover { color: var(--accent); }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); }
+  .kpis .cell { padding: 14px 18px; border-right: 1px solid var(--line); }
+  .kpis .cell:last-child { border-right: 0; }
+  .kpis .l { font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); }
+  .kpis .v { font-family: var(--font-mono); font-size: var(--fs-20); font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpis .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); margin-top: 2px; }
+
+  /* Cross-DAO summary table */
+  .dao-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+  .dao-tbl thead th { text-align: left; padding: 10px 14px; font-family: var(--font-mono); font-size: var(--fs-105);
+                      font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em;
+                      border-bottom: 1px solid var(--line-2); background: var(--bg); white-space: nowrap; }
+  .dao-tbl tbody tr { border-bottom: 1px dashed var(--line-3); }
+  .dao-tbl tbody tr:hover { background: var(--bg-2); }
+  .dao-tbl tbody td { padding: 10px 14px; vertical-align: middle; }
+  .dao-tbl .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+  .dao-tbl .part { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .dao-tbl .role { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .dao-tbl .scorelink { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-2);
+                        border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  .dao-tbl .scorelink:hover { color: var(--accent); border-color: var(--accent); }
+  .dao-tbl tfoot td { padding: 10px 14px; font-family: var(--font-mono); font-size: var(--fs-11);
+                      color: var(--ink-3); border-top: 1px solid var(--line-2); font-variant-numeric: tabular-nums; }
+  .dao-tbl tfoot .num { color: var(--ink); font-weight: 600; }
+
+  /* Cross-DAO alignment heatmap */
+  .heat-wrap { display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px; align-items: start; }
+  .heat { display: grid; grid-template-columns: 150px repeat(5, 1fr); border: 1px solid var(--line-3); }
+  .heat .hc { padding: 9px 10px; font-family: var(--font-mono); font-size: var(--fs-105);
+              border-right: 1px solid var(--line-3); border-bottom: 1px solid var(--line-3); display: flex; align-items: center; }
+  .heat .hc.col-head { color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; font-size: var(--fs-10);
+                       background: var(--bg); justify-content: center; text-align: center; line-height: 1.25; }
+  .heat .hc.row-head { color: var(--ink-2); background: var(--bg); white-space: nowrap; }
+  .heat .hc.corner { background: var(--bg); }
+  .heat .hc:nth-child(6n) { border-right: 0; }
+  .heat .cell { justify-content: center; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); position: relative; }
+  /* alignment intensity — token-driven, ok/note/warn only */
+  .heat .cell.a5 { background: var(--accent);    color: var(--bg-2); }
+  .heat .cell.a4 { background: color-mix(in oklab, var(--accent), transparent 45%); }
+  .heat .cell.a3 { background: color-mix(in oklab, var(--accent), transparent 78%); }
+  .heat .cell.n2 { background: var(--note-bg);   color: var(--note-ink); }
+  .heat .cell.w1 { background: var(--warn-bg);   color: var(--warn-ink); }
+  .heat .cell.na { color: var(--ink-4); background: var(--bg); }
+  :root[data-theme="dark"] .heat .cell.a5 { color: var(--bg); }
+  .heat-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px;
+                 font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .heat-legend .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .heat-legend .sw i { width: 12px; height: 12px; display: inline-block; border: 1px solid var(--line-3); }
+  .heat-legend .sw i.a5 { background: var(--accent); }
+  .heat-legend .sw i.a3 { background: color-mix(in oklab, var(--accent), transparent 78%); }
+  .heat-legend .sw i.n2 { background: var(--note-bg); border-color: var(--note); }
+  .heat-legend .sw i.w1 { background: var(--warn-bg); border-color: var(--warn); }
+
+  /* Recent activity feed */
+  .feed { display: flex; flex-direction: column; }
+  .feed .row { display: grid; grid-template-columns: 74px 90px 1fr 100px 28px; gap: 14px;
+               padding: 10px 14px; border-bottom: 1px dashed var(--line-3); align-items: center; font-size: var(--fs-13); }
+  .feed .row:last-child { border-bottom: 0; }
+  .feed .row:hover { background: var(--bg-2); }
+  .feed .row .kind { font-family: var(--font-mono); font-size: var(--fs-10); font-weight: 700; text-transform: uppercase;
+                     letter-spacing: var(--tracking-mono-loose); padding: 3px 6px; border: 1px solid var(--line-2);
+                     color: var(--ink-2); text-align: center; }
+  .feed .row .kind.vote { border-color: var(--ink); color: var(--ink); }
+  .feed .row .kind.deleg { border-color: var(--note); color: var(--note-ink); }
+  .feed .row .ttl { color: var(--ink); font-weight: 500; line-height: 1.35; }
+  .feed .row .ttl .pill { margin-right: 6px; vertical-align: middle; }
+  .feed .row .ttl .id { font-family: var(--font-mono); color: var(--ink-3); font-size: var(--fs-11); margin-right: 6px; }
+  .feed .row .ttl .sub { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+  .feed .row .when { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); text-align: right; }
+  .feed .row .arrow { color: var(--ink-3); font-family: var(--font-mono); }
+  .feed .row .rationale-mark {
+    font-family: var(--font-mono); font-size: var(--fs-10); padding: 1px 5px;
+    background: var(--ai-mark); color: var(--ai-bg); font-weight: 700; letter-spacing: 0.06em;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .feed .row .rationale-mark::before { content: "△ "; }
+
+  /* Authored proposals */
+  .authored { display: flex; flex-direction: column; }
+  .authored .row { display: grid; grid-template-columns: 130px 1fr 130px 110px; gap: 16px;
+                   padding: 11px 14px; border-bottom: 1px dashed var(--line-3); align-items: center; font-size: var(--fs-13); }
+  .authored .row:last-child { border-bottom: 0; }
+  .authored .row:hover { background: var(--bg-2); }
+  .authored .row .id { font-family: var(--font-mono); color: var(--ink-3); font-size: var(--fs-12); }
+  .authored .row .ttl { color: var(--ink); font-weight: 500; line-height: 1.35; }
+  .authored .row .when { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); text-align: right; }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="#" class="active">Actors</a>
+    <a href="developer.html">Developer</a>
+    <a href="#">Docs ↗</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><span>⌕</span><span>Search proposals, addresses, txs…</span><span class="kbd">⌘K</span></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+    <button class="connect">Connect wallet</button>
+  </div>
+</header>
+
+<div class="kv-crumb">
+  <a href="#">Actors</a><span class="sep">/</span>
+  <span class="id">a16z · 0xa16z…0001</span>
+  <span class="copy" title="Copy address">⎘ copy address</span>
+  <span style="margin-left:auto; color:var(--ink-3);">/actors/0xa16z…0001 · active in 6 DAOs · last activity 3h ago</span>
+</div>
+
+<main class="actor" data-screen-label="Hi-fi · Cross-DAO actor">
+
+  <!-- Identity header -->
+  <section class="head">
+    <div class="avatar"></div>
+    <div>
+      <h1>a16z <span class="scope">cross-DAO actor</span></h1>
+      <div class="addr"><code>0xa16z…0001</code><span>·</span><code>ENS: a16z.eth</code><span class="copy">⎘ copy</span></div>
+      <div class="links">
+        <a href="#">a16zcrypto.com ↗</a>
+        <a href="#">@a16zcrypto ↗</a>
+        <a href="#">forum: @a16z-gov ↗</a>
+        <span style="color:var(--ink-3);">·</span>
+        <span>First seen on-chain 2021-03</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary">★ Watch actor</button>
+      <button>Export footprint →</button>
+    </div>
+  </section>
+
+  <!-- KPI strip -->
+  <section class="kpis tnum">
+    <div class="cell"><div class="l">DAOs active</div><div class="v">6</div><div class="sub">4 as delegate</div></div>
+    <div class="cell"><div class="l">All-time votes</div><div class="v">1,284</div><div class="sub">across all DAOs</div></div>
+    <div class="cell"><div class="l">Avg particip.</div><div class="v" style="color:var(--accent);">86.2%</div><div class="sub">weighted by VP</div></div>
+    <div class="cell"><div class="l">Proposals authored</div><div class="v">18</div><div class="sub">14 passed</div></div>
+    <div class="cell"><div class="l">Delegations recv.</div><div class="v">3,410</div><div class="sub">addresses → a16z</div></div>
+  </section>
+
+  <!-- §1 AI bio -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">01</span>Actor profile · synthesis</h2>
+      <span class="ref">cross-DAO · regenerated daily</span>
+    </header>
+    <div class="ai-panel" aria-label="AI generated content">
+      <div class="ai-head">
+        <span class="ai-mark">AI</span>
+        <span>Bio · a16z governance footprint across 6 DAOs</span>
+        <span class="model">claude · 1,284 votes · 18 authored</span>
+      </div>
+      <div class="ai-body" style="padding: 18px 20px;">
+        <p style="margin: 0; color: var(--ink); font-size: var(--fs-14); line-height: var(--lh-prose);">
+          a16z is an <b>active institutional delegate in Compound, Uniswap, Aave, and Optimism</b>, and a lighter participant in ENS and Arbitrum.
+          Across every DAO it votes with a <b>risk-conservative, capital-efficiency lens</b> — co-voting most often with Gauntlet on parameter changes
+          and consistently favouring treasury-preserving stances. It authors primarily on Compound (risk-curve and market-listing proposals) and has
+          co-sponsored two cross-chain deployment proposals on Uniswap. Participation is highest where its voting power is largest (Compound, rank #1),
+          and it discloses portfolio conflicts on both Compound and Uniswap.
+        </p>
+      </div>
+      <div class="ai-foot">
+        <span>inputs: onchain votes · delegations · authored proposals · self-disclosed conflicts</span>
+        <a href="#">view sources →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- §2 Cross-DAO summary table -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">02</span>Cross-DAO footprint</h2>
+      <span class="ref">VP snapshot at block 21,840,210</span>
+    </header>
+    <div class="card" style="padding:0;">
+      <table class="dao-tbl tnum">
+        <thead>
+          <tr>
+            <th>DAO</th>
+            <th>Role</th>
+            <th style="text-align:right;">Voting power</th>
+            <th style="text-align:right;">All-time votes</th>
+            <th style="text-align:right;">Particip. rate</th>
+            <th style="text-align:right;">Scorecard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill dao-compound">Compound</span></td>
+            <td class="role">delegate · rank #1</td>
+            <td class="num">312.4k COMP</td>
+            <td class="num">412</td>
+            <td class="part" style="color:var(--accent);">90.0%</td>
+            <td style="text-align:right;"><a class="scorelink" href="delegate.html">view scorecard →</a></td>
+          </tr>
+          <tr>
+            <td><span class="pill dao-uniswap">Uniswap</span></td>
+            <td class="role">delegate · rank #7</td>
+            <td class="num">2.41M UNI</td>
+            <td class="num">318</td>
+            <td class="part" style="color:var(--accent);">88.5%</td>
+            <td style="text-align:right;"><a class="scorelink" href="delegate.html">view scorecard →</a></td>
+          </tr>
+          <tr>
+            <td><span class="pill" style="border-color:var(--dao-op); color:#c2302a;">Optimism</span></td>
+            <td class="role">delegate · rank #12</td>
+            <td class="num">14.2M OP</td>
+            <td class="num">241</td>
+            <td class="part">79.1%</td>
+            <td style="text-align:right;"><a class="scorelink" href="delegate.html">view scorecard →</a></td>
+          </tr>
+          <tr>
+            <td><span class="pill dao-aave">Aave</span></td>
+            <td class="role">delegate · rank #14</td>
+            <td class="num">186k AAVE</td>
+            <td class="num">204</td>
+            <td class="part">83.4%</td>
+            <td style="text-align:right;"><a class="scorelink" href="delegate.html">view scorecard →</a></td>
+          </tr>
+          <tr>
+            <td><span class="pill" style="border-color:var(--dao-ens); color:#3f78cf;">ENS</span></td>
+            <td class="role">voter</td>
+            <td class="num">412k ENS</td>
+            <td class="num">68</td>
+            <td class="part">61.8%</td>
+            <td style="text-align:right;"><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-4);">not delegate</span></td>
+          </tr>
+          <tr>
+            <td><span class="pill dao-arb">Arbitrum</span></td>
+            <td class="role">voter</td>
+            <td class="num">8.4M ARB</td>
+            <td class="num">41</td>
+            <td class="part">52.4%</td>
+            <td style="text-align:right;"><span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--ink-4);">not delegate</span></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">6 DAOs · 4 as delegate</td>
+            <td class="num">≈ $24.8M total VP</td>
+            <td class="num">1,284</td>
+            <td class="num">86.2% wtd</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- §3 Cross-DAO alignment -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">03</span>Cross-DAO alignment</h2>
+      <span class="ref">stance consistency across DAOs · △ AI-labelled themes</span>
+    </header>
+    <div class="heat-wrap">
+      <div class="card" style="padding:0;">
+        <header>Stance by theme × DAO <span class="src">% of themed votes taking the labelled stance</span></header>
+        <div style="padding:14px;">
+          <div class="heat">
+            <div class="hc corner"></div>
+            <div class="hc col-head">Compound</div>
+            <div class="hc col-head">Uniswap</div>
+            <div class="hc col-head">Optimism</div>
+            <div class="hc col-head">Aave</div>
+            <div class="hc col-head">ENS</div>
+
+            <div class="hc row-head">Pro-treasury</div>
+            <div class="hc cell a5">96</div>
+            <div class="hc cell a5">94</div>
+            <div class="hc cell a4">88</div>
+            <div class="hc cell a5">92</div>
+            <div class="hc cell a3">74</div>
+
+            <div class="hc row-head">Risk-conservative</div>
+            <div class="hc cell a5">91</div>
+            <div class="hc cell a4">85</div>
+            <div class="hc cell a3">72</div>
+            <div class="hc cell a5">93</div>
+            <div class="hc cell na">n/a</div>
+
+            <div class="hc row-head">Pro-decentralization</div>
+            <div class="hc cell a3">68</div>
+            <div class="hc cell a3">71</div>
+            <div class="hc cell a4">82</div>
+            <div class="hc cell n2">54</div>
+            <div class="hc cell a4">86</div>
+
+            <div class="hc row-head">Grants / RetroPGF</div>
+            <div class="hc cell a3">64</div>
+            <div class="hc cell n2">58</div>
+            <div class="hc cell w1">41</div>
+            <div class="hc cell a3">66</div>
+            <div class="hc cell a3">70</div>
+
+            <div class="hc row-head">Fee / rev. switch</div>
+            <div class="hc cell na">n/a</div>
+            <div class="hc cell a4">84</div>
+            <div class="hc cell na">n/a</div>
+            <div class="hc cell n2">52</div>
+            <div class="hc cell na">n/a</div>
+          </div>
+          <div class="heat-legend">
+            <span class="sw"><i class="a5"></i>strong (≥90)</span>
+            <span class="sw"><i class="a3"></i>moderate (60–89)</span>
+            <span class="sw"><i class="n2"></i>mixed (50–59)</span>
+            <span class="sw"><i class="w1"></i>against (&lt;50)</span>
+            <span class="sw">n/a = theme absent in DAO</span>
+          </div>
+        </div>
+      </div>
+      <div class="ai-panel" aria-label="AI generated content">
+        <div class="ai-head">
+          <span class="ai-mark">AI</span>
+          <span>Alignment read</span>
+          <span class="model">claude · 5 themes</span>
+        </div>
+        <div class="ai-body" style="padding: 16px 18px;">
+          <p style="margin: 0 0 10px; color: var(--ink); font-size: var(--fs-13); line-height: var(--lh-prose);">
+            a16z is <b>strongly and consistently pro-treasury and risk-conservative in every DAO</b> where those themes appear — the two
+            brightest rows. Its pro-decentralization stance is more variable, and it is <b>notably lukewarm on grants / RetroPGF</b>,
+            with the only sub-50 cell being Optimism RetroPGF (abstained twice on citizens'-house allocations).
+          </p>
+          <p style="margin: 0; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--note-ink);">
+            ▲ divergence flag: grants stance on Optimism breaks from its treasury-preserving pattern elsewhere.
+          </p>
+        </div>
+        <div class="ai-foot">
+          <span>inputs: themed vote clusters · rationale text</span>
+          <a href="#">view sources →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §4 Recent activity feed -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">04</span>Recent activity · all DAOs</h2>
+      <span class="ref">votes + delegations · △ = rationale on file</span>
+    </header>
+    <div class="card feed" style="padding:0;">
+      <div class="row">
+        <span class="kind vote">Vote</span>
+        <span><span class="vote-tag against">Against</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span><span class="id">#248</span>Update interest-rate curve, cETH market<span class="rationale-mark">RATIONALE</span></span>
+        <span class="when">3h ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind vote">Vote</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-compound">Compound</span><span class="id">#247</span>Risk parameters update — cUSDC, cDAI<span class="rationale-mark">RATIONALE</span></span>
+        <span class="when">5h ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind deleg">Deleg</span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--note-ink);">received</span>
+        <span class="ttl"><span class="pill dao-uniswap">Uniswap</span><span class="sub">0x71c…9ad delegated 44.2k UNI → a16z</span></span>
+        <span class="when">1d ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind vote">Vote</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-uniswap">Uniswap</span><span class="id">UNI-71</span>Deploy v4 to Base mainnet</span>
+        <span class="when">2d ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind vote">Vote</span>
+        <span><span class="vote-tag abstain">Abstain</span></span>
+        <span class="ttl"><span class="pill" style="border-color:var(--dao-op); color:#c2302a;">Optimism</span><span class="id">OP-128</span>RetroPGF round 5 — citizens' house allocation<span class="rationale-mark">RATIONALE</span></span>
+        <span class="when">2w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind deleg">Deleg</span>
+        <span style="font-family:var(--font-mono); font-size:var(--fs-11); color:var(--note-ink);">re-deleg</span>
+        <span class="ttl"><span class="pill dao-aave">Aave</span><span class="sub">a16z re-delegated 186k AAVE to self after cooldown</span></span>
+        <span class="when">3w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row">
+        <span class="kind vote">Vote</span>
+        <span><span class="vote-tag for">For</span></span>
+        <span class="ttl"><span class="pill dao-aave">Aave</span><span class="id">AAVE-192</span>GHO facilitator cap increase<span class="rationale-mark">RATIONALE</span></span>
+        <span class="when">4w ago</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="row" style="background: var(--bg-2);">
+        <span></span>
+        <span></span>
+        <span class="ttl" style="color: var(--ink-3); font-family: var(--font-mono); font-size: var(--fs-12);"><a href="#" style="color:var(--ink-3); border-bottom: 1px solid var(--line-2);">view full activity — 1,284 votes · 3,410 delegations →</a></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- §5 Authored proposals -->
+  <section class="kv-section">
+    <header>
+      <h2><span class="num">05</span>Authored proposals · all DAOs</h2>
+      <span class="ref">18 authored · 14 passed</span>
+    </header>
+    <div class="card authored" style="padding:0;">
+      <div class="row">
+        <span class="id"><span class="pill dao-compound">Compound</span> #241</span>
+        <span class="ttl">Onboard cUSDe market with conservative initial caps</span>
+        <span style="text-align:right;"><span class="state-pill executed">executed</span></span>
+        <span class="when">For 88% · 6w ago</span>
+      </div>
+      <div class="row">
+        <span class="id"><span class="pill dao-compound">Compound</span> #233</span>
+        <span class="ttl">Interest-rate curve refresh — stablecoin markets</span>
+        <span style="text-align:right;"><span class="state-pill executed">executed</span></span>
+        <span class="when">For 91% · 3mo ago</span>
+      </div>
+      <div class="row">
+        <span class="id"><span class="pill dao-uniswap">Uniswap</span> UNI-64</span>
+        <span class="ttl">Co-sponsor: v4 deployment to Arbitrum &amp; Base</span>
+        <span style="text-align:right;"><span class="state-pill executed">executed</span></span>
+        <span class="when">For 79% · 4mo ago</span>
+      </div>
+      <div class="row">
+        <span class="id"><span class="pill dao-aave">Aave</span> AAVE-181</span>
+        <span class="ttl">Risk-parameter tightening for long-tail collateral</span>
+        <span style="text-align:right;"><span class="state-pill queued">queued</span></span>
+        <span class="when">For 84% · 5mo ago</span>
+      </div>
+      <div class="row">
+        <span class="id"><span class="pill dao-compound">Compound</span> #219</span>
+        <span class="ttl">Deprecate legacy cREP market</span>
+        <span style="text-align:right;"><span class="state-pill defeated">defeated</span></span>
+        <span class="when">For 38% · 7mo ago</span>
+      </div>
+      <div class="row" style="background: var(--bg-2);">
+        <span class="id"></span>
+        <span class="ttl" style="color: var(--ink-3); font-family: var(--font-mono); font-size: var(--fs-12);"><a href="#" style="color:var(--ink-3); border-bottom: 1px solid var(--line-2);">view all 18 authored proposals →</a></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>cross-DAO actor · last activity 3h ago</div>
+  <div class="item">1,284 votes · 6 DAOs · 18 authored</div>
+  <div class="item">build a4f9c2 · /actors/0xa16z…0001</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+</script>
+</body>
+</html>

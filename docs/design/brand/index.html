@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Brand assets</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../design-system/tokens.css" />
+<link rel="stylesheet" href="../design-system/components.css" />
+<style>
+  body { background: var(--bg); padding: 48px 32px; }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1 { font-family: var(--font-mono); font-weight: 700; font-size: 32px; letter-spacing: -0.02em; color: var(--ink); margin: 0 0 4px; }
+  .sub { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 40px; }
+  h2 { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .grid { display: grid; gap: 0; border: 1px solid var(--line-3); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid.cols-7 { grid-template-columns: repeat(7, 1fr); }
+  .cell { padding: 24px 20px; border-right: 1px solid var(--line-3); border-bottom: 1px solid var(--line-3); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--bg-2); }
+  .cell:last-child { border-right: 0; }
+  .cell.dark { background: #0e0e0c; }
+  .cell.dark .meta, .cell.dark .meta b { color: #6a6a64; }
+  .meta { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); text-align: center; }
+  .meta b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; font-size: 11px; }
+  .preview { display: flex; align-items: center; justify-content: center; min-height: 80px; }
+  .filename { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }
+  .cell.dark .filename { color: #4a4a44; }
+  ul.files { font-family: var(--font-mono); font-size: 12px; line-height: 1.9; color: var(--ink-2); list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 32px; }
+  ul.files li::before { content: "→ "; color: var(--accent); }
+  ul.files a { color: var(--ink); text-decoration: none; border-bottom: 1px dashed var(--line-2); }
+  ul.files a:hover { border-bottom-color: var(--accent); }
+  .info { font-family: var(--font-sans); font-size: 14px; color: var(--ink-2); line-height: 1.6; max-width: 720px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kvorum — Brand assets</h1>
+  <div class="sub">C3 · Quorum bar · Export package</div>
+
+  <p class="info">
+    Final logo: a horizontal threshold bar with the K carved from the filled
+    portion in negative space, and a vertical accent marking the quorum line.
+    All assets below live in <code>brand/exports/</code>. The themable SVG
+    (<code>logo-glyph.svg</code>) is the canonical version for in-app use; hex-baked
+    variants exist for tools that don't honor CSS vars.
+  </p>
+
+  <h2>Glyph · light + dark</h2>
+  <div class="grid cols-4">
+    <div class="cell"><div class="preview"><img src="logo-glyph-light.svg" width="120" /></div><div class="meta"><b>Light · color</b>logo-glyph-light.svg</div></div>
+    <div class="cell"><div class="preview"><img src="logo-glyph-mono.svg" width="120" style="color:#1a1a18" /></div><div class="meta"><b>Light · mono</b>logo-glyph-mono.svg</div></div>
+    <div class="cell dark"><div class="preview"><img src="logo-glyph-dark.svg" width="120" /></div><div class="meta"><b>Dark · color</b>logo-glyph-dark.svg</div></div>
+    <div class="cell dark"><div class="preview" style="color:#f7f7f4"><svg width="120" height="120" viewBox="0 0 64 64" fill="none">
+      <rect x="4" y="22" width="56" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+      <rect x="4" y="22" width="38" height="20" fill="currentColor"/>
+      <rect x="40" y="10" width="3" height="44" fill="currentColor"/>
+      <rect x="15" y="26" width="3" height="12" fill="#0e0e0c"/>
+      <polygon points="18,32 25,26 28,26 21,32 28,38 25,38" fill="#0e0e0c"/>
+    </svg></div><div class="meta"><b>Dark · mono</b>logo-glyph-mono.svg</div></div>
+  </div>
+
+  <h2>Lockup</h2>
+  <div class="grid cols-3">
+    <div class="cell"><div class="preview"><img src="logo-lockup-light.svg" height="48" /></div><div class="meta"><b>Lockup · light</b>logo-lockup-light.svg</div></div>
+    <div class="cell dark"><div class="preview"><img src="logo-lockup-dark.svg" height="48" /></div><div class="meta"><b>Lockup · dark</b>logo-lockup-dark.svg</div></div>
+    <div class="cell"><div class="preview"><img src="wordmark-light.svg" height="32" /></div><div class="meta"><b>Wordmark only</b>wordmark-light.svg</div></div>
+  </div>
+
+  <h2>Favicon legibility · 16/24/32/48/64 px</h2>
+  <div class="grid cols-7" style="grid-template-columns: repeat(5, 1fr) repeat(2, 1fr);">
+    <div class="cell"><div class="preview"><img src="png/logo-light-16.png" width="16" /></div><div class="meta">16</div></div>
+    <div class="cell"><div class="preview"><img src="png/logo-light-32.png" width="24" /></div><div class="meta">24</div></div>
+    <div class="cell"><div class="preview"><img src="png/logo-light-32.png" width="32" /></div><div class="meta">32</div></div>
+    <div class="cell"><div class="preview"><img src="png/logo-light-48.png" width="48" /></div><div class="meta">48</div></div>
+    <div class="cell"><div class="preview"><img src="png/logo-light-64.png" width="64" /></div><div class="meta">64</div></div>
+    <div class="cell dark"><div class="preview"><img src="png/logo-dark-32.png" width="32" /></div><div class="meta">32</div></div>
+    <div class="cell dark"><div class="preview"><img src="png/logo-dark-64.png" width="64" /></div><div class="meta">64</div></div>
+  </div>
+
+  <h2>Social card · 1200×630</h2>
+  <div class="grid">
+    <div class="cell" style="padding: 16px;"><img src="png/og-card.png" style="max-width: 100%; border: 1px solid var(--line-3);" /></div>
+  </div>
+
+  <h2>All files</h2>
+  <ul class="files">
+    <li><a href="logo-glyph.svg">logo-glyph.svg</a> — themable, currentColor + CSS vars</li>
+    <li><a href="logo-glyph-mono.svg">logo-glyph-mono.svg</a> — single-color</li>
+    <li><a href="logo-glyph-light.svg">logo-glyph-light.svg</a> — hex-baked light</li>
+    <li><a href="logo-glyph-dark.svg">logo-glyph-dark.svg</a> — hex-baked dark</li>
+    <li><a href="logo-lockup-light.svg">logo-lockup-light.svg</a> — glyph + wordmark</li>
+    <li><a href="logo-lockup-dark.svg">logo-lockup-dark.svg</a></li>
+    <li><a href="wordmark-light.svg">wordmark-light.svg</a></li>
+    <li><a href="wordmark-dark.svg">wordmark-dark.svg</a></li>
+    <li><a href="favicon.svg">favicon.svg</a> — 32×32, prefers-color-scheme aware</li>
+    <li><a href="Logo.tsx">Logo.tsx</a> — React component</li>
+    <li><a href="Logo.module.css">Logo.module.css</a> — component styles</li>
+    <li><a href="README.md">README.md</a> — usage notes</li>
+    <li>png/logo-{light,dark}-{16,32,48,64,128,256,512}.png</li>
+    <li>png/apple-touch-icon.png — 180×180</li>
+    <li>png/og-card.png — 1200×630</li>
+  </ul>
+
+</main>
+</body>
+</html>

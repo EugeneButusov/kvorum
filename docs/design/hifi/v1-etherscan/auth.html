@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Sign in</title>
+<meta name="viewport" content="width=1440" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="../../design-system/tokens.css" />
+<link rel="stylesheet" href="../../design-system/components.css" />
+<style>
+  /* §6.14 — auth pages. Next.js: app/(auth)/login|signup|reset/page.module.css */
+  body { background: var(--bg); }
+  .kv-topnav { border-bottom: 1px solid var(--line); }
+
+  main.auth {
+    max-width: 1200px; margin: 0 auto; padding: var(--space-7) var(--gutter) var(--space-12);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--line); margin-top: 32px; margin-bottom: 32px;
+  }
+
+  /* LHS · marketing rail */
+  .rail { padding: 48px 44px; background: var(--bg-2); display: flex; flex-direction: column; justify-content: space-between; gap: 32px;
+          border-right: 1px solid var(--line); }
+  .rail .mark {
+    font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); display: flex; align-items: center; gap: 10px;
+  }
+  .rail .mark .glyph {
+    width: 22px; height: 22px; border: 1.5px solid var(--ink); display: grid; place-items: center;
+    font-size: var(--fs-11); font-weight: 700; color: var(--ink);
+  }
+  .rail h2 {
+    margin: 0; font-family: var(--font-mono); font-size: 36px; font-weight: 600;
+    line-height: 1.1; letter-spacing: var(--tracking-tight); max-width: 18ch; text-wrap: pretty;
+  }
+  .rail h2 .accent { color: var(--accent); }
+  .rail .lede { color: var(--ink-2); font-size: var(--fs-14); line-height: var(--lh-prose); max-width: 44ch; }
+  .rail .feats { display: flex; flex-direction: column; gap: 14px; }
+  .rail .feat { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start;
+                font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink-2); line-height: 1.5; }
+  .rail .feat .num { color: var(--accent); font-weight: 700; font-size: var(--fs-12); }
+  .rail .feat b { color: var(--ink); font-weight: 600; }
+  .rail .meta {
+    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3);
+    border-top: 1px dashed var(--line); padding-top: 16px; display: flex; gap: 18px; flex-wrap: wrap;
+  }
+  .rail .meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* RHS · forms */
+  .forms { padding: 48px 44px; display: flex; flex-direction: column; gap: 28px; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line-2); margin-bottom: 4px; }
+  .tabs button {
+    font-family: var(--font-mono); font-size: var(--fs-13); padding: 10px 16px;
+    background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); cursor: pointer;
+  }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+  .tabs .spacer { flex: 1; border-bottom: 2px solid transparent; }
+
+  .form { display: flex; flex-direction: column; gap: 18px; }
+  .form h1 { margin: 0; font-family: var(--font-mono); font-size: 28px; font-weight: 600; letter-spacing: var(--tracking-tight); }
+  .form .lede { color: var(--ink-2); font-size: var(--fs-13); line-height: 1.55; max-width: 48ch; }
+
+  /* Wallet button */
+  .wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .wallet {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    border: 1px solid var(--line-2); background: var(--bg); cursor: pointer;
+    font-family: var(--font-mono); font-size: var(--fs-13); color: var(--ink); text-align: left;
+  }
+  .wallet:hover { border-color: var(--ink); background: var(--bg-2); }
+  .wallet .icn {
+    width: 28px; height: 28px; border: 1px solid var(--line); display: grid; place-items: center;
+    font-size: var(--fs-11); font-weight: 700; color: var(--ink);
+  }
+  .wallet small { display: block; font-size: var(--fs-10); color: var(--ink-3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .or {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+  }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); font-weight: 600;
+    display: flex; justify-content: space-between;
+  }
+  .field label a { font-size: var(--fs-11); text-transform: none; letter-spacing: 0; color: var(--accent); border-bottom: 1px solid; }
+  .field input {
+    padding: 12px 14px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink);
+    font-family: var(--font-mono); font-size: var(--fs-13); outline: none;
+  }
+  .field input:focus { border-color: var(--ink); }
+  .field .hint { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); }
+
+  .check { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-2); cursor: pointer; }
+  .check .ck { width: 14px; height: 14px; border: 1px solid var(--line); display: grid; place-items: center; }
+  .check.on .ck { background: var(--ink); color: var(--bg-2); border-color: var(--ink); }
+  .check.on .ck::before { content: "✓"; font-size: 10px; }
+
+  button.submit {
+    padding: 14px; background: var(--ink); color: var(--bg-2); border: 0;
+    font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 700; cursor: pointer;
+    text-transform: uppercase; letter-spacing: var(--tracking-mono-loose);
+  }
+  button.submit:hover { background: var(--accent); color: var(--ink); }
+
+  .footnote {
+    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--ink-3); line-height: 1.6;
+    border-top: 1px dashed var(--line-3); padding-top: 14px;
+  }
+  .footnote a { color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+  .footnote a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Inline error */
+  .alert {
+    padding: 10px 14px; border: 1px solid var(--note); background: var(--note-bg); color: var(--note-ink);
+    font-family: var(--font-mono); font-size: var(--fs-12); line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header class="kv-topnav">
+  <div class="brand"><div class="glyph">K</div>KVORUM</div>
+  <nav>
+    <a href="homepage.html">Home</a>
+    <a href="proposals.html">Proposals</a>
+    <a href="daos.html">DAOs</a>
+    <a href="delegate.html">Delegates</a>
+    <a href="developer.html">Developer</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="actions">
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main class="auth" data-screen-label="Hi-fi · Auth">
+
+  <!-- LHS · brand rail -->
+  <aside class="rail">
+    <div>
+      <div class="mark"><span class="glyph">K</span><span>KVORUM</span></div>
+      <h2 style="margin-top: 24px;">Governance <span class="accent">intelligence</span><br/>for DeFi DAOs.</h2>
+      <p class="lede" style="margin-top: 18px;">A multi-DAO dashboard with live tallies, AI summaries, mismatch flagging, and a developer API. No tokens to buy. No KYC. Connect a wallet or just an email.</p>
+    </div>
+
+    <div class="feats">
+      <div class="feat"><span class="num">01</span><span>Track <b>12 DAOs</b> from one feed. Watchlist follows your wallet across chains.</span></div>
+      <div class="feat"><span class="num">02</span><span>Every proposal has an <b>AI summary</b> and onchain calldata side-by-side. Flagged when they disagree.</span></div>
+      <div class="feat"><span class="num">03</span><span>Sign rationales with your delegate wallet. Forum context auto-linked.</span></div>
+      <div class="feat"><span class="num">04</span><span>Read-only API for free up to 1k req / day. Pro at <b>$48/mo</b>.</span></div>
+    </div>
+
+    <div class="meta">
+      <span><b>v1.0</b> · build a4f9c2</span>
+      <span>·</span>
+      <span><b>14k</b> active wallets</span>
+      <span>·</span>
+      <span><b>3.2M</b> votes indexed</span>
+      <span>·</span>
+      <span><b>SOC2</b> in progress</span>
+    </div>
+  </aside>
+
+  <!-- RHS · form -->
+  <section class="forms">
+
+    <div class="tabs">
+      <button class="on">Sign in</button>
+      <button>Create account</button>
+      <span class="spacer"></span>
+    </div>
+
+    <div class="form">
+      <h1>Sign in</h1>
+      <p class="lede">Connect a wallet for full delegate features, or use email for read-only.</p>
+
+      <!-- Wallets -->
+      <div>
+        <label style="font-family: var(--font-mono); font-size: var(--fs-105); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-mono-loose); font-weight: 600; display: block; margin-bottom: 10px;">Connect wallet</label>
+        <div class="wallet-row">
+          <button class="wallet"><span class="icn">M</span><span>MetaMask<small>browser ext.</small></span></button>
+          <button class="wallet"><span class="icn">W</span><span>WalletConnect<small>mobile · 200+</small></span></button>
+          <button class="wallet"><span class="icn">C</span><span>Coinbase Wallet<small>app + ext.</small></span></button>
+          <button class="wallet"><span class="icn">R</span><span>Rabby<small>browser ext.</small></span></button>
+        </div>
+      </div>
+
+      <div class="or">or with email</div>
+
+      <!-- Email form -->
+      <div class="field">
+        <label>Email <span style="color:var(--ink-3); font-weight: 500;">·</span></label>
+        <input type="email" value="eugene@gmail.com" />
+      </div>
+
+      <div class="field">
+        <label>Password <a href="#">forgot?</a></label>
+        <input type="password" value="••••••••••••" />
+        <div class="hint">Minimum 12 characters. We don't store the wallet, only the email.</div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="check on"><span class="ck"></span>Stay signed in for 30 days</div>
+      </div>
+
+      <button class="submit">Sign in →</button>
+
+      <div class="alert">⚠ For accounts created with a wallet, sign in with the same wallet — email + password won't work.</div>
+
+      <div class="footnote">
+        New to Kvorum? <a href="#">Create an account →</a><br/>
+        By signing in you agree to <a href="#">Terms</a> &amp; <a href="#">Privacy</a>. We never custody assets.
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="kv-footer">
+  <div class="item"><span class="dot live"></span>auth · TLS 1.3 · session 24h</div>
+  <div class="item">no custody · no KYC · email or wallet</div>
+  <div class="item">build a4f9c2 · /sign-in</div>
+</footer>
+
+<script>
+  const root = document.documentElement;
+  const stored = localStorage.getItem('kvorum-theme');
+  if (stored) root.setAttribute('data-theme', stored);
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('kvorum-theme', next);
+  });
+
+  // tab toggle
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  }));
+</script>
+</body>
+</html>

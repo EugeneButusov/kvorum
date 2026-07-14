@@ -635,7 +635,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "daos-list": ""K3GdscfRwAyzVbs-REYRqs-jM3c"",
   "lido-aragon-proposal-detail": ""kFgYOUSvjMyvaa9PzKWGr7WLU7c"",
   "lido-proposals-list": ""yQdNNSUPdVSZbPR0I3o60jjVKF4"",
-  "lido-snapshot-proposal-detail": ""gwjv1EUtQ6Ei0-ZvhLwm0Sc5-M0"",
+  "lido-snapshot-proposal-detail": ""CEEpdLYWmYRJAkkG3Sj9uVK7KP0"",
   "lido-snapshot-vote": ""ERMGzVrFHa90WUElGQaGAKkvmiE"",
   "lido-sources": ""d-p4pjaL6_WXzUxxMUUXlhIQDMY"",
   "proposal-detail": ""hsrVPQgGIaRCLATCHxhYS3KB_jM"",
@@ -834,6 +834,11 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "dao_slug": "lido",
     "description": "A weighted Snapshot signaling proposal",
     "metadata": {
+      "choice_scores": [
+        0,
+        1.8,
+        1.2,
+      ],
       "flagged": false,
       "ipfs_hash": "Qm123",
       "kind": "snapshot",

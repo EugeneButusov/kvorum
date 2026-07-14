@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kvorum — Search (Wireframe)</title>
+<meta name="viewport" content="width=1440" />
+<link rel="stylesheet" href="wireframe.css" />
+<style>
+  .search-bar {
+    padding: 22px 24px;
+    border-bottom: 1.5px solid var(--line);
+    display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+  }
+  .search-bar .input {
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 12px 16px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .search-bar .input b { color: var(--ink); }
+  .search-bar .input .cursor {
+    display: inline-block; width: 9px; height: 18px;
+    background: var(--ink); animation: blink 1s steps(2) infinite;
+    vertical-align: middle;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .search-bar .meta { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+
+  .scope-row {
+    display: flex; gap: 0; padding: 0 24px;
+    border-bottom: 1.5px solid var(--line);
+    background: var(--paper-2);
+    font-size: 13px;
+  }
+  .scope-row a {
+    padding: 12px 18px; color: var(--ink-2); border-right: 1px solid var(--line-soft);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .scope-row a.active {
+    color: var(--ink); font-weight: 600; background: var(--paper);
+    border-bottom: 2px solid var(--ink); margin-bottom: -1.5px;
+  }
+  .scope-row a .count {
+    background: var(--paper-2); border: 1px solid var(--line-soft);
+    padding: 1px 6px; font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+  }
+  .scope-row a.active .count { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .grid-results { display: grid; grid-template-columns: 1fr 320px; gap: 22px; padding: 22px 24px 32px; }
+
+  .result-list { display: grid; gap: 12px; }
+  .result {
+    border: 1.5px solid var(--line); background: var(--paper);
+    padding: 12px 16px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start;
+  }
+  .result .kind {
+    width: 36px; height: 36px; border: 1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700;
+    background: var(--paper-2);
+  }
+  .result h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .result h3 mark { background: var(--note-bg); padding: 0 2px; color: var(--ink); }
+  .result .kicker { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-bottom: 2px; }
+  .result .snippet {
+    margin-top: 6px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5;
+  }
+  .result .snippet mark { background: var(--note-bg); padding: 0 2px; color: var(--ink); }
+  .result .meta {
+    margin-top: 6px; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .result .right {
+    text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--ink-3);
+  }
+  .result .right b { color: var(--ink); display: block; font-size: 12.5px; }
+
+  .filters-card {
+    border: 1.5px solid var(--line); background: var(--paper);
+  }
+  .filters-card > .h {
+    background: var(--paper-2); border-bottom: 1.5px solid var(--line);
+    padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .filters-card > .body { padding: 12px 14px; display: grid; gap: 14px; }
+  .filters-card .grp { display: grid; gap: 4px; font-size: 12px; }
+  .filters-card .grp .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+  .filters-card .check {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line-soft);
+  }
+  .filters-card .check:last-child { border-bottom: 0; }
+  .filters-card .check input { width: 14px; height: 14px; }
+  .filters-card .check .n { margin-left: auto; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; }
+
+  .empty-cb {
+    border: 1.5px dashed var(--line);
+    padding: 22px; text-align: center; color: var(--ink-3); font-size: 12px;
+  }
+  .empty-cb b { color: var(--ink); display: block; font-size: 14px; margin-bottom: 4px; }
+</style>
+</head>
+<body data-wf="search">
+
+<div class="page" data-screen-label="09 Search results — wireframe">
+  <div class="page-meta">
+    <span class="title">Kvorum / Wireframe / Search</span>
+    <span class="mono">/search?q=… · spec §6.8 · ⌘K palette also covered · lo-fi v1</span>
+  </div>
+
+  <nav class="topnav">
+    <div class="logo">KVORUM</div>
+    <ul><li>Home</li><li>Proposals</li><li>DAOs ▾</li><li>Developer</li><li>API Docs ↗</li></ul>
+    <div class="spacer"></div>
+    <div class="mono" style="color: var(--ink-3); font-size: 11px;">⌘K Search</div>
+  </nav>
+
+  <div class="search-bar">
+    <div class="input">
+      <span style="color: var(--ink-3);">🔎</span>
+      <span><b>cusdc irm</b><span class="cursor"></span></span>
+    </div>
+    <div class="meta">42 results · 38ms · across proposals · forum · actors · daos</div>
+  </div>
+
+  <div class="scope-row">
+    <a class="active">All <span class="count">42</span></a>
+    <a>Proposals <span class="count">14</span></a>
+    <a>Forum threads <span class="count">9</span></a>
+    <a>Forum posts <span class="count">14</span></a>
+    <a>Actors <span class="count">3</span></a>
+    <a>DAOs <span class="count">2</span></a>
+  </div>
+
+  <div class="grid-results">
+
+    <div>
+
+      <!-- Top result: AI direct answer -->
+      <div class="ai-panel anno" data-anno="§6.8 direct-answer" style="margin-bottom: 14px;">
+        <div class="head"><span class="ai-mark">Direct answer</span><span class="mono" style="color: var(--ink-3);">based on top 8 results</span></div>
+        <div class="body" style="font-size: 13px; line-height: 1.5;">
+          The cUSDC IRM is being changed in <b>Compound proposal #248</b> (active, voting until 2026-05-09).
+          The new curve has a kink at 80% utilization, base 0%, multiplier 4.5%, replacing v2's 90% kink.
+          A discussion thread on the Compound forum is currently disputing the kink position; one mismatch
+          flag has been raised on prop <b>#246</b> regarding undisclosed treasury actions.
+        </div>
+        <div class="foot">
+          <span>haiku-4-5 · 2.1k tokens</span>
+          <span>cited: prop #248, prop #246, forum thread "IRM v3 cUSDC"</span>
+        </div>
+      </div>
+
+      <div class="result-list">
+
+        <div class="result">
+          <div class="kind">PRP</div>
+          <div>
+            <div class="kicker">Proposal · Compound · #248 · Active</div>
+            <h3>Set IRM v3 for <mark>cUSDC</mark> market</h3>
+            <div class="snippet">
+              Migrate the <mark>cUSDC</mark> rate model to <mark>IRM</mark> v3. Curve params: kink 80%, base 0%,
+              multiplier 4.5%. Snapshot of expected APY range under historical utilization in the linked spreadsheet.
+            </div>
+            <div class="meta">
+              <span>Voting ends in 2d 4h</span>
+              <span>For 62% · Against 31%</span>
+              <span>15 forum posts</span>
+            </div>
+          </div>
+          <div class="right">
+            <b>96%</b>match
+          </div>
+        </div>
+
+        <div class="result">
+          <div class="kind">FRM</div>
+          <div>
+            <div class="kicker">Forum thread · Compound · 34 posts · 14 authors</div>
+            <h3>[Discussion] Set <mark>IRM</mark> v3 for <mark>cUSDC</mark> market</h3>
+            <div class="snippet">
+              Proposer <b>@gauntlet</b>: "shifts more rate response into the middle band." Pushback from
+              <b>@paperimperium</b>: "Worry is a 30-second window where utilization punches through 95% during liquidations."
+            </div>
+            <div class="meta">
+              <span>linked to prop #248</span>
+              <span>last activity 12m ago</span>
+              <span>sentiment +0.32</span>
+            </div>
+          </div>
+          <div class="right"><b>91%</b>match</div>
+        </div>
+
+        <div class="result">
+          <div class="kind">PRP</div>
+          <div>
+            <div class="kicker">Proposal · Compound · #246 · Defeated · ⚠ flagged</div>
+            <h3>Reduce reserve factor on cETH (with mismatch on <mark>cUSDC</mark>)</h3>
+            <div class="snippet">
+              Calldata included an undisclosed transfer that touched the <mark>cUSDC</mark> reserve.
+              Description listed only the cETH reserve factor change. Flagged severe by Kvorum.
+            </div>
+            <div class="meta">
+              <span>5d ago</span>
+              <span>For 18% · Against 76%</span>
+              <span class="mono" style="color: var(--note);">mismatch SEVERE</span>
+            </div>
+          </div>
+          <div class="right"><b>87%</b>match</div>
+        </div>
+
+        <div class="result">
+          <div class="kind">PST</div>
+          <div>
+            <div class="kicker">Forum post · @paperimperium · in IRM v3 thread</div>
+            <h3>"Pushing back. Modeling shows the 80% kink interacts badly…"</h3>
+            <div class="snippet">
+              "Modeling shows the 80% kink interacts badly with concentrated liquidator activity in volatile windows.
+              Sample run from 2024 stress test attached. Worry is a 30-second window where utilization punches through 95%
+              during liquidations and produces a 200%+ APY tick."
+            </div>
+            <div class="meta">
+              <span>2026-04-29</span>
+              <span>↑ 24 likes · 9 replies</span>
+            </div>
+          </div>
+          <div class="right"><b>78%</b>match</div>
+        </div>
+
+        <div class="result">
+          <div class="kind">ACT</div>
+          <div>
+            <div class="kicker">Actor · delegate · Compound + Aave + Uniswap</div>
+            <h3><mark>a16z</mark> &nbsp;<small style="color: var(--ink-3); font-size: 11px;">a16zgov.eth · 0xb1f8…2c4d</small></h3>
+            <div class="snippet">
+              Voted <b>For</b> on prop #248 (<mark>cUSDC</mark> <mark>IRM</mark> v3) with rationale
+              "Aligned with our risk framework, supports modeled APY range." 12.4M COMP voting power.
+            </div>
+            <div class="meta">
+              <span>187 votes cast</span>
+              <span>94% turnout</span>
+              <span>alignment 0.82</span>
+            </div>
+          </div>
+          <div class="right"><b>71%</b>match</div>
+        </div>
+
+        <div class="result">
+          <div class="kind">DAO</div>
+          <div>
+            <div class="kicker">DAO · governance protocol</div>
+            <h3>Compound</h3>
+            <div class="snippet">
+              7 active proposals, 3 referencing <mark>cUSDC</mark> markets. Health grade B+ with 2 open mismatch flags.
+              <mark>IRM</mark> v3 migration in progress (prop #248).
+            </div>
+            <div class="meta">
+              <span>248 proposals tracked</span>
+              <span>15,402 voters</span>
+              <span>last sync 38s ago</span>
+            </div>
+          </div>
+          <div class="right"><b>65%</b>match</div>
+        </div>
+
+        <div class="result" style="border-style: dashed; opacity: 0.65;">
+          <div class="kind" style="background: var(--paper-2);">···</div>
+          <div>
+            <div class="kicker">36 more results</div>
+            <h3>Load more</h3>
+            <div class="snippet">Includes 8 historical proposals, 14 lower-relevance forum posts, and 14 cross-DAO references.</div>
+          </div>
+          <div class="right"><b>↓</b></div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div>
+
+      <div class="filters-card">
+        <div class="h">Refine</div>
+        <div class="body">
+
+          <div class="grp">
+            <span class="lbl">DAO</span>
+            <label class="check"><input type="checkbox" checked /> Compound <span class="n">31</span></label>
+            <label class="check"><input type="checkbox" /> Aave <span class="n">8</span></label>
+            <label class="check"><input type="checkbox" /> Lido <span class="n">3</span></label>
+          </div>
+
+          <div class="grp">
+            <span class="lbl">State (proposals only)</span>
+            <label class="check"><input type="checkbox" /> Active <span class="n">3</span></label>
+            <label class="check"><input type="checkbox" /> Succeeded <span class="n">8</span></label>
+            <label class="check"><input type="checkbox" /> Defeated <span class="n">2</span></label>
+            <label class="check"><input type="checkbox" /> Executed <span class="n">1</span></label>
+          </div>
+
+          <div class="grp">
+            <span class="lbl">Time range</span>
+            <div class="controls">
+              <div class="grp"><span>24h</span><span>7d</span><span class="on">30d</span><span>All</span></div>
+            </div>
+          </div>
+
+          <div class="grp">
+            <span class="lbl">Flags</span>
+            <label class="check"><input type="checkbox" /> ⚠ Mismatch flagged <span class="n">2</span></label>
+            <label class="check"><input type="checkbox" /> AI summary available <span class="n">14</span></label>
+            <label class="check"><input type="checkbox" /> Linked forum + on-chain <span class="n">9</span></label>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="height: 14px;"></div>
+
+      <div class="empty-cb">
+        <b>⌘K palette mirrors this</b>
+        Same query, same scopes, returns the top 6 results. Press Enter on a row to jump.
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="freshness">
+    <span><span class="dot live"></span>Live · index updated 38s ago</span>
+    <span>Postgres FTS · pgvector for semantic re-rank · §6.8</span>
+    <span>kvorum.xyz/search?q=cusdc+irm</span>
+  </div>
+</div>
+
+<div class="legend-card">
+  <b>Search results</b> · /search and ⌘K share the same backend (§6.8). Top: AI direct-answer panel cites the top results inline. Body: heterogenous result list — proposals, forum threads, posts, actors, DAOs — each with its own kind glyph, match score, and inline highlights. Right: scope-aware refine filters.
+</div>
+
+<script src="wireframe-nav.js"></script>
+</body>
+</html>
