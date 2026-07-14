@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
   AiCompletionCache,
+  AiCostLogRepository,
   AiDlqRepository,
   AiOutputRepository,
   buildProvenance,
@@ -64,6 +65,7 @@ export class ProposalSummaryBatchService {
     private readonly dlq: AiDlqRepository,
     private readonly config: AiTriggerConfig,
     private readonly budget: AiBudgetState,
+    private readonly costs: AiCostLogRepository,
   ) {}
 
   @Interval(BATCH_INTERVAL_MS)
@@ -161,6 +163,16 @@ export class ProposalSummaryBatchService {
         attempts: 1,
         first_seen_at: now,
         last_seen_at: now,
+      });
+      await this.costs.insert({
+        timestamp: now,
+        feature_name: req.feature,
+        model: req.model,
+        input_tokens: cost.inputTokens,
+        output_tokens: cost.outputTokens,
+        cost_usd: String(cost.totalUsd),
+        dao_id: ctx.daoId,
+        entity_reference: ctx.entityReference,
       });
       this.logger.warn('ai_summary_schema_violation', {
         feature: req.feature,

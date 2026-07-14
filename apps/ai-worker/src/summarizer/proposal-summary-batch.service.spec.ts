@@ -49,6 +49,7 @@ function deps(over: {
 }) {
   const persist = vi.fn(async () => {});
   const dlqInsert = vi.fn(async () => {});
+  const costsInsert = vi.fn(async () => {});
   const llm = new FakeLlm(over.fetches ?? []);
   const service = new ProposalSummaryBatchService(
     llm,
@@ -64,8 +65,9 @@ function deps(over: {
     { insert: dlqInsert } as never,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
+    { insert: costsInsert } as never,
   );
-  return { service, llm, persist, dlqInsert };
+  return { service, llm, persist, dlqInsert, costsInsert };
 }
 
 describe('ProposalSummaryBatchService', () => {
@@ -84,7 +86,7 @@ describe('ProposalSummaryBatchService', () => {
   });
 
   it('submits a batch for an uncached candidate, then persists on the ended poll', async () => {
-    const { service, llm, persist } = deps({
+    const { service, llm, persist, costsInsert } = deps({
       candidates: [PROPOSAL],
       fetches: [
         { status: 'in_progress', results: [] },
@@ -115,6 +117,7 @@ describe('ProposalSummaryBatchService', () => {
     expect(persist).toHaveBeenCalledOnce();
     expect(tokens).toHaveBeenCalledWith(100, { feature: 'proposal_summarizer', kind: 'input' });
     expect(tokens).toHaveBeenCalledWith(20, { feature: 'proposal_summarizer', kind: 'output' });
+    expect(costsInsert).not.toHaveBeenCalled();
   });
 
   it('skips an already-cached candidate and never submits', async () => {
@@ -130,6 +133,7 @@ describe('ProposalSummaryBatchService', () => {
       throw new Error('persist boom');
     });
     const dlqInsert = vi.fn(async () => {});
+    const costsInsert = vi.fn(async () => {});
     const llm = new FakeLlm([
       {
         status: 'ended',
@@ -156,6 +160,7 @@ describe('ProposalSummaryBatchService', () => {
       { insert: dlqInsert } as never,
       { isEnabled: () => true } as never,
       { isDisabled: () => false } as never,
+      { insert: costsInsert } as never,
     );
 
     await service.tick(); // submit
@@ -170,7 +175,7 @@ describe('ProposalSummaryBatchService', () => {
   });
 
   it('dead-letters a schema-violating result instead of persisting', async () => {
-    const { service, persist, dlqInsert } = deps({
+    const { service, persist, dlqInsert, costsInsert } = deps({
       candidates: [PROPOSAL],
       fetches: [
         {
@@ -189,5 +194,13 @@ describe('ProposalSummaryBatchService', () => {
     await service.tick(); // poll → ended → invalid → DLQ
     expect(dlqInsert).toHaveBeenCalledOnce();
     expect(persist).not.toHaveBeenCalled();
+    expect(costsInsert).toHaveBeenCalledOnce();
+    expect(costsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feature_name: 'proposal_summarizer',
+        input_tokens: 100,
+        output_tokens: 20,
+      }),
+    );
   });
 });
