@@ -25,6 +25,9 @@ importers:
       '@founderpath/kysely-clickhouse':
         specifier: ^1.7.0
         version: 1.7.0(@clickhouse/client@1.18.4)(kysely@0.29.0)
+      '@joplin/turndown-plugin-gfm':
+        specifier: 1.0.67
+        version: 1.0.67
       '@nestjs/common':
         specifier: ^11.1.19
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -154,6 +157,9 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      turndown:
+        specifier: 7.2.4
+        version: 7.2.4
       wagmi:
         specifier: ^3.7.1
         version: 3.7.1(@tanstack/query-core@5.101.2)(@tanstack/react-query@5.101.2(react@19.2.6))(@types/react@19.2.14)(react@19.2.6)(typescript@5.9.3)(viem@2.55.1(typescript@5.9.3)(zod@4.4.3))
