@@ -139,3 +139,44 @@ describeWithDb('AiCompletionCache.complete (integration)', () => {
     });
   });
 });
+
+describeWithDb('AiCompletionCache.persist (integration)', () => {
+  it('writes ai_output + ai_cost_log for a pre-computed result, no client call', async () => {
+    await inRollback(async (trx) => {
+      const { llm, complete } = fakeLlm(result({ tldr: 'batch-computed summary' }));
+      await new AiCompletionCache(trx, llm).persist(
+        req({ mode: 'batch' }),
+        result({ tldr: 'batch-computed summary' }),
+        CTX,
+      );
+      expect(complete).not.toHaveBeenCalled();
+      const out = await trx
+        .selectFrom('ai_output')
+        .selectAll()
+        .where('feature_name', '=', 'test_summarizer')
+        .executeTakeFirstOrThrow();
+      expect(out.output).toEqual({ tldr: 'batch-computed summary' });
+      const cost = await trx
+        .selectFrom('ai_cost_log')
+        .selectAll()
+        .where('feature_name', '=', 'test_summarizer')
+        .executeTakeFirstOrThrow();
+      expect(cost.output_tokens).toBe(200);
+    });
+  });
+
+  it('is idempotent on the ai_output key: a second persist leaves one output row', async () => {
+    await inRollback(async (trx) => {
+      const cache = new AiCompletionCache(trx, fakeLlm(result({ tldr: 'once' })).llm);
+      await cache.persist(req({ mode: 'batch' }), result({ tldr: 'once' }), CTX);
+      await cache.persist(req({ mode: 'batch' }), result({ tldr: 'twice-ignored' }), CTX);
+      const rows = await trx
+        .selectFrom('ai_output')
+        .selectAll()
+        .where('feature_name', '=', 'test_summarizer')
+        .execute();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.output).toEqual({ tldr: 'once' });
+    });
+  });
+});
