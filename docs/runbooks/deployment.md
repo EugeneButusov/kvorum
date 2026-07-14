@@ -31,7 +31,7 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
 ## One-time setup
 
 1. **Cluster** — create a DOKS cluster with a 2-node `s-1vcpu-2gb` pool. Note the cluster name.
-2. **Postgres** — create a DO Managed Postgres 18 DB; grab its `DATABASE_URL` (`sslmode=require`).
+2. **Postgres** — create a DO Managed Postgres 18 DB; use the **VPC / private-network** connection string (host starts with `private-`) and add both params: `?sslmode=require&uselibpqcompat=true`. The `uselibpqcompat=true` is **required** — modern `pg` treats bare `sslmode=require` as `verify-full`, which rejects DO's private-CA cert with `SELF_SIGNED_CERT_IN_CHAIN`; this param restores encrypt-without-CA-verify (safe over the private VPC).
 3. **ClickHouse** — create an Elestio ClickHouse service **in the same region** as DOKS (keeps the write/read hop ~1–5 ms). Note host/user/password; create the `kvorum` database.
 4. **Redis** — create an Upstash Redis DB; grab the `rediss://` URL.
 5. **Cloudflare Tunnel** — in the Zero Trust dashboard create a tunnel, copy the connector **token**, and add **two** public hostname routes on it:

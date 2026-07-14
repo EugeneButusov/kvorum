@@ -73,6 +73,13 @@ jobs:
       - name: Run migrations (deploy gate)
         run: |
           set -euo pipefail
+          # First-deploy bootstrap: the migrate Job envFrom's the kvorum-config ConfigMap,
+          # which is otherwise created only by the later `apply -k` step. On a fresh cluster
+          # that ConfigMap does not exist yet, so the migration gate fails with
+          # CreateContainerConfigError. Ensure the namespace + ConfigMap exist here first.
+          # (Idempotent: `apply -k` re-adopts both on every subsequent deploy.)
+          kubectl apply -f infra/k8s/overlays/prod/namespace.yaml
+          kubectl -n kvorum apply -f infra/k8s/base/configmap.yaml
           kubectl -n kvorum delete job kvorum-migrate --ignore-not-found
           sed "s#ghcr.io/kvorum/kvorum:latest#${IMAGE}#" infra/k8s/base/migrate-job.yaml \
             | kubectl -n kvorum apply -f -
