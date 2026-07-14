@@ -1,0 +1,105 @@
+name: Deploy
+
+# Auto-deploy on merge to the default branch. Build once, gate on migrations, then
+# roll the api + indexer Deployments. The only credential this workflow holds is a
+# scoped DigitalOcean token stored as a `production` Environment secret — no app
+# secrets ever touch CI (they live only in the in-cluster kvorum-secrets Secret).
+on:
+  push:
+    branches: [main]
+
+# Serialize deploys — never roll two builds concurrently. Do NOT cancel in progress:
+# a half-applied rollout is worse than waiting.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write # push image to GHCR via the automatic GITHUB_TOKEN
+
+jobs:
+  build:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name (GHCR requires lowercase)
+        id: meta
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Migrate & roll out
+    needs: build
+    runs-on: ubuntu-latest
+    # Requires a protected Environment named `production` holding:
+    #   secret DIGITALOCEAN_ACCESS_TOKEN   — scoped DO API token (read + k8s)
+    #   variable DOKS_CLUSTER              — the DOKS cluster name (not sensitive)
+    environment: production
+    env:
+      IMAGE: ${{ needs.build.outputs.image }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to DigitalOcean
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Load kubeconfig
+        run: doctl kubernetes cluster kubeconfig save "${{ vars.DOKS_CLUSTER }}"
+
+      - name: Run migrations (deploy gate)
+        run: |
+          set -euo pipefail
+          kubectl -n kvorum delete job kvorum-migrate --ignore-not-found
+          sed "s#ghcr.io/kvorum/kvorum:latest#${IMAGE}#" infra/k8s/base/migrate-job.yaml \
+            | kubectl -n kvorum apply -f -
+          if ! kubectl -n kvorum wait --for=condition=complete job/kvorum-migrate --timeout=300s; then
+            echo "::error::migration job did not complete — aborting deploy"
+            kubectl -n kvorum logs job/kvorum-migrate --tail=200 || true
+            exit 1
+          fi
+
+      - name: Install kustomize
+        run: |
+          set -euo pipefail
+          curl -sfLo kustomize.tar.gz \
+            https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          sudo install kustomize /usr/local/bin/kustomize
+
+      - name: Apply manifests at the built image
+        run: |
+          set -euo pipefail
+          cd infra/k8s/overlays/prod
+          kustomize edit set image "ghcr.io/kvorum/kvorum=${IMAGE}"
+          kubectl apply -k .
+
+      - name: Wait for rollout
+        run: |
+          set -euo pipefail
+          kubectl -n kvorum rollout status deploy/kvorum-api --timeout=180s
+          kubectl -n kvorum rollout status deploy/kvorum-indexer --timeout=180s
+          kubectl -n kvorum rollout status deploy/kvorum-dashboard --timeout=180s

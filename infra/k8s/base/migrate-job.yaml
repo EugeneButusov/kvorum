@@ -1,0 +1,45 @@
+# Migration gate. Applied and waited on BEFORE the api/indexer Deployments roll to a
+# new image — the Kysely runner (libs/db/scripts/migrate.mts) exits non-zero on
+# partial failure, so a failed migration blocks the deploy instead of shipping code
+# against an un-migrated schema.
+#
+# NOT part of the deployments kustomization (kubectl apply -k) on purpose: apply is
+# unordered, and re-applying a completed Job errors on immutable fields. Deploys run
+# it as a discrete, waited step with the freshly built image tag — see the deploy
+# flow in docs/runbooks/deployment.md and .github/workflows/deploy.yml. The image is
+# substituted by CI; `kvorum` (the ghcr repo) is what kustomize also retags.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kvorum-migrate
+  labels:
+    app.kubernetes.io/name: kvorum-migrate
+    app.kubernetes.io/part-of: kvorum
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-migrate
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/kvorum/kvorum:latest
+          # PG migrations first (identity/config/state-machine + source_type refs),
+          # then ClickHouse DDL (event-archive tables).
+          command: ['sh', '-c', 'pnpm -w db:migrate && pnpm -w db:migrate:ch']
+          envFrom:
+            - configMapRef:
+                name: kvorum-config
+            - secretRef:
+                name: kvorum-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

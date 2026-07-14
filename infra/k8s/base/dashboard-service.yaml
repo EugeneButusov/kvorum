@@ -1,0 +1,19 @@
+# ClusterIP fronting the dashboard (Next.js SSR/BFF) pods. Reached in-cluster by the
+# cloudflared tunnel (components/expose-tunnel) via a second public hostname route —
+# the service itself is exposure-agnostic. No metrics port: the dashboard is a plain
+# Next server, not an OTel/OpsServer process.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-dashboard
+  labels:
+    app.kubernetes.io/name: kvorum-dashboard
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
