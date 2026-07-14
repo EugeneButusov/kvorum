@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { TRACKED_DAOS } from '@/lib/dao/tracked';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -24,10 +25,7 @@ const NAV = [
 ];
 const DAOS = [
   { label: 'All DAOs', href: '/daos' },
-  { label: 'Compound', href: '/daos/compound' },
-  { label: 'Uniswap', href: '/daos/uniswap' },
-  { label: 'Aave', href: '/daos/aave' },
-  { label: 'Lido', href: '/daos/lido' },
+  ...TRACKED_DAOS.map((d) => ({ label: d.name, href: `/daos/${d.slug}` })),
 ];
 const TAIL = [
   { label: 'Developer', href: '/developer' },

@@ -1,3 +1,5 @@
+import { notFound } from 'next/navigation';
+
 import { DaoHeader } from '@/components/dao/dao-header';
 import { GovernanceTracks } from '@/components/dao/governance-tracks';
 import { HealthSnapshot } from '@/components/dao/health-snapshot';
@@ -33,23 +35,28 @@ async function loadDao(slug: string): Promise<DaoInfo> {
     tokenAddress: '',
     sourceTypes: [],
   };
+  let result;
   try {
-    const { data, error } = await serverApi().GET('/v1/daos/{slug}', {
-      params: { path: { slug } },
-    });
-    if (error || !data) return fallback;
-    const dao = data.data;
-    return {
-      name: dao.name,
-      description: dao.description,
-      tokenAddress: dao.primary_token_address,
-      websiteUrl: dao.website_url || undefined,
-      forumUrl: dao.forum_url || undefined,
-      sourceTypes: dao.sources.map((s) => s.source_type),
-    };
+    result = await serverApi().GET('/v1/daos/{slug}', { params: { path: { slug } } });
   } catch {
+    // Backend unreachable — degrade rather than 404 a DAO that may well exist (§6.15 keeps reads
+    // resilient). notFound() must stay OUT of this catch or it would be swallowed.
     return fallback;
   }
+  const { data, error, response } = result;
+  // A reachable API saying the DAO isn't tracked is the real 404 → the context-aware "DAO not
+  // tracked" page. Other errors degrade to the fallback.
+  if (response.status === 404) notFound();
+  if (error || !data) return fallback;
+  const dao = data.data;
+  return {
+    name: dao.name,
+    description: dao.description,
+    tokenAddress: dao.primary_token_address,
+    websiteUrl: dao.website_url || undefined,
+    forumUrl: dao.forum_url || undefined,
+    sourceTypes: dao.sources.map((s) => s.source_type),
+  };
 }
 
 const BASE_FILTERS: ProposalFilters = {
