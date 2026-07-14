@@ -125,6 +125,50 @@ describe('ProposalSummaryBatchService', () => {
     expect(hits).toHaveBeenCalledWith(1, { feature: 'proposal_summarizer' });
   });
 
+  it('clears inFlight and stays live when one result throws during processing', async () => {
+    const persist = vi.fn(async () => {
+      throw new Error('persist boom');
+    });
+    const dlqInsert = vi.fn(async () => {});
+    const llm = new FakeLlm([
+      {
+        status: 'ended',
+        results: [
+          {
+            customId: 'proposal:prop-1',
+            parsed: { tldr: 'ok' },
+            cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
+          },
+        ],
+      },
+    ]);
+    const service = new ProposalSummaryBatchService(
+      llm,
+      { findBindingInStates: async () => [PROPOSAL] } as never,
+      {
+        assemble: async () => ({
+          rendered: rendered(),
+          ctx: { daoId: 'dao-1', entityReference: 'proposal:prop-1' },
+        }),
+      } as never,
+      { find: async () => undefined } as never,
+      { persist } as never,
+      { insert: dlqInsert } as never,
+      { isEnabled: () => true } as never,
+      { isDisabled: () => false } as never,
+    );
+
+    await service.tick(); // submit
+    expect(llm.submitBatch).toHaveBeenCalledOnce();
+
+    await expect(service.tick()).resolves.toBeUndefined(); // poll → ended → persist throws, must not propagate
+    expect(persist).toHaveBeenCalledOnce();
+
+    // inFlight must have been cleared despite the failing result: a follow-up tick submits again.
+    await service.tick();
+    expect(llm.submitBatch).toHaveBeenCalledTimes(2);
+  });
+
   it('dead-letters a schema-violating result instead of persisting', async () => {
     const { service, persist, dlqInsert } = deps({
       candidates: [PROPOSAL],

@@ -125,7 +125,14 @@ export class ProposalSummaryBatchService {
     for (const item of res.results) {
       const entry = inFlight.items.get(item.customId);
       if (entry === undefined) continue;
-      await this.processResult(entry.req, entry.ctx, item.parsed, item.cost);
+      try {
+        await this.processResult(entry.req, entry.ctx, item.parsed, item.cost);
+      } catch (err) {
+        this.logger.warn('ai_summary_result_failed', {
+          customId: item.customId,
+          error: String(err),
+        });
+      }
     }
     this.logger.log('ai_summary_batch_completed', {
       batchId: inFlight.handle.id,
