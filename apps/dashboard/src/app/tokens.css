@@ -19,7 +19,7 @@
   /* --- Ink (text) --- */
   --ink: #0e0e0c; /* primary text, strong borders */
   --ink-2: #444440; /* secondary text */
-  --ink-3: #7a7a73; /* tertiary, captions, mono labels */
+  --ink-3: #6f6f68; /* tertiary, captions, mono labels — AA 5.06:1 on card (§6.19) */
   --ink-4: #b3b3aa; /* disabled, faint */
 
   /* --- Lines --- */
@@ -28,7 +28,9 @@
   --line-3: #e6e6df; /* subtle divider, dashed */
 
   /* --- Accent (terminal green) --- */
-  --accent: #00a86b;
+  /* Darkened from #00a86b for WCAG AA (§6.19): passes 4.5:1 both as link text and as a
+     button fill under white labels. Dark mode keeps the brighter green (already AA). */
+  --accent: #00804f;
   --accent-bg: #d6f3e4;
   --accent-ink: #003d22;
 
