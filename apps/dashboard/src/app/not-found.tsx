@@ -1,16 +1,13 @@
-import Link from 'next/link';
+import { NotFoundContent } from '@/components/system/not-found-content';
+import { SystemShell } from '@/components/system/system-shell';
 
-// Baseline 404 (Next serves it with a real HTTP 404). The context-aware error pages
-// (per-pattern guidance for unknown DAO / proposal / actor) land in a later milestone.
+// Global 404 for truly unmatched URLs — served with a real HTTP 404. Renders outside the (shell)
+// route group, so it brings its own nav via SystemShell. Segment-level not-found.tsx files handle
+// the context-aware DAO / proposal / actor cases.
 export default function NotFound() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-[1440px] flex-col items-center justify-center gap-3 px-8 text-center">
-      <p className="font-mono text-caption uppercase tracking-[0.08em] text-ink-3">404</p>
-      <h1 className="font-mono text-h1">Page not found</h1>
-      <p className="max-w-md text-body-lg text-ink-2">This page could not be found.</p>
-      <Link href="/" className="mt-2 font-mono text-small text-primary hover:underline">
-        ← Back home
-      </Link>
-    </main>
+    <SystemShell>
+      <NotFoundContent kind="generic" />
+    </SystemShell>
   );
 }
