@@ -43,9 +43,10 @@ jobs:
       - name: Build dashboard
         run: pnpm --filter dashboard build
 
-      # Baseline harness: asserts the §7.2 / §10.9 budgets as warnings for now (the
-      # interim pages are placeholders). A later milestone tightens these to a blocking
-      # gate on the proposal-detail + homepage once those pages are real.
+      # Blocking gate (§7.2 / §10.9 budgets): asserts Perf ≥ 0.8 / A11y ≥ 0.95 / BP ≥ 0.9 /
+      # SEO ≥ 0.95 on the homepage + proposal-detail. Proposal detail renders its graceful
+      # "temporarily unavailable" shell here (no backend in this job), so the gate measures the
+      # SSR framework quality — meta, semantics, and shell performance — not live data.
       - name: Run Lighthouse CI
         run: pnpm exec lhci autorun
         working-directory: apps/dashboard
