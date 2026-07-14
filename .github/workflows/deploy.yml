@@ -102,3 +102,4 @@ jobs:
           set -euo pipefail
           kubectl -n kvorum rollout status deploy/kvorum-api --timeout=180s
           kubectl -n kvorum rollout status deploy/kvorum-indexer --timeout=180s
+          kubectl -n kvorum rollout status deploy/kvorum-dashboard --timeout=180s

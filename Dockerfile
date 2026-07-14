@@ -1,15 +1,17 @@
 # syntax=docker/dockerfile:1.7
 #
-# Single image for both backend services (api, indexer) and the migration job.
-# The service is selected by the container command in Kubernetes:
-#   api      → node dist/apps/api/main.js
-#   indexer  → node dist/apps/indexer/main.js
-#   migrate  → pnpm -w db:migrate && pnpm -w db:migrate:ch
+# Single image for the backend services (api, indexer), the Next.js dashboard, and
+# the migration job. The service is selected by the container command in Kubernetes:
+#   api       → node dist/apps/api/main.js
+#   indexer   → node dist/apps/indexer/main.js
+#   dashboard → pnpm --filter dashboard start   (next start, serves apps/dashboard/.next)
+#   migrate   → pnpm -w db:migrate && pnpm -w db:migrate:ch
 #
-# Why one image: apps webpack-bundle to dist/apps/<app>/main.js but EXTERNALIZE
-# node_modules (required at runtime as commonjs), and the migration entrypoints run
+# Why one image: the Nest apps webpack-bundle to dist/apps/<app>/main.js but
+# EXTERNALIZE node_modules (required at runtime as commonjs); the dashboard runs
+# `next start` against its `.next` build output; and the migration entrypoints run
 # via tsx against the TS sources under libs/. Shipping the built workspace + full
-# dependency tree keeps all three entrypoints working from one artifact.
+# dependency tree keeps all four entrypoints working from one artifact.
 #
 # KNOWN-013: image ships devDependencies (tsx is needed by the migrate job) and the
 # workspace source. A slimmer runtime that prunes to prod deps + precompiled
@@ -28,7 +30,7 @@ FROM base AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
-RUN pnpm --filter api build && pnpm --filter indexer build
+RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dashboard build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runtime

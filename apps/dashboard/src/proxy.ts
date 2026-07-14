@@ -37,6 +37,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Run on every page route (so maintenance mode can gate the whole site) except Next internals, the
-  // BFF API, and static files. The /developer auth check runs within.
-  matcher: ['/((?!_next/static|_next/image|api/|favicon\\.ico|.*\\.[^/]+$).*)'],
+  // BFF API, static files, and the k8s /healthz probe. The /developer auth check runs within.
+  // /healthz is exempt on purpose: it must stay 200 during maintenance so pods remain Ready and keep
+  // serving the maintenance page (a failing probe would pull them from the Service instead).
+  matcher: ['/((?!_next/static|_next/image|api/|healthz|favicon\\.ico|.*\\.[^/]+$).*)'],
 };
