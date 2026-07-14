@@ -37,6 +37,10 @@ module.exports = {
         options: { configFile: path.join(__dirname, 'tsconfig.app.json') },
         exclude: /node_modules/,
       },
+      {
+        resourceQuery: /raw/,
+        type: 'asset/source',
+      },
     ],
   },
   externals: [

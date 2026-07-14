@@ -7,6 +7,7 @@ export * from './llm/fake-provider.js';
 export * from './llm/providers/anthropic-provider.js';
 export * from './llm/providers/openai-embedding-provider.js';
 export * from './prompts/index.js';
+export { PROPOSAL_SUMMARY_TEMPLATE } from './prompts/proposal-summary-template.js';
 export * from './schemas/proposal-summary.js';
 export * from './persistence/schema.js';
 export { AiOutputRepository } from './persistence/ai-output-repository.js';
