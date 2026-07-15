@@ -1,17 +1,22 @@
 # syntax=docker/dockerfile:1.7
 #
-# Single image for the backend services (api, indexer), the Next.js dashboard, and
-# the migration job. The service is selected by the container command in Kubernetes:
+# Single image for the backend services (api, indexer), the Next.js dashboard, the
+# migration job, and the admin-cli ops tooling. The entrypoint is selected by the
+# container command in Kubernetes:
 #   api       → node dist/apps/api/main.js
 #   indexer   → node dist/apps/indexer/main.js
 #   dashboard → pnpm --filter dashboard start   (next start, serves apps/dashboard/.next)
 #   migrate   → pnpm -w db:migrate && pnpm -w db:migrate:ch
+#   admin-cli → node dist/apps/admin-cli/main.js <cmd>   (ad-hoc ops: backfill, dlq,
+#               actor merge, …; run via `kubectl exec` or a one-off Job, not a service)
 #
 # Why one image: the Nest apps webpack-bundle to dist/apps/<app>/main.js but
 # EXTERNALIZE node_modules (required at runtime as commonjs); the dashboard runs
-# `next start` against its `.next` build output; and the migration entrypoints run
-# via tsx against the TS sources under libs/. Shipping the built workspace + full
-# dependency tree keeps all four entrypoints working from one artifact.
+# `next start` against its `.next` build output; the admin-cli esbuild-bundles to
+# dist/apps/admin-cli/main.js (build injects PKG_VERSION — running the TS via tsx
+# would leave it undefined); and the migration entrypoints run via tsx against the TS
+# sources under libs/. Shipping the built workspace + full dependency tree keeps all
+# these entrypoints working from one artifact.
 #
 # KNOWN-013: image ships devDependencies (tsx is needed by the migrate job) and the
 # workspace source. A slimmer runtime that prunes to prod deps + precompiled
@@ -30,7 +35,7 @@ FROM base AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
-RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dashboard build
+RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dashboard build && pnpm --filter admin-cli build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runtime
