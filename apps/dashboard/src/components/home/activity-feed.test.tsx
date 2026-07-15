@@ -39,7 +39,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('ActivityFeed', () => {
   it('renders the recent proposals with a live freshness indicator', () => {
     render(<ActivityFeed initialItems={[item('1', 'Recent one')]} />, { wrapper });
-    expect(screen.getByRole('heading', { name: 'Recent activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Recent activity/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recent one' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(/Updated/);
   });

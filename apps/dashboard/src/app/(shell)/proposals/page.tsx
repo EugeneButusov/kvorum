@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { ProposalList } from '@/components/proposal/proposal-list';
 import { Crumb } from '@/components/shell/crumb';
+import { PageContainer } from '@/components/shell/page-container';
 import { serverApi } from '@/lib/api/client';
 import { fetchProposalPage, paramsFromRecord, parseListParams } from '@/lib/proposals/list';
 
@@ -36,16 +37,18 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Se
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <Crumb items={[{ label: 'Home', href: '/' }, { label: 'Proposals' }]} />
-      <h1 className="text-h1 font-semibold text-ink">All proposals</h1>
-      <ProposalList
-        scope="cross"
-        initialFilters={filters}
-        initialSort={sort}
-        initialPage={initialPage}
-        daoOptions={daoOptions}
-      />
-    </div>
+      <PageContainer className="flex flex-col gap-6">
+        <h1 className="text-h1 font-semibold text-ink">All proposals</h1>
+        <ProposalList
+          scope="cross"
+          initialFilters={filters}
+          initialSort={sort}
+          initialPage={initialPage}
+          daoOptions={daoOptions}
+        />
+      </PageContainer>
+    </>
   );
 }

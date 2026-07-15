@@ -52,7 +52,7 @@ export function TopNav() {
     <header className="flex h-14 items-stretch border-b border-line bg-bg-2 px-4 md:px-8">
       <Link
         href="/"
-        className="flex items-center gap-2.5 pr-4 md:mr-2 md:border-r md:border-line-2 md:pr-7"
+        className="flex items-center gap-2.5 pr-4 md:border-r md:border-line-2 md:pr-7"
       >
         <Logo size={22} />
         <span className="font-mono text-body-lg font-bold tracking-[0.04em]">KVORUM</span>
