@@ -109,7 +109,7 @@ describe('DaoSourceRepository', () => {
       expect(chain.innerJoin).not.toHaveBeenCalled();
     });
 
-    it('#4 — selects expected columns including source_type', async () => {
+    it('#4 — selects expected columns including source_type and the live-polling flag', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
       await repo.findAll();
@@ -120,6 +120,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.source_type',
         'dao_source.source_config',
         'dao_source.chain_id',
+        'dao_source.live_polling_enabled',
       ]);
     });
 

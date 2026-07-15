@@ -6,7 +6,11 @@ import { cn } from '@/lib/utils';
 
 export type SubNavItem = { id: string; label: string };
 
-/** Anchored sub-navigation (§6.9). Sticky; highlights the section in view. */
+/**
+ * Anchored "On this page" TOC (§6.9). Highlights the section in view. Presentational — stickiness
+ * lives on the wrapping <aside> in the page (the reference makes the aside itself sticky, which
+ * gives it room to pin; a sticky element inside a shrink-wrapped parent can't move and never sticks).
+ */
 export function SubNav({ items }: { items: SubNavItem[] }) {
   const [active, setActive] = useState(items[0]?.id);
 
@@ -30,24 +34,38 @@ export function SubNav({ items }: { items: SubNavItem[] }) {
   }, [items]);
 
   return (
-    <nav aria-label="On this page" className="hidden lg:block">
-      <ul className="sticky top-24 space-y-1 border-l border-line-3 font-mono text-caption">
-        {items.map((it) => (
-          <li key={it.id}>
-            <a
-              href={`#${it.id}`}
-              aria-current={active === it.id ? 'true' : undefined}
-              className={cn(
-                '-ml-px block border-l-2 py-1 pl-3 transition-colors',
-                active === it.id
-                  ? 'border-primary text-ink'
-                  : 'border-transparent text-ink-3 hover:text-ink',
-              )}
-            >
-              {it.label}
-            </a>
-          </li>
-        ))}
+    <nav aria-label="On this page" className="flex flex-col gap-2">
+      <p className="px-3 font-mono text-caption uppercase tracking-[0.1em] text-ink-3">
+        On this page
+      </p>
+      <ul>
+        {items.map((it, i) => {
+          const isActive = active === it.id;
+          return (
+            <li key={it.id}>
+              <a
+                href={`#${it.id}`}
+                aria-current={isActive ? 'true' : undefined}
+                className={cn(
+                  'flex items-baseline gap-2.5 border-l-2 px-3 py-[7px] text-body transition-colors',
+                  isActive
+                    ? 'border-primary bg-bg-2 font-semibold text-ink'
+                    : 'border-transparent text-ink-2 hover:text-ink',
+                )}
+              >
+                <span
+                  className={cn(
+                    'w-4 shrink-0 font-mono text-caption',
+                    isActive ? 'text-primary' : 'text-ink-4',
+                  )}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {it.label}
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

@@ -1,21 +1,35 @@
 'use client';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ProposalFilters } from './proposal-filters';
-import { ProposalRow } from './proposal-row';
+import { daoVariant, stateToVariant } from './state';
+import { Pill } from '@/components/ui/pill';
+import { StatePill } from '@/components/ui/state-pill';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { browserApi } from '@/lib/api/client';
+import { formatDateTime, formatDeadline, truncateAddress } from '@/lib/format';
 import {
   fetchProposalPage,
   SORT_FIELDS,
   SORT_LABELS,
   toSearchParams,
   type ProposalFilters as Filters,
+  type ProposalListItemView,
   type ProposalPage,
   type ProposalSort,
 } from '@/lib/proposals/list';
+import { sourceLabel } from '@/lib/proposals/source';
 import { cn } from '@/lib/utils';
 
 export type ProposalListProps = {
@@ -29,9 +43,11 @@ export type ProposalListProps = {
 };
 
 /**
- * The shared filterable/sortable proposals list (§6.5 cross-DAO, §6.8 DAO-scoped). Filter + sort
- * state lives in React and is mirrored into the URL (shareable), driving a cursor-paged infinite
- * query. SSR seeds the first page for the initial URL state.
+ * The shared filterable/sortable proposals list (§6.5 cross-DAO, §6.8 DAO-scoped). A dense table
+ * (ID · Proposal · DAO · State · Ends) under a horizontal filter strip. Filter + sort state lives in
+ * React and is mirrored into the URL (shareable), driving a cursor-paged infinite query; SSR seeds
+ * the first page. Per-row tally bars, AI snippets, and mismatch flags from the reference need data the
+ * list API doesn't carry (batched tally endpoint / M5) and land with those.
  */
 export function ProposalList({
   scope,
@@ -68,6 +84,7 @@ export function ProposalList({
   });
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const showDao = scope === 'cross';
 
   // Infinite scroll: load the next page when the sentinel scrolls into view.
   const sentinel = useRef<HTMLDivElement>(null);
@@ -85,43 +102,94 @@ export function ProposalList({
   }, [loadMore]);
 
   return (
-    <div className="flex flex-col gap-8 lg:flex-row">
-      <aside className="lg:w-56 lg:shrink-0">
-        <ProposalFilters
-          scope={scope}
-          filters={filters}
-          onChange={setFilters}
-          daoOptions={daoOptions}
-          sourceOptions={sourceOptions}
-        />
-      </aside>
+    <div className="flex flex-col gap-4">
+      <ProposalFilters
+        scope={scope}
+        filters={filters}
+        onChange={setFilters}
+        daoOptions={daoOptions}
+        sourceOptions={sourceOptions}
+      />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between border-b border-line-2 pb-2 font-mono text-caption text-ink-3">
-          <span>{query.isError ? 'Failed to load proposals' : `${items.length} loaded`}</span>
-          <SortControl sort={sort} onChange={setSort} />
-        </div>
-
-        {items.length === 0 && !query.isFetching ? (
-          <p className="py-10 text-center font-mono text-mono-body text-ink-3">
-            No proposals match these filters.
-          </p>
-        ) : (
-          <ul>
-            {items.map((item) => (
-              <li key={`${item.daoSlug}:${item.sourceType}:${item.sourceId}`}>
-                <ProposalRow item={item} showDao={scope === 'cross'} />
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div ref={sentinel} className="h-8" aria-hidden />
-        {query.isFetchingNextPage && (
-          <p className="py-4 text-center font-mono text-caption text-ink-3">Loading…</p>
-        )}
+      <div className="flex items-center justify-between font-mono text-caption text-ink-3">
+        <span>{query.isError ? 'Failed to load proposals' : `${items.length} loaded`}</span>
+        <SortControl sort={sort} onChange={setSort} />
       </div>
+
+      {items.length === 0 && !query.isFetching ? (
+        <p className="border border-line-3 bg-bg-2 py-10 text-center font-mono text-mono-body text-ink-3">
+          No proposals match these filters.
+        </p>
+      ) : (
+        <div className="border border-line-3 bg-bg-2">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-20 bg-bg">ID</TableHead>
+                <TableHead className="bg-bg">Proposal</TableHead>
+                {showDao && <TableHead className="w-28 bg-bg">DAO</TableHead>}
+                <TableHead className="w-24 bg-bg">State</TableHead>
+                <TableHead className="w-40 bg-bg">Ends / closed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <ProposalTableRow
+                  key={`${item.daoSlug}:${item.sourceType}:${item.sourceId}`}
+                  item={item}
+                  showDao={showDao}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <div ref={sentinel} className="h-8" aria-hidden />
+      {query.isFetchingNextPage && (
+        <p className="py-4 text-center font-mono text-caption text-ink-3">Loading…</p>
+      )}
     </div>
+  );
+}
+
+function ProposalTableRow({ item, showDao }: { item: ProposalListItemView; showDao: boolean }) {
+  const deadline = formatDeadline(item.votingEndsAt);
+  const absolute = item.votingEndsAt ? formatDateTime(item.votingEndsAt) : null;
+  const live = item.state === 'active';
+  const idLabel = /^\d+$/.test(item.sourceId) ? `#${item.sourceId}` : item.sourceId;
+  const proposerName = item.proposer.displayName ?? truncateAddress(item.proposer.address);
+
+  return (
+    <TableRow>
+      <TableCell className="whitespace-nowrap align-top text-ink-3">{idLabel}</TableCell>
+      <TableCell className="align-top">
+        <Link
+          href={item.href}
+          className="line-clamp-2 font-sans text-body-lg font-medium text-ink hover:text-primary"
+        >
+          {item.title ?? `Proposal #${item.sourceId}`}
+        </Link>
+        <div className="mt-1 text-caption text-ink-3">
+          proposer {proposerName} · {sourceLabel(item.sourceType)}
+          {!item.binding && ' · signaling'}
+        </div>
+      </TableCell>
+      {showDao && (
+        <TableCell className="align-top">
+          <Pill dao={daoVariant(item.daoSlug)}>{item.daoSlug}</Pill>
+        </TableCell>
+      )}
+      <TableCell className="align-top">
+        <StatePill state={stateToVariant(item.state)}>{item.state}</StatePill>
+      </TableCell>
+      <TableCell className="whitespace-nowrap align-top">
+        <div className="flex flex-col" suppressHydrationWarning>
+          <span className={live ? 'text-primary' : 'text-ink-3'}>{deadline ?? '—'}</span>
+          {absolute && <span className="text-ink-4">{absolute}</span>}
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 

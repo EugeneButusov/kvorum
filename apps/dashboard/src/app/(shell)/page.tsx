@@ -5,6 +5,7 @@ import { ActivityFeed } from '@/components/home/activity-feed';
 import { DaoHealthCards } from '@/components/home/dao-health-cards';
 import { MismatchFlags } from '@/components/home/mismatch-flags';
 import { StatsBar } from '@/components/home/stats-bar';
+import { PageContainer } from '@/components/shell/page-container';
 import { serverApi } from '@/lib/api/client';
 import { normalizeListItem, type ProposalListItemView } from '@/lib/proposals/list';
 
@@ -51,12 +52,12 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-12">
+    <PageContainer className="flex flex-col gap-12">
       <StatsBar daoCount={daos.length} />
       <ActiveProposals initialItems={active} />
       <MismatchFlags />
       <DaoHealthCards daos={daos} />
       <ActivityFeed initialItems={recent} />
-    </div>
+    </PageContainer>
   );
 }
