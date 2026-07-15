@@ -41,7 +41,7 @@ describe('ActiveProposals', () => {
     render(<ActiveProposals initialItems={[item('1', 'First'), item('2', 'Second')]} />, {
       wrapper,
     });
-    expect(screen.getByRole('heading', { name: 'Active proposals' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Active proposals/ })).toBeInTheDocument();
     expect(screen.getByText('First')).toBeInTheDocument();
     expect(screen.getByText('Second')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(/Updated/);
