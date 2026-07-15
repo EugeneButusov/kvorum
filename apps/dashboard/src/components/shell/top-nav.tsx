@@ -9,25 +9,13 @@ import { SearchBox } from './search-box';
 import { WalletMenu } from './wallet-menu';
 import { Logo } from '@/components/brand/Logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { TRACKED_DAOS } from '@/lib/dao/tracked';
 import { cn } from '@/lib/utils';
 
 const NAV = [
   { label: 'Home', href: '/' },
   { label: 'Proposals', href: '/proposals' },
-];
-const DAOS = [
-  { label: 'All DAOs', href: '/daos' },
-  ...TRACKED_DAOS.map((d) => ({ label: d.name, href: `/daos/${d.slug}` })),
-];
-const TAIL = [
+  { label: 'DAOs', href: '/daos' },
   { label: 'Developer', href: '/developer' },
   { label: 'API Docs ↗', href: '/docs' },
 ];
@@ -46,7 +34,6 @@ function navClass(active: boolean): string {
 export function TopNav() {
   const pathname = usePathname() ?? '/';
   const [open, setOpen] = useState(false);
-  const daosActive = isActive(pathname, '/daos');
 
   return (
     <header className="flex h-14 items-stretch border-b border-line bg-bg-2 px-4 md:px-8">
@@ -60,25 +47,6 @@ export function TopNav() {
 
       <nav className="hidden items-stretch md:flex">
         {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={navClass(isActive(pathname, item.href))}
-          >
-            {item.label}
-          </Link>
-        ))}
-        <DropdownMenu>
-          <DropdownMenuTrigger className={navClass(daosActive)}>DAOs ▾</DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {DAOS.map((d) => (
-              <DropdownMenuItem key={d.href} asChild>
-                <Link href={d.href}>{d.label}</Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {TAIL.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -110,7 +78,7 @@ export function TopNav() {
             </SheetHeader>
             <SearchBox />
             <nav className="flex flex-col">
-              {[...NAV, ...DAOS.slice(1), ...TAIL].map((item) => (
+              {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
