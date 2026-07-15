@@ -85,6 +85,29 @@ kubectl -n kvorum rollout undo deploy/kvorum-dashboard
 Migrations are not auto-rolled-back; if a migration is the culprit, roll it back with
 `pnpm -w db:migrate:down` against the same `DATABASE_URL` before redeploying.
 
+## Running admin-cli in the cluster (backfill, DLQ, ops)
+
+The image builds the admin-cli to `dist/apps/admin-cli/main.js` (a self-contained esbuild
+bundle — `pg`/`kysely`/`@founderpath` resolve from the image's `node_modules`). Run it inside a
+pod that carries the secrets — **`kvorum-api` or `kvorum-indexer`, not `kvorum-dashboard`** (the
+dashboard has no `kvorum-secrets`). It inherits `DATABASE_URL`, `CLICKHOUSE_URL`, `CHAIN_CONFIG`,
+etc. from the pod's env:
+
+```bash
+# General form
+kubectl -n kvorum exec -it deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js <command>
+
+# Examples
+kubectl -n kvorum exec -it deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js backfill run compound --dry-run
+kubectl -n kvorum exec -it deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js backfill run compound
+```
+
+For a long backfill that must survive a dropped terminal, run it as a one-off Job (same image,
+`command: ['node','dist/apps/admin-cli/main.js','backfill','run','compound']`, with the config and
+secret wired in via `envFrom`) rather than `exec`. The CLI also runs straight from source when the
+built bundle is absent — `node --import tsx apps/admin-cli/src/main.ts <command>` — since
+`PKG_VERSION` falls back when the esbuild define isn't present.
+
 ## Scale-up levers (overlay-only — `base/` never changes)
 
 | Want                                  | Change                                                                                      |
