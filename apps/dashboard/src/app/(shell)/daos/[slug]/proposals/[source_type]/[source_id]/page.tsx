@@ -137,50 +137,48 @@ export default async function ProposalDetailPage({ params }: { params: Params })
   const tallyTotalPower = presentTally(tally, detail.choices).totalPower;
 
   return (
-    <div className="flex flex-col gap-8">
-      <ProposalHeader detail={detail} />
+    <div className="mx-auto w-full max-w-[var(--max-page)] lg:grid lg:grid-cols-[var(--aside-w)_minmax(0,1fr)]">
+      {/* Sticky TOC — the reference pins the aside itself (a direct grid child with room to move),
+          NOT an inner list. On mobile it's dropped and the sections read top-to-bottom (KNOWN-019). */}
+      <aside className="hidden lg:sticky lg:top-0 lg:block lg:h-fit lg:self-start lg:border-r lg:border-line-3 lg:bg-bg lg:py-6">
+        <SubNav items={NAV} />
+      </aside>
 
-      <div className="flex flex-col gap-10 lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-10">
-          <Anchor id="summary">
-            <SummaryPanel />
-          </Anchor>
-          <Anchor id="description">
-            <DescriptionSection description={detail.description} />
-          </Anchor>
-          <Anchor id="mismatch">
-            <MismatchSection />
-          </Anchor>
-          <Anchor id="actions">
-            <ActionsSection detail={detail} />
-          </Anchor>
-          <Anchor id="tally">
-            <TallySection tally={tally} detail={detail} />
-          </Anchor>
-          <Anchor id="voters">
-            <Section number="06" title="Voters" reference={<span>{tally.total_voters} total</span>}>
-              <VotersTable
-                path={path}
-                choices={detail.choices}
-                initialPage={initialVotes}
-                totalPower={tallyTotalPower}
-              />
-            </Section>
-          </Anchor>
-          <Anchor id="forum">
-            <ForumSection links={detail.offchainLinks} />
-          </Anchor>
-          <Anchor id="similar">
-            <SimilarSection />
-          </Anchor>
-        </div>
+      <main className="flex min-w-0 flex-col gap-9 px-4 py-7 lg:px-9 lg:pb-16">
+        <ProposalHeader detail={detail} />
 
-        {/* Section jump-nav is a desktop convenience; on mobile the sections read top-to-bottom
-            (KNOWN-019 — the shared proposal-detail link is mobile-priority). */}
-        <aside className="hidden w-40 shrink-0 lg:block">
-          <SubNav items={NAV} />
-        </aside>
-      </div>
+        <Anchor id="summary">
+          <SummaryPanel />
+        </Anchor>
+        <Anchor id="description">
+          <DescriptionSection description={detail.description} />
+        </Anchor>
+        <Anchor id="mismatch">
+          <MismatchSection />
+        </Anchor>
+        <Anchor id="actions">
+          <ActionsSection detail={detail} />
+        </Anchor>
+        <Anchor id="tally">
+          <TallySection tally={tally} detail={detail} />
+        </Anchor>
+        <Anchor id="voters">
+          <Section number="06" title="Voters" reference={<span>{tally.total_voters} total</span>}>
+            <VotersTable
+              path={path}
+              choices={detail.choices}
+              initialPage={initialVotes}
+              totalPower={tallyTotalPower}
+            />
+          </Section>
+        </Anchor>
+        <Anchor id="forum">
+          <ForumSection links={detail.offchainLinks} />
+        </Anchor>
+        <Anchor id="similar">
+          <SimilarSection />
+        </Anchor>
+      </main>
     </div>
   );
 }

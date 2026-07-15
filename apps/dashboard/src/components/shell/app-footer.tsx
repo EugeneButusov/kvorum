@@ -8,8 +8,19 @@ export type AppFooterProps = {
   deployment?: string;
 };
 
-/** Persistent footer strip: data-sync freshness + build + deployment. */
-export function AppFooter({ syncedAt, build = 'dev', deployment = 'local' }: AppFooterProps) {
+/**
+ * Persistent footer strip: data-sync freshness + build + deployment.
+ *
+ * `build` / `deployment` read from the runtime env on the server (this is a server component):
+ * BUILD_SHA is baked into the image at `docker build` time from the git SHA (see Dockerfile +
+ * deploy.yml); DEPLOYMENT_ENV comes from the kvorum-config ConfigMap. Both fall back to the
+ * dev-machine values (`dev` / `local`) when unset, so local runs read honestly too.
+ */
+export function AppFooter({
+  syncedAt,
+  build = process.env.BUILD_SHA?.slice(0, 7) || 'dev',
+  deployment = process.env.DEPLOYMENT_ENV || 'local',
+}: AppFooterProps) {
   return (
     <FreshFooter>
       <FreshFooterItem>

@@ -56,6 +56,8 @@ export class DaoSourceRepository {
         'dao_source.source_type',
         'dao_source.source_config',
         'dao_source.chain_id',
+        // Lets the orchestrator skip sources whose live poller is turned off (0009).
+        'dao_source.live_polling_enabled',
       ])
       .orderBy('dao_source.id', 'asc')
       .execute();

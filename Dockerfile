@@ -40,6 +40,11 @@ RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dash
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runtime
 ENV NODE_ENV=production
+# Git commit the image was built from — surfaced in the dashboard footer (build · <sha>).
+# Passed as a build-arg by the deploy workflow; empty on local `docker build` (footer
+# then falls back to `dev`).
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
 # Re-copy the built workspace under the unprivileged `node` user so tsx (migrate
 # job) and the app processes can write caches/tmp without running as root.
 COPY --chown=node:node --from=build /app /app

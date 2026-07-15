@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { Crumb } from '@/components/shell/crumb';
 import { DaoNav } from '@/components/shell/dao-nav';
+import { PageContainer } from '@/components/shell/page-container';
 
 export default async function DaoLayout({
   children,
@@ -16,7 +17,7 @@ export default async function DaoLayout({
     <>
       <Crumb items={[{ label: 'DAOs', href: '/daos' }, { label: name }]} />
       <DaoNav slug={slug} />
-      {children}
+      <PageContainer>{children}</PageContainer>
     </>
   );
 }
