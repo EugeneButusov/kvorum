@@ -18,6 +18,12 @@ import { CONCENTRATION_QUERY_SCHEMA } from './concentration.query';
 import { DelegateAlignmentQueryDto, DelegateAlignmentResponseDto } from './delegate-alignment.dto';
 import { toDelegateAlignmentPeerDto } from './delegate-alignment.mappers';
 import { DELEGATE_ALIGNMENT_QUERY_SCHEMA } from './delegate-alignment.query';
+import {
+  DelegateLeaderboardQueryDto,
+  DelegateLeaderboardResponseDto,
+} from './delegate-leaderboard.dto';
+import { toDelegateLeaderboardRowDto } from './delegate-leaderboard.mappers';
+import { DELEGATE_LEADERBOARD_QUERY_SCHEMA } from './delegate-leaderboard.query';
 import { DelegationFlowQueryDto, DelegationFlowResponseDto } from './delegation-flow.dto';
 import { toDelegationFlowEdgeDto, toDelegationFlowNodeDtos } from './delegation-flow.mappers';
 import { DELEGATION_FLOW_QUERY_SCHEMA } from './delegation-flow.query';
@@ -164,6 +170,40 @@ export class DaoAnalyticsController {
       nodes: toDelegationFlowNodeDtos({ powers, actorsById }),
       edges: result.rows.map(toDelegationFlowEdgeDto),
       _meta: toAnalyticsMeta(result.mirrorLastEtl),
+    };
+  }
+
+  @Get('delegates')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
+  @ApiOkResponse({ type: DelegateLeaderboardResponseDto })
+  @ApiBadRequestResponse({ type: ProblemDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  async delegateLeaderboard(
+    @Param('slug') slug: string,
+    @Query() raw: DelegateLeaderboardQueryDto,
+  ): Promise<DelegateLeaderboardResponseDto> {
+    const dao = await this.daoRepo.findDaoBySlug(slug);
+    if (dao === undefined) {
+      throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
+    }
+
+    const parsed = DELEGATE_LEADERBOARD_QUERY_SCHEMA.safeParse(raw);
+    if (!parsed.success) throw validationFromZod(parsed.error.issues[0]);
+
+    const limit = parsed.data.limit ?? 25;
+    const { rows, totalVotingPower } = await this.repo.delegateLeaderboard({
+      daoId: dao.id,
+      limit,
+    });
+    const actors = await this.repo.findActors(rows.map((r) => r.actor_id));
+    const actorById = new Map(actors.map((a) => [a.id, a]));
+
+    return {
+      data: rows.map((row, i) =>
+        toDelegateLeaderboardRowDto(row, i + 1, totalVotingPower, actorById.get(row.actor_id)),
+      ),
+      _meta: { confirmed: true, derived_through: null },
     };
   }
 

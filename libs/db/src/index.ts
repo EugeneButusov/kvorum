@@ -18,6 +18,7 @@ export type {
   ConcentrationBucketRow,
   CrossDaoSummaryRow,
   DelegateAlignmentRow,
+  DelegateLeaderboardRow,
   DelegationFlowEdgeRow,
   MirrorEnvelope,
   PassRateRow,
