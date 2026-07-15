@@ -172,6 +172,24 @@ describe('DaoAdminRepository', () => {
     });
   });
 
+  describe('setSourceLivePolling', () => {
+    it('#1 — sets the flag, filters by id, returns rows updated', async () => {
+      const { updateTable, chain } = makeUpdateChain({ numUpdatedRows: 1n });
+      const repo = new DaoAdminRepository({ updateTable } as never);
+      const count = await repo.setSourceLivePolling('src-1', false);
+      expect(count).toBe(1);
+      expect(updateTable).toHaveBeenCalledWith('dao_source');
+      expect(chain.set).toHaveBeenCalledWith({ live_polling_enabled: false });
+      expect(chain.where).toHaveBeenCalledWith('id', '=', 'src-1');
+    });
+
+    it('#2 — returns 0 when no row matched (not found)', async () => {
+      const { updateTable } = makeUpdateChain(undefined);
+      const repo = new DaoAdminRepository({ updateTable } as never);
+      expect(await repo.setSourceLivePolling('missing', true)).toBe(0);
+    });
+  });
+
   describe('findSourceById', () => {
     it('#1 — returns the source row when found', async () => {
       const row = { id: 'src-1', source_type: 'compound_governor_bravo', source_config: {} };

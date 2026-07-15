@@ -47,6 +47,10 @@ export async function insertTestDaoSource(
       active_to_block: null,
       backfill_started_at_block: null,
       backfill_head_block: null,
+      // Explicit rather than relying on the column default (0009): integration tests that boot the
+      // full orchestrator need the poller running to register a ChainContextRegistry entry, and a
+      // fixture's behavior shouldn't silently change if the production-safe default is ever flipped.
+      live_polling_enabled: true,
     })
     .returning('id')
     .executeTakeFirstOrThrow();
