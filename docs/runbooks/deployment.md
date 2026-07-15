@@ -113,6 +113,25 @@ secret wired in via `envFrom`) rather than `exec`. The CLI also runs straight fr
 built bundle is absent — `node --import tsx apps/admin-cli/src/main.ts <command>` — since
 `PKG_VERSION` falls back when the esbuild define isn't present.
 
+## Scoping the live poller (before a backfill)
+
+The live poller advances each source's cursor (`backfill_head_block`) as it ingests, which can seed a
+source ahead of a planned backfill — making the backfill `resume` instead of `fresh`. Two controls,
+both of which leave **derivation running**:
+
+- **Per-source, durable** — `dao_source.live_polling_enabled` (default `true`). Toggle it via the
+  admin-cli; it **survives deploys**, so an un-backfilled DAO stays off until you flip it. Applies on
+  the next indexer restart:
+  ```bash
+  # off — cursor held for a clean backfill
+  kubectl -n kvorum exec deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js daos source pause <dao_source_id>
+  # on
+  kubectl -n kvorum exec deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js daos source resume <dao_source_id>
+  kubectl -n kvorum rollout restart deploy/kvorum-indexer   # apply
+  ```
+- **Cluster-wide, temporary** — `INDEXER_LIVE_POLLER_ENABLED=false` disables the poller entirely (env
+  override; the pod stays up for admin-cli execs). Reset by the next `apply -k`.
+
 ## Scale-up levers (overlay-only — `base/` never changes)
 
 | Want                                  | Change                                                                                      |

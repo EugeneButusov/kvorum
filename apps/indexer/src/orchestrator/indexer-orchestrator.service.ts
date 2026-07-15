@@ -82,6 +82,12 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     }> = [];
 
     for (const src of sources) {
+      if (!src.live_polling_enabled) {
+        // Live polling turned off for this source (dao_source.live_polling_enabled=false, 0009) —
+        // e.g. held off until its DAO's backfill runs. No poller/catch-up started; the cursor stays
+        // untouched. Derivation is unaffected. Persistent across deploys (unlike env overrides).
+        continue;
+      }
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
         // ADR-0073: a dao_source whose source_type has no registered plugin is seeded ahead of
