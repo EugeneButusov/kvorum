@@ -62,8 +62,8 @@ describe('ProposalList', () => {
 
   it('renders the SSR-seeded rows and the sort control', () => {
     renderList([item('1', 'First'), item('2', 'Second')]);
-    expect(screen.getByRole('heading', { name: 'First' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Second' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'First' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Second' })).toBeInTheDocument();
     expect(screen.getByLabelText('Sort')).toBeInTheDocument();
     expect(screen.getByText('2 loaded')).toBeInTheDocument();
   });

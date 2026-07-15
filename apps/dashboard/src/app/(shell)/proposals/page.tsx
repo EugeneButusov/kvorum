@@ -40,7 +40,12 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Se
     <>
       <Crumb items={[{ label: 'Home', href: '/' }, { label: 'Proposals' }]} />
       <PageContainer className="flex flex-col gap-6">
-        <h1 className="text-h1 font-semibold text-ink">All proposals</h1>
+        <div className="flex flex-col gap-1.5 border-b border-line pb-5">
+          <h1 className="font-mono text-h1 font-semibold tracking-[-0.01em] text-ink">Proposals</h1>
+          <p className="max-w-[60ch] text-body-lg text-ink-2">
+            Every proposal across tracked DAOs, normalized — filter by DAO, state, and type.
+          </p>
+        </div>
         <ProposalList
           scope="cross"
           initialFilters={filters}
