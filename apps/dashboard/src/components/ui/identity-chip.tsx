@@ -54,7 +54,7 @@ export function IdentityChip({
         <AvatarFallback>{initials}</AvatarFallback>
       </Avatar>
       {scorecardHref ? (
-        <Link href={scorecardHref} className="text-ink hover:text-accent">
+        <Link href={scorecardHref} className="text-ink hover:text-primary">
           {label}
         </Link>
       ) : (
@@ -70,7 +70,7 @@ export function IdentityChip({
           type="button"
           onClick={copy}
           aria-label={copied ? 'Copied' : 'Copy address'}
-          className="border border-line-3 px-[5px] text-micro text-ink-3 transition-colors hover:border-accent hover:text-accent"
+          className="border border-line-3 px-[5px] text-micro text-ink-3 transition-colors hover:border-primary hover:text-primary"
         >
           {copied ? '✓' : '⧉'}
         </button>

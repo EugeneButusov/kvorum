@@ -80,7 +80,7 @@ function ActionCard({ action }: { action: ProposalActionView }) {
               type="button"
               onClick={() => setShowRaw((v) => !v)}
               aria-expanded={showRaw}
-              className="self-start text-ink-3 underline-offset-2 hover:text-accent hover:underline"
+              className="self-start text-ink-3 underline-offset-2 hover:text-primary hover:underline"
             >
               {showRaw ? 'Hide raw calldata' : 'Show raw calldata'}
             </button>

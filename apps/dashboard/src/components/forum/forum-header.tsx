@@ -6,7 +6,7 @@ import { sourceLabel } from '@/lib/proposals/source';
 import { cn } from '@/lib/utils';
 
 const CONFIDENCE_STYLE: Record<'high' | 'medium' | 'low', string> = {
-  high: 'border-accent bg-accent-bg text-accent-ink',
+  high: 'border-ok bg-ok-bg text-ok-ink',
   medium: 'border-note bg-note-bg text-note-ink',
   low: 'border-line-2 text-ink-3',
 };
@@ -51,7 +51,7 @@ export function ForumHeader({ thread }: { thread: ForumThreadView }) {
                 >
                   {p.confidence}
                 </span>
-                <Link href={p.href} className="text-ink hover:text-accent">
+                <Link href={p.href} className="text-ink hover:text-primary">
                   {p.title ?? `Proposal #${p.sourceId}`}
                 </Link>
                 <span className="text-ink-4">{sourceLabel(p.sourceType)}</span>

@@ -56,7 +56,7 @@ export function DescriptionSection({ description }: { description: string }) {
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="-mt-px w-full border border-t-0 border-line-3 bg-bg-2 px-4 py-2.5 text-center font-mono text-mono-body tracking-[0.04em] text-ink-2 transition-colors hover:text-accent"
+              className="-mt-px w-full border border-t-0 border-line-3 bg-bg-2 px-4 py-2.5 text-center font-mono text-mono-body tracking-[0.04em] text-ink-2 transition-colors hover:text-primary"
             >
               {expanded
                 ? '↑ Collapse description'
