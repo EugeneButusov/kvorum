@@ -53,6 +53,11 @@ module.exports = {
         input: 'var(--line-2)',
         ring: 'var(--accent)', // brand-green focus ring (a11y §6)
       },
+      maxWidth: {
+        // Page content column (tokens.css --max-page). The centered <main> gutter
+        // container matches the reference hi-fi (main.home max-width + margin auto).
+        page: 'var(--max-page)',
+      },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],

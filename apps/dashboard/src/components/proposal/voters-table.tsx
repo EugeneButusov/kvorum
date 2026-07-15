@@ -231,47 +231,49 @@ export function VotersTable({
         ))}
       </div>
 
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((header) => {
-                const canSort = header.column.getCanSort();
-                const dir = header.column.getIsSorted();
-                return (
-                  <TableHead key={header.id}>
-                    {canSort ? (
-                      <button
-                        type="button"
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="inline-flex items-center gap-1 uppercase tracking-[0.04em] hover:text-ink"
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        <span aria-hidden className="text-ink-4">
-                          {dir === 'asc' ? '↑' : dir === 'desc' ? '↓' : '↕'}
-                        </span>
-                      </button>
-                    ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
-                    )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id}>
+                {hg.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  const dir = header.column.getIsSorted();
+                  return (
+                    <TableHead key={header.id}>
+                      {canSort ? (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          className="inline-flex items-center gap-1 uppercase tracking-[0.04em] hover:text-ink"
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <span aria-hidden className="text-ink-4">
+                            {dir === 'asc' ? '↑' : dir === 'desc' ? '↓' : '↕'}
+                          </span>
+                        </button>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Pagination */}
       <div className="flex items-center justify-between font-mono text-caption text-ink-3">

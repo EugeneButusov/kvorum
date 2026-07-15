@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { Section } from '@/components/ui/section';
+
 /**
  * DAO health snapshot (§6.4 §4): one card per DAO, linking to its full health dashboard. The pass-
  * rate / concentration / participation metrics are aggregated from the analytics endpoints in the
@@ -9,8 +11,7 @@ export function DaoHealthCards({ daos }: { daos: { slug: string; name: string }[
   if (daos.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-h3 font-semibold text-ink">DAO health</h2>
+    <Section number="03" title="DAO health">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {daos.map((dao) => (
           <Link
@@ -25,6 +26,6 @@ export function DaoHealthCards({ daos }: { daos: { slug: string; name: string }[
           </Link>
         ))}
       </div>
-    </section>
+    </Section>
   );
 }

@@ -2,6 +2,7 @@
 
 import { ProposalRow } from '@/components/proposal/proposal-row';
 import { Freshness } from '@/components/ui/freshness';
+import { Section } from '@/components/ui/section';
 import type { ProposalListItemView } from '@/lib/proposals/list';
 import { useProposalsFeed } from '@/lib/proposals/use-proposals-feed';
 
@@ -14,17 +15,18 @@ export function ActivityFeed({ initialItems }: { initialItems: ProposalListItemV
   const feed = useProposalsFeed('activity', QUERY, initialItems);
 
   return (
-    <section className="flex flex-col gap-4">
-      <header className="flex items-baseline justify-between border-b border-line-2 pb-2">
-        <h2 className="text-h3 font-semibold text-ink">Recent activity</h2>
+    <Section
+      number="04"
+      title="Recent activity"
+      reference={
         <Freshness
           active
           updatedAt={feed.updatedAt}
           isError={feed.isError}
           isPaused={feed.isPaused}
         />
-      </header>
-
+      }
+    >
       {feed.items.length === 0 ? (
         <p className="font-mono text-mono-body text-ink-3">No recent governance activity.</p>
       ) : (
@@ -36,6 +38,6 @@ export function ActivityFeed({ initialItems }: { initialItems: ProposalListItemV
           ))}
         </ul>
       )}
-    </section>
+    </Section>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProposalFilters } from '@/lib/proposals/list';
+import { EMPTY_FILTERS, type ProposalFilters } from '@/lib/proposals/list';
 import { sourceLabel } from '@/lib/proposals/source';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,11 @@ export type ProposalFiltersProps = {
   sourceOptions: string[];
 };
 
-/** Filter sidebar (§6.5 / §6.8). All state is lifted to the list, which mirrors it into the URL. */
+/**
+ * Horizontal filter strip (§6.5 / §6.8): DAO / state / type facets + a voting-start range, above the
+ * table. All state is lifted to the list, which mirrors it into the URL. Full-text search and a
+ * mismatch-severity facet from the reference need list-API support / M5 and aren't offered yet.
+ */
 export function ProposalFilters({
   scope,
   filters,
@@ -45,21 +49,22 @@ export function ProposalFilters({
   const fromDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '');
 
   return (
-    <div className="flex flex-col gap-6 font-mono text-caption">
-      <h2 className="text-body font-semibold text-ink">Filters</h2>
-
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-line-3 bg-bg-2 px-3.5 py-2.5 font-mono text-caption">
       {scope === 'cross' && daoOptions.length > 0 && (
-        <Group label="DAO">
-          {daoOptions.map((d) => (
-            <Chip
-              key={d.slug}
-              active={filters.dao.includes(d.slug)}
-              onClick={() => toggleIn('dao', d.slug)}
-            >
-              {d.name}
-            </Chip>
-          ))}
-        </Group>
+        <>
+          <Group label="DAO">
+            {daoOptions.map((d) => (
+              <Chip
+                key={d.slug}
+                active={filters.dao.includes(d.slug)}
+                onClick={() => toggleIn('dao', d.slug)}
+              >
+                {d.name}
+              </Chip>
+            ))}
+          </Group>
+          <Sep />
+        </>
       )}
 
       <Group label="State">
@@ -71,25 +76,29 @@ export function ProposalFilters({
       </Group>
 
       {scope === 'dao' && sourceOptions.length > 1 && (
-        <Group label="Source">
-          <Chip
-            active={filters.sourceType == null}
-            onClick={() => onChange({ ...filters, sourceType: null })}
-          >
-            All
-          </Chip>
-          {sourceOptions.map((s) => (
+        <>
+          <Sep />
+          <Group label="Source">
             <Chip
-              key={s}
-              active={filters.sourceType === s}
-              onClick={() => onChange({ ...filters, sourceType: s })}
+              active={filters.sourceType == null}
+              onClick={() => onChange({ ...filters, sourceType: null })}
             >
-              {sourceLabel(s)}
+              All
             </Chip>
-          ))}
-        </Group>
+            {sourceOptions.map((s) => (
+              <Chip
+                key={s}
+                active={filters.sourceType === s}
+                onClick={() => onChange({ ...filters, sourceType: s })}
+              >
+                {sourceLabel(s)}
+              </Chip>
+            ))}
+          </Group>
+        </>
       )}
 
+      <Sep />
       <Group label="Type">
         {(
           [
@@ -108,38 +117,46 @@ export function ProposalFilters({
         ))}
       </Group>
 
+      <Sep />
       <Group label="Voting start">
-        <div className="flex flex-col gap-2">
-          <label className="flex items-center justify-between gap-2 text-ink-3">
-            From
-            <input
-              type="date"
-              value={fromDate(filters.startsMin)}
-              onChange={(e) => onChange({ ...filters, startsMin: toDate(e.target.value) })}
-              className="border border-line-3 bg-bg-2 px-2 py-1 text-ink"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-2 text-ink-3">
-            To
-            <input
-              type="date"
-              value={fromDate(filters.startsMax)}
-              onChange={(e) => onChange({ ...filters, startsMax: toDate(e.target.value) })}
-              className="border border-line-3 bg-bg-2 px-2 py-1 text-ink"
-            />
-          </label>
-        </div>
+        <input
+          type="date"
+          aria-label="Voting start from"
+          value={fromDate(filters.startsMin)}
+          onChange={(e) => onChange({ ...filters, startsMin: toDate(e.target.value) })}
+          className="border border-line-3 bg-bg px-2 py-0.5 text-ink"
+        />
+        <span className="text-ink-4">→</span>
+        <input
+          type="date"
+          aria-label="Voting start to"
+          value={fromDate(filters.startsMax)}
+          onChange={(e) => onChange({ ...filters, startsMax: toDate(e.target.value) })}
+          className="border border-line-3 bg-bg px-2 py-0.5 text-ink"
+        />
       </Group>
+
+      <button
+        type="button"
+        onClick={() => onChange(EMPTY_FILTERS)}
+        className="ml-auto border border-line-3 px-2.5 py-0.5 text-ink-3 transition-colors hover:border-line hover:text-ink"
+      >
+        clear ✕
+      </button>
     </div>
   );
 }
 
+function Sep() {
+  return <span aria-hidden className="hidden h-6 w-px shrink-0 bg-line-3 sm:block" />;
+}
+
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
-      <h3 className="uppercase tracking-[0.06em] text-ink-4">{label}</h3>
+    <div className="flex items-center gap-2">
+      <span className="uppercase tracking-[0.06em] text-ink-3">{label}</span>
       <div className="flex flex-wrap gap-1.5">{children}</div>
-    </section>
+    </div>
   );
 }
 
@@ -160,7 +177,7 @@ function Chip({
       className={cn(
         'border px-2 py-0.5 uppercase tracking-[0.04em] transition-colors',
         active
-          ? 'border-primary bg-primary text-bg-2'
+          ? 'border-primary bg-primary text-paper'
           : 'border-line-3 text-ink-2 hover:border-ink-3',
       )}
     >

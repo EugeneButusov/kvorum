@@ -17,3 +17,6 @@ data:
   # the kvorum-api Service (port 80 → api :3001). The browser never uses this — it
   # only ever talks to the dashboard's same-origin /api/* proxy.
   BACKEND_API_URL: http://kvorum-api.kvorum
+  # Dashboard-only: deployment label shown in the footer (deployment · <env>). This is
+  # the prod base; overlays can override per-environment. Unset locally → footer reads `local`.
+  DEPLOYMENT_ENV: production

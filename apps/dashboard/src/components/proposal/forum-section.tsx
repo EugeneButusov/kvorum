@@ -30,7 +30,7 @@ export function ForumSection({ links }: { links: OffchainLinkView[] }) {
                   href={link.url}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="text-accent underline-offset-2 hover:underline"
+                  className="text-primary underline underline-offset-2"
                 >
                   {link.title ?? link.host} ↗
                 </a>
