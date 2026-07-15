@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import {
   ExecutionContext,
   Injectable,
@@ -30,6 +31,10 @@ export class ApiKeyGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly repo: ApiKeyRepository,
     private readonly pepperSet: PepperSet,
+    // Shared secret the dashboard's server-side BFF (ADR-084) presents to read on behalf
+    // of anonymous users. Optional: when unset (no env value) the internal-read path is
+    // disabled and every non-@Public route requires a real API key, as before.
+    private readonly internalReadToken?: string,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,6 +48,19 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    // BFF trust seam: a safe-method (read) request bearing the shared internal secret is
+    // authorized as an anonymous public read. Restricted to GET/HEAD so the secret can never
+    // perform a write, and timing-safe so it can't be brute-forced by response timing. The
+    // browser never holds this token — the BFF injects it server-side.
+    if (
+      this.internalReadToken !== undefined &&
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      constantTimeEquals(request.headers['x-internal-read-token'], this.internalReadToken)
+    ) {
+      return true;
+    }
+
     const authHeader = request.headers.authorization;
     if (authHeader === undefined) {
       return this.reject('missing');
@@ -114,4 +132,15 @@ export class ApiKeyGuard implements CanActivate {
 
     return String(error);
   }
+}
+
+/** Length-checked, timing-safe comparison of an inbound header value against the secret. */
+function constantTimeEquals(provided: string | string[] | undefined, expected: string): boolean {
+  if (typeof provided !== 'string') return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  // timingSafeEqual throws on length mismatch; the early return keeps the comparison constant
+  // time for equal-length inputs, which is the only case where timing could leak.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }

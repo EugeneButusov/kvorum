@@ -59,6 +59,16 @@ spec:
             # Port `next start` binds (it reads PORT, not the API's API_PORT).
             - name: PORT
               value: '3000'
+            # BFF read secret (ADR-084) the same-origin proxy presents to the API's
+            # ApiKeyGuard so anonymous public reads work. Single-key ref → the dashboard
+            # gets ONLY this key, never the full kvorum-secrets. optional:true keeps the pod
+            # bootable before the key exists (reads just 401 until it's provisioned).
+            - name: INTERNAL_READ_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: INTERNAL_READ_TOKEN
+                  optional: true
           readinessProbe:
             # /healthz returns 200 without touching the backend, so the pod stays
             # Ready through API blips. /api/* is the BFF proxy — never probe it.

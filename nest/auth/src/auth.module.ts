@@ -29,7 +29,10 @@ export const SIWE_CONFIG = Symbol('SIWE_CONFIG');
         reflector: Reflector,
         repo: ApiKeyRepository,
         authConfig: ReturnType<typeof parseAuthConfigFromEnv>,
-      ) => new ApiKeyGuard(reflector, repo, authConfig),
+      ) =>
+        // INTERNAL_READ_TOKEN is the shared secret the dashboard BFF presents on reads; when
+        // unset the internal-read path stays disabled (see ApiKeyGuard).
+        new ApiKeyGuard(reflector, repo, authConfig, process.env['INTERNAL_READ_TOKEN']),
       inject: [Reflector, ApiKeyRepository, AUTH_CONFIG],
     },
     { provide: APP_GUARD, useExisting: ApiKeyGuard },
