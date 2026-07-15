@@ -16,9 +16,8 @@ test('top-nav navigates to the proposals list and DAO pages', async ({ page }) =
   await page.getByRole('link', { name: 'Proposals', exact: true }).click();
   await expect(page).toHaveURL(/\/proposals$/);
 
-  await page.getByRole('button', { name: /DAOs/ }).click();
-  await page.getByRole('menuitem', { name: 'Lido' }).click();
-  await expect(page).toHaveURL(/\/daos\/lido$/);
+  await page.getByRole('link', { name: 'DAOs', exact: true }).click();
+  await expect(page).toHaveURL(/\/daos$/);
 });
 
 test('proposal detail resolves without a 500 (graceful shell on a down backend)', async ({
