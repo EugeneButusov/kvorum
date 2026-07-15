@@ -67,6 +67,12 @@ export type CrossDaoSummaryRow = {
   last_active_at: Date | null;
 };
 
+export type DelegateLeaderboardRow = {
+  actor_id: string;
+  voting_power: string;
+  delegator_count: number;
+};
+
 export type MirrorEnvelope<T> = {
   rows: T[];
   mirrorLastEtl: Date | null;
@@ -242,6 +248,56 @@ export class AnalyticsReadRepository {
       .execute();
 
     return rows;
+  }
+
+  /**
+   * Top delegates by current received voting power. Reduce the flow projection to each delegator's
+   * latest delegation (argMax by created_at), then aggregate the power-bearing ones per delegate
+   * (resolved to a canonical actor via the address→actor dictionary). Returns the ranked rows plus
+   * the DAO-wide delegated total so callers can compute each delegate's share. Non-power-bearing
+   * DAOs (Compound-style relationship rows with voting_power='0') yield an empty leaderboard.
+   */
+  async delegateLeaderboard(args: {
+    daoId: string;
+    limit: number;
+  }): Promise<{ rows: DelegateLeaderboardRow[]; totalVotingPower: string }> {
+    const currentPerDelegator = sql`
+      SELECT
+        argMax(delegate_address, created_at) AS delegate_address,
+        argMax(toUInt256(voting_power), created_at) AS vp
+      FROM delegation_flow_projection
+      WHERE dao_id = ${args.daoId}
+      GROUP BY delegator_address
+    `;
+
+    const leaderboard = await sql<{
+      actor_id: string;
+      voting_power: string;
+      delegator_count: string;
+    }>`
+      SELECT
+        dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(delegate_address)) AS actor_id,
+        toString(sum(vp)) AS voting_power,
+        toString(count()) AS delegator_count
+      FROM (${currentPerDelegator})
+      WHERE vp > 0 AND actor_id IS NOT NULL
+      GROUP BY actor_id
+      ORDER BY sum(vp) DESC, actor_id ASC
+      LIMIT ${sql.lit(args.limit)}
+    `.execute(this.chDb);
+
+    const totalRow = await sql<{ total: string }>`
+      SELECT toString(sum(vp)) AS total FROM (${currentPerDelegator}) WHERE vp > 0
+    `.execute(this.chDb);
+
+    return {
+      rows: leaderboard.rows.map((r) => ({
+        actor_id: r.actor_id,
+        voting_power: r.voting_power,
+        delegator_count: Number(r.delegator_count),
+      })),
+      totalVotingPower: totalRow.rows[0]?.total ?? '0',
+    };
   }
 
   async findActors(

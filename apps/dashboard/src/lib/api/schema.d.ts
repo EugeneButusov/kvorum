@@ -340,6 +340,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/analytics/delegates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['DaoAnalyticsController_delegateLeaderboard'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/daos/{slug}/analytics/delegate-alignment': {
     parameters: {
       query?: never;
@@ -829,6 +845,23 @@ export interface components {
     DelegationFlowResponseDto: {
       nodes: components['schemas']['DelegationFlowNodeDto'][];
       edges: components['schemas']['DelegationFlowEdgeDto'][];
+      _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    DelegateLeaderboardRowDto: {
+      /** @description 1-based rank by current received voting power. */
+      rank: number;
+      actor_id: string;
+      address: string;
+      display_name?: Record<string, never> | null;
+      /** @description Current received voting power, base units (UInt256 as string). */
+      voting_power: string;
+      /** @description Share of the DAO-wide delegated voting power, 0..1. */
+      voting_power_share: number;
+      /** @description Number of addresses currently delegating to this delegate. */
+      delegator_count: number;
+    };
+    DelegateLeaderboardResponseDto: {
+      data: components['schemas']['DelegateLeaderboardRowDto'][];
       _meta: components['schemas']['AnalyticsMetaDto'];
     };
     DelegateAlignmentFocalDto: {
@@ -1861,6 +1894,54 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['DelegationFlowResponseDto'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  DaoAnalyticsController_delegateLeaderboard: {
+    parameters: {
+      query?: {
+        /** @description Max delegates to return (1–100, default 25). */
+        limit?: string;
+      };
+      header?: never;
+      path: {
+        slug: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DelegateLeaderboardResponseDto'];
         };
       };
       400: {
