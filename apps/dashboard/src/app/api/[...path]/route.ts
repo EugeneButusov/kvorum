@@ -48,6 +48,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
   if (ifNoneMatch) headers.set('If-None-Match', ifNoneMatch);
   const cookie = req.headers.get('cookie');
   if (cookie) headers.set('Cookie', cookie);
+  // Server-side BFF trust seam (see file header): present the shared read secret so the API
+  // authorizes anonymous public reads. Injected here only — the browser never holds it.
+  const internalReadToken = process.env.INTERNAL_READ_TOKEN;
+  if (internalReadToken) headers.set('x-internal-read-token', internalReadToken);
 
   const upstream = await fetch(targetUrl(req, path), { headers, cache: 'no-store' });
   return relay(upstream, upstream.status === 304 ? null : upstream.body);

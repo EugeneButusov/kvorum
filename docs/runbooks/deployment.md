@@ -48,9 +48,14 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
    kubectl -n kvorum create secret generic kvorum-secrets \
      --from-literal=DATABASE_URL='...' \
      --from-literal=CLICKHOUSE_URL='https://...:8443' \
+     --from-literal=INTERNAL_READ_TOKEN="$(openssl rand -base64 32)" \
      # ...all keys from secret.example.yaml...
      --from-literal=TUNNEL_TOKEN='...'
    ```
+   **Public reads:** the API gates every read behind the `ApiKeyGuard` (keyless per-IP reads
+   are deferred, ADR-086). `INTERNAL_READ_TOKEN` is the shared secret the dashboard BFF presents
+   so anonymous visitors can read — both the API and the dashboard consume it. Without it, every
+   dashboard page is empty (the BFF's reads 401). Direct API access still needs a real key.
 7. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`:
    - Secret `DIGITALOCEAN_ACCESS_TOKEN` — a scoped DO API token (read + Kubernetes).
    - Variable `DOKS_CLUSTER` — the cluster name from step 1.
