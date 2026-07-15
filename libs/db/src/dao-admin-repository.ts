@@ -66,6 +66,16 @@ export class DaoAdminRepository {
     return Number(result?.numUpdatedRows ?? 0n);
   }
 
+  /** Toggle a source's live poller (0009). Takes effect on the next indexer restart. */
+  async setSourceLivePolling(daoSourceId: string, enabled: boolean): Promise<number> {
+    const result = await this.db
+      .updateTable('dao_source')
+      .set({ live_polling_enabled: enabled })
+      .where('id', '=', daoSourceId)
+      .executeTakeFirst();
+    return Number(result?.numUpdatedRows ?? 0n);
+  }
+
   async findSourceById(
     daoSourceId: string,
   ): Promise<{ id: string; source_type: SourceType; source_config: unknown } | undefined> {

@@ -7,6 +7,7 @@ import { ActorActivity, AuthoredProposals } from '@/components/actor/actor-lists
 import { CrossDaoAlignment } from '@/components/actor/cross-dao-alignment';
 import { CrossDaoTable } from '@/components/actor/cross-dao-table';
 import { Crumb } from '@/components/shell/crumb';
+import { PageContainer } from '@/components/shell/page-container';
 import {
   buildBio,
   fetchActor,
@@ -53,18 +54,20 @@ export default async function ActorPage({ params }: { params: Params }) {
   ]);
 
   return (
-    <div className="flex flex-col gap-10">
+    <>
       <Crumb
         items={[
           { label: 'Home', href: '/' },
           { label: actor.displayName ?? truncateAddress(actor.primaryAddress) },
         ]}
       />
-      <ActorHeader actor={actor} bio={buildBio(footprints)} />
-      <CrossDaoTable footprints={footprints} address={actor.primaryAddress} />
-      <CrossDaoAlignment footprints={footprints} />
-      <ActorActivity votes={votes} />
-      <AuthoredProposals proposals={authored} />
-    </div>
+      <PageContainer className="flex flex-col gap-10">
+        <ActorHeader actor={actor} bio={buildBio(footprints)} />
+        <CrossDaoTable footprints={footprints} address={actor.primaryAddress} />
+        <CrossDaoAlignment footprints={footprints} />
+        <ActorActivity votes={votes} />
+        <AuthoredProposals proposals={authored} />
+      </PageContainer>
+    </>
   );
 }

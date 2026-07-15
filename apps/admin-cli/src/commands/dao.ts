@@ -108,6 +108,52 @@ export function registerDao(program: Command): void {
     });
 
   source
+    .command('pause <dao_source_id>')
+    .description(
+      'Turn OFF live polling for a source (cursor held; use before its backfill). Applies on next indexer restart.',
+    )
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(daoSourceId: string, opts: DaoCommon) {
+      await withDaoFormat(this, opts, async (format) => {
+        const { daoAdminRepository } = buildContainer();
+        await withAudit('daos source pause', { daoSourceId }, async () => {
+          const existing = await daoAdminRepository.findSourceById(daoSourceId);
+          if (existing == null) {
+            fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
+          }
+          const updated = await daoAdminRepository.setSourceLivePolling(daoSourceId, false);
+          emit(
+            format,
+            () => `Live polling PAUSED for ${daoSourceId} — restart the indexer to apply`,
+            { id: daoSourceId, updated_rows: updated, live_polling_enabled: false },
+          );
+        });
+      });
+    });
+
+  source
+    .command('resume <dao_source_id>')
+    .description('Turn live polling back ON for a source. Applies on next indexer restart.')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(daoSourceId: string, opts: DaoCommon) {
+      await withDaoFormat(this, opts, async (format) => {
+        const { daoAdminRepository } = buildContainer();
+        await withAudit('daos source resume', { daoSourceId }, async () => {
+          const existing = await daoAdminRepository.findSourceById(daoSourceId);
+          if (existing == null) {
+            fail(format, ExitCode.NotFound, `dao_source not found: ${daoSourceId}`);
+          }
+          const updated = await daoAdminRepository.setSourceLivePolling(daoSourceId, true);
+          emit(
+            format,
+            () => `Live polling RESUMED for ${daoSourceId} — restart the indexer to apply`,
+            { id: daoSourceId, updated_rows: updated, live_polling_enabled: true },
+          );
+        });
+      });
+    });
+
+  source
     .command('delete <dao_source_id>')
     .description('Delete a DAO source (destructive)')
     .option('--confirm', 'confirm destructive operation')
