@@ -56,6 +56,16 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       return;
     }
 
+    // Optional per-protocol scoping: when INDEXER_LIVE_POLLER_DAOS is set, only the listed DAOs
+    // (by slug) get a live poller. Sources of other DAOs are skipped, so their cursors stay
+    // untouched for a planned backfill. Empty/unset = all DAOs (default). Derivation is unaffected.
+    const daoAllowlist = parseCsvAllowlist(process.env['INDEXER_LIVE_POLLER_DAOS']);
+    if (daoAllowlist) {
+      this.logger.log(
+        `live_poller_daos=${[...daoAllowlist].join(',')} — live pollers for all other DAOs are disabled`,
+      );
+    }
+
     const chains = parseChainConfigFromEnv(process.env);
     const chainsByChainId = new Map<string, ChainConfig>(chains.map((c) => [c.chainId, c]));
     const pluginsByType = new Map(this.plugins.map((p) => [p.sourceType, p]));
@@ -82,6 +92,10 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
     }> = [];
 
     for (const src of sources) {
+      if (daoAllowlist && !daoAllowlist.has(src.dao_slug)) {
+        // Out-of-scope DAO for this scoped run — no live poller / catch-up started for it.
+        continue;
+      }
       const plugin = pluginsByType.get(src.source_type);
       if (!plugin) {
         // ADR-0073: a dao_source whose source_type has no registered plugin is seeded ahead of
@@ -328,4 +342,14 @@ function countBySourceType(types: string[]): Map<string, number> {
     counts.set(t, (counts.get(t) ?? 0) + 1);
   }
   return counts;
+}
+
+/** Comma-separated env allowlist → Set of trimmed values, or undefined when unset/empty (= allow all). */
+function parseCsvAllowlist(raw: string | undefined): ReadonlySet<string> | undefined {
+  if (raw === undefined) return undefined;
+  const values = raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+  return values.length > 0 ? new Set(values) : undefined;
 }

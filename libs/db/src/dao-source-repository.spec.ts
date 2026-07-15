@@ -100,16 +100,16 @@ describe('DaoSourceRepository', () => {
       expect(await repo.findAll()).toEqual([]);
     });
 
-    it('#3 — queries dao_source without joining dao', async () => {
+    it('#3 — joins dao to expose the slug (for the live-poller DAO allowlist)', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
       await repo.findAll();
 
       expect(selectFrom).toHaveBeenCalledWith('dao_source');
-      expect(chain.innerJoin).not.toHaveBeenCalled();
+      expect(chain.innerJoin).toHaveBeenCalledWith('dao', 'dao.id', 'dao_source.dao_id');
     });
 
-    it('#4 — selects expected columns including source_type', async () => {
+    it('#4 — selects expected columns including source_type and the dao slug', async () => {
       const { selectFrom, chain } = makeSelectChain([]);
       const repo = new DaoSourceRepository({ selectFrom } as never);
       await repo.findAll();
@@ -120,6 +120,7 @@ describe('DaoSourceRepository', () => {
         'dao_source.source_type',
         'dao_source.source_config',
         'dao_source.chain_id',
+        'dao.slug as dao_slug',
       ]);
     });
 

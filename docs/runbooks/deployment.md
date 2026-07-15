@@ -113,6 +113,22 @@ secret wired in via `envFrom`) rather than `exec`. The CLI also runs straight fr
 built bundle is absent — `node --import tsx apps/admin-cli/src/main.ts <command>` — since
 `PKG_VERSION` falls back when the esbuild define isn't present.
 
+## Scoping the live poller (before a backfill)
+
+The indexer's live poller advances each source's cursor as it ingests, which can leave a source
+"seeded ahead" of a planned backfill (making the backfill `resume` instead of `fresh`). Two env
+knobs on `deploy/kvorum-indexer` control it — **derivation runs regardless of both**:
+
+- `INDEXER_LIVE_POLLER_ENABLED=false` — disables the live poller entirely. The pod stays up (so you
+  can `kubectl exec` the admin-cli), nothing polls, and no cursor is advanced.
+- `INDEXER_LIVE_POLLER_DAOS=compound,aave` — comma-separated DAO slugs; only the listed DAOs get a
+  live poller, so an un-backfilled DAO (e.g. `lido`) keeps untouched cursors for its own backfill.
+  Unset/empty = all DAOs (default).
+
+Clean re-backfill flow: set the scope → wipe + reset that DAO's data/cursors → backfill →
+then clear the override (`kubectl -n kvorum set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_DAOS-`)
+to resume full live polling.
+
 ## Scale-up levers (overlay-only — `base/` never changes)
 
 | Want                                  | Change                                                                                      |

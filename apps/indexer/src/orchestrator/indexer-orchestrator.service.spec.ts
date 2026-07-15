@@ -63,13 +63,20 @@ const CHAIN_CFG = {
   providers: [],
 };
 
-function makeSource(id: string, sourceType: string, primaryChainId: string, sourceConfig = {}) {
+function makeSource(
+  id: string,
+  sourceType: string,
+  primaryChainId: string,
+  sourceConfig = {},
+  daoSlug = 'compound',
+) {
   return {
     id,
     dao_id: 'dao-1',
     source_type: sourceType,
     source_config: sourceConfig,
     chain_id: primaryChainId,
+    dao_slug: daoSlug,
   };
 }
 
@@ -217,6 +224,31 @@ describe('IndexerOrchestratorService', () => {
     await svc.onApplicationBootstrap();
 
     expect(driver.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('#2c — INDEXER_LIVE_POLLER_DAOS scopes the live poller to listed DAOs (others skipped)', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-compound', 'compound_governor_bravo', '0x1', {}, 'compound'),
+      makeSource('src-lido', 'aragon_voting', '0x1', {}, 'lido'),
+    ]);
+
+    process.env['INDEXER_LIVE_POLLER_DAOS'] = 'compound';
+    try {
+      const driver = makeFakeDriver();
+      const module = await buildModule(
+        [makeFakePlugin('compound_governor_bravo'), makeFakePlugin('aragon_voting')],
+        driver,
+      );
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      // Only the compound source's poller starts; the lido source is skipped (cursor untouched).
+      expect(driver.start).toHaveBeenCalledTimes(1);
+      await svc.drain();
+    } finally {
+      delete process.env['INDEXER_LIVE_POLLER_DAOS'];
+    }
   });
 
   it('#2b — BackfillAlreadyStartedError from boot catch-up is skipped and driver still starts', async () => {

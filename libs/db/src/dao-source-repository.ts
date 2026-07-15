@@ -50,12 +50,17 @@ export class DaoSourceRepository {
   async findAll() {
     return this.db
       .selectFrom('dao_source')
+      .innerJoin('dao', 'dao.id', 'dao_source.dao_id')
       .select([
         'dao_source.id',
         'dao_source.dao_id',
         'dao_source.source_type',
         'dao_source.source_config',
         'dao_source.chain_id',
+        // dao_slug lets the orchestrator scope the live poller to specific protocols
+        // (INDEXER_LIVE_POLLER_DAOS) so an un-backfilled DAO's poller can't advance its
+        // cursors ahead of a planned backfill.
+        'dao.slug as dao_slug',
       ])
       .orderBy('dao_source.id', 'asc')
       .execute();
