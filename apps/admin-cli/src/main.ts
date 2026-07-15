@@ -52,4 +52,27 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+/**
+ * Release the shared DB connection pools so the process can exit. `buildContainer()` opens the
+ * module-level `pgDb`/`chDb` pools (keep-alive sockets), and the CLI never calls `process.exit(0)`
+ * on the happy path — without this teardown a completed command hangs at the prompt on those idle
+ * handles. Best-effort: teardown must never mask the command's own result or exit code.
+ */
+async function closePools(): Promise<void> {
+  try {
+    const { pgDb, chDb } = await import('@libs/db');
+    await Promise.allSettled([pgDb.destroy(), chDb.destroy()]);
+  } catch {
+    // ignore: the pools may never have been opened (e.g. `--version`)
+  }
+}
+
+void main().then(
+  () => closePools().finally(() => process.exit(process.exitCode ?? 0)),
+  (error: unknown) => {
+    process.stderr.write(
+      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+    );
+    void closePools().finally(() => process.exit(1));
+  },
+);

@@ -9,6 +9,7 @@ import {
   type BackfillPlan,
   type BackfillTarget,
 } from './backfill-plan.js';
+import { createProgressReporter } from './backfill-progress.js';
 import { runSourceBackfill } from './backfill-run-source.js';
 import {
   runOffChainBackfillForSource,
@@ -88,6 +89,15 @@ export async function runBackfillOrchestration(
   if (targets.length === 0 && offChainTargets.length === 0) {
     fail(format, ExitCode.NotFound, `no backfillable sources found for dao: ${input.daoSlug}`);
   }
+
+  // Stable [k/N] sequence numbers across the whole run, in execution order (phase1 → phase2 → off-chain).
+  const seqOf = new Map<string, number>();
+  for (const t of [...plan.phase1, ...plan.phase2, ...offChainTargets]) {
+    seqOf.set(t.id, seqOf.size + 1);
+  }
+  const totalSources = seqOf.size;
+  // Human progress → stderr; suppressed for --format json (machine reads stdout) and dry-run (plan only).
+  const progress = createProgressReporter({ enabled: format === 'human' && !input.dryRun });
 
   const chainConfigs = parseChainConfigFromEnv(process.env);
   const chainConfigByChain = new Map(chainConfigs.map((c) => [normalizeChainId(c.chainId), c]));
@@ -174,13 +184,17 @@ export async function runBackfillOrchestration(
     const outcomes: SourceOutcome[] = [];
     const runOne = async (t: BackfillTarget): Promise<void> => {
       const base = { source_type: t.source_type, chain_id: t.chain_id };
+      const seq = seqOf.get(t.id) ?? 0;
+      const label = fmtTarget(t);
       if (input.signal.aborted) {
+        progress.sourceDone(seq, totalSources, label, 'cancelled');
         outcomes.push({ ...base, status: 'cancelled' });
         return;
       }
       const cc = chainConfigByChain.get(normalizeChainId(t.chain_id));
       const runtime = runtimes.get(t.id);
       if (cc == null || runtime == null) {
+        progress.sourceDone(seq, totalSources, label, 'error', 'no chain config or runtime');
         outcomes.push({ ...base, status: 'error', detail: 'no chain config or runtime' });
         return;
       }
@@ -190,6 +204,13 @@ export async function runBackfillOrchestration(
         const archivedHead = await archiveEventRepo.findMaxBlockNumber(t.id);
         const mode = selectBackfillMode(t, archivedHead, confirmedHead);
         if (mode === 'skip') {
+          progress.sourceDone(
+            seq,
+            totalSources,
+            label,
+            'skipped',
+            'archive already at confirmed head',
+          );
           outcomes.push({
             ...base,
             status: 'skipped',
@@ -198,37 +219,58 @@ export async function runBackfillOrchestration(
           return;
         }
         const fromBlock = t.active_from_block != null ? BigInt(t.active_from_block) : 0n;
+        progress.sourceStart(
+          seq,
+          totalSources,
+          label,
+          `${mode}, blocks ${fromBlock.toLocaleString('en-US')} → ${confirmedHead.toLocaleString('en-US')}`,
+        );
         const outcome = await runSourceBackfill({
           rpcClient: client,
           daoSourceRepo: daoSourceRepository,
           chainConfig: cc,
           runtime,
-          logger: consoleLogger,
+          logger: progress.sourceLogger(seq, totalSources, label, fromBlock, confirmedHead),
           run: { daoSourceId: t.id, fromBlock, mode, signal: input.signal },
         });
-        outcomes.push({
-          ...base,
-          status: outcome.status === 'completed' ? 'completed' : outcome.status,
-          detail: outcome.status === 'error' ? errMessage(outcome.error) : undefined,
-        });
+        const status = outcome.status === 'completed' ? 'completed' : outcome.status;
+        const detail = outcome.status === 'error' ? errMessage(outcome.error) : undefined;
+        progress.sourceDone(seq, totalSources, label, status, detail);
+        outcomes.push({ ...base, status, detail });
       } catch (err) {
         // Partial-failure isolation: one source failing must not abandon the rest.
+        progress.sourceDone(seq, totalSources, label, 'error', errMessage(err));
         outcomes.push({ ...base, status: 'error', detail: errMessage(err) });
       }
     };
 
+    progress.runStart(input.daoSlug, totalSources);
+    if (plan.phase1.length > 0) progress.phase('Phase 1 — mainnet spine (serial)');
     for (const t of plan.phase1) {
       await runOne(t);
+    }
+    if (plan.phase2.length > 0) {
+      progress.phase(`Phase 2 — bounded-parallel (concurrency ${Math.max(1, input.concurrency)})`);
     }
     await runWithConcurrency(plan.phase2, Math.max(1, input.concurrency), runOne);
 
     // Phase 3: off-chain drains, serial (each hits a rate-limited external API and is internally paced).
+    if (offChainTargets.length > 0) progress.phase('Phase 3 — off-chain drains (serial)');
     for (const t of offChainTargets) {
       const base = { source_type: t.source_type, chain_id: t.chain_id };
+      const seq = seqOf.get(t.id) ?? 0;
+      const label = `${t.source_type}@${t.chain_id}`;
       if (input.signal.aborted) {
+        progress.sourceDone(seq, totalSources, label, 'cancelled');
         outcomes.push({ ...base, status: 'cancelled' });
         continue;
       }
+      progress.sourceStart(
+        seq,
+        totalSources,
+        label,
+        `off-chain drain (quiescence ${input.offChain.quiescenceTicks} ticks)`,
+      );
       try {
         const outcome = await runOffChainBackfillForSource({
           target: {
@@ -243,13 +285,13 @@ export async function runBackfillOrchestration(
             interTickDelayMs: input.offChain.interTickDelayMs,
           },
           signal: input.signal,
+          onTick: progress.offChainTick(seq, totalSources, label),
         });
-        outcomes.push({
-          ...base,
-          status: outcome.status,
-          detail: `${outcome.itemsProcessed} items / ${outcome.ticks} ticks`,
-        });
+        const detail = `${outcome.itemsProcessed} items / ${outcome.ticks} ticks`;
+        progress.sourceDone(seq, totalSources, label, outcome.status, detail);
+        outcomes.push({ ...base, status: outcome.status, detail });
       } catch (err) {
+        progress.sourceDone(seq, totalSources, label, 'error', errMessage(err));
         outcomes.push({ ...base, status: 'error', detail: errMessage(err) });
       }
     }
