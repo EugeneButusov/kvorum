@@ -55,6 +55,9 @@ export interface DaoSourceTable {
   active_to_block: string | null;
   backfill_started_at_block: string | null;
   backfill_head_block: string | null;
+  // When false, the orchestrator skips this source's live poller at startup (0009). Generated —
+  // defaulted true at the DB, so inserts may omit it.
+  live_polling_enabled: Generated<boolean>;
   created_at: Generated<Date>;
 }
 

@@ -63,13 +63,20 @@ const CHAIN_CFG = {
   providers: [],
 };
 
-function makeSource(id: string, sourceType: string, primaryChainId: string, sourceConfig = {}) {
+function makeSource(
+  id: string,
+  sourceType: string,
+  primaryChainId: string,
+  sourceConfig = {},
+  livePollingEnabled = true,
+) {
   return {
     id,
     dao_id: 'dao-1',
     source_type: sourceType,
     source_config: sourceConfig,
     chain_id: primaryChainId,
+    live_polling_enabled: livePollingEnabled,
   };
 }
 
@@ -217,6 +224,26 @@ describe('IndexerOrchestratorService', () => {
     await svc.onApplicationBootstrap();
 
     expect(driver.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('#2d — a source with live_polling_enabled=false is skipped (cursor held for backfill)', async () => {
+    vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+    mockDaoSourceRepo.findAll.mockResolvedValue([
+      makeSource('src-on', 'compound_governor_bravo', '0x1', {}, true),
+      makeSource('src-off', 'aave_governor', '0x1', {}, false),
+    ]);
+
+    const driver = makeFakeDriver();
+    const module = await buildModule(
+      [makeFakePlugin('compound_governor_bravo'), makeFakePlugin('aave_governor')],
+      driver,
+    );
+    const svc = module.get(IndexerOrchestratorService);
+    await svc.onApplicationBootstrap();
+
+    // Only the enabled source starts a poller; the disabled one is skipped.
+    expect(driver.start).toHaveBeenCalledTimes(1);
+    await svc.drain();
   });
 
   it('#2b — BackfillAlreadyStartedError from boot catch-up is skipped and driver still starts', async () => {
