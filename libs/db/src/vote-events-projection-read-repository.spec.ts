@@ -43,6 +43,11 @@ describe('VoteEventsProjectionReadRepository', () => {
     expect(chChain.where).toHaveBeenCalledWith('vef.proposal_id', '=', 'p-1');
     expect(chChain.where).toHaveBeenCalledWith('vef.voter_address', '=', '0xabc');
     expect(chChain.where).toHaveBeenCalledWith('vef.superseded', '=', 0);
+    // Regression guard: voting_power must NOT be selected as the bare UInt256 column —
+    // the CH client returns that as a precision-losing JS number, which re-serialises as
+    // scientific notation on the supersession re-insert and crashes vote derivation. It
+    // must be toString()-wrapped (a sql fragment, not the 'vef.voting_power' string).
+    expect(chChain.select.mock.calls[0]?.[0]).not.toContain('vef.voting_power');
   });
 
   it('returns undefined when there is no current vote', async () => {

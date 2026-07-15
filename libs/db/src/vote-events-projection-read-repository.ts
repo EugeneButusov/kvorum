@@ -29,11 +29,12 @@ export class VoteEventsProjectionReadRepository {
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('vef'))
       .select([
         'vef.voter_address',
+        // toString() for the same UInt256→JS-number precision loss as findCurrentVote.
         sql<string>`
-          argMax(
+          toString(argMax(
             vef.voting_power,
             tuple(vef.cast_at, vef.block_number, vef.log_index)
-          )
+          ))
         `.as('voting_power'),
       ])
       .where('vef.dao_id', '=', args.daoId)
@@ -61,7 +62,12 @@ export class VoteEventsProjectionReadRepository {
         'vef.block_number',
         'vef.log_index',
         'vef.primary_choice',
-        'vef.voting_power',
+        // toString(): the kysely-clickhouse client deserializes a bare UInt256 column
+        // as a JS number, so a large voting_power (> 2^53) loses precision and, on the
+        // supersession re-insert, serialises as scientific notation (1.5e+25) which
+        // ClickHouse's UInt256 parser rejects — stalling all vote derivation. Force a
+        // quoted string so the value round-trips exactly.
+        sql<string>`toString(vef.voting_power)`.as('voting_power'),
         'vef.voting_chain_id',
       ])
       .where('vef.dao_id', '=', args.daoId)
