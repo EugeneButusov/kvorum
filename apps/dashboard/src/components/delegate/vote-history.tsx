@@ -43,7 +43,7 @@ export function VoteHistory({ votes }: { votes: DelegateVote[] }) {
           const v = ctx.row.original;
           const label = v.title ?? 'Untitled proposal';
           return v.href ? (
-            <Link href={v.href} className="text-ink hover:text-accent">
+            <Link href={v.href} className="text-ink hover:text-primary">
               {label}
             </Link>
           ) : (
