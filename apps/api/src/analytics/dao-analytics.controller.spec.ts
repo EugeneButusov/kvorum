@@ -19,6 +19,7 @@ function makeRepo(overrides: Record<string, unknown> = {}) {
     currentVotingPowerByActor: vi.fn().mockResolvedValue([]),
     findActors: vi.fn().mockResolvedValue([]),
     delegateAlignmentPage: vi.fn().mockResolvedValue({ rows: [], ...baseMeta }),
+    delegateLeaderboard: vi.fn().mockResolvedValue({ rows: [], totalVotingPower: '0' }),
     ...overrides,
   };
 }
@@ -599,6 +600,63 @@ describe('DaoAnalyticsController', () => {
           } as never,
           mockResponse(),
         ),
+      ).rejects.toBeInstanceOf(ProblemException);
+    });
+  });
+
+  describe('delegateLeaderboard', () => {
+    it('returns ranked delegates with share, identity, and the missing-actor fallback', async () => {
+      const repo = makeRepo({
+        delegateLeaderboard: vi.fn().mockResolvedValue({
+          rows: [
+            { actor_id: 'a1', voting_power: '150', delegator_count: 2 },
+            { actor_id: 'a2', voting_power: '50', delegator_count: 1 },
+          ],
+          totalVotingPower: '200',
+        }),
+        // a2 intentionally absent → exercises the actor-not-in-map ('' address) fallback.
+        findActors: vi
+          .fn()
+          .mockResolvedValue([{ id: 'a1', primary_address: '0xaaa', display_name: 'a16z' }]),
+      });
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+
+      const out = await controller.delegateLeaderboard('test-dao', { limit: '25' } as never);
+      expect(out.data).toHaveLength(2);
+      expect(out.data[0]).toMatchObject({
+        rank: 1,
+        address: '0xaaa',
+        display_name: 'a16z',
+        voting_power_share: 0.75,
+        delegator_count: 2,
+      });
+      expect(out.data[1]).toMatchObject({ rank: 2, address: '', voting_power_share: 0.25 });
+    });
+
+    it('throws not-found when dao is missing', async () => {
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(undefined) };
+      const controller = new DaoAnalyticsController(
+        makeRepo() as never,
+        daoRepo as never,
+        {} as never,
+      );
+
+      await expect(controller.delegateLeaderboard('unknown', {} as never)).rejects.toBeInstanceOf(
+        ProblemException,
+      );
+    });
+
+    it('throws 400 for an out-of-range limit', async () => {
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(
+        makeRepo() as never,
+        daoRepo as never,
+        {} as never,
+      );
+
+      await expect(
+        controller.delegateLeaderboard('test-dao', { limit: '0' } as never),
       ).rejects.toBeInstanceOf(ProblemException);
     });
   });
