@@ -362,7 +362,8 @@ export class AnalyticsReadRepository {
     daoId: string;
     limit: number;
   }): Promise<{ rows: DelegateLeaderboardRow[]; totalVotingPower: string }> {
-    const currentPerDelegator = sql`
+    type PerDelegator = { delegate_address: string; vp: string };
+    const currentPerDelegator = sql<PerDelegator>`
       SELECT
         argMax(delegate_address, created_at) AS delegate_address,
         argMax(toUInt256(voting_power), created_at) AS vp
@@ -371,33 +372,42 @@ export class AnalyticsReadRepository {
       GROUP BY delegator_address
     `;
 
-    const leaderboard = await sql<{
-      actor_id: string;
-      voting_power: string;
-      delegator_count: string;
-    }>`
-      SELECT
-        dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(delegate_address)) AS actor_id,
-        toString(sum(vp)) AS voting_power,
-        toString(count()) AS delegator_count
-      FROM (${currentPerDelegator})
-      WHERE vp > 0 AND actor_id IS NOT NULL
-      GROUP BY actor_id
-      ORDER BY sum(vp) DESC, actor_id ASC
-      LIMIT ${sql.lit(args.limit)}
-    `.execute(this.chDb);
+    // Both reads MUST go through the query builder: a raw sql`...`.execute() against the ClickHouse
+    // dialect silently resolves to zero rows instead of erroring, which returned an empty
+    // leaderboard for every DAO.
+    const leaderboard = await this.chDb
+      .selectFrom(sql<PerDelegator>`(${currentPerDelegator})`.as('c'))
+      .select([
+        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(c.delegate_address))`.as(
+          'actor_id',
+        ),
+        sql<string>`toString(sum(c.vp))`.as('voting_power'),
+        sql<string>`toString(count())`.as('delegator_count'),
+      ])
+      .where(sql<boolean>`c.vp > 0`)
+      .where(
+        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(c.delegate_address)) IS NOT NULL`,
+      )
+      .groupBy('actor_id')
+      .orderBy(sql`sum(c.vp)`, 'desc')
+      .orderBy('actor_id', 'asc')
+      .limit(args.limit)
+      .execute();
 
-    const totalRow = await sql<{ total: string }>`
-      SELECT toString(sum(vp)) AS total FROM (${currentPerDelegator}) WHERE vp > 0
-    `.execute(this.chDb);
+    // Denominator for the share: every delegate, not just the returned page.
+    const totalRow = await this.chDb
+      .selectFrom(sql<PerDelegator>`(${currentPerDelegator})`.as('c'))
+      .select(sql<string>`toString(sum(c.vp))`.as('total'))
+      .where(sql<boolean>`c.vp > 0`)
+      .executeTakeFirst();
 
     return {
-      rows: leaderboard.rows.map((r) => ({
+      rows: leaderboard.map((r) => ({
         actor_id: r.actor_id,
         voting_power: r.voting_power,
         delegator_count: Number(r.delegator_count),
       })),
-      totalVotingPower: totalRow.rows[0]?.total ?? '0',
+      totalVotingPower: totalRow?.total ?? '0',
     };
   }
 
