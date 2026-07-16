@@ -69,7 +69,10 @@ export class VoteReadRepository {
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
         'v.vote_id as id',
-        'v.voting_power as voting_power_reported',
+        // toString() is load-bearing: read as a raw UInt256 the driver hands back a JS number, which
+        // both loses precision and stringifies to exponential notation past 1e21 — and the API's
+        // numeric cursor sort does BigInt(String(value)), which throws on "5.8e+22" (500s the list).
+        sql<string>`toString(v.voting_power)`.as('voting_power_reported'),
         'v.primary_choice',
         'v.voting_chain_id',
         'v.cast_at',
@@ -132,7 +135,7 @@ export class VoteReadRepository {
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
         'v.primary_choice',
-        sql<string>`sum(v.voting_power)`.as('voting_power'),
+        sql<string>`toString(sum(v.voting_power))`.as('voting_power'),
         sql<string>`count()`.as('voter_count'),
       ])
       .where('v.proposal_id', '=', proposalId)
@@ -159,7 +162,8 @@ export class VoteReadRepository {
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select([
         'v.vote_id as id',
-        'v.voting_power as voting_power_reported',
+        // Exact UInt256 as a decimal string — see listForProposal.
+        sql<string>`toString(v.voting_power)`.as('voting_power_reported'),
         'v.primary_choice',
         'v.voting_chain_id',
         'v.cast_at',
