@@ -115,6 +115,23 @@ export class ArchiveDerivationRepository {
       .execute();
   }
 
+  /**
+   * Defers a row that cannot derive yet because a cross-chain counterpart has not landed (KNOWN-028):
+   * the row stays un-derived but is skipped by the derivable queries until `holdUntil` passes, so it
+   * stops occupying the head of the block-ordered queue and everything behind it keeps flowing.
+   *
+   * Without this, a hold pins the queue head forever. Live that only delays newer rows on the same
+   * dispatch key; in a backfill the counterpart sits at a HIGHER block and can never be reached, so
+   * a contiguous run of held rows longer than the batch size stops derivation outright.
+   */
+  async markHeld(id: string, holdUntil: Date): Promise<void> {
+    await this.pgDb
+      .updateTable('archive_event')
+      .set({ derivation_hold_until: holdUntil })
+      .where('id', '=', id)
+      .execute();
+  }
+
   async incrementAttemptCount(id: string): Promise<void> {
     await this.pgDb
       .updateTable('archive_event')

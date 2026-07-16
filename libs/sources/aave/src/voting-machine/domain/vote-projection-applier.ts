@@ -20,6 +20,8 @@ const DLQ_THRESHOLD = Number(process.env['VOTE_PROJECTION_DLQ_THRESHOLD'] ?? '5'
 const VOTE_PROJECTION_STAGE = 'aave_vote_projection_stage';
 const AAVE_PROPOSAL_SOURCE_TYPE = 'aave_governance_v3';
 const HOLD_LOG_INTERVAL_MS = 30_000;
+/** How long a vote awaiting its mainnet proposal steps aside for (KNOWN-028). */
+const STITCH_HOLD_BACKOFF_MS = Number(process.env['AAVE_STITCH_HOLD_BACKOFF_MS'] ?? '60000');
 
 export type AaveVoteDerivationOutcome =
   | 'derived'
@@ -105,10 +107,10 @@ export class AaveVoteProjectionApplier {
     const firstRow = rows[0];
     if (firstRow === undefined) return;
 
-    // KNOWN-028: The derivation worker dispatches batches by `(source_type, chain_id, event_type)`
-    // (`apps/indexer/src/derivation/derivation-worker.service.ts`), so a held `no_proposal` row at the
-    // front of one voting-chain batch can delay newer derivable votes on that same chain until the
-    // missing proposal lands. See `docs/runbooks/m3-chains.md` ("Aave stitch-hold alerting").
+    // A held `no_proposal` row no longer blocks the head of its batch: the hold stamps
+    // `derivation_hold_until`, so the derivable queries skip the row until the back-off elapses and
+    // newer votes on the same chain keep flowing (was KNOWN-028; see markHeld + migration 0010).
+    // See `docs/runbooks/m3-chains.md` ("Aave stitch-hold alerting").
     if (
       firstRow.event_type === 'ProposalResultsSent' ||
       firstRow.event_type === 'ProposalVoteConfigurationBridged'
@@ -237,6 +239,9 @@ export class AaveVoteProjectionApplier {
       });
       if (proposal === undefined) {
         this.record(row, 'held', 'no_proposal');
+        // Defer rather than spin (KNOWN-028) — see markHeld. The mainnet proposal may sit at a
+        // higher block during a backfill, so holding the queue head would prevent it from deriving.
+        await this.archive.markHeld(row.id, new Date(Date.now() + STITCH_HOLD_BACKOFF_MS));
         return (Date.now() - row.received_at.getTime()) / 1000;
       }
 
@@ -327,6 +332,8 @@ export class AaveVoteProjectionApplier {
       });
       if (proposal === undefined) {
         this.record(row, 'held', 'no_proposal');
+        // Defer rather than spin (KNOWN-028) — see markHeld.
+        await this.archive.markHeld(row.id, new Date(Date.now() + STITCH_HOLD_BACKOFF_MS));
         return (Date.now() - row.received_at.getTime()) / 1000;
       }
 

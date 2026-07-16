@@ -93,4 +93,17 @@ describe('ArchiveDerivationRepository', () => {
     expect(update.updateTable).toHaveBeenCalledWith('archive_event');
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
   });
+
+  it('marks a row held until a re-check time, leaving it underived', async () => {
+    const update = makeUpdateChain();
+    const repo = new ArchiveDerivationRepository({ updateTable: update.updateTable } as never);
+    const holdUntil = new Date('2026-01-01T00:01:00Z');
+
+    await repo.markHeld('row-1', holdUntil);
+
+    expect(update.updateTable).toHaveBeenCalledWith('archive_event');
+    // Only the hold marker moves — a deferral must never mark the row derived (KNOWN-028).
+    expect(update.set).toHaveBeenCalledWith({ derivation_hold_until: holdUntil });
+    expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
+  });
 });

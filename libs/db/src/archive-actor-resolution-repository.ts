@@ -1,7 +1,17 @@
-import { sql, type Kysely } from 'kysely';
+import { sql, type ExpressionBuilder, type Kysely } from 'kysely';
 import type { ArchiveEventType } from '@libs/domain';
 import type { ArchiveDerivationRow, OffchainArchiveRow } from './archive-derivation-repository';
 import type { PgDatabase } from './schema/pg';
+
+/**
+ * A row is derivable unless it is explicitly held into the future (KNOWN-028). Rows that predate the
+ * hold column — and every row an applier never defers — have a null `derivation_hold_until` and stay
+ * derivable, so this filter is a no-op for everything except an active deferral.
+ */
+function notHeld(now: Date) {
+  return (eb: ExpressionBuilder<PgDatabase, 'archive_event'>) =>
+    eb.or([eb('derivation_hold_until', 'is', null), eb('derivation_hold_until', '<=', now)]);
+}
 
 const OFFCHAIN_COLUMNS = [
   'id',
@@ -21,6 +31,7 @@ export class ArchiveActorResolutionRepository {
   async findDerivableBy(
     eventTypes: readonly ArchiveEventType[],
     limit: number,
+    now: Date = new Date(),
   ): Promise<ArchiveDerivationRow[]> {
     if (eventTypes.length === 0) return [];
 
@@ -46,6 +57,7 @@ export class ArchiveActorResolutionRepository {
       .where('derived_at', 'is', null)
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
+      .where(notHeld(now))
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
@@ -98,6 +110,7 @@ export class ArchiveActorResolutionRepository {
   async findDerivableByOffchain(
     eventTypes: readonly ArchiveEventType[],
     limit: number,
+    now: Date = new Date(),
   ): Promise<OffchainArchiveRow[]> {
     if (eventTypes.length === 0) return [];
 
@@ -108,6 +121,7 @@ export class ArchiveActorResolutionRepository {
       .where('derived_at', 'is', null)
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
+      .where(notHeld(now))
       .orderBy('chain_id', 'asc')
       .orderBy('derivation_ordinal', 'asc')
       .orderBy('external_id', 'asc')
