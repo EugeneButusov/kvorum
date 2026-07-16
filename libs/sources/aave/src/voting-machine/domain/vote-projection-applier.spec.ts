@@ -450,8 +450,8 @@ describe('AaveVoteProjectionApplier', () => {
 
     await applier.applyBatch([row]);
 
-    // Regression guard: the v3 governance ProposalCreated carries no start/end block, so if this
-    // write is dropped the proposal's voting window stays null forever — nothing else fills it.
+    // Regression guard: without this write a v3 proposal whose window never derived from mainnet
+    // VotingActivated would stay null — nothing else fills it.
     expect(proposals.fillTimestamps).toHaveBeenCalledWith([
       {
         id: 'proposal-uuid',

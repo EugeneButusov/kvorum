@@ -159,6 +159,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         dlqRepo: DlqRepository,
         payloads: AaveGovernanceArchivePayloadRepository,
         ipfsFetcher: AaveIpfsTitleFetcher,
+        registry: ChainContextRegistry,
       ) =>
         new AaveGovernanceProjectionApplier({
           pgDb,
@@ -166,6 +167,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
           dlq: dlqRepo,
           payloads,
           ipfsFetcher,
+          registry,
           metrics: {
             batchLookupSeconds: () => undefined,
             processed: () => undefined,
@@ -178,6 +180,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         DlqRepository,
         AaveGovernanceArchivePayloadRepository,
         AaveIpfsTitleFetcher,
+        ChainContextRegistry,
       ],
     },
     {

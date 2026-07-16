@@ -10,6 +10,30 @@ import { AaveGovernanceProjectionApplier } from './governance-projection-applier
 import { AaveProposalRepository } from '../../persistence/aave-proposal-repository';
 import type { AaveGovernanceArchivePayloadRow } from '../persistence/archive-payload-repository';
 
+/** Activation block 100 was mined at this instant — the anchor for the derived voting window. */
+const ACTIVATION_BLOCK_TIME = new Date('2024-03-01T12:00:00Z');
+
+/**
+ * A ChainContextRegistry whose `eth_getBlockByHash` reports ACTIVATION_BLOCK_TIME for ROW's block.
+ * VoteBlockTimestampFetcher cross-checks the returned hash and number against the request, so the
+ * response must echo both or it is discarded as a mismatch.
+ */
+function makeRegistry(opts: { hasContext?: boolean } = {}) {
+  if (opts.hasContext === false) return { peek: vi.fn().mockReturnValue(undefined) } as never;
+  return {
+    peek: vi.fn().mockReturnValue({
+      chainCfg: { chainId: '0x1' },
+      client: {
+        send: vi.fn().mockResolvedValue({
+          hash: '0xblock',
+          number: '0x64',
+          timestamp: '0x' + Math.floor(ACTIVATION_BLOCK_TIME.getTime() / 1000).toString(16),
+        }),
+      },
+    }),
+  } as never;
+}
+
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
   source_type: 'aave_governance_v3',
@@ -223,6 +247,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]) } as never,
@@ -298,6 +323,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]) } as never,
@@ -340,6 +366,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]) } as never,
@@ -384,6 +411,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([CREATED_PAYLOAD]) } as never,
@@ -413,6 +441,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
@@ -429,6 +458,98 @@ describe('AaveGovernanceProjectionApplier', () => {
     );
   });
 
+  it('derives the voting window from activation block time + votingDuration', async () => {
+    const { pgDb } = makeProjectionTx({ existingProposal: { id: 'proposal-1', source_id: '42' } });
+    const fillTimestamps = vi
+      .spyOn(ProposalRepository.prototype, 'fillTimestamps')
+      .mockResolvedValue(undefined);
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      registry: makeRegistry(),
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics: makeMetrics(),
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'VotingActivated' }]);
+
+    // Anchored on the BLOCK's time, never received_at — a backfilled row's received_at is the
+    // backfill run, which would date every historical vote to the day we ingested it.
+    expect(fillTimestamps).toHaveBeenCalledWith([
+      {
+        id: 'proposal-1',
+        voting_starts_at: ACTIVATION_BLOCK_TIME,
+        voting_ends_at: new Date(ACTIVATION_BLOCK_TIME.getTime() + 123 * 1000),
+      },
+    ]);
+  });
+
+  it('derives the voting window even when the state guard blocks the transition', async () => {
+    // The retroactive case: a proposal already executed/canceled cannot advance back to active, so
+    // advanceState reports 0 rows — but those are exactly the proposals whose window needs filling.
+    const { pgDb } = makeProjectionTx({
+      existingProposal: { id: 'proposal-1', source_id: '42' },
+      advanceStateRows: 0,
+    });
+    const fillTimestamps = vi
+      .spyOn(ProposalRepository.prototype, 'fillTimestamps')
+      .mockResolvedValue(undefined);
+    const metrics = makeMetrics();
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      registry: makeRegistry(),
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics,
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'VotingActivated' }]);
+
+    expect(fillTimestamps).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'proposal-1', voting_starts_at: ACTIVATION_BLOCK_TIME }),
+    ]);
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'skipped_state_guard' }),
+    );
+  });
+
+  it('retries VotingActivated when the activation block time cannot be resolved', async () => {
+    const { pgDb } = makeProjectionTx({ existingProposal: { id: 'proposal-1', source_id: '42' } });
+    const fillTimestamps = vi
+      .spyOn(ProposalRepository.prototype, 'fillTimestamps')
+      .mockResolvedValue(undefined);
+    const incrementAttemptCount = vi.fn();
+    const metrics = makeMetrics();
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      registry: makeRegistry({ hasContext: false }),
+      archive: { incrementAttemptCount } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics,
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'VotingActivated' }]);
+
+    // Retry rather than persist a wrong instant or silently skip the window forever.
+    expect(fillTimestamps).not.toHaveBeenCalled();
+    expect(incrementAttemptCount).toHaveBeenCalled();
+    expect(metrics.processed).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', reason: 'block_timestamp_unavailable' }),
+    );
+  });
+
   it('records skipped_state_guard when a state transition advances zero rows', async () => {
     const { pgDb } = makeProjectionTx({
       existingProposal: { id: 'proposal-1', source_id: '42' },
@@ -438,6 +559,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: {
@@ -470,6 +592,7 @@ describe('AaveGovernanceProjectionApplier', () => {
       .mockResolvedValue(true);
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([PAYLOAD_SENT]) } as never,
@@ -503,6 +626,7 @@ describe('AaveGovernanceProjectionApplier', () => {
     ).mockResolvedValue(false);
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([PAYLOAD_SENT]) } as never,
@@ -530,6 +654,7 @@ describe('AaveGovernanceProjectionApplier', () => {
       .mockResolvedValue(true);
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: pgDb as never,
+      registry: makeRegistry(),
       archive: { incrementAttemptCount: vi.fn() } as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: {
@@ -564,6 +689,7 @@ describe('AaveGovernanceProjectionApplier', () => {
     const archive = { incrementAttemptCount: vi.fn().mockResolvedValue(undefined) };
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: makeProjectionTx({ existingProposal: undefined }).pgDb as never,
+      registry: makeRegistry(),
       archive: archive as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
@@ -583,6 +709,7 @@ describe('AaveGovernanceProjectionApplier', () => {
     const logger = { warn: vi.fn(), error: vi.fn() };
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: makeProjectionTx().pgDb as never,
+      registry: makeRegistry(),
       archive: archive as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: { fetchPayloads: vi.fn().mockResolvedValue([]) } as never,
@@ -609,6 +736,7 @@ describe('AaveGovernanceProjectionApplier', () => {
     const logger = { warn: vi.fn(), error: vi.fn() };
     const applier = new AaveGovernanceProjectionApplier({
       pgDb: makeProjectionTx().pgDb as never,
+      registry: makeRegistry(),
       archive: archive as never,
       dlq: { markRetrySucceeded: vi.fn() } as never,
       payloads: {
@@ -647,6 +775,7 @@ describe('AaveGovernanceProjectionApplier', () => {
 
       const applier = new AaveGovernanceProjectionApplier({
         pgDb: pgDb as never,
+        registry: makeRegistry(),
         archive: { incrementAttemptCount: vi.fn() } as never,
         dlq: { markRetrySucceeded: vi.fn() } as never,
         payloads: {

@@ -342,11 +342,10 @@ export class AaveVoteProjectionApplier {
         votingMachineAddress,
       });
 
-      // ProposalVoteStarted is the only source of a v3 proposal's voting window. The mainnet
-      // governance ProposalCreated carries no start/end block (voting runs on the voting machine's
-      // own chain), so the proposal is projected with voting_starts_block = null and
-      // `findPendingTimestampFill` — which requires a non-null block — can never resolve it the way
-      // it does for governor v2. Without this write the window stays null forever.
+      // The voting machine reports the window it actually enforces; the mainnet VotingActivated
+      // handler derives an equivalent one from activation-block time + votingDuration, so whichever
+      // derives first fills the window and the other is a no-op. In practice that is mainnet, and
+      // the two differ only by the a.DI bridge relay.
       await this.proposals.fillTimestamps([
         {
           id: proposal.id,

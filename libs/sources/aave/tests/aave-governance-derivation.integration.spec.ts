@@ -29,6 +29,32 @@ function numberedHash(n: number): string {
   return '0x' + n.toString(16).padStart(64, '0');
 }
 
+/** Block time of the VotingActivated event (block 102) — the anchor of the derived voting window. */
+const ACTIVATION_BLOCK_TIME = new Date('2024-03-01T12:00:00Z');
+const VOTING_DURATION_SECONDS = 86_400;
+
+/**
+ * Serves the activation block's header. VoteBlockTimestampFetcher cross-checks the returned hash and
+ * number against the request, so both must echo back or the timestamp is discarded as a mismatch.
+ */
+const fakeRegistry = {
+  peek: () => ({
+    chainCfg: { chainId: CHAIN_ID },
+    client: {
+      send: (method: string, params: unknown[]) => {
+        if (method !== 'eth_getBlockByHash') return Promise.resolve(null);
+        const hash = String((params as [string])[0] ?? '').toLowerCase();
+        if (hash !== numberedHash(1003).toLowerCase()) return Promise.resolve(null);
+        return Promise.resolve({
+          hash,
+          number: '0x66', // 102
+          timestamp: '0x' + Math.floor(ACTIVATION_BLOCK_TIME.getTime() / 1000).toString(16),
+        });
+      },
+    },
+  }),
+} as never;
+
 describeIf('aave governance derivation integration', () => {
   let archive: ArchiveDerivationRepository;
   let actorResolution: ArchiveActorResolutionRepository;
@@ -248,6 +274,7 @@ describeIf('aave governance derivation integration', () => {
           description: 'Loaded body',
         }),
       } as never,
+      registry: fakeRegistry,
       metrics: {
         batchLookupSeconds: () => undefined,
         processed: () => undefined,
@@ -271,10 +298,20 @@ describeIf('aave governance derivation integration', () => {
       description: 'Loaded body',
       description_hash: DESCRIPTION_HASH,
       binding: true,
+      // v3 voting runs on the voting machine's chain, so mainnet reports no start/end block and the
+      // TimestampFillerService (which requires one) can never resolve this window — it comes from
+      // VotingActivated instead.
       voting_starts_block: null,
       voting_ends_block: null,
       state: 'executed',
     });
+
+    // Window derived from the activation block's time + votingDuration, even though the proposal has
+    // already advanced to `executed` and the state guard blocks the transition back to `active`.
+    expect(proposal.voting_starts_at).toEqual(ACTIVATION_BLOCK_TIME);
+    expect(proposal.voting_ends_at).toEqual(
+      new Date(ACTIVATION_BLOCK_TIME.getTime() + VOTING_DURATION_SECONDS * 1000),
+    );
 
     const metadata = await pgDb
       .selectFrom('aave_proposal_metadata')
