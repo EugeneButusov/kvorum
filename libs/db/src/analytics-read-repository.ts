@@ -166,7 +166,14 @@ export class AnalyticsReadRepository {
     const rows = await this.chDb
       .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
       .select(chBucket.as('bucket'))
-      .select(sql<string[]>`arraySort(groupArray(dfa.voting_power))`.as('weights'))
+      // arrayMap(toString): each element is a UInt256 — without it the array comes back as JS
+      // numbers on the production server and the Gini / top-share math below silently computes
+      // from precision-lossy values (BigInt(5.89e22) does not throw, it just rounds).
+      .select(
+        sql<string[]>`arrayMap(x -> toString(x), arraySort(groupArray(dfa.voting_power)))`.as(
+          'weights',
+        ),
+      )
       .select(sql<number>`count(*)`.as('delegate_count'))
       .select(sql<string>`toString(sum(toUInt256(dfa.voting_power)))`.as('total_voting_power'))
       .where('dfa.dao_id', '=', args.daoId)
@@ -200,7 +207,8 @@ export class AnalyticsReadRepository {
         sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegate_address))`.as(
           'delegate_actor_id',
         ),
-        'dfa.voting_power',
+        // Exact UInt256 as a decimal string — see the note on concentrationByBucket's weights.
+        sql<string>`toString(dfa.voting_power)`.as('voting_power'),
         'dfa.block_number',
         'dfa.event_type',
         'dfa.created_at',

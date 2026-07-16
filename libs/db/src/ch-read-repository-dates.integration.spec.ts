@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ClickhouseDialect } from '@founderpath/kysely-clickhouse';
 import { Kysely, sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
+import { AnalyticsReadRepository } from './analytics-read-repository';
 import { chDb, pgDb } from './client';
 import { DelegationFlowProjectionWriter } from './delegation-flow-projection-writer';
 import { DelegationReadRepository } from './delegation-read-repository';
@@ -273,6 +274,83 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
       expect(rows[0]!.created_at).toBeInstanceOf(Date);
       expect(rows[0]!.created_at.toISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     } finally {
+      await sql`ALTER TABLE delegation_flow_raw DELETE WHERE dao_id = ${dao.id}`.execute(chDb);
+      await sql`ALTER TABLE delegation_flow_agg DELETE WHERE dao_id = ${dao.id}`.execute(chDb);
+      await pgDb.deleteFrom('dao').where('id', '=', dao.id).execute();
+    }
+  });
+
+  // Same UInt256 contract as the vote read, on the delegation analytics side. The concentration
+  // `weights` array is the subtle one: it feeds the Gini / top-share math, and BigInt(5.89e22)
+  // does NOT throw — it silently rounds — so a coerced read corrupts the numbers without any error.
+  it('AnalyticsReadRepository returns delegation voting_power as exact strings, not JS numbers', async () => {
+    const hugePower = '58971815710228750000000';
+    const dao = await pgDb
+      .insertInto('dao')
+      .values({
+        slug: `ch-conc-int-${Date.now()}`,
+        name: 'CH Concentration Integration',
+        primary_token_address: '0x' + '00'.repeat(20),
+        primary_chain_id: '0x1',
+        description: 'integration test',
+        website_url: 'https://example.com',
+        forum_url: 'https://forum.example.com',
+        updated_at: new Date(),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+
+    await new DelegationFlowProjectionWriter(chDb).insertBatch([
+      {
+        delegation_id: randomUUID(),
+        dao_id: dao.id,
+        delegator_address: '0x' + 'cd'.repeat(20),
+        delegate_address: '0x' + 'ef'.repeat(20),
+        voting_power: hugePower,
+        block_number: '200',
+        log_index: 0,
+        event_type: 'delegate_changed',
+        created_at: new Date('2026-05-19T00:00:00.000Z'),
+      },
+    ]);
+
+    // Production's ClickHouse does not quote big integers in JSON — pin that here.
+    const prodLikeCh = new Kysely<ClickHouseDatabase>({
+      dialect: new ClickhouseDialect({
+        options: {
+          url: process.env['CLICKHOUSE_URL'] ?? 'http://localhost:8123',
+          username: process.env['CLICKHOUSE_USER'] ?? 'default',
+          password: process.env['CLICKHOUSE_PASSWORD'] ?? '',
+          database: process.env['CLICKHOUSE_DATABASE'] ?? 'default',
+          clickhouse_settings: { output_format_json_quote_64bit_integers: 0 },
+        },
+      }),
+    });
+
+    try {
+      const repo = new AnalyticsReadRepository(prodLikeCh, pgDb);
+
+      const conc = await repo.concentrationByBucket({
+        daoId: dao.id,
+        from: new Date('2026-05-01T00:00:00.000Z'),
+        to: new Date('2026-06-01T00:00:00.000Z'),
+        bucket: 'monthly',
+      });
+      expect(conc.rows).toHaveLength(1);
+      // Each weight must survive as an exact string — this is what the Gini math consumes.
+      expect(conc.rows[0]!.weights).toEqual([hugePower]);
+      expect(conc.rows[0]!.total_voting_power).toBe(hugePower);
+
+      const edges = await repo.delegationFlowEdges({
+        daoId: dao.id,
+        from: new Date('2026-05-01T00:00:00.000Z'),
+        to: new Date('2026-06-01T00:00:00.000Z'),
+      });
+      expect(edges.rows).toHaveLength(1);
+      expect(typeof edges.rows[0]!.voting_power).toBe('string');
+      expect(edges.rows[0]!.voting_power).toBe(hugePower);
+    } finally {
+      await prodLikeCh.destroy();
       await sql`ALTER TABLE delegation_flow_raw DELETE WHERE dao_id = ${dao.id}`.execute(chDb);
       await sql`ALTER TABLE delegation_flow_agg DELETE WHERE dao_id = ${dao.id}`.execute(chDb);
       await pgDb.deleteFrom('dao').where('id', '=', dao.id).execute();
