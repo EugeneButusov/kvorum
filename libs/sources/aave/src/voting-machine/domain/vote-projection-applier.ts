@@ -342,6 +342,19 @@ export class AaveVoteProjectionApplier {
         votingMachineAddress,
       });
 
+      // ProposalVoteStarted is the only source of a v3 proposal's voting window. The mainnet
+      // governance ProposalCreated carries no start/end block (voting runs on the voting machine's
+      // own chain), so the proposal is projected with voting_starts_block = null and
+      // `findPendingTimestampFill` — which requires a non-null block — can never resolve it the way
+      // it does for governor v2. Without this write the window stays null forever.
+      await this.proposals.fillTimestamps([
+        {
+          id: proposal.id,
+          voting_starts_at: votingWindowDate(payload.startTime),
+          voting_ends_at: votingWindowDate(payload.endTime),
+        },
+      ]);
+
       try {
         await this.archive.markDerived(row.id);
       } catch (watermarkError) {
@@ -451,4 +464,17 @@ function tupleKey(
     | Pick<AaveVotingMachineArchivePayloadRow, 'chain_id' | 'tx_hash' | 'log_index' | 'block_hash'>,
 ): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
+}
+
+/**
+ * `ProposalVoteStarted(…, uint256 startTime, uint256 endTime)` reports unix seconds, decoded to a
+ * base-10 string. Returns null for anything that is not a plausible instant — a uint256 can hold
+ * values far beyond `Date`'s range, and `fillTimestamps` treats null as "leave the column alone",
+ * so a nonsensical value yields no write rather than a bogus date.
+ */
+function votingWindowDate(unixSeconds: string): Date | null {
+  const seconds = Number(unixSeconds);
+  if (Number.isSafeInteger(seconds) === false || seconds <= 0) return null;
+  const at = new Date(seconds * 1000);
+  return Number.isNaN(at.getTime()) ? null : at;
 }
