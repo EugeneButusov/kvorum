@@ -330,10 +330,14 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
     try {
       const repo = new AnalyticsReadRepository(prodLikeCh, pgDb);
 
+      // Window closes inside May so the grid is a single bucket: concentration reports the
+      // STANDING distribution, so a window spilling into June would report June too (the power
+      // still stands there). Bucket semantics are covered by concentration-standing.integration;
+      // this case is only about the UInt256 surviving the driver.
       const conc = await repo.concentrationByBucket({
         daoId: dao.id,
         from: new Date('2026-05-01T00:00:00.000Z'),
-        to: new Date('2026-06-01T00:00:00.000Z'),
+        to: new Date('2026-05-31T23:59:59.000Z'),
         bucket: 'monthly',
       });
       expect(conc.rows).toHaveLength(1);

@@ -1,12 +1,16 @@
 import { DelegationFlow } from '@/components/charts/delegation-flow';
+import { Section } from '@/components/ui/section';
 import type { DelegationFlowView } from '@/lib/analytics/health';
 import { formatCompactNumber } from '@/lib/format';
 
 /** Delegation flow (§6.7 §2): the top 50 delegate–delegator pairs by delegated voting power. */
 export function DelegationFlowSection({ view }: { view: DelegationFlowView }) {
   return (
-    <section className="flex flex-col gap-5">
-      <h2 className="text-h3 font-semibold text-ink">Delegation flow</h2>
+    <Section
+      number="02"
+      title="Delegation flow"
+      reference={view.edges.length > 0 ? <span>{view.edges.length} pairs</span> : undefined}
+    >
       {view.edges.length === 0 ? (
         <p className="font-mono text-mono-body text-ink-3">No delegation relationships recorded.</p>
       ) : (
@@ -18,6 +22,6 @@ export function DelegationFlowSection({ view }: { view: DelegationFlowView }) {
           caption="Top 50 relationships by delegated voting power. Time scrubber arrives in v1.1."
         />
       )}
-    </section>
+    </Section>
   );
 }

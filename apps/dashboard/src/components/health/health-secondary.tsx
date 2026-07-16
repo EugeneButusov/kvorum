@@ -1,4 +1,5 @@
 import { AIPanel } from '@/components/ui/ai-panel';
+import { Section } from '@/components/ui/section';
 
 /**
  * Participation trends (§6.7 §3). The per-proposal participation series (unique voters, VP,
@@ -6,13 +7,12 @@ import { AIPanel } from '@/components/ui/ai-panel';
  */
 export function ParticipationSection() {
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-h3 font-semibold text-ink">Participation trends</h2>
+    <Section number="03" title="Participation trends">
       <p className="font-mono text-mono-body text-ink-3">
         Per-proposal participation (unique voters, voting power, share of the theoretical maximum)
         is served by an analytics endpoint arriving in a later milestone.
       </p>
-    </section>
+    </Section>
   );
 }
 
@@ -22,15 +22,14 @@ export function ParticipationSection() {
  */
 export function FlagSummary() {
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-h3 font-semibold text-ink">Flag summary</h2>
+    <Section number="05" title="Flag summary">
       <AIPanel label="Mismatch detector by Kvorum">
         <p className="font-mono text-small text-ink-3">
           No discrepancies detected. Recent calldata-vs-description flags will appear here once the
           mismatch detector is live.
         </p>
       </AIPanel>
-    </section>
+    </Section>
   );
 }
 
@@ -48,8 +47,7 @@ export function AnomalySection({ concentrationDelta90 }: { concentrationDelta90:
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-h3 font-semibold text-ink">Anomaly indicators</h2>
+    <Section number="06" title="Anomaly indicators" reference={<span>statistical thresholds</span>}>
       {alerts.length === 0 ? (
         <p className="font-mono text-mono-body text-ink-3">
           No anomalies flagged. v1 uses simple statistical thresholds (KNOWN-018).
@@ -64,6 +62,6 @@ export function AnomalySection({ concentrationDelta90 }: { concentrationDelta90:
           ))}
         </ul>
       )}
-    </section>
+    </Section>
   );
 }
