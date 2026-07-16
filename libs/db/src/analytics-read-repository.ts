@@ -19,6 +19,37 @@ function pgTimeBucketExpression(column: string, grain: BucketGrain): RawBuilder<
 
 export type AnalyticsClickHouseDatabase = ClickHouseDatabase;
 
+/**
+ * Bucket start instants (UTC) covering [from, to] at the given grain, aligned to the natural period
+ * boundary so labels match what ClickHouse's toStartOf* would produce.
+ *
+ * The grid is generated rather than read off the data on purpose: concentration is a standing
+ * distribution, so a period with no delegation events still has a value to report. Deriving buckets
+ * from event timestamps is what collapsed the chart to whichever months happened to contain events.
+ */
+export function bucketGrid(from: Date, to: Date, grain: BucketGrain): Date[] {
+  if (to.getTime() < from.getTime()) return [];
+
+  const start = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), 0, 0, 0, 0),
+  );
+  if (grain === 'monthly') start.setUTCDate(1);
+  if (grain === 'weekly') {
+    // ClickHouse toStartOfWeek defaults to Sunday.
+    start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+  }
+
+  const out: Date[] = [];
+  const cursor = new Date(start);
+  while (cursor.getTime() <= to.getTime()) {
+    out.push(new Date(cursor));
+    if (grain === 'daily') cursor.setUTCDate(cursor.getUTCDate() + 1);
+    else if (grain === 'weekly') cursor.setUTCDate(cursor.getUTCDate() + 7);
+    else cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return out;
+}
+
 const RESOLVED_PASS_STATES = ['executed', 'succeeded'] as const;
 const RESOLVED_FAIL_STATES = ['defeated', 'expired', 'vetoed'] as const;
 const RESOLVED_STATES = [...RESOLVED_PASS_STATES, ...RESOLVED_FAIL_STATES] as const;
@@ -150,42 +181,101 @@ export class AnalyticsReadRepository {
     });
   }
 
+  /**
+   * Voting-power concentration per bucket (§6.7).
+   *
+   * Each bucket is the **standing distribution as of the end of that bucket**, not the delegation
+   * events that happened inside it. Getting there takes three levels, and skipping any of them is
+   * what made the published numbers wrong:
+   *
+   * 1. Per (bucket, delegator), the delegator's latest delegation at or before the bucket end
+   *    (`argMax` by created_at). `delegation_flow_projection` is an event log — a delegator appears
+   *    once per delegation event they ever made — so aggregating it directly counts each delegator
+   *    once per event and sums their power repeatedly. That inflated Compound's total to ~2.39
+   *    billion COMP against a 10 million supply (~240x), which in turn deflated every top-N share
+   *    (top-10 read 0.6% where the real figure is tens of percent).
+   * 2. Per (bucket, delegate), the sum of the power delegated to them. Concentration is a property
+   *    of the delegates who hold voting power, so the weights must be per-delegate — the previous
+   *    query never grouped by delegate at all, it just took raw event amounts.
+   * 3. Per bucket, the weight vector the Gini / top-share math consumes.
+   *
+   * The bucket grid is passed in rather than derived from the data: a bucket must appear even when
+   * no delegation happened in it (the distribution still stands), and deriving buckets from event
+   * timestamps is why the chart collapsed to a single point.
+   *
+   * Deliberately dictionary-free: this aggregates by delegate address, not actor id. Addresses
+   * merged into one actor therefore count separately, which is the existing behaviour and keeps the
+   * one endpoint that carries no `dictGetOrNull` independent of the actor dictionary.
+   */
   async concentrationByBucket(args: {
     daoId: string;
     from: Date;
     to: Date;
     bucket: BucketGrain;
   }): Promise<MirrorEnvelope<ConcentrationBucketRow>> {
-    const chBucket =
-      args.bucket === 'daily'
-        ? sql<Date>`toStartOfDay(dfa.created_at)`
-        : args.bucket === 'weekly'
-          ? sql<Date>`toStartOfWeek(dfa.created_at)`
-          : sql<Date>`toStartOfMonth(dfa.created_at)`;
+    const bucketStarts = bucketGrid(args.from, args.to, args.bucket);
+    if (bucketStarts.length === 0) return { rows: [], mirrorLastEtl: null };
 
+    const bucketEnd = (expr: string) =>
+      args.bucket === 'daily'
+        ? sql`addDays(${sql.raw(expr)}, 1)`
+        : args.bucket === 'weekly'
+          ? sql`addWeeks(${sql.raw(expr)}, 1)`
+          : sql`addMonths(${sql.raw(expr)}, 1)`;
+
+    const grid = sql.join(bucketStarts.map((d) => sql`fromUnixTimestamp64Milli(${d.getTime()})`));
+
+    // Standing state per (bucket, delegator): the latest delegation at or before the bucket end.
+    const standingPerDelegator = sql`
+      SELECT
+        be.bucket AS bucket,
+        dfa.delegator_address AS delegator_address,
+        argMax(dfa.delegate_address, dfa.created_at) AS delegate_address,
+        argMax(dfa.voting_power, dfa.created_at) AS vp
+      FROM (SELECT arrayJoin([${grid}]) AS bucket) AS be
+      CROSS JOIN delegation_flow_projection AS dfa
+      WHERE dfa.dao_id = ${args.daoId}
+        AND dfa.created_at <= fromUnixTimestamp64Milli(${args.to.getTime()})
+        AND dfa.created_at < ${bucketEnd('be.bucket')}
+      GROUP BY be.bucket, dfa.delegator_address
+    `;
+
+    // Collapse to power per delegate. The zero address is "undelegated", not a delegate.
+    const perDelegate = sql`
+      SELECT bucket, delegate_address, sum(vp) AS delegate_vp
+      FROM (${standingPerDelegator})
+      WHERE vp > 0 AND delegate_address != '0x0000000000000000000000000000000000000000'
+      GROUP BY bucket, delegate_address
+    `;
+
+    // NB: must go through the query builder. A raw sql`...`.execute() against the ClickHouse
+    // dialect silently resolves to zero rows instead of erroring.
     const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
-      .select(chBucket.as('bucket'))
-      // arrayMap(toString): each element is a UInt256 — without it the array comes back as JS
-      // numbers on the production server and the Gini / top-share math below silently computes
-      // from precision-lossy values (BigInt(5.89e22) does not throw, it just rounds).
-      .select(
-        sql<string[]>`arrayMap(x -> toString(x), arraySort(groupArray(dfa.voting_power)))`.as(
-          'weights',
+      .selectFrom(
+        sql<{ bucket: string; delegate_address: string; delegate_vp: string }>`(${perDelegate})`.as(
+          'd',
         ),
       )
-      .select(sql<number>`count(*)`.as('delegate_count'))
-      .select(sql<string>`toString(sum(toUInt256(dfa.voting_power)))`.as('total_voting_power'))
-      .where('dfa.dao_id', '=', args.daoId)
-      .where(sql<boolean>`dfa.created_at >= fromUnixTimestamp64Milli(${args.from.getTime()})`)
-      .where(sql<boolean>`dfa.created_at <= fromUnixTimestamp64Milli(${args.to.getTime()})`)
-      .groupBy('bucket')
-      .orderBy('bucket', 'asc')
+      .select([
+        'd.bucket',
+        // arrayMap(toString): each element is a UInt256 — without it the array comes back as JS
+        // numbers on the production server and the Gini / top-share math silently computes from
+        // precision-lossy values (BigInt(5.89e22) does not throw, it just rounds). Carried over
+        // from #549, which applied the same treatment to the pre-rewrite query.
+        sql<string[]>`arrayMap(x -> toString(x), arraySort(groupArray(d.delegate_vp)))`.as(
+          'weights',
+        ),
+        sql<string>`toString(count())`.as('delegate_count'),
+        sql<string>`toString(sum(d.delegate_vp))`.as('total_voting_power'),
+      ])
+      .groupBy('d.bucket')
+      .orderBy('d.bucket', 'asc')
       .execute();
 
     const convertedRows: ConcentrationBucketRow[] = rows.map((row) => ({
-      ...row,
-      bucket: chTimestampToDate(row.bucket as unknown as string),
+      weights: row.weights,
+      total_voting_power: row.total_voting_power,
+      bucket: chTimestampToDate(row.bucket),
       delegate_count: Number(row.delegate_count),
     }));
     const lastBucket = convertedRows[convertedRows.length - 1]?.bucket ?? null;
