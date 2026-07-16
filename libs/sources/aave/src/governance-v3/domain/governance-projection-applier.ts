@@ -13,6 +13,7 @@ import type { AaveIpfsTitleFetcher } from './ipfs-title-fetcher';
 import { projectAaveGovernanceV3Event } from './proposal-projector';
 import type { AaveGovernanceV3Event } from './types';
 import { AaveProposalRepository } from '../../persistence/aave-proposal-repository';
+import { insertIpfsTitleDlq } from '../../persistence/ipfs-title-dlq';
 import type { AaveGovernanceArchivePayloadRepository } from '../persistence/archive-payload-repository';
 
 export type AaveDerivationOutcome =
@@ -178,7 +179,11 @@ export class AaveGovernanceProjectionApplier {
         result.proposalId!,
         projection.choices.map((choice) => ({ ...choice, proposal_id: '' })),
       );
-      dlqId = await insertIpfsTitleDlq(tx, row, result.proposalId!, projection.descriptionHash);
+      dlqId = await insertIpfsTitleDlq(tx, row, {
+        proposalId: result.proposalId!,
+        descriptionHash: projection.descriptionHash,
+        source: 'indexer.aave_governance_v3',
+      });
       this.record(row, 'derived', null);
     } else {
       this.record(row, 'skipped_idempotent', null);
@@ -416,38 +421,6 @@ function parseArchiveEvent(eventType: string, payloadJson: string): AaveGovernan
     default:
       throw new Error(`unsupported aave event_type ${eventType}`);
   }
-}
-
-async function insertIpfsTitleDlq(
-  tx: Kysely<PgDatabase>,
-  row: ArchiveDerivationRow,
-  proposalId: string,
-  descriptionHash: string,
-): Promise<string> {
-  const inserted = await tx
-    .insertInto('ingestion_dlq')
-    .values({
-      stage: 'aave_ipfs_title_fetch',
-      source: 'indexer.aave_governance_v3',
-      payload: {
-        proposal_id: proposalId,
-        ipfs_hash: descriptionHash,
-        dao_source_id: row.dao_source_id,
-      },
-      error: { message: 'awaiting ipfs title fetch' },
-      retries: 0,
-      first_seen_at: new Date(),
-      last_attempt_at: new Date(),
-      archive_source_type: row.source_type,
-      archive_chain_id: row.chain_id,
-      archive_tx_hash: row.tx_hash,
-      archive_log_index: row.log_index,
-      archive_block_hash: row.block_hash,
-    })
-    .returning('id')
-    .executeTakeFirstOrThrow();
-
-  return inserted.id;
 }
 
 function tupleKey(row: {
