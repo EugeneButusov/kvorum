@@ -76,7 +76,7 @@ export function TallySection({ tally, detail }: { tally: TallyData; detail: Prop
           {presented.segments.map((s) => (
             <div
               key={s.choiceIndex}
-              className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3"
+              className="grid grid-cols-[64px_minmax(0,1fr)_7rem] items-center gap-3"
             >
               <span className="truncate font-mono text-pill uppercase tracking-[0.06em] text-ink-2">
                 {s.label}
