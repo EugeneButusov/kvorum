@@ -237,7 +237,10 @@ export class AnalyticsReadRepository {
           'actor_id',
         ),
       )
-      .select(sql<string>`argMax(dfa.voting_power, dfa.created_at)`.as('voting_power'))
+      // toString(): a bare UInt256 comes back as a JS number on a server with
+      // output_format_json_quote_64bit_integers=0 (production), losing precision and stringifying
+      // to exponential notation past 1e21 — see vote-read-repository.ts.
+      .select(sql<string>`toString(argMax(dfa.voting_power, dfa.created_at))`.as('voting_power'))
       .where('dfa.dao_id', '=', daoId)
       .where(
         sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address)) in (${sql.join(
