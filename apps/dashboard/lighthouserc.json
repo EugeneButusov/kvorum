@@ -8,10 +8,11 @@
         "http://localhost:3000/",
         "http://localhost:3000/daos/lido/proposals/aragon_voting/1"
       ],
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,
       "settings": { "preset": "desktop" }
     },
     "assert": {
+      "aggregationMethod": "optimistic",
       "assertions": {
         "categories:performance": ["error", { "minScore": 0.8 }],
         "categories:accessibility": ["error", { "minScore": 0.95 }],
