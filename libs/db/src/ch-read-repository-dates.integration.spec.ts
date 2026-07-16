@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { sql } from 'kysely';
+import { ClickhouseDialect } from '@founderpath/kysely-clickhouse';
+import { Kysely, sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chDb, pgDb } from './client';
 import { DelegationFlowProjectionWriter } from './delegation-flow-projection-writer';
 import { DelegationReadRepository } from './delegation-read-repository';
+import type { ClickHouseDatabase } from './schema/clickhouse';
 import { VoteEventsProjectionWriter } from './vote-events-projection-writer';
 import { VoteReadRepository } from './vote-read-repository';
 
@@ -98,6 +100,131 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
       expect(rows[0]!.cast_at).toBeInstanceOf(Date);
       expect(rows[0]!.cast_at.toISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     } finally {
+      await sql`ALTER TABLE vote_events_raw DELETE WHERE proposal_id = ${proposal.id}`.execute(
+        chDb,
+      );
+      await sql`ALTER TABLE vote_events_agg DELETE WHERE proposal_id = ${proposal.id}`.execute(
+        chDb,
+      );
+      await pgDb.deleteFrom('proposal').where('id', '=', proposal.id).execute();
+      await pgDb.deleteFrom('actor').where('id', '=', actor.id).execute();
+      await pgDb.deleteFrom('dao').where('id', '=', dao.id).execute();
+    }
+  });
+
+  // Regression guard for the UInt256 voting_power read (libs/db/src/vote-read-repository.ts).
+  //
+  // Whether ClickHouse quotes big integers in JSON is a SERVER setting, and it differs by host:
+  // vanilla ClickHouse defaults output_format_json_quote_64bit_integers=1 (quoted → the driver
+  // yields a string), but the managed production instance runs with it OFF, so a bare UInt256 comes
+  // back as a JS number. That loses precision (6.000000000000643e+22 for an exact 6e22) and String()
+  // goes exponential past 1e21 — and the API's numeric cursor sort does BigInt(String(value)), which
+  // throws SyntaxError on "5.8e+22". That 500'd GET .../votes?sort=-voting_power_reported for every
+  // real-world tally, which the dashboard then rendered as "No votes recorded yet".
+  //
+  // toString() in the SELECT makes the read independent of that server setting: CH always quotes a
+  // String. This test pins a client with the production-side setting so the guard is meaningful on a
+  // default-configured local/CI ClickHouse — without it the assertion passes either way and proves
+  // nothing.
+  it('VoteReadRepository.listForProposal returns voting_power as an exact string, not a JS number', async () => {
+    // Past 1e21 — the range where String(number) goes exponential and BigInt() rejects it.
+    const hugePower = '58971815710228750000000';
+
+    await pgDb
+      .insertInto('source_type')
+      .values([{ value: 'aave_governance_v3' }])
+      .onConflict((oc) => oc.column('value').doNothing())
+      .execute();
+    const dao = await pgDb
+      .insertInto('dao')
+      .values({
+        slug: `ch-vp-int-${Date.now()}`,
+        name: 'CH Voting Power Integration',
+        primary_token_address: '0x' + '00'.repeat(20),
+        primary_chain_id: '0x1',
+        description: 'integration test',
+        website_url: 'https://example.com',
+        forum_url: 'https://forum.example.com',
+        updated_at: new Date(),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const actor = await pgDb
+      .insertInto('actor')
+      .values({ primary_address: '0x' + 'ac'.repeat(20), updated_at: new Date() })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const proposal = await pgDb
+      .insertInto('proposal')
+      .values({
+        dao_id: dao.id,
+        source_type: 'aave_governance_v3',
+        source_id: '1',
+        proposer_actor_id: actor.id,
+        title: 'voting power proposal',
+        description: 'body',
+        description_hash: `0x${'2'.repeat(64)}`,
+        binding: true,
+        voting_starts_at: new Date('2026-05-20T00:00:00Z'),
+        voting_ends_at: new Date('2026-05-23T00:00:00Z'),
+        voting_starts_block: '100',
+        voting_ends_block: '200',
+        state: 'executed',
+        state_updated_at: new Date('2026-05-24T00:00:00Z'),
+        updated_at: new Date('2026-05-24T00:00:00Z'),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+
+    await new VoteEventsProjectionWriter(chDb).insertBatch([
+      {
+        vote_id: randomUUID(),
+        dao_id: dao.id,
+        proposal_id: proposal.id,
+        voter_address: '0x' + 'ac'.repeat(20),
+        voting_chain_id: '0x1',
+        primary_choice: 1,
+        voting_power: hugePower,
+        cast_at: new Date('2026-05-21T00:00:00.000Z'),
+        block_number: '100',
+        log_index: 0,
+        superseded: 0,
+        superseded_at: null,
+        superseded_by_vote_id: null,
+      },
+    ]);
+
+    // Read through a client pinned to the production server's JSON setting (unquoted big ints).
+    const prodLikeCh = new Kysely<ClickHouseDatabase>({
+      dialect: new ClickhouseDialect({
+        options: {
+          url: process.env['CLICKHOUSE_URL'] ?? 'http://localhost:8123',
+          username: process.env['CLICKHOUSE_USER'] ?? 'default',
+          password: process.env['CLICKHOUSE_PASSWORD'] ?? '',
+          database: process.env['CLICKHOUSE_DATABASE'] ?? 'default',
+          clickhouse_settings: { output_format_json_quote_64bit_integers: 0 },
+        },
+      }),
+    });
+
+    try {
+      const repo = new VoteReadRepository(pgDb, prodLikeCh);
+      const rows = await repo.listForProposal({ proposalId: proposal.id });
+      expect(rows).toHaveLength(1);
+      const reported = rows[0]!.voting_power_reported;
+
+      // The bug returned a JS number here, so both of these failed.
+      expect(typeof reported).toBe('string');
+      expect(reported).toBe(hugePower);
+      // The exact 500: the cursor comparator does BigInt(String(value)).
+      expect(() => BigInt(String(reported))).not.toThrow();
+      expect(BigInt(String(reported))).toBe(BigInt(hugePower));
+
+      // The tally aggregate must stay exact too — it feeds the same UInt256 through sum().
+      const tally = await repo.tallyForProposal(proposal.id);
+      expect(tally).toEqual([{ primary_choice: 1, voting_power: hugePower, voter_count: 1 }]);
+    } finally {
+      await prodLikeCh.destroy();
       await sql`ALTER TABLE vote_events_raw DELETE WHERE proposal_id = ${proposal.id}`.execute(
         chDb,
       );
