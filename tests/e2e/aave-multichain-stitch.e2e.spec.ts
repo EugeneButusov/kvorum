@@ -407,12 +407,18 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
       .execute();
   }
 
+  /** Far enough ahead that any stitch back-off a held row was stamped with has lapsed. */
+  const HOLD_ELAPSED_AT = (): Date => new Date(Date.now() + 60 * 60_000);
+
   async function derive(applier: {
     eventTypes: readonly ArchiveEventType[];
     applyBatch(rows: Parameters<AaveGovernanceProjectionApplier['applyBatch']>[0]): Promise<void>;
   }): Promise<void> {
-    const rows = await actorResolution.findDerivableBy(applier.eventTypes, 500);
-    // Group by event_type — applyBatch expects a homogeneous batch (KNOWN-028)
+    // A held row carries a `derivation_hold_until` back-off so it stops pinning the queue head
+    // (KNOWN-028). These tests drive derivation synchronously, so read as though the back-off has
+    // already elapsed instead of sleeping it out — production simply reaches the same point later.
+    const rows = await actorResolution.findDerivableBy(applier.eventTypes, 500, HOLD_ELAPSED_AT());
+    // Group by event_type — applyBatch expects a homogeneous batch
     const byEventType = new Map<string, typeof rows>();
     for (const row of rows) {
       const group = byEventType.get(row.event_type) ?? [];
@@ -518,6 +524,18 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
       .where('derived_at', 'is', null)
       .executeTakeFirstOrThrow();
     expect(Number(heldCount.n)).toBeGreaterThan(0);
+
+    // ...and they must be *deferred*, not spinning: a held row carries a re-check deadline so it
+    // stops pinning the head of the block-ordered queue (KNOWN-028). Without this the governance
+    // events below — which sit at higher blocks — could never be reached in a real backfill.
+    const deferred = await pgDb
+      .selectFrom('archive_event')
+      .select(pgDb.fn.countAll<string>().as('n'))
+      .where('source_type', '=', 'aave_payloads_controller')
+      .where('derived_at', 'is', null)
+      .where('derivation_hold_until', 'is not', null)
+      .executeTakeFirstOrThrow();
+    expect(Number(deferred.n)).toBe(Number(heldCount.n));
 
     // Now ingest governance + voting and re-derive
     await ingest(govListener, govLogs);
