@@ -342,18 +342,15 @@ export class AaveVoteProjectionApplier {
         votingMachineAddress,
       });
 
-      // ProposalVoteStarted is the only source of a v3 proposal's voting window. The mainnet
-      // governance ProposalCreated carries no start/end block (voting runs on the voting machine's
-      // own chain), so the proposal is projected with voting_starts_block = null and
-      // `findPendingTimestampFill` — which requires a non-null block — can never resolve it the way
-      // it does for governor v2. Without this write the window stays null forever.
-      await this.proposals.fillTimestamps([
-        {
-          id: proposal.id,
-          voting_starts_at: votingWindowDate(payload.startTime),
-          voting_ends_at: votingWindowDate(payload.endTime),
-        },
-      ]);
+      // The voting machine reports the window it actually enforces, so this is the authoritative
+      // measurement and overwrites the estimate the mainnet VotingActivated handler derives from
+      // activation-block time + votingDuration. Mainnet activation is observed first (the voting
+      // chain learns of it only after the bridge relays), so a coalescing write would let the
+      // estimate win on every proposal.
+      await this.proposals.setVotingWindow(proposal.id, {
+        votingStartsAt: votingWindowDate(payload.startTime),
+        votingEndsAt: votingWindowDate(payload.endTime),
+      });
 
       try {
         await this.archive.markDerived(row.id);
