@@ -33,6 +33,13 @@ export interface ArchiveEventTable {
   received_at: Date;
   derived_at: Date | null;
   derivation_actor_resolved_at: Date | null;
+  /**
+   * Re-check time for an intentionally deferred row (KNOWN-028). An applier that cannot derive yet
+   * because a cross-chain counterpart has not landed (ADR-065 `no_proposal`, payload
+   * `no_declared_payload`) stamps a future time here; the derivable queries skip the row until it
+   * passes, so a hold never occupies the head of the block-ordered queue. Null = not held.
+   */
+  derivation_hold_until: Date | null;
   derivation_attempt_count: Generated<number>;
   actor_resolution_attempt_count: Generated<number>;
 }

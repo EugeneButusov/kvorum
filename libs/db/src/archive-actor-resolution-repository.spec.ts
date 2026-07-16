@@ -121,4 +121,67 @@ describe('ArchiveActorResolutionRepository', () => {
     expect(update.where).toHaveBeenCalledWith('id', '=', 'row-1');
     expect(update.returning).toHaveBeenCalledWith('actor_resolution_attempt_count');
   });
+
+  // KNOWN-028: a held row must step aside so it stops pinning the head of the block-ordered queue.
+  describe('hold back-off filter', () => {
+    /** Runs the predicate the repo passed to `.where(fn)` against a probe expression builder. */
+    function capturePredicate(select: ReturnType<typeof makeSelectChain>) {
+      const predicate = select.where.mock.calls
+        .map((call) => call[0])
+        .find((arg): arg is (eb: unknown) => unknown => typeof arg === 'function');
+      expect(predicate).toBeDefined();
+
+      const calls: unknown[][] = [];
+      const eb = Object.assign(
+        (...args: unknown[]) => {
+          calls.push(args);
+          return `cmp:${String(args[0])}`;
+        },
+        { or: vi.fn((branches: unknown[]) => ({ or: branches })) },
+      );
+      const result = predicate!(eb);
+      return { calls, or: eb.or, result };
+    }
+
+    it('#1 — findDerivableBy admits un-held rows and rows whose hold has elapsed', async () => {
+      const select = makeSelectChain([ARCHIVE_ROW]);
+      const repo = new ArchiveActorResolutionRepository({ selectFrom: select.selectFrom } as never);
+      const now = new Date('2026-01-01T00:05:00Z');
+
+      await repo.findDerivableBy(['ProposalCreated'], 50, now);
+      const { calls, or } = capturePredicate(select);
+
+      expect(or).toHaveBeenCalledTimes(1);
+      // null hold → never deferred; hold <= now → back-off elapsed, safe to retry.
+      expect(calls).toEqual([
+        ['derivation_hold_until', 'is', null],
+        ['derivation_hold_until', '<=', now],
+      ]);
+    });
+
+    it('#2 — findDerivableByOffchain applies the same filter', async () => {
+      const select = makeSelectChain([]);
+      const repo = new ArchiveActorResolutionRepository({ selectFrom: select.selectFrom } as never);
+      const now = new Date('2026-01-01T00:05:00Z');
+
+      await repo.findDerivableByOffchain(['ProposalCreated'], 50, now);
+      const { calls, or } = capturePredicate(select);
+
+      expect(or).toHaveBeenCalledTimes(1);
+      expect(calls).toEqual([
+        ['derivation_hold_until', 'is', null],
+        ['derivation_hold_until', '<=', now],
+      ]);
+    });
+
+    it('#3 — the actor-sweep queries are untouched by the hold (holds are a derivation concern)', async () => {
+      const select = makeSelectChain([]);
+      const repo = new ArchiveActorResolutionRepository({ selectFrom: select.selectFrom } as never);
+
+      await repo.findUnresolvedActors(['ProposalCreated'], 5, 50);
+
+      const hasPredicate = select.where.mock.calls.some(([arg]) => typeof arg === 'function');
+      expect(hasPredicate).toBe(false);
+    });
+  });
 });

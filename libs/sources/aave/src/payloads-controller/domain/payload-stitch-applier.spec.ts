@@ -71,6 +71,7 @@ function buildApplier(options?: {
 }) {
   const archive: AavePayloadStitchApplierDeps['archive'] = {
     incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
+    markHeld: vi.fn().mockResolvedValue(undefined),
   } as never;
   const dlq: AavePayloadStitchApplierDeps['dlq'] = {
     insert: vi.fn().mockResolvedValue(undefined),
@@ -209,14 +210,26 @@ describe('AavePayloadStitchApplier', () => {
     });
   });
 
-  it('holds rows indefinitely when the declared payload row is absent', async () => {
+  it('defers rows with a back-off when the declared payload row is absent', async () => {
     const row = { ...BASE_ROW, received_at: new Date(Date.now() - 60_000) };
     const { applier, archive, dlq, metrics, logger } = buildApplier({
       declared: undefined,
     });
 
+    const before = Date.now();
     await applier.applyBatch([row]);
 
+    // KNOWN-028: the row must step aside instead of pinning the head of the block-ordered queue —
+    // the governance declaration it waits for can sit at a HIGHER block during a backfill.
+    expect(archive.markHeld).toHaveBeenCalledTimes(1);
+    const [heldId, holdUntil] = (archive.markHeld as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      Date,
+    ];
+    expect(heldId).toBe('archive-1');
+    expect(holdUntil.getTime()).toBeGreaterThan(before);
+
+    // A deferral is not a failure: no attempt burned, no DLQ entry.
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
     expect(metrics.processed).toHaveBeenCalledWith({

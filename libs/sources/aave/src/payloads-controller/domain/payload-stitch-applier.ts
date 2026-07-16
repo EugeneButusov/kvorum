@@ -18,6 +18,8 @@ import {
 
 const DLQ_THRESHOLD = Number(process.env['PAYLOAD_PROJECTION_DLQ_THRESHOLD'] ?? '5');
 const PAYLOAD_PROJECTION_STAGE = 'aave_payload_projection_stage';
+/** How long a payload awaiting its governance declaration steps aside for (KNOWN-028). */
+const STITCH_HOLD_BACKOFF_MS = Number(process.env['AAVE_STITCH_HOLD_BACKOFF_MS'] ?? '60000');
 const HOLD_LOG_INTERVAL_MS = 30_000;
 
 export type AavePayloadDerivationOutcome = 'derived' | 'skipped_idempotent' | 'failed' | 'held';
@@ -156,6 +158,10 @@ export class AavePayloadStitchApplier {
           pendingMaxSeconds,
           (Date.now() - row.received_at.getTime()) / 1000,
         );
+        // Defer rather than spin (KNOWN-028). The governance-side declaration (aave_governance_v3
+        // PayloadSent) can sit at a HIGHER block than this payload, so leaving the row at the head of
+        // the block-ordered queue would prevent the very event we are waiting for from ever deriving.
+        await this.deps.archive.markHeld(row.id, new Date(Date.now() + STITCH_HOLD_BACKOFF_MS));
         continue;
       }
 

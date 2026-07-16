@@ -54,6 +54,7 @@ function buildApplier(options?: {
   const archive: AaveVoteProjectionApplierDeps['archive'] = {
     incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     markDerived: vi.fn().mockResolvedValue(undefined),
+    markHeld: vi.fn().mockResolvedValue(undefined),
   } as never;
   const dlq: AaveVoteProjectionApplierDeps['dlq'] = {
     insert: vi.fn().mockResolvedValue(undefined),
@@ -164,7 +165,7 @@ describe('AaveVoteProjectionApplier', () => {
     });
   });
 
-  it('holds VoteEmitted indefinitely when proposal is missing', async () => {
+  it('defers VoteEmitted with a back-off when proposal is missing', async () => {
     const row = { ...BASE_ROW, received_at: new Date(Date.now() - 60_000) };
     const { applier, archive, dlq, proposals, voteWrite, metrics, logger } = buildApplier();
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
@@ -173,6 +174,8 @@ describe('AaveVoteProjectionApplier', () => {
     await applier.applyBatch([row]);
 
     expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    // KNOWN-028: deferred, not derived — and it steps aside so newer votes on this chain keep flowing.
+    expect(archive.markHeld).toHaveBeenCalledTimes(1);
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
@@ -427,7 +430,7 @@ describe('AaveVoteProjectionApplier', () => {
     });
   });
 
-  it('holds ProposalVoteStarted indefinitely when proposal is missing', async () => {
+  it('defers ProposalVoteStarted with a back-off when proposal is missing', async () => {
     const row = {
       ...BASE_ROW,
       event_type: 'ProposalVoteStarted' as const,
@@ -452,6 +455,8 @@ describe('AaveVoteProjectionApplier', () => {
     await applier.applyBatch([row]);
 
     expect(aaveProposals.setVotingChainBinding).not.toHaveBeenCalled();
+    // KNOWN-028: deferred rather than left pinning the queue head.
+    expect(archive.markHeld).toHaveBeenCalledTimes(1);
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
