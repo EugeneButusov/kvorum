@@ -342,15 +342,17 @@ export class AaveVoteProjectionApplier {
         votingMachineAddress,
       });
 
-      // The voting machine reports the window it actually enforces, so this is the authoritative
-      // measurement and overwrites the estimate the mainnet VotingActivated handler derives from
-      // activation-block time + votingDuration. Mainnet activation is observed first (the voting
-      // chain learns of it only after the bridge relays), so a coalescing write would let the
-      // estimate win on every proposal.
-      await this.proposals.setVotingWindow(proposal.id, {
-        votingStartsAt: votingWindowDate(payload.startTime),
-        votingEndsAt: votingWindowDate(payload.endTime),
-      });
+      // The voting machine reports the window it actually enforces; the mainnet VotingActivated
+      // handler derives an equivalent one from activation-block time + votingDuration, so whichever
+      // derives first fills the window and the other is a no-op. In practice that is mainnet, and
+      // the two differ only by the a.DI bridge relay.
+      await this.proposals.fillTimestamps([
+        {
+          id: proposal.id,
+          voting_starts_at: votingWindowDate(payload.startTime),
+          voting_ends_at: votingWindowDate(payload.endTime),
+        },
+      ]);
 
       try {
         await this.archive.markDerived(row.id);

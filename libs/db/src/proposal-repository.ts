@@ -280,33 +280,6 @@ export class ProposalRepository {
       .execute();
   }
 
-  /**
-   * Overwrite a proposal's voting window with an authoritative measurement.
-   *
-   * Distinct from `fillTimestamps`, which coalesces (first write wins) and is therefore the right
-   * call for a *derived* window — e.g. Aave v3's mainnet `VotingActivated` block time plus
-   * `votingDuration`, which only estimates when the vote actually opened on the voting chain. A
-   * source that reports the window directly (Aave v3's voting-machine `ProposalVoteStarted`) must
-   * win over that estimate regardless of arrival order, and mainnet activation is normally observed
-   * first — so this overwrites rather than coalescing. Null leaves the column untouched.
-   */
-  async setVotingWindow(
-    proposalId: string,
-    input: { votingStartsAt: Date | null; votingEndsAt: Date | null },
-  ): Promise<void> {
-    if (input.votingStartsAt === null && input.votingEndsAt === null) return;
-    await this.db
-      .updateTable('proposal')
-      .set((eb) => ({
-        voting_starts_at:
-          input.votingStartsAt === null ? eb.ref('voting_starts_at') : input.votingStartsAt,
-        voting_ends_at: input.votingEndsAt === null ? eb.ref('voting_ends_at') : input.votingEndsAt,
-        updated_at: sql<Date>`now()`,
-      }))
-      .where('id', '=', proposalId)
-      .execute();
-  }
-
   async fillTimestamps(rows: readonly TimestampFillInput[]): Promise<void> {
     for (const row of rows) {
       await this.db

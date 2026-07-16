@@ -65,7 +65,7 @@ function buildApplier(options?: {
   const proposals: AaveVoteProjectionApplierDeps['proposals'] = {
     findDaoIdForSource: vi.fn(),
     findBySource: vi.fn(),
-    setVotingWindow: vi.fn().mockResolvedValue(undefined),
+    fillTimestamps: vi.fn().mockResolvedValue(undefined),
   } as never;
   const aaveProposals: AaveVoteProjectionApplierDeps['aaveProposals'] = {
     setVotingChainBinding: vi.fn().mockResolvedValue(undefined),
@@ -450,12 +450,15 @@ describe('AaveVoteProjectionApplier', () => {
 
     await applier.applyBatch([row]);
 
-    // Regression guard: the voting machine reports the window it actually enforces, so this write
-    // must overwrite the estimate the mainnet VotingActivated handler derives — not coalesce with it.
-    expect(proposals.setVotingWindow).toHaveBeenCalledWith('proposal-uuid', {
-      votingStartsAt: new Date(1779698667 * 1000),
-      votingEndsAt: new Date(1779957867 * 1000),
-    });
+    // Regression guard: without this write a v3 proposal whose window never derived from mainnet
+    // VotingActivated would stay null — nothing else fills it.
+    expect(proposals.fillTimestamps).toHaveBeenCalledWith([
+      {
+        id: 'proposal-uuid',
+        voting_starts_at: new Date(1779698667 * 1000),
+        voting_ends_at: new Date(1779957867 * 1000),
+      },
+    ]);
   });
 
   it('writes no voting window when ProposalVoteStarted carries unusable times', async () => {
@@ -477,12 +480,10 @@ describe('AaveVoteProjectionApplier', () => {
 
     await applier.applyBatch([row]);
 
-    // null means "leave the column alone" — never persist a bogus instant, and never clobber a
-    // window already derived from mainnet activation.
-    expect(proposals.setVotingWindow).toHaveBeenCalledWith('proposal-uuid', {
-      votingStartsAt: null,
-      votingEndsAt: null,
-    });
+    // null means "leave the column alone" in fillTimestamps — never persist a bogus instant.
+    expect(proposals.fillTimestamps).toHaveBeenCalledWith([
+      { id: 'proposal-uuid', voting_starts_at: null, voting_ends_at: null },
+    ]);
     expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
   });
 
@@ -511,7 +512,7 @@ describe('AaveVoteProjectionApplier', () => {
     await applier.applyBatch([row]);
 
     expect(aaveProposals.setVotingChainBinding).not.toHaveBeenCalled();
-    expect(proposals.setVotingWindow).not.toHaveBeenCalled();
+    expect(proposals.fillTimestamps).not.toHaveBeenCalled();
     // KNOWN-028: deferred rather than left pinning the queue head.
     expect(archive.markHeld).toHaveBeenCalledTimes(1);
     expect(archive.markDerived).not.toHaveBeenCalled();

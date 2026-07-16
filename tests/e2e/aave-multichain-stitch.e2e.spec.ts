@@ -332,6 +332,9 @@ describeIf('aave multi-chain stitch (Y2 — §3.5 acceptance gate)', () => {
       dlq: dlqRepo,
       payloads: new AaveGovernanceArchivePayloadRepository(chDb),
       ipfsFetcher: new AaveIpfsTitleFetcher(),
+      // VotingActivated derives the voting window from its own block's timestamp, so the governance
+      // applier now reads block headers too — same fake registry the vote/payload appliers use.
+      registry: fakeRegistry,
       metrics: { batchLookupSeconds: () => {}, processed: () => {} },
       logger: silentLogger,
     });

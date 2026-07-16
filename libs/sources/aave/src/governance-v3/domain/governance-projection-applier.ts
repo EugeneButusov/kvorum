@@ -289,9 +289,10 @@ export class AaveGovernanceProjectionApplier {
 
       // Derive the voting window from mainnet: activation-block time + votingDuration. This is the
       // only window available for a proposal whose voting-machine ProposalVoteStarted is not in the
-      // archive (the machines' active_from_block starts after early v3 votes), and it is written
-      // through the coalescing `fillTimestamps` so the voting machine's authoritative measurement —
-      // which `setVotingWindow` overwrites with — always wins when it is present.
+      // archive (the machines' active_from_block starts after the early v3 votes). Both this and the
+      // voting-machine handler write through the coalescing `fillTimestamps`, so whichever derives
+      // first fills the window and the other is a no-op; in practice that is mainnet, and the two
+      // differ only by the a.DI bridge relay.
       //
       // Deliberately outside the `advanced > 0` guard: re-deriving an already-terminal proposal
       // (executed/canceled) is guarded back to 0 by advanceState, and those are precisely the rows
