@@ -1,4 +1,5 @@
 import { encodeBase58 } from 'ethers';
+import { parseAaveMetadata } from './metadata-parser';
 import { extractAaveTitle } from './title-extractor';
 
 export type AaveIpfsFetchResult =
@@ -11,12 +12,6 @@ export interface AaveIpfsTitleFetcherDeps {
   gatewayUrl?: string;
   fallbackGatewayUrl?: string;
   timeoutMs?: number;
-}
-
-interface AaveMetadataJson {
-  title?: unknown;
-  description?: unknown;
-  shortDescription?: unknown;
 }
 
 export class AaveIpfsTitleFetcher {
@@ -67,30 +62,24 @@ export class AaveIpfsTitleFetcher {
       return { kind: 'error', reason: `http_${response.status}` };
     }
 
-    let body: unknown;
+    // Read as text, not `.json()`: Aave serves the early v2 AIPs as JSON but everything from ~2022
+    // on — including every governance v3 proposal — as markdown with YAML front matter, which the
+    // JSON parser rejects outright on its leading `---`.
+    let text: string;
     try {
-      body = await response.json();
+      text = await response.text();
     } catch (error) {
-      return { kind: 'error', reason: `json_parse_failed:${String(error)}` };
+      return { kind: 'error', reason: `body_read_failed:${String(error)}` };
     }
 
-    if (body == null || typeof body !== 'object') {
+    const metadata = parseAaveMetadata(text);
+    if (metadata === null) {
       return { kind: 'error', reason: 'schema_mismatch' };
     }
 
-    const metadata = body as AaveMetadataJson;
-    const description =
-      typeof metadata.description === 'string'
-        ? metadata.description
-        : typeof metadata.shortDescription === 'string'
-          ? metadata.shortDescription
-          : '';
-    const title = extractAaveTitle({
-      title: typeof metadata.title === 'string' ? metadata.title : null,
-      description,
-    });
+    const title = extractAaveTitle({ title: metadata.title, description: metadata.description });
 
     if (title === null) return { kind: 'no_title' };
-    return { kind: 'resolved', title, description };
+    return { kind: 'resolved', title, description: metadata.description };
   }
 }
