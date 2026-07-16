@@ -1,5 +1,6 @@
 import { ConcentrationSection } from '@/components/health/concentration-section';
 import { DelegationFlowSection } from '@/components/health/delegation-flow-section';
+import { HealthHeader, type HealthKpi } from '@/components/health/health-header';
 import {
   AnomalySection,
   FlagSummary,
@@ -38,15 +39,29 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
     fetchDelegationFlow(serverApi(), slug),
   ]);
 
+  // Headline metrics, from live analytics only. The design's letter grade, participation, and
+  // open-flag count have no data source in v1 and are omitted rather than mocked (ADR-086).
+  const kpis: HealthKpi[] = [
+    {
+      label: 'Pass rate (1y)',
+      value: passRate.overallPct == null ? '—' : `${passRate.overallPct}%`,
+    },
+    {
+      label: 'Top-10 VP',
+      value: concentration.current == null ? '—' : `${concentration.current.top10Pct.toFixed(1)}%`,
+      deltaPp: concentration.delta90Top10,
+      higherIsWorse: true,
+    },
+    {
+      label: 'Gini',
+      value: concentration.current == null ? '—' : concentration.current.gini.toFixed(2),
+      higherIsWorse: true,
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-12">
-      <header className="flex flex-col gap-2 border-b border-line-2 pb-6">
-        <h1 className="text-h1 font-semibold text-ink">{name} — health</h1>
-        <p className="max-w-2xl text-body-lg text-ink-2">
-          Stewarding {name}? This view is built for you — how the DAO&rsquo;s governance is
-          behaving, and what to watch. A public page designed for operators.
-        </p>
-      </header>
+      <HealthHeader name={name} slug={slug} kpis={kpis} />
 
       <ConcentrationSection slug={slug} initial={concentration} />
       <DelegationFlowSection view={flow} />

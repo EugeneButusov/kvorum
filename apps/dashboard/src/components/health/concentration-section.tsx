@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { StackedArea } from '@/components/charts/stacked-area';
 import { TimeSeries } from '@/components/charts/time-series';
+import { Section } from '@/components/ui/section';
 import {
   fetchConcentration,
   rangeFrom,
@@ -40,9 +41,10 @@ export function ConcentrationSection({
   const view = q.data ?? initial;
 
   return (
-    <section className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-h3 font-semibold text-ink">Voting-power concentration</h2>
+    <Section
+      number="01"
+      title="Voting-power concentration"
+      reference={
         <div className="flex gap-1.5 font-mono text-caption">
           {RANGES.map((r) => (
             <button
@@ -61,8 +63,8 @@ export function ConcentrationSection({
             </button>
           ))}
         </div>
-      </header>
-
+      }
+    >
       {view.current && (
         <dl className="flex flex-wrap gap-x-10 gap-y-2 font-mono text-caption">
           <Stat label="Gini" value={view.current.gini.toFixed(2)} />
@@ -94,7 +96,7 @@ export function ConcentrationSection({
           />
         </div>
       )}
-    </section>
+    </Section>
   );
 }
 
