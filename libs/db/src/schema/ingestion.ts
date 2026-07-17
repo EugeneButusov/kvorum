@@ -105,16 +105,3 @@ export interface OffChainCursorTable {
 export type OffChainCursor = Selectable<OffChainCursorTable>;
 export type NewOffChainCursor = Insertable<OffChainCursorTable>;
 export type OffChainCursorUpdate = Updateable<OffChainCursorTable>;
-
-/** EVM poll watermark, one row per dao_source — the on-chain counterpart to `off_chain_cursor`.
- *  A restart resumes from it instead of at confirmed head, so downtime no longer skips blocks (0011). */
-export interface EvmPollCursorTable {
-  dao_source_id: string;
-  /** Last block whose logs every listener accepted. pg driver returns bigint as string. */
-  last_polled_block: string;
-  updated_at: Generated<Date>;
-}
-
-export type EvmPollCursor = Selectable<EvmPollCursorTable>;
-export type NewEvmPollCursor = Insertable<EvmPollCursorTable>;
-export type EvmPollCursorUpdate = Updateable<EvmPollCursorTable>;

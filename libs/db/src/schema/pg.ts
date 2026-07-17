@@ -16,7 +16,6 @@ import type {
 } from './domain';
 import type {
   ArchiveEventTable,
-  EvmPollCursorTable,
   IngestionDlqResolvedTable,
   IngestionDlqTable,
   OffChainCursorTable,
@@ -88,10 +87,6 @@ export type {
   NewArchiveEvent,
   NewIngestionDlq,
   NewIngestionDlqResolved,
-  EvmPollCursor,
-  EvmPollCursorTable,
-  NewEvmPollCursor,
-  EvmPollCursorUpdate,
   OffChainCursor,
   OffChainCursorTable,
   NewOffChainCursor,
@@ -125,7 +120,6 @@ export interface PgDatabase {
   ingestion_dlq: IngestionDlqTable;
   ingestion_dlq_resolved: IngestionDlqResolvedTable;
   off_chain_cursor: OffChainCursorTable;
-  evm_poll_cursor: EvmPollCursorTable;
   abi_cache: AbiCacheTable;
   selector_index: SelectorIndexTable;
   actor_address: ActorAddressTable;

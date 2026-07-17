@@ -36,7 +36,7 @@ export interface Head {
 }
 
 /** Persistence port for one source's poll watermark. `libs/chain` stays storage-agnostic; the
- *  indexer binds this to `EvmPollCursorRepository`. */
+ *  indexer binds this to `DaoSourceRepository`'s poll-cursor accessors. */
 export interface PollCursorStore {
   /** Block to resume *after*; null when the source has never been seen and the poller should fall
    *  back to its confirmed-head window rather than scanning history. */

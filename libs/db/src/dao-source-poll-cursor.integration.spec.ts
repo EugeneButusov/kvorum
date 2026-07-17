@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pgDb } from './client';
-import { EvmPollCursorRepository } from './evm-poll-cursor-repository';
+import { DaoSourceRepository } from './dao-source-repository';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 
@@ -9,15 +9,15 @@ afterAll(async () => {
   await pgDb.destroy();
 });
 
-// The fallback to max(archive_event.block_number) is the whole reason this repository exists rather
-// than a plain table read, and it is invisible to a mocked test: it depends on a real join between
-// two tables and on the pg driver handing bigints back as strings. A source that finished a backfill
-// yesterday must resume from its archive watermark, not from today's chain head.
-describeWithDb('EvmPollCursorRepository (integration)', () => {
+// The archive fallback is the whole reason readPollCursor exists rather than a plain column read,
+// and it is invisible to a mocked test: it depends on a real join between two tables and on the pg
+// driver handing bigints back as strings. A source that finished a backfill yesterday must resume
+// from its archive watermark, not from today's chain head.
+describeWithDb('DaoSourceRepository poll cursor (integration)', () => {
   const suffix = randomUUID().slice(0, 8);
   let daoSourceId: string;
   let daoId: string;
-  const repo = new EvmPollCursorRepository(pgDb);
+  const repo = new DaoSourceRepository(pgDb);
 
   beforeAll(async () => {
     const dao = await pgDb
@@ -56,9 +56,7 @@ describeWithDb('EvmPollCursorRepository (integration)', () => {
   });
 
   afterAll(async () => {
-    // evm_poll_cursor and archive_event cascade from dao_source.
     await pgDb.deleteFrom('archive_event').where('dao_source_id', '=', daoSourceId).execute();
-    await pgDb.deleteFrom('evm_poll_cursor').where('dao_source_id', '=', daoSourceId).execute();
     await pgDb.deleteFrom('dao_source').where('id', '=', daoSourceId).execute();
     await pgDb.deleteFrom('dao').where('id', '=', daoId).execute();
   });
@@ -81,7 +79,7 @@ describeWithDb('EvmPollCursorRepository (integration)', () => {
   }
 
   it('returns null for a source with no cursor and no archive', async () => {
-    expect(await repo.read(daoSourceId)).toBeNull();
+    expect(await repo.readPollCursor(daoSourceId)).toBeNull();
   });
 
   it('falls back to the archive watermark when the source has never been polled', async () => {
@@ -89,35 +87,47 @@ describeWithDb('EvmPollCursorRepository (integration)', () => {
     await archiveAt('19000500', 2);
 
     // Without this the poller would resume at chain head and silently skip everything the backfill
-    // stopped short of — the exact gap this table exists to close.
-    expect(await repo.read(daoSourceId)).toBe(19_000_500n);
+    // stopped short of — the exact gap this column exists to close.
+    expect(await repo.readPollCursor(daoSourceId)).toBe(19_000_500n);
   });
 
   it('prefers the stored cursor over the archive watermark once written', async () => {
-    await repo.write(daoSourceId, 19_002_000n);
+    await repo.writePollCursor(daoSourceId, 19_002_000n);
 
-    expect(await repo.read(daoSourceId)).toBe(19_002_000n);
+    expect(await repo.readPollCursor(daoSourceId)).toBe(19_002_000n);
   });
 
-  it('upserts an existing cursor forward', async () => {
-    await repo.write(daoSourceId, 19_003_000n);
+  it('advances an existing cursor forward', async () => {
+    await repo.writePollCursor(daoSourceId, 19_003_000n);
 
-    expect(await repo.read(daoSourceId)).toBe(19_003_000n);
+    expect(await repo.readPollCursor(daoSourceId)).toBe(19_003_000n);
   });
 
   it('never moves the watermark backwards', async () => {
-    await repo.write(daoSourceId, 19_003_000n);
-    await repo.write(daoSourceId, 18_000_000n);
+    await repo.writePollCursor(daoSourceId, 19_003_000n);
+    await repo.writePollCursor(daoSourceId, 18_000_000n);
 
     // A regression would re-open a gap; concurrent or out-of-order ticks must not rewind it.
-    expect(await repo.read(daoSourceId)).toBe(19_003_000n);
+    expect(await repo.readPollCursor(daoSourceId)).toBe(19_003_000n);
   });
 
   it('round-trips a block height beyond 2^53', async () => {
     // bigint columns come back as strings precisely so heights outlive Number's safe range.
     const huge = 9_007_199_254_740_995n;
-    await repo.write(daoSourceId, huge);
+    await repo.writePollCursor(daoSourceId, huge);
 
-    expect(await repo.read(daoSourceId)).toBe(huge);
+    expect(await repo.readPollCursor(daoSourceId)).toBe(huge);
+  });
+
+  it('leaves the backfill watermarks untouched', async () => {
+    await repo.writePollCursor(daoSourceId, 19_004_000n);
+
+    // Different lifecycles sharing a row: the live path must not disturb a bounded run's checkpoint.
+    const row = await pgDb
+      .selectFrom('dao_source')
+      .select(['backfill_started_at_block', 'backfill_head_block'])
+      .where('id', '=', daoSourceId)
+      .executeTakeFirstOrThrow();
+    expect(row).toEqual({ backfill_started_at_block: null, backfill_head_block: null });
   });
 });

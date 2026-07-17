@@ -4,7 +4,6 @@ import {
   ArchiveEventRepository,
   DaoSourceRepository,
   DlqRepository,
-  EvmPollCursorRepository,
   OffChainCursorRepository,
 } from '@libs/db';
 import { DlqDepthService } from '../orchestrator/dlq-depth.service';
@@ -19,16 +18,8 @@ import { DlqDepthService } from '../orchestrator/dlq-depth.service';
     { provide: DlqRepository, useFactory: () => new DlqRepository(pgDb) },
     /* v8 ignore next -- prod-only-DI */
     { provide: OffChainCursorRepository, useFactory: () => new OffChainCursorRepository(pgDb) },
-    /* v8 ignore next -- prod-only-DI */
-    { provide: EvmPollCursorRepository, useFactory: () => new EvmPollCursorRepository(pgDb) },
     DlqDepthService,
   ],
-  exports: [
-    DaoSourceRepository,
-    ArchiveEventRepository,
-    DlqRepository,
-    OffChainCursorRepository,
-    EvmPollCursorRepository,
-  ],
+  exports: [DaoSourceRepository, ArchiveEventRepository, DlqRepository, OffChainCursorRepository],
 })
 export class IndexerInfraModule {}
