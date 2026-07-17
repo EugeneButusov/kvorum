@@ -7,17 +7,27 @@ import { lowercaseFilter } from './utils/filter.utils.js';
 
 const PROGRESS_LOG_BLOCK_INTERVAL = 50n;
 const PROGRESS_LOG_MS = 5 * 60 * 1_000;
+/** Providers cap eth_getLogs block ranges; 500 stays well inside the common limits. */
+const DEFAULT_MAX_BLOCKS_PER_TICK = 500;
 
-/** Polls eth_getLogs over a sliding window anchored at confirmed head.
+/** Polls eth_getLogs forward from a per-source watermark up to confirmed head.
  *
  *  Tick-dropping contract: if listeners are slower than pollIntervalMs the re-entry
- *  guard drops the overlapping tick and logs a warn. No events are lost (next tick
- *  re-fetches the same window), but ingestion_log_poll_lag_seconds grows
- *  unbounded under this condition — SPEC §6.20.2's alert fires on that gauge.
+ *  guard drops the overlapping tick and logs a warn. No events are lost (the cursor
+ *  only advances once a batch is accepted, so the next tick re-fetches the same
+ *  range), but ingestion_log_poll_lag_seconds grows unbounded under this condition
+ *  — SPEC §6.20.2's alert fires on that gauge.
  *
- *  Cold-start gap: on indexer restart after downtime exceeding 2 × headLag blocks
- *  (~5 min at mainnet 12s), events in the gap fall outside the first tick's window.
- *  Filling that gap is a backfill responsibility, not E3's scope. */
+ *  Catch-up: with a `cursor` the poller resumes from the last accepted block and
+ *  walks forward in `maxBlocksPerTick` chunks until it reaches confirmed head, so
+ *  downtime costs latency rather than data. The cursor advances only after every
+ *  listener resolves, so a failing listener re-reads its range instead of skipping
+ *  it — at the cost of stalling that source until it recovers, which the lag gauge
+ *  surfaces. That trade is deliberate: a visible stall beats a silent hole.
+ *
+ *  Without a `cursor` the poller keeps its legacy behaviour — a sliding window
+ *  anchored at confirmed head — and any downtime beyond 2 × headLag blocks (~5 min
+ *  at mainnet 12s) leaves an unread gap that only a backfill can fill. */
 export class EventPoller extends AbstractPoller {
   private readonly daoSourceLabel: string;
   private readonly filter: LogFilter;
@@ -26,6 +36,9 @@ export class EventPoller extends AbstractPoller {
   private lastLoggedHead: bigint = 0n;
   private lastLoggedAt: number = 0;
   private firstTickFired = false;
+  /** In-memory mirror of the cursor: read through on the first tick, written through thereafter, so
+   *  the steady state costs no extra read per tick. `undefined` = not yet loaded. */
+  private lastPolled: bigint | null | undefined = undefined;
 
   constructor(private readonly opts: EventPollerOptions) {
     super({
@@ -75,12 +88,17 @@ export class EventPoller extends AbstractPoller {
       return;
     }
 
-    const windowSize = BigInt(headLag) * 2n;
-    const fromBn = headBn > windowSize ? headBn - windowSize : 0n;
-    const fromHex = '0x' + fromBn.toString(16);
-    const toHex = '0x' + headBn.toString(16);
+    const range = await this.resolveRange(headBn);
+    if (range === undefined) return;
+    const { fromBn, toBn } = range;
 
-    chainMetrics.logPollWindowBlocks.record(Number(windowSize), { chain, dao_source: src });
+    const fromHex = '0x' + fromBn.toString(16);
+    const toHex = '0x' + toBn.toString(16);
+
+    chainMetrics.logPollWindowBlocks.record(Number(toBn - fromBn + 1n), {
+      chain,
+      dao_source: src,
+    });
 
     let rawLogs: unknown[];
     try {
@@ -101,15 +119,19 @@ export class EventPoller extends AbstractPoller {
     chainMetrics.logPollLag.record(0, { chain, dao_source: src });
 
     const now = Date.now();
+    const behind = headBn - toBn;
     if (
       headBn - this.lastLoggedHead >= PROGRESS_LOG_BLOCK_INTERVAL ||
-      now - this.lastLoggedAt >= PROGRESS_LOG_MS
+      now - this.lastLoggedAt >= PROGRESS_LOG_MS ||
+      behind > 0n
     ) {
       this.logger.info('poller_tick', {
         head: Number(headBn),
         advanced: Number(headBn - this.lastLoggedHead),
         source: src,
         chain,
+        // > 0 while walking a backlog; 0 once the source is at confirmed head.
+        blocks_behind: Number(behind),
       });
       this.lastLoggedHead = headBn;
       this.lastLoggedAt = now;
@@ -147,7 +169,12 @@ export class EventPoller extends AbstractPoller {
       }
     }
 
+    // A rejected listener leaves the cursor where it was, so the next tick re-fetches this exact
+    // range. That is the whole durability contract: never advance past a batch nobody accepted.
     if (!allListenersFulfilled) return;
+
+    await this.advanceCursor(toBn);
+
     if (!this.firstTickFired) {
       this.firstTickFired = true;
       try {
@@ -157,6 +184,57 @@ export class EventPoller extends AbstractPoller {
           `[chain:${chain}][source:${src}] EventPoller onFirstHeadComplete threw: ${String(err)}`,
         );
       }
+    }
+  }
+
+  /**
+   * The block range this tick should fetch, or undefined when there is nothing new.
+   *
+   * With a cursor: resume just past the last accepted block, capped at `maxBlocksPerTick` so a long
+   * backlog is walked in provider-sized chunks instead of demanded in one eth_getLogs call. Without
+   * one (or on a source never seen before): the legacy confirmed-head window, which bounds the very
+   * first fetch of a brand-new source to minutes rather than all of history — reaching back through
+   * history is a backfill's job.
+   */
+  private async resolveRange(
+    headBn: bigint,
+  ): Promise<{ fromBn: bigint; toBn: bigint } | undefined> {
+    const { headLag, cursor } = this.opts;
+    const windowSize = BigInt(headLag) * 2n;
+    const headWindowFrom = headBn > windowSize ? headBn - windowSize : 0n;
+
+    if (cursor === undefined) return { fromBn: headWindowFrom, toBn: headBn };
+
+    if (this.lastPolled === undefined) {
+      try {
+        this.lastPolled = await cursor.read();
+      } catch (err) {
+        this.logger.warn(`${this.logContext()} cursor read failed, skipping tick: ${String(err)}`);
+        return undefined;
+      }
+    }
+
+    if (this.lastPolled === null) return { fromBn: headWindowFrom, toBn: headBn };
+
+    const fromBn = this.lastPolled + 1n;
+    // Already at (or ahead of) confirmed head — nothing has been mined into the confirmed zone yet.
+    if (fromBn > headBn) return undefined;
+
+    const maxSpan = BigInt(this.opts.maxBlocksPerTick ?? DEFAULT_MAX_BLOCKS_PER_TICK);
+    const toBn = headBn - fromBn + 1n > maxSpan ? fromBn + maxSpan - 1n : headBn;
+    return { fromBn, toBn };
+  }
+
+  private async advanceCursor(toBn: bigint): Promise<void> {
+    const { cursor } = this.opts;
+    if (cursor === undefined) return;
+    try {
+      await cursor.write(toBn);
+      this.lastPolled = toBn;
+    } catch (err) {
+      // Leave the in-memory watermark untouched: the next tick re-fetches this range and the writes
+      // are idempotent on the archive 4-tuple (ADR-041), so a failed persist costs work, not data.
+      this.logger.error(`${this.logContext()} cursor write failed: ${String(err)}`);
     }
   }
 }

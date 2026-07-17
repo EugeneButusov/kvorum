@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Logger as ChainLogger } from '@libs/chain';
 import { EventPoller, ChainContextRegistry } from '@libs/chain';
+import { EvmPollCursorRepository } from '@libs/db';
 import type { IngestSpec, SourceContext } from '@sources/core';
 import type { FetchDriver, FetchDriverHandle } from './fetch-driver';
 import { JobQueueService } from '../queue/job-queue.service';
@@ -20,6 +21,7 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
   constructor(
     private readonly registry: ChainContextRegistry,
     private readonly jobQueue: JobQueueService,
+    private readonly pollCursors: EvmPollCursorRepository,
   ) {}
 
   async start(
@@ -44,6 +46,16 @@ export class EvmEventPollerDriver implements FetchDriver<'evm-event-poller'> {
       daoSourceLabel: ctx.daoSourceId,
       filter: spec.filter,
       pollIntervalMs,
+      // Resume where this source left off rather than at head, so a restart — or a backfill that
+      // finished days ago — is caught up rather than skipped (migration 0011).
+      cursor: {
+        read: () => this.pollCursors.read(ctx.daoSourceId),
+        write: (block) => this.pollCursors.write(ctx.daoSourceId, block),
+      },
+      maxBlocksPerTick:
+        process.env['EVENT_POLL_MAX_BLOCKS_PER_TICK'] == null
+          ? undefined
+          : Number(process.env['EVENT_POLL_MAX_BLOCKS_PER_TICK']),
       onFirstHeadComplete: opts?.onFirstHeadComplete,
       logger: this.chainLogger,
     });

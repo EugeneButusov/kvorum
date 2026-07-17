@@ -40,6 +40,7 @@ export type {
   HeadListener,
   EventsListener,
   EventPollerOptions,
+  PollCursorStore,
   HeadTrackerOptions,
 } from './poller/types.js';
 export { EventPoller } from './poller/event-poller.js';
