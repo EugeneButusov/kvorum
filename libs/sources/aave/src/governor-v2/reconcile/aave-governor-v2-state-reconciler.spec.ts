@@ -14,6 +14,7 @@ const STRATEGY = '0x' + '02'.repeat(20);
 const ZERO32 = '0x' + '00'.repeat(32);
 
 const BY_ID_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalById')!.selector;
+const STATE_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalState')!.selector;
 const GRACE_SELECTOR = EXECUTOR_GRACE_PERIOD_INTERFACE.getFunction('GRACE_PERIOD')!.selector;
 
 function makeLogger() {
@@ -74,13 +75,25 @@ function encodeProposal(f: {
   ]);
 }
 
-/** A client.send that dispatches getProposalById / GRACE_PERIOD / eth_getBlockByNumber by selector. */
-function makeSend(opts: { proposal: string; grace?: bigint | string; blockTimestampHex?: string }) {
+/** A client.send dispatching getProposalById / getProposalState / GRACE_PERIOD / block by selector. */
+function makeSend(opts: {
+  proposal: string;
+  /** getProposalState code, or 'revert' to make the eth_call throw (non-transient). */
+  stateCode?: number | 'revert';
+  grace?: bigint | string;
+  blockTimestampHex?: string;
+}) {
   return vi.fn(async (method: string, params: unknown[]) => {
     if (method === 'eth_getBlockByNumber') return { timestamp: opts.blockTimestampHex ?? '0x64' };
     if (method === 'eth_call') {
       const data = (params[0] as { data: string }).data;
       if (data.startsWith(BY_ID_SELECTOR)) return opts.proposal;
+      if (data.startsWith(STATE_SELECTOR)) {
+        if (opts.stateCode === 'revert') throw new Error('execution reverted');
+        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [
+          BigInt(opts.stateCode ?? 3),
+        ]);
+      }
       if (data.startsWith(GRACE_SELECTOR)) {
         return typeof opts.grace === 'string'
           ? opts.grace
@@ -98,26 +111,30 @@ function make() {
 }
 
 describe('AaveGovernorV2StateReconciler', () => {
-  it('reads getProposalById, never the reverting getProposalState', async () => {
+  it('calls getProposalState at endBlock+offset, not at the confirmed head', async () => {
     const proposals = makeProposals();
-    // confirmedThreshold below the proposal's start block → still pending on-chain.
-    const send = makeSend({ proposal: encodeProposal({ startBlock: 13_000_000n }) });
+    const END_BLOCK = 11_550_000n;
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: END_BLOCK, executionTime: 0n }),
+      stateCode: 3, // Failed
+      blockTimestampHex: '0x200',
+    });
 
     await make().reconcileRow({
-      row: makeRow({ state: 'pending' }),
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
       confirmedThreshold: 12_000_000n,
-      confirmedThresholdTag: '0xb71b00',
+      confirmedThresholdTag: '0xb71b00', // the confirmed head — getProposalState must NOT use this
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
-    // Every eth_call must target getProposalById or GRACE_PERIOD — never getProposalState.
-    const stateSel = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalState')!.selector;
-    for (const call of send.mock.calls) {
-      if (call[0] === 'eth_call') {
-        expect((call[1] as [{ data: string }])[0].data.startsWith(stateSel)).toBe(false);
-      }
-    }
+    // getProposalState reverts at the confirmed head, so it must be called near the proposal's own
+    // conclusion. Offset default is 5 → block 11_550_005 = 0xb04965.
+    const stateCall = send.mock.calls.find(
+      (c) => c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(STATE_SELECTOR),
+    );
+    expect(stateCall).toBeDefined();
+    expect((stateCall![1] as [unknown, string])[1]).toBe('0x' + (END_BLOCK + 5n).toString(16));
   });
 
   it('returns already_consistent when the derived state equals local state', async () => {
@@ -161,12 +178,13 @@ describe('AaveGovernorV2StateReconciler', () => {
     });
   });
 
-  it('corrects a concluded, never-queued proposal to defeated', async () => {
-    // executionTime 0 + confirmed head past endBlock = never queued, voting over → defeated.
-    // This is the case that could never resolve before: getProposalState reverted for it.
+  it('corrects a never-queued proposal to defeated when getProposalState says Failed', async () => {
+    // The case that could never resolve before: getProposalState reverted at head, but returns
+    // Failed(3) at endBlock+offset.
     const proposals = makeProposals();
     const send = makeSend({
       proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 3, // Failed
       blockTimestampHex: '0x200',
     });
 
@@ -184,8 +202,50 @@ describe('AaveGovernorV2StateReconciler', () => {
     );
   });
 
-  it('returns guard_skipped for defeated when voting_ends_block is null', async () => {
-    const send = makeSend({ proposal: encodeProposal({ executionTime: 0n }) });
+  it('corrects a never-queued proposal to succeeded when getProposalState says Succeeded', async () => {
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 4, // Succeeded — passed the vote but was never queued
+      blockTimestampHex: '0x200',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'succeeded' });
+  });
+
+  it('falls back to defeated when getProposalState reverts even at endBlock+offset', async () => {
+    // A proposal too close to the migration boundary: never-queued and concluded is still defeated.
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 'revert',
+      blockTimestampHex: '0x200',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+  });
+
+  it('returns guard_skipped for a never-queued proposal when voting_ends_block is null', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 0n }),
+      stateCode: 3,
+    });
 
     const result = await make().reconcileRow({
       row: makeRow({ state: 'pending', voting_ends_block: null }),

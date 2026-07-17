@@ -19,11 +19,25 @@ export class AaveGovernorV2StateDecodeError extends Error {
   }
 }
 
-// NOTE: `getProposalState` is intentionally NOT called. It — and the `isProposalPassed` it invokes —
-// revert for every historical proposal on the mainnet AaveGovernanceV2 contract, because the tally
-// is recomputed through the governance strategy's historical voting-power snapshot, which the v2→v3
-// migration broke. The reconciler derives state from `getProposalById` instead (see
-// `deriveAaveV2State`). The ABI fragment stays in the interface for reference and selector checks.
+export function encodeGetProposalStateCall(sourceId: string): string {
+  return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionData('getProposalState', [BigInt(sourceId)]);
+}
+
+export function decodeProposalStateResult(data: string): number {
+  try {
+    const [stateCode] = GOVERNOR_V2_STATE_INTERFACE.decodeFunctionResult('getProposalState', data);
+    return Number(stateCode);
+  } catch (err) {
+    throw new AaveGovernorV2StateDecodeError(
+      'failed to decode governor v2 getProposalState() result',
+      err,
+    );
+  }
+}
+
+/** AaveGovernanceV2 ProposalState enum values the reconciler acts on. */
+export const AAVE_V2_STATE_FAILED = 3;
+export const AAVE_V2_STATE_SUCCEEDED = 4;
 
 export function encodeGetProposalByIdCall(sourceId: string): string {
   return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionData('getProposalById', [BigInt(sourceId)]);
@@ -58,24 +72,23 @@ export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
 }
 
 /**
- * The state the reconciler derives for a stale v2 proposal, from `getProposalById` fields alone.
+ * Classifies a stale v2 proposal from the `getProposalById` struct, and says how the reconciler
+ * should finish resolving it. The mechanical facts (`canceled`, `executed`, `executionTime`) come
+ * straight from the struct; the two states with no on-chain event — the vote outcome and expiry —
+ * are handed back for a follow-up call.
  *
- * `getProposalState` is unusable against live mainnet: it — and the `isProposalPassed` it calls —
- * revert for EVERY historical proposal (verified against an executed one too), because the vote
- * tally is recomputed through the governance strategy's historical voting-power snapshot, which the
- * v2→v3 migration broke. `getProposalById` returns the raw struct and does not touch the strategy,
- * so it still works.
- *
- * This mirrors `AaveGovernanceV2.getProposalState` minus the one reverting branch — the
- * `isProposalPassed` check that decides Failed-vs-Succeeded for a concluded, never-queued proposal.
- * Dropping it is safe for reconciliation: a proposal whose voting ended and that was never queued
- * (`executionTime == 0`) did not advance to execution and is terminally Defeated. Had it passed it
- * would have been queued years ago; `executionTime == 0` proves it was not. `expired` covers the
- * inverse — queued but never executed within the grace window.
+ * Why not just call `getProposalState`? At the confirmed head it reverts for EVERY historical
+ * proposal (verified on an executed one too): it recomputes the tally through the governance
+ * strategy's voting-power snapshot, and the v2→v3 migration broke that path. It still works when
+ * called at a block near the proposal's own conclusion — see `needs_outcome`.
  */
 export type V2DerivedState =
-  | { kind: 'terminal'; state: 'canceled' | 'executed' | 'defeated' }
-  | { kind: 'awaiting_execution'; executionTime: bigint; executor: string } // queued or expired — needs grace
+  | { kind: 'terminal'; state: 'canceled' | 'executed' }
+  // Voting concluded, never queued (executionTime == 0). The Failed-vs-Succeeded verdict needs the
+  // quorum math, which `getProposalState` still does correctly when called at `endBlock`.
+  | { kind: 'needs_outcome'; endBlock: bigint }
+  // Queued (executionTime > 0) but no execute/cancel: expired vs still-queued, decided by grace.
+  | { kind: 'awaiting_execution'; executionTime: bigint; executor: string }
   | { kind: 'not_stale'; state: 'pending' | 'active' };
 
 export function deriveAaveV2State(
@@ -87,7 +100,7 @@ export function deriveAaveV2State(
   if (confirmedHead <= summary.startBlock) return { kind: 'not_stale', state: 'pending' };
   if (confirmedHead <= summary.endBlock) return { kind: 'not_stale', state: 'active' };
   // Voting has concluded at the confirmed head.
-  if (summary.executionTime === 0n) return { kind: 'terminal', state: 'defeated' };
+  if (summary.executionTime === 0n) return { kind: 'needs_outcome', endBlock: summary.endBlock };
   return {
     kind: 'awaiting_execution',
     executionTime: summary.executionTime,

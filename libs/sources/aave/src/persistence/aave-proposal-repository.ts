@@ -20,7 +20,7 @@ export type AaveV2StaleReconciliationRow = AaveStaleReconciliationRow;
 export interface AaveReconcileStateInput {
   proposalId: string;
   expectedStates: readonly ProposalState[];
-  targetState: Extract<ProposalState, 'expired' | 'active' | 'defeated'>;
+  targetState: Extract<ProposalState, 'expired' | 'active' | 'defeated' | 'succeeded'>;
   stateUpdatedAt: Date;
 }
 

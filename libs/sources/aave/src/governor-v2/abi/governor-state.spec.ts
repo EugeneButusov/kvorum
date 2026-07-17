@@ -3,6 +3,8 @@ import {
   GOVERNOR_V2_STATE_INTERFACE,
   EXECUTOR_GRACE_PERIOD_INTERFACE,
   AaveGovernorV2StateDecodeError,
+  encodeGetProposalStateCall,
+  decodeProposalStateResult,
   encodeGetProposalByIdCall,
   decodeGetProposalByIdResult,
   deriveAaveV2State,
@@ -10,6 +12,18 @@ import {
   decodeGracePeriodResult,
   type V2ProposalSummary,
 } from './governor-state';
+
+describe('encodeGetProposalStateCall / decodeProposalStateResult', () => {
+  it('round-trips a state code', () => {
+    expect(encodeGetProposalStateCall('42')).toMatch(/^0x/);
+    const encoded = GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [3n]);
+    expect(decodeProposalStateResult(encoded)).toBe(3);
+  });
+
+  it('throws AaveGovernorV2StateDecodeError on bad data', () => {
+    expect(() => decodeProposalStateResult('0xdeadbeef')).toThrow(AaveGovernorV2StateDecodeError);
+  });
+});
 
 describe('encodeGetProposalByIdCall / decodeGetProposalByIdResult', () => {
   it('decodes the fields the reconciler needs from the full struct', () => {
@@ -137,12 +151,12 @@ describe('deriveAaveV2State', () => {
     });
   });
 
-  it('concluded and never queued → defeated (the case getProposalState reverts on)', () => {
-    // Real example: v2 #22 — executionTime 0, voting long over. getProposalState reverts; the
-    // struct alone proves it never advanced to execution, so it is terminally defeated.
-    expect(deriveAaveV2State(summary({ executionTime: 0n }), HEAD)).toEqual({
-      kind: 'terminal',
-      state: 'defeated',
+  it('concluded and never queued → needs_outcome (caller fetches the vote verdict)', () => {
+    // Real example: v2 #22 — executionTime 0, voting long over. Whether it Failed or Succeeded needs
+    // the quorum math, which the reconciler gets from getProposalState at endBlock.
+    expect(deriveAaveV2State(summary({ executionTime: 0n, endBlock: 11_550_000n }), HEAD)).toEqual({
+      kind: 'needs_outcome',
+      endBlock: 11_550_000n,
     });
   });
 
