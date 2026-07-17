@@ -6,8 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ProposalFilters } from './proposal-filters';
-import { RowTally } from './row-tally';
 import { daoVariant, stateToVariant } from './state';
+import { TallySummary } from './tally-summary';
 import { Pill } from '@/components/ui/pill';
 import { StatePill } from '@/components/ui/state-pill';
 import {
@@ -183,7 +183,7 @@ function ProposalTableRow({ item, showDao }: { item: ProposalListItemView; showD
         <StatePill state={stateToVariant(item.state)}>{item.state}</StatePill>
       </TableCell>
       <TableCell className="align-top">
-        <RowTally bars={item.tally} />
+        <TallySummary bars={item.tally} />
       </TableCell>
       <TableCell className="whitespace-nowrap align-top">
         <div className="flex flex-col" suppressHydrationWarning>

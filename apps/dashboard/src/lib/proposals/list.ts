@@ -2,7 +2,7 @@
 // (shareable per §6.5), and the paged fetch. Server-supported filters only — has-mismatch/has-forum
 // and vote-count/VP sorts aren't in the list API, so they're not offered.
 
-import { presentRowTally, type RowTallyBar } from './detail';
+import { presentTallySummary, type TallySummaryBar } from './detail';
 import type { createApiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 
@@ -114,7 +114,7 @@ export type ProposalListItemView = {
   votingEndsAt: string | null;
   proposer: { address: string; displayName: string | null };
   /** For/Against/Abstain bars for the row; empty when no votes are cast yet. */
-  tally: RowTallyBar[];
+  tally: TallySummaryBar[];
   href: string;
 };
 
@@ -129,7 +129,7 @@ export function normalizeListItem(dto: RawListItem): ProposalListItemView {
     votingStartsAt: asString(dto.voting_starts_at),
     votingEndsAt: asString(dto.voting_ends_at),
     proposer: { address: dto.proposer.address, displayName: asString(dto.proposer.display_name) },
-    tally: presentRowTally(dto.tally?.choices),
+    tally: presentTallySummary(dto.tally?.choices),
     href: `/daos/${dto.dao_slug}/proposals/${dto.source_type}/${dto.source_id}`,
   };
 }

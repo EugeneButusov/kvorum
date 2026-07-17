@@ -178,16 +178,16 @@ export function classifyChoice(value: string): TallyKind {
   return 'abstain';
 }
 
-export type RowTallyBar = { kind: TallyKind; pct: number };
+export type TallySummaryBar = { kind: TallyKind; pct: number };
 
 /**
- * Collapse a list-row's per-choice tally into up to three For/Against/Abstain bars (§6.5), summing
+ * Collapse a list-row's per-choice tally into up to three for/against/abstain bars (§6.5), summing
  * each choice's share into its classified bucket. Same `classifyChoice` the detail tally uses, so a
  * row and its detail page always agree on which colour a choice takes. Empty when there are no votes.
  */
-export function presentRowTally(
+export function presentTallySummary(
   choices: readonly { label: string; pct: number }[] | null | undefined,
-): RowTallyBar[] {
+): TallySummaryBar[] {
   if (!choices || choices.length === 0) return [];
   const byKind = new Map<TallyKind, number>();
   for (const choice of choices) {

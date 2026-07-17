@@ -2,7 +2,7 @@ import {
   classifyChoice,
   normalizeProposalDetail,
   normalizeVote,
-  presentRowTally,
+  presentTallySummary,
   presentTally,
   scaleReportedPower,
   type TallyData,
@@ -141,10 +141,10 @@ describe('normalizers coerce the generator-mistyped nullable fields', () => {
   });
 });
 
-describe('presentRowTally', () => {
+describe('presentTallySummary', () => {
   it('classifies choice labels into ordered For/Against/Abstain bars', () => {
     expect(
-      presentRowTally([
+      presentTallySummary([
         { label: 'For', pct: 78 },
         { label: 'Against', pct: 19 },
         { label: 'Abstain', pct: 3 },
@@ -159,7 +159,7 @@ describe('presentRowTally', () => {
   it('sums choices that classify into the same bucket', () => {
     // Two "yes"-family labels both fold into the For bar.
     expect(
-      presentRowTally([
+      presentTallySummary([
         { label: 'Yes', pct: 40 },
         { label: 'Approve', pct: 20 },
         { label: 'No', pct: 40 },
@@ -171,11 +171,11 @@ describe('presentRowTally', () => {
   });
 
   it('omits a bucket with no matching choice rather than drawing an empty bar', () => {
-    expect(presentRowTally([{ label: 'For', pct: 100 }])).toEqual([{ kind: 'for', pct: 100 }]);
+    expect(presentTallySummary([{ label: 'For', pct: 100 }])).toEqual([{ kind: 'for', pct: 100 }]);
   });
 
   it('is empty when there are no votes, so the row shows a dash', () => {
-    expect(presentRowTally(null)).toEqual([]);
-    expect(presentRowTally([])).toEqual([]);
+    expect(presentTallySummary(null)).toEqual([]);
+    expect(presentTallySummary([])).toEqual([]);
   });
 });

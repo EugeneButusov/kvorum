@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/react';
 
-import { RowTally } from './row-tally';
+import { TallySummary } from './tally-summary';
 
-describe('RowTally', () => {
+describe('TallySummary', () => {
   it('renders a labelled bar per bucket with the percentage', () => {
     render(
-      <RowTally
+      <TallySummary
         bars={[
           { kind: 'for', pct: 78 },
           { kind: 'against', pct: 19 },
@@ -23,7 +23,7 @@ describe('RowTally', () => {
   });
 
   it('shows a dash when there are no votes, not an empty group', () => {
-    render(<RowTally bars={[]} />);
+    render(<TallySummary bars={[]} />);
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();

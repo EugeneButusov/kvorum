@@ -1,4 +1,4 @@
-import type { RowTallyBar } from '@/lib/proposals/detail';
+import type { TallySummaryBar } from '@/lib/proposals/detail';
 import type { TallyKind } from '@/lib/proposals/detail';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ const BAR_LABEL: Record<TallyKind, string> = {
  * stacked list of for / against / abstain rows, each a label, a thin track with a coloured fill, and
  * the percentage. Figures are the server-computed shares; the whole group is one labelled image for AT.
  */
-export function RowTally({ bars }: { bars: RowTallyBar[] }) {
+export function TallySummary({ bars }: { bars: TallySummaryBar[] }) {
   if (bars.length === 0) return <span className="text-ink-4">—</span>;
 
   return (
