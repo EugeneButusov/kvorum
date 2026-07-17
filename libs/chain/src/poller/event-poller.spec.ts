@@ -420,15 +420,23 @@ describe('EventPoller', () => {
       expect(cursor.value).toBe(988n);
     });
 
-    it('caps a large backlog at maxBlocksPerTick', async () => {
+    it('caps each chunk at maxBlocksPerTick while walking a backlog', async () => {
       const { rpcClient, ranges } = stubClient(10_000n);
       const cursor = memoryCursor(0n);
 
       await runOneTick({ cursor: cursor.store, maxBlocksPerTick: 500 }, rpcClient);
 
-      // One provider-sized chunk, not a 9,988-block demand that eth_getLogs would reject.
-      expect(ranges).toEqual([{ from: 1n, to: 500n }]);
-      expect(cursor.value).toBe(500n);
+      // Provider-sized chunks, never a 9,988-block demand that eth_getLogs would reject...
+      expect(ranges[0]).toEqual({ from: 1n, to: 500n });
+      for (const r of ranges) expect(r.to - r.from + 1n).toBeLessThanOrEqual(500n);
+      // ...walked back-to-back within the tick, and contiguous — no block skipped between chunks.
+      for (let i = 1; i < ranges.length; i++) {
+        expect(ranges[i]!.from).toBe(ranges[i - 1]!.to + 1n);
+      }
+      expect(ranges.length).toBeGreaterThan(1);
+      // Bounded per tick (MAX_CHUNKS_PER_TICK = 20) so a huge backlog cannot hold the tick forever.
+      expect(ranges.length).toBe(20);
+      expect(cursor.value).toBe(10_000n - 12n > 20n * 500n ? 20n * 500n : 9_988n);
     });
 
     it('walks a backlog across ticks until it reaches confirmed head', async () => {

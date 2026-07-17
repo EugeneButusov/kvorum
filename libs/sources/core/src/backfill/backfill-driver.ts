@@ -121,6 +121,14 @@ export class BackfillDriver {
         logger,
         onChunkComplete: async (chunkEnd) => {
           await daoSourceRepo.updateBackfillHead(input.daoSourceId, chunkEnd);
+          // Two watermarks, two lifecycles. `backfill_head_block` is this run's resume checkpoint
+          // and is cleared once the run completes, so it cannot tell the live poller where scanning
+          // got to. `poll_cursor_block` is permanent: it records the highest block scanned for this
+          // source by any path, so the poller resumes exactly where the backfill stopped instead of
+          // inferring it from the last archived *event* — which for a retired governor is years
+          // behind the blocks we actually read. writePollCursor never moves it backwards, so
+          // backfilling old history below a live cursor leaves it alone.
+          await daoSourceRepo.writePollCursor(input.daoSourceId, chunkEnd);
           lastCheckpointedBlock = chunkEnd;
           logger.info('backfill_chunk_complete', {
             daoSourceId: input.daoSourceId,

@@ -7,8 +7,12 @@ import { lowercaseFilter } from './utils/filter.utils.js';
 
 const PROGRESS_LOG_BLOCK_INTERVAL = 50n;
 const PROGRESS_LOG_MS = 5 * 60 * 1_000;
-/** Providers cap eth_getLogs block ranges; 500 stays well inside the common limits. */
-const DEFAULT_MAX_BLOCKS_PER_TICK = 500;
+/** Matches BackfillRangeFetcher's proven eth_getLogs range for the same providers. */
+const DEFAULT_MAX_BLOCKS_PER_CHUNK = 10_000;
+/** Chunks walked back-to-back in one catch-up tick before yielding. */
+const MAX_CHUNKS_PER_TICK = 20;
+/** Wall-clock ceiling for a catch-up tick, so stop() is never left waiting on a long backlog. */
+const CATCH_UP_BUDGET_MS = 30_000;
 
 /** Polls eth_getLogs forward from a per-source watermark up to confirmed head.
  *
@@ -74,7 +78,7 @@ export class EventPoller extends AbstractPoller {
   }
 
   protected override async runTick(): Promise<void> {
-    const { rpcClient, chainId, headLag, sourceType } = this.opts;
+    const { rpcClient, headLag } = this.opts;
     const chain = this.chainName;
     const src = this.daoSourceLabel;
 
@@ -88,8 +92,32 @@ export class EventPoller extends AbstractPoller {
       return;
     }
 
-    const range = await this.resolveRange(headBn);
-    if (range === undefined) return;
+    // Walk chunks back-to-back while behind rather than sleeping a full poll interval between them:
+    // a source resuming from an old watermark can be millions of blocks back (a retired governor's
+    // range is empty but still has to be read), and one chunk per tick would take days. Bounded per
+    // tick so a long catch-up cannot starve stop() or hold the re-entry guard indefinitely.
+    const deadline = Date.now() + CATCH_UP_BUDGET_MS;
+    for (let chunk = 0; chunk < MAX_CHUNKS_PER_TICK; chunk++) {
+      const range = await this.resolveRange(headBn);
+      if (range === undefined) return;
+
+      const advanced = await this.pollRange(range, headBn);
+      // Fetch failed or a listener rejected: leave the cursor put and retry the same range next tick.
+      if (!advanced) return;
+      // Caught up to confirmed head — nothing further to read until the chain moves.
+      if (range.toBn >= headBn) return;
+      if (this.stopped || Date.now() >= deadline) return;
+    }
+  }
+
+  /** Fetch, dispatch and checkpoint one block range. Returns false when the range was not accepted. */
+  private async pollRange(
+    range: { fromBn: bigint; toBn: bigint },
+    headBn: bigint,
+  ): Promise<boolean> {
+    const { rpcClient, chainId, sourceType } = this.opts;
+    const chain = this.chainName;
+    const src = this.daoSourceLabel;
     const { fromBn, toBn } = range;
 
     const fromHex = '0x' + fromBn.toString(16);
@@ -112,7 +140,7 @@ export class EventPoller extends AbstractPoller {
       this.logger.warn(
         `[chain:${chain}][source:${src}] EventPoller eth_getLogs failed: ${String(err)}`,
       );
-      return;
+      return false;
     }
 
     this.lastSuccessAt = new Date();
@@ -171,7 +199,7 @@ export class EventPoller extends AbstractPoller {
 
     // A rejected listener leaves the cursor where it was, so the next tick re-fetches this exact
     // range. That is the whole durability contract: never advance past a batch nobody accepted.
-    if (!allListenersFulfilled) return;
+    if (!allListenersFulfilled) return false;
 
     await this.advanceCursor(toBn);
 
@@ -185,6 +213,7 @@ export class EventPoller extends AbstractPoller {
         );
       }
     }
+    return true;
   }
 
   /**
@@ -220,7 +249,7 @@ export class EventPoller extends AbstractPoller {
     // Already at (or ahead of) confirmed head — nothing has been mined into the confirmed zone yet.
     if (fromBn > headBn) return undefined;
 
-    const maxSpan = BigInt(this.opts.maxBlocksPerTick ?? DEFAULT_MAX_BLOCKS_PER_TICK);
+    const maxSpan = BigInt(this.opts.maxBlocksPerTick ?? DEFAULT_MAX_BLOCKS_PER_CHUNK);
     const toBn = headBn - fromBn + 1n > maxSpan ? fromBn + maxSpan - 1n : headBn;
     return { fromBn, toBn };
   }
