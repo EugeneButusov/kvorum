@@ -39,7 +39,6 @@ export type ProposalListProps = {
   initialSort: ProposalSort;
   initialPage: ProposalPage;
   daoOptions?: { slug: string; name: string }[];
-  sourceOptions?: string[];
 };
 
 /**
@@ -56,7 +55,6 @@ export function ProposalList({
   initialSort,
   initialPage,
   daoOptions = [],
-  sourceOptions = [],
 }: ProposalListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -108,7 +106,6 @@ export function ProposalList({
         filters={filters}
         onChange={setFilters}
         daoOptions={daoOptions}
-        sourceOptions={sourceOptions}
       />
 
       <div className="flex items-center justify-between font-mono text-caption text-ink-3">

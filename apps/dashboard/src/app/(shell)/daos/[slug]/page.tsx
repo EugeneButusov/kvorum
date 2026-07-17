@@ -62,7 +62,6 @@ async function loadDao(slug: string): Promise<DaoInfo> {
 const BASE_FILTERS: ProposalFilters = {
   dao: [],
   state: [],
-  sourceType: null,
   binding: null,
   startsMin: null,
   startsMax: null,

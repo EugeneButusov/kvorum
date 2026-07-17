@@ -33,8 +33,6 @@ export type ProposalFilters = {
   /** Cross-DAO only; empty = all DAOs. */
   dao: string[];
   state: string[];
-  /** DAO-scoped only (single source_type). */
-  sourceType: string | null;
   binding: boolean | null;
   startsMin: string | null;
   startsMax: string | null;
@@ -47,7 +45,6 @@ export const DEFAULT_SORT: ProposalSort = { field: 'voting_ends_at', dir: 'desc'
 export const EMPTY_FILTERS: ProposalFilters = {
   dao: [],
   state: DEFAULT_STATES,
-  sourceType: null,
   binding: null,
   startsMin: null,
   startsMax: null,
@@ -82,7 +79,6 @@ export function parseListParams(params: URLSearchParams): {
     filters: {
       dao: splitCsv(params.get('dao')),
       state: params.has('state') ? splitCsv(params.get('state')) : DEFAULT_STATES,
-      sourceType: params.get('source') || null,
       binding: bindingRaw === 'true' ? true : bindingRaw === 'false' ? false : null,
       startsMin: params.get('starts_min') || null,
       startsMax: params.get('starts_max') || null,
@@ -106,7 +102,6 @@ export function toSearchParams(filters: ProposalFilters, sort: ProposalSort): UR
   const p = new URLSearchParams();
   if (filters.dao.length) p.set('dao', filters.dao.join(','));
   if (!isDefaultStates(filters.state)) p.set('state', filters.state.join(','));
-  if (filters.sourceType) p.set('source', filters.sourceType);
   if (filters.binding != null) p.set('binding', String(filters.binding));
   if (filters.startsMin) p.set('starts_min', filters.startsMin);
   if (filters.startsMax) p.set('starts_max', filters.startsMax);
@@ -172,13 +167,8 @@ function buildQuery(args: FetchProposalsArgs): Record<string, string | number | 
   if (filters.binding != null) q.binding = filters.binding;
   if (filters.startsMin) q.voting_starts_at_min = filters.startsMin;
   if (filters.startsMax) q.voting_starts_at_max = filters.startsMax;
-  if (slug) {
-    // DAO-scoped adds the single-source filter.
-    if (filters.sourceType) q.source_type = filters.sourceType;
-  } else if (filters.dao.length) {
-    // Cross-DAO takes the DAO multi-select.
-    q.dao = filters.dao.join(',');
-  }
+  // Cross-DAO takes the DAO multi-select; DAO-scoped is already narrowed by its path.
+  if (!slug && filters.dao.length) q.dao = filters.dao.join(',');
   return q;
 }
 

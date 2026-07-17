@@ -17,7 +17,6 @@ import { fetchProposalPage, type ProposalFilters } from '@/lib/proposals/list';
 const ALL_STATES: ProposalFilters = {
   dao: [],
   state: [],
-  sourceType: null,
   binding: null,
   startsMin: null,
   startsMax: null,

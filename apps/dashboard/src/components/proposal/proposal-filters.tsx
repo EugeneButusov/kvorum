@@ -2,7 +2,6 @@
 
 import { Segmented, SegmentedItem } from '@/components/ui/segmented';
 import { EMPTY_FILTERS, type ProposalFilters } from '@/lib/proposals/list';
-import { sourceLabel } from '@/lib/proposals/source';
 
 // A curated set of states to filter by (source states fold onto these); mirrors the pill treatments.
 export const STATE_OPTIONS = [
@@ -25,25 +24,17 @@ export type ProposalFiltersProps = {
   onChange: (next: ProposalFilters) => void;
   /** Cross-DAO DAO options. */
   daoOptions: { slug: string; name: string }[];
-  /** DAO-scoped source options (filter shown only when the DAO has more than one). */
-  sourceOptions: string[];
 };
 
 /**
- * Horizontal filter strip (§6.5 / §6.8): DAO / state / source / type facets + a voting-start range,
- * above the table. All state is lifted to the list, which mirrors it into the URL. Full-text search
- * and a mismatch-severity facet from the reference need list-API support / M5 and aren't offered yet.
+ * Horizontal filter strip (§6.5 / §6.8): DAO / state / type facets + a voting-start range, above the
+ * table. All state is lifted to the list, which mirrors it into the URL. Full-text search and a
+ * mismatch-severity facet from the reference need list-API support / M5 and aren't offered yet.
  *
  * Each facet is a segmented control, per the reference's `.seg`: one joined group with a leading
  * "All", not free-standing chips.
  */
-export function ProposalFilters({
-  scope,
-  filters,
-  onChange,
-  daoOptions,
-  sourceOptions,
-}: ProposalFiltersProps) {
+export function ProposalFilters({ scope, filters, onChange, daoOptions }: ProposalFiltersProps) {
   const toDate = (value: string) => (value ? `${value}T00:00:00.000Z` : null);
   const fromDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '');
 
@@ -96,30 +87,6 @@ export function ProposalFilters({
           ))}
         </Segmented>
       </Group>
-
-      {scope === 'dao' && sourceOptions.length > 1 && (
-        <>
-          <Sep />
-          <Group label="Source">
-            <Segmented
-              type="single"
-              aria-label="Filter by source"
-              value={filters.sourceType ?? ALL}
-              onValueChange={(next: string) =>
-                // Radix emits '' when the active item is re-pressed; treat that as "All".
-                onChange({ ...filters, sourceType: next === ALL || next === '' ? null : next })
-              }
-            >
-              <SegmentedItem value={ALL}>All</SegmentedItem>
-              {sourceOptions.map((s) => (
-                <SegmentedItem key={s} value={s}>
-                  {sourceLabel(s)}
-                </SegmentedItem>
-              ))}
-            </Segmented>
-          </Group>
-        </>
-      )}
 
       <Sep />
       <Group label="Type">
