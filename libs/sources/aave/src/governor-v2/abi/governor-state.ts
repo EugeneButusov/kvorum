@@ -1,5 +1,4 @@
 import { Interface } from 'ethers';
-import type { ProposalState } from '@libs/db';
 
 export const GOVERNOR_V2_STATE_INTERFACE = new Interface([
   'function getProposalState(uint256 proposalId) view returns (uint8)',
@@ -20,21 +19,11 @@ export class AaveGovernorV2StateDecodeError extends Error {
   }
 }
 
-export function encodeGetProposalStateCall(sourceId: string): string {
-  return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionData('getProposalState', [BigInt(sourceId)]);
-}
-
-export function decodeProposalStateResult(data: string): number {
-  try {
-    const [stateCode] = GOVERNOR_V2_STATE_INTERFACE.decodeFunctionResult('getProposalState', data);
-    return Number(stateCode);
-  } catch (err) {
-    throw new AaveGovernorV2StateDecodeError(
-      'failed to decode governor v2 getProposalState() result',
-      err,
-    );
-  }
-}
+// NOTE: `getProposalState` is intentionally NOT called. It — and the `isProposalPassed` it invokes —
+// revert for every historical proposal on the mainnet AaveGovernanceV2 contract, because the tally
+// is recomputed through the governance strategy's historical voting-power snapshot, which the v2→v3
+// migration broke. The reconciler derives state from `getProposalById` instead (see
+// `deriveAaveV2State`). The ABI fragment stays in the interface for reference and selector checks.
 
 export function encodeGetProposalByIdCall(sourceId: string): string {
   return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionData('getProposalById', [BigInt(sourceId)]);
@@ -43,6 +32,10 @@ export function encodeGetProposalByIdCall(sourceId: string): string {
 export interface V2ProposalSummary {
   executor: string;
   executionTime: bigint;
+  startBlock: bigint;
+  endBlock: bigint;
+  executed: boolean;
+  canceled: boolean;
 }
 
 export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
@@ -51,6 +44,10 @@ export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
     return {
       executor: (proposal.executor as string).toLowerCase(),
       executionTime: proposal.executionTime as bigint,
+      startBlock: proposal.startBlock as bigint,
+      endBlock: proposal.endBlock as bigint,
+      executed: proposal.executed as boolean,
+      canceled: proposal.canceled as boolean,
     };
   } catch (err) {
     throw new AaveGovernorV2StateDecodeError(
@@ -58,6 +55,44 @@ export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
       err,
     );
   }
+}
+
+/**
+ * The state the reconciler derives for a stale v2 proposal, from `getProposalById` fields alone.
+ *
+ * `getProposalState` is unusable against live mainnet: it — and the `isProposalPassed` it calls —
+ * revert for EVERY historical proposal (verified against an executed one too), because the vote
+ * tally is recomputed through the governance strategy's historical voting-power snapshot, which the
+ * v2→v3 migration broke. `getProposalById` returns the raw struct and does not touch the strategy,
+ * so it still works.
+ *
+ * This mirrors `AaveGovernanceV2.getProposalState` minus the one reverting branch — the
+ * `isProposalPassed` check that decides Failed-vs-Succeeded for a concluded, never-queued proposal.
+ * Dropping it is safe for reconciliation: a proposal whose voting ended and that was never queued
+ * (`executionTime == 0`) did not advance to execution and is terminally Defeated. Had it passed it
+ * would have been queued years ago; `executionTime == 0` proves it was not. `expired` covers the
+ * inverse — queued but never executed within the grace window.
+ */
+export type V2DerivedState =
+  | { kind: 'terminal'; state: 'canceled' | 'executed' | 'defeated' }
+  | { kind: 'awaiting_execution'; executionTime: bigint; executor: string } // queued or expired — needs grace
+  | { kind: 'not_stale'; state: 'pending' | 'active' };
+
+export function deriveAaveV2State(
+  summary: V2ProposalSummary,
+  confirmedHead: bigint,
+): V2DerivedState {
+  if (summary.canceled) return { kind: 'terminal', state: 'canceled' };
+  if (summary.executed) return { kind: 'terminal', state: 'executed' };
+  if (confirmedHead <= summary.startBlock) return { kind: 'not_stale', state: 'pending' };
+  if (confirmedHead <= summary.endBlock) return { kind: 'not_stale', state: 'active' };
+  // Voting has concluded at the confirmed head.
+  if (summary.executionTime === 0n) return { kind: 'terminal', state: 'defeated' };
+  return {
+    kind: 'awaiting_execution',
+    executionTime: summary.executionTime,
+    executor: summary.executor,
+  };
 }
 
 export function encodeGracePeriodCall(): string {
@@ -76,31 +111,5 @@ export function decodeGracePeriodResult(data: string): number {
       'failed to decode executor GRACE_PERIOD() result',
       err,
     );
-  }
-}
-
-export function mapAaveV2StateCode(code: number): ProposalState {
-  switch (code) {
-    case 0:
-      return 'pending';
-    case 1:
-      return 'canceled';
-    case 2:
-      return 'active';
-    case 3:
-      return 'defeated';
-    case 4:
-      return 'succeeded';
-    case 5:
-      return 'queued';
-    case 6:
-      return 'expired';
-    case 7:
-      return 'executed';
-    default:
-      throw new AaveGovernorV2StateDecodeError(
-        `unknown Aave governor v2 state code: ${code}`,
-        code,
-      );
   }
 }
