@@ -69,6 +69,24 @@ export class ProposalChoiceDto {
   declare value: string;
 }
 
+export class ProposalRowTallyChoiceDto {
+  @ApiProperty()
+  declare choice_index: number;
+
+  @ApiProperty({
+    description: 'The declared choice label, e.g. "For" — for client-side classification.',
+  })
+  declare label: string;
+
+  @ApiProperty({ description: 'Share of participating power, 0–100, to two decimals.' })
+  declare pct: number;
+}
+
+export class ProposalRowTallyDto {
+  @ApiProperty({ type: [ProposalRowTallyChoiceDto] })
+  declare choices: ProposalRowTallyChoiceDto[];
+}
+
 export class ProposalListItemDto {
   @ApiProperty()
   declare dao_slug: string;
@@ -96,6 +114,13 @@ export class ProposalListItemDto {
 
   @ApiProperty({ type: ProposerDto })
   declare proposer: ProposerDto;
+
+  @ApiPropertyOptional({
+    type: ProposalRowTallyDto,
+    nullable: true,
+    description: 'Per-choice voting-power tally for the row bars; null when no votes are cast yet.',
+  })
+  declare tally: ProposalRowTallyDto | null;
 
   @ApiProperty({ type: ProposalMetaDto })
   declare _meta: ProposalMetaDto;

@@ -25,7 +25,8 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['description']).toBeUndefined();
     expect((dto as Record<string, unknown>)['actions']).toBeUndefined();
     expect((dto as Record<string, unknown>)['choices']).toBeUndefined();
-    expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+    // tally is a list field, null when the caller passes no tally (no votes yet).
+    expect(dto.tally).toBeNull();
     expect((dto as Record<string, unknown>)['forum']).toBeUndefined();
   });
 

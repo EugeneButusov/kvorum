@@ -2983,6 +2983,35 @@
         },
         "required": ["address"]
       },
+      "ProposalRowTallyChoiceDto": {
+        "type": "object",
+        "properties": {
+          "choice_index": {
+            "type": "number"
+          },
+          "label": {
+            "type": "string",
+            "description": "The declared choice label, e.g. \"For\" — for client-side classification."
+          },
+          "pct": {
+            "type": "number",
+            "description": "Share of participating power, 0–100, to two decimals."
+          }
+        },
+        "required": ["choice_index", "label", "pct"]
+      },
+      "ProposalRowTallyDto": {
+        "type": "object",
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalRowTallyChoiceDto"
+            }
+          }
+        },
+        "required": ["choices"]
+      },
       "ProposalLinksDto": {
         "type": "object",
         "properties": {
@@ -3042,6 +3071,16 @@
           },
           "proposer": {
             "$ref": "#/components/schemas/ProposerDto"
+          },
+          "tally": {
+            "nullable": true,
+            "description": "Per-choice voting-power tally for the row bars; null when no votes are cast yet.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProposalRowTallyDto"
+              }
+            ]
           },
           "_meta": {
             "$ref": "#/components/schemas/ProposalMetaDto"
@@ -3393,6 +3432,16 @@
           },
           "proposer": {
             "$ref": "#/components/schemas/ProposerDto"
+          },
+          "tally": {
+            "nullable": true,
+            "description": "Per-choice voting-power tally for the row bars; null when no votes are cast yet.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProposalRowTallyDto"
+              }
+            ]
           },
           "_meta": {
             "$ref": "#/components/schemas/ProposalMetaDto"

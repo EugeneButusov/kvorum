@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleTally, extractChoiceScores } from './proposal-tally';
+import { assembleRowTally, assembleTally, extractChoiceScores } from './proposal-tally';
 
 describe('assembleTally — from votes', () => {
   it('sums per choice and derives exact percentages', () => {
@@ -96,5 +96,56 @@ describe('extractChoiceScores', () => {
     expect(extractChoiceScores({ kind: 'snapshot', choice_scores: null })).toBeNull();
     expect(extractChoiceScores({ kind: 'aragon_voting' })).toBeNull();
     expect(extractChoiceScores(null)).toBeNull();
+  });
+});
+
+describe('assembleRowTally', () => {
+  const choices = [
+    { proposal_id: 'p1', choice_index: 0, value: 'For' },
+    { proposal_id: 'p1', choice_index: 1, value: 'Against' },
+    { proposal_id: 'p1', choice_index: 2, value: 'Abstain' },
+  ];
+
+  it('labels each choice and carries the exact percentage', () => {
+    const out = assembleRowTally({
+      declaredChoices: choices,
+      aggregate: [
+        { primary_choice: 0, voting_power: '780', voter_count: 12 },
+        { primary_choice: 1, voting_power: '190', voter_count: 4 },
+        { primary_choice: 2, voting_power: '30', voter_count: 1 },
+      ],
+    });
+
+    expect(out).toEqual([
+      { choice_index: 0, label: 'For', pct: 78 },
+      { choice_index: 1, label: 'Against', pct: 19 },
+      { choice_index: 2, label: 'Abstain', pct: 3 },
+    ]);
+  });
+
+  it('returns null when no votes are cast, so the row draws no bars', () => {
+    expect(assembleRowTally({ declaredChoices: choices, aggregate: [] })).toBeNull();
+  });
+
+  it('surfaces a declared choice that received no votes at 0%', () => {
+    const out = assembleRowTally({
+      declaredChoices: choices,
+      aggregate: [{ primary_choice: 0, voting_power: '100', voter_count: 1 }],
+    });
+
+    expect(out).toEqual([
+      { choice_index: 0, label: 'For', pct: 100 },
+      { choice_index: 1, label: 'Against', pct: 0 },
+      { choice_index: 2, label: 'Abstain', pct: 0 },
+    ]);
+  });
+
+  it('falls back to a positional label for a choice the proposal never declared', () => {
+    const out = assembleRowTally({
+      declaredChoices: [],
+      aggregate: [{ primary_choice: 3, voting_power: '100', voter_count: 1 }],
+    });
+
+    expect(out).toEqual([{ choice_index: 3, label: 'Choice 4', pct: 100 }]);
   });
 });

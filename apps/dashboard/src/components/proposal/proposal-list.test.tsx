@@ -33,6 +33,10 @@ function item(id: string, title: string): ProposalListItemView {
     votingStartsAt: null,
     votingEndsAt: null,
     proposer: { address: '0xabc', displayName: null },
+    tally: [
+      { kind: 'for', pct: 75 },
+      { kind: 'against', pct: 25 },
+    ],
     href: `/daos/lido/proposals/snapshot/${id}`,
   };
 }

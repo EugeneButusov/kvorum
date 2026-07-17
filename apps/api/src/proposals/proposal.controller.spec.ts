@@ -8,6 +8,7 @@ import type { ApiListQueryDto } from '../openapi/query.dto';
 function makeVoteRepo(overrides?: Partial<VoteReadRepository>): VoteReadRepository {
   return {
     tallyForProposal: vi.fn().mockResolvedValue([]),
+    tallyForProposals: vi.fn().mockResolvedValue(new Map()),
     ...overrides,
   } as unknown as VoteReadRepository;
 }
@@ -65,7 +66,10 @@ describe('ProposalController', () => {
   describe('listByDao', () => {
     it('returns proposal list for known dao', async () => {
       const qb = makeQb([baseProposalRow]);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -76,6 +80,59 @@ describe('ProposalController', () => {
 
       const out = await controller.listByDao('compound', {} as ApiListQueryDto);
       expect(out.data).toHaveLength(1);
+      // No votes/choices seeded, so the row carries a null tally rather than empty bars.
+      expect(out.data[0]!.tally).toBeNull();
+    });
+
+    it('attaches a labelled per-choice tally, batched for the whole page', async () => {
+      const qb = makeQb([baseProposalRow]);
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(
+          new Map([
+            [
+              'p1',
+              [
+                { proposal_id: 'p1', choice_index: 0, value: 'For' },
+                { proposal_id: 'p1', choice_index: 1, value: 'Against' },
+              ],
+            ],
+          ]),
+        ),
+      };
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const voteRepo = makeVoteRepo({
+        tallyForProposals: vi.fn().mockResolvedValue(
+          new Map([
+            [
+              'p1',
+              [
+                { primary_choice: 0, voting_power: '750', voter_count: 3 },
+                { primary_choice: 1, voting_power: '250', voter_count: 1 },
+              ],
+            ],
+          ]),
+        ),
+      });
+      const controller = new ProposalController(
+        repo as unknown as ProposalReadRepository,
+        daoRepo as unknown as DaoReadRepository,
+        voteRepo,
+        makeExtensions(),
+      );
+
+      const out = await controller.listByDao('compound', {} as ApiListQueryDto);
+
+      expect(out.data[0]!.tally).toEqual({
+        choices: [
+          { choice_index: 0, label: 'For', pct: 75 },
+          { choice_index: 1, label: 'Against', pct: 25 },
+        ],
+      });
+      // One batched read each, regardless of page size.
+      expect(voteRepo.tallyForProposals).toHaveBeenCalledTimes(1);
+      expect(repo.findChoicesForProposals).toHaveBeenCalledTimes(1);
+      expect(voteRepo.tallyForProposals).toHaveBeenCalledWith(['p1']);
     });
 
     it('throws not-found when dao is missing', async () => {
@@ -95,7 +152,10 @@ describe('ProposalController', () => {
 
     it('passes cursor through assertCursorMatchesQuery in listByDao', async () => {
       const qb = makeQb([]);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -127,7 +187,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_starts_at: null },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -149,7 +212,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_ends_at: null },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -171,7 +237,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_starts_at: new Date('2026-03-02') },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -193,7 +262,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2' },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -215,7 +287,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_starts_at: null },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -237,7 +312,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_ends_at: null },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -259,7 +337,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2', voting_ends_at: new Date('2026-03-02') },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -393,7 +474,10 @@ describe('ProposalController', () => {
         { ...baseProposalRow, id: 'p2' },
       ];
       const qb = makeQb(rows);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn() };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
@@ -409,7 +493,10 @@ describe('ProposalController', () => {
 
     it('passes cursor through assertCursorMatchesQuery in listCrossDao', async () => {
       const qb = makeQb([]);
-      const repo = { listBaseQuery: vi.fn().mockReturnValue(qb) };
+      const repo = {
+        listBaseQuery: vi.fn().mockReturnValue(qb),
+        findChoicesForProposals: vi.fn().mockResolvedValue(new Map()),
+      };
       const daoRepo = { findDaoBySlug: vi.fn() };
       const controller = new ProposalController(
         repo as unknown as ProposalReadRepository,
