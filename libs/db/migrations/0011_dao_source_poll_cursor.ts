@@ -1,4 +1,4 @@
-import { type Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 
 // Per-source EVM poll watermark — closes the live poller's cold-start gap.
 //
@@ -20,20 +20,51 @@ import { type Kysely } from 'kysely';
 // permanent: the highest block scanned for the source by any path, advanced by both the backfill
 // (BackfillDriver.onChunkComplete) and the live poller, never cleared.
 //
-// Deliberately not backfilled here. `DaoSourceRepository.readPollCursor` falls back to
-// `max(archive_event.block_number)` when this is null. That fallback is a lower bound, not the
-// truth — it is the last block that produced an *event*, so a retired governor reads as millions of
-// blocks behind the range actually scanned, and the poller re-reads them (finding nothing) to get
-// back to head. Correct but wasteful, and it only applies to sources backfilled before this landed;
-// every backfill from here on records the real watermark as it goes.
+// Sources backfilled before this migration have no watermark, and nothing recorded how far their
+// runs scanned. The seed below bootstraps them from `max(archive_event.block_number)` — the last
+// block that produced an *event* for the source.
+//
+// That is a lower bound on what was scanned, not the truth: a backfill cannot archive an event from
+// a block it never read, so the real scan depth is at or above it. Erring low is the safe direction
+// — the poller re-reads blocks it has already seen (finding nothing, and `seen_log` drops any
+// duplicate) and walks forward to head. Erring high would skip unread blocks and silently lose
+// events, which is the whole failure this column exists to prevent. For a governor that has gone
+// quiet the re-read spans millions of empty blocks; that costs minutes of catch-up, once.
+//
+// It runs here rather than as a lazy fallback in the repository because it is a one-time bootstrap,
+// not a rule: every backfill from here on records the exact watermark as it goes
+// (BackfillDriver.onChunkComplete), and the poller maintains it thereafter. Keeping it in the
+// migration also means it cannot be forgotten in an environment — and forgetting it would leave a
+// source resuming at head, i.e. the silent gap.
+//
+// A source with no archived events stays null: it has never been scanned, so it starts from the
+// poller's confirmed-head window. Reaching back through history is a backfill's job.
+/** Exported for test: `up` also adds the column, which cannot re-run against a migrated database. */
+export async function seedPollCursorsFromArchive(db: Kysely<unknown>): Promise<void> {
+  await sql`
+    UPDATE dao_source ds
+    SET poll_cursor_block = seed.max_block
+    FROM (
+      SELECT dao_source_id, max(block_number) AS max_block
+      FROM archive_event
+      WHERE block_number IS NOT NULL
+      GROUP BY dao_source_id
+    ) AS seed
+    WHERE ds.id = seed.dao_source_id
+      AND ds.poll_cursor_block IS NULL
+  `.execute(db);
+}
+
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .alterTable('dao_source')
     // Last block whose logs every listener accepted. bigint: chain heights outrun int4, and the pg
     // driver hands these back as strings to preserve precision (see libs/db/src/client.ts).
-    // Nullable: a source that has never polled has no position, and null selects the fallback.
+    // Nullable: a source that has never been scanned has no position.
     .addColumn('poll_cursor_block', 'bigint')
     .execute();
+
+  await seedPollCursorsFromArchive(db);
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
