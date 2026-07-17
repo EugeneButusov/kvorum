@@ -116,15 +116,13 @@ export class DaoSourceRepository {
   }
 
   /**
-   * The block the live poller should resume *after*, in order:
+   * The block the live poller should resume *after*, or null when the source has never been scanned
+   * — in which case the poller starts from its confirmed-head window rather than genesis.
    *
-   *  1. `poll_cursor_block` — the poller's own watermark, written each time a batch is accepted.
-   *  2. `max(archive_event.block_number)` — the source has been ingested before (almost always by a
-   *     backfill) but never polled. Resuming here is what makes the backfill→poll handoff seamless:
-   *     without it a source that finished backfilling yesterday would resume at today's head and
-   *     silently skip everything in between.
-   *  3. `null` — never seen. The poller falls back to its confirmed-head window rather than scanning
-   *     from genesis; reaching back through history is a backfill's job, not the live path's.
+   * Nothing is inferred from `archive_event` here. The archive records what happened, not what was
+   * looked at: a range with no events leaves no row, so a quiet source would never advance past its
+   * last event. Sources predating the column were bootstrapped once by migration 0012; every
+   * backfill since records the watermark as it goes (BackfillDriver.onChunkComplete).
    */
   async readPollCursor(id: string): Promise<bigint | null> {
     const source = await this.db
@@ -132,16 +130,7 @@ export class DaoSourceRepository {
       .select('poll_cursor_block')
       .where('id', '=', id)
       .executeTakeFirst();
-    if (source?.poll_cursor_block != null) return BigInt(source.poll_cursor_block);
-
-    const archived = await this.db
-      .selectFrom('archive_event')
-      .select(({ fn }) => fn.max('block_number').as('max_block'))
-      .where('dao_source_id', '=', id)
-      .where('block_number', 'is not', null)
-      .executeTakeFirst();
-    const maxBlock = archived?.max_block;
-    return maxBlock == null ? null : BigInt(maxBlock);
+    return source?.poll_cursor_block == null ? null : BigInt(source.poll_cursor_block);
   }
 
   /** Advances the live-poll watermark. Never moves it backwards: ticks can only ever be re-run, and
