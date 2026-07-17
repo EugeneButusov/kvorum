@@ -24,16 +24,3 @@ export function sourceLabel(sourceType: string): string {
     .map((part, i) => (i === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
     .join(' ');
 }
-
-/**
- * Source-filter options from the raw `dao_source` source_types of a DAO.
- *
- * The sources endpoint returns one row per dao_source, i.e. per (source_type, chain_id), so a
- * multi-chain source like Aave's payloads controller arrives once per chain — 20+ identical chips
- * without this. `*_reconcile` rows are the indexer's state-reconciler plumbing rather than a source
- * any proposal carries, so filtering by one always returns nothing: drop them.
- */
-export function sourceFilterOptions(sourceTypes: readonly string[]): string[] {
-  const offerable = sourceTypes.filter((sourceType) => !sourceType.endsWith('_reconcile'));
-  return [...new Set(offerable)].sort();
-}
