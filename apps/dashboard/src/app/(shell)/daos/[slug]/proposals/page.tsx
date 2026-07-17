@@ -1,6 +1,7 @@
 import { ProposalList } from '@/components/proposal/proposal-list';
 import { serverApi } from '@/lib/api/client';
 import { fetchProposalPage, paramsFromRecord, parseListParams } from '@/lib/proposals/list';
+import { sourceFilterOptions } from '@/lib/proposals/source';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -10,7 +11,7 @@ async function loadSourceTypes(slug: string): Promise<string[]> {
       params: { path: { slug } },
     });
     if (error || !data) return [];
-    return data.data.map((s) => s.source_type);
+    return sourceFilterOptions(data.data.map((s) => s.source_type));
   } catch {
     return [];
   }

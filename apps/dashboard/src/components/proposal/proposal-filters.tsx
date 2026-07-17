@@ -1,8 +1,8 @@
 'use client';
 
+import { Segmented, SegmentedItem } from '@/components/ui/segmented';
 import { EMPTY_FILTERS, type ProposalFilters } from '@/lib/proposals/list';
 import { sourceLabel } from '@/lib/proposals/source';
-import { cn } from '@/lib/utils';
 
 // A curated set of states to filter by (source states fold onto these); mirrors the pill treatments.
 export const STATE_OPTIONS = [
@@ -16,6 +16,9 @@ export const STATE_OPTIONS = [
   'expired',
 ];
 
+/** Sentinel for the leading "All" segment: selected when the facet has no explicit selection. */
+const ALL = '__all__';
+
 export type ProposalFiltersProps = {
   scope: 'cross' | 'dao';
   filters: ProposalFilters;
@@ -27,9 +30,12 @@ export type ProposalFiltersProps = {
 };
 
 /**
- * Horizontal filter strip (§6.5 / §6.8): DAO / state / type facets + a voting-start range, above the
- * table. All state is lifted to the list, which mirrors it into the URL. Full-text search and a
- * mismatch-severity facet from the reference need list-API support / M5 and aren't offered yet.
+ * Horizontal filter strip (§6.5 / §6.8): DAO / state / source / type facets + a voting-start range,
+ * above the table. All state is lifted to the list, which mirrors it into the URL. Full-text search
+ * and a mismatch-severity facet from the reference need list-API support / M5 and aren't offered yet.
+ *
+ * Each facet is a segmented control, per the reference's `.seg`: one joined group with a leading
+ * "All", not free-standing chips.
  */
 export function ProposalFilters({
   scope,
@@ -38,83 +44,100 @@ export function ProposalFilters({
   daoOptions,
   sourceOptions,
 }: ProposalFiltersProps) {
-  const toggleIn = (key: 'dao' | 'state', value: string) => {
-    const set = new Set(filters[key]);
-    if (set.has(value)) set.delete(value);
-    else set.add(value);
-    onChange({ ...filters, [key]: [...set] });
-  };
-
   const toDate = (value: string) => (value ? `${value}T00:00:00.000Z` : null);
   const fromDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '');
 
+  /** Multi-select facet: empty selection renders as "All"; picking "All" clears it. */
+  const multiValue = (selected: string[]) => (selected.length > 0 ? selected : [ALL]);
+  const onMultiChange = (key: 'dao' | 'state', selected: string[], next: string[]) => {
+    // Diff against what was *rendered* (which is [ALL] for an empty facet), not the raw filter —
+    // otherwise every item reads as newly added and picking one is mistaken for picking "All".
+    const rendered = multiValue(selected);
+    const added = next.find((v) => !rendered.includes(v));
+    const cleared = added === ALL || next.length === 0;
+    onChange({ ...filters, [key]: cleared ? [] : next.filter((v) => v !== ALL) });
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-line-3 bg-bg-2 px-3.5 py-2.5 font-mono text-caption">
+    <div className="flex flex-wrap items-center gap-3 border border-line-3 bg-bg-2 px-3.5 py-2.5 font-mono">
       {scope === 'cross' && daoOptions.length > 0 && (
         <>
           <Group label="DAO">
-            {daoOptions.map((d) => (
-              <Chip
-                key={d.slug}
-                active={filters.dao.includes(d.slug)}
-                onClick={() => toggleIn('dao', d.slug)}
-              >
-                {d.name}
-              </Chip>
-            ))}
+            <Segmented
+              type="multiple"
+              aria-label="Filter by DAO"
+              value={multiValue(filters.dao)}
+              onValueChange={(next: string[]) => onMultiChange('dao', filters.dao, next)}
+            >
+              <SegmentedItem value={ALL}>All</SegmentedItem>
+              {daoOptions.map((d) => (
+                <SegmentedItem key={d.slug} value={d.slug}>
+                  {d.name}
+                </SegmentedItem>
+              ))}
+            </Segmented>
           </Group>
           <Sep />
         </>
       )}
 
       <Group label="State">
-        {STATE_OPTIONS.map((s) => (
-          <Chip key={s} active={filters.state.includes(s)} onClick={() => toggleIn('state', s)}>
-            {s}
-          </Chip>
-        ))}
+        <Segmented
+          type="multiple"
+          aria-label="Filter by state"
+          value={multiValue(filters.state)}
+          onValueChange={(next: string[]) => onMultiChange('state', filters.state, next)}
+        >
+          <SegmentedItem value={ALL}>All</SegmentedItem>
+          {STATE_OPTIONS.map((s) => (
+            <SegmentedItem key={s} value={s}>
+              {s}
+            </SegmentedItem>
+          ))}
+        </Segmented>
       </Group>
 
       {scope === 'dao' && sourceOptions.length > 1 && (
         <>
           <Sep />
           <Group label="Source">
-            <Chip
-              active={filters.sourceType == null}
-              onClick={() => onChange({ ...filters, sourceType: null })}
+            <Segmented
+              type="single"
+              aria-label="Filter by source"
+              value={filters.sourceType ?? ALL}
+              onValueChange={(next: string) =>
+                // Radix emits '' when the active item is re-pressed; treat that as "All".
+                onChange({ ...filters, sourceType: next === ALL || next === '' ? null : next })
+              }
             >
-              All
-            </Chip>
-            {sourceOptions.map((s) => (
-              <Chip
-                key={s}
-                active={filters.sourceType === s}
-                onClick={() => onChange({ ...filters, sourceType: s })}
-              >
-                {sourceLabel(s)}
-              </Chip>
-            ))}
+              <SegmentedItem value={ALL}>All</SegmentedItem>
+              {sourceOptions.map((s) => (
+                <SegmentedItem key={s} value={s}>
+                  {sourceLabel(s)}
+                </SegmentedItem>
+              ))}
+            </Segmented>
           </Group>
         </>
       )}
 
       <Sep />
       <Group label="Type">
-        {(
-          [
-            ['All', null],
-            ['Binding', true],
-            ['Signaling', false],
-          ] as const
-        ).map(([label, value]) => (
-          <Chip
-            key={label}
-            active={filters.binding === value}
-            onClick={() => onChange({ ...filters, binding: value })}
-          >
-            {label}
-          </Chip>
-        ))}
+        <Segmented
+          type="single"
+          aria-label="Filter by type"
+          value={filters.binding === null ? ALL : filters.binding ? 'binding' : 'signaling'}
+          onValueChange={(next: string) =>
+            onChange({
+              ...filters,
+              binding: next === 'binding' ? true : next === 'signaling' ? false : null,
+            })
+          }
+        >
+          <SegmentedItem value={ALL}>All</SegmentedItem>
+          <SegmentedItem value="binding">Binding</SegmentedItem>
+          <SegmentedItem value="signaling">Signaling</SegmentedItem>
+        </Segmented>
       </Group>
 
       <Sep />
@@ -124,7 +147,7 @@ export function ProposalFilters({
           aria-label="Voting start from"
           value={fromDate(filters.startsMin)}
           onChange={(e) => onChange({ ...filters, startsMin: toDate(e.target.value) })}
-          className="border border-line-3 bg-bg px-2 py-0.5 text-ink"
+          className="border border-line-2 bg-bg px-2 py-[5px] text-pill text-ink"
         />
         <span className="text-ink-4">→</span>
         <input
@@ -132,14 +155,14 @@ export function ProposalFilters({
           aria-label="Voting start to"
           value={fromDate(filters.startsMax)}
           onChange={(e) => onChange({ ...filters, startsMax: toDate(e.target.value) })}
-          className="border border-line-3 bg-bg px-2 py-0.5 text-ink"
+          className="border border-line-2 bg-bg px-2 py-[5px] text-pill text-ink"
         />
       </Group>
 
       <button
         type="button"
         onClick={() => onChange(EMPTY_FILTERS)}
-        className="ml-auto border border-line-3 px-2.5 py-0.5 text-ink-3 transition-colors hover:border-line hover:text-ink"
+        className="ml-auto border border-line-3 px-2.5 py-1 text-pill text-ink-3 transition-colors hover:border-line hover:text-ink"
       >
         clear ✕
       </button>
@@ -154,34 +177,8 @@ function Sep() {
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="uppercase tracking-[0.06em] text-ink-3">{label}</span>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'border px-2 py-0.5 uppercase tracking-[0.04em] transition-colors',
-        active
-          ? 'border-primary bg-primary text-paper'
-          : 'border-line-3 text-ink-2 hover:border-ink-3',
-      )}
-    >
+      <span className="text-caption uppercase tracking-[0.06em] text-ink-3">{label}</span>
       {children}
-    </button>
+    </div>
   );
 }
