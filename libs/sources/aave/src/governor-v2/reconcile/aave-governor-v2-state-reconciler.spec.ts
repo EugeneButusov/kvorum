@@ -95,6 +95,7 @@ function makeSend(opts: {
         ]);
       }
       if (data.startsWith(GRACE_SELECTOR)) {
+        if (opts.grace === 'throw') throw new Error('rpc boom');
         return typeof opts.grace === 'string'
           ? opts.grace
           : EXECUTOR_GRACE_PERIOD_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [
@@ -239,6 +240,44 @@ describe('AaveGovernorV2StateReconciler', () => {
     });
 
     expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+  });
+
+  it('falls back to defeated when getProposalState returns an unexpected code', async () => {
+    // e.g. Pending(0) at endBlock+offset — nonsensical for a concluded proposal, but a concluded,
+    // never-executed proposal is still terminally defeated.
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 0,
+      blockTimestampHex: '0x200',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+  });
+
+  it('returns guard_skipped when GRACE_PERIOD resolution fails with a non-decode error', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 1_700_000_000n }),
+      grace: 'throw',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'queued' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: makeProposals() as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'guard_skipped' });
   });
 
   it('returns guard_skipped for a never-queued proposal when voting_ends_block is null', async () => {
