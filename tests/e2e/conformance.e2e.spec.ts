@@ -273,9 +273,9 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
       }
 
       expect(proposalDetailData['choices']).toEqual([
-        { choice_index: 0, value: 'Against' },
-        { choice_index: 1, value: 'For' },
-        { choice_index: 2, value: 'Abstain' },
+        { choice_index: 0, value: 'against' },
+        { choice_index: 1, value: 'for' },
+        { choice_index: 2, value: 'abstain' },
       ]);
 
       const perDaoList = await request(server)

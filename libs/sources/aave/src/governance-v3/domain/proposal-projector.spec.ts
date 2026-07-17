@@ -40,8 +40,8 @@ describe('projectAaveGovernanceV3Event', () => {
       creation_block: '123',
     });
     expect(projection.choices).toEqual([
-      { choice_index: 0, value: 'Against' },
-      { choice_index: 1, value: 'For' },
+      { choice_index: 0, value: 'against' },
+      { choice_index: 1, value: 'for' },
     ]);
   });
 

@@ -47,15 +47,15 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "choices": [
       {
         "choice_index": 0,
-        "value": "Against",
+        "value": "against",
       },
       {
         "choice_index": 1,
-        "value": "For",
+        "value": "for",
       },
       {
         "choice_index": 2,
-        "value": "Abstain",
+        "value": "abstain",
       },
     ],
     "dao_slug": "aave",
@@ -161,17 +161,17 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "choices": [
           {
             "choice_index": 0,
-            "label": "Against",
+            "label": "against",
             "pct": 0,
           },
           {
             "choice_index": 1,
-            "label": "For",
+            "label": "for",
             "pct": 100,
           },
           {
             "choice_index": 2,
-            "label": "Abstain",
+            "label": "abstain",
             "pct": 0,
           },
         ],
@@ -422,17 +422,17 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "choices": [
           {
             "choice_index": 0,
-            "label": "Against",
+            "label": "against",
             "pct": 0,
           },
           {
             "choice_index": 1,
-            "label": "For",
+            "label": "for",
             "pct": 100,
           },
           {
             "choice_index": 2,
-            "label": "Abstain",
+            "label": "abstain",
             "pct": 0,
           },
         ],
@@ -671,13 +671,13 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "aave-concentration": null,
   "aave-delegate-alignment": null,
   "aave-delegation-flow": ""7E6lin7FRPEAF115ug5y1Pv2KXI"",
-  "aave-proposal-detail": ""kP2ycDEGWOUa4Kyuxw7KQgzlP-M"",
+  "aave-proposal-detail": ""ObqQBKTvUi6-Ndhy_R8wMvyp_e4"",
   "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
-  "aave-proposals-list": ""9Q18ybNdksoeMNLNUrOMUIarWF4"",
+  "aave-proposals-list": ""HJQCEg8tQx2trR76B__-1p07GRo"",
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
   "compound-proposal-pass-rate": ""OyYzMyAo8QXs3BZnj2YUzhj2RJg"",
   "cross-dao-proposals": ""h9H_se154XngymNNiitjlRe2pUk"",
-  "cross-dao-proposals-multi": ""pIPn5mwyS7dER_LKSH6DvNN-mV8"",
+  "cross-dao-proposals-multi": ""PUhlUrJDNyWMhkivjxK6JJZeQYc"",
   "dao-detail": ""CcdwyOfS_wsLve8ERvMCWW5bAx4"",
   "dao-proposals-list": ""h9H_se154XngymNNiitjlRe2pUk"",
   "dao-sources": ""lHkveUj1_T9XP9b3L7wyayzxv8k"",
@@ -687,7 +687,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "lido-snapshot-proposal-detail": ""CEEpdLYWmYRJAkkG3Sj9uVK7KP0"",
   "lido-snapshot-vote": ""ERMGzVrFHa90WUElGQaGAKkvmiE"",
   "lido-sources": ""d-p4pjaL6_WXzUxxMUUXlhIQDMY"",
-  "proposal-detail": ""hsrVPQgGIaRCLATCHxhYS3KB_jM"",
+  "proposal-detail": ""ykOy-bvp0uxbASHr6XVDaeaGevQ"",
 }
 `;
 
@@ -1060,15 +1060,15 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
     "choices": [
       {
         "choice_index": 0,
-        "value": "Against",
+        "value": "against",
       },
       {
         "choice_index": 1,
-        "value": "For",
+        "value": "for",
       },
       {
         "choice_index": 2,
-        "value": "Abstain",
+        "value": "abstain",
       },
     ],
     "dao_slug": "compound",

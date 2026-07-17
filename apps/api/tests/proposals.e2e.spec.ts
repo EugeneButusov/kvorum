@@ -71,16 +71,16 @@ describeHttpIf('proposal endpoints e2e', () => {
       await resetDaoProposalApiTables();
       const seeded = await seedDaoProposalApiData();
 
-      // The seed declares choice 0 = For; add Against/Abstain so the row can classify all three.
+      // The seed declares choice 0 = for; add Against/Abstain so the row can classify all three.
       await pgDb
         .insertInto('proposal_choice')
         .values([
-          { proposal_id: seeded.proposalId, choice_index: 1, value: 'Against' },
-          { proposal_id: seeded.proposalId, choice_index: 2, value: 'Abstain' },
+          { proposal_id: seeded.proposalId, choice_index: 1, value: 'against' },
+          { proposal_id: seeded.proposalId, choice_index: 2, value: 'abstain' },
         ])
         .execute();
 
-      // 750 For / 200 Against / 50 Abstain across four voters, written to the projection source.
+      // 750 for / 200 against / 50 abstain across four voters, written to the projection source.
       const votes = [
         { choice: 0, power: '500', voter: `0x${'a1'.repeat(20)}` },
         { choice: 0, power: '250', voter: `0x${'a2'.repeat(20)}` },
@@ -119,9 +119,9 @@ describeHttpIf('proposal endpoints e2e', () => {
 
       // 750/1000, 200/1000, 50/1000 — exact, computed server-side from the CH aggregate.
       expect(item.tally.choices).toEqual([
-        { choice_index: 0, label: 'For', pct: 75 },
-        { choice_index: 1, label: 'Against', pct: 20 },
-        { choice_index: 2, label: 'Abstain', pct: 5 },
+        { choice_index: 0, label: 'for', pct: 75 },
+        { choice_index: 1, label: 'against', pct: 20 },
+        { choice_index: 2, label: 'abstain', pct: 5 },
       ]);
     } finally {
       await app.close();

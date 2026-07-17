@@ -9,15 +9,15 @@ const BAR_FILL: Record<TallyKind, string> = {
 };
 
 const BAR_LABEL: Record<TallyKind, string> = {
-  for: 'For',
-  against: 'Agst',
-  abstain: 'Abst',
+  for: 'for',
+  against: 'against',
+  abstain: 'abstain',
 };
 
 /**
  * The per-row tally bars in the proposals table (§6.5), ported from the reference's `.tally`: a small
- * stacked list of For / Agst / Abst rows, each a label, a thin track with a coloured fill, and the
- * percentage. Figures are the server-computed shares; the whole group is one labelled image for AT.
+ * stacked list of for / against / abstain rows, each a label, a thin track with a coloured fill, and
+ * the percentage. Figures are the server-computed shares; the whole group is one labelled image for AT.
  */
 export function RowTally({ bars }: { bars: RowTallyBar[] }) {
   if (bars.length === 0) return <span className="text-ink-4">—</span>;
@@ -31,9 +31,9 @@ export function RowTally({ bars }: { bars: RowTallyBar[] }) {
       {bars.map((bar) => (
         <div
           key={bar.kind}
-          className="grid grid-cols-[34px_minmax(0,1fr)_36px] items-center gap-1.5 font-mono text-pill"
+          className="grid grid-cols-[52px_minmax(0,1fr)_36px] items-center gap-1.5 font-mono text-pill"
         >
-          <span className="uppercase tracking-[0.04em] text-ink-3">{BAR_LABEL[bar.kind]}</span>
+          <span className="tracking-[0.04em] text-ink-3">{BAR_LABEL[bar.kind]}</span>
           <span className="relative h-[5px] bg-bg-3">
             <span
               className={cn('absolute inset-y-0 left-0', BAR_FILL[bar.kind])}

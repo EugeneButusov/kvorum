@@ -93,8 +93,8 @@ describe('ProposalController', () => {
             [
               'p1',
               [
-                { proposal_id: 'p1', choice_index: 0, value: 'For' },
-                { proposal_id: 'p1', choice_index: 1, value: 'Against' },
+                { proposal_id: 'p1', choice_index: 0, value: 'for' },
+                { proposal_id: 'p1', choice_index: 1, value: 'against' },
               ],
             ],
           ]),
@@ -125,8 +125,8 @@ describe('ProposalController', () => {
 
       expect(out.data[0]!.tally).toEqual({
         choices: [
-          { choice_index: 0, label: 'For', pct: 75 },
-          { choice_index: 1, label: 'Against', pct: 25 },
+          { choice_index: 0, label: 'for', pct: 75 },
+          { choice_index: 1, label: 'against', pct: 25 },
         ],
       });
       // One batched read each, regardless of page size.
@@ -528,8 +528,8 @@ describe('ProposalController', () => {
       const repo = {
         findOne: vi.fn().mockResolvedValue(baseProposalRow),
         findChoices: vi.fn().mockResolvedValue([
-          { choice_index: 0, value: 'For' },
-          { choice_index: 1, value: 'Against' },
+          { choice_index: 0, value: 'for' },
+          { choice_index: 1, value: 'against' },
         ]),
       };
       const voteRepo = makeVoteRepo({
@@ -559,8 +559,8 @@ describe('ProposalController', () => {
       const repo = {
         findOne: vi.fn().mockResolvedValue(baseProposalRow),
         findChoices: vi.fn().mockResolvedValue([
-          { choice_index: 0, value: 'For' },
-          { choice_index: 1, value: 'Against' },
+          { choice_index: 0, value: 'for' },
+          { choice_index: 1, value: 'against' },
         ]),
       };
       const voteRepo = makeVoteRepo({

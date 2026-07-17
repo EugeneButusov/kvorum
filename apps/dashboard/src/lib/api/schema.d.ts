@@ -618,7 +618,7 @@ export interface components {
     };
     ProposalRowTallyChoiceDto: {
       choice_index: number;
-      /** @description The declared choice label, e.g. "For" — for client-side classification. */
+      /** @description The declared choice label, e.g. "for" — for client-side classification. */
       label: string;
       /** @description Share of participating power, 0–100, to two decimals. */
       pct: number;

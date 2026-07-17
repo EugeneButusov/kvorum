@@ -74,7 +74,7 @@ export class ProposalRowTallyChoiceDto {
   declare choice_index: number;
 
   @ApiProperty({
-    description: 'The declared choice label, e.g. "For" — for client-side classification.',
+    description: 'The declared choice label, e.g. "for" — for client-side classification.',
   })
   declare label: string;
 

@@ -2991,7 +2991,7 @@
           },
           "label": {
             "type": "string",
-            "description": "The declared choice label, e.g. \"For\" — for client-side classification."
+            "description": "The declared choice label, e.g. \"for\" — for client-side classification."
           },
           "pct": {
             "type": "number",

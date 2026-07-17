@@ -73,9 +73,9 @@ describe('projectCompoundProposalEvent', () => {
       },
     ]);
     expect(projection.choices).toEqual([
-      { proposal_id: '', choice_index: 0, value: 'Against' },
-      { proposal_id: '', choice_index: 1, value: 'For' },
-      { proposal_id: '', choice_index: 2, value: 'Abstain' },
+      { proposal_id: '', choice_index: 0, value: 'against' },
+      { proposal_id: '', choice_index: 1, value: 'for' },
+      { proposal_id: '', choice_index: 2, value: 'abstain' },
     ]);
   });
 

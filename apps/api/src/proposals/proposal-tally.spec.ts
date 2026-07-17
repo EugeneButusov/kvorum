@@ -101,9 +101,9 @@ describe('extractChoiceScores', () => {
 
 describe('assembleRowTally', () => {
   const choices = [
-    { proposal_id: 'p1', choice_index: 0, value: 'For' },
-    { proposal_id: 'p1', choice_index: 1, value: 'Against' },
-    { proposal_id: 'p1', choice_index: 2, value: 'Abstain' },
+    { proposal_id: 'p1', choice_index: 0, value: 'for' },
+    { proposal_id: 'p1', choice_index: 1, value: 'against' },
+    { proposal_id: 'p1', choice_index: 2, value: 'abstain' },
   ];
 
   it('labels each choice and carries the exact percentage', () => {
@@ -117,9 +117,9 @@ describe('assembleRowTally', () => {
     });
 
     expect(out).toEqual([
-      { choice_index: 0, label: 'For', pct: 78 },
-      { choice_index: 1, label: 'Against', pct: 19 },
-      { choice_index: 2, label: 'Abstain', pct: 3 },
+      { choice_index: 0, label: 'for', pct: 78 },
+      { choice_index: 1, label: 'against', pct: 19 },
+      { choice_index: 2, label: 'abstain', pct: 3 },
     ]);
   });
 
@@ -134,9 +134,9 @@ describe('assembleRowTally', () => {
     });
 
     expect(out).toEqual([
-      { choice_index: 0, label: 'For', pct: 100 },
-      { choice_index: 1, label: 'Against', pct: 0 },
-      { choice_index: 2, label: 'Abstain', pct: 0 },
+      { choice_index: 0, label: 'for', pct: 100 },
+      { choice_index: 1, label: 'against', pct: 0 },
+      { choice_index: 2, label: 'abstain', pct: 0 },
     ]);
   });
 

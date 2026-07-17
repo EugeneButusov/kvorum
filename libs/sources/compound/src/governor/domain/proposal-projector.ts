@@ -51,9 +51,9 @@ export class ProposalProjectionError extends Error {
 }
 
 const COMPOUND_CHOICES: ReadonlyArray<Pick<NewProposalChoice, 'choice_index' | 'value'>> = [
-  { choice_index: 0, value: 'Against' },
-  { choice_index: 1, value: 'For' },
-  { choice_index: 2, value: 'Abstain' },
+  { choice_index: 0, value: 'against' },
+  { choice_index: 1, value: 'for' },
+  { choice_index: 2, value: 'abstain' },
 ];
 
 export function projectCompoundProposalEvent(

@@ -15,9 +15,11 @@ describe('RowTally', () => {
     );
 
     // One accessible image summarising the whole tally for AT.
-    expect(screen.getByRole('img', { name: 'For 78%, Agst 19%, Abst 3%' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'for 78%, against 19%, abstain 3%' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('78%')).toBeInTheDocument();
-    expect(screen.getByText('Agst')).toBeInTheDocument();
+    expect(screen.getByText('against')).toBeInTheDocument();
   });
 
   it('shows a dash when there are no votes, not an empty group', () => {
