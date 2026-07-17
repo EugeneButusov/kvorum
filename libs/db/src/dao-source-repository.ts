@@ -115,6 +115,47 @@ export class DaoSourceRepository {
       .executeTakeFirst();
   }
 
+  /**
+   * The block the live poller should resume *after*, in order:
+   *
+   *  1. `poll_cursor_block` — the poller's own watermark, written each time a batch is accepted.
+   *  2. `max(archive_event.block_number)` — the source has been ingested before (almost always by a
+   *     backfill) but never polled. Resuming here is what makes the backfill→poll handoff seamless:
+   *     without it a source that finished backfilling yesterday would resume at today's head and
+   *     silently skip everything in between.
+   *  3. `null` — never seen. The poller falls back to its confirmed-head window rather than scanning
+   *     from genesis; reaching back through history is a backfill's job, not the live path's.
+   */
+  async readPollCursor(id: string): Promise<bigint | null> {
+    const source = await this.db
+      .selectFrom('dao_source')
+      .select('poll_cursor_block')
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (source?.poll_cursor_block != null) return BigInt(source.poll_cursor_block);
+
+    const archived = await this.db
+      .selectFrom('archive_event')
+      .select(({ fn }) => fn.max('block_number').as('max_block'))
+      .where('dao_source_id', '=', id)
+      .where('block_number', 'is not', null)
+      .executeTakeFirst();
+    const maxBlock = archived?.max_block;
+    return maxBlock == null ? null : BigInt(maxBlock);
+  }
+
+  /** Advances the live-poll watermark. Never moves it backwards: ticks can only ever be re-run, and
+   *  a regression would re-open the gap this column exists to close. */
+  async writePollCursor(id: string, lastPolledBlock: bigint): Promise<void> {
+    await this.db
+      .updateTable('dao_source')
+      .set({
+        poll_cursor_block: sql<string>`greatest(coalesce(poll_cursor_block, 0), ${lastPolledBlock.toString()}::bigint)`,
+      })
+      .where('dao_source.id', '=', id)
+      .execute();
+  }
+
   /** Records the chain head captured at backfill start. No-op when already set (resume safety). */
   async captureBackfillStart(id: string, head: bigint): Promise<void> {
     await this.db
