@@ -7,17 +7,17 @@ import {
   decodeProposalStateResult,
   encodeGetProposalByIdCall,
   decodeGetProposalByIdResult,
+  deriveAaveV2State,
   encodeGracePeriodCall,
   decodeGracePeriodResult,
-  mapAaveV2StateCode,
+  type V2ProposalSummary,
 } from './governor-state';
 
 describe('encodeGetProposalStateCall / decodeProposalStateResult', () => {
-  it('round-trips correctly', () => {
-    const data = encodeGetProposalStateCall('42');
-    const encoded = GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [2n]);
-    expect(decodeProposalStateResult(encoded)).toBe(2);
-    expect(data).toMatch(/^0x/);
+  it('round-trips a state code', () => {
+    expect(encodeGetProposalStateCall('42')).toMatch(/^0x/);
+    const encoded = GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [3n]);
+    expect(decodeProposalStateResult(encoded)).toBe(3);
   });
 
   it('throws AaveGovernorV2StateDecodeError on bad data', () => {
@@ -26,7 +26,7 @@ describe('encodeGetProposalStateCall / decodeProposalStateResult', () => {
 });
 
 describe('encodeGetProposalByIdCall / decodeGetProposalByIdResult', () => {
-  it('decodes executor and executionTime from full struct', () => {
+  it('decodes the fields the reconciler needs from the full struct', () => {
     const encoded = GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
       [
         5n,
@@ -37,12 +37,12 @@ describe('encodeGetProposalByIdCall / decodeGetProposalByIdResult', () => {
         [],
         [],
         [],
-        0n,
-        0n,
+        11_500_000n,
+        11_550_000n,
         1_800_000_000n,
         0n,
         0n,
-        false,
+        true,
         false,
         '0x3333333333333333333333333333333333333333',
         '0x' + '00'.repeat(32),
@@ -52,6 +52,10 @@ describe('encodeGetProposalByIdCall / decodeGetProposalByIdResult', () => {
     const result = decodeGetProposalByIdResult(encoded);
     expect(result.executor).toBe('0x2222222222222222222222222222222222222222');
     expect(result.executionTime).toBe(1_800_000_000n);
+    expect(result.startBlock).toBe(11_500_000n);
+    expect(result.endBlock).toBe(11_550_000n);
+    expect(result.executed).toBe(true);
+    expect(result.canceled).toBe(false);
   });
 
   it('lowercases executor address', () => {
@@ -105,23 +109,64 @@ describe('encodeGracePeriodCall / decodeGracePeriodResult', () => {
   });
 });
 
-describe('mapAaveV2StateCode', () => {
-  const cases: [number, string][] = [
-    [0, 'pending'],
-    [1, 'canceled'],
-    [2, 'active'],
-    [3, 'defeated'],
-    [4, 'succeeded'],
-    [5, 'queued'],
-    [6, 'expired'],
-    [7, 'executed'],
-  ];
+describe('deriveAaveV2State', () => {
+  function summary(over: Partial<V2ProposalSummary> = {}): V2ProposalSummary {
+    return {
+      executor: '0x' + 'ee'.repeat(20),
+      executionTime: 0n,
+      startBlock: 11_500_000n,
+      endBlock: 11_550_000n,
+      executed: false,
+      canceled: false,
+      ...over,
+    };
+  }
+  const HEAD = 12_000_000n; // past endBlock
 
-  it.each(cases)('maps code %i to %s', (code, expected) => {
-    expect(mapAaveV2StateCode(code)).toBe(expected);
+  it('canceled wins over everything', () => {
+    expect(deriveAaveV2State(summary({ canceled: true, executed: true }), HEAD)).toEqual({
+      kind: 'terminal',
+      state: 'canceled',
+    });
   });
 
-  it('throws on unknown state code', () => {
-    expect(() => mapAaveV2StateCode(99)).toThrow(AaveGovernorV2StateDecodeError);
+  it('executed → executed', () => {
+    expect(deriveAaveV2State(summary({ executed: true }), HEAD)).toEqual({
+      kind: 'terminal',
+      state: 'executed',
+    });
+  });
+
+  it('head at or before startBlock → still pending', () => {
+    expect(deriveAaveV2State(summary({ startBlock: 13_000_000n }), HEAD)).toEqual({
+      kind: 'not_stale',
+      state: 'pending',
+    });
+  });
+
+  it('head within the voting window → still active', () => {
+    expect(deriveAaveV2State(summary({ endBlock: 13_000_000n }), HEAD)).toEqual({
+      kind: 'not_stale',
+      state: 'active',
+    });
+  });
+
+  it('concluded and never queued → needs_outcome (caller fetches the vote verdict)', () => {
+    // Real example: v2 #22 — executionTime 0, voting long over. Whether it Failed or Succeeded needs
+    // the quorum math, which the reconciler gets from getProposalState at endBlock.
+    expect(deriveAaveV2State(summary({ executionTime: 0n, endBlock: 11_550_000n }), HEAD)).toEqual({
+      kind: 'needs_outcome',
+      endBlock: 11_550_000n,
+    });
+  });
+
+  it('concluded and queued → awaiting_execution (caller decides expired vs queued)', () => {
+    // Real example: v2 #45 — executionTime > 0, was queued, never executed.
+    const s = summary({ executionTime: 1_636_763_579n, executor: '0x' + 'ab'.repeat(20) });
+    expect(deriveAaveV2State(s, HEAD)).toEqual({
+      kind: 'awaiting_execution',
+      executionTime: 1_636_763_579n,
+      executor: '0x' + 'ab'.repeat(20),
+    });
   });
 });
