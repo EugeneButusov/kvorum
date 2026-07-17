@@ -1,12 +1,16 @@
 import { CommanderError, Command } from 'commander';
 import { emitNotImplemented, ExitCode } from './output.js';
 
-// Injected at build time by build.mjs (--define:PKG_VERSION)
-declare const PKG_VERSION: string;
+// Injected at build time by build.mjs (--define:PKG_VERSION). It is absent when the
+// CLI is run straight from source (e.g. `tsx src/main.ts`), where referencing the
+// bare identifier would throw ReferenceError. `typeof` is the one operator safe on an
+// undeclared name, so this fallback lets the CLI run standalone either way.
+declare const PKG_VERSION: string | undefined;
+const VERSION = typeof PKG_VERSION === 'string' ? PKG_VERSION : '0.0.0-dev';
 
 async function main(): Promise<void> {
   if (process.argv.includes('--version') || process.argv.includes('-V')) {
-    process.stdout.write(`${PKG_VERSION}\n`);
+    process.stdout.write(`${VERSION}\n`);
     return;
   }
 
@@ -22,7 +26,7 @@ async function main(): Promise<void> {
   program
     .name('admin-cli')
     .description('Kvorum operator administration CLI')
-    .version(PKG_VERSION)
+    .version(VERSION)
     .option('-f, --format <format>', 'output format: human or json', 'human')
     .helpCommand(true)
     .exitOverride();
@@ -48,4 +52,27 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+/**
+ * Release the shared DB connection pools so the process can exit. `buildContainer()` opens the
+ * module-level `pgDb`/`chDb` pools (keep-alive sockets), and the CLI never calls `process.exit(0)`
+ * on the happy path — without this teardown a completed command hangs at the prompt on those idle
+ * handles. Best-effort: teardown must never mask the command's own result or exit code.
+ */
+async function closePools(): Promise<void> {
+  try {
+    const { pgDb, chDb } = await import('@libs/db');
+    await Promise.allSettled([pgDb.destroy(), chDb.destroy()]);
+  } catch {
+    // ignore: the pools may never have been opened (e.g. `--version`)
+  }
+}
+
+void main().then(
+  () => closePools().finally(() => process.exit(process.exitCode ?? 0)),
+  (error: unknown) => {
+    process.stderr.write(
+      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+    );
+    void closePools().finally(() => process.exit(1));
+  },
+);

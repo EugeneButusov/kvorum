@@ -65,15 +65,17 @@ function makeRepo(row: ReturnType<typeof makeDaoSourceRow> | undefined = makeDao
   const captureBackfillStart = vi.fn().mockResolvedValue(undefined);
   const updateBackfillHead = vi.fn().mockResolvedValue(undefined);
   const clearBackfillState = vi.fn().mockResolvedValue(undefined);
+  const writePollCursor = vi.fn().mockResolvedValue(undefined);
   const repo = {
     findByIdWithChain: vi.fn().mockResolvedValue(row),
     captureBackfillStart,
     updateBackfillHead,
     clearBackfillState,
+    writePollCursor,
     findBySourceType: vi.fn(),
     findAll: vi.fn(),
   } as unknown as DaoSourceRepository;
-  return { repo, captureBackfillStart, updateBackfillHead, clearBackfillState };
+  return { repo, captureBackfillStart, updateBackfillHead, clearBackfillState, writePollCursor };
 }
 
 function makeDeps(
@@ -192,6 +194,30 @@ describe('BackfillDriver', () => {
       expect(result.status).toBe('completed');
       // The single chunk covers [18_500_001..HEAD_BLOCK]; checkpoint is HEAD_BLOCK
       expect(updateBackfillHead).toHaveBeenCalledWith(DAO_SOURCE_ID, HEAD_BLOCK);
+    });
+
+    it('advances the permanent poll cursor alongside the run checkpoint', async () => {
+      const { repo, updateBackfillHead, writePollCursor } = makeRepo(
+        makeDaoSourceRow({
+          backfill_started_at_block: '20000000',
+          backfill_head_block: '18500000',
+        }),
+      );
+      const rpc = makeRpcClient();
+      const driver = new BackfillDriver(makeDeps(rpc, repo));
+
+      await driver.run({
+        daoSourceId: DAO_SOURCE_ID,
+        mode: 'resume',
+        fromBlock: 0n,
+        chunkSize: 100_000_000,
+      });
+
+      // backfill_head_block is cleared on completion, so it cannot tell the live poller where
+      // scanning reached. Without this write the poller would fall back to the last archived
+      // *event* — millions of blocks behind for a source whose contract has gone quiet.
+      expect(writePollCursor).toHaveBeenCalledWith(DAO_SOURCE_ID, HEAD_BLOCK);
+      expect(writePollCursor).toHaveBeenCalledTimes(updateBackfillHead.mock.calls.length);
     });
 
     it('#6 — throws BackfillNotResumableError when backfill_started_at_block is null', async () => {

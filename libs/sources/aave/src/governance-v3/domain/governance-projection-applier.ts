@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import { silentLogger, type Logger } from '@libs/chain';
+import { silentLogger, type ChainContextRegistry, type Logger } from '@libs/chain';
 import {
   ActorRepository,
   ArchiveActorResolutionRepository,
@@ -9,10 +9,12 @@ import {
   type PgDatabase,
   ProposalRepository,
 } from '@libs/db';
+import { VoteBlockTimestampFetcher } from '@sources/core';
 import type { AaveIpfsTitleFetcher } from './ipfs-title-fetcher';
 import { projectAaveGovernanceV3Event } from './proposal-projector';
 import type { AaveGovernanceV3Event } from './types';
 import { AaveProposalRepository } from '../../persistence/aave-proposal-repository';
+import { insertIpfsTitleDlq } from '../../persistence/ipfs-title-dlq';
 import type { AaveGovernanceArchivePayloadRepository } from '../persistence/archive-payload-repository';
 
 export type AaveDerivationOutcome =
@@ -25,7 +27,8 @@ export type AaveDerivationFailureReason =
   | 'payload_missing'
   | 'decode_error'
   | 'projection_apply_error'
-  | 'no_proposal';
+  | 'no_proposal'
+  | 'block_timestamp_unavailable';
 
 export interface AaveGovernanceProjectionMetrics {
   batchLookupSeconds(seconds: number): void;
@@ -44,6 +47,8 @@ export interface AaveGovernanceProjectionApplierDeps {
   dlq: DlqRepository;
   payloads: AaveGovernanceArchivePayloadRepository;
   ipfsFetcher: AaveIpfsTitleFetcher;
+  /** Resolves the activation block's timestamp — the anchor of the derived voting window. */
+  registry: ChainContextRegistry;
   metrics: AaveGovernanceProjectionMetrics;
   logger?: Logger;
 }
@@ -79,6 +84,7 @@ export class AaveGovernanceProjectionApplier {
   private readonly logger: Logger;
   private readonly proposals: ProposalRepository;
   private readonly aaveProposals: AaveProposalRepository;
+  private readonly blockTimestamps = new VoteBlockTimestampFetcher();
 
   constructor(private readonly deps: AaveGovernanceProjectionApplierDeps) {
     this.logger = deps.logger ?? silentLogger;
@@ -94,6 +100,9 @@ export class AaveGovernanceProjectionApplier {
     this.deps.metrics.batchLookupSeconds((Date.now() - lookupStartedAt) / 1000);
     const byKey = new Map(payloads.map((payload) => [tupleKey(payload), payload]));
     const indexedPayloadChainCache = new Map<string, boolean>();
+    // Batches are mixed-event-type here (unlike the vote/payload appliers), so resolve activation
+    // block times up front for just the VotingActivated rows rather than one RPC round trip each.
+    const activationTimes = await this.fetchActivationTimes(rows);
 
     for (const row of rows) {
       const payload = byKey.get(tupleKey(row));
@@ -132,8 +141,19 @@ export class AaveGovernanceProjectionApplier {
             indexedPayloadChainCache,
           );
         } else {
+          if (
+            projection.kind === 'voting_activated' &&
+            this.activationTimeFor(row, activationTimes) === undefined
+          ) {
+            await this.fail(
+              row,
+              'block_timestamp_unavailable',
+              new Error(`block timestamp unavailable for ${String(row.block_number)}`),
+            );
+            continue;
+          }
           postCommit = await this.transaction((repositories) =>
-            this.applyNonCreateProjection(row, projection, repositories),
+            this.applyNonCreateProjection(row, projection, repositories, activationTimes),
           );
         }
 
@@ -178,7 +198,11 @@ export class AaveGovernanceProjectionApplier {
         result.proposalId!,
         projection.choices.map((choice) => ({ ...choice, proposal_id: '' })),
       );
-      dlqId = await insertIpfsTitleDlq(tx, row, result.proposalId!, projection.descriptionHash);
+      dlqId = await insertIpfsTitleDlq(tx, row, {
+        proposalId: result.proposalId!,
+        descriptionHash: projection.descriptionHash,
+        source: 'indexer.aave_governance_v3',
+      });
       this.record(row, 'derived', null);
     } else {
       this.record(row, 'skipped_idempotent', null);
@@ -193,6 +217,46 @@ export class AaveGovernanceProjectionApplier {
     };
   }
 
+  /**
+   * Block times for the batch's VotingActivated rows. `received_at` cannot stand in: on a backfilled
+   * row it records when the indexer ingested the event, not when the block was mined, so a
+   * backfilled proposal would date its vote to the backfill run. Returns an empty map when the chain
+   * has no configured context — callers surface that as `block_timestamp_unavailable` and retry
+   * rather than persisting a wrong instant.
+   */
+  private async fetchActivationTimes(
+    rows: readonly ArchiveDerivationRow[],
+  ): Promise<ReadonlyMap<string, Date>> {
+    const activated = rows.filter((row) => row.event_type === 'VotingActivated');
+    if (activated.length === 0) return new Map();
+
+    const first = activated[0];
+    if (first === undefined) return new Map();
+    const chainCtx = this.deps.registry.peek(first.chain_id);
+    if (chainCtx === undefined) return new Map();
+
+    try {
+      return await this.blockTimestamps.fetchBatch(
+        chainCtx,
+        activated.map((row) => ({ blockNumber: row.block_number, blockHash: row.block_hash })),
+      );
+    } catch (error) {
+      this.logger.warn('aave_activation_timestamp_fetch_failed', {
+        chain_id: first.chain_id,
+        rows: activated.length,
+        error: String(error),
+      });
+      return new Map();
+    }
+  }
+
+  private activationTimeFor(
+    row: ArchiveDerivationRow,
+    activationTimes: ReadonlyMap<string, Date>,
+  ): Date | undefined {
+    return activationTimes.get(this.blockTimestamps.resultKey(row.block_number, row.block_hash));
+  }
+
   private async applyNonCreateProjection(
     row: ArchiveDerivationRow,
     projection: Exclude<
@@ -200,6 +264,7 @@ export class AaveGovernanceProjectionApplier {
       { kind: 'proposal_created' }
     >,
     repositories: ProjectionRepositories,
+    activationTimes: ReadonlyMap<string, Date>,
   ): Promise<() => Promise<void>> {
     const daoId = await repositories.proposals.findDaoIdForSource(projection.daoSourceId);
     if (daoId === undefined) throw new Error(`unknown dao_source ${projection.daoSourceId}`);
@@ -221,6 +286,27 @@ export class AaveGovernanceProjectionApplier {
         targetState: projection.targetState,
         stateUpdatedAt: projection.stateUpdatedAt,
       });
+
+      // Derive the voting window from mainnet: activation-block time + votingDuration. This is the
+      // only window available for a proposal whose voting-machine ProposalVoteStarted is not in the
+      // archive (the machines' active_from_block starts after the early v3 votes). Both this and the
+      // voting-machine handler write through the coalescing `fillTimestamps`, so whichever derives
+      // first fills the window and the other is a no-op; in practice that is mainnet, and the two
+      // differ only by the a.DI bridge relay.
+      //
+      // Deliberately outside the `advanced > 0` guard: re-deriving an already-terminal proposal
+      // (executed/canceled) is guarded back to 0 by advanceState, and those are precisely the rows
+      // that need their window filled retroactively.
+      const activatedAt = this.activationTimeFor(row, activationTimes);
+      if (activatedAt !== undefined) {
+        await repositories.proposals.fillTimestamps([
+          {
+            id: proposal.id,
+            voting_starts_at: activatedAt,
+            voting_ends_at: new Date(activatedAt.getTime() + projection.votingDuration * 1000),
+          },
+        ]);
+      }
       this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
     } else if (projection.kind === 'proposal_state_transition') {
       const advanced = await repositories.proposals.advanceState({
@@ -416,38 +502,6 @@ function parseArchiveEvent(eventType: string, payloadJson: string): AaveGovernan
     default:
       throw new Error(`unsupported aave event_type ${eventType}`);
   }
-}
-
-async function insertIpfsTitleDlq(
-  tx: Kysely<PgDatabase>,
-  row: ArchiveDerivationRow,
-  proposalId: string,
-  descriptionHash: string,
-): Promise<string> {
-  const inserted = await tx
-    .insertInto('ingestion_dlq')
-    .values({
-      stage: 'aave_ipfs_title_fetch',
-      source: 'indexer.aave_governance_v3',
-      payload: {
-        proposal_id: proposalId,
-        ipfs_hash: descriptionHash,
-        dao_source_id: row.dao_source_id,
-      },
-      error: { message: 'awaiting ipfs title fetch' },
-      retries: 0,
-      first_seen_at: new Date(),
-      last_attempt_at: new Date(),
-      archive_source_type: row.source_type,
-      archive_chain_id: row.chain_id,
-      archive_tx_hash: row.tx_hash,
-      archive_log_index: row.log_index,
-      archive_block_hash: row.block_hash,
-    })
-    .returning('id')
-    .executeTakeFirstOrThrow();
-
-  return inserted.id;
 }
 
 function tupleKey(row: {

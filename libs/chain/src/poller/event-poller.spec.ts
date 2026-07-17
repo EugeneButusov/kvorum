@@ -366,4 +366,159 @@ describe('EventPoller', () => {
       expect(Date.now() - startedAt).toBeLessThan(400);
     });
   });
+  describe('poll cursor (catch-up)', () => {
+    /** An RpcClient recording every eth_getLogs range, so tests assert what was actually fetched. */
+    function stubClient(tipBlock: bigint, logs: Record<string, unknown>[] = []) {
+      const ranges: Array<{ from: bigint; to: bigint }> = [];
+      const rpcClient = {
+        send: async (method: string, params: unknown[]) => {
+          if (method === 'eth_blockNumber') return '0x' + tipBlock.toString(16);
+          if (method === 'eth_getLogs') {
+            const f = (params as [{ fromBlock: string; toBlock: string }])[0];
+            ranges.push({ from: BigInt(f.fromBlock), to: BigInt(f.toBlock) });
+            return logs;
+          }
+          return null;
+        },
+        getHealth: () => ({ chainId: CHAIN_ID, providers: [] }),
+      } as unknown as FailoverRpcClient;
+      return { rpcClient, ranges };
+    }
+
+    function memoryCursor(initial: bigint | null) {
+      let value = initial;
+      return {
+        store: {
+          read: async () => value,
+          write: async (b: bigint) => {
+            value = b;
+          },
+        },
+        get value() {
+          return value;
+        },
+      };
+    }
+
+    /** headLag 12 → confirmed head = tip - 12. */
+    async function runOneTick(opts: Partial<EventPollerOptions>, client: FailoverRpcClient) {
+      const poller = new EventPoller(baseOpts(client, { ...opts, pollIntervalMs: 10_000 }));
+      poller.onEvents(() => {});
+      await poller.start();
+      await poller.stop();
+    }
+
+    it('resumes from the cursor rather than the confirmed-head window', async () => {
+      const { rpcClient, ranges } = stubClient(1_000n);
+      const cursor = memoryCursor(400n);
+
+      await runOneTick({ cursor: cursor.store, maxBlocksPerTick: 1_000 }, rpcClient);
+
+      // Confirmed head = 1000 - 12 = 988. Without a cursor this would start at 988 - 24 = 964 and
+      // blocks 401..963 would never be read.
+      expect(ranges).toEqual([{ from: 401n, to: 988n }]);
+      expect(cursor.value).toBe(988n);
+    });
+
+    it('caps each chunk at maxBlocksPerTick while walking a backlog', async () => {
+      const { rpcClient, ranges } = stubClient(10_000n);
+      const cursor = memoryCursor(0n);
+
+      await runOneTick({ cursor: cursor.store, maxBlocksPerTick: 500 }, rpcClient);
+
+      // Provider-sized chunks, never a 9,988-block demand that eth_getLogs would reject...
+      expect(ranges[0]).toEqual({ from: 1n, to: 500n });
+      for (const r of ranges) expect(r.to - r.from + 1n).toBeLessThanOrEqual(500n);
+      // ...walked back-to-back within the tick, and contiguous — no block skipped between chunks.
+      for (let i = 1; i < ranges.length; i++) {
+        expect(ranges[i]!.from).toBe(ranges[i - 1]!.to + 1n);
+      }
+      expect(ranges.length).toBeGreaterThan(1);
+      // Bounded per tick (MAX_CHUNKS_PER_TICK = 20) so a huge backlog cannot hold the tick forever.
+      expect(ranges.length).toBe(20);
+      expect(cursor.value).toBe(10_000n - 12n > 20n * 500n ? 20n * 500n : 9_988n);
+    });
+
+    it('walks a backlog across ticks until it reaches confirmed head', async () => {
+      const { rpcClient, ranges } = stubClient(1_100n);
+      const cursor = memoryCursor(1_000n);
+
+      const poller = new EventPoller(
+        baseOpts(rpcClient, { cursor: cursor.store, maxBlocksPerTick: 40, pollIntervalMs: 10 }),
+      );
+      poller.onEvents(() => {});
+      await poller.start();
+      await new Promise<void>((r) => setTimeout(r, 120));
+      await poller.stop();
+
+      // Confirmed head = 1088. Chunks of 40 from 1001: 1001-1040, 1041-1080, 1081-1088, then idle.
+      expect(ranges.slice(0, 3)).toEqual([
+        { from: 1001n, to: 1040n },
+        { from: 1041n, to: 1080n },
+        { from: 1081n, to: 1088n },
+      ]);
+      expect(cursor.value).toBe(1088n);
+      // Caught up: no range is re-fetched once the cursor sits at confirmed head.
+      expect(ranges.length).toBe(3);
+    });
+
+    it('does not advance the cursor when a listener rejects', async () => {
+      const { rpcClient, ranges } = stubClient(1_000n, [makeLog({ blockNumber: '0x385' })]);
+      const cursor = memoryCursor(900n);
+
+      const poller = new EventPoller(
+        baseOpts(rpcClient, { cursor: cursor.store, pollIntervalMs: 10_000 }),
+      );
+      poller.onEvents(() => {
+        throw new Error('listener down');
+      });
+      await poller.start();
+      await poller.stop();
+
+      // Range was fetched but not accepted — the watermark must not move past it, so the next tick
+      // re-reads it rather than skipping the batch.
+      expect(ranges).toEqual([{ from: 901n, to: 988n }]);
+      expect(cursor.value).toBe(900n);
+    });
+
+    it('falls back to the confirmed-head window for a source never polled before', async () => {
+      const { rpcClient, ranges } = stubClient(1_000n);
+      const cursor = memoryCursor(null);
+
+      await runOneTick({ cursor: cursor.store }, rpcClient);
+
+      // null cursor = never seen. Scanning from genesis is a backfill's job, so bound the first
+      // fetch to the confirmed-head window: 988 - 24 = 964.
+      expect(ranges).toEqual([{ from: 964n, to: 988n }]);
+    });
+
+    it('skips the tick when the cursor is already at confirmed head', async () => {
+      const { rpcClient, ranges } = stubClient(1_000n);
+      const cursor = memoryCursor(988n);
+
+      await runOneTick({ cursor: cursor.store }, rpcClient);
+
+      expect(ranges).toEqual([]);
+      expect(cursor.value).toBe(988n);
+    });
+
+    it('skips the tick when the cursor cannot be read', async () => {
+      const { rpcClient, ranges } = stubClient(1_000n);
+
+      await runOneTick(
+        {
+          cursor: {
+            read: async () => {
+              throw new Error('db down');
+            },
+            write: async () => {},
+          },
+        },
+        rpcClient,
+      );
+
+      // Better to poll nothing than to guess a range and punch a hole.
+      expect(ranges).toEqual([]);
+    });
+  });
 });

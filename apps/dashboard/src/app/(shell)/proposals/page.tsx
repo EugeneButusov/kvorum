@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { ProposalList } from '@/components/proposal/proposal-list';
 import { Crumb } from '@/components/shell/crumb';
+import { PageContainer } from '@/components/shell/page-container';
 import { serverApi } from '@/lib/api/client';
 import { fetchProposalPage, paramsFromRecord, parseListParams } from '@/lib/proposals/list';
 
@@ -36,16 +37,23 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Se
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <Crumb items={[{ label: 'Home', href: '/' }, { label: 'Proposals' }]} />
-      <h1 className="text-h1 font-semibold text-ink">All proposals</h1>
-      <ProposalList
-        scope="cross"
-        initialFilters={filters}
-        initialSort={sort}
-        initialPage={initialPage}
-        daoOptions={daoOptions}
-      />
-    </div>
+      <PageContainer className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5 border-b border-line pb-5">
+          <h1 className="font-mono text-h1 font-semibold tracking-[-0.01em] text-ink">Proposals</h1>
+          <p className="max-w-[60ch] text-body-lg text-ink-2">
+            Every proposal across tracked DAOs, normalized — filter by DAO, state, and type.
+          </p>
+        </div>
+        <ProposalList
+          scope="cross"
+          initialFilters={filters}
+          initialSort={sort}
+          initialPage={initialPage}
+          daoOptions={daoOptions}
+        />
+      </PageContainer>
+    </>
   );
 }

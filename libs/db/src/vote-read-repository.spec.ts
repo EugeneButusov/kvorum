@@ -33,6 +33,36 @@ describe('VoteReadRepository', () => {
     expect(ch.selectFrom).not.toHaveBeenCalled();
   });
 
+  // Cheap CI guard for the same contract the integration spec proves against a real ClickHouse:
+  // voting_power must never be selected as the bare UInt256 column. On a server with
+  // output_format_json_quote_64bit_integers=0 (the managed production instance) the driver hands a
+  // bare UInt256 back as a JS number, which loses precision and 500s the API's numeric cursor sort
+  // (BigInt("5.8e+22") throws). toString() makes the read independent of that server setting.
+  it.each([
+    ['listForProposal', (repo: VoteReadRepository) => repo.listForProposal({ proposalId: 'p1' })],
+    ['listForActor', (repo: VoteReadRepository) => repo.listForActor('a1')],
+  ])(
+    '%s selects voting_power via toString(), never the bare UInt256 column',
+    async (_name, call) => {
+      const chChain = makeChain([]);
+      const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+      const pg = {
+        selectFrom: vi.fn().mockImplementation((table: string) => {
+          // listForProposal resolves the proposal; listForActor resolves the actor's addresses.
+          if (table === 'proposal as p') return makeChain({ source_type: 's', source_id: '1' });
+          if (table === 'actor_address') return makeChain([{ address: '0xabc' }]);
+          return makeChain([]);
+        }),
+      };
+
+      await call(new VoteReadRepository(pg as never, ch as never));
+
+      const selected = chChain.select.mock.calls[0]?.[0] as unknown[];
+      expect(selected).not.toContain('v.voting_power as voting_power_reported');
+      expect(selected).not.toContain('v.voting_power');
+    },
+  );
+
   it('findChoicesForVote synthesizes a single-element breakdown from primary_choice', async () => {
     const chChain = makeChain({ primary_choice: 2 });
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };

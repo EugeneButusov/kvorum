@@ -35,12 +35,27 @@ export interface Head {
   observedAt: Date;
 }
 
+/** Persistence port for one source's poll watermark. `libs/chain` stays storage-agnostic; the
+ *  indexer binds this to `DaoSourceRepository`'s poll-cursor accessors. */
+export interface PollCursorStore {
+  /** Block to resume *after*; null when the source has never been seen and the poller should fall
+   *  back to its confirmed-head window rather than scanning history. */
+  read(): Promise<bigint | null>;
+  /** Called only once every listener has accepted the batch — see EventPoller.runTick. */
+  write(lastPolledBlock: bigint): Promise<void>;
+}
+
 export interface EventPollerOptions {
   rpcClient: RpcClient;
   chainId: string;
   chainName: string;
   headLag: number;
   filter: LogFilter;
+  /** Resumable watermark. Omit for the legacy head-anchored window (no catch-up after downtime). */
+  cursor?: PollCursorStore;
+  /** Max blocks fetched per tick while catching up. Default = 500 — providers cap eth_getLogs
+   *  ranges, so a long outage is walked in chunks rather than demanded in one call. */
+  maxBlocksPerTick?: number;
   /** Source type (e.g. 'compound_governor') — required for 5-tuple idempotency key
    *  composition by listeners and stamped onto LogEvent.sourceType. */
   sourceType: string;

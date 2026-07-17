@@ -1,0 +1,45 @@
+# Cloudflare Tunnel — public ingress for the API without a paid load balancer.
+# cloudflared dials OUT to Cloudflare (no inbound port, no public IP needed) and
+# Cloudflare routes the configured hostname to the kvorum-api Service. TLS and DDoS
+# protection are handled at Cloudflare's edge. Zero monthly cost.
+#
+# Scale-up swap: to move to a conventional DO load balancer + Ingress later, replace
+# this component with components/expose-lb in the overlay — no app changes.
+#
+# The tunnel is created once in the Cloudflare dashboard; its connector token is
+# stored in the in-cluster kvorum-secrets Secret as TUNNEL_TOKEN (never in git).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvorum-cloudflared
+  labels:
+    app.kubernetes.io/name: kvorum-cloudflared
+    app.kubernetes.io/part-of: kvorum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-cloudflared
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-cloudflared
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.6.1
+          args: ['tunnel', '--no-autoupdate', 'run']
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: TUNNEL_TOKEN
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi

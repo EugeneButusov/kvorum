@@ -56,6 +56,8 @@ export class DaoSourceRepository {
         'dao_source.source_type',
         'dao_source.source_config',
         'dao_source.chain_id',
+        // Lets the orchestrator skip sources whose live poller is turned off (0009).
+        'dao_source.live_polling_enabled',
       ])
       .orderBy('dao_source.id', 'asc')
       .execute();
@@ -111,6 +113,36 @@ export class DaoSourceRepository {
       ])
       .where(column, '=', value)
       .executeTakeFirst();
+  }
+
+  /**
+   * The block the live poller should resume *after*, or null when the source has never been scanned
+   * — in which case the poller starts from its confirmed-head window rather than genesis.
+   *
+   * Nothing is inferred from `archive_event` here. The archive records what happened, not what was
+   * looked at: a range with no events leaves no row, so a quiet source would never advance past its
+   * last event. Sources predating the column were bootstrapped once by migration 0012; every
+   * backfill since records the watermark as it goes (BackfillDriver.onChunkComplete).
+   */
+  async readPollCursor(id: string): Promise<bigint | null> {
+    const source = await this.db
+      .selectFrom('dao_source')
+      .select('poll_cursor_block')
+      .where('id', '=', id)
+      .executeTakeFirst();
+    return source?.poll_cursor_block == null ? null : BigInt(source.poll_cursor_block);
+  }
+
+  /** Advances the live-poll watermark. Never moves it backwards: ticks can only ever be re-run, and
+   *  a regression would re-open the gap this column exists to close. */
+  async writePollCursor(id: string, lastPolledBlock: bigint): Promise<void> {
+    await this.db
+      .updateTable('dao_source')
+      .set({
+        poll_cursor_block: sql<string>`greatest(coalesce(poll_cursor_block, 0), ${lastPolledBlock.toString()}::bigint)`,
+      })
+      .where('dao_source.id', '=', id)
+      .execute();
   }
 
   /** Records the chain head captured at backfill start. No-op when already set (resume safety). */

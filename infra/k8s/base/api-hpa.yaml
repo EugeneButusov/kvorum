@@ -1,0 +1,23 @@
+# Horizontal autoscaling for the API only. Requires metrics-server (present by
+# default on DOKS). The indexer is deliberately absent — it is a hard singleton.
+# Scale-up lever: raise maxReplicas in the overlay once the node pool has headroom.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kvorum-api
+  labels:
+    app.kubernetes.io/part-of: kvorum
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kvorum-api
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

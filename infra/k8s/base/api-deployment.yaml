@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvorum-api
+  labels:
+    app.kubernetes.io/name: kvorum-api
+    app.kubernetes.io/part-of: kvorum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-api
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      affinity:
+        podAntiAffinity:
+          # Hard split: the API must never share a node with the indexer, so the
+          # indexer's bursty derivation/RPC CPU cannot degrade request latency.
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: kvorum-indexer
+              topologyKey: kubernetes.io/hostname
+      # Soft self-spread: as more nodes are added, additional API replicas fan out
+      # instead of stacking. ScheduleAnyway keeps single-node scheduling working.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kvorum-api
+      containers:
+        - name: api
+          image: ghcr.io/kvorum/kvorum:latest
+          command: ['node', 'dist/apps/api/main.js']
+          ports:
+            - name: http
+              containerPort: 3001
+            - name: metrics
+              containerPort: 9091
+          envFrom:
+            - configMapRef:
+                name: kvorum-config
+            - secretRef:
+                name: kvorum-secrets
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: api
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

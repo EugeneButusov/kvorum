@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvorum-dashboard
+  labels:
+    app.kubernetes.io/name: kvorum-dashboard
+    app.kubernetes.io/part-of: kvorum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-dashboard
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-dashboard
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      affinity:
+        podAntiAffinity:
+          # Hard split from the indexer (same rule as the API): the public-facing
+          # SSR/BFF process must never share a node with the indexer's bursty
+          # derivation/RPC CPU. With the 2-node prod pool this lands the dashboard
+          # alongside the API and keeps the indexer node to itself.
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: kvorum-indexer
+              topologyKey: kubernetes.io/hostname
+      # Soft self-spread: as more nodes are added, extra dashboard replicas fan out
+      # instead of stacking. ScheduleAnyway keeps single-node scheduling working.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kvorum-dashboard
+      containers:
+        - name: dashboard
+          image: ghcr.io/kvorum/kvorum:latest
+          # `next start` serves the prebuilt apps/dashboard/.next from the shared image.
+          command: ['pnpm', '--filter', 'dashboard', 'start']
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            # Non-secret config (BACKEND_API_URL). The dashboard is a pure BFF: it
+            # forwards the session cookie to the API and holds NO backend secrets of
+            # its own, so kvorum-secrets is deliberately NOT mounted here.
+            - configMapRef:
+                name: kvorum-config
+          env:
+            # Port `next start` binds (it reads PORT, not the API's API_PORT).
+            - name: PORT
+              value: '3000'
+            # BFF read secret (ADR-084) the same-origin proxy presents to the API's
+            # ApiKeyGuard so anonymous public reads work. Single-key ref → the dashboard
+            # gets ONLY this key, never the full kvorum-secrets. optional:true keeps the pod
+            # bootable before the key exists (reads just 401 until it's provisioned).
+            - name: INTERNAL_READ_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: INTERNAL_READ_TOKEN
+                  optional: true
+          readinessProbe:
+            # /healthz returns 200 without touching the backend, so the pod stays
+            # Ready through API blips. /api/* is the BFF proxy — never probe it.
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              # Headroom over the API's 512Mi — React SSR peaks higher under load.
+              cpu: 500m
+              memory: 768Mi

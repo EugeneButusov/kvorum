@@ -54,6 +54,7 @@ function buildApplier(options?: {
   const archive: AaveVoteProjectionApplierDeps['archive'] = {
     incrementAttemptCount: vi.fn().mockResolvedValue(undefined),
     markDerived: vi.fn().mockResolvedValue(undefined),
+    markHeld: vi.fn().mockResolvedValue(undefined),
   } as never;
   const dlq: AaveVoteProjectionApplierDeps['dlq'] = {
     insert: vi.fn().mockResolvedValue(undefined),
@@ -64,6 +65,7 @@ function buildApplier(options?: {
   const proposals: AaveVoteProjectionApplierDeps['proposals'] = {
     findDaoIdForSource: vi.fn(),
     findBySource: vi.fn(),
+    fillTimestamps: vi.fn().mockResolvedValue(undefined),
   } as never;
   const aaveProposals: AaveVoteProjectionApplierDeps['aaveProposals'] = {
     setVotingChainBinding: vi.fn().mockResolvedValue(undefined),
@@ -164,7 +166,7 @@ describe('AaveVoteProjectionApplier', () => {
     });
   });
 
-  it('holds VoteEmitted indefinitely when proposal is missing', async () => {
+  it('defers VoteEmitted with a back-off when proposal is missing', async () => {
     const row = { ...BASE_ROW, received_at: new Date(Date.now() - 60_000) };
     const { applier, archive, dlq, proposals, voteWrite, metrics, logger } = buildApplier();
     (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
@@ -173,6 +175,8 @@ describe('AaveVoteProjectionApplier', () => {
     await applier.applyBatch([row]);
 
     expect(voteWrite.insertBatch).not.toHaveBeenCalled();
+    // KNOWN-028: deferred, not derived — and it steps aside so newer votes on this chain keep flowing.
+    expect(archive.markHeld).toHaveBeenCalledTimes(1);
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();
@@ -427,7 +431,63 @@ describe('AaveVoteProjectionApplier', () => {
     });
   });
 
-  it('holds ProposalVoteStarted indefinitely when proposal is missing', async () => {
+  it('records the voting window from ProposalVoteStarted startTime/endTime', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteStarted' as const,
+      payload: JSON.stringify({
+        proposalId: '42',
+        l1BlockHash: '0x' + '22'.repeat(32),
+        // uint256 unix seconds; 259200s apart — Aave's 3-day voting window.
+        startTime: '1779698667',
+        endTime: '1779957867',
+      }),
+    };
+    const { applier, proposals } = buildApplier({ payloads: [payload] });
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+
+    await applier.applyBatch([row]);
+
+    // Regression guard: without this write a v3 proposal whose window never derived from mainnet
+    // VotingActivated would stay null — nothing else fills it.
+    expect(proposals.fillTimestamps).toHaveBeenCalledWith([
+      {
+        id: 'proposal-uuid',
+        voting_starts_at: new Date(1779698667 * 1000),
+        voting_ends_at: new Date(1779957867 * 1000),
+      },
+    ]);
+  });
+
+  it('writes no voting window when ProposalVoteStarted carries unusable times', async () => {
+    const row = { ...BASE_ROW, event_type: 'ProposalVoteStarted' as const };
+    const payload = {
+      ...BASE_PAYLOAD,
+      event_type: 'ProposalVoteStarted' as const,
+      payload: JSON.stringify({
+        proposalId: '42',
+        l1BlockHash: '0x' + '22'.repeat(32),
+        // A uint256 can exceed Date's range; 0 is the unset sentinel.
+        startTime: '0',
+        endTime: '115792089237316195423570985008687907853269984665640564039457584007913129639935',
+      }),
+    };
+    const { applier, proposals, archive } = buildApplier({ payloads: [payload] });
+    (proposals.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue('dao-1');
+    (proposals.findBySource as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proposal-uuid' });
+
+    await applier.applyBatch([row]);
+
+    // null means "leave the column alone" in fillTimestamps — never persist a bogus instant.
+    expect(proposals.fillTimestamps).toHaveBeenCalledWith([
+      { id: 'proposal-uuid', voting_starts_at: null, voting_ends_at: null },
+    ]);
+    expect(archive.markDerived).toHaveBeenCalledWith('archive-1');
+  });
+
+  it('defers ProposalVoteStarted with a back-off when proposal is missing', async () => {
     const row = {
       ...BASE_ROW,
       event_type: 'ProposalVoteStarted' as const,
@@ -452,6 +512,9 @@ describe('AaveVoteProjectionApplier', () => {
     await applier.applyBatch([row]);
 
     expect(aaveProposals.setVotingChainBinding).not.toHaveBeenCalled();
+    expect(proposals.fillTimestamps).not.toHaveBeenCalled();
+    // KNOWN-028: deferred rather than left pinning the queue head.
+    expect(archive.markHeld).toHaveBeenCalledTimes(1);
     expect(archive.markDerived).not.toHaveBeenCalled();
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
     expect(dlq.insert).not.toHaveBeenCalled();

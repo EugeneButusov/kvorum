@@ -66,60 +66,64 @@ export function TallySection({ tally, detail }: { tally: TallyData; detail: Prop
         {presented.source === 'choice_scores' ? 'Per-choice scores' : 'Summed from votes'}
       </p>
 
-      {/* Stacked bar */}
-      <div
-        className="flex h-8 w-full overflow-hidden border border-line-2 bg-bg-3"
-        role="img"
-        aria-label={presented.segments.map((s) => `${s.label} ${s.pct}%`).join(', ')}
-      >
-        {presented.segments
-          .filter((s) => s.pct > 0)
-          .map((s) => (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+        {/* Per-choice bars. The whole group is one img for AT — the individual bars are decorative. */}
+        <div
+          role="img"
+          aria-label={presented.segments.map((s) => `${s.label} ${s.pct}%`).join(', ')}
+          className="flex flex-col gap-3"
+        >
+          {presented.segments.map((s) => (
             <div
               key={s.choiceIndex}
-              className={cn('h-full', BAR_FILL[s.kind])}
-              style={{ width: `${s.pct}%` }}
-            />
+              className="grid grid-cols-[64px_minmax(0,1fr)_7rem] items-center gap-3"
+            >
+              <span className="truncate font-mono text-pill uppercase tracking-[0.06em] text-ink-2">
+                {s.label}
+              </span>
+              <span className="relative h-5 overflow-hidden border border-line-3 bg-bg-3">
+                <span
+                  className={cn('absolute inset-y-0 left-0', BAR_FILL[s.kind])}
+                  style={{ width: `${s.pct}%` }}
+                />
+              </span>
+              <span className="whitespace-nowrap text-right font-mono text-body tabular-nums">
+                <span className="font-semibold text-ink">{s.pct.toFixed(1)}%</span>
+                <span className="ml-2 text-mono-body text-ink-3">
+                  {formatCompactNumber(s.power)}
+                </span>
+              </span>
+            </div>
           ))}
+        </div>
+
+        {/* Stats box */}
+        <dl className="border border-line-3 bg-bg-2">
+          <Stat label="Voters" value={formatCompactNumber(presented.totalVoters)} />
+          <Stat label="VP participating" value={formatCompactNumber(presented.totalPower)} />
+          <Stat
+            label="Outcome (current)"
+            value={presented.leading ? presented.leading.label : '—'}
+          />
+          <Stat
+            label="Current support"
+            value={currentSupportPct != null ? `${currentSupportPct}%` : '—'}
+          />
+          {supportRequiredPct != null && (
+            <Stat label="Support required" value={`${supportRequiredPct}%`} />
+          )}
+          {minQuorumPct != null && <Stat label="Min. quorum" value={`${minQuorumPct}%`} />}
+        </dl>
       </div>
-
-      {/* Per-choice breakdown */}
-      <ul className="flex flex-col gap-1.5 font-mono text-mono-body">
-        {presented.segments.map((s) => (
-          <li key={s.choiceIndex} className="flex items-center gap-3">
-            <span className={cn('h-2.5 w-2.5 shrink-0', BAR_FILL[s.kind])} aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-ink">{s.label}</span>
-            <span className="tabular-nums text-ink-2">{s.pct.toFixed(1)}%</span>
-            <span className="w-28 text-right tabular-nums text-ink-3">
-              {formatCompactNumber(s.power)}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* Stats */}
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line-3 pt-4 font-mono text-caption sm:grid-cols-4">
-        <Stat label="Voters" value={formatCompactNumber(presented.totalVoters)} />
-        <Stat label="VP participating" value={formatCompactNumber(presented.totalPower)} />
-        <Stat label="Outcome (current)" value={presented.leading ? presented.leading.label : '—'} />
-        <Stat
-          label="Current support"
-          value={currentSupportPct != null ? `${currentSupportPct}%` : '—'}
-        />
-        {supportRequiredPct != null && (
-          <Stat label="Support required" value={`${supportRequiredPct}%`} />
-        )}
-        {minQuorumPct != null && <Stat label="Min. quorum" value={`${minQuorumPct}%`} />}
-      </dl>
     </Section>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="uppercase tracking-[0.04em] text-ink-4">{label}</dt>
-      <dd className="text-body text-ink">{value}</dd>
+    <div className="flex items-center justify-between gap-3 border-b border-dashed border-line-3 px-3.5 py-2.5 last:border-b-0">
+      <span className="font-mono text-mono-body text-ink-3">{label}</span>
+      <span className="font-mono text-dense tabular-nums text-ink">{value}</span>
     </div>
   );
 }

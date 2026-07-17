@@ -20,6 +20,8 @@ const DLQ_THRESHOLD = Number(process.env['VOTE_PROJECTION_DLQ_THRESHOLD'] ?? '5'
 const VOTE_PROJECTION_STAGE = 'aave_vote_projection_stage';
 const AAVE_PROPOSAL_SOURCE_TYPE = 'aave_governance_v3';
 const HOLD_LOG_INTERVAL_MS = 30_000;
+/** How long a vote awaiting its mainnet proposal steps aside for (KNOWN-028). */
+const STITCH_HOLD_BACKOFF_MS = Number(process.env['AAVE_STITCH_HOLD_BACKOFF_MS'] ?? '60000');
 
 export type AaveVoteDerivationOutcome =
   | 'derived'
@@ -105,10 +107,10 @@ export class AaveVoteProjectionApplier {
     const firstRow = rows[0];
     if (firstRow === undefined) return;
 
-    // KNOWN-028: The derivation worker dispatches batches by `(source_type, chain_id, event_type)`
-    // (`apps/indexer/src/derivation/derivation-worker.service.ts`), so a held `no_proposal` row at the
-    // front of one voting-chain batch can delay newer derivable votes on that same chain until the
-    // missing proposal lands. See `docs/runbooks/m3-chains.md` ("Aave stitch-hold alerting").
+    // A held `no_proposal` row no longer blocks the head of its batch: the hold stamps
+    // `derivation_hold_until`, so the derivable queries skip the row until the back-off elapses and
+    // newer votes on the same chain keep flowing (was KNOWN-028; see markHeld + migration 0010).
+    // See `docs/runbooks/m3-chains.md` ("Aave stitch-hold alerting").
     if (
       firstRow.event_type === 'ProposalResultsSent' ||
       firstRow.event_type === 'ProposalVoteConfigurationBridged'
@@ -237,6 +239,9 @@ export class AaveVoteProjectionApplier {
       });
       if (proposal === undefined) {
         this.record(row, 'held', 'no_proposal');
+        // Defer rather than spin (KNOWN-028) — see markHeld. The mainnet proposal may sit at a
+        // higher block during a backfill, so holding the queue head would prevent it from deriving.
+        await this.archive.markHeld(row.id, new Date(Date.now() + STITCH_HOLD_BACKOFF_MS));
         return (Date.now() - row.received_at.getTime()) / 1000;
       }
 
@@ -327,6 +332,8 @@ export class AaveVoteProjectionApplier {
       });
       if (proposal === undefined) {
         this.record(row, 'held', 'no_proposal');
+        // Defer rather than spin (KNOWN-028) — see markHeld.
+        await this.archive.markHeld(row.id, new Date(Date.now() + STITCH_HOLD_BACKOFF_MS));
         return (Date.now() - row.received_at.getTime()) / 1000;
       }
 
@@ -334,6 +341,18 @@ export class AaveVoteProjectionApplier {
         votingChainId: row.chain_id,
         votingMachineAddress,
       });
+
+      // The voting machine reports the window it actually enforces; the mainnet VotingActivated
+      // handler derives an equivalent one from activation-block time + votingDuration, so whichever
+      // derives first fills the window and the other is a no-op. In practice that is mainnet, and
+      // the two differ only by the a.DI bridge relay.
+      await this.proposals.fillTimestamps([
+        {
+          id: proposal.id,
+          voting_starts_at: votingWindowDate(payload.startTime),
+          voting_ends_at: votingWindowDate(payload.endTime),
+        },
+      ]);
 
       try {
         await this.archive.markDerived(row.id);
@@ -444,4 +463,17 @@ function tupleKey(
     | Pick<AaveVotingMachineArchivePayloadRow, 'chain_id' | 'tx_hash' | 'log_index' | 'block_hash'>,
 ): string {
   return `${row.chain_id}:${row.tx_hash}:${row.log_index}:${row.block_hash}`;
+}
+
+/**
+ * `ProposalVoteStarted(…, uint256 startTime, uint256 endTime)` reports unix seconds, decoded to a
+ * base-10 string. Returns null for anything that is not a plausible instant — a uint256 can hold
+ * values far beyond `Date`'s range, and `fillTimestamps` treats null as "leave the column alone",
+ * so a nonsensical value yields no write rather than a bogus date.
+ */
+function votingWindowDate(unixSeconds: string): Date | null {
+  const seconds = Number(unixSeconds);
+  if (Number.isSafeInteger(seconds) === false || seconds <= 0) return null;
+  const at = new Date(seconds * 1000);
+  return Number.isNaN(at.getTime()) ? null : at;
 }

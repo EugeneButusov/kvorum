@@ -129,6 +129,58 @@ describe('ApiKeyGuard', () => {
     expect(repo.touchLastUsed).toHaveBeenCalledWith('k1');
   });
 
+  describe('internal read token (BFF trust seam)', () => {
+    const nonPublic = () => ({ getAllAndOverride: vi.fn(() => false) }) as unknown as Reflector;
+    const noKeyRepo = () =>
+      ({
+        findActiveByHash: vi.fn(),
+        touchLastUsed: vi.fn(),
+        rehashKey: vi.fn(),
+      }) as unknown as ApiKeyRepository;
+
+    it('authorizes a GET read bearing the matching internal token, without any API key', async () => {
+      const repo = noKeyRepo();
+      const guard = new ApiKeyGuard(nonPublic(), repo, peppers(), 'shared-secret');
+      const ctx = makeContext({
+        method: 'GET',
+        headers: { 'x-internal-read-token': 'shared-secret' },
+      } as never);
+
+      await expect(guard.canActivate(ctx as never)).resolves.toBe(true);
+      expect(repo.findActiveByHash).not.toHaveBeenCalled();
+    });
+
+    it('does NOT honor the internal token on a write method (GET/HEAD only)', async () => {
+      const guard = new ApiKeyGuard(nonPublic(), noKeyRepo(), peppers(), 'shared-secret');
+      const ctx = makeContext({
+        method: 'POST',
+        headers: { 'x-internal-read-token': 'shared-secret' },
+      } as never);
+
+      await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects a wrong internal token (falls through to API-key auth)', async () => {
+      const guard = new ApiKeyGuard(nonPublic(), noKeyRepo(), peppers(), 'shared-secret');
+      const ctx = makeContext({
+        method: 'GET',
+        headers: { 'x-internal-read-token': 'not-the-secret' },
+      } as never);
+
+      await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('disables the internal path entirely when no token is configured', async () => {
+      const guard = new ApiKeyGuard(nonPublic(), noKeyRepo(), peppers()); // no 4th arg
+      const ctx = makeContext({
+        method: 'GET',
+        headers: { 'x-internal-read-token': 'anything' },
+      } as never);
+
+      await expect(guard.canActivate(ctx as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
   it('authenticates previous pepper and schedules rehash', async () => {
     const reflector = { getAllAndOverride: vi.fn(() => false) } as unknown as Reflector;
     const p = peppers();

@@ -13,6 +13,12 @@ export class OpsServer implements OnApplicationBootstrap, OnApplicationShutdown 
       if (req.url === '/metrics') {
         res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
         res.end(await renderMetrics());
+      } else if (req.url === '/health') {
+        // Readiness/liveness probe target for workers that expose no app HTTP port
+        // (e.g. apps/indexer runs as a standalone Nest context). The API has its own
+        // /health on the app port; this covers every OpsServer-hosting process.
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ status: 'ok' }));
       } else {
         res.statusCode = 404;
         res.end();

@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1.7
+#
+# Single image for the backend services (api, indexer), the Next.js dashboard, the
+# migration job, and the admin-cli ops tooling. The entrypoint is selected by the
+# container command in Kubernetes:
+#   api       → node dist/apps/api/main.js
+#   indexer   → node dist/apps/indexer/main.js
+#   dashboard → pnpm --filter dashboard start   (next start, serves apps/dashboard/.next)
+#   migrate   → pnpm -w db:migrate && pnpm -w db:migrate:ch
+#   admin-cli → node dist/apps/admin-cli/main.js <cmd>   (ad-hoc ops: backfill, dlq,
+#               actor merge, …; run via `kubectl exec` or a one-off Job, not a service)
+#
+# Why one image: the Nest apps webpack-bundle to dist/apps/<app>/main.js but
+# EXTERNALIZE node_modules (required at runtime as commonjs); the dashboard runs
+# `next start` against its `.next` build output; the admin-cli esbuild-bundles to
+# dist/apps/admin-cli/main.js (build injects PKG_VERSION — running the TS via tsx
+# would leave it undefined); and the migration entrypoints run via tsx against the TS
+# sources under libs/. Shipping the built workspace + full dependency tree keeps all
+# these entrypoints working from one artifact.
+#
+# KNOWN-013: image ships devDependencies (tsx is needed by the migrate job) and the
+# workspace source. A slimmer runtime that prunes to prod deps + precompiled
+# migrations is a size optimisation deferred until image pull time becomes a concern.
+
+FROM node:24-slim AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@11.0.8 --activate
+WORKDIR /app
+
+# ── Install + build ───────────────────────────────────────────────────────────
+FROM base AS build
+# Copy the whole workspace: the install graph spans every package.json under
+# apps/*, libs/*, nest/* and the webpack build reads source from all of them.
+COPY . .
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dashboard build && pnpm --filter admin-cli build
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+FROM base AS runtime
+ENV NODE_ENV=production
+# Git commit the image was built from — surfaced in the dashboard footer (build · <sha>).
+# Passed as a build-arg by the deploy workflow; empty on local `docker build` (footer
+# then falls back to `dev`).
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
+# Re-copy the built workspace under the unprivileged `node` user so tsx (migrate
+# job) and the app processes can write caches/tmp without running as root.
+COPY --chown=node:node --from=build /app /app
+USER node
+# Default command; overridden per-service by the Kubernetes Deployment/Job.
+CMD ["node", "dist/apps/api/main.js"]

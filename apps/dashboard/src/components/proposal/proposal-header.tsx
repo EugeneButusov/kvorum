@@ -51,7 +51,7 @@ export function ProposalHeader({ detail }: { detail: ProposalDetailView }) {
             href={external.href}
             target="_blank"
             rel="noreferrer noopener"
-            className="ml-auto text-ink-2 underline-offset-2 hover:text-accent hover:underline"
+            className="ml-auto text-ink-2 underline-offset-2 hover:text-primary hover:underline"
           >
             View on {external.label} ↗
           </Link>

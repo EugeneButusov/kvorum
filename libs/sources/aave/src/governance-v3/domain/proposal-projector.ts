@@ -44,6 +44,8 @@ export interface AaveVotingActivatedProjection {
   sourceId: string;
   targetState: Extract<ProposalState, 'active'>;
   stateUpdatedAt: Date;
+  /** Seconds the vote stays open, measured from this event's block. `uint24` on the wire. */
+  votingDuration: number;
 }
 
 export interface AaveProposalStateTransitionProjection {
@@ -164,6 +166,7 @@ function projectVotingActivated(
     sourceId: payload.proposalId,
     targetState: 'active',
     stateUpdatedAt: confirmedAt,
+    votingDuration: payload.votingDuration,
   };
 }
 

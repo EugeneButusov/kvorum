@@ -55,6 +55,13 @@ export interface DaoSourceTable {
   active_to_block: string | null;
   backfill_started_at_block: string | null;
   backfill_head_block: string | null;
+  /** Live-poll watermark: last block whose logs every listener accepted (0011). Null = never
+   *  polled, which selects the archive-watermark fallback in DaoSourceRepository.readPollCursor.
+   *  Unlike backfill_head_block this belongs to the continuous live path, not a bounded run. */
+  poll_cursor_block: string | null;
+  // When false, the orchestrator skips this source's live poller at startup (0009). Generated —
+  // defaulted true at the DB, so inserts may omit it.
+  live_polling_enabled: Generated<boolean>;
   created_at: Generated<Date>;
 }
 
