@@ -23,6 +23,7 @@ import {
   GovernorProjectionApplier,
   GovernorVoteProjectionApplier,
   createCompTokenPlugin,
+  createCompoundGovernorAlphaReconcilePlugin,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
   createCompoundPlugins,
@@ -190,6 +191,11 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
               logger: reconcileLogger,
             }),
             createCompoundGovernorOzReconcilePlugin({
+              proposals: proposalRepo,
+              metrics,
+              logger: reconcileLogger,
+            }),
+            createCompoundGovernorAlphaReconcilePlugin({
               proposals: proposalRepo,
               metrics,
               logger: reconcileLogger,
