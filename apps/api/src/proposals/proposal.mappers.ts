@@ -14,7 +14,7 @@ import {
   ProposalActionDto,
   ProposalDetailDto,
   ProposalListItemDto,
-  type ProposalRowTallyDto,
+  type ProposalTallySummaryDto,
 } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
@@ -139,7 +139,7 @@ function groupPayloads(payloads: readonly ProposalPayloadView[]): ProposalPayloa
 
 export function toProposalListItemDto(
   row: ProposalListRow,
-  tally: ProposalRowTallyDto | null = null,
+  tally: ProposalTallySummaryDto | null = null,
 ): ProposalListItemDto {
   return Object.assign(new ProposalListItemDto(), {
     dao_slug: row.dao_slug,

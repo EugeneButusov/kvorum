@@ -2983,7 +2983,7 @@
         },
         "required": ["address"]
       },
-      "ProposalRowTallyChoiceDto": {
+      "ProposalTallySummaryChoiceDto": {
         "type": "object",
         "properties": {
           "choice_index": {
@@ -3000,13 +3000,13 @@
         },
         "required": ["choice_index", "label", "pct"]
       },
-      "ProposalRowTallyDto": {
+      "ProposalTallySummaryDto": {
         "type": "object",
         "properties": {
           "choices": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProposalRowTallyChoiceDto"
+              "$ref": "#/components/schemas/ProposalTallySummaryChoiceDto"
             }
           }
         },
@@ -3078,7 +3078,7 @@
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/ProposalRowTallyDto"
+                "$ref": "#/components/schemas/ProposalTallySummaryDto"
               }
             ]
           },
@@ -3439,7 +3439,7 @@
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/ProposalRowTallyDto"
+                "$ref": "#/components/schemas/ProposalTallySummaryDto"
               }
             ]
           },

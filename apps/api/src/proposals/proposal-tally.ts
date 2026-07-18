@@ -117,7 +117,7 @@ function assembleFromScores(
   };
 }
 
-export type RowTallyChoice = { choice_index: number; label: string; pct: number };
+export type TallySummaryChoice = { choice_index: number; label: string; pct: number };
 
 /**
  * A compact per-choice tally for a proposals-list row: choice label + share of participating power.
@@ -126,13 +126,13 @@ export type RowTallyChoice = { choice_index: number; label: string; pct: number 
  *
  * Votes-summed only — unlike the detail tally it does not apply a source's `choice_scores` override,
  * so approval/weighted Snapshot proposals show their summed-primary-choice split here. That is exact
- * for the standard For/Against/Abstain governor votes that make up the tracked DAOs; the detail page
+ * for the standard for/against/abstain governor votes that make up the tracked DAOs; the detail page
  * carries the authoritative tally. Returns null when no votes are cast (nothing to draw).
  */
-export function assembleRowTally(args: {
+export function assembleTallySummary(args: {
   declaredChoices: ProposalChoice[];
   aggregate: ProposalTallyRow[];
-}): RowTallyChoice[] | null {
+}): TallySummaryChoice[] | null {
   if (args.aggregate.length === 0) return null;
 
   const assembled = assembleTally({

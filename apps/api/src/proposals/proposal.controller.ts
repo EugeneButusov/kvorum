@@ -13,12 +13,12 @@ import {
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
-import { assembleRowTally, assembleTally, extractChoiceScores } from './proposal-tally';
+import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 import { ProposalTallyResponseDto } from './proposal-tally.dto';
 import {
   ProposalDetailResponseDto,
   ProposalListResponseDto,
-  type ProposalRowTallyDto,
+  type ProposalTallySummaryDto,
 } from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
@@ -49,25 +49,25 @@ export class ProposalController {
   ) {}
 
   /**
-   * Per-choice row tallies for a page of proposals, in two batched reads (CH aggregate + PG choices)
-   * regardless of page size. Keyed by proposal id; a proposal with no votes maps to `null`.
+   * Per-choice tally summaries for a page of proposals, in two batched reads (CH aggregate + PG
+   * choices) regardless of page size. Keyed by proposal id; a proposal with no votes maps to `null`.
    */
-  private async rowTalliesFor(
+  private async tallySummariesFor(
     rows: readonly { id: string }[],
-  ): Promise<Map<string, ProposalRowTallyDto | null>> {
+  ): Promise<Map<string, ProposalTallySummaryDto | null>> {
     const ids = rows.map((r) => r.id);
     const [aggregates, choices] = await Promise.all([
       this.voteRepo.tallyForProposals(ids),
       this.repo.findChoicesForProposals(ids),
     ]);
 
-    const byProposal = new Map<string, ProposalRowTallyDto | null>();
+    const byProposal = new Map<string, ProposalTallySummaryDto | null>();
     for (const id of ids) {
-      const rowChoices = assembleRowTally({
+      const summaryChoices = assembleTallySummary({
         declaredChoices: choices.get(id) ?? [],
         aggregate: aggregates.get(id) ?? [],
       });
-      byProposal.set(id, rowChoices === null ? null : { choices: rowChoices });
+      byProposal.set(id, summaryChoices === null ? null : { choices: summaryChoices });
     }
     return byProposal;
   }
@@ -111,7 +111,7 @@ export class ProposalController {
       q: canonical,
     }));
 
-    const tallies = await this.rowTalliesFor(page.data);
+    const tallies = await this.tallySummariesFor(page.data);
     return {
       data: page.data.map((row) => toProposalListItemDto(row, tallies.get(row.id) ?? null)),
       pagination: page.pagination,
@@ -224,7 +224,7 @@ export class ProposalController {
       q: canonical,
     }));
 
-    const tallies = await this.rowTalliesFor(page.data);
+    const tallies = await this.tallySummariesFor(page.data);
     return {
       data: page.data.map((row) => toProposalListItemDto(row, tallies.get(row.id) ?? null)),
       pagination: page.pagination,

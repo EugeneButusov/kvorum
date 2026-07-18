@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleRowTally, assembleTally, extractChoiceScores } from './proposal-tally';
+import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 
 describe('assembleTally — from votes', () => {
   it('sums per choice and derives exact percentages', () => {
@@ -99,7 +99,7 @@ describe('extractChoiceScores', () => {
   });
 });
 
-describe('assembleRowTally', () => {
+describe('assembleTallySummary', () => {
   const choices = [
     { proposal_id: 'p1', choice_index: 0, value: 'for' },
     { proposal_id: 'p1', choice_index: 1, value: 'against' },
@@ -107,7 +107,7 @@ describe('assembleRowTally', () => {
   ];
 
   it('labels each choice and carries the exact percentage', () => {
-    const out = assembleRowTally({
+    const out = assembleTallySummary({
       declaredChoices: choices,
       aggregate: [
         { primary_choice: 0, voting_power: '780', voter_count: 12 },
@@ -124,11 +124,11 @@ describe('assembleRowTally', () => {
   });
 
   it('returns null when no votes are cast, so the row draws no bars', () => {
-    expect(assembleRowTally({ declaredChoices: choices, aggregate: [] })).toBeNull();
+    expect(assembleTallySummary({ declaredChoices: choices, aggregate: [] })).toBeNull();
   });
 
   it('surfaces a declared choice that received no votes at 0%', () => {
-    const out = assembleRowTally({
+    const out = assembleTallySummary({
       declaredChoices: choices,
       aggregate: [{ primary_choice: 0, voting_power: '100', voter_count: 1 }],
     });
@@ -141,7 +141,7 @@ describe('assembleRowTally', () => {
   });
 
   it('falls back to a positional label for a choice the proposal never declared', () => {
-    const out = assembleRowTally({
+    const out = assembleTallySummary({
       declaredChoices: [],
       aggregate: [{ primary_choice: 3, voting_power: '100', voter_count: 1 }],
     });

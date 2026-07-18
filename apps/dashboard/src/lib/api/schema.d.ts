@@ -616,15 +616,15 @@ export interface components {
       address: string;
       display_name?: Record<string, never> | null;
     };
-    ProposalRowTallyChoiceDto: {
+    ProposalTallySummaryChoiceDto: {
       choice_index: number;
       /** @description The declared choice label, e.g. "for" — for client-side classification. */
       label: string;
       /** @description Share of participating power, 0–100, to two decimals. */
       pct: number;
     };
-    ProposalRowTallyDto: {
-      choices: components['schemas']['ProposalRowTallyChoiceDto'][];
+    ProposalTallySummaryDto: {
+      choices: components['schemas']['ProposalTallySummaryChoiceDto'][];
     };
     ProposalLinksDto: {
       self: string;
@@ -646,7 +646,7 @@ export interface components {
       voting_ends_at: Record<string, never> | null;
       proposer: components['schemas']['ProposerDto'];
       /** @description Per-choice voting-power tally for the row bars; null when no votes are cast yet. */
-      tally?: components['schemas']['ProposalRowTallyDto'] | null;
+      tally?: components['schemas']['ProposalTallySummaryDto'] | null;
       _meta: components['schemas']['ProposalMetaDto'];
     };
     ProposalListResponseDto: {
@@ -753,7 +753,7 @@ export interface components {
       voting_ends_at: Record<string, never> | null;
       proposer: components['schemas']['ProposerDto'];
       /** @description Per-choice voting-power tally for the row bars; null when no votes are cast yet. */
-      tally?: components['schemas']['ProposalRowTallyDto'] | null;
+      tally?: components['schemas']['ProposalTallySummaryDto'] | null;
       _meta: components['schemas']['ProposalMetaDto'];
       description: string;
       actions: components['schemas']['ProposalActionDto'][];

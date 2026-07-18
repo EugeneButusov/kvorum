@@ -69,7 +69,7 @@ export class ProposalChoiceDto {
   declare value: string;
 }
 
-export class ProposalRowTallyChoiceDto {
+export class ProposalTallySummaryChoiceDto {
   @ApiProperty()
   declare choice_index: number;
 
@@ -82,9 +82,9 @@ export class ProposalRowTallyChoiceDto {
   declare pct: number;
 }
 
-export class ProposalRowTallyDto {
-  @ApiProperty({ type: [ProposalRowTallyChoiceDto] })
-  declare choices: ProposalRowTallyChoiceDto[];
+export class ProposalTallySummaryDto {
+  @ApiProperty({ type: [ProposalTallySummaryChoiceDto] })
+  declare choices: ProposalTallySummaryChoiceDto[];
 }
 
 export class ProposalListItemDto {
@@ -116,11 +116,11 @@ export class ProposalListItemDto {
   declare proposer: ProposerDto;
 
   @ApiPropertyOptional({
-    type: ProposalRowTallyDto,
+    type: ProposalTallySummaryDto,
     nullable: true,
     description: 'Per-choice voting-power tally for the row bars; null when no votes are cast yet.',
   })
-  declare tally: ProposalRowTallyDto | null;
+  declare tally: ProposalTallySummaryDto | null;
 
   @ApiProperty({ type: ProposalMetaDto })
   declare _meta: ProposalMetaDto;
