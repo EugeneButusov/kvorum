@@ -406,6 +406,54 @@ describe('DerivationWorkerService', () => {
     expect(applier.applyBatch).toHaveBeenCalledWith([highRow]);
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
+
+  it('preserves block order across event types within a batch', async () => {
+    // Reproduces the production failure: a batch whose FIRST row is a later-block ProposalCanceled
+    // (for an earlier proposal) used to pull EVERY cancel ahead of EVERY create, so a proposal's
+    // cancel was applied before the create that made it exist — advanceState matched no row and the
+    // transition was dropped. Compound bravo #347/#348 and alpha #4 were stuck this way.
+    const earlierCancel = {
+      ...ROW,
+      id: 'a-cancel-early',
+      block_number: '90',
+      event_type: 'test_event_canceled' as const,
+    };
+    const create348 = { ...ROW, id: 'a-create-348', block_number: '100' };
+    const cancel348 = {
+      ...ROW,
+      id: 'a-cancel-348',
+      block_number: '110',
+      event_type: 'test_event_canceled' as const,
+    };
+    // Selected in block order: cancel@90, create@100, cancel@110.
+    const actorResolution = {
+      findDerivableBy: vi.fn().mockResolvedValue([earlierCancel, create348, cancel348]),
+      findDerivableByOffchain: vi.fn().mockResolvedValue([]),
+    };
+    const seen: string[] = [];
+    const applier = {
+      kind: 'projection' as const,
+      sourceTypes: ['test_source_bravo'],
+      eventTypes: ['test_event_created', 'test_event_canceled'],
+      applyBatch: vi.fn(async (rows: { id: string }[]) => {
+        for (const row of rows) seen.push(row.id);
+      }),
+    };
+    const worker = new DerivationWorkerService(
+      {} as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(applier)],
+    );
+
+    await worker.tick();
+
+    // The create must reach the applier before the cancel that depends on it.
+    expect(seen).toEqual(['a-cancel-early', 'a-create-348', 'a-cancel-348']);
+    expect(seen.indexOf('a-create-348')).toBeLessThan(seen.indexOf('a-cancel-348'));
+    // Three consecutive runs, each homogeneous — appliers still get one event type per batch.
+    expect(applier.applyBatch).toHaveBeenCalledTimes(3);
+  });
 });
 
 function makeRegistry() {
