@@ -9,13 +9,11 @@ export {
   GOVERNOR_V2_STATE_INTERFACE,
   EXECUTOR_GRACE_PERIOD_INTERFACE,
   AaveGovernorV2StateDecodeError,
-  encodeGetProposalStateCall as encodeGetV2ProposalStateCall,
-  decodeProposalStateResult as decodeV2ProposalStateResult,
   encodeGetProposalByIdCall,
   decodeGetProposalByIdResult,
+  deriveAaveV2State,
   encodeGracePeriodCall,
   decodeGracePeriodResult,
-  mapAaveV2StateCode,
 } from './abi/governor-state';
 export type { V2ProposalSummary } from './abi/governor-state';
 export { AAVE_V2_CHOICES } from './domain/choices';

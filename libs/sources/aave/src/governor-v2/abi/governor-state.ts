@@ -1,5 +1,4 @@
 import { Interface } from 'ethers';
-import type { ProposalState } from '@libs/db';
 
 export const GOVERNOR_V2_STATE_INTERFACE = new Interface([
   'function getProposalState(uint256 proposalId) view returns (uint8)',
@@ -36,6 +35,10 @@ export function decodeProposalStateResult(data: string): number {
   }
 }
 
+/** AaveGovernanceV2 ProposalState enum values the reconciler acts on. */
+export const AAVE_V2_STATE_FAILED = 3;
+export const AAVE_V2_STATE_SUCCEEDED = 4;
+
 export function encodeGetProposalByIdCall(sourceId: string): string {
   return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionData('getProposalById', [BigInt(sourceId)]);
 }
@@ -43,6 +46,10 @@ export function encodeGetProposalByIdCall(sourceId: string): string {
 export interface V2ProposalSummary {
   executor: string;
   executionTime: bigint;
+  startBlock: bigint;
+  endBlock: bigint;
+  executed: boolean;
+  canceled: boolean;
 }
 
 export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
@@ -51,6 +58,10 @@ export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
     return {
       executor: (proposal.executor as string).toLowerCase(),
       executionTime: proposal.executionTime as bigint,
+      startBlock: proposal.startBlock as bigint,
+      endBlock: proposal.endBlock as bigint,
+      executed: proposal.executed as boolean,
+      canceled: proposal.canceled as boolean,
     };
   } catch (err) {
     throw new AaveGovernorV2StateDecodeError(
@@ -58,6 +69,43 @@ export function decodeGetProposalByIdResult(data: string): V2ProposalSummary {
       err,
     );
   }
+}
+
+/**
+ * Classifies a stale v2 proposal from the `getProposalById` struct, and says how the reconciler
+ * should finish resolving it. The mechanical facts (`canceled`, `executed`, `executionTime`) come
+ * straight from the struct; the two states with no on-chain event — the vote outcome and expiry —
+ * are handed back for a follow-up call.
+ *
+ * Why not just call `getProposalState`? At the confirmed head it reverts for EVERY historical
+ * proposal (verified on an executed one too): it recomputes the tally through the governance
+ * strategy's voting-power snapshot, and the v2→v3 migration broke that path. It still works when
+ * called at a block near the proposal's own conclusion — see `needs_outcome`.
+ */
+export type V2DerivedState =
+  | { kind: 'terminal'; state: 'canceled' | 'executed' }
+  // Voting concluded, never queued (executionTime == 0). The Failed-vs-Succeeded verdict needs the
+  // quorum math, which `getProposalState` still does correctly when called at `endBlock`.
+  | { kind: 'needs_outcome'; endBlock: bigint }
+  // Queued (executionTime > 0) but no execute/cancel: expired vs still-queued, decided by grace.
+  | { kind: 'awaiting_execution'; executionTime: bigint; executor: string }
+  | { kind: 'not_stale'; state: 'pending' | 'active' };
+
+export function deriveAaveV2State(
+  summary: V2ProposalSummary,
+  confirmedHead: bigint,
+): V2DerivedState {
+  if (summary.canceled) return { kind: 'terminal', state: 'canceled' };
+  if (summary.executed) return { kind: 'terminal', state: 'executed' };
+  if (confirmedHead <= summary.startBlock) return { kind: 'not_stale', state: 'pending' };
+  if (confirmedHead <= summary.endBlock) return { kind: 'not_stale', state: 'active' };
+  // Voting has concluded at the confirmed head.
+  if (summary.executionTime === 0n) return { kind: 'needs_outcome', endBlock: summary.endBlock };
+  return {
+    kind: 'awaiting_execution',
+    executionTime: summary.executionTime,
+    executor: summary.executor,
+  };
 }
 
 export function encodeGracePeriodCall(): string {
@@ -76,31 +124,5 @@ export function decodeGracePeriodResult(data: string): number {
       'failed to decode executor GRACE_PERIOD() result',
       err,
     );
-  }
-}
-
-export function mapAaveV2StateCode(code: number): ProposalState {
-  switch (code) {
-    case 0:
-      return 'pending';
-    case 1:
-      return 'canceled';
-    case 2:
-      return 'active';
-    case 3:
-      return 'defeated';
-    case 4:
-      return 'succeeded';
-    case 5:
-      return 'queued';
-    case 6:
-      return 'expired';
-    case 7:
-      return 'executed';
-    default:
-      throw new AaveGovernorV2StateDecodeError(
-        `unknown Aave governor v2 state code: ${code}`,
-        code,
-      );
   }
 }

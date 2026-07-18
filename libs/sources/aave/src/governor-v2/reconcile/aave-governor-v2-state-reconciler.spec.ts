@@ -9,6 +9,13 @@ import {
 
 const EXECUTOR_ADDR = '0x' + 'ee'.repeat(20);
 const GOVERNOR_ADDR = '0x' + 'aa'.repeat(20);
+const CREATOR = '0x' + '01'.repeat(20);
+const STRATEGY = '0x' + '02'.repeat(20);
+const ZERO32 = '0x' + '00'.repeat(32);
+
+const BY_ID_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalById')!.selector;
+const STATE_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalState')!.selector;
+const GRACE_SELECTOR = EXECUTOR_GRACE_PERIOD_INTERFACE.getFunction('GRACE_PERIOD')!.selector;
 
 function makeLogger() {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -36,49 +43,128 @@ function makeProposals() {
   };
 }
 
-describe('AaveGovernorV2StateReconciler', () => {
-  it('returns already_consistent when on-chain state equals local state', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
+/** Encode a getProposalById result from the fields the reconciler actually reads. */
+function encodeProposal(f: {
+  executor?: string;
+  startBlock?: bigint;
+  endBlock?: bigint;
+  executionTime?: bigint;
+  executed?: boolean;
+  canceled?: boolean;
+}): string {
+  return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
+    [
+      5n,
+      CREATOR,
+      f.executor ?? EXECUTOR_ADDR,
+      [],
+      [],
+      [],
+      [],
+      [],
+      f.startBlock ?? 11_500_000n,
+      f.endBlock ?? 11_550_000n,
+      f.executionTime ?? 0n,
+      0n, // forVotes — unused by the reconciler
+      0n, // againstVotes — unused
+      f.executed ?? false,
+      f.canceled ?? false,
+      STRATEGY,
+      ZERO32,
+    ],
+  ]);
+}
 
-    const result = await reconciler.reconcileRow({
+/** A client.send dispatching getProposalById / getProposalState / GRACE_PERIOD / block by selector. */
+function makeSend(opts: {
+  proposal: string;
+  /** getProposalState code, or 'revert' to make the eth_call throw (non-transient). */
+  stateCode?: number | 'revert';
+  grace?: bigint | string;
+  blockTimestampHex?: string;
+}) {
+  return vi.fn(async (method: string, params: unknown[]) => {
+    if (method === 'eth_getBlockByNumber') return { timestamp: opts.blockTimestampHex ?? '0x64' };
+    if (method === 'eth_call') {
+      const data = (params[0] as { data: string }).data;
+      if (data.startsWith(BY_ID_SELECTOR)) return opts.proposal;
+      if (data.startsWith(STATE_SELECTOR)) {
+        if (opts.stateCode === 'revert') throw new Error('execution reverted');
+        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [
+          BigInt(opts.stateCode ?? 3),
+        ]);
+      }
+      if (data.startsWith(GRACE_SELECTOR)) {
+        if (opts.grace === 'throw') throw new Error('rpc boom');
+        return typeof opts.grace === 'string'
+          ? opts.grace
+          : EXECUTOR_GRACE_PERIOD_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [
+              opts.grace ?? 86_400n,
+            ]);
+      }
+    }
+    throw new Error(`unexpected send: ${method}`);
+  });
+}
+
+function make() {
+  return new AaveGovernorV2StateReconciler(makeLogger() as never, ['aave_governor_v2']);
+}
+
+describe('AaveGovernorV2StateReconciler', () => {
+  it('calls getProposalState at endBlock+offset, not at the confirmed head', async () => {
+    const proposals = makeProposals();
+    const END_BLOCK = 11_550_000n;
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: END_BLOCK, executionTime: 0n }),
+      stateCode: 3, // Failed
+      blockTimestampHex: '0x200',
+    });
+
+    await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00', // the confirmed head — getProposalState must NOT use this
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    // getProposalState reverts at the confirmed head, so it must be called near the proposal's own
+    // conclusion. Offset default is 5 → block 11_550_005 = 0xb04965.
+    const stateCall = send.mock.calls.find(
+      (c) => c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(STATE_SELECTOR),
+    );
+    expect(stateCall).toBeDefined();
+    expect((stateCall![1] as [unknown, string])[1]).toBe('0x' + (END_BLOCK + 5n).toString(16));
+  });
+
+  it('returns already_consistent when the derived state equals local state', async () => {
+    const proposals = makeProposals();
+    const send = makeSend({ proposal: encodeProposal({ startBlock: 13_000_000n }) }); // pending
+
+    const result = await make().reconcileRow({
       row: makeRow({ state: 'pending' }),
-      confirmedThreshold: 12000000n,
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
-      chainCtx: {
-        client: {
-          send: vi.fn().mockResolvedValue(
-            GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [0n]), // pending
-          ),
-        },
-        chainCfg: { chainId: '0x1' },
-      },
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
     expect(result).toEqual({ outcome: 'already_consistent' });
     expect(proposals.reconcileState).not.toHaveBeenCalled();
   });
 
-  it('corrects pending→active when voting_starts_block is confirmed', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
+  it('corrects pending→active using the voting_starts_block timestamp', async () => {
     const proposals = makeProposals();
-
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [2n]); // active
-      }
-      if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' }; // 100
-      throw new Error(`unexpected: ${method}`);
+    // confirmed head between start and end block → active.
+    const send = makeSend({
+      proposal: encodeProposal({ startBlock: 11_500_000n, endBlock: 13_000_000n }),
+      blockTimestampHex: '0x64', // 100
     });
 
-    const result = await reconciler.reconcileRow({
+    const result = await make().reconcileRow({
       row: makeRow({ state: 'pending', voting_starts_block: '11500000' }),
-      confirmedThreshold: 12000000n,
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
@@ -93,151 +179,139 @@ describe('AaveGovernorV2StateReconciler', () => {
     });
   });
 
-  it('returns guard_skipped for active when voting_starts_block is null', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
+  it('corrects a never-queued proposal to defeated when getProposalState says Failed', async () => {
+    // The case that could never resolve before: getProposalState reverted at head, but returns
+    // Failed(3) at endBlock+offset.
     const proposals = makeProposals();
-
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ state: 'pending', voting_starts_block: null }),
-      confirmedThreshold: 12000000n,
-      confirmedThresholdTag: '0xb71b00',
-      proposals: proposals as never,
-      chainCtx: {
-        client: {
-          send: vi.fn().mockResolvedValue(
-            GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [2n]), // active
-          ),
-        },
-        chainCfg: { chainId: '0x1' },
-      },
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 3, // Failed
+      blockTimestampHex: '0x200',
     });
 
-    expect(result).toEqual({ outcome: 'guard_skipped' });
-  });
-
-  it('returns guard_skipped when voting_starts_block is beyond confirmedThreshold', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ state: 'pending', voting_starts_block: '13000000' }),
-      confirmedThreshold: 12000000n, // block 13M is NOT yet confirmed
-      confirmedThresholdTag: '0xb71b00',
-      proposals: proposals as never,
-      chainCtx: {
-        client: {
-          send: vi.fn().mockResolvedValue(
-            GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [2n]), // active
-          ),
-        },
-        chainCfg: { chainId: '0x1' },
-      },
-    });
-
-    expect(result).toEqual({ outcome: 'guard_skipped' });
-  });
-
-  it('corrects active→defeated using voting_ends_block timestamp', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [3n]); // defeated
-      }
-      if (method === 'eth_getBlockByNumber') return { timestamp: '0x200' };
-      throw new Error(`unexpected: ${method}`);
-    });
-
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ state: 'active', voting_ends_block: '11550000' }),
-      confirmedThreshold: 12000000n,
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
-    expect(result).toEqual({ outcome: 'corrected', fromState: 'active', toState: 'defeated' });
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+    expect(proposals.reconcileState).toHaveBeenCalledWith(
+      expect.objectContaining({ targetState: 'defeated', stateUpdatedAt: new Date(512_000) }),
+    );
   });
 
-  it('returns guard_skipped for defeated when voting_ends_block is null', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
+  it('corrects a never-queued proposal to succeeded when getProposalState says Succeeded', async () => {
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 4, // Succeeded — passed the vote but was never queued
+      blockTimestampHex: '0x200',
+    });
 
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ state: 'active', voting_ends_block: null }),
-      confirmedThreshold: 12000000n,
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'succeeded' });
+  });
+
+  it('falls back to defeated when getProposalState reverts even at endBlock+offset', async () => {
+    // A proposal too close to the migration boundary: never-queued and concluded is still defeated.
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 'revert',
+      blockTimestampHex: '0x200',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+  });
+
+  it('falls back to defeated when getProposalState returns an unexpected code', async () => {
+    // e.g. Pending(0) at endBlock+offset — nonsensical for a concluded proposal, but a concluded,
+    // never-executed proposal is still terminally defeated.
+    const proposals = makeProposals();
+    const send = makeSend({
+      proposal: encodeProposal({ endBlock: 11_550_000n, executionTime: 0n }),
+      stateCode: 0,
+      blockTimestampHex: '0x200',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: '11550000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'corrected', fromState: 'pending', toState: 'defeated' });
+  });
+
+  it('returns guard_skipped when GRACE_PERIOD resolution fails with a non-decode error', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 1_700_000_000n }),
+      grace: 'throw',
+    });
+
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'queued' }),
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: makeProposals() as never,
-      chainCtx: {
-        client: {
-          send: vi.fn().mockResolvedValue(
-            GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [3n]), // defeated
-          ),
-        },
-        chainCfg: { chainId: '0x1' },
-      },
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
     expect(result).toEqual({ outcome: 'guard_skipped' });
   });
 
-  it('corrects queued→expired via getProposalById + GRACE_PERIOD', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-    const EXECUTION_TIME = 1_700_000_000n; // Unix timestamp
-    const GRACE_PERIOD = 86_400n; // 1 day
-
-    let ethCallCount = 0;
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        ethCallCount++;
-        if (ethCallCount === 1) {
-          // getProposalState → expired
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [6n]);
-        }
-        if (ethCallCount === 2) {
-          // getProposalById → full struct
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
-            [
-              5n,
-              '0x0000000000000000000000000000000000000001',
-              EXECUTOR_ADDR,
-              [],
-              [],
-              [],
-              [],
-              [],
-              0n,
-              0n,
-              EXECUTION_TIME,
-              0n,
-              0n,
-              false,
-              false,
-              '0x0000000000000000000000000000000000000002',
-              '0x' + '00'.repeat(32),
-            ],
-          ]);
-        }
-        // GRACE_PERIOD call to executor
-        return EXECUTOR_GRACE_PERIOD_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [GRACE_PERIOD]);
-      }
-      throw new Error(`unexpected: ${method}`);
+  it('returns guard_skipped for a never-queued proposal when voting_ends_block is null', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 0n }),
+      stateCode: 3,
     });
 
-    const result = await reconciler.reconcileRow({
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending', voting_ends_block: null }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: makeProposals() as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(result).toEqual({ outcome: 'guard_skipped' });
+  });
+
+  it('corrects queued→expired once past the executor grace window', async () => {
+    const proposals = makeProposals();
+    const EXECUTION_TIME = 1_700_000_000n;
+    const GRACE = 86_400n;
+    // head timestamp AFTER executionTime + grace → expired.
+    const headHex = '0x' + (Number(EXECUTION_TIME) + Number(GRACE) + 10).toString(16);
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: EXECUTION_TIME }),
+      grace: GRACE,
+      blockTimestampHex: headHex,
+    });
+
+    const result = await make().reconcileRow({
       row: makeRow({ state: 'queued' }),
-      confirmedThreshold: 12000000n,
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
@@ -247,275 +321,129 @@ describe('AaveGovernorV2StateReconciler', () => {
     expect(proposals.reconcileState).toHaveBeenCalledWith(
       expect.objectContaining({
         targetState: 'expired',
-        stateUpdatedAt: new Date((Number(EXECUTION_TIME) + Number(GRACE_PERIOD)) * 1000),
+        stateUpdatedAt: new Date((Number(EXECUTION_TIME) + Number(GRACE)) * 1000),
       }),
     );
   });
 
-  it('caches GRACE_PERIOD per executor on second call', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
+  it('returns missed_event for a still-queued proposal within the grace window', async () => {
+    // Queued on-chain but not yet expired — the ProposalQueued event should have been ingested.
     const proposals = makeProposals();
     const EXECUTION_TIME = 1_700_000_000n;
-    const CREATOR = '0x' + '01'.repeat(20);
-    const STRATEGY = '0x' + '02'.repeat(20);
-
-    let ethCallCount = 0;
-    const send = vi.fn(async (method: string) => {
-      if (method !== 'eth_call') throw new Error(`unexpected: ${method}`);
-      ethCallCount++;
-      if (ethCallCount === 1 || ethCallCount === 4) {
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [6n]); // expired
-      }
-      if (ethCallCount === 2 || ethCallCount === 5) {
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
-          [
-            5n,
-            CREATOR,
-            EXECUTOR_ADDR,
-            [],
-            [],
-            [],
-            [],
-            [],
-            0n,
-            0n,
-            EXECUTION_TIME,
-            0n,
-            0n,
-            false,
-            false,
-            STRATEGY,
-            '0x' + '00'.repeat(32),
-          ],
-        ]);
-      }
-      // eth_call count 3 = GRACE_PERIOD (first call, caches)
-      return EXECUTOR_GRACE_PERIOD_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [86400n]);
+    const headHex = '0x' + (Number(EXECUTION_TIME) + 10).toString(16); // before expiry
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: EXECUTION_TIME }),
+      grace: 86_400n,
+      blockTimestampHex: headHex,
     });
 
-    await reconciler.reconcileRow({
-      row: makeRow({ state: 'queued' }),
-      confirmedThreshold: 12000000n,
+    const result = await make().reconcileRow({
+      row: makeRow({ state: 'pending' }),
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
-    // First reconcile: state + getProposalById + GRACE_PERIOD = 3 eth_call
-    expect(ethCallCount).toBe(3);
 
-    ethCallCount = 0;
-    await reconciler.reconcileRow({
-      row: makeRow({ id: 'p2', state: 'queued' }),
-      confirmedThreshold: 12000000n,
-      confirmedThresholdTag: '0xb71b00',
-      proposals: proposals as never,
-      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
-    });
-    // Second reconcile: state + getProposalById only (GRACE_PERIOD cached)
-    expect(ethCallCount).toBe(2);
+    expect(result).toEqual({ outcome: 'missed_event' });
+    expect(proposals.reconcileState).not.toHaveBeenCalled();
   });
 
-  it('returns missed_event for queued/executed/canceled/succeeded on-chain states', async () => {
-    const missedStates = [5n, 7n, 1n, 4n]; // queued, executed, canceled, succeeded
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-
-    for (const stateCode of missedStates) {
+  it('returns missed_event for canceled/executed on-chain states', async () => {
+    for (const proposal of [
+      encodeProposal({ canceled: true }),
+      encodeProposal({ executed: true }),
+    ]) {
       const proposals = makeProposals();
-      const result = await reconciler.reconcileRow({
+      const result = await make().reconcileRow({
         row: makeRow({ state: 'pending' }),
-        confirmedThreshold: 12000000n,
+        confirmedThreshold: 12_000_000n,
         confirmedThresholdTag: '0xb71b00',
         proposals: proposals as never,
         chainCtx: {
-          client: {
-            send: vi
-              .fn()
-              .mockResolvedValue(
-                GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [stateCode]),
-              ),
-          },
+          client: { send: makeSend({ proposal }) },
           chainCfg: { chainId: '0x1' },
         },
       });
       expect(result.outcome).toBe('missed_event');
+      expect(proposals.reconcileState).not.toHaveBeenCalled();
     }
   });
 
-  it('returns guard_skipped when reconcileState updates 0 rows', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = { ...makeProposals(), reconcileState: vi.fn().mockResolvedValue(0) };
-
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call')
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [2n]); // active
-      if (method === 'eth_getBlockByNumber') return { timestamp: '0x64' };
-      throw new Error(`unexpected: ${method}`);
+  it('caches GRACE_PERIOD per executor across rows', async () => {
+    const proposals = makeProposals();
+    const EXECUTION_TIME = 1_700_000_000n;
+    const headHex = '0x' + (Number(EXECUTION_TIME) + 200_000).toString(16);
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: EXECUTION_TIME }),
+      grace: 86_400n,
+      blockTimestampHex: headHex,
     });
-
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ voting_starts_block: '11500000' }),
-      confirmedThreshold: 12000000n,
+    const reconciler = make();
+    const base = {
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
-    });
+    };
 
-    expect(result).toEqual({ outcome: 'guard_skipped' });
+    await reconciler.reconcileRow({ row: makeRow({ state: 'queued' }), ...base });
+    const graceCalls = () =>
+      send.mock.calls.filter(
+        (c) =>
+          c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(GRACE_SELECTOR),
+      ).length;
+    expect(graceCalls()).toBe(1);
+
+    await reconciler.reconcileRow({ row: makeRow({ id: 'p2', state: 'queued' }), ...base });
+    // Second row reuses the cached grace period — no additional GRACE_PERIOD call.
+    expect(graceCalls()).toBe(1);
   });
 
-  it('returns guard_skipped when executionTime is 0 (not yet queued)', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-    const CREATOR = '0x' + '01'.repeat(20);
-    const STRATEGY = '0x' + '02'.repeat(20);
-
-    let ethCallCount = 0;
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        ethCallCount++;
-        if (ethCallCount === 1)
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [6n]); // expired
-        return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
-          [
-            5n,
-            CREATOR,
-            EXECUTOR_ADDR,
-            [],
-            [],
-            [],
-            [],
-            [],
-            0n,
-            0n,
-            0n,
-            0n,
-            0n,
-            false,
-            false,
-            STRATEGY,
-            '0x' + '00'.repeat(32),
-          ],
-        ]);
-      }
-      throw new Error(`unexpected: ${method}`);
+  it('returns guard_skipped when GRACE_PERIOD is out of the valid range', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 1_700_000_000n }),
+      grace: 0n, // below AAVE_V2_GRACE_MIN_SECONDS
     });
 
-    const result = await reconciler.reconcileRow({
+    const result = await make().reconcileRow({
       row: makeRow({ state: 'queued' }),
-      confirmedThreshold: 12000000n,
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
-      proposals: proposals as never,
+      proposals: makeProposals() as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
     expect(result).toEqual({ outcome: 'guard_skipped' });
   });
 
-  it('rethrows AaveGovernorV2StateDecodeError from GRACE_PERIOD decode', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-    const CREATOR = '0x' + '01'.repeat(20);
-    const STRATEGY = '0x' + '02'.repeat(20);
-
-    let ethCallCount = 0;
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        ethCallCount++;
-        if (ethCallCount === 1)
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [6n]);
-        if (ethCallCount === 2)
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
-            [
-              5n,
-              CREATOR,
-              EXECUTOR_ADDR,
-              [],
-              [],
-              [],
-              [],
-              [],
-              0n,
-              0n,
-              1_700_000_000n,
-              0n,
-              0n,
-              false,
-              false,
-              STRATEGY,
-              '0x' + '00'.repeat(32),
-            ],
-          ]);
-        return '0xdeadbeef'; // bad GRACE_PERIOD data → AaveGovernorV2StateDecodeError
-      }
-      throw new Error(`unexpected: ${method}`);
+  it('rethrows AaveGovernorV2StateDecodeError from a bad GRACE_PERIOD result', async () => {
+    const send = makeSend({
+      proposal: encodeProposal({ executionTime: 1_700_000_000n }),
+      grace: '0xdeadbeef', // undecodable
     });
 
     await expect(
-      reconciler.reconcileRow({
+      make().reconcileRow({
         row: makeRow({ state: 'queued' }),
-        confirmedThreshold: 12000000n,
+        confirmedThreshold: 12_000_000n,
         confirmedThresholdTag: '0xb71b00',
-        proposals: proposals as never,
+        proposals: makeProposals() as never,
         chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
       }),
     ).rejects.toThrow(AaveGovernorV2StateDecodeError);
   });
 
-  it('returns guard_skipped when GRACE_PERIOD is out of valid range', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
-    const proposals = makeProposals();
-    const CREATOR = '0x' + '01'.repeat(20);
-    const STRATEGY = '0x' + '02'.repeat(20);
-
-    let ethCallCount = 0;
-    const send = vi.fn(async (method: string) => {
-      if (method === 'eth_call') {
-        ethCallCount++;
-        if (ethCallCount === 1)
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [6n]);
-        if (ethCallCount === 2)
-          return GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalById', [
-            [
-              5n,
-              CREATOR,
-              EXECUTOR_ADDR,
-              [],
-              [],
-              [],
-              [],
-              [],
-              0n,
-              0n,
-              1_700_000_000n,
-              0n,
-              0n,
-              false,
-              false,
-              STRATEGY,
-              '0x' + '00'.repeat(32),
-            ],
-          ]);
-        // GRACE_PERIOD = 0s — below AAVE_V2_GRACE_MIN_SECONDS=3600
-        return EXECUTOR_GRACE_PERIOD_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [0n]);
-      }
-      throw new Error(`unexpected: ${method}`);
+  it('returns guard_skipped when reconcileState updates 0 rows', async () => {
+    const proposals = { ...makeProposals(), reconcileState: vi.fn().mockResolvedValue(0) };
+    const send = makeSend({
+      proposal: encodeProposal({ startBlock: 11_500_000n, endBlock: 13_000_000n }),
+      blockTimestampHex: '0x64',
     });
 
-    const result = await reconciler.reconcileRow({
-      row: makeRow({ state: 'queued' }),
-      confirmedThreshold: 12000000n,
+    const result = await make().reconcileRow({
+      row: makeRow({ voting_starts_block: '11500000' }),
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
       chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
@@ -524,27 +452,16 @@ describe('AaveGovernorV2StateReconciler', () => {
     expect(result).toEqual({ outcome: 'guard_skipped' });
   });
 
-  it('markReconcileChecked is called with string confirmedThreshold', async () => {
-    const reconciler = new AaveGovernorV2StateReconciler(makeLogger() as never, [
-      'aave_governor_v2',
-    ]);
+  it('marks the row reconcile-checked with the stringified confirmedThreshold', async () => {
     const proposals = makeProposals();
+    const send = makeSend({ proposal: encodeProposal({ startBlock: 13_000_000n }) });
 
-    await reconciler.reconcileRow({
+    await make().reconcileRow({
       row: makeRow({ state: 'pending' }),
-      confirmedThreshold: 12000000n,
+      confirmedThreshold: 12_000_000n,
       confirmedThresholdTag: '0xb71b00',
       proposals: proposals as never,
-      chainCtx: {
-        client: {
-          send: vi
-            .fn()
-            .mockResolvedValue(
-              GOVERNOR_V2_STATE_INTERFACE.encodeFunctionResult('getProposalState', [0n]),
-            ),
-        },
-        chainCfg: { chainId: '0x1' },
-      },
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
     });
 
     expect(proposals.markReconcileChecked).toHaveBeenCalledWith('proposal-v2-1', '12000000');

@@ -93,6 +93,7 @@ export { ReconcileDriver } from '@sources/core';
 export type { ReconcileBound, ReconcileDriverMetrics, ReconcilePerChainBound } from '@sources/core';
 export type { CompoundReconcilePluginDeps } from './reconcile/compound-reconcile-plugin';
 export {
+  createCompoundGovernorAlphaReconcilePlugin,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
 } from './reconcile/compound-reconcile-plugin';

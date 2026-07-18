@@ -59,10 +59,11 @@ describe('CompoundSourceModule', () => {
     }).compile();
     const plugin = moduleRef.get<SourcePlugin>(COMPOUND_SOURCE_PLUGIN);
 
-    expect(plugin.ingesters).toHaveLength(6);
+    expect(plugin.ingesters).toHaveLength(7);
     expect(plugin.ingesters.map((p) => p.sourceType).sort()).toEqual([
       'compound_comp_token',
       'compound_governor_alpha',
+      'compound_governor_alpha_reconcile',
       'compound_governor_bravo',
       'compound_governor_bravo_reconcile',
       'compound_governor_oz',
