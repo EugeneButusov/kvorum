@@ -94,6 +94,59 @@ describe('ProposalReadRepository', () => {
     expect(chain.orderBy).toHaveBeenCalledWith('choice_index', 'asc');
   });
 
+  describe('findChoicesForProposals', () => {
+    it('short-circuits on an empty page without touching the database', async () => {
+      const { selectFrom } = makeSelectChain([]);
+      const repo = new ProposalReadRepository({ selectFrom } as never);
+
+      await expect(repo.findChoicesForProposals([])).resolves.toEqual(new Map());
+      expect(selectFrom).not.toHaveBeenCalled();
+    });
+
+    it('reads the whole page in one query, keyed by proposal', async () => {
+      const rows = [
+        { proposal_id: 'p1', choice_index: 0, value: 'against' },
+        { proposal_id: 'p1', choice_index: 1, value: 'for' },
+        { proposal_id: 'p2', choice_index: 0, value: 'against' },
+      ];
+      const { selectFrom, chain } = makeSelectChain(rows);
+      const repo = new ProposalReadRepository({ selectFrom } as never);
+
+      const out = await repo.findChoicesForProposals(['p1', 'p2']);
+
+      // One round-trip for the page — the reason this method exists.
+      expect(selectFrom).toHaveBeenCalledTimes(1);
+      expect(selectFrom).toHaveBeenCalledWith('proposal_choice');
+      expect(chain.where).toHaveBeenCalledWith('proposal_id', 'in', ['p1', 'p2']);
+      expect(chain.orderBy).toHaveBeenCalledWith('choice_index', 'asc');
+      expect(out.get('p1')).toEqual([rows[0], rows[1]]);
+      expect(out.get('p2')).toEqual([rows[2]]);
+    });
+
+    it('omits a proposal that declares no choices rather than mapping it to []', async () => {
+      // The caller distinguishes absent (fall back to a positional label) from an empty list.
+      const { selectFrom } = makeSelectChain([
+        { proposal_id: 'p1', choice_index: 0, value: 'for' },
+      ]);
+      const repo = new ProposalReadRepository({ selectFrom } as never);
+
+      const out = await repo.findChoicesForProposals(['p1', 'p2']);
+
+      expect(out.has('p2')).toBe(false);
+    });
+
+    it('accepts a readonly id list without mutating the caller’s array', async () => {
+      const ids: readonly string[] = Object.freeze(['p1']);
+      const { selectFrom, chain } = makeSelectChain([]);
+      const repo = new ProposalReadRepository({ selectFrom } as never);
+
+      await expect(repo.findChoicesForProposals(ids)).resolves.toEqual(new Map());
+      // Copied into a fresh array for the `in` clause — Kysely mutating a frozen array would throw.
+      expect(chain.where).toHaveBeenCalledWith('proposal_id', 'in', ['p1']);
+      expect(chain.where.mock.calls[0]?.[2]).not.toBe(ids);
+    });
+  });
+
   it('findOneWithDao returns combined dao and proposal objects', async () => {
     const row = {
       dao_id: 'dao-1',
