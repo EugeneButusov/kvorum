@@ -43,7 +43,7 @@ export default async function ProposalsPage({ searchParams }: { searchParams: Se
         <div className="flex flex-col gap-1.5 border-b border-line pb-5">
           <h1 className="font-mono text-h1 font-semibold tracking-[-0.01em] text-ink">Proposals</h1>
           <p className="max-w-[60ch] text-body-lg text-ink-2">
-            Every proposal across tracked DAOs, normalized — filter by DAO, state, and type.
+            Every proposal across tracked DAOs, normalized — filter by DAO and state.
           </p>
         </div>
         <ProposalList

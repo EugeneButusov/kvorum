@@ -25,7 +25,8 @@ describe('proposal.mappers', () => {
     expect((dto as Record<string, unknown>)['description']).toBeUndefined();
     expect((dto as Record<string, unknown>)['actions']).toBeUndefined();
     expect((dto as Record<string, unknown>)['choices']).toBeUndefined();
-    expect((dto as Record<string, unknown>)['tally']).toBeUndefined();
+    // tally is a list field, null when the caller passes no tally (no votes yet).
+    expect(dto.tally).toBeNull();
     expect((dto as Record<string, unknown>)['forum']).toBeUndefined();
   });
 
@@ -51,7 +52,7 @@ describe('proposal.mappers', () => {
           next_decode_at: null,
         },
       ],
-      [{ proposal_id: 'p1', choice_index: 0, value: 'For' }],
+      [{ proposal_id: 'p1', choice_index: 0, value: 'for' }],
       '0x1',
       null,
       [],
@@ -61,7 +62,7 @@ describe('proposal.mappers', () => {
     expect(Object.getPrototypeOf(dto).constructor.name).toBe('ProposalDetailDto');
     expect(dto._meta.confirmed).toBe(true);
     expect(dto.actions[0]?.target_address).toBe('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
-    expect(dto.choices[0]?.value).toBe('For');
+    expect(dto.choices[0]?.value).toBe('for');
     expect(dto.origin_chain_id).toBe('0x1');
     expect((dto as Record<string, unknown>)['voting']).toBeUndefined();
     expect((dto as Record<string, unknown>)['payloads']).toBeUndefined();

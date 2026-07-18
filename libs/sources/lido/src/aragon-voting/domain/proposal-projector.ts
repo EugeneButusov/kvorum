@@ -56,10 +56,10 @@ export class AragonProposalProjectionError extends Error {
   }
 }
 
-// Binary Yea/Nay. CastVote.supports → primary_choice: true=1 (Yes), false=0 (No).
+// Binary Yea/Nay. CastVote.supports → primary_choice: true=1 (yes), false=0 (no).
 const ARAGON_CHOICES: ReadonlyArray<Pick<NewProposalChoice, 'choice_index' | 'value'>> = [
-  { choice_index: 0, value: 'No' },
-  { choice_index: 1, value: 'Yes' },
+  { choice_index: 0, value: 'no' },
+  { choice_index: 1, value: 'yes' },
 ];
 
 export function projectAragonProposalEvent(

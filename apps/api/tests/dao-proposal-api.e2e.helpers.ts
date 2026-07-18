@@ -196,7 +196,7 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
 
   await pgDb
     .insertInto('proposal_choice')
-    .values({ proposal_id: proposal.id, choice_index: 0, value: 'For' })
+    .values({ proposal_id: proposal.id, choice_index: 0, value: 'for' })
     .execute();
 
   return {

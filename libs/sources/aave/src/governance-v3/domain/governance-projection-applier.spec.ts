@@ -281,8 +281,8 @@ describe('AaveGovernanceProjectionApplier', () => {
     expect(ensureChoices).toHaveBeenCalledWith(
       'proposal-1',
       expect.arrayContaining([
-        { proposal_id: '', choice_index: 0, value: 'Against' },
-        { proposal_id: '', choice_index: 1, value: 'For' },
+        { proposal_id: '', choice_index: 0, value: 'against' },
+        { proposal_id: '', choice_index: 1, value: 'for' },
       ]),
     );
     expect(calls.insertedDlq).toEqual(

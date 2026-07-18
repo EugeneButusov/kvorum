@@ -179,9 +179,9 @@ describeIf('compound governor derivation', () => {
       .orderBy('choice_index', 'asc')
       .execute();
     expect(choices).toHaveLength(3);
-    expect(choices[0]).toMatchObject({ choice_index: 0, value: 'Against' });
-    expect(choices[1]).toMatchObject({ choice_index: 1, value: 'For' });
-    expect(choices[2]).toMatchObject({ choice_index: 2, value: 'Abstain' });
+    expect(choices[0]).toMatchObject({ choice_index: 0, value: 'against' });
+    expect(choices[1]).toMatchObject({ choice_index: 1, value: 'for' });
+    expect(choices[2]).toMatchObject({ choice_index: 2, value: 'abstain' });
 
     // Idempotency: reset derived_at and re-run — same snapshot
     await pgDb

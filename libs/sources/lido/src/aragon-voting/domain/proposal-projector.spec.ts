@@ -45,8 +45,8 @@ describe('projectAragonProposalEvent', () => {
     expect(projection.proposal.voting_starts_block).toBe('12345');
     expect(projection.proposal.voting_ends_block).toBeNull();
     expect(projection.choices).toEqual([
-      { proposal_id: '', choice_index: 0, value: 'No' },
-      { proposal_id: '', choice_index: 1, value: 'Yes' },
+      { proposal_id: '', choice_index: 0, value: 'no' },
+      { proposal_id: '', choice_index: 1, value: 'yes' },
     ]);
   });
 

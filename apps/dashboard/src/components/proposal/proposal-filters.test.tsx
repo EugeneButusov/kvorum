@@ -3,25 +3,26 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ProposalFilters } from './proposal-filters';
 import { EMPTY_FILTERS, type ProposalFilters as Filters } from '../../lib/proposals/list';
 
-function setup(filters: Partial<Filters> = {}, sourceOptions: string[] = []) {
+function setup(filters: Partial<Filters> = {}, scope: 'cross' | 'dao' = 'dao') {
   const onChange = vi.fn();
   render(
     <ProposalFilters
-      scope="dao"
+      scope={scope}
       filters={{ ...EMPTY_FILTERS, ...filters }}
       onChange={onChange}
-      daoOptions={[]}
-      sourceOptions={sourceOptions}
+      daoOptions={[
+        { slug: 'lido', name: 'Lido' },
+        { slug: 'aave', name: 'Aave' },
+      ]}
     />,
   );
   return onChange;
 }
 
-const stateButton = (name: string) =>
-  screen.getByRole('toolbar', { name: 'Filter by state' }).querySelector<HTMLButtonElement>(
-    // Radix items expose their pressed state via data-state.
-    `button[data-state]`,
-  ) && screen.getByRole('button', { name });
+const stateFacet = () => screen.getByRole('toolbar', { name: 'Filter by state' });
+const stateButton = (name: string) => screen.getByRole('button', { name });
+/** The leading segment of a facet is always "All". */
+const allButton = (facet: HTMLElement) => facet.querySelector('button')!;
 
 describe('ProposalFilters state facet', () => {
   it('selects a state when the facet is showing "All"', () => {
@@ -30,7 +31,7 @@ describe('ProposalFilters state facet', () => {
     // which cleared the facet. Picking a state did nothing at all.
     const onChange = setup({ state: [] });
 
-    fireEvent.click(stateButton('pending')!);
+    fireEvent.click(stateButton('pending'));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ state: ['pending'] }));
   });
@@ -38,7 +39,7 @@ describe('ProposalFilters state facet', () => {
   it('adds to an existing selection rather than replacing it', () => {
     const onChange = setup({ state: ['pending'] });
 
-    fireEvent.click(stateButton('queued')!);
+    fireEvent.click(stateButton('queued'));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ state: expect.arrayContaining(['pending', 'queued']) }),
@@ -48,9 +49,7 @@ describe('ProposalFilters state facet', () => {
   it('clears the facet when "All" is picked', () => {
     const onChange = setup({ state: ['pending', 'queued'] });
 
-    fireEvent.click(
-      screen.getByRole('toolbar', { name: 'Filter by state' }).querySelector('button')!,
-    );
+    fireEvent.click(allButton(stateFacet()));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ state: [] }));
   });
@@ -58,7 +57,7 @@ describe('ProposalFilters state facet', () => {
   it('falls back to "All" when the last selected state is unpicked', () => {
     const onChange = setup({ state: ['pending'] });
 
-    fireEvent.click(stateButton('pending')!);
+    fireEvent.click(stateButton('pending'));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ state: [] }));
   });
@@ -66,48 +65,36 @@ describe('ProposalFilters state facet', () => {
   it('never leaks the "All" sentinel into the filter value', () => {
     const onChange = setup({ state: [] });
 
-    fireEvent.click(stateButton('active')!);
+    fireEvent.click(stateButton('active'));
 
     const next = onChange.mock.calls[0]?.[0] as Filters;
     expect(next.state).not.toContain('__all__');
   });
 });
 
-describe('ProposalFilters source facet', () => {
-  it('is offered once a DAO has more than one source', () => {
-    setup({}, ['aave_governance_v3', 'aave_payloads_controller']);
+describe('ProposalFilters facets', () => {
+  it('offers only DAO and State — no source, type, or date facet', () => {
+    setup({}, 'cross');
 
-    const group = screen.getByRole('radiogroup', { name: 'Filter by source' });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Aave governance v3' })).toBeInTheDocument();
-  });
-
-  it('is hidden for a single-source DAO, where it could only ever be a no-op', () => {
-    setup({}, ['aave_governance_v3']);
-
+    expect(screen.getByRole('toolbar', { name: 'Filter by DAO' })).toBeInTheDocument();
+    expect(stateFacet()).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Filter by source' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Filter by type' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Voting start from')).not.toBeInTheDocument();
   });
 
-  it('selects a source', () => {
-    const onChange = setup({}, ['aave_governance_v3', 'aave_payloads_controller']);
+  it('hides the DAO facet on a DAO-scoped list, where it would be redundant', () => {
+    setup({}, 'dao');
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Aave payloads controller' }));
-
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceType: 'aave_payloads_controller' }),
-    );
+    expect(screen.queryByRole('toolbar', { name: 'Filter by DAO' })).not.toBeInTheDocument();
+    expect(stateFacet()).toBeInTheDocument();
   });
 
-  it('returns to all sources when "All" is picked', () => {
-    const onChange = setup({ sourceType: 'aave_governance_v3' }, [
-      'aave_governance_v3',
-      'aave_payloads_controller',
-    ]);
+  it('selects a DAO', () => {
+    const onChange = setup({}, 'cross');
 
-    fireEvent.click(
-      screen.getByRole('radiogroup', { name: 'Filter by source' }).querySelector('button')!,
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Aave' }));
 
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ sourceType: null }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ dao: ['aave'] }));
   });
 });

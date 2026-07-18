@@ -10,7 +10,12 @@ import {
   ProposalPayloadGroupDto,
   ProposalVotingDto,
 } from '@nest/sources';
-import { ProposalActionDto, ProposalDetailDto, ProposalListItemDto } from './proposal.dto';
+import {
+  ProposalActionDto,
+  ProposalDetailDto,
+  ProposalListItemDto,
+  type ProposalTallySummaryDto,
+} from './proposal.dto';
 import { isoSeconds } from '../http/iso';
 
 type ProposalListRow = {
@@ -132,7 +137,10 @@ function groupPayloads(payloads: readonly ProposalPayloadView[]): ProposalPayloa
   return Array.from(groups.values());
 }
 
-export function toProposalListItemDto(row: ProposalListRow): ProposalListItemDto {
+export function toProposalListItemDto(
+  row: ProposalListRow,
+  tally: ProposalTallySummaryDto | null = null,
+): ProposalListItemDto {
   return Object.assign(new ProposalListItemDto(), {
     dao_slug: row.dao_slug,
     source_type: row.source_type,
@@ -146,6 +154,7 @@ export function toProposalListItemDto(row: ProposalListRow): ProposalListItemDto
       address: row.proposer_address.toLowerCase(),
       display_name: row.proposer_display_name,
     },
+    tally,
     _meta: proposalMeta(row),
   });
 }

@@ -2,6 +2,7 @@
 // (shareable per §6.5), and the paged fetch. Server-supported filters only — has-mismatch/has-forum
 // and vote-count/VP sorts aren't in the list API, so they're not offered.
 
+import { presentTallySummary, type TallySummaryBar } from './detail';
 import type { createApiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 
@@ -33,11 +34,6 @@ export type ProposalFilters = {
   /** Cross-DAO only; empty = all DAOs. */
   dao: string[];
   state: string[];
-  /** DAO-scoped only (single source_type). */
-  sourceType: string | null;
-  binding: boolean | null;
-  startsMin: string | null;
-  startsMax: string | null;
 };
 
 // §6.5: state defaults to the proposals that are or recently were live.
@@ -47,10 +43,6 @@ export const DEFAULT_SORT: ProposalSort = { field: 'voting_ends_at', dir: 'desc'
 export const EMPTY_FILTERS: ProposalFilters = {
   dao: [],
   state: DEFAULT_STATES,
-  sourceType: null,
-  binding: null,
-  startsMin: null,
-  startsMax: null,
 };
 
 function splitCsv(value: string | null): string[] {
@@ -76,16 +68,11 @@ export function parseListParams(params: URLSearchParams): {
 } {
   const rawSort = params.get('sort');
   const sort = parseSort(rawSort);
-  const bindingRaw = params.get('binding');
   return {
     sort,
     filters: {
       dao: splitCsv(params.get('dao')),
       state: params.has('state') ? splitCsv(params.get('state')) : DEFAULT_STATES,
-      sourceType: params.get('source') || null,
-      binding: bindingRaw === 'true' ? true : bindingRaw === 'false' ? false : null,
-      startsMin: params.get('starts_min') || null,
-      startsMax: params.get('starts_max') || null,
     },
   };
 }
@@ -106,10 +93,6 @@ export function toSearchParams(filters: ProposalFilters, sort: ProposalSort): UR
   const p = new URLSearchParams();
   if (filters.dao.length) p.set('dao', filters.dao.join(','));
   if (!isDefaultStates(filters.state)) p.set('state', filters.state.join(','));
-  if (filters.sourceType) p.set('source', filters.sourceType);
-  if (filters.binding != null) p.set('binding', String(filters.binding));
-  if (filters.startsMin) p.set('starts_min', filters.startsMin);
-  if (filters.startsMax) p.set('starts_max', filters.startsMax);
   if (sort.field !== DEFAULT_SORT.field || sort.dir !== DEFAULT_SORT.dir) {
     p.set('sort', sortToParam(sort));
   }
@@ -130,6 +113,8 @@ export type ProposalListItemView = {
   votingStartsAt: string | null;
   votingEndsAt: string | null;
   proposer: { address: string; displayName: string | null };
+  /** For/Against/Abstain bars for the row; empty when no votes are cast yet. */
+  tally: TallySummaryBar[];
   href: string;
 };
 
@@ -144,6 +129,7 @@ export function normalizeListItem(dto: RawListItem): ProposalListItemView {
     votingStartsAt: asString(dto.voting_starts_at),
     votingEndsAt: asString(dto.voting_ends_at),
     proposer: { address: dto.proposer.address, displayName: asString(dto.proposer.display_name) },
+    tally: presentTallySummary(dto.tally?.choices),
     href: `/daos/${dto.dao_slug}/proposals/${dto.source_type}/${dto.source_id}`,
   };
 }
@@ -169,16 +155,8 @@ function buildQuery(args: FetchProposalsArgs): Record<string, string | number | 
   };
   if (cursor) q.cursor = cursor;
   if (filters.state.length) q.state = filters.state.join(',');
-  if (filters.binding != null) q.binding = filters.binding;
-  if (filters.startsMin) q.voting_starts_at_min = filters.startsMin;
-  if (filters.startsMax) q.voting_starts_at_max = filters.startsMax;
-  if (slug) {
-    // DAO-scoped adds the single-source filter.
-    if (filters.sourceType) q.source_type = filters.sourceType;
-  } else if (filters.dao.length) {
-    // Cross-DAO takes the DAO multi-select.
-    q.dao = filters.dao.join(',');
-  }
+  // Cross-DAO takes the DAO multi-select; a DAO-scoped list is already narrowed by its path.
+  if (!slug && filters.dao.length) q.dao = filters.dao.join(',');
   return q;
 }
 

@@ -13,9 +13,13 @@ import {
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
-import { assembleTally, extractChoiceScores } from './proposal-tally';
+import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 import { ProposalTallyResponseDto } from './proposal-tally.dto';
-import { ProposalDetailResponseDto, ProposalListResponseDto } from './proposal.dto';
+import {
+  ProposalDetailResponseDto,
+  ProposalListResponseDto,
+  type ProposalTallySummaryDto,
+} from './proposal.dto';
 import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
 import { CacheControl } from '../cache/cache-control.decorator';
@@ -43,6 +47,30 @@ export class ProposalController {
     @Inject(SOURCE_READ_EXTENSIONS)
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
+
+  /**
+   * Per-choice tally summaries for a page of proposals, in two batched reads (CH aggregate + PG
+   * choices) regardless of page size. Keyed by proposal id; a proposal with no votes maps to `null`.
+   */
+  private async tallySummariesFor(
+    rows: readonly { id: string }[],
+  ): Promise<Map<string, ProposalTallySummaryDto | null>> {
+    const ids = rows.map((r) => r.id);
+    const [aggregates, choices] = await Promise.all([
+      this.voteRepo.tallyForProposals(ids),
+      this.repo.findChoicesForProposals(ids),
+    ]);
+
+    const byProposal = new Map<string, ProposalTallySummaryDto | null>();
+    for (const id of ids) {
+      const summaryChoices = assembleTallySummary({
+        declaredChoices: choices.get(id) ?? [],
+        aggregate: aggregates.get(id) ?? [],
+      });
+      byProposal.set(id, summaryChoices === null ? null : { choices: summaryChoices });
+    }
+    return byProposal;
+  }
 
   @ApiParam({ name: 'slug', type: String })
   @ApiOkResponse({ type: ProposalListResponseDto })
@@ -83,8 +111,9 @@ export class ProposalController {
       q: canonical,
     }));
 
+    const tallies = await this.tallySummariesFor(page.data);
     return {
-      data: page.data.map(toProposalListItemDto),
+      data: page.data.map((row) => toProposalListItemDto(row, tallies.get(row.id) ?? null)),
       pagination: page.pagination,
     };
   }
@@ -195,8 +224,9 @@ export class ProposalController {
       q: canonical,
     }));
 
+    const tallies = await this.tallySummariesFor(page.data);
     return {
-      data: page.data.map(toProposalListItemDto),
+      data: page.data.map((row) => toProposalListItemDto(row, tallies.get(row.id) ?? null)),
       pagination: page.pagination,
     };
   }

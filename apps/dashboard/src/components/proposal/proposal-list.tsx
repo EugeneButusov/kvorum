@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ProposalFilters } from './proposal-filters';
 import { daoVariant, stateToVariant } from './state';
+import { TallySummary } from './tally-summary';
 import { Pill } from '@/components/ui/pill';
 import { StatePill } from '@/components/ui/state-pill';
 import {
@@ -39,7 +40,6 @@ export type ProposalListProps = {
   initialSort: ProposalSort;
   initialPage: ProposalPage;
   daoOptions?: { slug: string; name: string }[];
-  sourceOptions?: string[];
 };
 
 /**
@@ -56,7 +56,6 @@ export function ProposalList({
   initialSort,
   initialPage,
   daoOptions = [],
-  sourceOptions = [],
 }: ProposalListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -108,7 +107,6 @@ export function ProposalList({
         filters={filters}
         onChange={setFilters}
         daoOptions={daoOptions}
-        sourceOptions={sourceOptions}
       />
 
       <div className="flex items-center justify-between font-mono text-caption text-ink-3">
@@ -129,6 +127,7 @@ export function ProposalList({
                 <TableHead className="bg-bg">Proposal</TableHead>
                 {showDao && <TableHead className="w-28 bg-bg">DAO</TableHead>}
                 <TableHead className="w-24 bg-bg">State</TableHead>
+                <TableHead className="w-[240px] bg-bg">Tally</TableHead>
                 <TableHead className="w-40 bg-bg">Ends / closed</TableHead>
               </TableRow>
             </TableHeader>
@@ -182,6 +181,9 @@ function ProposalTableRow({ item, showDao }: { item: ProposalListItemView; showD
       )}
       <TableCell className="align-top">
         <StatePill state={stateToVariant(item.state)}>{item.state}</StatePill>
+      </TableCell>
+      <TableCell className="align-top">
+        <TallySummary bars={item.tally} />
       </TableCell>
       <TableCell className="whitespace-nowrap align-top">
         <div className="flex flex-col" suppressHydrationWarning>

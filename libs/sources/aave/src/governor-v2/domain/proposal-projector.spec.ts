@@ -125,8 +125,8 @@ describe('projectAaveGovernorV2Event', () => {
 
       if (projection.kind !== 'proposal_created') throw new Error('unexpected kind');
       expect(projection.choices).toEqual(AAVE_V2_CHOICES);
-      expect(AAVE_V2_CHOICES[0]).toEqual({ choice_index: 0, value: 'Against' });
-      expect(AAVE_V2_CHOICES[1]).toEqual({ choice_index: 1, value: 'For' });
+      expect(AAVE_V2_CHOICES[0]).toEqual({ choice_index: 0, value: 'against' });
+      expect(AAVE_V2_CHOICES[1]).toEqual({ choice_index: 1, value: 'for' });
     });
 
     it('sets metadata with voting_chain_id=0x1 and null voting_machine_address', () => {

@@ -17,22 +17,23 @@ describe('parseListParams', () => {
     const { filters, sort } = parseListParams(new URLSearchParams());
     expect(filters.state).toEqual(DEFAULT_STATES);
     expect(filters.dao).toEqual([]);
-    expect(filters.binding).toBeNull();
     expect(sort).toEqual(DEFAULT_SORT);
   });
 
-  it('reads multi-selects, binding, source, dates, and sort', () => {
+  it('reads the DAO multi-select, state, and sort', () => {
     const { filters, sort } = parseListParams(
-      new URLSearchParams(
-        'dao=lido,uniswap&state=active&source=snapshot&binding=false&starts_min=2026-01-01T00:00:00.000Z&sort=created_at',
-      ),
+      new URLSearchParams('dao=lido,uniswap&state=active&sort=created_at'),
     );
     expect(filters.dao).toEqual(['lido', 'uniswap']);
     expect(filters.state).toEqual(['active']);
-    expect(filters.sourceType).toBe('snapshot');
-    expect(filters.binding).toBe(false);
-    expect(filters.startsMin).toBe('2026-01-01T00:00:00.000Z');
     expect(sort).toEqual({ field: 'created_at', dir: 'asc' });
+  });
+
+  it('ignores retired filter params from a stale link', () => {
+    const { filters } = parseListParams(
+      new URLSearchParams('state=active&source=snapshot&binding=false&starts_min=2026-01-01'),
+    );
+    expect(filters).toEqual({ dao: [], state: ['active'] });
   });
 
   it('parses a descending sort and rejects an unknown field', () => {
@@ -48,10 +49,6 @@ describe('toSearchParams', () => {
   const base: ProposalFilters = {
     dao: [],
     state: DEFAULT_STATES,
-    sourceType: null,
-    binding: null,
-    startsMin: null,
-    startsMax: null,
   };
 
   it('omits defaults so a pristine view has a clean URL', () => {
@@ -62,10 +59,6 @@ describe('toSearchParams', () => {
     const filters: ProposalFilters = {
       dao: ['lido'],
       state: ['active', 'defeated'],
-      sourceType: null,
-      binding: true,
-      startsMin: '2026-02-01T00:00:00.000Z',
-      startsMax: null,
     };
     const sort: ProposalSort = { field: 'created_at', dir: 'asc' };
     const round = parseListParams(new URLSearchParams(toSearchParams(filters, sort).toString()));
@@ -87,31 +80,25 @@ describe('fetchProposalPage', () => {
   const filters: ProposalFilters = {
     dao: ['lido', 'uniswap'],
     state: ['active'],
-    sourceType: 'snapshot',
-    binding: true,
-    startsMin: null,
-    startsMax: null,
   };
   const sort: ProposalSort = { field: 'voting_ends_at', dir: 'desc' };
   const page = { data: [], pagination: { has_more: false, next_cursor: null } };
 
-  it('cross-DAO: hits /v1/proposals with dao and no source_type', async () => {
+  it('cross-DAO: hits /v1/proposals with the DAO multi-select', async () => {
     const GET = vi.fn().mockResolvedValue({ data: page, error: null });
     await fetchProposalPage({ GET } as never, { filters, sort });
     expect(GET).toHaveBeenCalledWith('/v1/proposals', expect.anything());
     const query = GET.mock.calls[0]![1].params.query;
     expect(query.dao).toBe('lido,uniswap');
     expect(query.sort).toBe('-voting_ends_at');
-    expect(query.binding).toBe(true);
-    expect(query.source_type).toBeUndefined();
+    expect(query.state).toBe('active');
   });
 
-  it('DAO-scoped: hits the scoped endpoint with source_type and no dao', async () => {
+  it('DAO-scoped: hits the scoped endpoint, which its path already narrows', async () => {
     const GET = vi.fn().mockResolvedValue({ data: page, error: null });
     await fetchProposalPage({ GET } as never, { slug: 'lido', filters, sort });
     expect(GET).toHaveBeenCalledWith('/v1/daos/{slug}/proposals', expect.anything());
     const query = GET.mock.calls[0]![1].params.query;
-    expect(query.source_type).toBe('snapshot');
     expect(query.dao).toBeUndefined();
   });
 

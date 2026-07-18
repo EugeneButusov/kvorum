@@ -1,4 +1,4 @@
-import type { ProposalTallyRow } from '@libs/db';
+import type { ProposalChoice, ProposalTallyRow } from '@libs/db';
 
 // Assemble the proposal tally from the ClickHouse per-choice aggregate, overriding the summed power
 // with the source's pre-computed `choice_scores` where the single primary_choice can't represent the
@@ -115,6 +115,38 @@ function assembleFromScores(
     total_voters: totalVoters,
     source: 'choice_scores',
   };
+}
+
+export type TallySummaryChoice = { choice_index: number; label: string; pct: number };
+
+/**
+ * A compact per-choice tally for a proposals-list row: choice label + share of participating power.
+ * Labels travel to the client so it classifies for/against/abstain in one place (the dashboard's
+ * `classifyChoice`) rather than duplicating that regex server-side.
+ *
+ * Votes-summed only — unlike the detail tally it does not apply a source's `choice_scores` override,
+ * so approval/weighted Snapshot proposals show their summed-primary-choice split here. That is exact
+ * for the standard for/against/abstain governor votes that make up the tracked DAOs; the detail page
+ * carries the authoritative tally. Returns null when no votes are cast (nothing to draw).
+ */
+export function assembleTallySummary(args: {
+  declaredChoices: ProposalChoice[];
+  aggregate: ProposalTallyRow[];
+}): TallySummaryChoice[] | null {
+  if (args.aggregate.length === 0) return null;
+
+  const assembled = assembleTally({
+    declaredChoices: args.declaredChoices.map((c) => c.choice_index),
+    aggregate: args.aggregate,
+    choiceScores: null,
+  });
+
+  const labelByIndex = new Map(args.declaredChoices.map((c) => [c.choice_index, c.value]));
+  return assembled.choices.map((choice) => ({
+    choice_index: choice.choice_index,
+    label: labelByIndex.get(choice.choice_index) ?? `Choice ${choice.choice_index + 1}`,
+    pct: choice.pct,
+  }));
 }
 
 function bigintPct(part: bigint, total: bigint): number {
