@@ -79,6 +79,7 @@ export {
   createCompoundGovernorAlphaPlugin,
   createCompoundGovernorOzPlugin,
   createCompoundPlugins,
+  createCompoundGovernorAlphaReconcilePlugin,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
 } from './governor/index';

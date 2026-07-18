@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createCompoundGovernorAlphaReconcilePlugin,
   createCompoundGovernorBravoReconcilePlugin,
   createCompoundGovernorOzReconcilePlugin,
 } from './compound-reconcile-plugin';
@@ -72,6 +73,20 @@ describe('createCompoundGovernorOzReconcilePlugin', () => {
   it('exposes correct sourceType', () => {
     const plugin = createCompoundGovernorOzReconcilePlugin(makeDeps() as never);
     expect(plugin.sourceType).toBe('compound_governor_oz_reconcile');
+  });
+});
+
+describe('createCompoundGovernorAlphaReconcilePlugin', () => {
+  it('exposes correct sourceType', () => {
+    const plugin = createCompoundGovernorAlphaReconcilePlugin(makeDeps() as never);
+    expect(plugin.sourceType).toBe('compound_governor_alpha_reconcile');
+  });
+
+  it('parseConfig accepts the alpha governor address config', () => {
+    const plugin = createCompoundGovernorAlphaReconcilePlugin(makeDeps() as never);
+    expect(() =>
+      plugin.parseConfig({ governor_address: '0xc0dA01a04C3f3E0be433606045bB7017A7323E38' }),
+    ).not.toThrow();
   });
 });
 
@@ -208,6 +223,27 @@ describe('reconcile plugin listener', () => {
     expect(deps.proposals.findStaleForReconciliation).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([expect.objectContaining({ recheckGapBlocks: 1200 })]),
+      expect.any(Number),
+    );
+  });
+
+  it('alpha plugin queries compound_governor_alpha proposals', async () => {
+    const deps = makeDeps();
+    const plugin = createCompoundGovernorAlphaReconcilePlugin(deps as never);
+    const spec = plugin.buildIngestSpec({} as never, {} as never);
+    if (spec.kind !== 'evm-block-head-poller') throw new Error('wrong kind');
+
+    spec.listener({
+      head: FAKE_HEAD,
+      chainCfg: makeChainCfg() as never,
+      headBlock: 100n,
+      client: FAKE_CLIENT as never,
+    });
+
+    await new Promise<void>((r) => setTimeout(r, 10));
+    expect(deps.proposals.findStaleForReconciliation).toHaveBeenCalledWith(
+      ['compound_governor_alpha'],
+      expect.anything(),
       expect.any(Number),
     );
   });
