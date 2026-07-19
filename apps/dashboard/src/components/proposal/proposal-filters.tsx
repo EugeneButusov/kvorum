@@ -98,11 +98,15 @@ function Sep() {
   return <span aria-hidden className="hidden h-6 w-px shrink-0 bg-line-3 sm:block" />;
 }
 
+/**
+ * A facet: its label, then the segmented control. The control is a single unbroken row of segments
+ * that is wider than a phone, so it scrolls inside the strip rather than pushing the page sideways.
+ */
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-caption uppercase tracking-[0.06em] text-ink-3">{label}</span>
-      {children}
+    <div className="flex min-w-0 max-w-full items-center gap-2">
+      <span className="shrink-0 text-caption uppercase tracking-[0.06em] text-ink-3">{label}</span>
+      <div className="min-w-0 overflow-x-auto">{children}</div>
     </div>
   );
 }

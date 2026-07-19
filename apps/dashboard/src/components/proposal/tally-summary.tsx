@@ -19,14 +19,24 @@ const BAR_LABEL: Record<TallyKind, string> = {
  * stacked list of for / against / abstain rows, each a label, a thin track with a coloured fill, and
  * the percentage. Figures are the server-computed shares; the whole group is one labelled image for AT.
  */
-export function TallySummary({ bars }: { bars: TallySummaryBar[] }) {
+export function TallySummary({
+  bars,
+  fluid = false,
+}: {
+  bars: TallySummaryBar[];
+  fluid?: boolean;
+}) {
   if (bars.length === 0) return <span className="text-ink-4">—</span>;
 
   return (
     <div
       role="img"
       aria-label={bars.map((b) => `${BAR_LABEL[b.kind]} ${b.pct}%`).join(', ')}
-      className="flex w-[220px] max-w-full flex-col gap-0.5"
+      className={cn(
+        'flex max-w-full flex-col gap-0.5',
+        // The table column is a fixed 220px; the phone card lets the track use the full card width.
+        fluid ? 'w-full' : 'w-[220px]',
+      )}
     >
       {bars.map((bar) => (
         <div

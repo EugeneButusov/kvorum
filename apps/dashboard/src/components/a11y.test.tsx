@@ -3,6 +3,7 @@ import { configureAxe } from 'vitest-axe';
 
 import { DataTable, type ChartTableModel } from './charts/data-table';
 import { Figure } from './charts/figure';
+import { ProposalCard } from './proposal/proposal-card';
 import { ErrorContent } from './system/error-content';
 import { SystemPage } from './system/system-page';
 import { Banner } from './ui/banner';
@@ -106,6 +107,32 @@ describe('accessibility (axe) — §6.19', () => {
         <VoteTag choice="against">Against</VoteTag>
         <VoteTag choice="abstain">Abstain</VoteTag>
       </div>,
+    );
+  });
+
+  it('the phone proposal card has no violations', async () => {
+    // The phone layout swaps the proposals table for cards, so it needs its own check: the tally
+    // is a labelled image and the card is a single link wrapping a heading.
+    await expectNoViolations(
+      <ProposalCard
+        showDao
+        item={{
+          daoSlug: 'compound',
+          sourceType: 'compound_governor_oz',
+          sourceId: '591',
+          title: 'Deprecation of Polygon and Unichain Comets',
+          state: 'queued',
+          binding: true,
+          votingStartsAt: null,
+          votingEndsAt: '2026-07-18T07:47:00.000Z',
+          proposer: { address: '0x7b3cabcdefabcdefabcdefabcdefabcdefabcc33', displayName: null },
+          tally: [
+            { kind: 'for', pct: 75 },
+            { kind: 'against', pct: 25 },
+          ],
+          href: '/daos/compound/proposals/compound_governor_oz/591',
+        }}
+      />,
     );
   });
 });
