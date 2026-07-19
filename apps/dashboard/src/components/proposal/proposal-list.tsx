@@ -1,9 +1,9 @@
 'use client';
 
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ProposalFilters } from './proposal-filters';
 import { daoVariant, stateToVariant } from './state';
@@ -22,8 +22,7 @@ import { browserApi } from '@/lib/api/client';
 import { formatDateTime, formatDeadline, truncateAddress } from '@/lib/format';
 import {
   fetchProposalPage,
-  SORT_FIELDS,
-  SORT_LABELS,
+  PAGE_SIZE,
   toSearchParams,
   type ProposalFilters as Filters,
   type ProposalListItemView,
@@ -44,10 +43,10 @@ export type ProposalListProps = {
 
 /**
  * The shared filterable/sortable proposals list (§6.5 cross-DAO, §6.8 DAO-scoped). A dense table
- * (ID · Proposal · DAO · State · Ends) under a horizontal filter strip. Filter + sort state lives in
- * React and is mirrored into the URL (shareable), driving a cursor-paged infinite query; SSR seeds
- * the first page. Per-row tally bars, AI snippets, and mismatch flags from the reference need data the
- * list API doesn't carry (batched tally endpoint / M5) and land with those.
+ * (ID · Proposal · DAO · State · Tally · Ends) under a horizontal filter strip, one page at a time
+ * with a pager beneath it. Filter + sort state lives in React and is mirrored into the URL
+ * (shareable); SSR seeds the first page. Sorting is driven by the Ends / closed header, as in the
+ * reference — there is no separate sort control.
  */
 export function ProposalList({
   scope,
@@ -61,6 +60,10 @@ export function ProposalList({
   const pathname = usePathname();
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [sort, setSort] = useState<ProposalSort>(initialSort);
+  // Cursor pagination only walks forward, so remember the cursor that opened each page to step back.
+  // Index 0 is the unparameterised first page; the entry at pageIndex opens the page being shown.
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
 
   // Mirror state into the URL without scrolling or adding history entries.
   useEffect(() => {
@@ -68,53 +71,63 @@ export function ProposalList({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [filters, sort, pathname, router]);
 
-  const isInitial =
-    filters === initialFilters && sort.field === initialSort.field && sort.dir === initialSort.dir;
+  const resetToFirstPage = () => {
+    setCursors([undefined]);
+    setPageIndex(0);
+  };
+  const changeFilters = (next: Filters) => {
+    setFilters(next);
+    resetToFirstPage();
+  };
+  const changeSort = (next: ProposalSort) => {
+    setSort(next);
+    resetToFirstPage();
+  };
 
-  const query = useInfiniteQuery({
-    queryKey: ['proposals', scope, slug, filters, sort],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      fetchProposalPage(browserApi, { slug, filters, sort, cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last: ProposalPage) => last.nextCursor ?? undefined,
-    initialData: isInitial
-      ? { pages: [initialPage], pageParams: [undefined as string | undefined] }
-      : undefined,
+  const cursor = cursors[pageIndex];
+  const isInitial =
+    filters === initialFilters &&
+    sort.field === initialSort.field &&
+    sort.dir === initialSort.dir &&
+    pageIndex === 0;
+
+  const query = useQuery({
+    queryKey: ['proposals', scope, slug, filters, sort, pageIndex],
+    queryFn: () => fetchProposalPage(browserApi, { slug, filters, sort, cursor }),
+    initialData: isInitial ? initialPage : undefined,
+    // Keep the previous page on screen while the next one loads, so the table doesn't blank out.
+    placeholderData: keepPreviousData,
   });
 
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const page: ProposalPage = query.data ?? { items: [], nextCursor: null };
+  const items = page.items;
   const showDao = scope === 'cross';
+  const firstOnPage = pageIndex * PAGE_SIZE + 1;
 
-  // Infinite scroll: load the next page when the sentinel scrolls into view.
-  const sentinel = useRef<HTMLDivElement>(null);
-  const loadMore = useCallback(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
-  }, [query]);
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting) loadMore();
+  const goNext = () => {
+    if (page.nextCursor == null) return;
+    setCursors((prev) => {
+      const next = [...prev];
+      next[pageIndex + 1] = page.nextCursor ?? undefined;
+      return next;
     });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore]);
+    setPageIndex((i) => i + 1);
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <ProposalFilters
         scope={scope}
         filters={filters}
-        onChange={setFilters}
+        onChange={changeFilters}
         daoOptions={daoOptions}
       />
 
-      <div className="flex items-center justify-between font-mono text-caption text-ink-3">
-        <span>{query.isError ? 'Failed to load proposals' : `${items.length} loaded`}</span>
-        <SortControl sort={sort} onChange={setSort} />
-      </div>
-
-      {items.length === 0 && !query.isFetching ? (
+      {query.isError ? (
+        <p className="border border-line-3 bg-bg-2 py-10 text-center font-mono text-mono-body text-ink-3">
+          Failed to load proposals.
+        </p>
+      ) : items.length === 0 && !query.isFetching ? (
         <p className="border border-line-3 bg-bg-2 py-10 text-center font-mono text-mono-body text-ink-3">
           No proposals match these filters.
         </p>
@@ -128,7 +141,7 @@ export function ProposalList({
                 {showDao && <TableHead className="w-28 bg-bg">DAO</TableHead>}
                 <TableHead className="w-24 bg-bg">State</TableHead>
                 <TableHead className="w-[240px] bg-bg">Tally</TableHead>
-                <TableHead className="w-40 bg-bg">Ends / closed</TableHead>
+                <SortableEndsHead sort={sort} onChange={changeSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,12 +154,25 @@ export function ProposalList({
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
 
-      <div ref={sentinel} className="h-8" aria-hidden />
-      {query.isFetchingNextPage && (
-        <p className="py-4 text-center font-mono text-caption text-ink-3">Loading…</p>
+          <div className="flex items-center justify-between border-t border-line-3 px-3.5 py-2.5 font-mono text-small text-ink-3">
+            {/* No total: the list API pages by cursor and returns no count, so the reference's
+                "of 2,418" and numbered pages can't be shown honestly. */}
+            <span>
+              {items.length > 0
+                ? `Showing ${firstOnPage}–${firstOnPage + items.length - 1}`
+                : 'No results'}
+            </span>
+            <div className="flex items-center gap-1">
+              <PagerButton onClick={() => setPageIndex((i) => i - 1)} disabled={pageIndex === 0}>
+                ← prev
+              </PagerButton>
+              <PagerButton onClick={goNext} disabled={page.nextCursor == null}>
+                next →
+              </PagerButton>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -195,38 +221,59 @@ function ProposalTableRow({ item, showDao }: { item: ProposalListItemView; showD
   );
 }
 
-function SortControl({
+/**
+ * The Ends / closed header doubles as the sort control (reference `.arr`): clicking it sorts by
+ * voting close, and clicking again flips the direction. Other sort fields remain reachable by URL.
+ */
+function SortableEndsHead({
   sort,
   onChange,
 }: {
   sort: ProposalSort;
   onChange: (s: ProposalSort) => void;
 }) {
+  const active = sort.field === 'voting_ends_at';
+  const dir = active ? sort.dir : 'desc';
+
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-ink-4" htmlFor="proposal-sort">
-        Sort
-      </label>
-      <select
-        id="proposal-sort"
-        value={sort.field}
-        onChange={(e) => onChange({ ...sort, field: e.target.value as ProposalSort['field'] })}
-        className="border border-line-3 bg-bg-2 px-2 py-1 text-ink"
-      >
-        {SORT_FIELDS.map((f) => (
-          <option key={f} value={f}>
-            {SORT_LABELS[f]}
-          </option>
-        ))}
-      </select>
+    <TableHead className="w-40 bg-bg p-0">
       <button
         type="button"
-        onClick={() => onChange({ ...sort, dir: sort.dir === 'desc' ? 'asc' : 'desc' })}
-        aria-label={sort.dir === 'desc' ? 'Descending' : 'Ascending'}
-        className={cn('border border-line-3 px-2 py-1 text-ink-2 hover:border-ink-3')}
+        onClick={() =>
+          onChange({ field: 'voting_ends_at', dir: active && dir === 'desc' ? 'asc' : 'desc' })
+        }
+        aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
+        className="flex h-9 w-full items-center gap-1 px-3 text-left uppercase tracking-[0.04em] hover:text-ink"
       >
-        {sort.dir === 'desc' ? '↓' : '↑'}
+        Ends / closed
+        <span aria-hidden className={cn(active ? 'text-ink-3' : 'text-ink-4')}>
+          {dir === 'desc' ? '↓' : '↑'}
+        </span>
       </button>
-    </div>
+    </TableHead>
+  );
+}
+
+function PagerButton({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'border border-line-2 px-3 py-1 font-mono text-pill transition-colors',
+        disabled ? 'cursor-default text-ink-4' : 'text-ink-2 hover:border-line hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
   );
 }
