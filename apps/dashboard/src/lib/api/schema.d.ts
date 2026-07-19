@@ -461,6 +461,8 @@ export interface components {
       voting_chain_id: string;
       proposal: components['schemas']['EmbeddedProposalDto'];
       primary_choice?: Record<string, never> | null;
+      /** @description The proposal’s declared label for primary_choice, e.g. "for". Null when the proposal declares no choice at that index, so the client can fall back rather than invent one. */
+      choice_label?: string | null;
       voting_power_reported: string;
       cast_at: Record<string, never> | null;
       _meta: components['schemas']['ActorVoteMetaDto'];

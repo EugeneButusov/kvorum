@@ -2399,6 +2399,11 @@
             "type": "object",
             "nullable": true
           },
+          "choice_label": {
+            "type": "string",
+            "nullable": true,
+            "description": "The proposal’s declared label for primary_choice, e.g. \"for\". Null when the proposal declares no choice at that index, so the client can fall back rather than invent one."
+          },
           "voting_power_reported": {
             "type": "string"
           },
