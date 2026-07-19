@@ -1,4 +1,5 @@
 import { sql, type Kysely, type RawBuilder } from 'kysely';
+import { ActorRoutingReadRepository, type MergeMapEntry } from './actor-routing-repository';
 import { chTimestampToDate } from './ch-timestamp';
 import type { ClickHouseDatabase } from './schema/clickhouse';
 import type { PgDatabase } from './schema/pg';
@@ -77,8 +78,11 @@ export type DelegateAlignmentRow = {
 };
 
 export type DelegationFlowEdgeRow = {
-  delegator_actor_id: string;
-  delegate_actor_id: string;
+  // Nullable: an address reaches the projection from chain events, and nothing guarantees the
+  // derivation created an actor for it. The dictionary this replaced returned NULL in that case
+  // too — the type simply did not say so.
+  delegator_actor_id: string | null;
+  delegate_actor_id: string | null;
   voting_power: string;
   block_number: string;
   event_type: string;
@@ -109,11 +113,39 @@ export type MirrorEnvelope<T> = {
   mirrorLastEtl: Date | null;
 };
 
+/**
+ * Delegating to address(0) is how ERC20Votes-style governors express *un*delegation — it is not a
+ * delegate. It is also the only address in the entire production dataset with no actor row, so
+ * excluding it from both a leaderboard's rows and its total is what makes the two consistent.
+ */
+const ZERO_ADDRESS = `0x${'0'.repeat(40)}`;
+
 export class AnalyticsReadRepository {
+  private readonly identity: ActorRoutingReadRepository;
+
   constructor(
     private readonly chDb: Kysely<ClickHouseDatabase>,
     private readonly pgDb: Kysely<PgDatabase>,
-  ) {}
+  ) {
+    this.identity = new ActorRoutingReadRepository(pgDb);
+  }
+
+  /**
+   * Collapse a ClickHouse address column onto its actor's canonical address, so an aggregate can be
+   * grouped by actor without ClickHouse knowing what an actor is (ADR-087).
+   *
+   * With no merged actors the map is empty and `transform` has nothing to rewrite, so this is the
+   * identity — which is exactly what the `actor_address_redirect` dictionary it replaces computed,
+   * at the cost of a live ClickHouse→Postgres connection. Unlike `dictGetOrNull(...)`, `transform`
+   * over the sort-key column stays sargable, so the bloom filters and sort key still apply.
+   */
+  private canonicalAddress(column: string, mergeMap: readonly MergeMapEntry[]): RawBuilder<string> {
+    const raw = sql<string>`toString(${sql.raw(column)})`;
+    if (mergeMap.length === 0) return raw;
+    const from = sql.join(mergeMap.map((entry) => sql`${entry.address}`));
+    const to = sql.join(mergeMap.map((entry) => sql`${entry.canonicalAddress}`));
+    return sql<string>`transform(${raw}, [${from}], [${to}], ${raw})`;
+  }
 
   async findEarliestDelegationEventAt(daoId: string): Promise<Date | null> {
     const row = await this.chDb
@@ -291,12 +323,10 @@ export class AnalyticsReadRepository {
     let qb = this.chDb
       .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
       .select([
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address))`.as(
-          'delegator_actor_id',
-        ),
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegate_address))`.as(
-          'delegate_actor_id',
-        ),
+        // Identity is resolved in the service, not in ClickHouse: these are projected columns, so
+        // there is nothing to group or filter by and the rows can simply be labelled after the fact.
+        sql<string>`toString(dfa.delegator_address)`.as('delegator_address'),
+        sql<string>`toString(dfa.delegate_address)`.as('delegate_address'),
         // Exact UInt256 as a decimal string — see the note on concentrationByBucket's weights.
         sql<string>`toString(dfa.voting_power)`.as('voting_power'),
         'dfa.block_number',
@@ -314,41 +344,84 @@ export class AnalyticsReadRepository {
       );
     }
 
-    const rawRows = await qb.execute();
+    const rawRows = (await qb.execute()) as unknown as Array<{
+      delegator_address: string;
+      delegate_address: string;
+      voting_power: string;
+      block_number: string;
+      event_type: string;
+      created_at: string;
+    }>;
+
+    // One resolve for the whole page, over the distinct addresses on both ends of the edges.
+    const actorIdByAddress = await this.identity.findCurrentActorIdsByAddresses([
+      ...new Set(rawRows.flatMap((row) => [row.delegator_address, row.delegate_address])),
+    ]);
+
     const rows: DelegationFlowEdgeRow[] = rawRows.map((row) => ({
-      ...row,
-      created_at: chTimestampToDate(row.created_at as unknown as string),
+      delegator_actor_id: actorIdByAddress.get(row.delegator_address) ?? null,
+      delegate_actor_id: actorIdByAddress.get(row.delegate_address) ?? null,
+      voting_power: row.voting_power,
+      block_number: row.block_number,
+      event_type: row.event_type,
+      created_at: chTimestampToDate(row.created_at),
     }));
     const lastCreatedAt = rows[rows.length - 1]?.created_at ?? null;
     return { rows, mirrorLastEtl: lastCreatedAt };
   }
 
+  /**
+   * Each actor's current delegated-out voting power.
+   *
+   * Grouped by **address**, then folded per actor here. That split is not incidental: the standing
+   * power of an actor holding several addresses is the sum of each address's latest delegation, and
+   * `argMax(voting_power, created_at)` over an actor-wide group returns only whichever address moved
+   * most recently — silently dropping the rest. Grouping by address makes each argMax mean "this
+   * address's standing delegation", which is what summing requires (KNOWN-031).
+   */
   async currentVotingPowerByActor(
     daoId: string,
     actorIds: readonly string[],
   ): Promise<ActorPowerRow[]> {
     if (actorIds.length === 0) return [];
+
+    const addressRows = await this.pgDb
+      .selectFrom('actor_address')
+      .select(['address', 'actor_id'])
+      .where('actor_id', 'in', [...actorIds])
+      .execute();
+    if (addressRows.length === 0) return [];
+    const actorIdByAddress = new Map(addressRows.map((row) => [row.address, row.actor_id]));
+
     const rows = await this.chDb
       .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
-      .select(
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address))`.as(
-          'actor_id',
-        ),
-      )
+      .select(sql<string>`toString(dfa.delegator_address)`.as('delegator_address'))
       // toString(): a bare UInt256 comes back as a JS number on a server with
       // output_format_json_quote_64bit_integers=0 (production), losing precision and stringifying
       // to exponential notation past 1e21 — see vote-read-repository.ts.
       .select(sql<string>`toString(argMax(dfa.voting_power, dfa.created_at))`.as('voting_power'))
       .where('dfa.dao_id', '=', daoId)
+      // An address list, not a resolved-identity predicate: this filters on the sort-key column, so
+      // it stays sargable where the dictionary lookup did not.
       .where(
-        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(dfa.delegator_address)) in (${sql.join(
-          actorIds.map((id) => sql`${id}`),
+        sql<boolean>`toString(dfa.delegator_address) in (${sql.join(
+          [...actorIdByAddress.keys()].map((address) => sql`${address}`),
         )})`,
       )
-      .groupBy('actor_id')
+      .groupBy('delegator_address')
       .execute();
 
-    return rows;
+    const powerByActor = new Map<string, bigint>();
+    for (const row of rows) {
+      const actorId = actorIdByAddress.get(row.delegator_address);
+      if (actorId === undefined) continue;
+      powerByActor.set(actorId, (powerByActor.get(actorId) ?? 0n) + BigInt(row.voting_power));
+    }
+
+    return [...powerByActor].map(([actor_id, power]) => ({
+      actor_id,
+      voting_power: power.toString(),
+    }));
   }
 
   /**
@@ -372,25 +445,33 @@ export class AnalyticsReadRepository {
       GROUP BY delegator_address
     `;
 
+    // Merged actors must be summed BEFORE the top-N cut — top-N by address is not top-N by actor —
+    // so the collapse happens inside ClickHouse, keeping the aggregate, the ranking and the LIMIT
+    // there. The map is empty until someone merges actors, at which point this starts folding.
+    const mergeMap = await this.identity.findMergeMap();
+    const canonical = this.canonicalAddress('c.delegate_address', mergeMap);
+
     // Both reads MUST go through the query builder: a raw sql`...`.execute() against the ClickHouse
     // dialect silently resolves to zero rows instead of erroring, which returned an empty
     // leaderboard for every DAO.
+    //
+    // Both also apply the SAME two filters (power-bearing, and not the zero address), so the page
+    // and the denominator describe one population and the shares sum to 1. They did not before: the
+    // page dropped addresses the dictionary could not resolve while the total still counted them.
+    const isRealDelegate = sql<boolean>`c.vp > 0 AND toString(c.delegate_address) != ${ZERO_ADDRESS}`;
+
     const leaderboard = await this.chDb
       .selectFrom(sql<PerDelegator>`(${currentPerDelegator})`.as('c'))
       .select([
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(c.delegate_address))`.as(
-          'actor_id',
-        ),
+        canonical.as('canonical_address'),
         sql<string>`toString(sum(c.vp))`.as('voting_power'),
         sql<string>`toString(count())`.as('delegator_count'),
       ])
-      .where(sql<boolean>`c.vp > 0`)
-      .where(
-        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(c.delegate_address)) IS NOT NULL`,
-      )
-      .groupBy('actor_id')
+      .where(isRealDelegate)
+      .groupBy('canonical_address')
       .orderBy(sql`sum(c.vp)`, 'desc')
-      .orderBy('actor_id', 'asc')
+      // Tiebreak on the grouping key, which is now an address rather than an actor id.
+      .orderBy('canonical_address', 'asc')
       .limit(args.limit)
       .execute();
 
@@ -398,15 +479,29 @@ export class AnalyticsReadRepository {
     const totalRow = await this.chDb
       .selectFrom(sql<PerDelegator>`(${currentPerDelegator})`.as('c'))
       .select(sql<string>`toString(sum(c.vp))`.as('total'))
-      .where(sql<boolean>`c.vp > 0`)
+      .where(isRealDelegate)
       .executeTakeFirst();
 
+    // Bounded by page size: label the N canonical addresses the ranking returned.
+    const actorIdByAddress = await this.identity.findCurrentActorIdsByAddresses(
+      leaderboard.map((row) => row.canonical_address),
+    );
+
     return {
-      rows: leaderboard.map((r) => ({
-        actor_id: r.actor_id,
-        voting_power: r.voting_power,
-        delegator_count: Number(r.delegator_count),
-      })),
+      rows: leaderboard.flatMap((row) => {
+        const actorId = actorIdByAddress.get(row.canonical_address) ?? null;
+        // Every delegate address in production resolves once the zero address is excluded, so this
+        // should never drop a row. If it ever does, the address reached the projection without the
+        // derivation creating an actor for it — a gap upstream, not something to render blank.
+        if (actorId === null) return [];
+        return [
+          {
+            actor_id: actorId,
+            voting_power: row.voting_power,
+            delegator_count: Number(row.delegator_count),
+          },
+        ];
+      }),
       totalVotingPower: totalRow?.total ?? '0',
     };
   }

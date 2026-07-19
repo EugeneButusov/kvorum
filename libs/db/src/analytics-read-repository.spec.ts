@@ -47,21 +47,56 @@ describe('AnalyticsReadRepository — guard tests for accidentally-safe aggregat
     expect(chChain.executeTakeFirst).toHaveBeenCalledOnce();
   });
 
-  it('guard R5: currentVotingPowerByActor passes through grouped rows unchanged (argMax dedup is in CH)', async () => {
-    // Safe because argMax(voting_power, created_at) in the SQL collapses rows per actor
-    // to the one with the latest created_at. Application code does NOT re-fold the result —
-    // a refactor adding a second fold or switching aggregate would be unsafe.
-    const expected = [
-      { actor_id: 'a1', voting_power: '200' },
-      { actor_id: 'a2', voting_power: '50' },
+  it('guard R5: currentVotingPowerByActor sums each actor addresses, folding in TypeScript', async () => {
+    // This guard used to assert the OPPOSITE — that application code must NOT re-fold, because
+    // argMax in ClickHouse had already collapsed rows per actor. That premise was the bug
+    // (KNOWN-031): argMax over an actor-wide group returns whichever ONE address delegated most
+    // recently, so an actor holding several addresses silently lost the rest of its power.
+    //
+    // ClickHouse now groups by address, so each argMax means "this address's standing delegation",
+    // and the per-actor total is their sum — which only application code can compute, because only
+    // Postgres knows which addresses share an actor (ADR-087).
+    const addressRows = [
+      { address: '0xaa', actor_id: 'a1' },
+      { address: '0xbb', actor_id: 'a1' },
+      { address: '0xcc', actor_id: 'a2' },
     ];
-    const chChain = makeChain(expected);
+    const pgChain = makeChain(addressRows);
+    const pg = { selectFrom: vi.fn().mockReturnValue(pgChain) };
+    const chChain = makeChain([
+      { delegator_address: '0xaa', voting_power: '100' },
+      { delegator_address: '0xbb', voting_power: '50' },
+      { delegator_address: '0xcc', voting_power: '7' },
+    ]);
     const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
-    const repo = new AnalyticsReadRepository(ch as never, { selectFrom: vi.fn() } as never);
+    const repo = new AnalyticsReadRepository(ch as never, pg as never);
 
     const result = await repo.currentVotingPowerByActor('dao-1', ['a1', 'a2']);
 
-    expect(result).toEqual(expected);
+    expect(result).toEqual([
+      { actor_id: 'a1', voting_power: '150' },
+      { actor_id: 'a2', voting_power: '7' },
+    ]);
     expect(chChain.execute).toHaveBeenCalledOnce();
+  });
+
+  it('guard R5: currentVotingPowerByActor keeps summed power exact past Number.MAX_SAFE_INTEGER', async () => {
+    // The fold is BigInt, not Number: two addresses of ~9e18 each exceed 2^53 when summed.
+    const pgChain = makeChain([
+      { address: '0xaa', actor_id: 'a1' },
+      { address: '0xbb', actor_id: 'a1' },
+    ]);
+    const chChain = makeChain([
+      { delegator_address: '0xaa', voting_power: '9007199254740993' },
+      { delegator_address: '0xbb', voting_power: '9007199254740993' },
+    ]);
+    const repo = new AnalyticsReadRepository(
+      { selectFrom: vi.fn().mockReturnValue(chChain) } as never,
+      { selectFrom: vi.fn().mockReturnValue(pgChain) } as never,
+    );
+
+    await expect(repo.currentVotingPowerByActor('dao-1', ['a1'])).resolves.toEqual([
+      { actor_id: 'a1', voting_power: '18014398509481986' },
+    ]);
   });
 });

@@ -275,62 +275,51 @@ describeWithDbAndCh('analytics reads: merged actors (integration)', () => {
     }
   });
 
-  // KNOWN-031: `it.fails` — this asserts the CORRECT answer, which today's query does not give.
-  //
-  // `currentVotingPowerByActor` groups by the resolved actor and takes
-  // `argMax(voting_power, created_at)` over that group. For a merged actor that spans two delegator
-  // addresses, the group holds both addresses' rows, so argMax returns whichever single address
-  // delegated most recently — 50 — instead of summing each address's standing power, 150. The actor
-  // silently loses the other address's power.
-  //
-  // Not reachable in production today (zero merged actors), and invisible to the mocked unit spec.
-  // ADR-087's rewrite — group by address in ClickHouse, fold per actor in TypeScript — fixes it;
-  // flip this back to `it` in that change.
-  it.fails(
-    'currentVotingPowerByActor totals a merged actor across the addresses it delegates from',
-    async () => {
-      const s = await seedIdentities('vp-merged');
-      await new DelegationFlowProjectionWriter(chDb).insertBatch([
-        // Each address has its own standing delegation, superseding an earlier value. The actor's
-        // current power is the sum of the two standing figures: 100 + 50.
-        flowRow({
-          daoId: s.daoId,
-          delegator: s.mergedPrimary,
-          delegate: s.soloAddr,
-          vp: '30',
-          block: '1',
-          at: '2026-03-01T00:00:00.000Z',
-        }),
-        flowRow({
-          daoId: s.daoId,
-          delegator: s.mergedPrimary,
-          delegate: s.soloAddr,
-          vp: '100',
-          block: '2',
-          at: '2026-03-02T00:00:00.000Z',
-        }),
-        flowRow({
-          daoId: s.daoId,
-          delegator: s.mergedAbsorbed,
-          delegate: s.soloAddr,
-          vp: '50',
-          block: '3',
-          at: '2026-03-03T00:00:00.000Z',
-        }),
-      ]);
+  // Was KNOWN-031: this asserted the correct answer while the query returned 50, because
+  // argMax over an actor-wide group yields only the most recently moved address. Resolution now
+  // happens per address and folds in TypeScript, so the two standing figures sum as they should.
+  it('currentVotingPowerByActor totals a merged actor across the addresses it delegates from', async () => {
+    const s = await seedIdentities('vp-merged');
+    await new DelegationFlowProjectionWriter(chDb).insertBatch([
+      // Each address has its own standing delegation, superseding an earlier value. The actor's
+      // current power is the sum of the two standing figures: 100 + 50.
+      flowRow({
+        daoId: s.daoId,
+        delegator: s.mergedPrimary,
+        delegate: s.soloAddr,
+        vp: '30',
+        block: '1',
+        at: '2026-03-01T00:00:00.000Z',
+      }),
+      flowRow({
+        daoId: s.daoId,
+        delegator: s.mergedPrimary,
+        delegate: s.soloAddr,
+        vp: '100',
+        block: '2',
+        at: '2026-03-02T00:00:00.000Z',
+      }),
+      flowRow({
+        daoId: s.daoId,
+        delegator: s.mergedAbsorbed,
+        delegate: s.soloAddr,
+        vp: '50',
+        block: '3',
+        at: '2026-03-03T00:00:00.000Z',
+      }),
+    ]);
 
-      try {
-        const repo = new AnalyticsReadRepository(chDb, pgDb);
-        const rows = await repo.currentVotingPowerByActor(s.daoId, [s.mergedActorId]);
+    try {
+      const repo = new AnalyticsReadRepository(chDb, pgDb);
+      const rows = await repo.currentVotingPowerByActor(s.daoId, [s.mergedActorId]);
 
-        expect(rows).toHaveLength(1);
-        expect(rows[0]!.actor_id).toBe(s.mergedActorId);
-        expect(rows[0]!.voting_power).toBe('150');
-      } finally {
-        await cleanup(s.daoId, s.actorIds);
-      }
-    },
-  );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.actor_id).toBe(s.mergedActorId);
+      expect(rows[0]!.voting_power).toBe('150');
+    } finally {
+      await cleanup(s.daoId, s.actorIds);
+    }
+  });
 
   it('crossDaoSummaryForActor returns one row per DAO for a merged actor, not one per address', async () => {
     const s = await seedIdentities('xdao-merged');
