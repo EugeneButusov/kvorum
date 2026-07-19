@@ -31,6 +31,40 @@ const CREATED_PAYLOAD: ProposalCreatedPayload = {
 };
 
 describe('projectCompoundProposalEvent', () => {
+  it('repairs a description whose newlines arrived escaped, so the title is not the whole body', () => {
+    // Observed on Compound proposal 591: the proposer submitted the description JSON-encoded, so
+    // every newline is the literal two characters \\ and n. Left alone, the markdown renders as one
+    // blob and extractCompoundTitle (which splits on newlines) swallows the entire description.
+    const escaped =
+      '# Deprecation of Polygon Comets\\n## Simple Summary\\n\\nGauntlet recommends changes.';
+    const projection = projectCompoundProposalEvent(
+      { type: 'ProposalCreated', payload: { ...CREATED_PAYLOAD, description: escaped } },
+      ARCHIVE_ROW,
+    );
+    if (projection.kind !== 'proposal_created') throw new Error('wrong projection kind');
+
+    const repaired =
+      '# Deprecation of Polygon Comets\n## Simple Summary\n\nGauntlet recommends changes.';
+    expect(projection.proposal.title).toBe('Deprecation of Polygon Comets');
+    expect(projection.proposal.description).toBe(repaired);
+    // The hash covers what we store, not the escaped original.
+    expect(projection.proposal.description_hash).toBe(
+      createHash('sha256').update(repaired).digest('hex'),
+    );
+  });
+
+  it('leaves a healthy description byte-for-byte alone', () => {
+    const healthy = '# Proposal 42\nBody with real newlines.';
+    const projection = projectCompoundProposalEvent(
+      { type: 'ProposalCreated', payload: { ...CREATED_PAYLOAD, description: healthy } },
+      ARCHIVE_ROW,
+    );
+    if (projection.kind !== 'proposal_created') throw new Error('wrong projection kind');
+
+    expect(projection.proposal.description).toBe(healthy);
+    expect(projection.proposal.title).toBe('Proposal 42');
+  });
+
   it('projects ProposalCreated into insertable proposal data, actions, and ADR-039 choices', () => {
     const projection = projectCompoundProposalEvent(
       { type: 'ProposalCreated', payload: CREATED_PAYLOAD },

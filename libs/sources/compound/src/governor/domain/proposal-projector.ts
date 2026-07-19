@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { NewProposal, NewProposalChoice, ProposalActionInput, ProposalState } from '@libs/db';
+import { normalizeEscapedNewlines } from '@libs/utils';
 import { extractCompoundTitle } from './title-extractor';
 import type { CompoundGovernorEvent, ProposalCreatedPayload } from './types';
 
@@ -89,6 +90,12 @@ function projectProposalCreated(
 ): ProposalCreatedProjection {
   assertAlignedActionArrays(payload, archiveRow.id);
 
+  // Some proposers submit the description JSON-encoded, so its newlines arrive as literal "\n".
+  // Repair it before anything reads it: otherwise the markdown renders as one blob and the title
+  // extractor, which splits on newlines, takes the whole description as the title. The hash covers
+  // the text we actually store.
+  const description = normalizeEscapedNewlines(payload.description);
+
   return {
     kind: 'proposal_created',
     archiveRowId: archiveRow.id,
@@ -98,9 +105,9 @@ function projectProposalCreated(
     proposal: {
       source_type: archiveRow.source_type,
       source_id: payload.proposalId,
-      title: extractCompoundTitle(payload.description),
-      description: payload.description,
-      description_hash: createHash('sha256').update(payload.description).digest('hex'),
+      title: extractCompoundTitle(description),
+      description,
+      description_hash: createHash('sha256').update(description).digest('hex'),
       binding: true,
       voting_starts_at: null,
       voting_ends_at: null,
