@@ -25,7 +25,11 @@ import {
 import { toDelegateLeaderboardRowDto } from './delegate-leaderboard.mappers';
 import { DELEGATE_LEADERBOARD_QUERY_SCHEMA } from './delegate-leaderboard.query';
 import { DelegationFlowQueryDto, DelegationFlowResponseDto } from './delegation-flow.dto';
-import { toDelegationFlowEdgeDto, toDelegationFlowNodeDtos } from './delegation-flow.mappers';
+import {
+  hasResolvedDelegator,
+  toDelegationFlowEdgeDto,
+  toDelegationFlowNodeDtos,
+} from './delegation-flow.mappers';
 import { DELEGATION_FLOW_QUERY_SCHEMA } from './delegation-flow.query';
 import { PassRateQueryDto, PassRateResponseDto } from './proposal-pass-rate.dto';
 import { toPassRateRowDto } from './proposal-pass-rate.mappers';
@@ -159,8 +163,15 @@ export class DaoAnalyticsController {
       minVotingPowerWei,
     });
 
+    // An endpoint can be null when its address has no actor — most often the delegate end of an
+    // undelegation (delegating to address(0)). Those edges still render; they just contribute no node.
+    const edges = result.rows.filter(hasResolvedDelegator);
     const actorIds = [
-      ...new Set(result.rows.flatMap((row) => [row.delegator_actor_id, row.delegate_actor_id])),
+      ...new Set(
+        edges
+          .flatMap((row) => [row.delegator_actor_id, row.delegate_actor_id])
+          .filter((id): id is string => id !== null),
+      ),
     ];
     const powers = await this.repo.currentVotingPowerByActor(dao.id, actorIds);
     const actors = await this.repo.findActors(actorIds);
@@ -168,7 +179,7 @@ export class DaoAnalyticsController {
 
     return {
       nodes: toDelegationFlowNodeDtos({ powers, actorsById }),
-      edges: result.rows.map(toDelegationFlowEdgeDto),
+      edges: edges.map(toDelegationFlowEdgeDto),
       _meta: toAnalyticsMeta(result.mirrorLastEtl),
     };
   }
