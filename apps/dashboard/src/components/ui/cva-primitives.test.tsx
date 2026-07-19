@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { Banner } from './banner';
 import { Button } from './button';
 import { Pill } from './pill';
+import { Segmented, SegmentedItem } from './segmented';
 import { StatePill } from './state-pill';
 import { VoteTag } from './vote-tag';
 
@@ -73,5 +74,31 @@ describe('Button', () => {
     const el = screen.getByRole('link', { name: 'Link' });
     expect(el.tagName).toBe('A');
     expect(el).toHaveClass('bg-primary');
+  });
+});
+
+describe('Segmented', () => {
+  // jsdom has no layout, so these assert the two properties that carry the behaviour rather than
+  // measuring it. Both have failed silently before: a control that could not wrap pushed half the
+  // state filters off a phone screen, and a frame with no border-style computed to 0px.
+  function renderSegmented() {
+    return render(
+      <Segmented type="single" aria-label="Range">
+        <SegmentedItem value="7d">7d</SegmentedItem>
+        <SegmentedItem value="30d">30d</SegmentedItem>
+      </Segmented>,
+    );
+  }
+
+  it('wraps its segments, so a long option set stays on screen at phone width', () => {
+    renderSegmented();
+    expect(screen.getByRole('radiogroup', { name: 'Range' })).toHaveClass('flex-wrap');
+  });
+
+  it('sets an explicit border style, which the global button reset would otherwise strip', () => {
+    // tokens.css has `button { border: 0 }` — that shorthand sets border-style: none, and Tailwind's
+    // `border` only sets a width, so without `border-solid` the segment frame disappears entirely.
+    renderSegmented();
+    expect(screen.getByRole('radio', { name: '7d' })).toHaveClass('border-solid', 'border-line-2');
   });
 });

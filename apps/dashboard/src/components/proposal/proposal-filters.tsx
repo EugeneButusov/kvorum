@@ -99,14 +99,17 @@ function Sep() {
 }
 
 /**
- * A facet: its label, then the segmented control. The control is a single unbroken row of segments
- * that is wider than a phone, so it scrolls inside the strip rather than pushing the page sideways.
+ * A facet: its label, then the segmented control. The control has more segments than fit a phone
+ * width, so it wraps onto further rows — every option stays on screen and reachable, rather than
+ * hiding behind a sideways scroll.
  */
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 max-w-full items-center gap-2">
-      <span className="shrink-0 text-caption uppercase tracking-[0.06em] text-ink-3">{label}</span>
-      <div className="min-w-0 overflow-x-auto">{children}</div>
+    <div className="flex min-w-0 max-w-full items-start gap-2">
+      <span className="shrink-0 py-1 text-caption uppercase tracking-[0.06em] text-ink-3">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
