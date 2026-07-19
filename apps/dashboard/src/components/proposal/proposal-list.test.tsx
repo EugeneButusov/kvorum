@@ -64,12 +64,25 @@ function renderList(items: ProposalListItemView[]) {
 describe('ProposalList', () => {
   beforeEach(() => replace.mockClear());
 
-  it('renders the SSR-seeded rows and the sort control', () => {
+  it('renders the SSR-seeded rows', () => {
     renderList([item('1', 'First'), item('2', 'Second')]);
     expect(screen.getByRole('link', { name: 'First' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Second' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Sort')).toBeInTheDocument();
-    expect(screen.getByText('2 loaded')).toBeInTheDocument();
+  });
+
+  it('offers no separate sort control and no loaded counter', () => {
+    renderList([item('1', 'First'), item('2', 'Second')]);
+    // Sorting lives on the Ends / closed header now; the row count was noise.
+    expect(screen.queryByLabelText('Sort')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ loaded/)).not.toBeInTheDocument();
+  });
+
+  it('pages rather than scrolling infinitely', () => {
+    renderList([item('1', 'First')]);
+    expect(screen.getByRole('button', { name: /prev/ })).toBeDisabled();
+    // Seeded page reports no next cursor, so there is nothing to advance to.
+    expect(screen.getByRole('button', { name: /next/ })).toBeDisabled();
+    expect(screen.getByText('Showing 1–1')).toBeInTheDocument();
   });
 
   it('mirrors a filter change into the URL (shareable)', async () => {
@@ -83,12 +96,29 @@ describe('ProposalList', () => {
     });
   });
 
-  it('mirrors a sort change into the URL', async () => {
+  it('sorts by clicking the Ends / closed header, flipping direction on a second click', async () => {
     renderList([item('1', 'First')]);
-    fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'created_at' } });
+    const header = screen.getByRole('button', { name: /Ends \/ closed/ });
+
+    // Default is -voting_ends_at, so the first click flips to ascending.
+    fireEvent.click(header);
     await waitFor(() => {
-      expect(replace.mock.calls.at(-1)?.[0] as string).toContain('sort=-created_at');
+      expect(replace.mock.calls.at(-1)?.[0] as string).toContain('sort=voting_ends_at');
     });
+
+    // Clicking back to descending is the default sort, which is omitted to keep URLs clean.
+    fireEvent.click(header);
+    await waitFor(() => {
+      expect(replace.mock.calls.at(-1)?.[0] as string).not.toContain('sort=');
+    });
+  });
+
+  it('marks the sorted header for assistive tech', () => {
+    renderList([item('1', 'First')]);
+    expect(screen.getByRole('button', { name: /Ends \/ closed/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
   });
 
   it('shows an empty state when nothing matches', () => {
