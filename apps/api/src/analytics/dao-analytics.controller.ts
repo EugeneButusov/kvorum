@@ -302,7 +302,9 @@ export class DaoAnalyticsController {
     const page = buildPagination(result.rows, limit, (row) => ({
       type: 'numeric',
       value: row.vote_count,
-      tiebreak: row.peer_actor_id,
+      // Must match the query's ORDER BY tiebreak, which is now the canonical peer address rather
+      // than the actor id — otherwise a cursor resumes from a key the ranking does not sort on.
+      tiebreak: row.peer_address,
       dir,
       q: queryCanonical,
     }));
