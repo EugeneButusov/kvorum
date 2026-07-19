@@ -121,6 +121,29 @@ describe('ProposalList', () => {
     );
   });
 
+  it('renders every proposal in both the phone card list and the desktop table', () => {
+    // Which one is visible is a CSS media query, so both are in the DOM. They must agree on the
+    // rows, otherwise a phone and a laptop would show different lists.
+    renderList([item('1', 'First'), item('2', 'Second')]);
+
+    for (const href of ['/daos/lido/proposals/snapshot/1', '/daos/lido/proposals/snapshot/2']) {
+      expect(
+        screen.getAllByRole('link').filter((l) => l.getAttribute('href') === href),
+      ).toHaveLength(2);
+    }
+  });
+
+  it('gives the phone card list its own sort control, driving the same sort as the header', async () => {
+    // The Ends / closed header is a table header, so it is hidden at phone width — without this
+    // control there would be no way to change the sort on a phone.
+    renderList([item('1', 'First')]);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sort by end time/ }));
+    await waitFor(() => {
+      expect(replace.mock.calls.at(-1)?.[0] as string).toContain('sort=voting_ends_at');
+    });
+  });
+
   it('shows an empty state when nothing matches', () => {
     renderList([]);
     expect(screen.getByText(/No proposals match/)).toBeInTheDocument();

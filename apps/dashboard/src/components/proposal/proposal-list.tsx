@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { ProposalCard } from './proposal-card';
 import { ProposalFilters } from './proposal-filters';
 import { daoVariant, stateToVariant } from './state';
 import { TallySummary } from './tally-summary';
@@ -132,8 +133,26 @@ export function ProposalList({
           No proposals match these filters.
         </p>
       ) : (
-        <div className="border border-line-3 bg-bg-2">
-          <Table>
+        <div className="md:border md:border-line-3 md:bg-bg-2">
+          {/* Phone: the table's columns cannot fit at 390px, so the same rows stack as cards. The
+              Ends header doubles as the sort control on desktop, so the card list needs its own. */}
+          <div className="md:hidden">
+            <div className="flex items-baseline justify-between border-b border-line-3 px-0.5 pb-1.5 font-mono text-caption uppercase tracking-[0.06em] text-ink-3">
+              <span className="font-semibold text-ink">Proposals</span>
+              <SortEndsButton sort={sort} onChange={changeSort} />
+            </div>
+            <div className="flex flex-col gap-2.5 pt-2.5">
+              {items.map((item) => (
+                <ProposalCard
+                  key={`${item.daoSlug}:${item.sourceType}:${item.sourceId}`}
+                  item={item}
+                  showDao={showDao}
+                />
+              ))}
+            </div>
+          </div>
+
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-20 bg-bg">ID</TableHead>
@@ -155,7 +174,7 @@ export function ProposalList({
             </TableBody>
           </Table>
 
-          <div className="flex items-center justify-between border-t border-line-3 px-3.5 py-2.5 font-mono text-small text-ink-3">
+          <div className="mt-2.5 flex items-center justify-between border border-line-3 bg-bg-2 px-3.5 py-2.5 font-mono text-small text-ink-3 md:mt-0 md:border-x-0 md:border-b-0">
             {/* No total: the list API pages by cursor and returns no count, so the reference's
                 "of 2,418" and numbered pages can't be shown honestly. */}
             <span>
@@ -232,16 +251,13 @@ function SortableEndsHead({
   sort: ProposalSort;
   onChange: (s: ProposalSort) => void;
 }) {
-  const active = sort.field === 'voting_ends_at';
-  const dir = active ? sort.dir : 'desc';
+  const { active, dir } = readEndsSort(sort);
 
   return (
     <TableHead className="w-40 bg-bg p-0">
       <button
         type="button"
-        onClick={() =>
-          onChange({ field: 'voting_ends_at', dir: active && dir === 'desc' ? 'asc' : 'desc' })
-        }
+        onClick={() => onChange(nextEndsSort(sort))}
         aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
         className="flex h-9 w-full items-center gap-1 px-3 text-left uppercase tracking-[0.04em] hover:text-ink"
       >
@@ -252,6 +268,44 @@ function SortableEndsHead({
       </button>
     </TableHead>
   );
+}
+
+/**
+ * The phone-width stand-in for the sortable Ends header, in the reference's `.m-section-h .r` slot.
+ * It shares {@link nextEndsSort} with the header so the two cannot disagree about what a click does.
+ */
+function SortEndsButton({
+  sort,
+  onChange,
+}: {
+  sort: ProposalSort;
+  onChange: (s: ProposalSort) => void;
+}) {
+  const { active, dir } = readEndsSort(sort);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(nextEndsSort(sort))}
+      aria-label={`Sort by end time, ${dir === 'desc' ? 'latest' : 'earliest'} first`}
+      className="flex items-center gap-1 uppercase tracking-[0.06em] hover:text-ink"
+    >
+      ends
+      <span aria-hidden className={cn(active ? 'text-ink-3' : 'text-ink-4')}>
+        {dir === 'desc' ? '↓' : '↑'}
+      </span>
+    </button>
+  );
+}
+
+function readEndsSort(sort: ProposalSort): { active: boolean; dir: 'asc' | 'desc' } {
+  const active = sort.field === 'voting_ends_at';
+  return { active, dir: active ? sort.dir : 'desc' };
+}
+
+function nextEndsSort(sort: ProposalSort): ProposalSort {
+  const { active, dir } = readEndsSort(sort);
+  return { field: 'voting_ends_at', dir: active && dir === 'desc' ? 'asc' : 'desc' };
 }
 
 function PagerButton({

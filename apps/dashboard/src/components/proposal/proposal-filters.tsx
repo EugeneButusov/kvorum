@@ -98,10 +98,17 @@ function Sep() {
   return <span aria-hidden className="hidden h-6 w-px shrink-0 bg-line-3 sm:block" />;
 }
 
+/**
+ * A facet: its label, then the segmented control. The control has more segments than fit a phone
+ * width, so it wraps onto further rows — every option stays on screen and reachable, rather than
+ * hiding behind a sideways scroll.
+ */
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-caption uppercase tracking-[0.06em] text-ink-3">{label}</span>
+    <div className="flex min-w-0 max-w-full items-start gap-2">
+      <span className="shrink-0 py-1 text-caption uppercase tracking-[0.06em] text-ink-3">
+        {label}
+      </span>
       {children}
     </div>
   );
