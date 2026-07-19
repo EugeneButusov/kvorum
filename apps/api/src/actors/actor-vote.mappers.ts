@@ -2,7 +2,10 @@ import type { VoteReadRow } from '@libs/db';
 import { ActorVoteListItemDto } from './actor-vote.dto';
 import { isoSeconds } from '../http/iso';
 
-export function toActorVoteListItemDto(row: VoteReadRow): ActorVoteListItemDto {
+export function toActorVoteListItemDto(
+  row: VoteReadRow,
+  choiceLabel: string | null = null,
+): ActorVoteListItemDto {
   return Object.assign(new ActorVoteListItemDto(), {
     vote_id: row.id,
     voting_chain_id: row.voting_chain_id,
@@ -22,6 +25,7 @@ export function toActorVoteListItemDto(row: VoteReadRow): ActorVoteListItemDto {
       },
     },
     primary_choice: row.primary_choice,
+    choice_label: choiceLabel,
     voting_power_reported: row.voting_power_reported,
     cast_at: isoSeconds(row.cast_at),
     _meta: { confirmed: true },

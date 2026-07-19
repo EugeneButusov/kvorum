@@ -9,7 +9,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { VoteReadRepository } from '@libs/db';
+import { ProposalReadRepository, VoteReadRepository, type VoteReadRow } from '@libs/db';
 import { ActorRoutingService } from './actor-routing.service';
 import { ActorVoteListResponseDto } from './actor-vote.dto';
 import { toActorVoteListItemDto } from './actor-vote.mappers';
@@ -35,7 +35,35 @@ export class ActorVotesController {
   constructor(
     private readonly voteRepo: VoteReadRepository,
     private readonly routing: ActorRoutingService,
+    private readonly proposalRepo: ProposalReadRepository,
   ) {}
+
+  /**
+   * The proposal's own label for each vote's choice ("for", "Option A", …), keyed by vote id.
+   *
+   * A vote carries only a numeric `primary_choice`; the label lives on the proposal it was cast on.
+   * Resolved here in one batched read for the page — an actor's votes span many proposals, so doing
+   * it per row would be an N+1, and leaving it to the client would make it fetch every proposal.
+   * Null when the proposal declares no choice at that index: the client falls back rather than
+   * being handed an invented label.
+   */
+  private async choiceLabelsByVote(
+    rows: readonly VoteReadRow[],
+  ): Promise<Map<string, string | null>> {
+    const proposalIds = [...new Set(rows.map((row) => row.proposal_id))];
+    const choicesByProposal = await this.proposalRepo.findChoicesForProposals(proposalIds);
+
+    return new Map(
+      rows.map((row) => [
+        row.id,
+        row.primary_choice === null
+          ? null
+          : (choicesByProposal
+              .get(row.proposal_id)
+              ?.find((choice) => choice.choice_index === row.primary_choice)?.value ?? null),
+      ]),
+    );
+  }
 
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
@@ -88,8 +116,9 @@ export class ActorVotesController {
     const seeked = sortAndSeek(rows, cursor, sortKeyOf);
     const page = buildPagination(seeked, limit, sortKeyOf);
 
+    const choiceLabels = await this.choiceLabelsByVote(page.data);
     return {
-      data: page.data.map(toActorVoteListItemDto),
+      data: page.data.map((row) => toActorVoteListItemDto(row, choiceLabels.get(row.id) ?? null)),
       pagination: page.pagination,
     };
   }

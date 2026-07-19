@@ -55,6 +55,17 @@ export class ActorVoteListItemDto {
   @ApiPropertyOptional({ nullable: true })
   declare primary_choice: number | null;
 
+  // `type` is explicit because the `declare` fields on this DTO emit no design-time metadata —
+  // without it the generated client types this as an empty object (as primary_choice/cast_at are).
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'The proposal’s declared label for primary_choice, e.g. "for". Null when the proposal ' +
+      'declares no choice at that index, so the client can fall back rather than invent one.',
+  })
+  declare choice_label: string | null;
+
   @ApiProperty({ type: String })
   declare voting_power_reported: string;
 

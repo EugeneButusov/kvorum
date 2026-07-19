@@ -1,8 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 
+import { ActorActivity } from './actor-lists';
 import { CrossDaoAlignment } from './cross-dao-alignment';
 import { CrossDaoTable } from './cross-dao-table';
-import type { DaoFootprint } from '@/lib/actors/actor';
+import type { ActorVoteView, DaoFootprint } from '@/lib/actors/actor';
 
 function fp(over: Partial<DaoFootprint> = {}): DaoFootprint {
   return {
@@ -60,5 +61,50 @@ describe('CrossDaoAlignment', () => {
       />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('ActorActivity', () => {
+  function vote(over: Partial<ActorVoteView> = {}): ActorVoteView {
+    return {
+      voteId: 'v1',
+      daoSlug: 'lido',
+      sourceType: 'aragon_voting',
+      sourceId: '42',
+      title: 'Fund it',
+      state: 'executed',
+      primaryChoice: 1,
+      choiceLabel: 'yes',
+      castAt: '2026-07-01T00:00:00Z',
+      href: '/daos/lido/proposals/aragon_voting/42',
+      ...over,
+    };
+  }
+
+  it('shows the proposal’s own vote label, not the raw choice index', () => {
+    render(<ActorActivity votes={[vote({ choiceLabel: 'for' })]} />);
+
+    expect(screen.getByText('for')).toBeInTheDocument();
+    // The reported bug: the row rendered "choice #1" because no label reached the client.
+    expect(screen.queryByText(/choice #/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to the bare index only when the proposal declares no label', () => {
+    render(<ActorActivity votes={[vote({ choiceLabel: null, primaryChoice: 3 })]} />);
+
+    expect(screen.getByText('choice #3')).toBeInTheDocument();
+  });
+
+  it('renders an arbitrary off-chain choice label verbatim', () => {
+    // Snapshot proposals carry author-defined choices — never coerced to for/against.
+    render(<ActorActivity votes={[vote({ sourceType: 'snapshot', choiceLabel: 'Option A' })]} />);
+
+    expect(screen.getByText('Option A')).toBeInTheDocument();
+  });
+
+  it('shows nothing choice-related when the vote carries neither label nor index', () => {
+    render(<ActorActivity votes={[vote({ choiceLabel: null, primaryChoice: null })]} />);
+
+    expect(screen.queryByText(/choice #/)).not.toBeInTheDocument();
   });
 });
