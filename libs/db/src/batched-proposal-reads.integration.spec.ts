@@ -11,6 +11,10 @@ const describeWithDbAndCh =
     ? describe
     : describe.skip;
 
+// Unique per run: actor.primary_address is globally unique, so a fixed fixture address collides with
+// whatever already owns it — the local dev seed, or the row an aborted earlier run left behind.
+const uniqueAddress = () => '0x' + (randomUUID() + randomUUID()).replace(/-/g, '').slice(0, 40);
+
 afterAll(async () => {
   await pgDb.destroy();
   await chDb.destroy();
@@ -50,7 +54,7 @@ describeWithDbAndCh('batched proposal page reads (integration)', () => {
 
     const actor = await pgDb
       .insertInto('actor')
-      .values({ primary_address: '0x' + 'cd'.repeat(20), updated_at: new Date() })
+      .values({ primary_address: uniqueAddress(), updated_at: new Date() })
       .returning('id')
       .executeTakeFirstOrThrow();
 

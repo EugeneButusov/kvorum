@@ -15,6 +15,11 @@ const describeWithDbAndCh =
     ? describe
     : describe.skip;
 
+// Unique per run: actor.primary_address is globally unique, so a fixed fixture address collides with
+// whatever already owns it — here the local dev seed, which claims 0xabab… as a proposer and made
+// this suite fail on any developer who had seeded their database.
+const addr = () => '0x' + (randomUUID() + randomUUID()).replace(/-/g, '').slice(0, 40);
+
 afterAll(async () => {
   await pgDb.destroy();
   await chDb.destroy();
@@ -30,6 +35,7 @@ afterAll(async () => {
 describeWithDbAndCh('ClickHouse read-repository date handling (integration)', () => {
   it('VoteReadRepository.listForProposal returns cast_at as a Date, not a CH string', async () => {
     // listForProposal resolves the proposal from PG first, so seed dao + proposer + proposal.
+    const voterAddress = addr();
     await pgDb
       .insertInto('source_type')
       .values([{ value: 'aave_governance_v3' }])
@@ -51,7 +57,7 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
       .executeTakeFirstOrThrow();
     const actor = await pgDb
       .insertInto('actor')
-      .values({ primary_address: '0x' + 'ab'.repeat(20), updated_at: new Date() })
+      .values({ primary_address: voterAddress, updated_at: new Date() })
       .returning('id')
       .executeTakeFirstOrThrow();
     const proposal = await pgDb
@@ -81,7 +87,7 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
         vote_id: randomUUID(),
         dao_id: dao.id,
         proposal_id: proposal.id,
-        voter_address: '0x' + 'ab'.repeat(20),
+        voter_address: voterAddress,
         voting_chain_id: '0x89',
         primary_choice: 1,
         voting_power: '1000',
@@ -128,6 +134,7 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
   // default-configured local/CI ClickHouse — without it the assertion passes either way and proves
   // nothing.
   it('VoteReadRepository.listForProposal returns voting_power as an exact string, not a JS number', async () => {
+    const powerVoterAddress = addr();
     // Past 1e21 — the range where String(number) goes exponential and BigInt() rejects it.
     const hugePower = '58971815710228750000000';
 
@@ -152,7 +159,7 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
       .executeTakeFirstOrThrow();
     const actor = await pgDb
       .insertInto('actor')
-      .values({ primary_address: '0x' + 'ac'.repeat(20), updated_at: new Date() })
+      .values({ primary_address: powerVoterAddress, updated_at: new Date() })
       .returning('id')
       .executeTakeFirstOrThrow();
     const proposal = await pgDb
@@ -182,7 +189,7 @@ describeWithDbAndCh('ClickHouse read-repository date handling (integration)', ()
         vote_id: randomUUID(),
         dao_id: dao.id,
         proposal_id: proposal.id,
-        voter_address: '0x' + 'ac'.repeat(20),
+        voter_address: powerVoterAddress,
         voting_chain_id: '0x1',
         primary_choice: 1,
         voting_power: hugePower,
