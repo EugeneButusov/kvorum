@@ -72,6 +72,8 @@ export type ConcentrationBucketRow = {
 
 export type DelegateAlignmentRow = {
   peer_actor_id: string;
+  /** The canonical address the peer was grouped by — the sort tiebreak, and so the cursor tiebreak. */
+  peer_address: string;
   vote_count: number;
   shared_proposals: number;
   matched_choices: number;
@@ -532,15 +534,29 @@ export class AnalyticsReadRepository {
         : sql`vote_count`;
 
     const dir = args.dir;
+
+    // The focal actor is identified by their address set; peers are grouped by canonical address so
+    // a merged peer is one row rather than one per address. Both replace dictionary lookups that
+    // could not use the sort key.
+    const focalAddressRows = await this.pgDb
+      .selectFrom('actor_address')
+      .select('address')
+      .where('actor_id', '=', args.focalActorId)
+      .execute();
+    const focalAddresses = focalAddressRows.map((row) => row.address);
+    if (focalAddresses.length === 0) {
+      return { rows: [], mirrorLastEtl: await this.findGlobalEtlWatermark() };
+    }
+    const mergeMap = await this.identity.findMergeMap();
+    const peerCanonical = this.canonicalAddress('v2.voter_address', mergeMap);
+
     const rows = await this.chDb
       .with('focal', (db) => {
         let inner = db
           .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
           .select(['v.proposal_id', 'v.primary_choice'])
           .where('v.dao_id', '=', args.daoId)
-          .where(
-            sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${args.focalActorId}`,
-          )
+          .where('v.voter_address', 'in', focalAddresses)
           .where('v.superseded', '=', 0);
         if (args.from !== undefined)
           inner = inner.where(
@@ -554,11 +570,7 @@ export class AnalyticsReadRepository {
       })
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v2'))
       .innerJoin('focal', 'focal.proposal_id', 'v2.proposal_id')
-      .select(
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v2.voter_address))`.as(
-          'peer_actor_id',
-        ),
-      )
+      .select(peerCanonical.as('peer_address'))
       .select(sql<number>`count(*)`.as('vote_count'))
       .select(sql<number>`count(*)`.as('shared_proposals'))
       .select(
@@ -566,23 +578,38 @@ export class AnalyticsReadRepository {
       )
       .where('v2.dao_id', '=', args.daoId)
       .where('v2.superseded', '=', 0)
-      .where(
-        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v2.voter_address)) != ${args.focalActorId}`,
-      )
-      .groupBy('peer_actor_id')
+      // "Not the focal actor" is now "none of the focal actor's addresses".
+      .where('v2.voter_address', 'not in', focalAddresses)
+      .groupBy('peer_address')
       .orderBy(orderExpr, dir)
-      .orderBy('peer_actor_id', dir)
+      // Tiebreak on the grouping key. It is an address now, not an actor id — the cursor payload
+      // moves with it, so a cursor issued mid-page keeps pointing at the same peer.
+      .orderBy('peer_address', dir)
       .limit(args.limit + 1)
       .execute();
 
+    // Bounded by page size: label the peers this page returned.
+    const actorIdByAddress = await this.identity.findCurrentActorIdsByAddresses(
+      rows.map((row) => row.peer_address),
+    );
+
     const mirrorLastEtl = await this.findGlobalEtlWatermark();
     return {
-      rows: rows.map((row) => ({
-        ...row,
-        vote_count: Number(row.vote_count),
-        shared_proposals: Number(row.shared_proposals),
-        matched_choices: Number(row.matched_choices),
-      })),
+      rows: rows.flatMap((row) => {
+        const peerActorId = actorIdByAddress.get(row.peer_address) ?? null;
+        // A voter address with no actor cannot be rendered as a peer. Every voter address in
+        // production resolves, so this drops nothing today.
+        if (peerActorId === null) return [];
+        return [
+          {
+            peer_actor_id: peerActorId,
+            peer_address: row.peer_address,
+            vote_count: Number(row.vote_count),
+            shared_proposals: Number(row.shared_proposals),
+            matched_choices: Number(row.matched_choices),
+          },
+        ];
+      }),
       mirrorLastEtl,
     };
   }
@@ -603,19 +630,18 @@ export class AnalyticsReadRepository {
       return { rows: [], mirrorLastEtl };
     }
 
+    // The rows are already filtered to this actor's own addresses, so resolving identity per row
+    // only recomputed a constant we were given. Grouping by that recomputed value is what produced
+    // the duplicate-DAO defect: a stale dictionary answered differently for two addresses of the
+    // same actor, splitting one DAO into two rows and halving votes_cast and last_active_at.
     const chRows = await this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
-      .select([
-        'v.dao_id',
-        sql<string>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address))`.as(
-          'voter_actor_id',
-        ),
-      ])
+      .select('v.dao_id')
       .select(sql<number>`count(*)`.as('votes_cast'))
       .select((eb) => eb.fn.max('v.cast_at').as('last_active_at'))
       .where('v.voter_address', 'in', addresses)
       .where('v.superseded', '=', 0)
-      .groupBy(['v.dao_id', 'voter_actor_id'])
+      .groupBy('v.dao_id')
       .execute();
 
     const daoIds = [...new Set(chRows.map((row) => row.dao_id))];
@@ -631,7 +657,8 @@ export class AnalyticsReadRepository {
     const rows: CrossDaoSummaryRow[] = chRows.map((row) => ({
       dao_id: row.dao_id,
       dao_slug: daoSlugById.get(row.dao_id) ?? '',
-      voter_actor_id: row.voter_actor_id,
+      // The caller asked about this actor; every row is theirs by construction.
+      voter_actor_id: actorId,
       votes_cast: Number(row.votes_cast),
       last_active_at:
         row.last_active_at != null
@@ -658,13 +685,26 @@ export class AnalyticsReadRepository {
 
     if (proposals.length === 0) return new Map();
 
+    // "Votes cast by this actor" is "votes cast from any address this actor owns" — expressed as an
+    // address list rather than a resolved-identity predicate, so it filters on the sort-key column
+    // and stays sargable. Reading the addresses from Postgres also removes the window in which a
+    // stale dictionary disagreed about who owns them.
+    const addressRows = await this.pgDb
+      .selectFrom('actor_address')
+      .select('address')
+      .where('actor_id', '=', actorId)
+      .execute();
+    if (addressRows.length === 0) return new Map();
+
     const proposalById = new Map(proposals.map((row) => [row.id, row]));
     const voteRows = await this.chDb
       .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
       .select(['v.proposal_id', 'v.primary_choice'])
       .where('v.superseded', '=', 0)
       .where(
-        sql<boolean>`dictGetOrNull('actor_address_redirect', 'current_actor_id', toString(v.voter_address)) = ${actorId}`,
+        'v.voter_address',
+        'in',
+        addressRows.map((row) => row.address),
       )
       .where(
         'v.proposal_id',
