@@ -110,13 +110,24 @@ export default async function DelegateScorecardPage({
       </Section>
 
       {trajectory.values.length > 1 && (
-        <Section number="02" title="Voting-power trajectory" reference="reported at each vote">
+        <Section
+          number="02"
+          title="Voting-power trajectory"
+          reference={`${trajectory.values.length} votes`}
+        >
           <TimeSeries
             title="Voting power at each vote"
             buckets={trajectory.buckets}
             series={[{ label: 'Voting power', values: trajectory.values }]}
             formatValue={(v) => formatCompactNumber(v)}
-            caption="The delegate's reported voting power at each vote (no dedicated VP-history endpoint yet)."
+            // A fixed band rather than a viewport-scaled block: the line is near-flat for most
+            // delegates, so extra height adds no resolution and turns a supporting panel into the
+            // page's largest element.
+            heightPx={180}
+            // The same figures are tabulated per vote in section 05, so the toggle would offer a
+            // second copy rather than an accessible alternative (§6.19).
+            showTable={false}
+            caption="Reported voting power at each vote — the same figures are listed per vote in the voting record below (no dedicated VP-history endpoint yet)."
           />
         </Section>
       )}
