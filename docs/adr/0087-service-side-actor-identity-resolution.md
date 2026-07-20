@@ -1,6 +1,6 @@
 # ADR-087 — Resolve actor identity in the service, not inside ClickHouse
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-07-16
 - **Spec sections affected**: 6.7 (DAO health), 6.9 (delegate scorecard), 6.12 (actor page)
 - **Related**: ADR-033 (actor merge redirects), ADR-041 (cross-DB integrity contract), ADR-062 (CH source-of-truth boundary), PR #550 (closed)
@@ -186,7 +186,62 @@ top-2 via transform():       0xaa… 115,  0xcc… 100      ← correct
 The naive grouping omits the actor who should rank #1; the `transform` grouping ranks correctly with
 the LIMIT still applied inside ClickHouse.
 
-## Open questions
+## Outcome
+
+Implemented across five changes: merged-actor integration coverage (#573), the service-side resolver
+and merge map (#574), the delegation reads (#575), the vote reads (#576), and dropping the dictionary
+(this change). No `dictGet` call remains in the repo, and ClickHouse no longer opens a connection to
+Postgres.
+
+The two 500ing endpoints were verified fixed by running the rewritten reads read-only against
+production PG + ClickHouse before merge, rather than inferring it from local tests.
+
+### The open questions, answered
+
+**1. How many merged actors exist in production? — Zero.** Measured before implementation: 62,635
+actors against 62,635 `actor_address` rows, max one address per actor, no redirect rows, and no
+`actors merge` ever run. Address→actor is currently a bijection, so the merge map is empty and the
+inline `transform` is the identity function — which is what the dictionary computed, at the cost of
+a live cross-database connection. The CH-local-table fallback is not needed and was not built.
+
+This also means production traffic never exercises the merge path, which is why #573 landed
+integration coverage first: a defect there would otherwise stay invisible until the next
+`actors merge`, then silently corrupt a leaderboard.
+
+**2. Unknown-address parity — resolved as a domain rule, not a heuristic.** Measurement showed the
+only unresolvable address in the whole dataset is `address(0)`: 1 of 18,679 distinct delegates, 0 of
+21,449 delegators, 0 of 14,126 voters. Delegating to the zero address is an *un*delegation, not a
+delegate, so it is excluded from both the leaderboard page and its total. Shares now sum to 1 by
+construction rather than by dropping rows, and no displayed figure moved — the zero address holds 0%
+of standing power today.
+
+**3. The resolver's `a.id` arm — load-bearing, keep it.** `findMergeMap` canonicalises onto
+`actor.primary_address`, so that arm is what resolves the canonical address back to its actor when
+the `actor_address` row is missing. All three arms are now documented in one place, which was the
+drift this ADR set out to end.
+
+**4. `findOrCreateActorAddress`'s two inserts with no transaction — still open.** Unrelated to this
+decision and tracked separately. Note the `a.id` arm above covers the window it opens, so analytics
+stay correct in the meantime.
+
+### Found along the way
+
+**A pre-existing defect in `currentVotingPowerByActor` (KNOWN-031).** It grouped by resolved actor
+and took `argMax(voting_power, created_at)` over that group, so a merged actor spanning two delegator
+addresses received only whichever address delegated most recently instead of the sum of both standing
+figures — silently losing the rest of its power. Not reachable in production (zero merged actors) and
+invisible to the mocked unit spec. The rewrite's group-by-address-then-fold-in-TypeScript shape fixes
+it; it was carried as a deliberately failing test between #573 and #575.
+
+**The alignment cursor was not merely mechanical.** `peer_actor_id` was the sort tiebreak in two
+places — the ClickHouse `ORDER BY` and the encoded cursor payload in the controller — and both had to
+move to the canonical address together, or a cursor would resume from a key the ranking no longer
+sorts on.
+
+## Open questions (at the time of writing)
+
+Kept as the record of what was unknown when the decision was taken; each is answered under
+"Outcome" above.
 
 1. **How many merged actors exist in production?** The whole decision rests on this staying small.
    `admin_audit` holds the answer (`docs/runbooks/actor-merge.md` derives merge volume from it). This

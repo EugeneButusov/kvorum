@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { AnalyticsReadRepository } from './analytics-read-repository';
 import { chDb, pgDb } from './client';
 import { DelegationFlowProjectionWriter } from './delegation-flow-projection-writer';
@@ -24,27 +24,6 @@ const addr = () => '0x' + (randomUUID() + randomUUID()).replace(/-/g, '').slice(
 // for every DAO, silently. Only a real ClickHouse catches this: the mocked unit specs hand the repo
 // whatever rows they please, and the dialect quirk is invisible to them.
 describeWithDbAndCh('AnalyticsReadRepository.delegateLeaderboard (integration)', () => {
-  // The query resolves delegate addresses through the actor_address_redirect dictionary, which
-  // ClickHouse loads over its own connection to Postgres. Assert it up front so a broken
-  // ClickHouse→Postgres route reads as exactly that, rather than as an empty leaderboard.
-  beforeAll(async () => {
-    const rows = await chDb
-      .selectFrom(
-        sql<{
-          name: string;
-          status: string;
-          last_exception: string;
-        }>`system.dictionaries`.as('d'),
-      )
-      .select(['d.status', 'd.last_exception'])
-      .where('d.name', '=', 'actor_address_redirect')
-      .execute();
-    expect(
-      rows[0]?.status,
-      `actor_address_redirect must be LOADED for this suite; ClickHouse could not reach Postgres: ${rows[0]?.last_exception ?? 'dictionary missing'}`,
-    ).toBe('LOADED');
-  });
-
   it('ranks delegates by standing voting power, with delegator counts and an exact total', async () => {
     const [aAddr, bAddr, cAddr, dAddr, eAddr] = [addr(), addr(), addr(), addr(), addr()];
     const dao = await pgDb
@@ -80,8 +59,6 @@ describeWithDbAndCh('AnalyticsReadRepository.delegateLeaderboard (integration)',
         { actor_id: actorSmall.id, address: eAddr, is_primary: true, source: 'manual' },
       ])
       .execute();
-    // The dictionary reads actor_address from Postgres; force a refresh so the new rows are visible.
-    await sql`SYSTEM RELOAD DICTIONARY actor_address_redirect`.execute(chDb);
 
     await new DelegationFlowProjectionWriter(chDb).insertBatch([
       // Delegate D: two delegators (100 + 50). The 100 delegator re-delegated, so their earlier
@@ -195,7 +172,6 @@ describeWithDbAndCh('AnalyticsReadRepository.delegateLeaderboard (integration)',
         { actor_id: small.id, address: eAddr, is_primary: true, source: 'manual' },
       ])
       .execute();
-    await sql`SYSTEM RELOAD DICTIONARY actor_address_redirect`.execute(chDb);
 
     await new DelegationFlowProjectionWriter(chDb).insertBatch([
       {
