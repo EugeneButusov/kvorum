@@ -102,6 +102,12 @@ export type CrossDaoSummaryRow = {
   voter_actor_id: string;
   votes_cast: number;
   last_active_at: Date | null;
+  /**
+   * Standing voting power delegated TO this actor in the DAO, as an exact decimal string — the
+   * figure the delegate leaderboard ranks on. Not the actor's own token balance: the balance
+   * projection was retired in M3, so delegation events are the only source.
+   */
+  current_voting_power: string;
 };
 
 export type DelegateLeaderboardRow = {
@@ -614,6 +620,44 @@ export class AnalyticsReadRepository {
     };
   }
 
+  /**
+   * Standing voting power delegated to a set of addresses, per DAO.
+   *
+   * Uses the same reduction as {@link delegateLeaderboard} — each delegator's latest delegation,
+   * power-bearing only — so a delegate's scorecard figure and its leaderboard rank cannot disagree.
+   * Filtering on the address set rather than a resolved actor id means a merged actor's addresses
+   * are covered without a merge map: the caller already passes every address the actor owns.
+   */
+  private async receivedVotingPowerByDao(
+    addresses: readonly string[],
+  ): Promise<Map<string, string>> {
+    if (addresses.length === 0) return new Map();
+
+    type PerDelegator = { dao_id: string; delegate_address: string; vp: string };
+    const currentPerDelegator = sql<PerDelegator>`
+      SELECT
+        dao_id,
+        argMax(delegate_address, created_at) AS delegate_address,
+        argMax(toUInt256(voting_power), created_at) AS vp
+      FROM delegation_flow_projection
+      GROUP BY dao_id, delegator_address
+    `;
+
+    const rows = await this.chDb
+      .selectFrom(sql<PerDelegator>`(${currentPerDelegator})`.as('c'))
+      .select(['c.dao_id', sql<string>`toString(sum(c.vp))`.as('voting_power')])
+      .where(sql<boolean>`c.vp > 0`)
+      .where(
+        sql<boolean>`toString(c.delegate_address) in (${sql.join(
+          addresses.map((address) => sql`${address}`),
+        )})`,
+      )
+      .groupBy('c.dao_id')
+      .execute();
+
+    return new Map(rows.map((row) => [row.dao_id, row.voting_power]));
+  }
+
   async crossDaoSummaryForActor(actorId: string): Promise<MirrorEnvelope<CrossDaoSummaryRow>> {
     // Fetch ALL addresses for this actor (primary + absorbed-and-rewritten from merges).
     // Using actor_address keyed by actor_id ensures votes cast under any historical address
@@ -644,7 +688,12 @@ export class AnalyticsReadRepository {
       .groupBy('v.dao_id')
       .execute();
 
-    const daoIds = [...new Set(chRows.map((row) => row.dao_id))];
+    // Power delegated TO the actor, per DAO. Read separately because it comes from a different
+    // projection: an actor can hold power in a DAO it has never voted in — a pure delegate — and a
+    // vote-derived summary alone would report it as absent rather than as silent.
+    const powerByDaoId = await this.receivedVotingPowerByDao(addresses);
+
+    const daoIds = [...new Set([...chRows.map((row) => row.dao_id), ...powerByDaoId.keys()])];
     const daos =
       daoIds.length === 0
         ? []
@@ -654,17 +703,23 @@ export class AnalyticsReadRepository {
             .where('id', 'in', daoIds)
             .execute();
     const daoSlugById = new Map(daos.map((dao) => [dao.id, dao.slug]));
-    const rows: CrossDaoSummaryRow[] = chRows.map((row) => ({
-      dao_id: row.dao_id,
-      dao_slug: daoSlugById.get(row.dao_id) ?? '',
-      // The caller asked about this actor; every row is theirs by construction.
-      voter_actor_id: actorId,
-      votes_cast: Number(row.votes_cast),
-      last_active_at:
-        row.last_active_at != null
-          ? chTimestampToDate(row.last_active_at as unknown as string)
-          : null,
-    }));
+    const voteRowByDaoId = new Map(chRows.map((row) => [row.dao_id, row]));
+
+    const rows: CrossDaoSummaryRow[] = daoIds.map((daoId) => {
+      const voteRow = voteRowByDaoId.get(daoId);
+      return {
+        dao_id: daoId,
+        dao_slug: daoSlugById.get(daoId) ?? '',
+        // The caller asked about this actor; every row is theirs by construction.
+        voter_actor_id: actorId,
+        votes_cast: Number(voteRow?.votes_cast ?? 0),
+        last_active_at:
+          voteRow?.last_active_at != null
+            ? chTimestampToDate(voteRow.last_active_at as unknown as string)
+            : null,
+        current_voting_power: powerByDaoId.get(daoId) ?? '0',
+      };
+    });
 
     const mirrorLastEtl = await this.findGlobalEtlWatermark();
     return { rows, mirrorLastEtl };

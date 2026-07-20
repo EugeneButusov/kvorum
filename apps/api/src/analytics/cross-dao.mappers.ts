@@ -20,7 +20,7 @@ export function toCrossDaoActorDto(args: {
         dao_slug: s.dao_slug,
         votes_cast: s.votes_cast,
         proposals_proposed: 0,
-        current_voting_power: '0',
+        current_voting_power: s.current_voting_power,
         last_active_at: isoSeconds(s.last_active_at),
         alignment_with_majority_pct: pct,
       };
