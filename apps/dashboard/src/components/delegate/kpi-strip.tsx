@@ -20,12 +20,14 @@ export type Kpi = {
  */
 export function KpiStrip({ items }: { items: Kpi[] }) {
   return (
-    <section className="grid grid-cols-2 border border-line sm:grid-cols-3 lg:grid-cols-5">
+    // Collapsed borders rather than a bordered container plus per-cell rules: the grid reflows to
+    // three and two columns, so `:last-child` cannot tell which cell ends a row, and every
+    // end-of-row cell doubled its border against the container's. Each cell draws its own frame and
+    // overlaps its neighbour by a pixel, so shared edges land on top of each other at any column
+    // count. The reference can use `:last-child` because its five columns never wrap.
+    <section className="grid grid-cols-2 pl-px pt-px sm:grid-cols-3 lg:grid-cols-5">
       {items.map((item) => (
-        <div
-          key={item.label}
-          className="border-b border-r border-line px-4 py-3.5 last:border-r-0 lg:border-b-0"
-        >
+        <div key={item.label} className="-ml-px -mt-px border border-solid border-line px-4 py-3.5">
           <div className="font-mono text-caption uppercase tracking-[0.08em] text-ink-3">
             {item.label}
           </div>
