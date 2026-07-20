@@ -32,17 +32,6 @@ async function fetchTables(names: string[]): Promise<Map<string, TableRow>> {
   return new Map((result as TableRow[]).map((r) => [r.name, r]));
 }
 
-async function hasDictionary(name: string): Promise<boolean> {
-  const result = await chDb
-    .selectFrom('system.dictionaries' as never)
-    .select(['name' as never])
-    .where('database' as never, '=', clickhouseDbName)
-    .where('name' as never, '=', name)
-    .execute();
-
-  return result.length > 0;
-}
-
 type ColumnRow = {
   table: string;
   name: string;
@@ -123,9 +112,5 @@ describeWithCh('core_001_ch_source_of_truth migration', () => {
   it('primary_choice column is Int8 (non-nullable)', async () => {
     const primaryChoiceRaw = await fetchColumn('vote_events_raw', 'primary_choice');
     expect(primaryChoiceRaw?.type).toBe('Int8');
-  });
-
-  it('creates actor_address_redirect dictionary', async () => {
-    await expect(hasDictionary('actor_address_redirect')).resolves.toBe(true);
   });
 });

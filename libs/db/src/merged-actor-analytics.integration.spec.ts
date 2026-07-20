@@ -27,9 +27,9 @@ const addr = () => '0x' + (randomUUID() + randomUUID()).replace(/-/g, '').slice(
  * mock ClickHouse and hand the repository whatever rows they like. This suite is the only place the
  * behaviour is observable.
  *
- * It is written against the existing `actor_address_redirect` dictionary so that it encodes today's
- * semantics, and is meant to hold unchanged when resolution moves into the service (ADR-087). Where
- * today's answer is wrong, the test says so explicitly rather than enshrining it.
+ * It was written against the `actor_address_redirect` dictionary so that it encoded the behaviour
+ * of the day, and held unchanged when resolution moved into the service (ADR-087) — which is what
+ * made that migration checkable. The dictionary is gone; these assertions are unchanged.
  */
 describeWithDbAndCh('analytics reads: merged actors (integration)', () => {
   /** A DAO plus a merged actor (two addresses, one actor) and a single-address actor. */
@@ -71,7 +71,6 @@ describeWithDbAndCh('analytics reads: merged actors (integration)', () => {
         { actor_id: solo.id, address: soloAddr, is_primary: true, source: 'manual' },
       ])
       .execute();
-    await sql`SYSTEM RELOAD DICTIONARY actor_address_redirect`.execute(chDb);
 
     return {
       daoId: dao.id,
@@ -180,7 +179,6 @@ describeWithDbAndCh('analytics reads: merged actors (integration)', () => {
       .insertInto('actor_address')
       .values({ actor_id: rival.id, address: d4, is_primary: true, source: 'manual' })
       .execute();
-    await sql`SYSTEM RELOAD DICTIONARY actor_address_redirect`.execute(chDb);
 
     await new DelegationFlowProjectionWriter(chDb).insertBatch([
       flowRow({
