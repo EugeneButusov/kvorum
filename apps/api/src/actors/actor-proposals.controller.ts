@@ -16,6 +16,7 @@ import { ACTOR_PROPOSAL_QUERY } from './actor-proposal.query';
 import { ActorRoutingService } from './actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -37,6 +38,7 @@ export class ActorProposalsController {
     private readonly routing: ActorRoutingService,
   ) {}
 
+  @ApiEndpointQuery(ACTOR_PROPOSAL_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorProposalListResponseDto })

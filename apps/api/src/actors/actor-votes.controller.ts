@@ -16,6 +16,7 @@ import { toActorVoteListItemDto } from './actor-vote.mappers';
 import { ACTOR_VOTE_QUERY } from './actor-vote.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -65,6 +66,7 @@ export class ActorVotesController {
     );
   }
 
+  @ApiEndpointQuery(ACTOR_VOTE_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: ActorVoteListResponseDto })

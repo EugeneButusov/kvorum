@@ -1022,18 +1022,10 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: created_at, voting_starts_at. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path: {
@@ -1089,18 +1081,10 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path: {
@@ -1156,18 +1140,11 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
+        voter?: string;
+        /** @description Comma-delimited primary_choice values */
+        primary_choice?: string;
       };
       header?: never;
       path: {
@@ -1280,18 +1257,8 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: slug, created_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path?: never;
@@ -1396,18 +1363,12 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: block_number, created_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
+        delegator?: string;
+        delegate?: string;
+        from_block_min?: string;
+        from_block_max?: string;
       };
       header?: never;
       path: {
@@ -1564,16 +1525,13 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
+        /** @description Comma-delimited state values */
         state?: string;
         source_type?: string;
-        /** @description 0x-prefixed proposer address */
         proposer?: string;
-        binding?: boolean;
+        binding?: string;
         voting_starts_at_min?: string;
         voting_starts_at_max?: string;
       };
@@ -1694,16 +1652,13 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
+        /** @description Comma-delimited state values */
         state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
+        binding?: string;
         voting_starts_at_min?: string;
         voting_starts_at_max?: string;
       };

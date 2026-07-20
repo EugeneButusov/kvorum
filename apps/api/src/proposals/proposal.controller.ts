@@ -24,6 +24,7 @@ import { toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -76,6 +77,7 @@ export class ProposalController {
   @ApiOkResponse({ type: ProposalListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
+  @ApiEndpointQuery(PER_DAO_PROPOSAL_QUERY)
   @Get('daos/:slug/proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async listByDao(@Param('slug') slug: string, @Query() rawQuery: ApiListQueryDto) {
@@ -194,6 +196,7 @@ export class ProposalController {
 
   @ApiOkResponse({ type: ProposalListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiEndpointQuery(CROSS_DAO_PROPOSAL_QUERY)
   @Get('proposals')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async listCrossDao(@Query() rawQuery: ApiListQueryDto) {
