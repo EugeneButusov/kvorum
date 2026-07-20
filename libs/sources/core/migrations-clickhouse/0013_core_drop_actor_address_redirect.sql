@@ -1,0 +1,20 @@
+-- Drop the actor_address_redirect dictionary (ADR-087).
+--
+-- It resolved address→actor inside ClickHouse by opening ClickHouse's own connection to Postgres.
+-- Identity is now resolved in the service, so the dictionary has no consumers: no dictGet call
+-- remains anywhere in the repo.
+--
+-- It was also broken in production for its whole life. The DDL in 0001 hardcoded the
+-- docker-compose topology (HOST 'postgres'), which no managed ClickHouse can resolve, so the
+-- dictionary never loaded and every dictGetOrNull() threw. 0006 patched the credentials but left
+-- the host, so the 500s continued: GET .../analytics/delegates and .../analytics/delegation-flow
+-- were down while .../analytics/concentration — the one delegation endpoint touching no
+-- dictionary — stayed up.
+--
+-- Dropping it removes the ClickHouse→Postgres network dependency entirely: no credentials held by
+-- ClickHouse, no route between the two databases, and no managed-Postgres trusted-source entry for
+-- ClickHouse's egress IP.
+--
+-- The Postgres actor_address_redirect TABLE is unaffected and stays. It is a different object,
+-- serving ADR-033's API-facing 301 redirects; only the ClickHouse copy is removed.
+DROP DICTIONARY IF EXISTS actor_address_redirect;

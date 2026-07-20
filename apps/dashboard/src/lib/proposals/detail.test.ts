@@ -2,6 +2,7 @@ import {
   classifyChoice,
   normalizeProposalDetail,
   normalizeVote,
+  presentTallySummary,
   presentTally,
   scaleReportedPower,
   type TallyData,
@@ -137,5 +138,44 @@ describe('normalizers coerce the generator-mistyped nullable fields', () => {
     expect(view.castAt).toBe('2026-07-01T00:00:00Z');
     expect(view.reason).toBe('because');
     expect(view.voter.displayName).toBeNull();
+  });
+});
+
+describe('presentTallySummary', () => {
+  it('classifies choice labels into ordered For/Against/Abstain bars', () => {
+    expect(
+      presentTallySummary([
+        { label: 'For', pct: 78 },
+        { label: 'Against', pct: 19 },
+        { label: 'Abstain', pct: 3 },
+      ]),
+    ).toEqual([
+      { kind: 'for', pct: 78 },
+      { kind: 'against', pct: 19 },
+      { kind: 'abstain', pct: 3 },
+    ]);
+  });
+
+  it('sums choices that classify into the same bucket', () => {
+    // Two "yes"-family labels both fold into the For bar.
+    expect(
+      presentTallySummary([
+        { label: 'Yes', pct: 40 },
+        { label: 'Approve', pct: 20 },
+        { label: 'No', pct: 40 },
+      ]),
+    ).toEqual([
+      { kind: 'for', pct: 60 },
+      { kind: 'against', pct: 40 },
+    ]);
+  });
+
+  it('omits a bucket with no matching choice rather than drawing an empty bar', () => {
+    expect(presentTallySummary([{ label: 'For', pct: 100 }])).toEqual([{ kind: 'for', pct: 100 }]);
+  });
+
+  it('is empty when there are no votes, so the row shows a dash', () => {
+    expect(presentTallySummary(null)).toEqual([]);
+    expect(presentTallySummary([])).toEqual([]);
   });
 });

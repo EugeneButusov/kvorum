@@ -77,13 +77,40 @@ describe('toActorVote / toAuthored', () => {
         _meta: {} as never,
       },
       primary_choice: 1 as never,
+      choice_label: 'yes',
       voting_power_reported: '0',
       cast_at: '2026-07-01T00:00:00Z' as never,
       _meta: {} as never,
     });
     expect(v.href).toBe('/daos/lido/proposals/aragon_voting/42');
     expect(v.primaryChoice).toBe(1);
+    // The proposal's own label, so the row can show "yes" rather than "choice #1".
+    expect(v.choiceLabel).toBe('yes');
     expect(v.title).toBe('Fund it');
+  });
+
+  it('leaves choiceLabel null when the API resolved no label', () => {
+    const v = toActorVote({
+      vote_id: 'v2',
+      voting_chain_id: '1',
+      proposal: {
+        proposal_id: '43',
+        source_type: 'snapshot',
+        dao_slug: 'lido',
+        title: null,
+        state: 'active',
+        created_at: '',
+        voting_ends_at: null,
+        _meta: {} as never,
+      },
+      primary_choice: 3 as never,
+      choice_label: null,
+      voting_power_reported: '0',
+      cast_at: null as never,
+      _meta: {} as never,
+    });
+    expect(v.choiceLabel).toBeNull();
+    expect(v.primaryChoice).toBe(3);
   });
 
   it('maps an authored proposal', () => {

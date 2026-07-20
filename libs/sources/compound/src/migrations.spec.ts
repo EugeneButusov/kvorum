@@ -13,6 +13,10 @@ import {
   down as downCompToken,
   up as upCompToken,
 } from '../migrations-postgres/compound_003_comp_token';
+import {
+  down as downAlphaReconcile,
+  up as upAlphaReconcile,
+} from '../migrations-postgres/compound_004_alpha_reconcile';
 import { COMP_TOKEN_ADDRESS, COMP_TOKEN_DEPLOY_BLOCK } from './comp-token/constants';
 
 // Sentinel thrown inside transaction to trigger intentional rollback.
@@ -57,6 +61,18 @@ describe('compound migrations smoke (mocked db)', () => {
   it('compound_003_comp_token down fires at least one sql.execute', async () => {
     const db = makeMockDb();
     await downCompToken(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('compound_004_alpha_reconcile up fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await upAlphaReconcile(db);
+    expect(db._executeQuery).toHaveBeenCalled();
+  });
+
+  it('compound_004_alpha_reconcile down fires at least one sql.execute', async () => {
+    const db = makeMockDb();
+    await downAlphaReconcile(db);
     expect(db._executeQuery).toHaveBeenCalled();
   });
 });
@@ -141,10 +157,15 @@ describeWithDb('compound_002_seed migration', () => {
           .select('id')
           .where('slug', '=', 'compound')
           .executeTakeFirstOrThrow();
-        // Undo migrations in reverse order: compound_003 must come down before compound_002,
-        // otherwise compound_comp_token in dao_source blocks the DAO row deletion.
+        // Undo migrations in reverse order: compound_003 and compound_004 must come down before
+        // compound_002, otherwise their dao_source rows (compound_comp_token,
+        // compound_governor_alpha_reconcile) block the DAO row deletion. compound_004's row is
+        // already committed in the migrated test database, so its down() runs regardless of the
+        // up() here.
         await upCompToken(tx);
         await downCompToken(tx);
+        await upAlphaReconcile(tx);
+        await downAlphaReconcile(tx);
         // The cross-DAO off-chain seeds (snapshot_002 + forum_002) add off-chain compound
         // dao_source rows FK-referencing the compound dao; in real rollback order they down()
         // before compound_002. Clear them here so downCompoundSeed's DELETE FROM dao doesn't hit

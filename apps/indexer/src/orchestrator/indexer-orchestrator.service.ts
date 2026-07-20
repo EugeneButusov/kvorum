@@ -5,7 +5,6 @@ import {
   parseChainConfigFromEnv,
   chainMetrics,
   silentLogger,
-  readConfirmedHead,
 } from '@libs/chain';
 import type { ChainConfig } from '@libs/chain';
 import { ArchiveEventRepository, DaoSourceRepository } from '@libs/db';
@@ -247,7 +246,15 @@ export class IndexerOrchestratorService implements OnApplicationBootstrap, OnApp
       for (const { daoSourceId, chainCfg } of this.activeSources) {
         try {
           const chainCtx = await this.registry.getOrCreate(chainCfg);
-          const confirmedHead = await readConfirmedHead(chainCtx.client, chainCfg, daoSourceId);
+          // Read the head from the per-chain HeadTracker instead of issuing eth_blockNumber per
+          // source. This gauge ran every 10s for every active source, which on a multi-source
+          // deployment made it the single largest RPC consumer in the indexer — all of it to
+          // populate a lag metric. The tracker already polls the same value once per chain, and a
+          // gauge does not need fresher data than that.
+          const head = chainCtx.headTracker.getLastHead();
+          if (head === null) continue;
+          const lag = BigInt(chainCfg.headLag);
+          const confirmedHead = head.blockNumber > lag ? head.blockNumber - lag : 0n;
           const maxBlock = await this.archiveEventRepo.findMaxBlockNumber(daoSourceId);
           if (maxBlock != null) {
             chainMetrics.archiveWriteLag.record(Number(confirmedHead) - Number(maxBlock), {

@@ -161,6 +161,31 @@ export class ProposalReadRepository {
       .execute();
   }
 
+  /**
+   * Batched {@link findChoices} for a page of proposals — one query for the whole page. Returns a map
+   * keyed by proposal id; a proposal with no declared choices is absent.
+   */
+  async findChoicesForProposals(
+    proposalIds: readonly string[],
+  ): Promise<Map<string, ProposalChoice[]>> {
+    const byProposal = new Map<string, ProposalChoice[]>();
+    if (proposalIds.length === 0) return byProposal;
+
+    const rows = await this.db
+      .selectFrom('proposal_choice')
+      .selectAll()
+      .where('proposal_id', 'in', [...proposalIds])
+      .orderBy('choice_index', 'asc')
+      .execute();
+
+    for (const row of rows) {
+      const choices = byProposal.get(row.proposal_id) ?? [];
+      choices.push(row);
+      byProposal.set(row.proposal_id, choices);
+    }
+    return byProposal;
+  }
+
   async resolveOriginChainId(proposalId: string, sourceType: string): Promise<string> {
     const row = await this.db
       .selectFrom('proposal')

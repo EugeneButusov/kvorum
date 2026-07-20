@@ -350,8 +350,8 @@ describeIf('aave governance derivation integration', () => {
       .orderBy('choice_index', 'asc')
       .execute();
     expect(choices).toEqual([
-      { choice_index: 0, value: 'Against' },
-      { choice_index: 1, value: 'For' },
+      { choice_index: 0, value: 'against' },
+      { choice_index: 1, value: 'for' },
     ]);
 
     const actorsCreated = await pgDb

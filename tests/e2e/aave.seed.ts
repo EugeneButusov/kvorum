@@ -258,12 +258,12 @@ export async function seedAaveData(): Promise<AaveSeedContext> {
   await pgDb
     .insertInto('proposal_choice')
     .values([
-      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 0, value: 'Against' },
-      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 1, value: 'For' },
-      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 2, value: 'Abstain' },
-      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 0, value: 'Against' },
-      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 1, value: 'For' },
-      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 2, value: 'Abstain' },
+      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 0, value: 'against' },
+      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 1, value: 'for' },
+      { proposal_id: AAVE_V3_PROPOSAL_ID, choice_index: 2, value: 'abstain' },
+      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 0, value: 'against' },
+      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 1, value: 'for' },
+      { proposal_id: AAVE_V2_PROPOSAL_ID, choice_index: 2, value: 'abstain' },
     ])
     .execute();
 

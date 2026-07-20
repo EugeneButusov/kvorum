@@ -118,6 +118,8 @@ export type ActorVoteView = {
   title: string | null;
   state: string;
   primaryChoice: number | null;
+  /** The proposal's own label for the choice ("for", "Option A"); null when it declares none. */
+  choiceLabel: string | null;
   castAt: string | null;
   href: string;
 };
@@ -132,6 +134,7 @@ export function toActorVote(dto: ActorVote): ActorVoteView {
     title: str(p.title),
     state: p.state,
     primaryChoice: num(dto.primary_choice),
+    choiceLabel: str(dto.choice_label),
     castAt: str(dto.cast_at),
     href: `/daos/${p.dao_slug}/proposals/${p.source_type}/${p.proposal_id}`,
   };

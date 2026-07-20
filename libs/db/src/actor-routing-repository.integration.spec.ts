@@ -161,4 +161,113 @@ describeWithDb('ActorRoutingReadRepository (integration)', () => {
       }),
     ).rejects.toThrow(RollbackSignal);
   });
+
+  it('findMergeMap maps a merged actor absorbed addresses onto its canonical address', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const survivorPrimary = uniqueAddress('a');
+        const absorbed = uniqueAddress('b');
+        const soloAddress = uniqueAddress('c');
+
+        const [survivor] = await trx
+          .insertInto('actor')
+          .values({ primary_address: survivorPrimary, updated_at: new Date() })
+          .returning(['id'])
+          .execute();
+        const [solo] = await trx
+          .insertInto('actor')
+          .values({ primary_address: soloAddress, updated_at: new Date() })
+          .returning(['id'])
+          .execute();
+        // The shape executeMerge leaves behind: both addresses retargeted onto the survivor.
+        await trx
+          .insertInto('actor_address')
+          .values([
+            {
+              actor_id: survivor!.id,
+              address: survivorPrimary,
+              is_primary: true,
+              source: 'manual',
+            },
+            { actor_id: survivor!.id, address: absorbed, is_primary: false, source: 'manual' },
+            { actor_id: solo!.id, address: soloAddress, is_primary: true, source: 'manual' },
+          ])
+          .execute();
+
+        const repo = new ActorRoutingReadRepository(trx as never);
+        const map = await repo.findMergeMap();
+        const mine = map.filter((entry) =>
+          [survivorPrimary, absorbed, soloAddress].includes(entry.address),
+        );
+
+        // Only the absorbed address is non-canonical. The survivor's own primary address and the
+        // unmerged actor contribute nothing — on a database with no merges the map is empty, and
+        // the ClickHouse transform() built from it degenerates to the identity.
+        expect(mine).toEqual([{ address: absorbed, canonicalAddress: survivorPrimary }]);
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('findMergeMap canonical addresses resolve back to their actor, closing the round trip', async () => {
+    // The two halves must compose: analytics groups on the canonical address in ClickHouse, then
+    // maps those addresses back to actor ids through findCurrentActorIdsByAddresses. If a canonical
+    // address did not resolve, the grouped row would come back with no actor.
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const survivorPrimary = uniqueAddress('d');
+        const absorbed = uniqueAddress('e');
+        const [survivor] = await trx
+          .insertInto('actor')
+          .values({ primary_address: survivorPrimary, updated_at: new Date() })
+          .returning(['id'])
+          .execute();
+        await trx
+          .insertInto('actor_address')
+          .values([
+            {
+              actor_id: survivor!.id,
+              address: survivorPrimary,
+              is_primary: true,
+              source: 'manual',
+            },
+            { actor_id: survivor!.id, address: absorbed, is_primary: false, source: 'manual' },
+          ])
+          .execute();
+
+        const repo = new ActorRoutingReadRepository(trx as never);
+        const map = await repo.findMergeMap();
+        const canonical = map.find((entry) => entry.address === absorbed)?.canonicalAddress;
+        expect(canonical).toBe(survivorPrimary);
+
+        const resolved = await repo.findCurrentActorIdsByAddresses([canonical!]);
+        expect(resolved.get(canonical!)).toBe(survivor!.id);
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('resolves a canonical address that has no actor_address row, via the primary_address arm', async () => {
+    // findOrCreateActorAddress inserts the actor and its address as two statements with no enclosing
+    // transaction, so a crash between them leaves an actor whose primary_address has no
+    // actor_address row. findMergeMap canonicalises onto primary_address regardless, so without the
+    // coalesce's `a.id` arm that canonical address would resolve to no actor at all. This is what
+    // makes that arm load-bearing rather than merely defensive (ADR-087 open question 3).
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const orphanPrimary = uniqueAddress('f');
+        const [actor] = await trx
+          .insertInto('actor')
+          .values({ primary_address: orphanPrimary, updated_at: new Date() })
+          .returning(['id'])
+          .execute();
+
+        const repo = new ActorRoutingReadRepository(trx as never);
+        const resolved = await repo.findCurrentActorIdsByAddresses([orphanPrimary]);
+
+        expect(resolved.get(orphanPrimary)).toBe(actor!.id);
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
 });

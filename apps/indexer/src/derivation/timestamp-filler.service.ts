@@ -59,11 +59,23 @@ export class TimestampFillerService implements OnApplicationBootstrap {
       const ctx = this.registry.peek(row.chain_id);
       if (ctx === undefined) continue;
 
+      // Blocks past the head are not mined yet, so eth_getBlockByNumber returns null. Nothing marks
+      // such a row as handled, so it is re-selected every tick — a proposal still inside its voting
+      // delay would burn two RPC calls every TIMESTAMP_FILL_INTERVAL_MS until its block lands, for
+      // days. Skipping them here costs nothing: the head is already tracked per chain and the row
+      // becomes fillable on its own once the chain catches up.
+      const head = ctx.headTracker.getLastHead();
+      const headBlock = head === null ? null : head.blockNumber;
+
       const [startsAt, endsAt] = await Promise.all([
-        row.voting_starts_at !== null || row.voting_starts_block === null
+        row.voting_starts_at !== null ||
+        row.voting_starts_block === null ||
+        isAboveHead(row.voting_starts_block, headBlock)
           ? Promise.resolve(null)
           : this.tryFetchBlockTimestamp(ctx, row.voting_starts_block),
-        row.voting_ends_at !== null || row.voting_ends_block === null
+        row.voting_ends_at !== null ||
+        row.voting_ends_block === null ||
+        isAboveHead(row.voting_ends_block, headBlock)
           ? Promise.resolve(null)
           : this.tryFetchBlockTimestamp(ctx, row.voting_ends_block),
       ]);
@@ -107,6 +119,13 @@ export class TimestampFillerService implements OnApplicationBootstrap {
       return null;
     }
   }
+}
+
+/** True when the block is known not to be mined yet. Unknown head (tracker has not produced one
+ *  yet) falls through to the RPC rather than skipping, so a cold start still fills. */
+function isAboveHead(blockNumber: string, headBlock: bigint | null): boolean {
+  if (headBlock === null) return false;
+  return BigInt(blockNumber) > headBlock;
 }
 
 function readBlockTimestamp(block: unknown): string | null {

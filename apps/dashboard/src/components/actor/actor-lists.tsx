@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { daoVariant, stateToVariant } from '@/components/proposal/state';
 import { Pill } from '@/components/ui/pill';
 import { StatePill } from '@/components/ui/state-pill';
+import { VoteTag } from '@/components/ui/vote-tag';
 import type { ActorVoteView, AuthoredProposalView } from '@/lib/actors/actor';
 import { formatRelativeTime } from '@/lib/format';
+import { classifyChoice } from '@/lib/proposals/detail';
 import { sourceLabel } from '@/lib/proposals/source';
 
 /** Recent activity (§6.10 §4): the actor's most recent votes across all DAOs. */
@@ -25,10 +27,16 @@ export function ActorActivity({ votes }: { votes: ActorVoteView[] }) {
                 <div className="flex flex-wrap items-center gap-2 font-mono text-caption">
                   <Pill dao={daoVariant(v.daoSlug)}>{v.daoSlug}</Pill>
                   <span className="text-ink-4">{sourceLabel(v.sourceType)}</span>
-                  {v.primaryChoice != null && (
-                    <span className="border border-line-3 px-1.5 text-ink-2">
-                      choice #{v.primaryChoice}
-                    </span>
+                  {/* The proposal's own label, colour-classified as on the proposal page. Falls
+                      back to the bare index only when the proposal declares no label for it. */}
+                  {v.choiceLabel != null ? (
+                    <VoteTag choice={classifyChoice(v.choiceLabel)}>{v.choiceLabel}</VoteTag>
+                  ) : (
+                    v.primaryChoice != null && (
+                      <span className="border border-line-3 px-1.5 text-ink-2">
+                        choice #{v.primaryChoice}
+                      </span>
+                    )
                   )}
                   {v.castAt && (
                     <span className="ml-auto text-ink-3" suppressHydrationWarning>

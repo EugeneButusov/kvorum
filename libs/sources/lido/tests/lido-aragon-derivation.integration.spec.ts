@@ -311,8 +311,8 @@ describeIf('Lido Aragon Voting derivation integration', () => {
       .orderBy('choice_index', 'asc')
       .execute();
     expect(choices).toEqual([
-      { choice_index: 0, value: 'No' },
-      { choice_index: 1, value: 'Yes' },
+      { choice_index: 0, value: 'no' },
+      { choice_index: 1, value: 'yes' },
     ]);
   }, 30_000);
 

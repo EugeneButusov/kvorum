@@ -86,6 +86,8 @@ export type DelegateVote = {
   title: string | null;
   state: string;
   choice: number | null;
+  /** The proposal's own label for the choice ("For", "yes", …) — never a bare index. */
+  choiceLabel: string | null;
   power: number;
   castAt: string | null;
   href: string | null;
@@ -101,6 +103,7 @@ function normalizeVote(dto: ActorVote): DelegateVote | null {
     title: str(p.title),
     state: p.state,
     choice: typeof dto.primary_choice === 'number' ? dto.primary_choice : null,
+    choiceLabel: str(dto.choice_label),
     power: scalePower(dto.voting_power_reported),
     castAt: str(dto.cast_at),
     href: parsed ? `/daos/${p.dao_slug}/proposals/${parsed.sourceType}/${parsed.sourceId}` : null,
@@ -149,6 +152,8 @@ export type ParticipationCell = {
   title: string;
   voted: boolean;
   choiceIndex: number | null;
+  /** The proposal's own label for the choice, so the grid never shows a bare index. */
+  choiceLabel: string | null;
 };
 
 export function participation(
@@ -164,6 +169,7 @@ export function participation(
       title: p.title ?? `#${p.sourceId}`,
       voted: vote != null,
       choiceIndex: vote?.choice ?? null,
+      choiceLabel: vote?.choiceLabel ?? null,
     };
   });
   const voted = cells.filter((c) => c.voted).length;

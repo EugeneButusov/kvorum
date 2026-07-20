@@ -249,15 +249,15 @@ export async function seedConformanceData(): Promise<ConformanceSeedContext> {
   await pgDb
     .insertInto('proposal_choice')
     .values([
-      { proposal_id: proposalExecutedId, choice_index: 0, value: 'Against' },
-      { proposal_id: proposalExecutedId, choice_index: 1, value: 'For' },
-      { proposal_id: proposalExecutedId, choice_index: 2, value: 'Abstain' },
-      { proposal_id: proposalNullVotingWindowId, choice_index: 0, value: 'Against' },
-      { proposal_id: proposalNullVotingWindowId, choice_index: 1, value: 'For' },
-      { proposal_id: proposalNullVotingWindowId, choice_index: 2, value: 'Abstain' },
-      { proposal_id: proposalPagedId, choice_index: 0, value: 'Against' },
-      { proposal_id: proposalPagedId, choice_index: 1, value: 'For' },
-      { proposal_id: proposalPagedId, choice_index: 2, value: 'Abstain' },
+      { proposal_id: proposalExecutedId, choice_index: 0, value: 'against' },
+      { proposal_id: proposalExecutedId, choice_index: 1, value: 'for' },
+      { proposal_id: proposalExecutedId, choice_index: 2, value: 'abstain' },
+      { proposal_id: proposalNullVotingWindowId, choice_index: 0, value: 'against' },
+      { proposal_id: proposalNullVotingWindowId, choice_index: 1, value: 'for' },
+      { proposal_id: proposalNullVotingWindowId, choice_index: 2, value: 'abstain' },
+      { proposal_id: proposalPagedId, choice_index: 0, value: 'against' },
+      { proposal_id: proposalPagedId, choice_index: 1, value: 'for' },
+      { proposal_id: proposalPagedId, choice_index: 2, value: 'abstain' },
     ])
     .execute();
 

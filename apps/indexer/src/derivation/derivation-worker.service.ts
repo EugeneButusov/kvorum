@@ -80,8 +80,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       const lagSeconds = computeLagSeconds(oldest.received_at);
       derivationMetrics.lagSeconds.record(lagSeconds, { source_type: oldest.source_type });
 
-      const byDispatchKey = groupByDispatchKey(watermark);
-      for (const [, rows] of byDispatchKey) {
+      for (const rows of splitIntoDispatchRuns(watermark)) {
         const first = rows.at(0);
         if (first === undefined) continue;
         const { source_type: sourceType, event_type: eventType } = first;
@@ -97,8 +96,7 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         await applier.applyBatch(rows);
       }
 
-      const byOffchainKey = groupByDispatchKey(offchainWatermark);
-      for (const [, rows] of byOffchainKey) {
+      for (const rows of splitIntoDispatchRuns(offchainWatermark)) {
         const first = rows.at(0);
         if (first === undefined) continue;
         const { source_type: sourceType, event_type: eventType } = first;
@@ -119,7 +117,14 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         this.logger.log('derivation_progress', {
           batch: watermark.length + offchainWatermark.length,
           lag_s: Math.round(lagSeconds),
-          dispatches: [...byDispatchKey.keys(), ...byOffchainKey.keys()],
+          // Distinct keys touched this tick; a key can span several runs when event types interleave.
+          dispatches: [
+            ...new Set(
+              [...watermark, ...offchainWatermark].map(
+                (row) => `${row.source_type}:${row.chain_id}:${row.event_type}`,
+              ),
+            ),
+          ],
         });
         this.lastProgressLogAt = now;
       }
@@ -180,18 +185,39 @@ function computeLagSeconds(receivedAt: Date): number {
   return Math.max(0, (Date.now() - receivedAt.getTime()) / 1000);
 }
 
-function groupByDispatchKey<
+/**
+ * Splits the derivable rows into CONSECUTIVE runs of the same dispatch key, preserving the
+ * (chain_id, block_number, log_index) order they were selected in.
+ *
+ * This used to collect every row of a key into one bucket and apply bucket-by-bucket, which
+ * silently reordered events across types: a batch whose first row happened to be a
+ * `ProposalCanceled` applied *every* cancel — including ones thousands of blocks later — before any
+ * `ProposalCreated`. A transition landing before the create it depends on matches no proposal row,
+ * and `advanceState` reports 0 updated rows, which is indistinguishable from "already in that
+ * state" — so the transition was dropped without a trace. Compound bravo #347/#348 (canceled) and
+ * alpha #4 (executed) sat in `pending` for exactly this reason.
+ *
+ * Runs keep each dispatch homogeneous (appliers rely on a single source_type/event_type per batch)
+ * while guaranteeing an event is never applied before an earlier-block event of the same source.
+ * The cost is more, smaller `applyBatch` calls when event types interleave.
+ */
+function splitIntoDispatchRuns<
   T extends { source_type: string; chain_id: string; event_type: ArchiveEventType },
->(rows: readonly T[]): Map<string, T[]> {
-  const grouped = new Map<string, T[]>();
+>(rows: readonly T[]): T[][] {
+  const runs: T[][] = [];
+  let current: T[] = [];
+  let currentKey: string | undefined;
+
   for (const row of rows) {
     const key = `${row.source_type}:${row.chain_id}:${row.event_type}`;
-    const rowsForDispatch = grouped.get(key);
-    if (rowsForDispatch === undefined) {
-      grouped.set(key, [row]);
-    } else {
-      rowsForDispatch.push(row);
+    if (key !== currentKey) {
+      if (current.length > 0) runs.push(current);
+      current = [];
+      currentKey = key;
     }
+    current.push(row);
   }
-  return grouped;
+  if (current.length > 0) runs.push(current);
+
+  return runs;
 }

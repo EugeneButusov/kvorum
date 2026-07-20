@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'node',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     passWithNoTests: true,
+    fileParallelism: false,
     reporters: ['default'],
     coverage: {
       reportsDirectory: '../../coverage/libs/db',

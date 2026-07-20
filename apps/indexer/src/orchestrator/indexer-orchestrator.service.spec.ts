@@ -127,7 +127,10 @@ function makeFakeDriver(): FetchDriver & { _handles: FetchDriverHandle[] } {
 const mockDaoSourceRepo = { findAll: vi.fn() };
 const mockConfirmationRepo = { countUnderivedBySourceType: vi.fn().mockResolvedValue([]) };
 const mockRegistry = {
-  getOrCreate: vi.fn().mockResolvedValue({ client: { send: vi.fn() } }),
+  getOrCreate: vi.fn().mockResolvedValue({
+    client: { send: vi.fn() },
+    headTracker: { getLastHead: () => ({ blockNumber: 16n }) },
+  }),
   allActive: vi.fn().mockReturnValue([]),
   drainAll: vi.fn().mockResolvedValue(undefined),
 };
@@ -189,6 +192,7 @@ beforeEach(() => {
   mockConfirmationRepo.countUnderivedBySourceType.mockResolvedValue([]);
   mockRegistry.getOrCreate.mockResolvedValue({
     client: { send: vi.fn().mockResolvedValue('0x10') },
+    headTracker: { getLastHead: () => ({ blockNumber: 16n }) },
   });
   mockRegistry.allActive.mockReturnValue([]);
   mockRegistry.drainAll.mockResolvedValue(undefined);
@@ -670,6 +674,59 @@ describe('IndexerOrchestratorService', () => {
       expect(mockRegistry.getOrCreate).not.toHaveBeenCalledWith(
         expect.objectContaining({ chainId: 'off-chain' }),
       );
+
+      vi.useRealTimers();
+      await svc.drain();
+    });
+
+    it('#P2b — lag gauge reads the tracked head and issues no RPC of its own', async () => {
+      // The gauge used to call readConfirmedHead (eth_blockNumber) per active source every 10s,
+      // which on a multi-source deployment was the indexer's largest RPC consumer — all to
+      // populate a lag metric. It now reads the head the per-chain HeadTracker already polls.
+      vi.useFakeTimers();
+      vi.mocked(parseChainConfigFromEnv).mockReturnValue([CHAIN_CFG]);
+      mockDaoSourceRepo.findAll.mockResolvedValue([
+        makeSource('src-1', 'compound_governor_bravo', '0x1'),
+        makeSource('src-2', 'compound_governor_oz', '0x1'),
+      ]);
+
+      const send = vi.fn().mockResolvedValue('0x10');
+      mockRegistry.getOrCreate.mockResolvedValue({
+        client: { send },
+        headTracker: { getLastHead: () => ({ blockNumber: 16n }) },
+      });
+
+      const evmDriver = makeFakeDriver();
+      vi.mocked(ChainContextRegistry).mockImplementation(function () {
+        return mockRegistry;
+      } as never);
+
+      const module = await Test.createTestingModule({
+        providers: [
+          IndexerOrchestratorService,
+          {
+            provide: SOURCE_INGESTERS,
+            useValue: [
+              makeFakePlugin('compound_governor_bravo'),
+              makeFakePlugin('compound_governor_oz'),
+            ],
+          },
+          { provide: FETCH_DRIVERS, useValue: [evmDriver] },
+          { provide: QUEUE_PRODUCER_PORT, useValue: STUB_QUEUE_PRODUCER_PORT },
+          { provide: DaoSourceRepository, useValue: mockDaoSourceRepo },
+          { provide: ArchiveEventRepository, useValue: mockConfirmationRepo },
+          { provide: ChainContextRegistry, useValue: mockRegistry },
+        ],
+      }).compile();
+
+      const svc = module.get(IndexerOrchestratorService);
+      await svc.onApplicationBootstrap();
+
+      // Isolate the gauge interval from boot catch-up.
+      send.mockClear();
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(send).not.toHaveBeenCalled();
 
       vi.useRealTimers();
       await svc.drain();

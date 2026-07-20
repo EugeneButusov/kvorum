@@ -9,6 +9,14 @@ export type EndpointFilter = {
   multi?: boolean;
   column: string;
   op: FilterOperator;
+  /**
+   * How this filter is described in the OpenAPI document. Lives here rather than in a hand-written
+   * DTO so the published contract is generated from the same declaration the parser enforces — the
+   * two drifted apart before, and clients following the schema got 400s.
+   */
+  doc?: string;
+  /** OpenAPI scalar type; defaults to string. */
+  docType?: 'string' | 'number' | 'boolean';
 };
 
 export type EndpointSortable = {

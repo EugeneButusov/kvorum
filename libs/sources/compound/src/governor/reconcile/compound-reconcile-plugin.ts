@@ -69,3 +69,26 @@ export function createCompoundGovernorOzReconcilePlugin(
 ): SourceIngester {
   return createReconcilePlugin('compound_governor_oz_reconcile', 'compound_governor_oz', deps);
 }
+
+/**
+ * GovernorAlpha is superseded (Bravo took over in 2021) and will never receive another proposal,
+ * but four of its historical proposals ended in defeat — a state that emits no event, since it is
+ * the *absence* of enough votes at endBlock. Without a reconciler nothing ever resolves them and
+ * they sit in `pending` forever.
+ *
+ * Alpha needs no reconciler changes: it exposes the same `state(uint256)` with the same enum
+ * ordering as Bravo, and computes defeat from stored vote counts against a constant `quorumVotes()`
+ * — no external governance-strategy call, so it does not revert when read at the confirmed head.
+ *
+ * Steady-state cost is negligible: the driver only issues RPC when `findStaleForReconciliation`
+ * returns rows, and for a dead governor that is empty once the backlog drains.
+ */
+export function createCompoundGovernorAlphaReconcilePlugin(
+  deps: CompoundReconcilePluginDeps,
+): SourceIngester {
+  return createReconcilePlugin(
+    'compound_governor_alpha_reconcile',
+    'compound_governor_alpha',
+    deps,
+  );
+}

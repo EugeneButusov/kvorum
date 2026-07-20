@@ -7,6 +7,7 @@ function makeChain<T>(result: T) {
     select: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
+    groupBy: vi.fn(),
     execute: vi.fn().mockResolvedValue(result),
     executeTakeFirst: vi.fn().mockResolvedValue(result),
   };
@@ -14,6 +15,7 @@ function makeChain<T>(result: T) {
   chain.select.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
+  chain.groupBy.mockReturnValue(chain);
   return chain;
 }
 
@@ -62,6 +64,103 @@ describe('VoteReadRepository', () => {
       expect(selected).not.toContain('v.voting_power');
     },
   );
+
+  describe('tallyForProposals', () => {
+    const repoWithCh = (chChain: ReturnType<typeof makeChain>) =>
+      new VoteReadRepository(
+        { selectFrom: vi.fn() } as never,
+        {
+          selectFrom: vi.fn().mockReturnValue(chChain),
+        } as never,
+      );
+
+    it('short-circuits on an empty page without touching ClickHouse', async () => {
+      const ch = { selectFrom: vi.fn() };
+      const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
+
+      await expect(repo.tallyForProposals([])).resolves.toEqual(new Map());
+      expect(ch.selectFrom).not.toHaveBeenCalled();
+    });
+
+    it('aggregates a whole page in one query, keyed by proposal', async () => {
+      const chChain = makeChain([
+        { proposal_id: 'p1', primary_choice: 0, voting_power: '750', voter_count: '3' },
+        { proposal_id: 'p1', primary_choice: 1, voting_power: '250', voter_count: '1' },
+        { proposal_id: 'p2', primary_choice: 1, voting_power: '10', voter_count: '1' },
+      ]);
+      const ch = { selectFrom: vi.fn().mockReturnValue(chChain) };
+      const repo = new VoteReadRepository({ selectFrom: vi.fn() } as never, ch as never);
+
+      const out = await repo.tallyForProposals(['p1', 'p2']);
+
+      // One round-trip for the page, not one per proposal — the reason this method exists.
+      expect(ch.selectFrom).toHaveBeenCalledTimes(1);
+      expect(chChain.where).toHaveBeenCalledWith('v.proposal_id', 'in', ['p1', 'p2']);
+      expect(chChain.groupBy).toHaveBeenCalledWith(['v.proposal_id', 'v.primary_choice']);
+      expect(out.get('p1')).toEqual([
+        { primary_choice: 0, voting_power: '750', voter_count: 3 },
+        { primary_choice: 1, voting_power: '250', voter_count: 1 },
+      ]);
+      expect(out.get('p2')).toEqual([{ primary_choice: 1, voting_power: '10', voter_count: 1 }]);
+    });
+
+    it('counts only live votes, never superseded ones', async () => {
+      const chChain = makeChain([]);
+      await repoWithCh(chChain).tallyForProposals(['p1']);
+
+      expect(chChain.where).toHaveBeenCalledWith('v.superseded', '=', 0);
+    });
+
+    it('omits a proposal with no votes rather than mapping it to []', async () => {
+      // The caller treats absent as "no tally to draw" (null), not an empty set of bars.
+      const chChain = makeChain([
+        { proposal_id: 'p1', primary_choice: 0, voting_power: '1', voter_count: '1' },
+      ]);
+
+      const out = await repoWithCh(chChain).tallyForProposals(['p1', 'p2']);
+
+      expect(out.has('p2')).toBe(false);
+    });
+
+    it('keeps summed UInt256 power exact as a string, never a bare column', async () => {
+      // Same contract the singular read is guarded for: on a server with
+      // output_format_json_quote_64bit_integers=0 a bare UInt256 comes back as a JS number and
+      // loses precision. sum() must be wrapped in toString(), so the value survives as a string.
+      const huge = '12345678901234567890123456789';
+      const chChain = makeChain([
+        { proposal_id: 'p1', primary_choice: 1, voting_power: huge, voter_count: '1' },
+      ]);
+
+      const out = await repoWithCh(chChain).tallyForProposals(['p1']);
+
+      const selected = chChain.select.mock.calls[0]?.[0] as unknown[];
+      expect(selected).not.toContain('v.voting_power');
+      expect(out.get('p1')?.[0]?.voting_power).toBe(huge);
+      expect(BigInt(out.get('p1')![0]!.voting_power)).toBe(BigInt(huge));
+    });
+
+    it('coerces the driver’s count() to a number', async () => {
+      // ClickHouse hands count() back as a string over the JSON interface.
+      const chChain = makeChain([
+        { proposal_id: 'p1', primary_choice: 0, voting_power: '5', voter_count: '42' },
+      ]);
+
+      const out = await repoWithCh(chChain).tallyForProposals(['p1']);
+
+      expect(out.get('p1')?.[0]?.voter_count).toBe(42);
+    });
+
+    it('accepts a readonly id list without mutating the caller’s array', async () => {
+      const ids: readonly string[] = Object.freeze(['p1']);
+      const chChain = makeChain([]);
+
+      await repoWithCh(chChain).tallyForProposals(ids);
+
+      expect(chChain.where).toHaveBeenCalledWith('v.proposal_id', 'in', ['p1']);
+      const passed = chChain.where.mock.calls.find((c) => c[0] === 'v.proposal_id')?.[2];
+      expect(passed).not.toBe(ids);
+    });
+  });
 
   it('findChoicesForVote synthesizes a single-element breakdown from primary_choice', async () => {
     const chChain = makeChain({ primary_choice: 2 });

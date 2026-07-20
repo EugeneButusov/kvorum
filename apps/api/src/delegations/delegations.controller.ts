@@ -28,6 +28,7 @@ import { DELEGATION_QUERY } from './delegation.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -63,6 +64,7 @@ export class DelegationsController {
     return delegationModelFor(this.extensions, known?.source_type ?? '');
   }
 
+  @ApiEndpointQuery(DELEGATION_QUERY)
   @Get('delegations')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: DelegationListResponseDto })

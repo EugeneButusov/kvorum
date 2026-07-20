@@ -137,7 +137,23 @@ function assertProposalShape(proposal: Record<string, unknown>) {
 
   assertLinksAndMeta(proposal);
   expect((proposal['_meta'] as Record<string, unknown>)['confirmed']).toBe(true);
-  expect(proposal).not.toHaveProperty('tally');
+}
+
+/**
+ * List rows carry a lightweight per-choice tally (null when no votes); the detail body deliberately
+ * does not — its authoritative tally is the separate `/tally` endpoint. Asserted per context below.
+ */
+function assertRowTallyShape(proposal: Record<string, unknown>) {
+  expect(proposal).toHaveProperty('tally');
+  const tally = proposal['tally'];
+  if (tally === null) return;
+  const choices = (tally as Record<string, unknown>)['choices'];
+  expect(Array.isArray(choices)).toBe(true);
+  for (const choice of choices as Record<string, unknown>[]) {
+    expect(typeof choice['choice_index']).toBe('number');
+    expect(typeof choice['label']).toBe('string');
+    expect(typeof choice['pct']).toBe('number');
+  }
 }
 
 // ADR-039/043/044 invariants are asserted explicitly in this suite.
@@ -242,6 +258,8 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
 
       const proposalDetailData = proposalDetail.body.data as Record<string, unknown>;
       assertProposalShape(proposalDetailData);
+      // Detail carries no row tally — it uses the dedicated /tally endpoint.
+      expect(proposalDetailData).not.toHaveProperty('tally');
 
       const links = ((proposalDetailData['_meta'] as Record<string, unknown>)['links'] ??
         {}) as Record<string, unknown>;
@@ -255,9 +273,9 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
       }
 
       expect(proposalDetailData['choices']).toEqual([
-        { choice_index: 0, value: 'Against' },
-        { choice_index: 1, value: 'For' },
-        { choice_index: 2, value: 'Abstain' },
+        { choice_index: 0, value: 'against' },
+        { choice_index: 1, value: 'for' },
+        { choice_index: 2, value: 'abstain' },
       ]);
 
       const perDaoList = await request(server)
@@ -292,6 +310,7 @@ describeHttpIf('M1 H6 conformance baseline e2e', () => {
       expect(Array.isArray(crossDaoList.body.data)).toBe(true);
       for (const proposal of crossDaoList.body.data as Record<string, unknown>[]) {
         assertProposalShape(proposal);
+        assertRowTallyShape(proposal);
       }
 
       const notFound = await request(server)

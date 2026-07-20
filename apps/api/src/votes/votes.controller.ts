@@ -22,6 +22,7 @@ import { VOTE_QUERY } from './vote.query';
 import { ActorRoutingService } from '../actors/actor-routing.service';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { badRequestProblem, problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -46,6 +47,7 @@ export class VotesController {
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
+  @ApiEndpointQuery(VOTE_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: VoteListResponseDto })

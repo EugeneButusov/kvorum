@@ -17,7 +17,8 @@ export function ParticipationGrid({ cells }: { cells: ParticipationCell[] }) {
     rows: cells.map((c) => ({
       proposal: c.title,
       voted: c.voted ? 'Yes' : 'No',
-      choice: c.choiceIndex == null ? '—' : `Choice ${c.choiceIndex + 1}`,
+      // The proposal names its own choices; an index means nothing to a reader.
+      choice: c.choiceLabel ?? (c.voted ? 'voted' : '—'),
     })),
   };
 
@@ -34,7 +35,7 @@ export function ParticipationGrid({ cells }: { cells: ParticipationCell[] }) {
           {cells.map((c) => (
             <span
               key={c.key}
-              title={`${c.title} — ${c.voted ? `voted (choice ${(c.choiceIndex ?? 0) + 1})` : 'did not vote'}`}
+              title={`${c.title} — ${c.voted ? `voted ${c.choiceLabel ?? ''}`.trim() : 'did not vote'}`}
               className="h-4 w-4 border"
               style={
                 c.voted

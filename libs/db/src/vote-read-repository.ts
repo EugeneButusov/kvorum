@@ -150,6 +150,43 @@ export class VoteReadRepository {
     }));
   }
 
+  /**
+   * Batched {@link tallyForProposal} for a page of proposals: one CH query grouped by
+   * (proposal, primary_choice), so a list of N proposals costs one round-trip rather than N. Returns
+   * a map keyed by proposal id; proposals with no votes are simply absent (the caller treats a missing
+   * entry as an empty tally). Same exactness guarantees as the single-proposal query.
+   */
+  async tallyForProposals(
+    proposalIds: readonly string[],
+  ): Promise<Map<string, ProposalTallyRow[]>> {
+    const byProposal = new Map<string, ProposalTallyRow[]>();
+    if (proposalIds.length === 0) return byProposal;
+
+    const rows = await this.ch
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
+      .select([
+        'v.proposal_id',
+        'v.primary_choice',
+        sql<string>`toString(sum(v.voting_power))`.as('voting_power'),
+        sql<string>`count()`.as('voter_count'),
+      ])
+      .where('v.proposal_id', 'in', [...proposalIds])
+      .where('v.superseded', '=', 0)
+      .groupBy(['v.proposal_id', 'v.primary_choice'])
+      .execute();
+
+    for (const row of rows) {
+      const tally = byProposal.get(row.proposal_id) ?? [];
+      tally.push({
+        primary_choice: row.primary_choice,
+        voting_power: row.voting_power,
+        voter_count: Number(row.voter_count),
+      });
+      byProposal.set(row.proposal_id, tally);
+    }
+    return byProposal;
+  }
+
   async listForActor(actorId: string): Promise<VoteReadRow[]> {
     const addresses = await this.pg
       .selectFrom('actor_address')

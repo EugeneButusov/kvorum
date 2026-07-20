@@ -23,11 +23,25 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { VoteTag } from '@/components/ui/vote-tag';
 import type { DelegateVote } from '@/lib/analytics/delegate';
 import { formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const col = createColumnHelper<DelegateVote>();
+
+/**
+ * Colour a choice the way the reference's `.vote-tag` does. Sources name their own choices, so match
+ * on the label first and fall back to the canonical index order (against / for / abstain) — never
+ * assume an index alone means anything.
+ */
+function voteTagVariant(label: string, index: number | null): 'for' | 'against' | 'abstain' {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === 'for' || normalized === 'yes') return 'for';
+  if (normalized === 'against' || normalized === 'no') return 'against';
+  if (normalized === 'abstain') return 'abstain';
+  return index === 1 ? 'for' : index === 0 ? 'against' : 'abstain';
+}
 
 /** Vote history (§6.11 §5): every vote this delegate cast, sortable by power/date, client-paginated. */
 export function VoteHistory({ votes }: { votes: DelegateVote[] }) {
@@ -51,13 +65,17 @@ export function VoteHistory({ votes }: { votes: DelegateVote[] }) {
           );
         },
       }),
-      col.accessor((v) => v.choice, {
+      col.accessor((v) => v.choiceLabel, {
         id: 'choice',
         header: 'Choice',
         enableSorting: false,
         cell: (ctx) => {
-          const c = ctx.getValue();
-          return <span className="text-ink-2">{c == null ? '—' : `Choice ${c + 1}`}</span>;
+          // The API sends the proposal's own label ("For", "yes", …). Rendering `Choice ${index+1}`
+          // instead showed every Compound vote as "Choice 2" — the label was there all along.
+          const label = ctx.getValue();
+          const choice = ctx.row.original.choice;
+          if (label == null) return <span className="text-ink-4">—</span>;
+          return <VoteTag choice={voteTagVariant(label, choice)}>{label}</VoteTag>;
         },
       }),
       col.accessor('power', {

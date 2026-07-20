@@ -13,6 +13,7 @@ import { toDaoDetailDto, toDaoListItemDto, toDaoSourceDto } from './dao.mappers'
 import { DAO_LIST_QUERY } from './dao.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
+import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { ApiListQueryDto } from '../openapi/query.dto';
 import {
@@ -37,6 +38,7 @@ export class DaoController {
 
   @ApiOkResponse({ type: DaoListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiEndpointQuery(DAO_LIST_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   async list(@Query() rawQuery: ApiListQueryDto) {

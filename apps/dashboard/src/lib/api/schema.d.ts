@@ -461,6 +461,8 @@ export interface components {
       voting_chain_id: string;
       proposal: components['schemas']['EmbeddedProposalDto'];
       primary_choice?: Record<string, never> | null;
+      /** @description The proposal’s declared label for primary_choice, e.g. "for". Null when the proposal declares no choice at that index, so the client can fall back rather than invent one. */
+      choice_label?: string | null;
       voting_power_reported: string;
       cast_at: Record<string, never> | null;
       _meta: components['schemas']['ActorVoteMetaDto'];
@@ -616,6 +618,16 @@ export interface components {
       address: string;
       display_name?: Record<string, never> | null;
     };
+    ProposalTallySummaryChoiceDto: {
+      choice_index: number;
+      /** @description The declared choice label, e.g. "for" — for client-side classification. */
+      label: string;
+      /** @description Share of participating power, 0–100, to two decimals. */
+      pct: number;
+    };
+    ProposalTallySummaryDto: {
+      choices: components['schemas']['ProposalTallySummaryChoiceDto'][];
+    };
     ProposalLinksDto: {
       self: string;
       votes: string;
@@ -635,6 +647,8 @@ export interface components {
       voting_starts_at: Record<string, never> | null;
       voting_ends_at: Record<string, never> | null;
       proposer: components['schemas']['ProposerDto'];
+      /** @description Per-choice voting-power tally for the row bars; null when no votes are cast yet. */
+      tally?: components['schemas']['ProposalTallySummaryDto'] | null;
       _meta: components['schemas']['ProposalMetaDto'];
     };
     ProposalListResponseDto: {
@@ -740,6 +754,8 @@ export interface components {
       voting_starts_at: Record<string, never> | null;
       voting_ends_at: Record<string, never> | null;
       proposer: components['schemas']['ProposerDto'];
+      /** @description Per-choice voting-power tally for the row bars; null when no votes are cast yet. */
+      tally?: components['schemas']['ProposalTallySummaryDto'] | null;
       _meta: components['schemas']['ProposalMetaDto'];
       description: string;
       actions: components['schemas']['ProposalActionDto'][];
@@ -1006,18 +1022,10 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: created_at, voting_starts_at. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path: {
@@ -1073,18 +1081,10 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path: {
@@ -1140,18 +1140,11 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
+        voter?: string;
+        /** @description Comma-delimited primary_choice values */
+        primary_choice?: string;
       };
       header?: never;
       path: {
@@ -1264,18 +1257,8 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: slug, created_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
       };
       header?: never;
       path?: never;
@@ -1380,18 +1363,12 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: block_number, created_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
-        state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
-        voting_starts_at_min?: string;
-        voting_starts_at_max?: string;
+        delegator?: string;
+        delegate?: string;
+        from_block_min?: string;
+        from_block_max?: string;
       };
       header?: never;
       path: {
@@ -1548,16 +1525,13 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at. */
         sort?: string;
-        /** @description Comma-delimited DAO slugs */
-        dao?: string;
-        /** @description Comma-delimited proposal states */
+        /** @description Comma-delimited state values */
         state?: string;
         source_type?: string;
-        /** @description 0x-prefixed proposer address */
         proposer?: string;
-        binding?: boolean;
+        binding?: string;
         voting_starts_at_min?: string;
         voting_starts_at_max?: string;
       };
@@ -1678,16 +1652,13 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        /** @description Comma-delimited sort fields (prefix with - for desc) */
+        /** @description Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at. */
         sort?: string;
         /** @description Comma-delimited DAO slugs */
         dao?: string;
-        /** @description Comma-delimited proposal states */
+        /** @description Comma-delimited state values */
         state?: string;
-        source_type?: string;
-        /** @description 0x-prefixed proposer address */
-        proposer?: string;
-        binding?: boolean;
+        binding?: string;
         voting_starts_at_min?: string;
         voting_starts_at_max?: string;
       };
