@@ -27,3 +27,4 @@ docs/design/
 # M5-2: production templates added under libs/ai/src/prompts/*.md (non-fixture) will need a
 # matching entry here — their frontmatter+body is parsed literally and must not be reformatted.
 libs/ai/src/prompts/__fixtures__/*.md
+libs/ai/src/prompts/proposal-summarizer.md

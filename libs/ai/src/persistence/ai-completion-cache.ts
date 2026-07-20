@@ -55,6 +55,26 @@ export class AiCompletionCache {
     return { output: result.output, cached: false };
   }
 
+  /**
+   * Persist a pre-computed result (e.g. from a batch fetch) into the cache + cost ledger. Unlike
+   * `complete`, it makes NO LLM call and does NOT validate — the caller has already validated the
+   * output against the schema. Idempotent on the `ai_output` unique key (`ON CONFLICT DO NOTHING`).
+   */
+  async persist<T>(
+    req: CompletionRequest<T>,
+    result: CompletionResult<T>,
+    ctx: CostContext,
+  ): Promise<void> {
+    const inputHash = computeInputHash(req.inputContent);
+    if (this.db.isTransaction) {
+      await this.writeGenerated(this.db, req, inputHash, result, ctx);
+    } else {
+      await this.db
+        .transaction()
+        .execute((trx) => this.writeGenerated(trx, req, inputHash, result, ctx));
+    }
+  }
+
   private async writeGenerated<T>(
     executor: Kysely<PgDatabase>,
     req: CompletionRequest<T>,
