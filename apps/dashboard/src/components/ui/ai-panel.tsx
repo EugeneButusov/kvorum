@@ -4,7 +4,18 @@ import { Skeleton } from './skeleton';
 import { formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-export type AIPanelState = 'ok' | 'loading' | 'stale' | 'rate-limited' | 'failed';
+export type AIPanelState =
+  | 'ok'
+  | 'loading'
+  | 'stale'
+  | 'rate-limited'
+  | 'failed'
+  /**
+   * The feature is not built yet, as distinct from `failed`, where generation was attempted and did
+   * not succeed. ADR-086 keeps the panel in place so the information architecture is stable and the
+   * surface lights up when M5 ships, with no layout change.
+   */
+  | 'coming-soon';
 
 export type AIProvenance = {
   model?: string;
@@ -22,8 +33,12 @@ export type AIPanelProps = {
   sourceHref?: string;
   sourceLabel?: string;
   confidence?: 'high' | 'medium' | 'low';
-  /** Raw-source link shown in the failed state (never fabricate content). */
+  /** Raw-source link shown in the failed and coming-soon states (never fabricate content). */
   fallbackHref?: string;
+  /** What the raw-source link points at, e.g. "Read the proposal description". */
+  fallbackLabel?: string;
+  /** Names the not-yet-built feature in the coming-soon state. */
+  comingSoonLabel?: string;
   /** The AI content (rendered in ok / stale states). */
   children?: ReactNode;
   className?: string;
@@ -48,6 +63,8 @@ export function AIPanel({
   sourceLabel = 'View source',
   confidence,
   fallbackHref,
+  fallbackLabel = 'Read the proposal description',
+  comingSoonLabel = 'Summary',
   children,
   className,
 }: AIPanelProps) {
@@ -96,7 +113,17 @@ export function AIPanel({
             Couldn’t generate a summary for this proposal.{' '}
             {fallbackHref && (
               <a href={fallbackHref} className="underline hover:text-warn">
-                Read the proposal description →
+                {fallbackLabel} →
+              </a>
+            )}
+          </p>
+        )}
+        {state === 'coming-soon' && (
+          <p className="font-mono text-small text-ink-3">
+            {comingSoonLabel} is not generated yet.{' '}
+            {fallbackHref && (
+              <a href={fallbackHref} className="underline hover:text-ink">
+                {fallbackLabel} →
               </a>
             )}
           </p>
