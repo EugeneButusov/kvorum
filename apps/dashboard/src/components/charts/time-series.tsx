@@ -12,6 +12,14 @@ export type TimeSeriesProps = {
   /** Format a y value for the axis + table. */
   formatValue?: (v: number) => string;
   caption?: string;
+  /**
+   * Rendered height in px. Without it the SVG takes its height from the 640×240 viewBox ratio, so a
+   * full-width chart grows with the viewport — ~540px tall at 1440px wide, which reads as a hero
+   * image rather than an analytical panel.
+   */
+  heightPx?: number;
+  /** Omit the "View as table" toggle. Only when the same data is tabulated elsewhere on the page. */
+  showTable?: boolean;
 };
 
 const W = 640;
@@ -28,6 +36,8 @@ export function TimeSeries({
   series,
   formatValue = (v) => String(v),
   caption,
+  heightPx,
+  showTable = true,
 }: TimeSeriesProps) {
   const all = series.flatMap((s) => s.values);
   const [y0, y1] = extent(all, { includeZero: true });
@@ -43,11 +53,17 @@ export function TimeSeries({
   return (
     <Figure
       title={title}
-      table={toTable(buckets, series, formatValue)}
+      table={showTable ? toTable(buckets, series, formatValue) : undefined}
       legend={legend}
       caption={caption}
     >
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="font-mono" preserveAspectRatio="none">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        {...(heightPx === undefined ? {} : { style: { height: heightPx } })}
+        className="font-mono"
+        preserveAspectRatio="none"
+      >
         {/* gridlines + y labels */}
         {ticks.map((t, i) => (
           <g key={i}>

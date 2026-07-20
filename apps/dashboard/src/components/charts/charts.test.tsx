@@ -34,6 +34,42 @@ describe('Figure contract (via TimeSeries)', () => {
     // Toggle is reversible.
     expect(screen.getByRole('button', { name: 'View as chart' })).toBeInTheDocument();
   });
+
+  it('keeps the toggle by default, so §6.19 cannot be dropped by omission', () => {
+    // showTable defaults to true: a chart only loses its table alternative when an author opts out
+    // explicitly, which is allowed solely when the same data is tabulated elsewhere on the page.
+    renderChart();
+    expect(screen.getByRole('button', { name: 'View as table' })).toBeInTheDocument();
+  });
+
+  it('omits the toggle when the data is tabulated elsewhere (showTable=false)', () => {
+    render(
+      <TimeSeries
+        title="Voting power at each vote"
+        buckets={['Jan', 'Feb']}
+        series={[{ label: 'Voting power', values: [10, 20] }]}
+        showTable={false}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'Voting power at each vote' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View as table' })).not.toBeInTheDocument();
+  });
+
+  it('bounds its height when asked, instead of scaling with the viewport', () => {
+    // Without a height the SVG derives one from the 640x240 viewBox, so a full-width chart is ~540px
+    // tall at 1440px wide — a supporting panel rendered as the largest thing on the page.
+    const { container } = render(
+      <TimeSeries
+        title="Voting power"
+        buckets={['Jan', 'Feb']}
+        series={[{ label: 'Voting power', values: [10, 20] }]}
+        heightPx={180}
+      />,
+    );
+
+    expect(container.querySelector('svg')).toHaveStyle({ height: '180px' });
+  });
 });
 
 describe('StackedArea', () => {

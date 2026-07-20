@@ -10,7 +10,14 @@ export type ChartLegendItem = { label: string; color: string };
 export type FigureProps = {
   title: string;
   /** The accessible-alternative data (§6.19 / ADR-085) — every chart supplies one. */
-  table: ChartTableModel;
+  /**
+   * The chart's data as a table — the accessible alternative §6.19 requires, and the real content
+   * behind an SVG that is exposed to assistive tech as a labelled `img`.
+   *
+   * Omit it ONLY when the identical data is already tabulated elsewhere on the same page; the
+   * toggle would then be a second copy, not an accessibility gain. Never omit it to reduce clutter.
+   */
+  table?: ChartTableModel;
   /** Series legend; shown for 2+ series so identity is never colour-alone. */
   legend?: ChartLegendItem[];
   caption?: string;
@@ -33,15 +40,17 @@ export function Figure({ title, table, legend, caption, children, className }: F
         <span className="font-mono text-body font-semibold uppercase tracking-[0.04em] text-ink">
           {title}
         </span>
-        <button
-          type="button"
-          onClick={() => setAsTable((v) => !v)}
-          aria-expanded={asTable}
-          aria-controls={regionId}
-          className="border border-line-3 px-2 py-0.5 font-mono text-caption text-ink-2 transition-colors hover:border-ink-3"
-        >
-          {asTable ? 'View as chart' : 'View as table'}
-        </button>
+        {table && (
+          <button
+            type="button"
+            onClick={() => setAsTable((v) => !v)}
+            aria-expanded={asTable}
+            aria-controls={regionId}
+            className="border border-line-3 px-2 py-0.5 font-mono text-caption text-ink-2 transition-colors hover:border-ink-3"
+          >
+            {asTable ? 'View as chart' : 'View as table'}
+          </button>
+        )}
       </figcaption>
 
       {legend && legend.length > 1 && (
@@ -60,7 +69,7 @@ export function Figure({ title, table, legend, caption, children, className }: F
       )}
 
       <div id={regionId}>
-        {asTable ? (
+        {asTable && table ? (
           <DataTable model={table} />
         ) : (
           <div role="img" aria-label={title} className="w-full">
