@@ -37,7 +37,13 @@ export const PER_DAO_PROPOSAL_QUERY: EndpointQuery = {
 
 export const CROSS_DAO_PROPOSAL_QUERY: EndpointQuery = {
   filters: {
-    dao: { zod: z.string(), column: 'dao.slug', op: 'in', multi: true },
+    dao: {
+      zod: z.string(),
+      column: 'dao.slug',
+      op: 'in',
+      multi: true,
+      doc: 'Comma-delimited DAO slugs',
+    },
     state: { zod: z.string(), column: 'proposal.state', op: 'in', multi: true },
     binding: { zod: bindingBool, column: 'proposal.binding', op: 'eq' },
     voting_starts_at_min: {
