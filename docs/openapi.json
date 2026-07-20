@@ -123,9 +123,8 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: created_at, voting_starts_at.",
             "schema": {
-              "example": "slug,-created_at",
               "type": "string"
             }
           },
@@ -134,56 +133,6 @@
             "required": false,
             "in": "query",
             "description": "Comma-delimited DAO slugs",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
-            "description": "0x-prefixed proposer address",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "voting_starts_at_max",
-            "required": false,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -274,9 +223,8 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported.",
             "schema": {
-              "example": "slug,-created_at",
               "type": "string"
             }
           },
@@ -285,56 +233,6 @@
             "required": false,
             "in": "query",
             "description": "Comma-delimited DAO slugs",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
-            "description": "0x-prefixed proposer address",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "voting_starts_at_max",
-            "required": false,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -441,32 +339,13 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
-            "schema": {
-              "example": "slug,-created_at",
-              "type": "string"
-            }
-          },
-          {
-            "name": "dao",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited DAO slugs",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: cast_at, voting_power_reported.",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "state",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
+            "name": "voter",
             "required": false,
             "in": "query",
             "schema": {
@@ -474,34 +353,10 @@
             }
           },
           {
-            "name": "proposer",
+            "name": "primary_choice",
             "required": false,
             "in": "query",
-            "description": "0x-prefixed proposer address",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "voting_starts_at_max",
-            "required": false,
-            "in": "query",
+            "description": "Comma-delimited primary_choice values",
             "schema": {
               "type": "string"
             }
@@ -674,67 +529,7 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
-            "schema": {
-              "example": "slug,-created_at",
-              "type": "string"
-            }
-          },
-          {
-            "name": "dao",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited DAO slugs",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
-            "description": "0x-prefixed proposer address",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "voting_starts_at_max",
-            "required": false,
-            "in": "query",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: slug, created_at.",
             "schema": {
               "type": "string"
             }
@@ -908,32 +703,13 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
-            "schema": {
-              "example": "slug,-created_at",
-              "type": "string"
-            }
-          },
-          {
-            "name": "dao",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited DAO slugs",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: block_number, created_at.",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "state",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
+            "name": "delegator",
             "required": false,
             "in": "query",
             "schema": {
@@ -941,24 +717,7 @@
             }
           },
           {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
-            "description": "0x-prefixed proposer address",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "binding",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "voting_starts_at_min",
+            "name": "delegate",
             "required": false,
             "in": "query",
             "schema": {
@@ -966,7 +725,15 @@
             }
           },
           {
-            "name": "voting_starts_at_max",
+            "name": "from_block_min",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from_block_max",
             "required": false,
             "in": "query",
             "schema": {
@@ -1212,17 +979,7 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
-            "schema": {
-              "example": "slug,-created_at",
-              "type": "string"
-            }
-          },
-          {
-            "name": "dao",
-            "required": false,
-            "in": "query",
-            "description": "Comma-delimited DAO slugs",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at.",
             "schema": {
               "type": "string"
             }
@@ -1231,7 +988,7 @@
             "name": "state",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited proposal states",
+            "description": "Comma-delimited state values",
             "schema": {
               "type": "string"
             }
@@ -1248,7 +1005,6 @@
             "name": "proposer",
             "required": false,
             "in": "query",
-            "description": "0x-prefixed proposer address",
             "schema": {
               "type": "string"
             }
@@ -1258,7 +1014,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "boolean"
+              "type": "string"
             }
           },
           {
@@ -1480,9 +1236,8 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited sort fields (prefix with - for desc)",
+            "description": "Comma-delimited sort fields (prefix with - for desc). Allowed: voting_starts_at, voting_ends_at, created_at, state_updated_at.",
             "schema": {
-              "example": "slug,-created_at",
               "type": "string"
             }
           },
@@ -1499,24 +1254,7 @@
             "name": "state",
             "required": false,
             "in": "query",
-            "description": "Comma-delimited proposal states",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "source_type",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "proposer",
-            "required": false,
-            "in": "query",
-            "description": "0x-prefixed proposer address",
+            "description": "Comma-delimited state values",
             "schema": {
               "type": "string"
             }
@@ -1526,7 +1264,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "boolean"
+              "type": "string"
             }
           },
           {
