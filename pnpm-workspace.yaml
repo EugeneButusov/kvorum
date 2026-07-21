@@ -26,6 +26,10 @@ overrides:
   'express>qs': '6.15.2'
   'body-parser>qs': '6.15.2'
   'superagent>qs': '6.15.2'
+  # js-yaml: @nestjs/swagger pulls 4.1.1 and dev tooling 4.2.0 (both vulnerable,
+  # GHSA-52cp-r559-cp3m — YAML merge-key chains force quadratic CPU). Rewrite exactly the
+  # vulnerable range to the patched 4.x release; a 3.x/5.x consumer, if one appears, is untouched.
+  'js-yaml@>=4.0.0 <4.3.0': '4.3.0'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
