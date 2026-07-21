@@ -7,6 +7,9 @@ export interface PromptFrontmatter {
   model: string;
   schema: string;
   description: string;
+  /** Optional AI feature this template serves, decoupled from `name` (#437). Absent → the feature
+   *  IS the name (single-template case). Lets N template variants roll up to one feature. */
+  feature?: string;
 }
 
 export interface PromptTemplate<T = unknown> {
@@ -16,6 +19,8 @@ export interface PromptTemplate<T = unknown> {
   schema: ZodType<T>;
   description: string;
   body: string;
+  /** See PromptFrontmatter.feature. `render()` uses `feature ?? name` as the request feature. */
+  feature?: string;
 }
 
 export interface RenderedPrompt<T = unknown> {

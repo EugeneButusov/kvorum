@@ -23,6 +23,7 @@ export function defineTemplates(defs: TemplateDef[]): TemplateRegistry {
       schema: def.schema,
       description: frontmatter.description,
       body,
+      feature: frontmatter.feature,
     });
   }
   return registry;

@@ -27,6 +27,15 @@ describe('render', () => {
     expect(r.schema).toBe(schema);
   });
 
+  it('uses template.feature as the request feature, decoupled from name', () => {
+    const r = render(
+      template({ name: 'proposal_summarizer_signaling', feature: 'proposal_summarizer' }),
+      { name: 'Ada', place: 'Kvorum' },
+    );
+    expect(r.feature).toBe('proposal_summarizer');
+    expect(r.promptVersion).toBe('v1.0');
+  });
+
   it('throws PromptRenderError naming every missing var', () => {
     try {
       render(template(), { name: 'Ada' });

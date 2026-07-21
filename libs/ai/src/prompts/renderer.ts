@@ -39,7 +39,9 @@ export function render<T>(
 ): RenderedPrompt<T> {
   const content = interpolate(template.body, vars);
   return {
-    feature: template.name,
+    // Feature is decoupled from the template name (#437): variants (e.g. binding vs signaling
+    // summarizer) declare a shared `feature` while keeping distinct names. Absent → feature = name.
+    feature: template.feature ?? template.name,
     promptVersion: template.version,
     model: template.model,
     schema: template.schema,

@@ -39,6 +39,14 @@ describe('parseFrontmatter', () => {
     expect(() => parseFrontmatter(raw)).toThrow(/unknown frontmatter key: "extra"/);
   });
 
+  it('parses the optional "feature" key when present', () => {
+    const raw = VALID.replace(
+      'name: fixture_greeting\n',
+      'name: fixture_greeting\nfeature: proposal_summarizer\n',
+    );
+    expect(parseFrontmatter(raw).frontmatter.feature).toBe('proposal_summarizer');
+  });
+
   it('throws on a duplicate key', () => {
     const raw = VALID.replace('version: v1.0\n', 'version: v1.0\nversion: v9\n');
     expect(() => parseFrontmatter(raw)).toThrow(/duplicate frontmatter key: "version"/);

@@ -87,7 +87,7 @@ export class ProposalSummaryBatchService {
   }
 
   private async submit(): Promise<void> {
-    const candidates = await this.proposals.findBindingInStates(SUMMARY_STATES, MAX_CANDIDATES);
+    const candidates = await this.proposals.findSummaryCandidates(SUMMARY_STATES, MAX_CANDIDATES);
     const items = new Map<string, PendingItem>();
     const batchItems: FacadeBatchItem<unknown>[] = [];
 

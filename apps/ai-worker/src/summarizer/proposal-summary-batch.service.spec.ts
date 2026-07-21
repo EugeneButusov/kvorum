@@ -53,7 +53,7 @@ function deps(over: {
   const llm = new FakeLlm(over.fetches ?? []);
   const service = new ProposalSummaryBatchService(
     llm,
-    { findBindingInStates: async () => over.candidates ?? [] } as never,
+    { findSummaryCandidates: async () => over.candidates ?? [] } as never,
     {
       assemble: async () => ({
         rendered: rendered(),
@@ -148,7 +148,7 @@ describe('ProposalSummaryBatchService', () => {
     ]);
     const service = new ProposalSummaryBatchService(
       llm,
-      { findBindingInStates: async () => [PROPOSAL] } as never,
+      { findSummaryCandidates: async () => [PROPOSAL] } as never,
       {
         assemble: async () => ({
           rendered: rendered(),

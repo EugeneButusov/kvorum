@@ -50,6 +50,10 @@ export interface ProposalSourceLookupInput {
   sourceId: string;
 }
 
+// Non-binding source types that the M5-2 summarizer still summarizes (Snapshot signaling). Today
+// Snapshot is the only non-binding source; a second one would be added here (see plan-m5-2.2).
+const SIGNALING_SOURCE_TYPES = ['snapshot'] as const;
+
 export class ProposalRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -252,20 +256,29 @@ export class ProposalRepository {
   }
 
   /**
-   * Binding proposals currently in the given states, oldest-transition first, capped at `limit`.
-   * The worklist for the M5-2 summarizer batch driver; the precise per-proposal cache dedup
-   * (against `ai_output`) happens in the worker, not here.
+   * Summarizer worklist (M5-2.2): proposals in the given states that are either binding on-chain
+   * proposals OR non-binding signaling proposals from a signaling source (Snapshot). Oldest-
+   * transition first, capped at `limit`. Template routing (binding vs signaling) and the per-
+   * proposal cache dedup happen in the worker; this is just the candidate scan.
    */
-  async findBindingInStates(states: ProposalState[], limit: number): Promise<Proposal[]> {
+  async findSummaryCandidates(states: ProposalState[], limit: number): Promise<Proposal[]> {
     if (states.length === 0) return [];
     return this.db
       .selectFrom('proposal')
       .selectAll()
-      .where('binding', '=', true)
       .where('state', 'in', states)
+      .where((eb) =>
+        eb.or([eb('binding', '=', true), eb('source_type', 'in', [...SIGNALING_SOURCE_TYPES])]),
+      )
       .orderBy('state_updated_at', 'asc')
       .limit(limit)
       .execute();
+  }
+
+  /** Fetch a single proposal by primary key. Used by the real-time summarizer handler, which
+   *  receives only the `proposal:<id>` entity ref off the queue. */
+  async findById(id: string): Promise<Proposal | undefined> {
+    return this.db.selectFrom('proposal').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {
