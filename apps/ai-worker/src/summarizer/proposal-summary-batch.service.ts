@@ -7,6 +7,7 @@ import {
   AiOutputRepository,
   buildProvenance,
   computeInputHash,
+  ProposalSummaryScanRepository,
   SystemClock,
   type BatchHandle,
   type Clock,
@@ -18,7 +19,6 @@ import {
   type LLMClient,
   type ProposalSummary,
 } from '@libs/ai';
-import { ProposalRepository } from '@libs/db';
 import type { ProposalState } from '@libs/db';
 import { readPositiveInt } from '@libs/utils';
 import { ProposalSummaryAssembler } from './proposal-summary.assembler';
@@ -44,8 +44,9 @@ interface InFlightBatch {
 
 /**
  * Self-healing, in-process batch driver for proposal summaries (SPEC §5.5). On each tick: if idle,
- * scan binding proposals lacking a current summary, submit one Anthropic batch; if a batch is in
- * flight, poll it and, once ended, validate + persist each result (or dead-letter it). Inert unless
+ * scan summary-candidate proposals (binding + signaling) lacking a current summary, submit one
+ * Anthropic batch; if a batch is in flight, poll it and, once ended, validate + persist each result
+ * (or dead-letter it). Inert unless
  * the feature is enabled and its budget is not disabled. A restart drops in-flight state; the next
  * scan re-submits the un-summarized proposals (output is never wrong).
  */
@@ -58,7 +59,7 @@ export class ProposalSummaryBatchService {
 
   constructor(
     @Inject(LLM_CLIENT) private readonly llm: LLMClient,
-    private readonly proposals: ProposalRepository,
+    private readonly scan: ProposalSummaryScanRepository,
     private readonly assembler: ProposalSummaryAssembler,
     private readonly outputs: AiOutputRepository,
     private readonly cache: AiCompletionCache,
@@ -87,7 +88,7 @@ export class ProposalSummaryBatchService {
   }
 
   private async submit(): Promise<void> {
-    const candidates = await this.proposals.findBindingInStates(SUMMARY_STATES, MAX_CANDIDATES);
+    const candidates = await this.scan.findCandidates(SUMMARY_STATES, MAX_CANDIDATES);
     const items = new Map<string, PendingItem>();
     const batchItems: FacadeBatchItem<unknown>[] = [];
 

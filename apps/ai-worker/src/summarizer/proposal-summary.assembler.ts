@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  PROPOSAL_SUMMARY_SIGNALING_TEMPLATE,
   PROPOSAL_SUMMARY_TEMPLATE,
   render,
   type CostContext,
@@ -38,7 +39,13 @@ export class ProposalSummaryAssembler {
 
   async assemble(proposal: Proposal): Promise<AssembledSummaryInput> {
     const actions = await this.proposals.findActions(proposal.id);
-    const rendered = render(PROPOSAL_SUMMARY_TEMPLATE, {
+    // Route by `binding`: on-chain binding proposals get the binding template; non-binding
+    // (Snapshot signaling) get the signaling-tuned variant. Both share the proposal_summarizer
+    // feature and the same inputContent/cache-key contract.
+    const template = proposal.binding
+      ? PROPOSAL_SUMMARY_TEMPLATE
+      : PROPOSAL_SUMMARY_SIGNALING_TEMPLATE;
+    const rendered = render(template, {
       description: proposal.description,
       decoded_actions: serializeDecodedActions(actions),
     });

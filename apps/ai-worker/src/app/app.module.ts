@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  ProposalSummaryScanRepository,
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
@@ -22,6 +23,7 @@ import { AiJobQueueService } from '../queue/ai-job-queue.service';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
 import { ProposalSummaryBatchService } from '../summarizer/proposal-summary-batch.service';
 import { ProposalSummaryAssembler } from '../summarizer/proposal-summary.assembler';
+import { ProposalSummaryHandler } from '../summarizer/proposal-summary.handler';
 import { AiBatchCycleService } from '../trigger/ai-batch-cycle.service';
 import { AiTriggerConfig } from '../trigger/ai-trigger-config';
 import { AiTriggerScanService } from '../trigger/ai-trigger-scan.service';
@@ -50,6 +52,10 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
+    {
+      provide: ProposalSummaryScanRepository,
+      useFactory: () => new ProposalSummaryScanRepository(pgDb),
+    },
     { provide: LLM_CLIENT, useFactory: createWorkerLlmClient },
     {
       provide: AiCompletionCache,
@@ -58,6 +64,8 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     },
     ProposalSummaryAssembler,
     ProposalSummaryBatchService,
+    // Real-time urgent-summary handler; self-registers with AiFeatureHandlerRegistry on init.
+    ProposalSummaryHandler,
   ],
 })
 export class AppModule {}

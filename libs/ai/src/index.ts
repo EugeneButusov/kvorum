@@ -7,13 +7,17 @@ export * from './llm/fake-provider.js';
 export * from './llm/providers/anthropic-provider.js';
 export * from './llm/providers/openai-embedding-provider.js';
 export * from './prompts/index.js';
-export { PROPOSAL_SUMMARY_TEMPLATE } from './prompts/proposal-summary-template.js';
+export {
+  PROPOSAL_SUMMARY_TEMPLATE,
+  PROPOSAL_SUMMARY_SIGNALING_TEMPLATE,
+} from './prompts/proposal-summary-template.js';
 export * from './schemas/proposal-summary.js';
 export * from './persistence/schema.js';
 export { AiOutputRepository } from './persistence/ai-output-repository.js';
 export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';
 export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
 export { AiJobDlqRepository } from './persistence/ai-job-dlq-repository.js';
+export { ProposalSummaryScanRepository } from './persistence/proposal-summary-scan-repository.js';
 export {
   AiCompletionCache,
   type CostContext,

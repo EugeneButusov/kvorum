@@ -78,4 +78,21 @@ describe('ProposalSummaryAssembler', () => {
     const { rendered } = await assembler.assemble(proposal());
     expect(rendered.inputContent).toContain('"decoded_actions":"[]"');
   });
+
+  it('routes a binding proposal to the binding template', async () => {
+    const assembler = new ProposalSummaryAssembler(fakeReads([]));
+    const { rendered } = await assembler.assemble(proposal({ binding: true }));
+    expect(rendered.feature).toBe('proposal_summarizer');
+    expect(rendered.messages[0]?.content).toContain('binding governance proposal');
+    expect(rendered.messages[0]?.content).not.toContain('non-binding signaling proposal');
+  });
+
+  it('routes a non-binding proposal to the signaling template, still one feature', async () => {
+    const assembler = new ProposalSummaryAssembler(fakeReads([]));
+    const { rendered } = await assembler.assemble(
+      proposal({ binding: false, source_type: 'snapshot' }),
+    );
+    expect(rendered.feature).toBe('proposal_summarizer');
+    expect(rendered.messages[0]?.content).toContain('non-binding signaling proposal');
+  });
 });

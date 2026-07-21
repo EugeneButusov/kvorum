@@ -251,21 +251,10 @@ export class ProposalRepository {
       .execute();
   }
 
-  /**
-   * Binding proposals currently in the given states, oldest-transition first, capped at `limit`.
-   * The worklist for the M5-2 summarizer batch driver; the precise per-proposal cache dedup
-   * (against `ai_output`) happens in the worker, not here.
-   */
-  async findBindingInStates(states: ProposalState[], limit: number): Promise<Proposal[]> {
-    if (states.length === 0) return [];
-    return this.db
-      .selectFrom('proposal')
-      .selectAll()
-      .where('binding', '=', true)
-      .where('state', 'in', states)
-      .orderBy('state_updated_at', 'asc')
-      .limit(limit)
-      .execute();
+  /** Fetch a single proposal by primary key. Used by the real-time summarizer handler, which
+   *  receives only the `proposal:<id>` entity ref off the queue. */
+  async findById(id: string): Promise<Proposal | undefined> {
+    return this.db.selectFrom('proposal').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {

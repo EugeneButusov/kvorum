@@ -1,6 +1,9 @@
 import { PromptTemplateError, type PromptFrontmatter } from './types.js';
 
 const REQUIRED_KEYS = ['name', 'version', 'model', 'schema', 'description'] as const;
+// Optional keys accepted in frontmatter but not required. `feature` (#437) decouples the AI
+// feature from the template name so template variants can share one feature.
+const OPTIONAL_KEYS = ['feature'] as const;
 type RequiredKey = (typeof REQUIRED_KEYS)[number];
 
 export interface ParsedTemplate {
@@ -50,7 +53,7 @@ export function parseFrontmatter(raw: string): ParsedTemplate {
   const body = normalized.slice(closeIdx + 4).replace(/^\n/, '');
 
   const parsed = new Map<string, string>();
-  const allowed = new Set<string>(REQUIRED_KEYS);
+  const allowed = new Set<string>([...REQUIRED_KEYS, ...OPTIONAL_KEYS]);
   for (const line of block.split('\n')) {
     if (line.trim() === '') continue;
     const sep = line.indexOf(': ');
@@ -75,6 +78,7 @@ export function parseFrontmatter(raw: string): ParsedTemplate {
       model: requireKey(parsed, 'model'),
       schema: requireKey(parsed, 'schema'),
       description: requireKey(parsed, 'description'),
+      feature: parsed.get('feature'),
     },
     body,
   };
