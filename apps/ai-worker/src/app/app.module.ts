@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  ProposalSummaryScanRepository,
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
@@ -51,6 +52,10 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
+    {
+      provide: ProposalSummaryScanRepository,
+      useFactory: () => new ProposalSummaryScanRepository(pgDb),
+    },
     { provide: LLM_CLIENT, useFactory: createWorkerLlmClient },
     {
       provide: AiCompletionCache,

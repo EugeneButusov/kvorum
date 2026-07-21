@@ -17,6 +17,7 @@ export { AiOutputRepository } from './persistence/ai-output-repository.js';
 export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';
 export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
 export { AiJobDlqRepository } from './persistence/ai-job-dlq-repository.js';
+export { ProposalSummaryScanRepository } from './persistence/proposal-summary-scan-repository.js';
 export {
   AiCompletionCache,
   type CostContext,

@@ -50,10 +50,6 @@ export interface ProposalSourceLookupInput {
   sourceId: string;
 }
 
-// Non-binding source types that the M5-2 summarizer still summarizes (Snapshot signaling). Today
-// Snapshot is the only non-binding source; a second one would be added here (see plan-m5-2.2).
-const SIGNALING_SOURCE_TYPES = ['snapshot'] as const;
-
 export class ProposalRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
@@ -252,26 +248,6 @@ export class ProposalRepository {
     await this.db
       .insertInto('proposal_choice')
       .values(choices.map((choice) => ({ ...choice, proposal_id: proposalId })))
-      .execute();
-  }
-
-  /**
-   * Summarizer worklist (M5-2.2): proposals in the given states that are either binding on-chain
-   * proposals OR non-binding signaling proposals from a signaling source (Snapshot). Oldest-
-   * transition first, capped at `limit`. Template routing (binding vs signaling) and the per-
-   * proposal cache dedup happen in the worker; this is just the candidate scan.
-   */
-  async findSummaryCandidates(states: ProposalState[], limit: number): Promise<Proposal[]> {
-    if (states.length === 0) return [];
-    return this.db
-      .selectFrom('proposal')
-      .selectAll()
-      .where('state', 'in', states)
-      .where((eb) =>
-        eb.or([eb('binding', '=', true), eb('source_type', 'in', [...SIGNALING_SOURCE_TYPES])]),
-      )
-      .orderBy('state_updated_at', 'asc')
-      .limit(limit)
       .execute();
   }
 
