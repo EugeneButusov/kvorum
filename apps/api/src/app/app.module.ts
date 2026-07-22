@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AiOutputRepository } from '@libs/ai';
-import { pgDb } from '@libs/db';
 import { SOURCE_READ_EXTENSIONS, type SourceReadExtension } from '@libs/domain';
 import { ActorsModule } from '@nest/actors';
 import { AnalyticsModule } from '@nest/analytics';
@@ -28,7 +26,7 @@ import { DaoController } from '../daos/dao.controller';
 import { DelegationsController } from '../delegations/delegations.controller';
 import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
-import { AiSummaryReadService } from '../proposals/ai-summary-read.service';
+import { AiSummaryModule } from '../proposals/ai-summary.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { VotesController } from '../votes/votes.controller';
@@ -44,6 +42,7 @@ import { VotesController } from '../votes/votes.controller';
     HttpModule,
     ObservabilityModule,
     ProposalModule,
+    AiSummaryModule,
     RateLimitModule,
     SourcesModule,
     SourceApiModule,
@@ -69,10 +68,6 @@ import { VotesController } from '../votes/votes.controller';
     AppService,
     OpsServer,
     ActorRoutingService,
-    // AI summary read path (#438): content-hash lookup against ai_output for the proposal detail
-    // field + the dedicated /ai/summary endpoint. pgDb is the shared Kysely singleton.
-    { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
-    AiSummaryReadService,
     // Source-blind: flatten each source plugin's readExtension into the collection
     // that controllers dispatch over via the @libs/domain resolve helpers.
     {
