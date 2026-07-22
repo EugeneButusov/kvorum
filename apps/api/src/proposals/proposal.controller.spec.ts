@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import type { SourceReadExtension } from '@libs/domain';
+import type { AiSummaryReadService } from './ai-summary-read.service';
 import { ProposalController } from './proposal.controller';
 import { ProblemException } from '../http/problem-exception';
 import type { ApiListQueryDto } from '../openapi/query.dto';
@@ -600,5 +601,92 @@ describe('ProposalController', () => {
         controller.tally('compound', 'compound_governor_bravo', '999'),
       ).rejects.toBeInstanceOf(ProblemException);
     });
+  });
+});
+
+describe('ProposalController — ai_summary', () => {
+  const aiOutputRow = {
+    id: 'o1',
+    feature_name: 'proposal_summarizer',
+    prompt_version: 'v1.0',
+    input_hash: 'sha256:abc',
+    model: 'claude-haiku-4-5',
+    output: {
+      tldr: 'Raise the reserve factor.',
+      proposal_type: 'parameter_change',
+      affected_contracts: ['0xc3'],
+    },
+    cost_usd: '0.002000',
+    generated_at: new Date('2026-04-12T08:30:00Z'),
+    source_provenance: {},
+  };
+
+  function detailRepo(over: Record<string, unknown> = {}) {
+    return {
+      findOne: vi.fn().mockResolvedValue(baseProposalRow),
+      findActions: vi.fn().mockResolvedValue([]),
+      findChoices: vi.fn().mockResolvedValue([]),
+      resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
+      ...over,
+    };
+  }
+
+  function controllerWith(
+    reader: { findForProposal: ReturnType<typeof vi.fn> },
+    repoOver: Record<string, unknown> = {},
+  ): ProposalController {
+    return new ProposalController(
+      detailRepo(repoOver) as unknown as ProposalReadRepository,
+      { findDaoBySlug: vi.fn() } as unknown as DaoReadRepository,
+      makeVoteRepo(),
+      makeExtensions(),
+      reader as unknown as AiSummaryReadService,
+    );
+  }
+
+  it('embeds ai_summary with provenance _meta on detail when a summary exists', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(aiOutputRow) };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    const summary = (out.data as Record<string, unknown>)['ai_summary'] as Record<string, unknown>;
+    expect(summary['tldr']).toBe('Raise the reserve factor.');
+    expect(summary['_meta']).toEqual({
+      ai_generated: true,
+      model: 'claude-haiku-4-5',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:abc',
+      generated_at: '2026-04-12T08:30:00Z',
+    });
+    // hashed from the proposal's own description + (empty) actions
+    expect(reader.findForProposal).toHaveBeenCalledWith('desc', []);
+  });
+
+  it('sets ai_summary null on detail when no summary exists', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(null) };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    expect((out.data as Record<string, unknown>)['ai_summary']).toBeNull();
+  });
+
+  it('dedicated endpoint returns the summary block when present', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(aiOutputRow) };
+    const out = await controllerWith(reader).aiSummary('compound', 'compound_governor_bravo', '42');
+    expect((out.data as Record<string, unknown>)['tldr']).toBe('Raise the reserve factor.');
+    expect((out.data as Record<string, unknown>)['_meta']).toMatchObject({ ai_generated: true });
+  });
+
+  it('dedicated endpoint 404s when the proposal is missing', async () => {
+    const controller = controllerWith(
+      { findForProposal: vi.fn() },
+      { findOne: vi.fn().mockResolvedValue(undefined) },
+    );
+    await expect(
+      controller.aiSummary('compound', 'compound_governor_bravo', '999'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('dedicated endpoint 404s when the proposal has no summary', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(null) };
+    await expect(
+      controllerWith(reader).aiSummary('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
   });
 });

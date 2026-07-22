@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Proposal, ProposalAction, ProposalReadRepository } from '@libs/db';
-import { ProposalSummaryAssembler, serializeDecodedActions } from './proposal-summary.assembler';
+import { ProposalSummaryAssembler } from './proposal-summary.assembler';
 
 function proposal(overrides: Partial<Proposal> = {}): Proposal {
   return {
@@ -52,17 +52,6 @@ function fakeReads(actions: ProposalAction[]): ProposalReadRepository {
 }
 
 describe('ProposalSummaryAssembler', () => {
-  it('serializeDecodedActions is "[]" for no actions', () => {
-    expect(serializeDecodedActions([])).toBe('[]');
-  });
-
-  it('serializeDecodedActions is canonical and sorted by action_index', () => {
-    const json = serializeDecodedActions([action(1), action(0)]);
-    const parsed = JSON.parse(json) as { action_index: number }[];
-    expect(parsed.map((a) => a.action_index)).toEqual([0, 1]);
-    expect(parsed[0]).toHaveProperty('decoded_function', 'setReserveFactor');
-  });
-
   it('assembles a RenderedPrompt + CostContext with actions', async () => {
     const assembler = new ProposalSummaryAssembler(fakeReads([action(0)]));
     const { rendered, ctx } = await assembler.assemble(proposal());

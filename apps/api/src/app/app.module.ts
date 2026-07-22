@@ -26,6 +26,7 @@ import { DaoController } from '../daos/dao.controller';
 import { DelegationsController } from '../delegations/delegations.controller';
 import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
+import { AiSummaryModule } from '../proposals/ai-summary.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { VotesController } from '../votes/votes.controller';
@@ -41,6 +42,7 @@ import { VotesController } from '../votes/votes.controller';
     HttpModule,
     ObservabilityModule,
     ProposalModule,
+    AiSummaryModule,
     RateLimitModule,
     SourcesModule,
     SourceApiModule,

@@ -62,6 +62,11 @@ module.exports = {
         options: { configFile: path.join(__dirname, 'tsconfig.app.json') },
         exclude: /node_modules/,
       },
+      {
+        // @libs/ai's prompt templates are imported as `*.md?raw` (inlined verbatim).
+        resourceQuery: /raw/,
+        type: 'asset/source',
+      },
     ],
   },
   externals: [

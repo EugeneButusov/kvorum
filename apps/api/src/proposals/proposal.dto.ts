@@ -126,6 +126,66 @@ export class ProposalListItemDto {
   declare _meta: ProposalMetaDto;
 }
 
+export class ProposalAiSummaryMetaDto {
+  @ApiProperty({ example: true, description: 'Always true — labels AI-generated content.' })
+  declare ai_generated: boolean;
+
+  @ApiProperty()
+  declare model: string;
+
+  @ApiProperty()
+  declare prompt_version: string;
+
+  @ApiProperty({ description: 'sha256: of the summarized input (description + decoded actions).' })
+  declare input_hash: string;
+
+  @ApiProperty()
+  declare generated_at: string;
+}
+
+export class ProposalAiSummaryKeyChangeDto {
+  @ApiProperty()
+  declare description: string;
+
+  @ApiProperty({ description: 'high | medium | low' })
+  declare significance: string;
+}
+
+// SPEC §5.4/§5.5 — the stored ProposalSummary plus a provenance `_meta` block.
+export class ProposalAiSummaryDto {
+  @ApiProperty()
+  declare tldr: string;
+
+  @ApiProperty()
+  declare proposal_type: string;
+
+  @ApiProperty({ description: 'high | medium | low' })
+  declare proposal_type_confidence: string;
+
+  @ApiProperty({ type: [String] })
+  declare affected_contracts: string[];
+
+  @ApiProperty({ type: [ProposalAiSummaryKeyChangeDto] })
+  declare key_changes: ProposalAiSummaryKeyChangeDto[];
+
+  @ApiPropertyOptional({ type: [String] })
+  declare beneficiaries?: string[];
+
+  @ApiProperty({ nullable: true, type: String })
+  declare funding_amount_usd: string | null;
+
+  @ApiPropertyOptional({ type: [String] })
+  declare notable_concerns?: string[];
+
+  @ApiProperty({ type: ProposalAiSummaryMetaDto })
+  declare _meta: ProposalAiSummaryMetaDto;
+}
+
+export class ProposalAiSummaryResponseDto {
+  @ApiProperty({ type: ProposalAiSummaryDto })
+  declare data: ProposalAiSummaryDto;
+}
+
 @ApiExtraModels(...PROPOSAL_METADATA_DTOS)
 export class ProposalDetailDto extends ProposalListItemDto {
   @ApiProperty()
@@ -154,6 +214,13 @@ export class ProposalDetailDto extends ProposalListItemDto {
 
   @ApiProperty({ type: () => [OffchainDiscussionLinkDto] })
   declare offchain_discussion_links: OffchainDiscussionLinkDto[];
+
+  @ApiPropertyOptional({
+    type: ProposalAiSummaryDto,
+    nullable: true,
+    description: 'AI-generated summary + provenance _meta; null when not yet produced or capped.',
+  })
+  declare ai_summary: ProposalAiSummaryDto | null;
 }
 
 export class ProposalDetailResponseDto {
