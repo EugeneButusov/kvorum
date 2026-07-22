@@ -1,3 +1,4 @@
+import type { AiOutput, ProposalSummary } from '@libs/ai';
 import type { ProposalAction, ProposalChoice } from '@libs/db';
 import type {
   OffchainDiscussionLinkView,
@@ -12,6 +13,8 @@ import {
 } from '@nest/sources';
 import {
   ProposalActionDto,
+  ProposalAiSummaryDto,
+  ProposalAiSummaryMetaDto,
   ProposalDetailDto,
   ProposalListItemDto,
   type ProposalTallySummaryDto,
@@ -61,6 +64,20 @@ export function toProposalActionDto(action: ProposalAction): ProposalActionDto {
   });
 }
 
+/** Map a stored `ai_output` row into the API's `ai_summary` block: the ProposalSummary payload plus
+ *  a provenance `_meta` (SPEC §5.4). */
+export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
+  return Object.assign(new ProposalAiSummaryDto(), output.output as ProposalSummary, {
+    _meta: Object.assign(new ProposalAiSummaryMetaDto(), {
+      ai_generated: true,
+      model: output.model,
+      prompt_version: output.prompt_version,
+      input_hash: output.input_hash,
+      generated_at: isoSeconds(output.generated_at),
+    }),
+  });
+}
+
 export function toProposalDetailDto(
   row: ProposalDetailRow,
   actions: ProposalAction[],
@@ -68,6 +85,7 @@ export function toProposalDetailDto(
   originChainId: string,
   extension: ProposalExtension | null,
   offchainDiscussionLinks: readonly OffchainDiscussionLinkView[],
+  aiSummary: AiOutput | null,
 ): ProposalDetailDto {
   const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
@@ -100,6 +118,7 @@ export function toProposalDetailDto(
         last_activity_at: link.last_activity_at,
       }),
     ),
+    ai_summary: aiSummary === null ? null : toAiSummaryDto(aiSummary),
     _meta: proposalMeta(row),
   });
 

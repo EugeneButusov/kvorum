@@ -15,7 +15,9 @@
     "openapi:generate": "GENERATE_OPENAPI=1 NEST_HTTP_TESTS=1 OPS_PORT=19095 CURSOR_SECRET=openapi-generate-secret DATABASE_URL=postgresql://kvorum:kvorum@localhost:55432/kvorum REDIS_URL=redis://localhost:56379 vitest run -c vitest.e2e.config.mts tests/openapi.generate.e2e.spec.ts"
   },
   "dependencies": {
+    "@libs/ai": "workspace:*",
     "@libs/auth": "workspace:*",
+    "@libs/db": "workspace:*",
     "@nest/actors": "workspace:*",
     "@nest/analytics": "workspace:*",
     "@nest/auth": "workspace:*",

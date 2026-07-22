@@ -50,6 +50,7 @@ export async function createRealApp(): Promise<INestApplication> {
 export async function resetDaoProposalApiTables(): Promise<void> {
   await sql`
     TRUNCATE TABLE
+      ai_output,
       proposal_choice,
       proposal_action,
       proposal,

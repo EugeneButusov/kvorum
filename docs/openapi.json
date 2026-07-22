@@ -1143,6 +1143,75 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/summary": {
+      "get": {
+        "operationId": "ProposalController_aiSummary",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalAiSummaryResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
       "get": {
         "operationId": "ProposalController_tally",
@@ -3143,6 +3212,98 @@
         },
         "required": ["platform", "host", "url", "confidence"]
       },
+      "ProposalAiSummaryKeyChangeDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "significance": {
+            "type": "string",
+            "description": "high | medium | low"
+          }
+        },
+        "required": ["description", "significance"]
+      },
+      "ProposalAiSummaryMetaDto": {
+        "type": "object",
+        "properties": {
+          "ai_generated": {
+            "type": "boolean",
+            "example": true,
+            "description": "Always true — labels AI-generated content."
+          },
+          "model": {
+            "type": "string"
+          },
+          "prompt_version": {
+            "type": "string"
+          },
+          "input_hash": {
+            "type": "string",
+            "description": "sha256: of the summarized input (description + decoded actions)."
+          },
+          "generated_at": {
+            "type": "string"
+          }
+        },
+        "required": ["ai_generated", "model", "prompt_version", "input_hash", "generated_at"]
+      },
+      "ProposalAiSummaryDto": {
+        "type": "object",
+        "properties": {
+          "tldr": {
+            "type": "string"
+          },
+          "proposal_type": {
+            "type": "string"
+          },
+          "proposal_type_confidence": {
+            "type": "string",
+            "description": "high | medium | low"
+          },
+          "affected_contracts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key_changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalAiSummaryKeyChangeDto"
+            }
+          },
+          "beneficiaries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "funding_amount_usd": {
+            "type": "string",
+            "nullable": true
+          },
+          "notable_concerns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ProposalAiSummaryMetaDto"
+          }
+        },
+        "required": [
+          "tldr",
+          "proposal_type",
+          "proposal_type_confidence",
+          "affected_contracts",
+          "key_changes",
+          "funding_amount_usd",
+          "_meta"
+        ]
+      },
       "ProposalDetailDto": {
         "type": "object",
         "properties": {
@@ -3246,6 +3407,16 @@
             "items": {
               "$ref": "#/components/schemas/OffchainDiscussionLinkDto"
             }
+          },
+          "ai_summary": {
+            "nullable": true,
+            "description": "AI-generated summary + provenance _meta; null when not yet produced or capped.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProposalAiSummaryDto"
+              }
+            ]
           }
         },
         "required": [
@@ -3271,6 +3442,15 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ProposalDetailDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "ProposalAiSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalAiSummaryDto"
           }
         },
         "required": ["data"]

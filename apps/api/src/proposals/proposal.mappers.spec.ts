@@ -56,6 +56,7 @@ describe('proposal.mappers', () => {
       '0x1',
       null,
       [],
+      null,
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
@@ -86,16 +87,24 @@ describe('proposal.mappers', () => {
         flagged: false,
       },
     };
-    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [
-      {
-        platform: 'discourse',
-        host: 'research.lido.fi',
-        url: 'https://research.lido.fi/t/123',
-        title: 'Proposal discussion',
-        confidence: 'high',
-        last_activity_at: '2026-05-15T09:00:00Z',
-      },
-    ]);
+    const dto = toProposalDetailDto(
+      row,
+      [],
+      [],
+      '0x1',
+      extension,
+      [
+        {
+          platform: 'discourse',
+          host: 'research.lido.fi',
+          url: 'https://research.lido.fi/t/123',
+          title: 'Proposal discussion',
+          confidence: 'high',
+          last_activity_at: '2026-05-15T09:00:00Z',
+        },
+      ],
+      null,
+    );
 
     expect(dto.metadata).toEqual(extension.metadata);
     expect(dto.offchain_discussion_links).toHaveLength(1);
@@ -147,7 +156,7 @@ describe('proposal.mappers', () => {
       metadata: null,
     };
 
-    const dto = toProposalDetailDto(row, [], [], '0x1', extension, []);
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [], null);
     expect(dto.origin_chain_id).toBe('0x1');
     expect(dto.voting).toEqual(extension.voting);
     expect(dto.payloads).toHaveLength(2);

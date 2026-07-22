@@ -387,9 +387,15 @@ importers:
 
   apps/api:
     dependencies:
+      '@libs/ai':
+        specifier: workspace:*
+        version: link:../../libs/ai
       '@libs/auth':
         specifier: workspace:*
         version: link:../../libs/auth
+      '@libs/db':
+        specifier: workspace:*
+        version: link:../../libs/db
       '@nest/actors':
         specifier: workspace:*
         version: link:../../nest/actors
