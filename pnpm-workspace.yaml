@@ -30,6 +30,10 @@ overrides:
   # GHSA-52cp-r559-cp3m — YAML merge-key chains force quadratic CPU). Rewrite exactly the
   # vulnerable range to the patched 4.x release; a 3.x/5.x consumer, if one appears, is untouched.
   'js-yaml@>=4.0.0 <4.3.0': '4.3.0'
+  # sharp: next pulls 0.34.5 (vulnerable via bundled libvips, GHSA-f88m-g3jw-g9cj —
+  # CVE-2026-33327/33328/35590/35591). Rewrite the vulnerable range to the patched 0.35.x line
+  # (same major, next's image-optimization API is unaffected).
+  'sharp@<0.35.0': '0.35.3'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
