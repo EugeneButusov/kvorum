@@ -43,6 +43,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_summary": null,
     "binding": true,
     "choices": [
       {
@@ -671,7 +672,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "aave-concentration": null,
   "aave-delegate-alignment": null,
   "aave-delegation-flow": ""7E6lin7FRPEAF115ug5y1Pv2KXI"",
-  "aave-proposal-detail": ""ObqQBKTvUi6-Ndhy_R8wMvyp_e4"",
+  "aave-proposal-detail": ""xJOx6hQoiH0OdkKVXC7M4CINJVI"",
   "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
   "aave-proposals-list": ""HJQCEg8tQx2trR76B__-1p07GRo"",
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
@@ -682,12 +683,12 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "dao-proposals-list": ""h9H_se154XngymNNiitjlRe2pUk"",
   "dao-sources": ""lHkveUj1_T9XP9b3L7wyayzxv8k"",
   "daos-list": ""K3GdscfRwAyzVbs-REYRqs-jM3c"",
-  "lido-aragon-proposal-detail": ""kFgYOUSvjMyvaa9PzKWGr7WLU7c"",
+  "lido-aragon-proposal-detail": ""3Qs2aJQJYUE74MQYHrX_TEnxthk"",
   "lido-proposals-list": ""6BTU9-2Xpo59eAYiSdN9tP70TyM"",
-  "lido-snapshot-proposal-detail": ""CEEpdLYWmYRJAkkG3Sj9uVK7KP0"",
+  "lido-snapshot-proposal-detail": ""JkVH8eCmvRQ_Afv_sKSiXOaklh4"",
   "lido-snapshot-vote": ""ERMGzVrFHa90WUElGQaGAKkvmiE"",
   "lido-sources": ""d-p4pjaL6_WXzUxxMUUXlhIQDMY"",
-  "proposal-detail": ""ykOy-bvp0uxbASHr6XVDaeaGevQ"",
+  "proposal-detail": ""OYFgFTjT_m2PEWHfeb5O4dPYdl8"",
 }
 `;
 
@@ -703,6 +704,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_summary": null,
     "binding": true,
     "choices": [
       {
@@ -900,6 +902,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_summary": null,
     "binding": false,
     "choices": [
       {
@@ -1056,6 +1059,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "value_wei": "42",
       },
     ],
+    "ai_summary": null,
     "binding": true,
     "choices": [
       {
