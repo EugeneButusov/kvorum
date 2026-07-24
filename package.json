@@ -24,7 +24,6 @@
     "db:migrate:ch": "tsx libs/db/scripts/migrate-ch.mts",
     "db:reset": "tsx libs/db/scripts/migrate.mts reset",
     "db:seed:loadtest": "tsx libs/db/scripts/seed-load-test.mts",
-    "mismatch:eval": "tsx libs/ai/scripts/mismatch-eval.ts",
     "loadtest:m1": "node infra/load-tests/m1-proposals.js",
     "loadtest:analytics": "tsx apps/api/scripts/autocannon-analytics.ts"
   },

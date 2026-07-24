@@ -57,13 +57,16 @@ The <5% false-positive gate (AC #5) is measured by a harness, not asserted:
   `omitted_in_description`, `extra_in_description`, `misleading_phrasing`), and deliberately-vague
   cases the detector must return low-confidence on. v1 cases are **synthetic**; real historical
   proposals are added with the same shape (no code change) to strengthen the corpus.
-- **Harness** — `pnpm mismatch:eval` (`libs/ai/scripts/mismatch-eval.ts`, needs `ANTHROPIC_API_KEY`)
-  runs the prompt per case, applies `mismatchFlag`, and `scoreEval` (`libs/ai/src/eval/score.ts`)
-  computes `fpRate = fp/(fp+tn)`, `fnRate = fn/(fn+tp)`, and the seeded-catch rate. It **passes** iff
-  `fpRate < 5%` **and** every seeded discrepancy is caught. The scoring logic is unit-tested; the run
-  itself is real-LLM.
-- **Measured results** — _recorded from the operator's `pnpm mismatch:eval` run (pending a valid
-  `ANTHROPIC_API_KEY`)._ Because the v1 corpus is synthetic, the operator should augment it with real
+- **Harness** — the key-gated integration test `libs/ai/src/eval/mismatch-eval.integration.spec.ts`.
+  It skips without `ANTHROPIC_API_KEY` (so normal CI runs it for free as a no-op) and, with a key,
+  drives the **production** template + `render` + completion request per case — identical to
+  `MismatchAssembler`/`MismatchHandler` — applies `mismatchFlag`, and `scoreEval`
+  (`libs/ai/src/eval/score.ts`) computes `fpRate = fp/(fp+tn)`, `fnRate = fn/(fn+tp)`, and the
+  seeded-catch rate. It **passes** iff `fpRate < 5%` **and** every seeded discrepancy is caught. Run:
+  `ANTHROPIC_API_KEY=… pnpm --filter @libs/ai exec vitest run mismatch-eval.integration`. The scoring
+  logic is unit-tested; the run itself is real-LLM.
+- **Measured results** — _recorded from the operator's real-LLM run of the integration test above
+  (pending a valid `ANTHROPIC_API_KEY`)._ Because the v1 corpus is synthetic, the operator should augment it with real
   proposals before treating the gate as production-met, then record the run's `fpRate`, `fnRate`, and
   seeded-catch here and flip **Status → Accepted**. If the gate holds on Haiku, downgrade the model
   (§4) and note it.
