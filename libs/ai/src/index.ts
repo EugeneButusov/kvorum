@@ -11,14 +11,17 @@ export {
   PROPOSAL_SUMMARY_TEMPLATE,
   PROPOSAL_SUMMARY_SIGNALING_TEMPLATE,
 } from './prompts/proposal-summary-template.js';
+export { MISMATCH_DETECTOR_TEMPLATE } from './prompts/mismatch-detector-template.js';
 export * from './schemas/proposal-summary.js';
 export * from './schemas/proposal-summary-input.js';
+export * from './schemas/mismatch-analysis.js';
 export * from './persistence/schema.js';
 export { AiOutputRepository } from './persistence/ai-output-repository.js';
 export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';
 export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
 export { AiJobDlqRepository } from './persistence/ai-job-dlq-repository.js';
 export { ProposalSummaryScanRepository } from './persistence/proposal-summary-scan-repository.js';
+export { ProposalMismatchScanRepository } from './persistence/proposal-mismatch-scan-repository.js';
 export {
   AiCompletionCache,
   type CostContext,

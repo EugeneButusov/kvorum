@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
   type LLMClient,
 } from '@libs/ai';
@@ -19,6 +20,8 @@ import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
 import { AiJobConsumer } from '../consumer/ai-job.consumer';
 import { LLM_CLIENT, createWorkerLlmClient } from '../llm/llm.provider';
 import { AiQueueMetricsService } from '../metrics/ai-queue-metrics.service';
+import { MismatchAssembler } from '../mismatch/mismatch.assembler';
+import { MismatchHandler } from '../mismatch/mismatch.handler';
 import { AiJobQueueService } from '../queue/ai-job-queue.service';
 import { AI_QUEUE_PORT } from '../queue/ai-queue.port';
 import { ProposalSummaryBatchService } from '../summarizer/proposal-summary-batch.service';
@@ -56,6 +59,10 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       provide: ProposalSummaryScanRepository,
       useFactory: () => new ProposalSummaryScanRepository(pgDb),
     },
+    {
+      provide: ProposalMismatchScanRepository,
+      useFactory: () => new ProposalMismatchScanRepository(pgDb),
+    },
     { provide: LLM_CLIENT, useFactory: createWorkerLlmClient },
     {
       provide: AiCompletionCache,
@@ -66,6 +73,9 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     ProposalSummaryBatchService,
     // Real-time urgent-summary handler; self-registers with AiFeatureHandlerRegistry on init.
     ProposalSummaryHandler,
+    MismatchAssembler,
+    // Sync mismatch-detector handler (SPEC §5.6); self-registers with the handler registry on init.
+    MismatchHandler,
   ],
 })
 export class AppModule {}
