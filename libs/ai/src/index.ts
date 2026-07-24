@@ -15,6 +15,7 @@ export { MISMATCH_DETECTOR_TEMPLATE } from './prompts/mismatch-detector-template
 export * from './schemas/proposal-summary.js';
 export * from './schemas/proposal-summary-input.js';
 export * from './schemas/mismatch-analysis.js';
+export * from './schemas/mismatch-flag.js';
 export * from './persistence/schema.js';
 export { AiOutputRepository } from './persistence/ai-output-repository.js';
 export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';
