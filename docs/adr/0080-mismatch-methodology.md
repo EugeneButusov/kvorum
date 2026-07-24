@@ -47,6 +47,27 @@ The schema's `reasoning` field is the model's explanation, **stored and shown di
 
 `claude-sonnet-5` — mismatch detection is adversarial reasoning over two representations (prose vs decoded calldata), deeper than the summarizer's task, so the Sonnet tier is warranted (SPEC §5.6; the summarizer uses Haiku). Cost is ~$0.05/analysis, within the $20/month feature cap (ADR-079). The model is one line of template frontmatter plus provenance, so **#441's corpus is the deciding evidence** on whether Haiku reaches the <5% false-positive gate; if it does, downgrade there.
 
+## Validation (M5-3.3)
+
+The <5% false-positive gate (AC #5) is measured by a harness, not asserted:
+
+- **Corpus** — `libs/ai/src/eval/mismatch-corpus.ts`: ~20 labeled cases across Compound/Aave/Lido —
+  consistent proposals (including a routine-emission case and a `5%`↔`5e16` reformatting case that
+  must NOT flag), one seeded discrepancy per type (`value_mismatch`, `target_mismatch`,
+  `omitted_in_description`, `extra_in_description`, `misleading_phrasing`), and deliberately-vague
+  cases the detector must return low-confidence on. v1 cases are **synthetic**; real historical
+  proposals are added with the same shape (no code change) to strengthen the corpus.
+- **Harness** — `pnpm mismatch:eval` (`libs/ai/scripts/mismatch-eval.ts`, needs `ANTHROPIC_API_KEY`)
+  runs the prompt per case, applies `mismatchFlag`, and `scoreEval` (`libs/ai/src/eval/score.ts`)
+  computes `fpRate = fp/(fp+tn)`, `fnRate = fn/(fn+tp)`, and the seeded-catch rate. It **passes** iff
+  `fpRate < 5%` **and** every seeded discrepancy is caught. The scoring logic is unit-tested; the run
+  itself is real-LLM.
+- **Measured results** — _recorded from the operator's `pnpm mismatch:eval` run (pending a valid
+  `ANTHROPIC_API_KEY`)._ Because the v1 corpus is synthetic, the operator should augment it with real
+  proposals before treating the gate as production-met, then record the run's `fpRate`, `fnRate`, and
+  seeded-catch here and flip **Status → Accepted**. If the gate holds on Haiku, downgrade the model
+  (§4) and note it.
+
 ## Consequences
 
 - The trust posture is conservative by construction: users see a flag only for material/severe, confident findings; everything else is available but de-emphasized.
