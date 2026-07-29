@@ -92,6 +92,7 @@ export {
   ForumThreadReadRepository,
   type ForumThreadRead,
   type ForumThreadLinkedProposal,
+  type ForumThreadForSynthesis,
 } from './api/forum-thread-read-repository';
 
 // ── Metrics ─────────────────────────────────────────────────────────────────────

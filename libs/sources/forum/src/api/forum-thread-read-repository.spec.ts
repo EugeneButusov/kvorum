@@ -51,4 +51,55 @@ describe('ForumThreadReadRepository', () => {
     const out = await new ForumThreadReadRepository(mockPg(undefined, [])).getThread('lido', '999');
     expect(out).toBeUndefined();
   });
+
+  describe('getThreadById', () => {
+    it('shapes the synthesis input and picks the highest-confidence linked proposal title', async () => {
+      const db = mockPg(
+        {
+          id: 't1',
+          dao_id: 'dao-1',
+          title: 'Increase limit',
+          raw_content: 'body',
+          dao_slug: 'lido',
+          dao_name: 'Lido',
+        },
+        [
+          { title: 'Signal', confidence: 'medium' },
+          { title: 'Binding', confidence: 'high' },
+        ],
+      );
+
+      const out = await new ForumThreadReadRepository(db).getThreadById('t1');
+      expect(out).toEqual({
+        id: 't1',
+        daoId: 'dao-1',
+        daoSlug: 'lido',
+        daoName: 'Lido',
+        threadTitle: 'Increase limit',
+        rawContent: 'body',
+        linkedProposalTitle: 'Binding', // high beats medium
+      });
+    });
+
+    it('returns a null linkedProposalTitle when the thread has no links', async () => {
+      const db = mockPg(
+        {
+          id: 't2',
+          dao_id: 'dao-1',
+          title: 'Orphan',
+          raw_content: 'body',
+          dao_slug: 'lido',
+          dao_name: 'Lido',
+        },
+        [],
+      );
+      const out = await new ForumThreadReadRepository(db).getThreadById('t2');
+      expect(out?.linkedProposalTitle).toBeNull();
+    });
+
+    it('returns undefined when the thread is not found', async () => {
+      const out = await new ForumThreadReadRepository(mockPg(undefined, [])).getThreadById('nope');
+      expect(out).toBeUndefined();
+    });
+  });
 });
