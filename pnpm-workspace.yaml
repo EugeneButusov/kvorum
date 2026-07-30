@@ -18,8 +18,9 @@ packages:
 overrides:
   # pnpm 11 reads overrides from here, not package.json#pnpm.overrides.
   # ws: ethers pins 8.17.1 (vulnerable, GHSA-96hv-2xvq-fx4p); pin to the patched line.
-  # postcss: <=8.5.11 arbitrary file read (GHSA-6g55-p6wh-862q); pin to the patched 8.5.12.
-  'next>postcss': '8.5.12'
+  # postcss: two advisories via next>postcss — <=8.5.11 arbitrary file read (GHSA-6g55-p6wh-862q)
+  # and <=8.5.17 path traversal in previous source map (GHSA-r28c-9q8g-f849); pin the latest 8.5.x.
+  'next>postcss': '8.5.25'
   'ws': '8.21.0'
   # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j);
   # 2.2.0 is API-compatible for our usage (read API uses no file uploads).

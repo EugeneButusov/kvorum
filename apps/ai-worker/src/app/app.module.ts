@@ -11,6 +11,7 @@ import {
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
+import { ForumThreadReadRepository } from '@sources/forum';
 import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
 import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
@@ -18,6 +19,8 @@ import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
 import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
 import { AiJobConsumer } from '../consumer/ai-job.consumer';
+import { ForumSynthesisAssembler } from '../forum/forum-synthesis.assembler';
+import { ForumSynthesisHandler } from '../forum/forum-synthesis.handler';
 import { LLM_CLIENT, createWorkerLlmClient } from '../llm/llm.provider';
 import { AiQueueMetricsService } from '../metrics/ai-queue-metrics.service';
 import { MismatchAssembler } from '../mismatch/mismatch.assembler';
@@ -55,6 +58,7 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
+    { provide: ForumThreadReadRepository, useFactory: () => new ForumThreadReadRepository(pgDb) },
     {
       provide: ProposalSummaryScanRepository,
       useFactory: () => new ProposalSummaryScanRepository(pgDb),
@@ -76,6 +80,9 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     MismatchAssembler,
     // Sync mismatch-detector handler (SPEC §5.6); self-registers with the handler registry on init.
     MismatchHandler,
+    ForumSynthesisAssembler,
+    // Sync forum-synthesizer handler (SPEC §5.7); self-registers with the handler registry on init.
+    ForumSynthesisHandler,
   ],
 })
 export class AppModule {}
