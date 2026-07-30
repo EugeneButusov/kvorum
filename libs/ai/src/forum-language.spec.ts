@@ -17,15 +17,11 @@ describe('isLikelyEnglish', () => {
   });
 
   it('rejects a predominantly Chinese thread', () => {
-    expect(
-      isLikelyEnglish('这是一段用于测试的中文示例文本，内容与提案无关，仅用来检测语言。'),
-    ).toBe(false);
+    expect(isLikelyEnglish('你好，世界。这是一条测试消息。')).toBe(false);
   });
 
   it('rejects a predominantly Cyrillic thread', () => {
-    expect(
-      isLikelyEnglish('Я против этого предложения, потому что распределение казны рискованно.'),
-    ).toBe(false);
+    expect(isLikelyEnglish('Привет, мир. Это тестовое сообщение.')).toBe(false);
   });
 
   it('keeps a mostly-English thread that only quotes a little non-English', () => {
