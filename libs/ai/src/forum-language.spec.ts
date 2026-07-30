@@ -17,7 +17,9 @@ describe('isLikelyEnglish', () => {
   });
 
   it('rejects a predominantly Chinese thread', () => {
-    expect(isLikelyEnglish('我反对这个提案，因为国库分配看起来不合理，风险太大了。')).toBe(false);
+    expect(
+      isLikelyEnglish('这是一段用于测试的中文示例文本，内容与提案无关，仅用来检测语言。'),
+    ).toBe(false);
   });
 
   it('rejects a predominantly Cyrillic thread', () => {

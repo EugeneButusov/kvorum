@@ -162,7 +162,8 @@ describe('ForumSynthesisHandler', () => {
   });
 
   it('skips a non-English thread: persists a skip marker with no LLM call', async () => {
-    const chinese = '我反对这个提案，因为国库分配看起来不合理，风险太大了，无法接受这样的方案。';
+    const chinese =
+      '这是一段用于测试的中文示例文本，内容与提案无关，仅用来检测语言，请勿据此判断。';
     const { handler, complete, persist } = deps({ thread: thread({ rawContent: chinese }) });
     await handler.handle(JOB);
     expect(complete).not.toHaveBeenCalled();
