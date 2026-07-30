@@ -5,13 +5,16 @@ import {
   AiOutputRepository,
   chooseForumModel,
   computeInputHash,
+  forumSkipMarker,
   forumSynthesisInputContent,
+  isLikelyEnglish,
   LlmSchemaViolationError,
   type CompletionRequest,
   type CompletionResult,
   type CostContext,
   type ForumSynthesis,
   type LLMClient,
+  type RenderedPrompt,
 } from '@libs/ai';
 import { ForumThreadReadRepository, type ForumThreadForSynthesis } from '@sources/forum';
 import { ForumSynthesisAssembler } from './forum-synthesis.assembler';
@@ -24,6 +27,8 @@ import type { AiJob } from '../queue/ai-queue-names';
 import { AiTriggerConfig } from '../trigger/ai-trigger-config';
 
 const FEATURE = 'forum_synthesizer';
+// Recorded as the `model` on the sentinel skip row — no model actually ran (NOT NULL column).
+const SKIP_MODEL = 'none';
 
 function parseThreadRef(entityRef: string): string | null {
   const [type, id] = entityRef.split(':');
@@ -71,6 +76,22 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
 
   private async synthesize(thread: ForumThreadForSynthesis): Promise<void> {
     const { rendered, ctx, rawContent } = this.assembler.assemble(thread);
+    const inputContent = forumSynthesisInputContent(rawContent);
+    const inputHash = computeInputHash(inputContent);
+    const existing = await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash);
+    if (existing !== undefined) {
+      aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
+      return;
+    }
+
+    // SPEC §5.7 / KNOWN-016: v1 synthesizes English threads only. A non-English thread is skipped —
+    // persist a sentinel `ai_output` row (no LLM call, zero cost) keyed on the same
+    // `sha256(raw_content)`, so the API surfaces the reason and the scan won't re-spend on it.
+    if (!isLikelyEnglish(rawContent)) {
+      await this.persistSkip(rendered, ctx, inputContent, inputHash);
+      return;
+    }
+
     const route = chooseForumModel(rawContent);
     const req: CompletionRequest<ForumSynthesis> = {
       feature: rendered.feature,
@@ -79,14 +100,8 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
       schema: rendered.schema,
       messages: rendered.messages,
       mode: 'sync',
-      inputContent: forumSynthesisInputContent(rawContent),
+      inputContent,
     };
-    const inputHash = computeInputHash(req.inputContent);
-    const existing = await this.outputs.find(req.feature, req.promptVersion, inputHash);
-    if (existing !== undefined) {
-      aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
-      return;
-    }
 
     const start = Date.now();
     let result: CompletionResult<ForumSynthesis>;
@@ -108,6 +123,41 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
       entityRef: ctx.entityReference,
       model: route.model,
       routing: route.reason,
+    });
+  }
+
+  private async persistSkip(
+    rendered: RenderedPrompt<ForumSynthesis>,
+    ctx: CostContext,
+    inputContent: string,
+    inputHash: string,
+  ): Promise<void> {
+    const skipReq: CompletionRequest<ForumSynthesis> = {
+      feature: rendered.feature,
+      promptVersion: rendered.promptVersion,
+      model: SKIP_MODEL,
+      schema: rendered.schema,
+      messages: rendered.messages,
+      mode: 'sync',
+      inputContent,
+    };
+    const skipResult: CompletionResult<ForumSynthesis> = {
+      // A skip marker occupies the same `output` column a real synthesis would; the API reads it
+      // back via `isForumSkip` (SPEC §5.7). It is not a valid ForumSynthesis, hence the cast.
+      output: forumSkipMarker('non_english') as unknown as ForumSynthesis,
+      cost: { totalUsd: 0, inputTokens: 0, outputTokens: 0 },
+      provenance: {
+        feature: rendered.feature,
+        model: SKIP_MODEL,
+        promptVersion: rendered.promptVersion,
+        inputHash,
+        generatedAt: new Date().toISOString(),
+      },
+    };
+    await this.cache.persist(skipReq, skipResult, ctx);
+    this.logger.log('ai_forum_synthesis_skipped', {
+      entityRef: ctx.entityReference,
+      reason: 'non_english',
     });
   }
 

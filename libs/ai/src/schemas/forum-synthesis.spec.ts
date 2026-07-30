@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { FORUM_SYNTHESIS_SCHEMA_NAME, ForumSynthesisSchema } from './forum-synthesis.js';
+import {
+  FORUM_SYNTHESIS_SCHEMA_NAME,
+  ForumSynthesisSchema,
+  forumSkipMarker,
+  isForumSkip,
+} from './forum-synthesis.js';
 import { toStrippedJsonSchema } from '../llm/schema.js';
 
 function valid() {
@@ -58,5 +63,19 @@ describe('ForumSynthesisSchema', () => {
     const json = JSON.stringify(toStrippedJsonSchema(ForumSynthesisSchema));
     expect(json).not.toContain('maxItems');
     expect(json).not.toContain('maxLength');
+  });
+});
+
+describe('forum skip marker', () => {
+  it('builds the non-English marker', () => {
+    expect(forumSkipMarker('non_english')).toEqual({ _meta: { skipped_reason: 'non_english' } });
+  });
+
+  it('recognises a skip marker and rejects a real synthesis / junk', () => {
+    expect(isForumSkip(forumSkipMarker('non_english'))).toBe(true);
+    expect(isForumSkip(valid())).toBe(false);
+    expect(isForumSkip(null)).toBe(false);
+    expect(isForumSkip({ _meta: {} })).toBe(false);
+    expect(isForumSkip('non_english')).toBe(false);
   });
 });
