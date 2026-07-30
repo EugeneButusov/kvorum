@@ -11,7 +11,7 @@ import {
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
-import { ForumThreadReadRepository, ForumThreadScanRepository } from '@sources/forum';
+import { ForumThreadReadRepository } from '@sources/forum';
 import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
 import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
@@ -59,7 +59,6 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
     { provide: ForumThreadReadRepository, useFactory: () => new ForumThreadReadRepository(pgDb) },
-    { provide: ForumThreadScanRepository, useFactory: () => new ForumThreadScanRepository(pgDb) },
     {
       provide: ProposalSummaryScanRepository,
       useFactory: () => new ProposalSummaryScanRepository(pgDb),

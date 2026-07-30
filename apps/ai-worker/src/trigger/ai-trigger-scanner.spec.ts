@@ -32,8 +32,8 @@ function makeDeps(
   const mismatchScan = {
     findCandidates: vi.fn().mockResolvedValue((o.mismatchIds ?? []).map((id) => ({ id }))),
   };
-  const forumScan = {
-    findCandidates: vi.fn().mockResolvedValue((o.forumIds ?? []).map((id) => ({ id }))),
+  const forumThreads = {
+    findSynthesisCandidates: vi.fn().mockResolvedValue((o.forumIds ?? []).map((id) => ({ id }))),
   };
   const budgetState = { isDisabled: vi.fn().mockReturnValue(o.disabled ?? false) };
   const scanner = new AiTriggerScanner(
@@ -42,9 +42,9 @@ function makeDeps(
     proposals as never,
     budgetState as never,
     mismatchScan as never,
-    forumScan as never,
+    forumThreads as never,
   );
-  return { send, config, proposals, mismatchScan, forumScan, budgetState, scanner };
+  return { send, config, proposals, mismatchScan, forumThreads, budgetState, scanner };
 }
 
 describe('AiTriggerScanner', () => {
@@ -138,15 +138,15 @@ describe('AiTriggerScanner', () => {
     });
 
     it('does not scan when the forum flag is off', async () => {
-      const { forumScan, scanner } = makeDeps({ forum: false, forumIds: ['t1'] });
+      const { forumThreads, scanner } = makeDeps({ forum: false, forumIds: ['t1'] });
       await scanner.run(600_000);
-      expect(forumScan.findCandidates).not.toHaveBeenCalled();
+      expect(forumThreads.findSynthesisCandidates).not.toHaveBeenCalled();
     });
 
     it('does not scan when the forum feature is budget-disabled', async () => {
-      const { forumScan, scanner } = makeDeps({ forum: true, forumIds: ['t1'], disabled: true });
+      const { forumThreads, scanner } = makeDeps({ forum: true, forumIds: ['t1'], disabled: true });
       await scanner.run(600_000);
-      expect(forumScan.findCandidates).not.toHaveBeenCalled();
+      expect(forumThreads.findSynthesisCandidates).not.toHaveBeenCalled();
     });
   });
 });

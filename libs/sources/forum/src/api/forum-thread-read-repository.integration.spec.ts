@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { pgDb } from '@libs/db';
-import { ForumThreadScanRepository } from './forum-thread-scan-repository';
+import { ForumThreadReadRepository } from './forum-thread-read-repository';
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 class RollbackSignal extends Error {}
@@ -112,7 +112,7 @@ async function link(
     .execute();
 }
 
-describeWithDb('ForumThreadScanRepository.findCandidates (integration)', () => {
+describeWithDb('ForumThreadReadRepository.findSynthesisCandidates (integration)', () => {
   it('returns only content-bearing threads linked high/medium to a pending/active proposal', async () => {
     await inRollback(async (trx) => {
       const { daoId, actorId } = await seed(trx);
@@ -147,7 +147,7 @@ describeWithDb('ForumThreadScanRepository.findCandidates (integration)', () => {
       // excluded — not linked at all
       await insertThread(trx, daoId, { topic: '6', rawContent: 'content' });
 
-      const rows = await new ForumThreadScanRepository(trx).findCandidates(
+      const rows = await new ForumThreadReadRepository(trx).findSynthesisCandidates(
         ['pending', 'active'],
         50,
       );
@@ -164,7 +164,7 @@ describeWithDb('ForumThreadScanRepository.findCandidates (integration)', () => {
       });
       const t = await insertThread(trx, daoId, { topic: '9', rawContent: 'content' });
       await link(trx, active, t, 'high');
-      expect(await new ForumThreadScanRepository(trx).findCandidates([], 50)).toEqual([]);
+      expect(await new ForumThreadReadRepository(trx).findSynthesisCandidates([], 50)).toEqual([]);
     });
   });
 });

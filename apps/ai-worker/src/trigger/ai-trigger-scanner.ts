@@ -3,7 +3,7 @@ import { ProposalMismatchScanRepository } from '@libs/ai';
 import { ProposalRepository } from '@libs/db';
 import type { ProposalState } from '@libs/db';
 import { readPositiveInt } from '@libs/utils';
-import { ForumThreadScanRepository } from '@sources/forum';
+import { ForumThreadReadRepository } from '@sources/forum';
 import { AiTriggerConfig } from './ai-trigger-config';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { FEATURE_QUEUE } from '../queue/ai-queue-names';
@@ -37,7 +37,7 @@ export class AiTriggerScanner {
     private readonly proposals: ProposalRepository,
     private readonly budgetState: AiBudgetState,
     private readonly mismatchScan: ProposalMismatchScanRepository,
-    private readonly forumScan: ForumThreadScanRepository,
+    private readonly forumThreads: ForumThreadReadRepository,
   ) {}
 
   async run(lookbackMs: number): Promise<number> {
@@ -115,7 +115,10 @@ export class AiTriggerScanner {
    *  re-qualifies the thread) and skips non-English threads with a `_meta` marker; batch vs. real-time
    *  is just the scan cadence (4h sweep vs. 60s). */
   private async scanForumThreads(): Promise<number> {
-    const rows = await this.forumScan.findCandidates(FORUM_STATES, MAX_FORUM_CANDIDATES);
+    const rows = await this.forumThreads.findSynthesisCandidates(
+      FORUM_STATES,
+      MAX_FORUM_CANDIDATES,
+    );
     const throttle = readPositiveInt(
       'AI_SINGLETON_THROTTLE_SECONDS',
       DEFAULT_SINGLETON_THROTTLE_SECONDS,
