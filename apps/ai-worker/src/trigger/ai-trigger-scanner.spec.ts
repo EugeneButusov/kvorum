@@ -1,28 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AiTriggerScanner } from './ai-trigger-scanner';
-import { AI_MISMATCH_QUEUE, AI_SUMMARIZE_QUEUE } from '../queue/ai-queue-names';
+import {
+  AI_FORUM_SYNTHESIS_QUEUE,
+  AI_MISMATCH_QUEUE,
+  AI_SUMMARIZE_QUEUE,
+} from '../queue/ai-queue-names';
 
 function makeDeps(
   o: {
     summarize?: boolean;
     mismatch?: boolean;
+    forum?: boolean;
     disabled?: boolean;
     summaryIds?: string[];
     mismatchIds?: string[];
+    forumIds?: string[];
   } = {},
 ) {
   const send = vi.fn().mockResolvedValue('job-id');
   const port = { send, work: vi.fn(), getQueueStats: vi.fn(), getOldestJobAgeSeconds: vi.fn() };
   const config = {
-    isEnabled: vi.fn((f: string) =>
-      f === 'mismatch_detector' ? (o.mismatch ?? false) : (o.summarize ?? false),
-    ),
+    isEnabled: vi.fn((f: string) => {
+      if (f === 'mismatch_detector') return o.mismatch ?? false;
+      if (f === 'forum_synthesizer') return o.forum ?? false;
+      return o.summarize ?? false;
+    }),
   };
   const proposals = {
     findRecentlyTransitioned: vi.fn().mockResolvedValue((o.summaryIds ?? []).map((id) => ({ id }))),
   };
   const mismatchScan = {
     findCandidates: vi.fn().mockResolvedValue((o.mismatchIds ?? []).map((id) => ({ id }))),
+  };
+  const forumScan = {
+    findCandidates: vi.fn().mockResolvedValue((o.forumIds ?? []).map((id) => ({ id }))),
   };
   const budgetState = { isDisabled: vi.fn().mockReturnValue(o.disabled ?? false) };
   const scanner = new AiTriggerScanner(
@@ -31,8 +42,9 @@ function makeDeps(
     proposals as never,
     budgetState as never,
     mismatchScan as never,
+    forumScan as never,
   );
-  return { send, config, proposals, mismatchScan, budgetState, scanner };
+  return { send, config, proposals, mismatchScan, forumScan, budgetState, scanner };
 }
 
 describe('AiTriggerScanner', () => {
@@ -107,6 +119,34 @@ describe('AiTriggerScanner', () => {
       });
       await scanner.run(600_000);
       expect(mismatchScan.findCandidates).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('forum_synthesizer', () => {
+    it('enqueues one synthesis job per candidate thread with singleton dedup when enabled', async () => {
+      process.env['AI_SINGLETON_THROTTLE_SECONDS'] = '120';
+      const { send, scanner } = makeDeps({ forum: true, forumIds: ['t1', 't2'] });
+
+      const count = await scanner.run(600_000);
+
+      expect(count).toBe(2);
+      expect(send).toHaveBeenCalledWith(
+        AI_FORUM_SYNTHESIS_QUEUE,
+        { feature: 'forum_synthesizer', entityRef: 'forum_thread:t1' },
+        { singletonKey: 'forum_synthesizer:forum_thread:t1', singletonSeconds: 120 },
+      );
+    });
+
+    it('does not scan when the forum flag is off', async () => {
+      const { forumScan, scanner } = makeDeps({ forum: false, forumIds: ['t1'] });
+      await scanner.run(600_000);
+      expect(forumScan.findCandidates).not.toHaveBeenCalled();
+    });
+
+    it('does not scan when the forum feature is budget-disabled', async () => {
+      const { forumScan, scanner } = makeDeps({ forum: true, forumIds: ['t1'], disabled: true });
+      await scanner.run(600_000);
+      expect(forumScan.findCandidates).not.toHaveBeenCalled();
     });
   });
 });

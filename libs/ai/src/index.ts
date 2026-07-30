@@ -20,6 +20,7 @@ export * from './schemas/mismatch-flag.js';
 export * from './schemas/forum-synthesis.js';
 export * from './schemas/forum-synthesis-input.js';
 export * from './forum-model-routing.js';
+export * from './forum-language.js';
 export * from './persistence/schema.js';
 export { AiOutputRepository } from './persistence/ai-output-repository.js';
 export { AiCostLogRepository } from './persistence/ai-cost-log-repository.js';

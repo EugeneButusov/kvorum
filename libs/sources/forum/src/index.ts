@@ -94,6 +94,7 @@ export {
   type ForumThreadLinkedProposal,
   type ForumThreadForSynthesis,
 } from './api/forum-thread-read-repository';
+export { ForumThreadScanRepository } from './api/forum-thread-scan-repository';
 
 // ── Metrics ─────────────────────────────────────────────────────────────────────
 export { forumMetrics } from './metrics';

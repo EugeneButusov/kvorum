@@ -161,6 +161,18 @@ describe('ForumSynthesisHandler', () => {
     expect(hot.complete.mock.calls[0]![0]).toMatchObject({ model: FORUM_MODEL_SONNET });
   });
 
+  it('skips a non-English thread: persists a skip marker with no LLM call', async () => {
+    const chinese = '我反对这个提案，因为国库分配看起来不合理，风险太大了，无法接受这样的方案。';
+    const { handler, complete, persist } = deps({ thread: thread({ rawContent: chinese }) });
+    await handler.handle(JOB);
+    expect(complete).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledOnce();
+    const [req, result] = persist.mock.calls[0]!;
+    expect(result.output).toEqual({ _meta: { skipped_reason: 'non_english' } });
+    expect(result.cost).toEqual({ totalUsd: 0, inputTokens: 0, outputTokens: 0 });
+    expect(req.model).toBe('none');
+  });
+
   it('skips an already-synthesized thread (cache hit)', async () => {
     const hits = vi.spyOn(aiMetrics.cacheHitsTotal, 'add');
     const { handler, complete } = deps({ existingOutput: true });
