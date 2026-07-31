@@ -57,6 +57,20 @@ export interface AiJobDlqTable {
 export type AiJobDlq = Selectable<AiJobDlqTable>;
 export type NewAiJobDlq = Insertable<AiJobDlqTable>;
 
+export interface ProposalEmbeddingTable {
+  id: Generated<string>;
+  proposal_id: string;
+  embedding_version: string;
+  input_hash: string;
+  // pgvector `vector(1536)`. No vector type parser is registered (see libs/db client), so the driver
+  // returns/accepts the text form `'[0.1,0.2,…]'` — typed `string`, like `numeric`→`string` below.
+  embedding: string;
+  generated_at: Date;
+  cost_usd: string; // numeric(12,6) → JS string
+}
+export type ProposalEmbedding = Selectable<ProposalEmbeddingTable>;
+export type NewProposalEmbedding = Insertable<ProposalEmbeddingTable>;
+
 // ── Declaration merging ───────────────────────────────────────────────────────
 // The DDL for these tables lives in libs/ai/migrations-postgres/ (ai_001_infra.ts,
 // ai_002_job_dlq.ts), co-located with these repos per the libs/sources persistence
@@ -68,5 +82,6 @@ declare module '@libs/db' {
     ai_cost_log: AiCostLogTable;
     ai_dlq: AiDlqTable;
     ai_job_dlq: AiJobDlqTable;
+    proposal_embedding: ProposalEmbeddingTable;
   }
 }
