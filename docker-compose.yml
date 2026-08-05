@@ -2,7 +2,9 @@ name: kvorum
 
 services:
   postgres:
-    image: postgres:18-alpine
+    # pgvector-bearing Postgres (SPEC §5.8 embeddings). Debian-based, not alpine — same PG18 data
+    # layout (/var/lib/postgresql) and pg_isready healthcheck, so it's a drop-in swap.
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}

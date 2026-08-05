@@ -27,7 +27,7 @@ jobs:
 
     services:
       postgres:
-        image: mirror.gcr.io/library/postgres:18-alpine
+        image: mirror.gcr.io/pgvector/pgvector:pg18
         env:
           POSTGRES_USER: kvorum
           POSTGRES_PASSWORD: kvorum
