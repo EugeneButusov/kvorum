@@ -20,3 +20,17 @@ data:
   # Dashboard-only: deployment label shown in the footer (deployment · <env>). This is
   # the prod base; overlays can override per-environment. Unset locally → footer reads `local`.
   DEPLOYMENT_ENV: production
+  # Indexer live-poll cadence. Governance voting windows last days, so polling every few
+  # seconds spends provider (Alchemy) quota to learn nothing new — a slower poll just folds
+  # more blocks into the same single eth_getLogs call. These raise the code defaults (event
+  # 12s, head 6s) to trade a bounded detection lag for a large drop in RPC volume.
+  #   - EVENT_POLL_INTERVAL_MS gates eth_blockNumber + eth_getLogs, PER live source. Dominant
+  #     term (19 sources today), so this is the biggest lever. Max lag to detect a new
+  #     proposal/vote = this interval.
+  #   - HEAD_POLL_INTERVAL_MS gates the per-chain HeadTracker. Reconcilers are gap-bounded to
+  #     2h regardless, and the lag gauge + timestamp filler tolerate a stale head, so raising
+  #     it is safe. The event poller derives its own confirmed head per tick, so it is
+  #     unaffected by this.
+  # Push EVENT_POLL_INTERVAL_MS to 120000 for a further ~10% cut if 2-minute lag is acceptable.
+  EVENT_POLL_INTERVAL_MS: '60000'
+  HEAD_POLL_INTERVAL_MS: '60000'
