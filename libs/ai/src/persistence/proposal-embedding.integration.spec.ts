@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import { afterAll, describe, expect, it } from 'vitest';
 import { pgDb } from '@libs/db';
+import { ProposalEmbeddingRepository } from './proposal-embedding-repository.js';
 import './schema'; // merge proposal_embedding into PgDatabase
 
 const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
@@ -126,6 +127,53 @@ describeWithDb('proposal_embedding (pgvector integration)', () => {
       expect(ranked.rows.map((r) => r.proposal_id)).toEqual([near, far]);
       expect(Number(ranked.rows[0]!.distance)).toBeCloseTo(0, 5); // identical vector → ~0 distance
       expect(Number(ranked.rows[1]!.distance)).toBeGreaterThan(1); // opposite → large distance
+    });
+  });
+});
+
+describeWithDb('ProposalEmbeddingRepository (integration)', () => {
+  const VERSION = 'text-embedding-3-small/v1';
+
+  it('upserts (insert, then overwrite in place) and finds by proposal+version', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seedDaoActor(trx);
+      const proposalId = await insertProposal(trx, daoId, actorId, 'p-embed');
+      const repo = new ProposalEmbeddingRepository(trx);
+
+      expect(await repo.findByProposalVersion(proposalId, VERSION)).toBeUndefined();
+
+      await repo.upsert({
+        proposal_id: proposalId,
+        embedding_version: VERSION,
+        input_hash: 'sha256:one',
+        embedding: vec(0.1),
+        generated_at: new Date(),
+        cost_usd: '0.0001',
+      });
+      expect((await repo.findByProposalVersion(proposalId, VERSION))?.input_hash).toBe(
+        'sha256:one',
+      );
+
+      // Same key, new hash + vector → overwrite in place, not a second row.
+      await repo.upsert({
+        proposal_id: proposalId,
+        embedding_version: VERSION,
+        input_hash: 'sha256:two',
+        embedding: vec(0.2),
+        generated_at: new Date(),
+        cost_usd: '0.0002',
+      });
+      expect((await repo.findByProposalVersion(proposalId, VERSION))?.input_hash).toBe(
+        'sha256:two',
+      );
+
+      const count = await trx
+        .selectFrom('proposal_embedding')
+        .select(sql<string>`count(*)`.as('n'))
+        .where('proposal_id', '=', proposalId)
+        .where('embedding_version', '=', VERSION)
+        .executeTakeFirstOrThrow();
+      expect(Number(count.n)).toBe(1);
     });
   });
 });

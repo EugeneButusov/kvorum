@@ -19,6 +19,18 @@ export const TRIGGER_STATES: ProposalState[] = ['pending', 'active'];
 export const MISMATCH_STATES: ProposalState[] = ['active'];
 // SPEC §5.7: the forum synthesizer runs on threads linked to `pending`/`active` proposals.
 export const FORUM_STATES: ProposalState[] = ['pending', 'active'];
+// SPEC §5.8: embed a proposal once it has entered ANY state above `pending` (canceled-before-voting
+// still gets embedded for the historical record). Backfill of pre-lookback history is the M5-7 epic.
+export const EMBED_STATES: ProposalState[] = [
+  'active',
+  'succeeded',
+  'defeated',
+  'queued',
+  'executed',
+  'canceled',
+  'expired',
+  'vetoed',
+];
 
 const DEFAULT_SINGLETON_THROTTLE_SECONDS = 3600;
 const MAX_MISMATCH_CANDIDATES = 100;
@@ -59,6 +71,9 @@ export class AiTriggerScanner {
       !this.budgetState.isDisabled('forum_synthesizer')
     ) {
       enqueued += await this.scanForumThreads();
+    }
+    if (this.config.isEnabled('embedding') && !this.budgetState.isDisabled('embedding')) {
+      enqueued += await this.scanProposalEmbeddings(lookbackMs);
     }
     return enqueued;
   }
@@ -135,6 +150,31 @@ export class AiTriggerScanner {
       if (id !== null) count += 1;
     }
     if (count > 0) this.logger.log('ai_trigger_enqueued', { feature: 'forum_synthesizer', count });
+    return count;
+  }
+
+  /** SPEC §5.8: embed each proposal recently transitioned to a state above `pending`. The handler's
+   *  `(proposal_id, embedding_version)` + `input_hash` cache-check dedups re-enqueues, so a permissive
+   *  recently-transitioned scan is safe (unchanged input ⇒ cache hit, no API call). */
+  private async scanProposalEmbeddings(lookbackMs: number): Promise<number> {
+    const since = new Date(Date.now() - lookbackMs);
+    const rows = await this.proposals.findRecentlyTransitioned(EMBED_STATES, since);
+    const throttle = readPositiveInt(
+      'AI_SINGLETON_THROTTLE_SECONDS',
+      DEFAULT_SINGLETON_THROTTLE_SECONDS,
+    );
+
+    let count = 0;
+    for (const row of rows) {
+      const entityRef = `proposal:${row.id}`;
+      const job: AiJob = { feature: 'embedding', entityRef };
+      const id = await this.queue.send(FEATURE_QUEUE.embedding.main, job, {
+        singletonKey: `embedding:${entityRef}`,
+        singletonSeconds: throttle,
+      });
+      if (id !== null) count += 1;
+    }
+    if (count > 0) this.logger.log('ai_trigger_enqueued', { feature: 'embedding', count });
     return count;
   }
 }

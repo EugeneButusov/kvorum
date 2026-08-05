@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AiTriggerScanner } from './ai-trigger-scanner';
+import { AiTriggerScanner, EMBED_STATES } from './ai-trigger-scanner';
 import {
+  AI_EMBED_QUEUE,
   AI_FORUM_SYNTHESIS_QUEUE,
   AI_MISMATCH_QUEUE,
   AI_SUMMARIZE_QUEUE,
@@ -11,6 +12,7 @@ function makeDeps(
     summarize?: boolean;
     mismatch?: boolean;
     forum?: boolean;
+    embed?: boolean;
     disabled?: boolean;
     summaryIds?: string[];
     mismatchIds?: string[];
@@ -23,6 +25,7 @@ function makeDeps(
     isEnabled: vi.fn((f: string) => {
       if (f === 'mismatch_detector') return o.mismatch ?? false;
       if (f === 'forum_synthesizer') return o.forum ?? false;
+      if (f === 'embedding') return o.embed ?? false;
       return o.summarize ?? false;
     }),
   };
@@ -147,6 +150,38 @@ describe('AiTriggerScanner', () => {
       const { forumThreads, scanner } = makeDeps({ forum: true, forumIds: ['t1'], disabled: true });
       await scanner.run(600_000);
       expect(forumThreads.findSynthesisCandidates).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('embedding', () => {
+    it('enqueues one embed job per above-pending recently-transitioned proposal', async () => {
+      process.env['AI_SINGLETON_THROTTLE_SECONDS'] = '120';
+      const { send, proposals, scanner } = makeDeps({ embed: true, summaryIds: ['e1', 'e2'] });
+
+      const count = await scanner.run(600_000);
+
+      expect(count).toBe(2);
+      expect(proposals.findRecentlyTransitioned).toHaveBeenCalledWith(
+        EMBED_STATES,
+        expect.any(Date),
+      );
+      expect(send).toHaveBeenCalledWith(
+        AI_EMBED_QUEUE,
+        { feature: 'embedding', entityRef: 'proposal:e1' },
+        { singletonKey: 'embedding:proposal:e1', singletonSeconds: 120 },
+      );
+    });
+
+    it('does not scan when the embedding flag is off', async () => {
+      const { proposals, scanner } = makeDeps({ embed: false, summaryIds: ['e1'] });
+      await scanner.run(600_000);
+      expect(proposals.findRecentlyTransitioned).not.toHaveBeenCalled();
+    });
+
+    it('does not scan when the embedding feature is budget-disabled', async () => {
+      const { proposals, scanner } = makeDeps({ embed: true, summaryIds: ['e1'], disabled: true });
+      await scanner.run(600_000);
+      expect(proposals.findRecentlyTransitioned).not.toHaveBeenCalled();
     });
   });
 });
