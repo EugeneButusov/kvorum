@@ -17,12 +17,14 @@ export interface EmbeddingWrite {
 
 /**
  * Atomically persists a proposal embedding: the vector row (`proposal_embedding`, upserted) AND the
- * cost-ledger row (`ai_cost_log`) in one transaction — mirroring `AiCompletionCache`. The cost row is
- * what makes `'embedding'` spend visible to the budget cap (`sumCostForFeatureSince`); it must land
- * with the vector or the cap under-counts. Transaction-composable: reuses a handed-in transaction and
- * opens a new one only at the top level (kysely@0.29 forbids savepoint nesting).
+ * cost-ledger row (`ai_cost_log`) in one transaction. The cost row is what makes `'embedding'` spend
+ * visible to the budget cap (`sumCostForFeatureSince`); it must land with the vector or the cap
+ * under-counts. This is a write-only persister (the cache-check — reading an existing row and
+ * comparing `input_hash` — lives in the handler via `ProposalEmbeddingRepository`). Transaction-
+ * composable: reuses a handed-in transaction and opens a new one only at the top level (kysely@0.29
+ * forbids savepoint nesting).
  */
-export class ProposalEmbeddingCache {
+export class ProposalEmbeddingWriter {
   constructor(
     private readonly db: Kysely<PgDatabase>,
     private readonly embeddings: ProposalEmbeddingRepository,

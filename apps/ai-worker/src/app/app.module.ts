@@ -6,7 +6,7 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
-  ProposalEmbeddingCache,
+  ProposalEmbeddingWriter,
   ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
@@ -81,9 +81,9 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       inject: [LLM_CLIENT],
     },
     {
-      provide: ProposalEmbeddingCache,
+      provide: ProposalEmbeddingWriter,
       useFactory: (embeddings: ProposalEmbeddingRepository, costs: AiCostLogRepository) =>
-        new ProposalEmbeddingCache(pgDb, embeddings, costs),
+        new ProposalEmbeddingWriter(pgDb, embeddings, costs),
       inject: [ProposalEmbeddingRepository, AiCostLogRepository],
     },
     ProposalSummaryAssembler,

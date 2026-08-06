@@ -36,6 +36,6 @@ export {
   type CachedCompletion,
 } from './persistence/ai-completion-cache.js';
 export {
-  ProposalEmbeddingCache,
+  ProposalEmbeddingWriter,
   type EmbeddingWrite,
-} from './persistence/proposal-embedding-cache.js';
+} from './persistence/proposal-embedding-writer.js';

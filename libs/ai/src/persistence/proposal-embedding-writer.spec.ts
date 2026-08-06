@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ProposalEmbeddingCache, type EmbeddingWrite } from './proposal-embedding-cache.js';
+import { ProposalEmbeddingWriter, type EmbeddingWrite } from './proposal-embedding-writer.js';
 
 const WRITE: EmbeddingWrite = {
   proposalId: 'p1',
@@ -11,7 +11,7 @@ const WRITE: EmbeddingWrite = {
   costUsd: 0.0001,
 };
 
-describe('ProposalEmbeddingCache', () => {
+describe('ProposalEmbeddingWriter', () => {
   it('writes the cost-log row and the vector upsert in one transaction handle', async () => {
     const costs = { insert: vi.fn(async () => {}) };
     const embeddings = { upsert: vi.fn(async () => {}) };
@@ -20,7 +20,7 @@ describe('ProposalEmbeddingCache', () => {
       isTransaction: false,
       transaction: () => ({ execute: (fn: (t: unknown) => Promise<void>) => fn(trx) }),
     };
-    const cache = new ProposalEmbeddingCache(db as never, embeddings as never, costs as never);
+    const cache = new ProposalEmbeddingWriter(db as never, embeddings as never, costs as never);
 
     await cache.persist(WRITE, { daoId: 'dao-1', entityReference: 'proposal:p1' });
 
@@ -54,7 +54,7 @@ describe('ProposalEmbeddingCache', () => {
     const embeddings = { upsert: vi.fn(async () => {}) };
     const transaction = vi.fn();
     const db = { isTransaction: true, transaction };
-    const cache = new ProposalEmbeddingCache(db as never, embeddings as never, costs as never);
+    const cache = new ProposalEmbeddingWriter(db as never, embeddings as never, costs as never);
 
     await cache.persist(WRITE, { daoId: null, entityReference: null });
 

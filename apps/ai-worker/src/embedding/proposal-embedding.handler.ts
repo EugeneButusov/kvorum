@@ -4,8 +4,8 @@ import {
   EMBEDDING_MODEL,
   EMBEDDING_VERSION,
   proposalEmbeddingInputContent,
-  ProposalEmbeddingCache,
   ProposalEmbeddingRepository,
+  ProposalEmbeddingWriter,
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository } from '@libs/db';
@@ -42,7 +42,7 @@ export class ProposalEmbeddingHandler implements AiFeatureHandler, OnModuleInit 
     private readonly proposals: ProposalRepository,
     private readonly reads: ProposalReadRepository,
     private readonly embeddings: ProposalEmbeddingRepository,
-    private readonly cache: ProposalEmbeddingCache,
+    private readonly writer: ProposalEmbeddingWriter,
     private readonly config: AiTriggerConfig,
     private readonly budget: AiBudgetState,
     private readonly registry: AiFeatureHandlerRegistry,
@@ -79,7 +79,7 @@ export class ProposalEmbeddingHandler implements AiFeatureHandler, OnModuleInit 
     const start = Date.now();
     // No try/catch: a transient/API error propagates so the job retries → ai_embed_dlq.
     const result = await this.llm.embed({ model: EMBEDDING_MODEL, input: inputContent });
-    await this.cache.persist(
+    await this.writer.persist(
       {
         proposalId: id,
         embeddingVersion: EMBEDDING_VERSION,
