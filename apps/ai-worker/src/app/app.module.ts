@@ -6,6 +6,8 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  ProposalEmbeddingWriter,
+  ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
   type LLMClient,
@@ -19,6 +21,7 @@ import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
 import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
 import { AiJobConsumer } from '../consumer/ai-job.consumer';
+import { ProposalEmbeddingHandler } from '../embedding/proposal-embedding.handler';
 import { ForumSynthesisAssembler } from '../forum/forum-synthesis.assembler';
 import { ForumSynthesisHandler } from '../forum/forum-synthesis.handler';
 import { LLM_CLIENT, createWorkerLlmClient } from '../llm/llm.provider';
@@ -67,11 +70,21 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       provide: ProposalMismatchScanRepository,
       useFactory: () => new ProposalMismatchScanRepository(pgDb),
     },
+    {
+      provide: ProposalEmbeddingRepository,
+      useFactory: () => new ProposalEmbeddingRepository(pgDb),
+    },
     { provide: LLM_CLIENT, useFactory: createWorkerLlmClient },
     {
       provide: AiCompletionCache,
       useFactory: (llm: LLMClient) => new AiCompletionCache(pgDb, llm),
       inject: [LLM_CLIENT],
+    },
+    {
+      provide: ProposalEmbeddingWriter,
+      useFactory: (embeddings: ProposalEmbeddingRepository, costs: AiCostLogRepository) =>
+        new ProposalEmbeddingWriter(pgDb, embeddings, costs),
+      inject: [ProposalEmbeddingRepository, AiCostLogRepository],
     },
     ProposalSummaryAssembler,
     ProposalSummaryBatchService,
@@ -83,6 +96,8 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     ForumSynthesisAssembler,
     // Sync forum-synthesizer handler (SPEC §5.7); self-registers with the handler registry on init.
     ForumSynthesisHandler,
+    // Proposal-embedding handler (SPEC §5.8); self-registers with the handler registry on init.
+    ProposalEmbeddingHandler,
   ],
 })
 export class AppModule {}

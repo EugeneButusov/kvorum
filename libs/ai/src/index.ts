@@ -19,6 +19,7 @@ export * from './schemas/mismatch-analysis.js';
 export * from './schemas/mismatch-flag.js';
 export * from './schemas/forum-synthesis.js';
 export * from './schemas/forum-synthesis-input.js';
+export * from './schemas/proposal-embedding-input.js';
 export * from './forum-model-routing.js';
 export * from './forum-language.js';
 export * from './persistence/schema.js';
@@ -28,8 +29,13 @@ export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
 export { AiJobDlqRepository } from './persistence/ai-job-dlq-repository.js';
 export { ProposalSummaryScanRepository } from './persistence/proposal-summary-scan-repository.js';
 export { ProposalMismatchScanRepository } from './persistence/proposal-mismatch-scan-repository.js';
+export { ProposalEmbeddingRepository } from './persistence/proposal-embedding-repository.js';
 export {
   AiCompletionCache,
   type CostContext,
   type CachedCompletion,
 } from './persistence/ai-completion-cache.js';
+export {
+  ProposalEmbeddingWriter,
+  type EmbeddingWrite,
+} from './persistence/proposal-embedding-writer.js';
