@@ -128,6 +128,13 @@ export type MirrorEnvelope<T> = {
  */
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`;
 
+/**
+ * Max addresses per ClickHouse `IN (…)` list. A 42-char address plus quoting/comma is ~47 bytes, so
+ * 2000 keeps the list near ~94 KB — comfortably under ClickHouse's 256 KiB `max_query_size` with
+ * room for the rest of the statement. Larger callers chunk across several queries.
+ */
+const CH_IN_LIST_CHUNK = 2000;
+
 export class AnalyticsReadRepository {
   private readonly identity: ActorRoutingReadRepository;
 
@@ -400,30 +407,38 @@ export class AnalyticsReadRepository {
       .execute();
     if (addressRows.length === 0) return [];
     const actorIdByAddress = new Map(addressRows.map((row) => [row.address, row.actor_id]));
+    const addresses = [...actorIdByAddress.keys()];
 
-    const rows = await this.chDb
-      .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
-      .select(sql<string>`toString(dfa.delegator_address)`.as('delegator_address'))
-      // toString(): a bare UInt256 comes back as a JS number on a server with
-      // output_format_json_quote_64bit_integers=0 (production), losing precision and stringifying
-      // to exponential notation past 1e21 — see vote-read-repository.ts.
-      .select(sql<string>`toString(argMax(dfa.voting_power, dfa.created_at))`.as('voting_power'))
-      .where('dfa.dao_id', '=', daoId)
-      // An address list, not a resolved-identity predicate: this filters on the sort-key column, so
-      // it stays sargable where the dictionary lookup did not.
-      .where(
-        sql<boolean>`toString(dfa.delegator_address) in (${sql.join(
-          [...actorIdByAddress.keys()].map((address) => sql`${address}`),
-        )})`,
-      )
-      .groupBy('delegator_address')
-      .execute();
-
+    // Chunk the address IN-list. The delegation-flow endpoint calls this with every actor in the
+    // graph — ~20k for Compound, so ~20k 42-char addresses — and a single IN-list blows past
+    // ClickHouse's 256 KiB max_query_size, which surfaced as a 500 on that endpoint. Each chunk's
+    // per-address argMax is independent (grouped by address), so folding the chunks is exact.
     const powerByActor = new Map<string, bigint>();
-    for (const row of rows) {
-      const actorId = actorIdByAddress.get(row.delegator_address);
-      if (actorId === undefined) continue;
-      powerByActor.set(actorId, (powerByActor.get(actorId) ?? 0n) + BigInt(row.voting_power));
+    for (let i = 0; i < addresses.length; i += CH_IN_LIST_CHUNK) {
+      const chunk = addresses.slice(i, i + CH_IN_LIST_CHUNK);
+      const rows = await this.chDb
+        .selectFrom(sql<DelegationFlowProjectionTable>`delegation_flow_projection`.as('dfa'))
+        .select(sql<string>`toString(dfa.delegator_address)`.as('delegator_address'))
+        // toString(): a bare UInt256 comes back as a JS number on a server with
+        // output_format_json_quote_64bit_integers=0 (production), losing precision and stringifying
+        // to exponential notation past 1e21 — see vote-read-repository.ts.
+        .select(sql<string>`toString(argMax(dfa.voting_power, dfa.created_at))`.as('voting_power'))
+        .where('dfa.dao_id', '=', daoId)
+        // An address list, not a resolved-identity predicate: this filters on the sort-key column,
+        // so it stays sargable where the dictionary lookup did not.
+        .where(
+          sql<boolean>`toString(dfa.delegator_address) in (${sql.join(
+            chunk.map((address) => sql`${address}`),
+          )})`,
+        )
+        .groupBy('delegator_address')
+        .execute();
+
+      for (const row of rows) {
+        const actorId = actorIdByAddress.get(row.delegator_address);
+        if (actorId === undefined) continue;
+        powerByActor.set(actorId, (powerByActor.get(actorId) ?? 0n) + BigInt(row.voting_power));
+      }
     }
 
     return [...powerByActor].map(([actor_id, power]) => ({

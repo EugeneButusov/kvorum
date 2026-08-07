@@ -15,6 +15,23 @@ function makeChain<T>(result: T) {
   return chain;
 }
 
+/** A chain whose successive `execute()` calls return successive queued results (one per chunk). */
+function makeSeqChain<T>(results: T[]) {
+  const execute = vi.fn();
+  for (const r of results) execute.mockResolvedValueOnce(r);
+  const chain = {
+    select: vi.fn(),
+    where: vi.fn(),
+    groupBy: vi.fn(),
+    execute,
+    executeTakeFirst: vi.fn(),
+  };
+  chain.select.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.groupBy.mockReturnValue(chain);
+  return chain;
+}
+
 describe('AnalyticsReadRepository — guard tests for accidentally-safe aggregate reads', () => {
   it('guard R1: findEarliestDelegationEventAt returns the single min result unchanged', async () => {
     // Safe because min(created_at) over the VIEW rows = min over the support set.
@@ -78,6 +95,37 @@ describe('AnalyticsReadRepository — guard tests for accidentally-safe aggregat
       { actor_id: 'a2', voting_power: '7' },
     ]);
     expect(chChain.execute).toHaveBeenCalledOnce();
+  });
+
+  it('guard R5: chunks the address IN-list and folds an actor whose addresses cross a chunk boundary', async () => {
+    // The delegation-flow endpoint calls this with every actor in the graph — ~20k addresses for
+    // Compound — and a single ClickHouse IN-list of that size exceeds max_query_size (256 KiB) and
+    // 500s. The list is chunked at CH_IN_LIST_CHUNK=2000; an actor whose two addresses land in
+    // different chunks must still sum, which is what makes the per-chunk queries safe to fold.
+    const CHUNK = 2000;
+    const addressRows = [
+      { address: '0xbig-first', actor_id: 'big' }, // chunk 0
+      // Filler fills chunk 0 to exactly CHUNK entries, so the next address opens chunk 1.
+      ...Array.from({ length: CHUNK - 1 }, (_, i) => ({
+        address: `0xf${i}`,
+        actor_id: `filler${i}`,
+      })),
+      { address: '0xbig-second', actor_id: 'big' }, // chunk 1
+    ];
+    const pgChain = makeChain(addressRows);
+    const chChain = makeSeqChain([
+      [{ delegator_address: '0xbig-first', voting_power: '100' }], // chunk 0 result
+      [{ delegator_address: '0xbig-second', voting_power: '50' }], // chunk 1 result
+    ]);
+    const repo = new AnalyticsReadRepository(
+      { selectFrom: vi.fn().mockReturnValue(chChain) } as never,
+      { selectFrom: vi.fn().mockReturnValue(pgChain) } as never,
+    );
+
+    const result = await repo.currentVotingPowerByActor('dao-1', ['big']);
+
+    expect(chChain.execute).toHaveBeenCalledTimes(2);
+    expect(result).toContainEqual({ actor_id: 'big', voting_power: '150' });
   });
 
   it('guard R5: currentVotingPowerByActor keeps summed power exact past Number.MAX_SAFE_INTEGER', async () => {
