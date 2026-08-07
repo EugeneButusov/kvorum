@@ -1212,6 +1212,130 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/similar": {
+      "get": {
+        "operationId": "ProposalController_similarProposals",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dao",
+            "required": false,
+            "in": "query",
+            "description": "Narrow to a single DAO by slug (default is cross-DAO).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Narrow to a proposal source_type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Lower bound on the proposal `created_at` (ISO-8601).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Upper bound on the proposal `created_at` (ISO-8601).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max results, 1–20 (default 10).",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarProposalsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
       "get": {
         "operationId": "ProposalController_tally",
@@ -3454,6 +3578,87 @@
           }
         },
         "required": ["data"]
+      },
+      "SimilarProposalItemDto": {
+        "type": "object",
+        "properties": {
+          "dao_slug": {
+            "type": "string"
+          },
+          "dao_name": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "voting_starts_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "voting_ends_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "similarity": {
+            "type": "number",
+            "description": "Cosine similarity in [-1, 1] (1 = identical)."
+          }
+        },
+        "required": [
+          "dao_slug",
+          "dao_name",
+          "source_type",
+          "source_id",
+          "title",
+          "state",
+          "created_at",
+          "voting_starts_at",
+          "voting_ends_at",
+          "similarity"
+        ]
+      },
+      "SimilarProposalsMetaDto": {
+        "type": "object",
+        "properties": {
+          "ai_generated": {
+            "type": "boolean",
+            "example": true,
+            "description": "Always true — labels AI-derived content (SPEC §5.2)."
+          },
+          "embedding_version": {
+            "type": "string",
+            "description": "The embedding model + composition version the ranking used."
+          }
+        },
+        "required": ["ai_generated", "embedding_version"]
+      },
+      "SimilarProposalsResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarProposalItemDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/SimilarProposalsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
       },
       "ProposalTallyChoiceDto": {
         "type": "object",

@@ -31,6 +31,11 @@ export { ProposalSummaryScanRepository } from './persistence/proposal-summary-sc
 export { ProposalMismatchScanRepository } from './persistence/proposal-mismatch-scan-repository.js';
 export { ProposalEmbeddingRepository } from './persistence/proposal-embedding-repository.js';
 export {
+  SimilarProposalsRepository,
+  type SimilarProposal,
+  type SimilarProposalFilters,
+} from './persistence/similar-proposals-repository.js';
+export {
   AiCompletionCache,
   type CostContext,
   type CachedCompletion,
