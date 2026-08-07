@@ -689,4 +689,72 @@ describe('ProposalController — ai_summary', () => {
       controllerWith(reader).aiSummary('compound', 'compound_governor_bravo', '42'),
     ).rejects.toBeInstanceOf(ProblemException);
   });
+
+  describe('similarProposals', () => {
+    function make(similar: unknown, findOneRow: unknown = baseProposalRow) {
+      const repo = { findOne: vi.fn().mockResolvedValue(findOneRow) };
+      return new ProposalController(
+        repo as never,
+        {} as never,
+        makeVoteRepo(),
+        makeExtensions(),
+        undefined,
+        similar as never,
+      );
+    }
+
+    it('404s when the proposal does not resolve', async () => {
+      const repo = { findOne: vi.fn().mockResolvedValue(undefined) };
+      const controller = new ProposalController(
+        repo as never,
+        {} as never,
+        makeVoteRepo(),
+        makeExtensions(),
+        undefined,
+        { findSimilar: vi.fn() } as never,
+      );
+      await expect(
+        controller.similarProposals('compound', 'compound_governor_bravo', '999', {}),
+      ).rejects.toBeInstanceOf(ProblemException);
+    });
+
+    it('returns ranked data + AI-labeled _meta and forwards parsed filters', async () => {
+      const findSimilar = vi.fn().mockResolvedValue([{ source_id: 'n1', similarity: 0.9 }]);
+      const controller = make({ findSimilar });
+      const res = await controller.similarProposals('compound', 'compound_governor_bravo', '42', {
+        dao: 'aave',
+        limit: 5,
+      });
+      expect(findSimilar).toHaveBeenCalledWith('p1', {
+        dao: 'aave',
+        type: undefined,
+        from: undefined,
+        to: undefined,
+        limit: 5,
+      });
+      expect(res.data).toEqual([{ source_id: 'n1', similarity: 0.9 }]);
+      expect(res._meta).toMatchObject({
+        ai_generated: true,
+        embedding_version: expect.any(String),
+      });
+    });
+
+    it('degrades to an empty list when the similarity service is unwired', async () => {
+      const controller = make(undefined);
+      const res = await controller.similarProposals(
+        'compound',
+        'compound_governor_bravo',
+        '42',
+        {},
+      );
+      expect(res.data).toEqual([]);
+    });
+
+    it('400s on an out-of-range limit', async () => {
+      const controller = make({ findSimilar: vi.fn() });
+      await expect(
+        controller.similarProposals('compound', 'compound_governor_bravo', '42', { limit: 100 }),
+      ).rejects.toBeInstanceOf(ProblemException);
+    });
+  });
 });

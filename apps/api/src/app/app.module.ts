@@ -28,6 +28,7 @@ import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { AiSummaryModule } from '../proposals/ai-summary.module';
 import { ProposalController } from '../proposals/proposal.controller';
+import { SimilarProposalsModule } from '../proposals/similar-proposals.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { VotesController } from '../votes/votes.controller';
 
@@ -43,6 +44,7 @@ import { VotesController } from '../votes/votes.controller';
     ObservabilityModule,
     ProposalModule,
     AiSummaryModule,
+    SimilarProposalsModule,
     RateLimitModule,
     SourcesModule,
     SourceApiModule,

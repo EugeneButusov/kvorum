@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, Optional, Param, Query } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -7,6 +8,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { EMBEDDING_VERSION } from '@libs/ai';
 import { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import {
   SOURCE_READ_EXTENSIONS,
@@ -24,6 +26,13 @@ import {
 } from './proposal.dto';
 import { toAiSummaryDto, toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
+import { SimilarProposalsReadService } from './similar-proposals-read.service';
+import {
+  SimilarProposalsMetaDto,
+  SimilarProposalsResponseDto,
+  SimilarQueryDto,
+} from './similar-proposals.dto';
+import { parseSimilarQuery } from './similar-proposals.query';
 import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
 import { ApiEndpointQuery } from '../openapi/api-endpoint-query.decorator';
@@ -52,6 +61,8 @@ export class ProposalController {
     // Optional cross-cutting enrichment: when unwired the summary field degrades to null (the same
     // graceful path as an unprocessed proposal). Always provided in production; the e2e guards it.
     @Optional() private readonly aiSummaries?: AiSummaryReadService,
+    // Cross-DAO similarity search (SPEC §5.8); when unwired, /similar degrades to an empty list.
+    @Optional() private readonly similar?: SimilarProposalsReadService,
   ) {}
 
   /**
@@ -195,6 +206,39 @@ export class ProposalController {
     }
 
     return { data: toAiSummaryDto(output) };
+  }
+
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: SimilarProposalsResponseDto })
+  @ApiBadRequestResponse({ type: ProblemDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  @Get('daos/:slug/proposals/:source_type/:source_id/similar')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 30, staleWhileRevalidateSecs: 300 })
+  async similarProposals(
+    @Param('slug') slug: string,
+    @Param('source_type') sourceType: string,
+    @Param('source_id') sourceId: string,
+    @Query() raw: SimilarQueryDto,
+  ): Promise<SimilarProposalsResponseDto> {
+    const row = await this.repo.findOne(slug, sourceType, sourceId);
+    if (row === undefined) {
+      throw problemException('not-found', {
+        detail: `No proposal found for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    // Graceful degrade (SPEC §5.8): an unembedded target / empty corpus yields `[]`, never a 404.
+    const data = (await this.similar?.findSimilar(row.id, parseSimilarQuery(raw))) ?? [];
+    return {
+      data,
+      _meta: Object.assign(new SimilarProposalsMetaDto(), {
+        ai_generated: true,
+        embedding_version: EMBEDDING_VERSION,
+      }),
+    };
   }
 
   @ApiParam({ name: 'slug', type: String })
