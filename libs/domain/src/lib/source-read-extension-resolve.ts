@@ -3,6 +3,7 @@ import type {
   CuratedDaoSourceConfig,
   DelegationModel,
   OffchainDelegationView,
+  OffchainDiscussionContentView,
   OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
@@ -67,6 +68,20 @@ export async function getProposalExtensionFor(
     Promise.all(extensions.map((e) => e.getOffchainDiscussionLinks?.(proposalId) ?? [])),
   ]);
   return { extension, offchainDiscussionLinks: linkBatches.flat() };
+}
+
+// The raw content of a proposal's primary off-chain discussion thread (for AI synthesis). Like
+// getOffchainDiscussionLinks it fans out across all extensions — only the forum contribution
+// implements it — and returns the first non-null contribution (a proposal has one primary thread in
+// v1); null when no extension has content for the proposal.
+export async function getOffchainDiscussionContentFor(
+  extensions: readonly SourceReadExtension[],
+  proposalId: string,
+): Promise<OffchainDiscussionContentView | null> {
+  const batches = await Promise.all(
+    extensions.map((e) => e.getOffchainDiscussionContent?.(proposalId) ?? null),
+  );
+  return batches.find((c): c is OffchainDiscussionContentView => c !== null) ?? null;
 }
 
 // The vote's multi-choice breakdown from its own source (resolved by source_type). Returns null when

@@ -9,6 +9,7 @@ import {
   curateSourceConfigFor,
   delegationModelFor,
   getActorOffchainDelegationsFor,
+  getOffchainDiscussionContentFor,
   getProposalExtensionFor,
   getVoteChoicesFor,
   resolveReadExtension,
@@ -168,6 +169,34 @@ describe('source-read-extension-resolve', () => {
       await expect(
         getProposalExtensionFor([aave, compound], 'p1', 'compound_governor_bravo'),
       ).resolves.toEqual({ extension: null, offchainDiscussionLinks: [] });
+    });
+  });
+
+  describe('getOffchainDiscussionContentFor', () => {
+    const forum: SourceReadExtension = {
+      sourceTypes: ['discourse_forum'],
+      choiceBounds: () => ({ min: 0, max: 0 }),
+      delegationModel: () => 'relationship-only',
+      getProposalExtension: () => Promise.resolve(null),
+      getOffchainDiscussionContent: (proposalId) =>
+        Promise.resolve(proposalId === 'p1' ? { raw_content: '**@alice** for.' } : null),
+    };
+
+    it('returns the first non-null content, fanned out across all extensions', async () => {
+      await expect(getOffchainDiscussionContentFor([aave, compound, forum], 'p1')).resolves.toEqual(
+        { raw_content: '**@alice** for.' },
+      );
+    });
+
+    it('returns null when the proposal has no linked thread with content', async () => {
+      await expect(
+        getOffchainDiscussionContentFor([aave, compound, forum], 'p2'),
+      ).resolves.toBeNull();
+    });
+
+    it('returns null when no extension implements getOffchainDiscussionContent', async () => {
+      await expect(getOffchainDiscussionContentFor([aave, compound], 'p1')).resolves.toBeNull();
+      await expect(getOffchainDiscussionContentFor([], 'p1')).resolves.toBeNull();
     });
   });
 

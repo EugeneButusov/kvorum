@@ -1336,6 +1336,75 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/forum-synthesis": {
+      "get": {
+        "operationId": "ProposalController_aiForumSynthesis",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForumSynthesisResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
       "get": {
         "operationId": "ProposalController_tally",
@@ -3656,6 +3725,143 @@
           },
           "_meta": {
             "$ref": "#/components/schemas/SimilarProposalsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
+      },
+      "ForumArgumentDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "supporting_participants": {
+            "description": "Handles of participants making this argument (≤5).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["summary", "supporting_participants"]
+      },
+      "ForumConcernDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "raised_by": {
+            "description": "Handles of participants who raised it (≤3).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["summary", "raised_by"]
+      },
+      "ForumParticipantDto": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "role_summary": {
+            "type": "string"
+          }
+        },
+        "required": ["handle", "role_summary"]
+      },
+      "ForumSynthesisDto": {
+        "type": "object",
+        "properties": {
+          "arguments_for": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumArgumentDto"
+            }
+          },
+          "arguments_against": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumArgumentDto"
+            }
+          },
+          "unresolved_concerns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumConcernDto"
+            }
+          },
+          "notable_participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumParticipantDto"
+            }
+          },
+          "sentiment": {
+            "type": "string",
+            "enum": ["favorable", "mixed", "unfavorable", "contentious"]
+          },
+          "thread_health": {
+            "type": "string",
+            "enum": ["constructive", "mixed", "unproductive"]
+          }
+        },
+        "required": [
+          "arguments_for",
+          "arguments_against",
+          "unresolved_concerns",
+          "notable_participants",
+          "sentiment",
+          "thread_health"
+        ]
+      },
+      "ForumSynthesisMetaDto": {
+        "type": "object",
+        "properties": {
+          "ai_generated": {
+            "type": "boolean",
+            "example": true,
+            "description": "Labels AI-derived content (SPEC §5.2). false when the thread was skipped."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model that produced the synthesis (Haiku or Sonnet)."
+          },
+          "prompt_version": {
+            "type": "string"
+          },
+          "input_hash": {
+            "type": "string",
+            "description": "sha256: of the synthesized thread `raw_content`."
+          },
+          "generated_at": {
+            "type": "string"
+          },
+          "skipped_reason": {
+            "type": "string",
+            "enum": ["non_english"],
+            "description": "Present when the thread was not synthesized (KNOWN-016); `data` is then null."
+          }
+        },
+        "required": ["ai_generated"]
+      },
+      "ForumSynthesisResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ForumSynthesisDto"
+              }
+            ]
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ForumSynthesisMetaDto"
           }
         },
         "required": ["data", "_meta"]

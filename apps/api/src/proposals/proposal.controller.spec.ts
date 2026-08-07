@@ -758,3 +758,114 @@ describe('ProposalController — ai_summary', () => {
     });
   });
 });
+
+describe('ProposalController — ai_forum_synthesis', () => {
+  const synthesisRow = {
+    feature_name: 'forum_synthesizer',
+    prompt_version: 'v1.0',
+    input_hash: 'sha256:def',
+    model: 'claude-haiku-4-5',
+    output: {
+      arguments_for: [{ summary: 'Lower fees', supporting_participants: ['alice'] }],
+      arguments_against: [],
+      unresolved_concerns: [],
+      notable_participants: [{ handle: 'alice', role_summary: 'delegate' }],
+      sentiment: 'favorable',
+      thread_health: 'constructive',
+    },
+    cost_usd: '0.005000',
+    generated_at: new Date('2026-04-12T08:30:00Z'),
+    source_provenance: {},
+  };
+  const skipRow = {
+    feature_name: 'forum_synthesizer',
+    prompt_version: 'v1.0',
+    input_hash: 'sha256:zzz',
+    model: 'none',
+    output: { _meta: { skipped_reason: 'non_english' } },
+    cost_usd: '0',
+    generated_at: new Date('2026-04-12T08:30:00Z'),
+    source_provenance: {},
+  };
+
+  function make(opts: {
+    findOneRow?: unknown;
+    content?: { raw_content: string } | null;
+    findForContent?: ReturnType<typeof vi.fn>;
+  }) {
+    const { findOneRow = baseProposalRow, content = { raw_content: 'thread body' } } = opts;
+    const repo = { findOne: vi.fn().mockResolvedValue(findOneRow) };
+    const extensions = makeExtensions({
+      getOffchainDiscussionContent: vi.fn().mockResolvedValue(content),
+    });
+    const forumSynth =
+      opts.findForContent === undefined ? undefined : { findForContent: opts.findForContent };
+    const controller = new ProposalController(
+      repo as never,
+      {} as never,
+      makeVoteRepo(),
+      extensions,
+      undefined,
+      undefined,
+      forumSynth as never,
+    );
+    return { controller, extensions };
+  }
+
+  it('returns the synthesis + provenance _meta when one exists', async () => {
+    const findForContent = vi.fn().mockResolvedValue(synthesisRow);
+    const { controller, extensions } = make({ findForContent });
+
+    const res = await controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42');
+
+    expect(res.data?.sentiment).toBe('favorable');
+    expect(res.data?.arguments_for[0]?.summary).toBe('Lower fees');
+    expect(res._meta).toEqual({
+      ai_generated: true,
+      model: 'claude-haiku-4-5',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      generated_at: '2026-04-12T08:30:00Z',
+    });
+    // resolved by internal proposal id via the source-blind extension seam, then hashed by raw_content
+    expect(extensions[0]!.getOffchainDiscussionContent).toHaveBeenCalledWith('p1');
+    expect(findForContent).toHaveBeenCalledWith('thread body');
+  });
+
+  it('returns data:null + skipped_reason for a non-English skip marker', async () => {
+    const { controller } = make({ findForContent: vi.fn().mockResolvedValue(skipRow) });
+
+    const res = await controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42');
+
+    expect(res.data).toBeNull();
+    expect(res._meta).toEqual({ ai_generated: false, skipped_reason: 'non_english' });
+  });
+
+  it('404s when the proposal does not resolve', async () => {
+    const { controller } = make({ findOneRow: undefined, findForContent: vi.fn() });
+    await expect(
+      controller.aiForumSynthesis('compound', 'compound_governor_bravo', '999'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('404s when the proposal has no linked forum thread', async () => {
+    const { controller } = make({ content: null, findForContent: vi.fn() });
+    await expect(
+      controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('404s when the linked thread has no synthesis yet', async () => {
+    const { controller } = make({ findForContent: vi.fn().mockResolvedValue(null) });
+    await expect(
+      controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('404s (degrades) when the synthesis service is unwired', async () => {
+    const { controller } = make({ findForContent: undefined });
+    await expect(
+      controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+});

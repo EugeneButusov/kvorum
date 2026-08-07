@@ -65,6 +65,13 @@ export interface OffchainDiscussionLinkView {
   last_activity_at: string | null; // ISO seconds
 }
 
+// The raw content of a proposal's primary (highest-confidence) off-chain discussion thread — the input
+// an AI feature synthesizes. Cross-source and medium-neutral like OffchainDiscussionLinkView; carried
+// server-side only (used to derive the content-addressed cache key, never serialized to the client).
+export interface OffchainDiscussionContentView {
+  raw_content: string;
+}
+
 // A per-vote choice breakdown entry (`weight` is a decimal string, sorted desc by weight). Sources
 // with real multiplicity (e.g. Snapshot weighted/ranked) provide it via getVoteChoices; sources
 // without it return null and the read layer synthesizes a one-element breakdown from primary_choice.
@@ -108,6 +115,10 @@ export interface SourceReadExtension {
   // across all extensions (only the forum contribution implements it), unlike the source-type-keyed
   // methods.
   getOffchainDiscussionLinks?(proposalId: string): Promise<readonly OffchainDiscussionLinkView[]>;
+  // Cross-source: the raw content of the proposal's primary off-chain discussion thread, for AI
+  // synthesis. Fanned out across all extensions (only the forum contribution implements it); null when
+  // the proposal has no linked discussion thread with content.
+  getOffchainDiscussionContent?(proposalId: string): Promise<OffchainDiscussionContentView | null>;
   // The vote's multi-choice breakdown, for sources that carry one (resolved by the vote's
   // source_type). null → the source has no per-vote breakdown; the read layer synthesizes one from
   // primary_choice. Keeps source-specific choice tables out of the source-blind read repository.

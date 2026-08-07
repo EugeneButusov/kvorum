@@ -12,10 +12,13 @@ import { EMBEDDING_VERSION } from '@libs/ai';
 import { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import {
   SOURCE_READ_EXTENSIONS,
+  getOffchainDiscussionContentFor,
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
 import { AiSummaryReadService } from './ai-summary-read.service';
+import { ForumSynthesisReadService } from './forum-synthesis-read.service';
+import { ForumSynthesisResponseDto } from './forum-synthesis.dto';
 import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 import { ProposalTallyResponseDto } from './proposal-tally.dto';
 import {
@@ -24,7 +27,12 @@ import {
   ProposalListResponseDto,
   type ProposalTallySummaryDto,
 } from './proposal.dto';
-import { toAiSummaryDto, toProposalDetailDto, toProposalListItemDto } from './proposal.mappers';
+import {
+  toAiSummaryDto,
+  toForumSynthesisResponse,
+  toProposalDetailDto,
+  toProposalListItemDto,
+} from './proposal.mappers';
 import { CROSS_DAO_PROPOSAL_QUERY, PER_DAO_PROPOSAL_QUERY } from './proposal.query';
 import { SimilarProposalsReadService } from './similar-proposals-read.service';
 import {
@@ -63,6 +71,8 @@ export class ProposalController {
     @Optional() private readonly aiSummaries?: AiSummaryReadService,
     // Cross-DAO similarity search (SPEC §5.8); when unwired, /similar degrades to an empty list.
     @Optional() private readonly similar?: SimilarProposalsReadService,
+    // Forum-thread synthesis (SPEC §5.7); when unwired, /ai/forum-synthesis 404s (as if unprocessed).
+    @Optional() private readonly forumSynth?: ForumSynthesisReadService,
   ) {}
 
   /**
@@ -239,6 +249,47 @@ export class ProposalController {
         embedding_version: EMBEDDING_VERSION,
       }),
     };
+  }
+
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: ForumSynthesisResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  @Get('daos/:slug/proposals/:source_type/:source_id/ai/forum-synthesis')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 30, staleWhileRevalidateSecs: 300 })
+  async aiForumSynthesis(
+    @Param('slug') slug: string,
+    @Param('source_type') sourceType: string,
+    @Param('source_id') sourceId: string,
+  ): Promise<ForumSynthesisResponseDto> {
+    const row = await this.repo.findOne(slug, sourceType, sourceId);
+    if (row === undefined) {
+      throw problemException('not-found', {
+        detail: `No proposal found for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    // Source-blind: the raw_content of the proposal's primary linked forum thread, via the extension
+    // seam (apps/api may not import @sources/*). null → the proposal has no linked thread with content.
+    const content = await getOffchainDiscussionContentFor(this.extensions, row.id);
+    if (content === null) {
+      throw problemException('not-found', {
+        detail: `No forum thread linked to dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    // null → no synthesis yet (unprocessed / budget-capped). A non-English skip is a stored row and
+    // is surfaced as 200 with `data: null` + `_meta.skipped_reason` by the mapper (SPEC §5.7).
+    const output = (await this.forumSynth?.findForContent(content.raw_content)) ?? null;
+    if (output === null) {
+      throw problemException('not-found', {
+        detail: `No forum synthesis for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    return toForumSynthesisResponse(output);
   }
 
   @ApiParam({ name: 'slug', type: String })

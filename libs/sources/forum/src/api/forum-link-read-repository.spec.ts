@@ -71,4 +71,36 @@ describe('ForumLinkReadRepository', () => {
       [],
     );
   });
+
+  describe('getPrimaryThreadContent', () => {
+    it('returns the highest-confidence thread content, then most recent activity', async () => {
+      const { db } = mockPg([
+        {
+          confidence: 'medium',
+          raw_content: 'medium body',
+          last_activity_at: new Date('2026-05-10T08:00:00Z'),
+        },
+        {
+          confidence: 'high',
+          raw_content: 'high, older',
+          last_activity_at: new Date('2026-05-01T08:00:00Z'),
+        },
+        {
+          confidence: 'high',
+          raw_content: 'high, newer',
+          last_activity_at: new Date('2026-05-09T08:00:00Z'),
+        },
+      ]);
+      await expect(new ForumLinkReadRepository(db).getPrimaryThreadContent('p1')).resolves.toEqual({
+        raw_content: 'high, newer',
+      });
+    });
+
+    it('returns null when the proposal has no linked thread with content', async () => {
+      const { db } = mockPg([]);
+      await expect(
+        new ForumLinkReadRepository(db).getPrimaryThreadContent('p2'),
+      ).resolves.toBeNull();
+    });
+  });
 });
