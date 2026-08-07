@@ -3,6 +3,9 @@ import { Test } from '@nestjs/testing';
 import { sql } from 'kysely';
 import { hashApiKey } from '../../../libs/auth/src/hash';
 import { chDb, pgDb } from '../../../libs/db/src/client';
+// Side-effect import: merges forum_thread / proposal_forum_link into pgDb's typed schema so the
+// forum-synthesis e2e can seed them (the tables' Kysely types live in the forum source package).
+import '../../../libs/sources/forum/src/persistence/schema';
 import { AppModule } from '../src/app/app.module';
 import { configureOpenApi } from '../src/openapi/openapi';
 import { RateLimiterService } from '../src/rate-limit/rate-limiter.service';
@@ -51,6 +54,8 @@ export async function resetDaoProposalApiTables(): Promise<void> {
   await sql`
     TRUNCATE TABLE
       ai_output,
+      proposal_forum_link,
+      forum_thread,
       proposal_choice,
       proposal_action,
       proposal,
@@ -205,4 +210,44 @@ export async function seedDaoProposalApiData(): Promise<SeedContext> {
     daoId: dao.id,
     proposalId: proposal.id,
   };
+}
+
+/** Seed a Discourse `forum_thread` linked to a proposal (default `high` confidence). `external_id`
+ *  is the returned `forum_topic_id`. Mirrors the linker's write shape (ADR-034). */
+export async function seedForumThread(
+  daoId: string,
+  proposalId: string,
+  opts: {
+    rawContent: string | null;
+    forumTopicId?: string;
+    confidence?: 'high' | 'medium' | 'low';
+  },
+): Promise<{ forumThreadId: string; externalId: string }> {
+  const externalId = opts.forumTopicId ?? '4242';
+  const thread = await pgDb
+    .insertInto('forum_thread')
+    .values({
+      dao_id: daoId,
+      forum_host: 'www.comp.xyz',
+      forum_topic_id: externalId,
+      title: 'Discussion thread',
+      raw_content: opts.rawContent,
+      content_pipeline_version: 'turndown@7.1.2+rules-v1',
+      post_count: 3,
+      last_activity_at: new Date('2026-05-15T10:30:00.000Z'),
+    })
+    .returning(['id'])
+    .executeTakeFirstOrThrow();
+
+  await pgDb
+    .insertInto('proposal_forum_link')
+    .values({
+      proposal_id: proposalId,
+      forum_thread_id: thread.id,
+      confidence: opts.confidence ?? 'high',
+      link_method: 'description_url',
+    })
+    .execute();
+
+  return { forumThreadId: thread.id, externalId };
 }

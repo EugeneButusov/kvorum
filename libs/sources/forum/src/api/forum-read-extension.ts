@@ -4,6 +4,7 @@ import type {
   ChoiceBounds,
   CuratedDaoSourceConfig,
   DelegationModel,
+  OffchainDiscussionContentView,
   OffchainDiscussionLinkView,
   ProposalExtension,
   SourceReadExtension,
@@ -33,6 +34,11 @@ export function makeForumReadExtension(db: Kysely<PgDatabase>): SourceReadExtens
     },
     getOffchainDiscussionLinks(proposalId: string): Promise<readonly OffchainDiscussionLinkView[]> {
       return linkRepo.getLinksForProposal(proposalId);
+    },
+    getOffchainDiscussionContent(
+      proposalId: string,
+    ): Promise<OffchainDiscussionContentView | null> {
+      return linkRepo.getPrimaryThreadContent(proposalId);
     },
     curateSourceConfig(_sourceType: string, rawConfig: unknown): CuratedDaoSourceConfig {
       // Off-chain Discourse source: binds by `host` (+ optional `categories`).

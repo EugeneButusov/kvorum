@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import { isoSeconds, type PgDatabase } from '@libs/db';
-import type { OffchainDiscussionLinkView } from '@libs/domain';
+import type { OffchainDiscussionContentView, OffchainDiscussionLinkView } from '@libs/domain';
 import '../persistence/schema';
 
 const CONFIDENCE_RANK: Record<OffchainDiscussionLinkView['confidence'], number> = {
@@ -43,5 +43,32 @@ export class ForumLinkReadRepository {
           CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence] ||
           (b.last_activity_at ?? '').localeCompare(a.last_activity_at ?? ''),
       );
+  }
+
+  // The raw content of a proposal's primary linked thread — highest confidence, then most recent
+  // activity — for AI synthesis. Threads without content are excluded; null when none qualify.
+  async getPrimaryThreadContent(proposalId: string): Promise<OffchainDiscussionContentView | null> {
+    const rows = await this.db
+      .selectFrom('proposal_forum_link as pfl')
+      .innerJoin('forum_thread as ft', 'ft.id', 'pfl.forum_thread_id')
+      .select(['pfl.confidence', 'ft.raw_content', 'ft.last_activity_at'])
+      .where('pfl.proposal_id', '=', proposalId)
+      .where('ft.raw_content', 'is not', null)
+      .execute();
+
+    const best = rows
+      .map((row) => ({
+        raw_content: row.raw_content,
+        confidence: row.confidence,
+        last_activity_at: isoSeconds(row.last_activity_at),
+      }))
+      .sort(
+        (a, b) =>
+          CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence] ||
+          (b.last_activity_at ?? '').localeCompare(a.last_activity_at ?? ''),
+      )[0];
+
+    if (best === undefined || best.raw_content === null) return null;
+    return { raw_content: best.raw_content };
   }
 }
