@@ -28,10 +28,11 @@ overrides:
   'express>qs': '6.15.2'
   'body-parser>qs': '6.15.2'
   'superagent>qs': '6.15.2'
-  # js-yaml: @nestjs/swagger pulls 4.1.1 and dev tooling 4.2.0 (both vulnerable,
-  # GHSA-52cp-r559-cp3m — YAML merge-key chains force quadratic CPU). Rewrite exactly the
-  # vulnerable range to the patched 4.x release; a 3.x/5.x consumer, if one appears, is untouched.
-  'js-yaml@>=4.0.0 <4.3.0': '4.3.0'
+  # js-yaml: @nestjs/swagger + dev tooling pull the 4.x line (vulnerable). Two chained
+  # advisories force quadratic CPU on adversarial YAML — GHSA-52cp-r559-cp3m (merge-key chains,
+  # patched 4.3.0) and GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (!!omap resolution, patched 4.3.1).
+  # Rewrite the vulnerable range to the latest patched 4.x; a 3.x/5.x consumer is untouched.
+  'js-yaml@>=4.0.0 <4.3.1': '4.3.1'
   # sharp: next pulls 0.34.5 (vulnerable via bundled libvips, GHSA-f88m-g3jw-g9cj —
   # CVE-2026-33327/33328/35590/35591). Rewrite the vulnerable range to the patched 0.35.x line
   # (same major, next's image-optimization API is unaffected).
