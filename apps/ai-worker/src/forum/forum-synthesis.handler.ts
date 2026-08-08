@@ -5,7 +5,6 @@ import {
   AiOutputRepository,
   chooseForumModel,
   computeInputHash,
-  forumSkipMarker,
   forumSynthesisInputContent,
   isLikelyEnglish,
   LlmSchemaViolationError,
@@ -16,8 +15,9 @@ import {
   type LLMClient,
   type RenderedPrompt,
 } from '@libs/ai';
+import { readPositiveInt } from '@libs/utils';
 import { ForumThreadReadRepository, type ForumThreadForSynthesis } from '@sources/forum';
-import { ForumSynthesisAssembler } from './forum-synthesis.assembler';
+import { buildForumSkip, ForumSynthesisAssembler } from './forum-synthesis.assembler';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import type { AiFeatureHandler } from '../consumer/ai-feature-handler';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
@@ -27,21 +27,32 @@ import type { AiJob } from '../queue/ai-queue-names';
 import { AiTriggerConfig } from '../trigger/ai-trigger-config';
 
 const FEATURE = 'forum_synthesizer';
-// Recorded as the `model` on the sentinel skip row — no model actually ran (NOT NULL column).
-const SKIP_MODEL = 'none';
+// A thread is "urgent" when its highest-confidence linked proposal is `active` with voting ending
+// within this window — it gets a synchronous synthesis now rather than waiting for the batch cycle
+// (SPEC §5.7). Every non-urgent thread is left to the in-process batch driver. Default 6h.
+const URGENT_WINDOW_MS = readPositiveInt('AI_FORUM_URGENT_WINDOW_MS', 6 * 60 * 60 * 1000);
 
 function parseThreadRef(entityRef: string): string | null {
   const [type, id] = entityRef.split(':');
   return type === 'forum_thread' && id ? id : null;
 }
 
+function isThreadUrgent(thread: ForumThreadForSynthesis): boolean {
+  if (thread.linkedProposalState !== 'active' || thread.linkedProposalVotingEndsAt === null) {
+    return false;
+  }
+  const remainingMs = thread.linkedProposalVotingEndsAt.getTime() - Date.now();
+  return remainingMs > 0 && remainingMs <= URGENT_WINDOW_MS;
+}
+
 /**
- * Forum-thread synthesizer job handler (SPEC §5.7, M5-4.1). Runs the synthesis synchronously: fetch
- * the thread + its linked proposal + DAO, pick the model by length/contentiousness
- * (`chooseForumModel`), call the LLM, validate + persist. The cache key is `sha256(raw_content)`, so
- * a new post changes the hash and regenerates. Routing is deterministic in `raw_content`, so the
- * model-agnostic cache key never collides across models. Schema violations dead-letter (the client
- * retries once first); transient errors rethrow so the job retries.
+ * Forum-thread synthesizer job handler (SPEC §5.7). Runs the **synchronous fallback**: batch is the
+ * default (the in-process batch driver does the bulk at 0.5× cost), so this handler synthesizes now
+ * only when the job is an operator-forced refresh or the thread's linked proposal has imminent voting;
+ * every other job is acked and left to the batch driver — the `sha256(raw_content)` cache dedups
+ * across both. When it does run: pick the model by length/contentiousness (`chooseForumModel`), call
+ * the LLM, validate + persist. A new post changes the hash and regenerates. Schema violations
+ * dead-letter (the client retries once first); transient errors rethrow so the job retries.
  */
 @Injectable()
 export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
@@ -68,20 +79,30 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     const id = parseThreadRef(job.entityRef);
     if (id === null) return;
     const thread = await this.threads.getThreadById(id);
-    // SPEC §5.7: synthesize only linked threads that have content. The scan (#443) enforces the
-    // linked + pending/active gate; guard defensively against a stale or mis-routed job here.
+    // The scan enforces the linked + state gate; guard defensively against a stale/mis-routed job.
+    // Synthesize only linked threads that have content.
     if (thread === undefined || !thread.rawContent || thread.linkedProposalTitle === null) return;
-    await this.synthesize(thread);
+    // Batch by default (SPEC §5.7): run now only for an operator-forced refresh or a thread whose
+    // linked proposal's voting is imminent; otherwise ack and let the batch driver handle it.
+    const force = job.force === true;
+    if (!force && !isThreadUrgent(thread)) return;
+    await this.synthesize(thread, force);
   }
 
-  private async synthesize(thread: ForumThreadForSynthesis): Promise<void> {
+  private async synthesize(thread: ForumThreadForSynthesis, force: boolean): Promise<void> {
     const { rendered, ctx, rawContent } = this.assembler.assemble(thread);
     const inputContent = forumSynthesisInputContent(rawContent);
     const inputHash = computeInputHash(inputContent);
-    const existing = await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash);
-    if (existing !== undefined) {
-      aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
-      return;
+    if (force) {
+      // Operator-forced refresh: clear the immutable-append cache (incl. any skip marker) so the
+      // re-run overwrites it rather than no-opping on the unique-key conflict.
+      await this.outputs.deleteByKey(rendered.feature, rendered.promptVersion, inputHash);
+    } else {
+      const existing = await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash);
+      if (existing !== undefined) {
+        aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
+        return;
+      }
     }
 
     // SPEC §5.7 / KNOWN-016: v1 synthesizes English threads only. A non-English thread is skipped —
@@ -101,6 +122,8 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
       messages: rendered.messages,
       mode: 'sync',
       inputContent,
+      // SPEC §5.7: persist WHY Sonnet vs Haiku was chosen (long/contentious/short) into provenance.
+      routingReason: route.reason,
     };
 
     const start = Date.now();
@@ -132,29 +155,13 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     inputContent: string,
     inputHash: string,
   ): Promise<void> {
-    const skipReq: CompletionRequest<ForumSynthesis> = {
-      feature: rendered.feature,
-      promptVersion: rendered.promptVersion,
-      model: SKIP_MODEL,
-      schema: rendered.schema,
-      messages: rendered.messages,
-      mode: 'sync',
+    const { req, result } = buildForumSkip(
+      rendered,
       inputContent,
-    };
-    const skipResult: CompletionResult<ForumSynthesis> = {
-      // A skip marker occupies the same `output` column a real synthesis would; the API reads it
-      // back via `isForumSkip` (SPEC §5.7). It is not a valid ForumSynthesis, hence the cast.
-      output: forumSkipMarker('non_english') as unknown as ForumSynthesis,
-      cost: { totalUsd: 0, inputTokens: 0, outputTokens: 0 },
-      provenance: {
-        feature: rendered.feature,
-        model: SKIP_MODEL,
-        promptVersion: rendered.promptVersion,
-        inputHash,
-        generatedAt: new Date().toISOString(),
-      },
-    };
-    await this.cache.persist(skipReq, skipResult, ctx);
+      inputHash,
+      new Date().toISOString(),
+    );
+    await this.cache.persist(req, result, ctx);
     this.logger.log('ai_forum_synthesis_skipped', {
       entityRef: ctx.entityReference,
       reason: 'non_english',

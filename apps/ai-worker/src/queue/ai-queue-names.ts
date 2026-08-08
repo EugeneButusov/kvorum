@@ -10,6 +10,9 @@ export interface AiJob {
   feature: AiFeature;
   entityRef: string; // '<entityType>:<id>', e.g. 'proposal:<uuid>'
   inputHash?: string; // optional — populated by M5-2 handlers, absent at trigger time
+  // Operator-forced refresh (SPEC §5.7): bypass the content-hash cache and re-run synchronously,
+  // overwriting the existing output. Set by `admin-cli ai regenerate --force`; absent for scan jobs.
+  force?: boolean;
 }
 
 export const AI_SUMMARIZE_QUEUE = 'ai_summarize';

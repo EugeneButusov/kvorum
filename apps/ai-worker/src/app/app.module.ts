@@ -22,6 +22,7 @@ import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registr
 import { AiJobDlqBridge } from '../consumer/ai-job-dlq.bridge';
 import { AiJobConsumer } from '../consumer/ai-job.consumer';
 import { ProposalEmbeddingHandler } from '../embedding/proposal-embedding.handler';
+import { ForumSynthesisBatchService } from '../forum/forum-synthesis-batch.service';
 import { ForumSynthesisAssembler } from '../forum/forum-synthesis.assembler';
 import { ForumSynthesisHandler } from '../forum/forum-synthesis.handler';
 import { LLM_CLIENT, createWorkerLlmClient } from '../llm/llm.provider';
@@ -94,7 +95,9 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     // Sync mismatch-detector handler (SPEC §5.6); self-registers with the handler registry on init.
     MismatchHandler,
     ForumSynthesisAssembler,
-    // Sync forum-synthesizer handler (SPEC §5.7); self-registers with the handler registry on init.
+    // Batch-by-default forum synthesis driver (SPEC §5.7); the handler below is the urgent/forced sync
+    // fallback and self-registers with the handler registry on init.
+    ForumSynthesisBatchService,
     ForumSynthesisHandler,
     // Proposal-embedding handler (SPEC §5.8); self-registers with the handler registry on init.
     ProposalEmbeddingHandler,
