@@ -168,3 +168,74 @@ describeWithDb('ForumThreadReadRepository.findSynthesisCandidates (integration)'
     });
   });
 });
+
+const CLOSED_STATES = [
+  'succeeded',
+  'defeated',
+  'queued',
+  'executed',
+  'canceled',
+  'expired',
+  'vetoed',
+] as never;
+
+describeWithDb(
+  'ForumThreadReadRepository.findRecentlyClosedSynthesisCandidates (integration)',
+  () => {
+    it('returns content-bearing threads linked high/medium to a proposal closed within the window', async () => {
+      await inRollback(async (trx) => {
+        const { daoId, actorId } = await seed(trx);
+        const closed = await insertProposal(trx, daoId, actorId, {
+          source_id: 'p-closed',
+          state: 'executed',
+        });
+        const active = await insertProposal(trx, daoId, actorId, {
+          source_id: 'p-active',
+          state: 'active',
+        });
+
+        // included — linked high to a recently-closed proposal
+        const tClosedHigh = await insertThread(trx, daoId, { topic: '1', rawContent: 'content' });
+        await link(trx, closed, tClosedHigh, 'high');
+        // excluded — still active (the voting-phase pass handles it, not the close pass)
+        const tActive = await insertThread(trx, daoId, { topic: '2', rawContent: 'content' });
+        await link(trx, active, tActive, 'high');
+        // excluded — low confidence
+        const tLow = await insertThread(trx, daoId, { topic: '3', rawContent: 'content' });
+        await link(trx, closed, tLow, 'low');
+        // excluded — no raw_content
+        const tEmpty = await insertThread(trx, daoId, { topic: '4', rawContent: null });
+        await link(trx, closed, tEmpty, 'high');
+
+        const since = new Date(Date.now() - 60 * 60 * 1000); // 1h grace window
+        const rows = await new ForumThreadReadRepository(trx).findRecentlyClosedSynthesisCandidates(
+          CLOSED_STATES,
+          since,
+          50,
+        );
+        expect(new Set(rows.map((r) => r.id))).toEqual(new Set([tClosedHigh]));
+      });
+    });
+
+    it('excludes proposals whose close predates the grace window', async () => {
+      await inRollback(async (trx) => {
+        const { daoId, actorId } = await seed(trx);
+        const closed = await insertProposal(trx, daoId, actorId, {
+          source_id: 'p-old',
+          state: 'executed',
+        });
+        const t = await insertThread(trx, daoId, { topic: '5', rawContent: 'content' });
+        await link(trx, closed, t, 'high');
+
+        // `since` is after the proposal's state_updated_at (= now), so nothing qualifies.
+        const since = new Date(Date.now() + 60 * 60 * 1000);
+        const rows = await new ForumThreadReadRepository(trx).findRecentlyClosedSynthesisCandidates(
+          CLOSED_STATES,
+          since,
+          50,
+        );
+        expect(rows).toEqual([]);
+      });
+    });
+  },
+);

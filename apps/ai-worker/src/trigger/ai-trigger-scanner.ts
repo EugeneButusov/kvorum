@@ -19,6 +19,18 @@ export const TRIGGER_STATES: ProposalState[] = ['pending', 'active'];
 export const MISMATCH_STATES: ProposalState[] = ['active'];
 // SPEC §5.7: the forum synthesizer runs on threads linked to `pending`/`active` proposals.
 export const FORUM_STATES: ProposalState[] = ['pending', 'active'];
+// SPEC §5.7 "once on close": after voting ends, a thread linked to a proposal that recently reached a
+// post-`active` state gets one final synthesis pass (the sha256 cache makes it idempotent). All states
+// past `active`; bounded by a grace window so the scan lands at least once after close.
+export const CLOSED_FORUM_STATES: ProposalState[] = [
+  'succeeded',
+  'defeated',
+  'queued',
+  'executed',
+  'canceled',
+  'expired',
+  'vetoed',
+];
 // SPEC §5.8: embed a proposal once it has entered ANY state above `pending` (canceled-before-voting
 // still gets embedded for the historical record). Backfill of pre-lookback history is the M5-7 epic.
 export const EMBED_STATES: ProposalState[] = [
@@ -35,6 +47,10 @@ export const EMBED_STATES: ProposalState[] = [
 const DEFAULT_SINGLETON_THROTTLE_SECONDS = 3600;
 const MAX_MISMATCH_CANDIDATES = 100;
 const MAX_FORUM_CANDIDATES = 100;
+// Grace window for the "once on close" final pass: how long after a proposal closes its linked thread
+// stays a candidate. Comfortably larger than a scan cycle so at least one scan lands post-close; the
+// hash cache absorbs the repeats. Default 48h.
+const DEFAULT_FORUM_CLOSE_GRACE_MS = 48 * 60 * 60 * 1000;
 
 /** Decoupled poll-based trigger bridge. For each enabled feature, finds eligible entities and
  *  enqueues one job per entity (singletonKey + singletonSeconds throttle). #433 wires only the
@@ -126,22 +142,31 @@ export class AiTriggerScanner {
   }
 
   /** SPEC §5.7: enqueue a synthesis job for each content-bearing thread linked (high/medium) to a
-   *  pending/active proposal. The handler dedups via the `sha256(raw_content)` cache (so a new post
-   *  re-qualifies the thread) and skips non-English threads with a `_meta` marker; batch vs. real-time
-   *  is just the scan cadence (4h sweep vs. 60s). */
+   *  pending/active proposal, PLUS the "once on close" final pass — threads whose linked proposal
+   *  reached a terminal state within the grace window. The handler dedups via the `sha256(raw_content)`
+   *  cache (so a new post re-qualifies the thread) and skips non-English threads with a `_meta` marker;
+   *  batch vs. real-time is just the scan cadence (4h sweep vs. 60s). */
   private async scanForumThreads(): Promise<number> {
-    const rows = await this.forumThreads.findSynthesisCandidates(
-      FORUM_STATES,
-      MAX_FORUM_CANDIDATES,
-    );
+    const graceMs = readPositiveInt('AI_FORUM_CLOSE_GRACE_MS', DEFAULT_FORUM_CLOSE_GRACE_MS);
+    const [active, closed] = await Promise.all([
+      this.forumThreads.findSynthesisCandidates(FORUM_STATES, MAX_FORUM_CANDIDATES),
+      this.forumThreads.findRecentlyClosedSynthesisCandidates(
+        CLOSED_FORUM_STATES,
+        new Date(Date.now() - graceMs),
+        MAX_FORUM_CANDIDATES,
+      ),
+    ]);
+    // A thread may match both lists (e.g. two linked proposals); enqueue it once. The per-thread
+    // singletonKey throttles across scans, the hash cache short-circuits the handler.
+    const threadIds = new Set<string>([...active, ...closed].map((row) => row.id));
     const throttle = readPositiveInt(
       'AI_SINGLETON_THROTTLE_SECONDS',
       DEFAULT_SINGLETON_THROTTLE_SECONDS,
     );
 
     let count = 0;
-    for (const row of rows) {
-      const entityRef = `forum_thread:${row.id}`;
+    for (const threadId of threadIds) {
+      const entityRef = `forum_thread:${threadId}`;
       const job: AiJob = { feature: 'forum_synthesizer', entityRef };
       const id = await this.queue.send(FEATURE_QUEUE.forum_synthesizer.main, job, {
         singletonKey: `forum_synthesizer:${entityRef}`,

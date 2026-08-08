@@ -159,4 +159,38 @@ export class ForumThreadReadRepository {
       .limit(limit)
       .execute();
   }
+
+  /**
+   * The "once on close" final-synthesis worklist (SPEC §5.7): content-bearing threads linked
+   * (`high`/`medium`) to a proposal that reached a terminal state at or after `since` (the grace
+   * window). Bounded by the indexed `state_updated_at`. The worker's `sha256(raw_content)` cache makes
+   * the pass idempotent — one synthesis at most per closed proposal, and a no-op unless late posts
+   * changed `raw_content` since the last one generated while voting.
+   */
+  async findRecentlyClosedSynthesisCandidates(
+    states: ProposalState[],
+    since: Date,
+    limit: number,
+  ): Promise<{ id: string }[]> {
+    if (states.length === 0) return [];
+    return this.db
+      .selectFrom('forum_thread as ft')
+      .select('ft.id')
+      .where('ft.raw_content', 'is not', null)
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('proposal_forum_link as pfl')
+            .innerJoin('proposal as p', 'p.id', 'pfl.proposal_id')
+            .select('pfl.id')
+            .whereRef('pfl.forum_thread_id', '=', 'ft.id')
+            .where('pfl.confidence', 'in', ['high', 'medium'])
+            .where('p.state', 'in', states)
+            .where('p.state_updated_at', '>=', since),
+        ),
+      )
+      .orderBy('ft.last_activity_at', 'desc')
+      .limit(limit)
+      .execute();
+  }
 }
