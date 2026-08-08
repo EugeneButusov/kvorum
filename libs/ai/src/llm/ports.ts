@@ -21,6 +21,9 @@ export interface Provenance {
   promptVersion: string;
   inputHash: string; // 'sha256:<hex>'
   generatedAt: string; // ISO-8601
+  // Why this model was chosen, for features that auto-route between models (forum synthesizer:
+  // 'long' | 'contentious' | 'short'). Absent for single-model features. SPEC §5.7.
+  routingReason?: string;
 }
 
 export interface CompletionRequest<T> {
@@ -32,6 +35,9 @@ export interface CompletionRequest<T> {
   messages: LlmMessage[];
   mode: CompletionMode;
   inputContent: string; // canonical string hashed for provenance / cache key
+  // Optional model-routing rationale, copied verbatim into the output's provenance (SPEC §5.7). Set by
+  // auto-routing features (forum synthesizer); ignored by the provider (not sent to the model).
+  routingReason?: string;
 }
 
 export interface CompletionResult<T> {

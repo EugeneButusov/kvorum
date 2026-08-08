@@ -161,6 +161,16 @@ describe('ForumSynthesisHandler', () => {
     expect(hot.complete.mock.calls[0]![0]).toMatchObject({ model: FORUM_MODEL_SONNET });
   });
 
+  it('stamps the routing reason on the request so it lands in provenance (SPEC §5.7)', async () => {
+    const calm = deps({});
+    await calm.handler.handle(JOB);
+    expect(calm.complete.mock.calls[0]![0]).toMatchObject({ routingReason: 'short' });
+
+    const hot = deps({ thread: thread({ rawContent: CONTENTIOUS }) });
+    await hot.handler.handle(JOB);
+    expect(hot.complete.mock.calls[0]![0]).toMatchObject({ routingReason: 'contentious' });
+  });
+
   it('skips a non-English thread: persists a skip marker with no LLM call', async () => {
     const chinese = '你好，世界。这是一条测试消息。';
     const { handler, complete, persist } = deps({ thread: thread({ rawContent: chinese }) });

@@ -27,5 +27,6 @@ export function buildProvenance(
     promptVersion: req.promptVersion,
     inputHash,
     generatedAt: clock.now(),
+    ...(req.routingReason !== undefined ? { routingReason: req.routingReason } : {}),
   };
 }

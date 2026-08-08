@@ -40,6 +40,19 @@ describe('buildProvenance', () => {
     });
   });
 
+  it('copies routingReason from the request when present (SPEC §5.7)', () => {
+    const fixed: Clock = { now: () => '2026-07-08T00:00:00.000Z' };
+    const hash = computeInputHash(baseReq.inputContent);
+    const prov = buildProvenance({ ...baseReq, routingReason: 'contentious' }, hash, fixed);
+    expect(prov.routingReason).toBe('contentious');
+  });
+
+  it('omits routingReason when the request carries none', () => {
+    const fixed: Clock = { now: () => '2026-07-08T00:00:00.000Z' };
+    const prov = buildProvenance(baseReq, computeInputHash(baseReq.inputContent), fixed);
+    expect('routingReason' in prov).toBe(false);
+  });
+
   it('SystemClock returns a valid ISO-8601 string', () => {
     expect(() => new Date(new SystemClock().now()).toISOString()).not.toThrow();
   });

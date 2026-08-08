@@ -101,6 +101,8 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
       messages: rendered.messages,
       mode: 'sync',
       inputContent,
+      // SPEC §5.7: persist WHY Sonnet vs Haiku was chosen (long/contentious/short) into provenance.
+      routingReason: route.reason,
     };
 
     const start = Date.now();
