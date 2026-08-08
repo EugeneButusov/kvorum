@@ -34,6 +34,10 @@ export type ForumThreadForSynthesis = {
   threadTitle: string | null;
   rawContent: string | null;
   linkedProposalTitle: string | null;
+  // The highest-confidence linked proposal's state + voting deadline — the batch-vs-sync urgency
+  // signal (SPEC §5.7: sync when voting is imminent, else batch). Null when the thread has no links.
+  linkedProposalState: ProposalState | null;
+  linkedProposalVotingEndsAt: Date | null;
 };
 
 /**
@@ -112,7 +116,7 @@ export class ForumThreadReadRepository {
     const links = await this.db
       .selectFrom('proposal_forum_link as pfl')
       .innerJoin('proposal as p', 'p.id', 'pfl.proposal_id')
-      .select(['p.title', 'pfl.confidence'])
+      .select(['p.title', 'p.state', 'p.voting_ends_at', 'pfl.confidence'])
       .where('pfl.forum_thread_id', '=', id)
       .execute();
 
@@ -128,6 +132,8 @@ export class ForumThreadReadRepository {
       threadTitle: thread.title,
       rawContent: thread.raw_content,
       linkedProposalTitle: best?.title ?? null,
+      linkedProposalState: best?.state ?? null,
+      linkedProposalVotingEndsAt: best?.voting_ends_at ?? null,
     };
   }
 

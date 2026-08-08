@@ -64,8 +64,13 @@ describe('ForumThreadReadRepository', () => {
           dao_name: 'Lido',
         },
         [
-          { title: 'Signal', confidence: 'medium' },
-          { title: 'Binding', confidence: 'high' },
+          { title: 'Signal', state: 'active', voting_ends_at: null, confidence: 'medium' },
+          {
+            title: 'Binding',
+            state: 'active',
+            voting_ends_at: new Date('2026-07-02T00:00:00.000Z'),
+            confidence: 'high',
+          },
         ],
       );
 
@@ -78,6 +83,8 @@ describe('ForumThreadReadRepository', () => {
         threadTitle: 'Increase limit',
         rawContent: 'body',
         linkedProposalTitle: 'Binding', // high beats medium
+        linkedProposalState: 'active',
+        linkedProposalVotingEndsAt: new Date('2026-07-02T00:00:00.000Z'),
       });
     });
 

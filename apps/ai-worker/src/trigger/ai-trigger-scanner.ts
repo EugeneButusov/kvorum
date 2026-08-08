@@ -49,8 +49,8 @@ const MAX_MISMATCH_CANDIDATES = 100;
 const MAX_FORUM_CANDIDATES = 100;
 // Grace window for the "once on close" final pass: how long after a proposal closes its linked thread
 // stays a candidate. Comfortably larger than a scan cycle so at least one scan lands post-close; the
-// hash cache absorbs the repeats. Default 48h.
-const DEFAULT_FORUM_CLOSE_GRACE_MS = 48 * 60 * 60 * 1000;
+// hash cache absorbs the repeats. Default 48h. Exported so the batch driver uses the same window.
+export const DEFAULT_FORUM_CLOSE_GRACE_MS = 48 * 60 * 60 * 1000;
 
 /** Decoupled poll-based trigger bridge. For each enabled feature, finds eligible entities and
  *  enqueues one job per entity (singletonKey + singletonSeconds throttle). #433 wires only the

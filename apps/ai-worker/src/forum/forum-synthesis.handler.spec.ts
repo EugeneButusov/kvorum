@@ -65,6 +65,9 @@ function thread(over: Partial<ForumThreadForSynthesis> = {}): ForumThreadForSynt
     threadTitle: 'Thread',
     rawContent: CALM,
     linkedProposalTitle: 'Raise reserve factor',
+    // Default: an active proposal with imminent voting → the sync handler runs (urgent path).
+    linkedProposalState: 'active',
+    linkedProposalVotingEndsAt: new Date(Date.now() + 60 * 60 * 1000),
     ...over,
   };
 }
@@ -79,6 +82,7 @@ function deps(over: {
   const complete = vi.fn(over.complete ?? (async () => completion()));
   const persist = vi.fn(async () => {});
   const dlqInsert = vi.fn(async () => {});
+  const deleteByKey = vi.fn(async () => {});
   const register = vi.fn();
   const threadResult = 'thread' in over ? over.thread : thread();
   const handler = new ForumSynthesisHandler(
@@ -91,17 +95,25 @@ function deps(over: {
         rawContent: t.rawContent ?? '',
       }),
     } as never,
-    { find: async () => (over.existingOutput ? ({ id: 'o1' } as never) : undefined) } as never,
+    {
+      find: async () => (over.existingOutput ? ({ id: 'o1' } as never) : undefined),
+      deleteByKey,
+    } as never,
     { persist } as never,
     { insert: dlqInsert } as never,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
     { register } as never,
   );
-  return { handler, complete, persist, dlqInsert, register };
+  return { handler, complete, persist, dlqInsert, deleteByKey, register };
 }
 
 const JOB = { feature: 'forum_synthesizer', entityRef: 'forum_thread:thread-1' } as never;
+const FORCE_JOB = {
+  feature: 'forum_synthesizer',
+  entityRef: 'forum_thread:thread-1',
+  force: true,
+} as never;
 
 describe('ForumSynthesisHandler', () => {
   it('registers itself for the forum_synthesizer feature on module init', () => {
@@ -169,6 +181,39 @@ describe('ForumSynthesisHandler', () => {
     const hot = deps({ thread: thread({ rawContent: CONTENTIOUS }) });
     await hot.handler.handle(JOB);
     expect(hot.complete.mock.calls[0]![0]).toMatchObject({ routingReason: 'contentious' });
+  });
+
+  it('acks without synthesizing when the thread is not urgent and not forced (batch handles it)', async () => {
+    const { handler, complete } = deps({
+      thread: thread({ linkedProposalState: 'succeeded', linkedProposalVotingEndsAt: null }),
+    });
+    await handler.handle(JOB);
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('acks when the linked proposal is active but voting is not imminent', async () => {
+    const { handler, complete } = deps({
+      thread: thread({
+        linkedProposalVotingEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      }),
+    });
+    await handler.handle(JOB);
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('forces a synchronous synthesis for a non-urgent thread, clearing the cache first', async () => {
+    const { handler, complete, deleteByKey } = deps({
+      thread: thread({ linkedProposalState: 'succeeded', linkedProposalVotingEndsAt: null }),
+    });
+    await handler.handle(FORCE_JOB);
+    expect(deleteByKey).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it('forced refresh re-runs even when a cached output exists (no cache-hit short-circuit)', async () => {
+    const { handler, complete } = deps({ existingOutput: true });
+    await handler.handle(FORCE_JOB);
+    expect(complete).toHaveBeenCalledOnce();
   });
 
   it('skips a non-English thread: persists a skip marker with no LLM call', async () => {
