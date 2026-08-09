@@ -17,6 +17,7 @@ function makeDeps(
     summaryIds?: string[];
     mismatchIds?: string[];
     forumIds?: string[];
+    closedForumIds?: string[];
   } = {},
 ) {
   const send = vi.fn().mockResolvedValue('job-id');
@@ -37,6 +38,9 @@ function makeDeps(
   };
   const forumThreads = {
     findSynthesisCandidates: vi.fn().mockResolvedValue((o.forumIds ?? []).map((id) => ({ id }))),
+    findRecentlyClosedSynthesisCandidates: vi
+      .fn()
+      .mockResolvedValue((o.closedForumIds ?? []).map((id) => ({ id }))),
   };
   const budgetState = { isDisabled: vi.fn().mockReturnValue(o.disabled ?? false) };
   const scanner = new AiTriggerScanner(
@@ -140,10 +144,46 @@ describe('AiTriggerScanner', () => {
       );
     });
 
+    it('enqueues a final synthesis for a recently-closed proposal thread (once on close)', async () => {
+      const { send, forumThreads, scanner } = makeDeps({
+        forum: true,
+        forumIds: [],
+        closedForumIds: ['t3'],
+      });
+
+      const count = await scanner.run(600_000);
+
+      expect(count).toBe(1);
+      expect(forumThreads.findRecentlyClosedSynthesisCandidates).toHaveBeenCalledWith(
+        ['succeeded', 'defeated', 'queued', 'executed', 'canceled', 'expired', 'vetoed'],
+        expect.any(Date),
+        expect.any(Number),
+      );
+      expect(send).toHaveBeenCalledWith(
+        AI_FORUM_SYNTHESIS_QUEUE,
+        { feature: 'forum_synthesizer', entityRef: 'forum_thread:t3' },
+        expect.objectContaining({ singletonKey: 'forum_synthesizer:forum_thread:t3' }),
+      );
+    });
+
+    it('enqueues a thread matching both the active and closed lists only once', async () => {
+      const { send, scanner } = makeDeps({
+        forum: true,
+        forumIds: ['t1'],
+        closedForumIds: ['t1'],
+      });
+
+      const count = await scanner.run(600_000);
+
+      expect(count).toBe(1);
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
     it('does not scan when the forum flag is off', async () => {
       const { forumThreads, scanner } = makeDeps({ forum: false, forumIds: ['t1'] });
       await scanner.run(600_000);
       expect(forumThreads.findSynthesisCandidates).not.toHaveBeenCalled();
+      expect(forumThreads.findRecentlyClosedSynthesisCandidates).not.toHaveBeenCalled();
     });
 
     it('does not scan when the forum feature is budget-disabled', async () => {

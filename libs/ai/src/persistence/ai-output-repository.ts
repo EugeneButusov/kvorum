@@ -46,4 +46,23 @@ export class AiOutputRepository {
     }
     return existing;
   }
+
+  /**
+   * Deletes the content-addressed row for a key, if present. `insert` is an immutable append (conflict
+   * = no-op), so an operator "force regenerate" clears the existing output first to let the re-run
+   * overwrite it (SPEC §5.7 operator refresh).
+   */
+  async deleteByKey(
+    featureName: string,
+    promptVersion: string,
+    inputHash: string,
+    executor: Kysely<PgDatabase> = this.db,
+  ): Promise<void> {
+    await executor
+      .deleteFrom('ai_output')
+      .where('feature_name', '=', featureName)
+      .where('prompt_version', '=', promptVersion)
+      .where('input_hash', '=', inputHash)
+      .execute();
+  }
 }
