@@ -1,4 +1,11 @@
-import { isForumSkip, type AiOutput, type ForumSynthesis, type ProposalSummary } from '@libs/ai';
+import {
+  isForumSkip,
+  mismatchFlag,
+  type AiOutput,
+  type ForumSynthesis,
+  type MismatchAnalysis,
+  type ProposalSummary,
+} from '@libs/ai';
 import type { ProposalAction, ProposalChoice } from '@libs/db';
 import type {
   OffchainDiscussionLinkView,
@@ -18,6 +25,8 @@ import {
 } from './forum-synthesis.dto';
 import {
   ProposalActionDto,
+  ProposalAiMismatchFlagDto,
+  ProposalAiMismatchFlagMetaDto,
   ProposalAiSummaryDto,
   ProposalAiSummaryMetaDto,
   ProposalDetailDto,
@@ -83,6 +92,25 @@ export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
   });
 }
 
+/** Map a stored mismatch `ai_output` row into the embedded `ai_mismatch_flag` block (SPEC §5.4/§5.6).
+ *  The stored MismatchAnalysis is run through the conservative surfacing threshold `mismatchFlag`
+ *  (ADR-080): `null` (no embedded flag) unless the analysis is a material/severe, non-low-confidence
+ *  discrepancy — the full analysis stays retrievable at the dedicated /ai/mismatch endpoint. When a
+ *  flag surfaces it carries the same provenance `_meta` shape as `ai_summary`. */
+export function toMismatchFlagDto(output: AiOutput): ProposalAiMismatchFlagDto | null {
+  const flag = mismatchFlag(output.output as MismatchAnalysis);
+  if (flag === null) return null;
+  return Object.assign(new ProposalAiMismatchFlagDto(), flag, {
+    _meta: Object.assign(new ProposalAiMismatchFlagMetaDto(), {
+      ai_generated: true,
+      model: output.model,
+      prompt_version: output.prompt_version,
+      input_hash: output.input_hash,
+      generated_at: isoSeconds(output.generated_at),
+    }),
+  });
+}
+
 /** Map a stored forum-synthesis `ai_output` row into the `…/ai/forum-synthesis` response envelope
  *  (SPEC §5.7). A non-English skip-marker row yields `data: null` + `_meta.skipped_reason`; a real
  *  synthesis yields the ForumSynthesis payload + a provenance `_meta` (`model` distinguishes
@@ -117,6 +145,7 @@ export function toProposalDetailDto(
   extension: ProposalExtension | null,
   offchainDiscussionLinks: readonly OffchainDiscussionLinkView[],
   aiSummary: AiOutput | null,
+  aiMismatch: AiOutput | null,
 ): ProposalDetailDto {
   const dto = Object.assign(new ProposalDetailDto(), {
     dao_slug: row.dao_slug,
@@ -150,6 +179,7 @@ export function toProposalDetailDto(
       }),
     ),
     ai_summary: aiSummary === null ? null : toAiSummaryDto(aiSummary),
+    ai_mismatch_flag: aiMismatch === null ? null : toMismatchFlagDto(aiMismatch),
     _meta: proposalMeta(row),
   });
 

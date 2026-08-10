@@ -28,6 +28,7 @@ import { HttpModule } from '../http/http.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { AiSummaryModule } from '../proposals/ai-summary.module';
 import { ForumSynthesisModule } from '../proposals/forum-synthesis.module';
+import { MismatchModule } from '../proposals/mismatch.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { SimilarProposalsModule } from '../proposals/similar-proposals.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
@@ -47,6 +48,7 @@ import { VotesController } from '../votes/votes.controller';
     AiSummaryModule,
     SimilarProposalsModule,
     ForumSynthesisModule,
+    MismatchModule,
     RateLimitModule,
     SourcesModule,
     SourceApiModule,

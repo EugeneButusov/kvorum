@@ -3497,6 +3497,47 @@
           "_meta"
         ]
       },
+      "ProposalAiMismatchFlagMetaDto": {
+        "type": "object",
+        "properties": {
+          "ai_generated": {
+            "type": "boolean",
+            "example": true,
+            "description": "Always true — labels AI-generated content."
+          },
+          "model": {
+            "type": "string"
+          },
+          "prompt_version": {
+            "type": "string"
+          },
+          "input_hash": {
+            "type": "string",
+            "description": "sha256: of the analyzed input (description + decoded actions)."
+          },
+          "generated_at": {
+            "type": "string"
+          }
+        },
+        "required": ["ai_generated", "model", "prompt_version", "input_hash", "generated_at"]
+      },
+      "ProposalAiMismatchFlagDto": {
+        "type": "object",
+        "properties": {
+          "assessment": {
+            "type": "string",
+            "description": "material_discrepancy | severe_discrepancy"
+          },
+          "summary": {
+            "type": "string",
+            "description": "The highest-severity discrepancy's description."
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ProposalAiMismatchFlagMetaDto"
+          }
+        },
+        "required": ["assessment", "summary", "_meta"]
+      },
       "ProposalDetailDto": {
         "type": "object",
         "properties": {
@@ -3608,6 +3649,16 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ProposalAiSummaryDto"
+              }
+            ]
+          },
+          "ai_mismatch_flag": {
+            "nullable": true,
+            "description": "Conservative calldata-vs-prose mismatch flag + provenance _meta. Null when no analysis exists (non-binding, undecoded, unprocessed, or capped) or when the analysis found no material/severe, confident discrepancy. The full analysis is at the dedicated /ai/mismatch endpoint.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProposalAiMismatchFlagDto"
               }
             ]
           }

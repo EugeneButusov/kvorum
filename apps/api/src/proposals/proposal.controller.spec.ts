@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DaoReadRepository, ProposalReadRepository, VoteReadRepository } from '@libs/db';
 import type { SourceReadExtension } from '@libs/domain';
 import type { AiSummaryReadService } from './ai-summary-read.service';
+import type { ProposalMismatchReadService } from './proposal-mismatch-read.service';
 import { ProposalController } from './proposal.controller';
 import { ProblemException } from '../http/problem-exception';
 import type { ApiListQueryDto } from '../openapi/query.dto';
@@ -867,5 +868,121 @@ describe('ProposalController — ai_forum_synthesis', () => {
     await expect(
       controller.aiForumSynthesis('compound', 'compound_governor_bravo', '42'),
     ).rejects.toBeInstanceOf(ProblemException);
+  });
+});
+
+describe('ProposalController — ai_mismatch_flag', () => {
+  function mismatchRow(outputOver: Record<string, unknown> = {}) {
+    return {
+      id: 'm1',
+      feature_name: 'mismatch_detector',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      model: 'claude-sonnet-5',
+      output: {
+        overall_assessment: 'material_discrepancy',
+        confidence: 'high',
+        description_actions: [],
+        calldata_actions: [],
+        discrepancies: [
+          {
+            type: 'value_mismatch',
+            description: 'Reserve factor set to 25%, not 15%.',
+            severity: 'high',
+            description_excerpt: null,
+            related_action_indices: [0],
+          },
+        ],
+        reasoning: 'The calldata sets 25% while the prose says 15%.',
+        ...outputOver,
+      },
+      cost_usd: '0.010000',
+      generated_at: new Date('2026-04-12T08:30:00Z'),
+      source_provenance: {},
+    };
+  }
+
+  function controllerWith(reader: {
+    findForProposal: ReturnType<typeof vi.fn>;
+  }): ProposalController {
+    const repo = {
+      findOne: vi.fn().mockResolvedValue(baseProposalRow),
+      findActions: vi.fn().mockResolvedValue([]),
+      findChoices: vi.fn().mockResolvedValue([]),
+      resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
+    };
+    return new ProposalController(
+      repo as unknown as ProposalReadRepository,
+      {} as unknown as DaoReadRepository,
+      makeVoteRepo(),
+      makeExtensions(),
+      undefined, // aiSummaries
+      undefined, // similar
+      undefined, // forumSynth
+      reader as unknown as ProposalMismatchReadService,
+    );
+  }
+
+  function flagOf(out: { data: unknown }) {
+    return (out.data as Record<string, unknown>)['ai_mismatch_flag'];
+  }
+
+  it('embeds ai_mismatch_flag with provenance _meta for a material, confident discrepancy', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(mismatchRow()) };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    expect(flagOf(out)).toEqual({
+      assessment: 'material_discrepancy',
+      summary: 'Reserve factor set to 25%, not 15%.',
+      _meta: {
+        ai_generated: true,
+        model: 'claude-sonnet-5',
+        prompt_version: 'v1.0',
+        input_hash: 'sha256:def',
+        generated_at: '2026-04-12T08:30:00Z',
+      },
+    });
+    // hashed from the proposal's own description + (empty) actions
+    expect(reader.findForProposal).toHaveBeenCalledWith('desc', []);
+  });
+
+  it('suppresses the flag (null) when the analysis is consistent', async () => {
+    const reader = {
+      findForProposal: vi
+        .fn()
+        .mockResolvedValue(mismatchRow({ overall_assessment: 'consistent', discrepancies: [] })),
+    };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    expect(flagOf(out)).toBeNull();
+  });
+
+  it('suppresses the flag (null) for a material but low-confidence analysis', async () => {
+    const reader = {
+      findForProposal: vi.fn().mockResolvedValue(mismatchRow({ confidence: 'low' })),
+    };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    expect(flagOf(out)).toBeNull();
+  });
+
+  it('sets ai_mismatch_flag null when no analysis exists', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(null) };
+    const out = await controllerWith(reader).detail('compound', 'compound_governor_bravo', '42');
+    expect(flagOf(out)).toBeNull();
+  });
+
+  it('degrades to null when the mismatch service is unwired', async () => {
+    const repo = {
+      findOne: vi.fn().mockResolvedValue(baseProposalRow),
+      findActions: vi.fn().mockResolvedValue([]),
+      findChoices: vi.fn().mockResolvedValue([]),
+      resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
+    };
+    const controller = new ProposalController(
+      repo as unknown as ProposalReadRepository,
+      {} as unknown as DaoReadRepository,
+      makeVoteRepo(),
+      makeExtensions(),
+    );
+    const out = await controller.detail('compound', 'compound_governor_bravo', '42');
+    expect(flagOf(out)).toBeNull();
   });
 });
