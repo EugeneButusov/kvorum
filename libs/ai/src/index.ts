@@ -17,6 +17,7 @@ export * from './schemas/proposal-summary.js';
 export * from './schemas/proposal-summary-input.js';
 export * from './schemas/mismatch-analysis.js';
 export * from './schemas/mismatch-flag.js';
+export * from './schemas/mismatch-input.js';
 export * from './schemas/forum-synthesis.js';
 export * from './schemas/forum-synthesis-input.js';
 export * from './schemas/proposal-embedding-input.js';

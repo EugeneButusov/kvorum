@@ -1,6 +1,7 @@
 import type { AiOutput } from '@libs/ai';
 import {
   toForumSynthesisResponse,
+  toMismatchFlagDto,
   toProposalDetailDto,
   toProposalListItemDto,
 } from './proposal.mappers';
@@ -62,6 +63,7 @@ describe('proposal.mappers', () => {
       null,
       [],
       null,
+      null,
     );
 
     expect(dto.voting_starts_at).toBe('2026-05-15T10:00:00Z');
@@ -108,6 +110,7 @@ describe('proposal.mappers', () => {
           last_activity_at: '2026-05-15T09:00:00Z',
         },
       ],
+      null,
       null,
     );
 
@@ -161,7 +164,7 @@ describe('proposal.mappers', () => {
       metadata: null,
     };
 
-    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [], null);
+    const dto = toProposalDetailDto(row, [], [], '0x1', extension, [], null, null);
     expect(dto.origin_chain_id).toBe('0x1');
     expect(dto.voting).toEqual(extension.voting);
     expect(dto.payloads).toHaveLength(2);
@@ -224,6 +227,87 @@ describe('proposal.mappers', () => {
       const res = toForumSynthesisResponse(output);
       expect(res.data).toBeNull();
       expect(res._meta).toEqual({ ai_generated: false, skipped_reason: 'non_english' });
+    });
+  });
+
+  describe('toMismatchFlagDto', () => {
+    const base = {
+      feature_name: 'mismatch_detector',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      model: 'claude-sonnet-5',
+      cost_usd: '0.010000',
+      generated_at: new Date('2026-04-12T08:30:00.500Z'),
+      source_provenance: {},
+    };
+
+    function analysis(over: Record<string, unknown> = {}) {
+      return {
+        overall_assessment: 'material_discrepancy',
+        confidence: 'high',
+        description_actions: [],
+        calldata_actions: [],
+        discrepancies: [],
+        reasoning: 'r',
+        ...over,
+      };
+    }
+
+    it('surfaces the highest-severity discrepancy description with provenance _meta', () => {
+      const output = {
+        ...base,
+        output: analysis({
+          discrepancies: [
+            {
+              type: 'misleading_phrasing',
+              description: 'low one',
+              severity: 'low',
+              description_excerpt: null,
+              related_action_indices: [],
+            },
+            {
+              type: 'value_mismatch',
+              description: 'high one',
+              severity: 'high',
+              description_excerpt: null,
+              related_action_indices: [0],
+            },
+          ],
+        }),
+      } as unknown as AiOutput;
+
+      expect(toMismatchFlagDto(output)).toEqual({
+        assessment: 'material_discrepancy',
+        summary: 'high one',
+        _meta: {
+          ai_generated: true,
+          model: 'claude-sonnet-5',
+          prompt_version: 'v1.0',
+          input_hash: 'sha256:def',
+          generated_at: '2026-04-12T08:30:00Z',
+        },
+      });
+    });
+
+    it('returns null for a consistent analysis (no flag surfaced)', () => {
+      const output = {
+        ...base,
+        output: analysis({ overall_assessment: 'consistent' }),
+      } as unknown as AiOutput;
+      expect(toMismatchFlagDto(output)).toBeNull();
+    });
+
+    it('returns null for a minor discrepancy', () => {
+      const output = {
+        ...base,
+        output: analysis({ overall_assessment: 'minor_discrepancy' }),
+      } as unknown as AiOutput;
+      expect(toMismatchFlagDto(output)).toBeNull();
+    });
+
+    it('returns null for a material but low-confidence analysis', () => {
+      const output = { ...base, output: analysis({ confidence: 'low' }) } as unknown as AiOutput;
+      expect(toMismatchFlagDto(output)).toBeNull();
     });
   });
 });

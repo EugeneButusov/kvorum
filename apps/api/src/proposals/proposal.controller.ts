@@ -19,6 +19,7 @@ import {
 import { AiSummaryReadService } from './ai-summary-read.service';
 import { ForumSynthesisReadService } from './forum-synthesis-read.service';
 import { ForumSynthesisResponseDto } from './forum-synthesis.dto';
+import { ProposalMismatchReadService } from './proposal-mismatch-read.service';
 import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 import { ProposalTallyResponseDto } from './proposal-tally.dto';
 import {
@@ -73,6 +74,8 @@ export class ProposalController {
     @Optional() private readonly similar?: SimilarProposalsReadService,
     // Forum-thread synthesis (SPEC §5.7); when unwired, /ai/forum-synthesis 404s (as if unprocessed).
     @Optional() private readonly forumSynth?: ForumSynthesisReadService,
+    // Embedded mismatch flag (SPEC §5.6); when unwired the field degrades to null (as if unprocessed).
+    @Optional() private readonly mismatches?: ProposalMismatchReadService,
   ) {}
 
   /**
@@ -172,7 +175,12 @@ export class ProposalController {
       this.repo.resolveOriginChainId(row.id, sourceType),
       getProposalExtensionFor(this.extensions, row.id, sourceType),
     ]);
-    const aiSummary = (await this.aiSummaries?.findForProposal(row.description, actions)) ?? null;
+    // Both AI reads are cheap indexed ai_output lookups keyed off the same already-loaded
+    // (description, actions); run them together so the detail latency is unaffected (SPEC §7.2).
+    const [aiSummary, aiMismatch] = await Promise.all([
+      this.aiSummaries?.findForProposal(row.description, actions) ?? null,
+      this.mismatches?.findForProposal(row.description, actions) ?? null,
+    ]);
 
     return {
       data: toProposalDetailDto(
@@ -183,6 +191,7 @@ export class ProposalController {
         ext.extension,
         ext.offchainDiscussionLinks,
         aiSummary,
+        aiMismatch,
       ),
     };
   }

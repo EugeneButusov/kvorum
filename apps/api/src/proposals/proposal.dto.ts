@@ -186,6 +186,37 @@ export class ProposalAiSummaryResponseDto {
   declare data: ProposalAiSummaryDto;
 }
 
+export class ProposalAiMismatchFlagMetaDto {
+  @ApiProperty({ example: true, description: 'Always true — labels AI-generated content.' })
+  declare ai_generated: boolean;
+
+  @ApiProperty()
+  declare model: string;
+
+  @ApiProperty()
+  declare prompt_version: string;
+
+  @ApiProperty({ description: 'sha256: of the analyzed input (description + decoded actions).' })
+  declare input_hash: string;
+
+  @ApiProperty()
+  declare generated_at: string;
+}
+
+// SPEC §5.4/§5.6, ADR-080 — the conservative surfacing of a stored MismatchAnalysis: present ONLY for a
+// material/severe, non-low-confidence discrepancy. The full structured analysis (incl. consistent, minor,
+// and low-confidence cases) is available via the dedicated /ai/mismatch endpoint (#449).
+export class ProposalAiMismatchFlagDto {
+  @ApiProperty({ description: 'material_discrepancy | severe_discrepancy' })
+  declare assessment: string;
+
+  @ApiProperty({ description: "The highest-severity discrepancy's description." })
+  declare summary: string;
+
+  @ApiProperty({ type: ProposalAiMismatchFlagMetaDto })
+  declare _meta: ProposalAiMismatchFlagMetaDto;
+}
+
 @ApiExtraModels(...PROPOSAL_METADATA_DTOS)
 export class ProposalDetailDto extends ProposalListItemDto {
   @ApiProperty()
@@ -221,6 +252,16 @@ export class ProposalDetailDto extends ProposalListItemDto {
     description: 'AI-generated summary + provenance _meta; null when not yet produced or capped.',
   })
   declare ai_summary: ProposalAiSummaryDto | null;
+
+  @ApiPropertyOptional({
+    type: ProposalAiMismatchFlagDto,
+    nullable: true,
+    description:
+      'Conservative calldata-vs-prose mismatch flag + provenance _meta. Null when no analysis exists ' +
+      '(non-binding, undecoded, unprocessed, or capped) or when the analysis found no material/severe, ' +
+      'confident discrepancy. The full analysis is at the dedicated /ai/mismatch endpoint.',
+  })
+  declare ai_mismatch_flag: ProposalAiMismatchFlagDto | null;
 }
 
 export class ProposalDetailResponseDto {

@@ -43,6 +43,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_mismatch_flag": null,
     "ai_summary": null,
     "binding": true,
     "choices": [
@@ -672,7 +673,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "aave-concentration": null,
   "aave-delegate-alignment": null,
   "aave-delegation-flow": ""7E6lin7FRPEAF115ug5y1Pv2KXI"",
-  "aave-proposal-detail": ""xJOx6hQoiH0OdkKVXC7M4CINJVI"",
+  "aave-proposal-detail": ""ODDReKyBab8aKQ0RZw9Ym9y_Lq4"",
   "aave-proposal-pass-rate": ""e8tZWKBZnqCfeOha5WZiLMtf28I"",
   "aave-proposals-list": ""HJQCEg8tQx2trR76B__-1p07GRo"",
   "actor-detail": ""U-bR9ji1MIJNuJLIjy3NlSWw1Vo"",
@@ -683,12 +684,12 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
   "dao-proposals-list": ""h9H_se154XngymNNiitjlRe2pUk"",
   "dao-sources": ""lHkveUj1_T9XP9b3L7wyayzxv8k"",
   "daos-list": ""K3GdscfRwAyzVbs-REYRqs-jM3c"",
-  "lido-aragon-proposal-detail": ""3Qs2aJQJYUE74MQYHrX_TEnxthk"",
+  "lido-aragon-proposal-detail": ""IHLVfQUx4c62vPnbKJJNmuyWpjg"",
   "lido-proposals-list": ""6BTU9-2Xpo59eAYiSdN9tP70TyM"",
-  "lido-snapshot-proposal-detail": ""JkVH8eCmvRQ_Afv_sKSiXOaklh4"",
+  "lido-snapshot-proposal-detail": ""UjpIKrjAajtLA_xF3liOe3o6wNQ"",
   "lido-snapshot-vote": ""ERMGzVrFHa90WUElGQaGAKkvmiE"",
   "lido-sources": ""d-p4pjaL6_WXzUxxMUUXlhIQDMY"",
-  "proposal-detail": ""OYFgFTjT_m2PEWHfeb5O4dPYdl8"",
+  "proposal-detail": ""3iBvEopGpjl0WULevE4aKXsdEL4"",
 }
 `;
 
@@ -704,6 +705,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_mismatch_flag": null,
     "ai_summary": null,
     "binding": true,
     "choices": [
@@ -902,6 +904,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
       },
     },
     "actions": [],
+    "ai_mismatch_flag": null,
     "ai_summary": null,
     "binding": false,
     "choices": [
@@ -1059,6 +1062,7 @@ exports[`M1 H6 conformance baseline e2e > pins body shape snapshots and etag sna
         "value_wei": "42",
       },
     ],
+    "ai_mismatch_flag": null,
     "ai_summary": null,
     "binding": true,
     "choices": [
