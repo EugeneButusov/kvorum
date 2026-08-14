@@ -1,6 +1,7 @@
 import type { AiOutput } from '@libs/ai';
 import {
   toForumSynthesisResponse,
+  toMismatchDto,
   toMismatchFlagDto,
   toProposalDetailDto,
   toProposalListItemDto,
@@ -308,6 +309,71 @@ describe('proposal.mappers', () => {
     it('returns null for a material but low-confidence analysis', () => {
       const output = { ...base, output: analysis({ confidence: 'low' }) } as unknown as AiOutput;
       expect(toMismatchFlagDto(output)).toBeNull();
+    });
+  });
+
+  describe('toMismatchDto', () => {
+    const base = {
+      feature_name: 'mismatch_detector',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      model: 'claude-sonnet-5',
+      cost_usd: '0.010000',
+      generated_at: new Date('2026-04-12T08:30:00.500Z'),
+      source_provenance: {},
+    };
+
+    function analysis(over: Record<string, unknown> = {}) {
+      return {
+        overall_assessment: 'material_discrepancy',
+        confidence: 'high',
+        description_actions: [{ claim: 'Sets X', location: 'para 1' }],
+        calldata_actions: [{ action_index: 0, summary: 'setX(25)', significance: 'high' }],
+        discrepancies: [
+          {
+            type: 'value_mismatch',
+            description: 'd',
+            severity: 'high',
+            description_excerpt: null,
+            related_action_indices: [0],
+          },
+        ],
+        reasoning: 'r',
+        ...over,
+      };
+    }
+
+    it('passes the full analysis through verbatim with provenance _meta', () => {
+      const output = { ...base, output: analysis() } as unknown as AiOutput;
+      const dto = toMismatchDto(output);
+      expect(dto.overall_assessment).toBe('material_discrepancy');
+      expect(dto.confidence).toBe('high');
+      expect(dto.description_actions).toEqual([{ claim: 'Sets X', location: 'para 1' }]);
+      expect(dto.calldata_actions).toEqual([
+        { action_index: 0, summary: 'setX(25)', significance: 'high' },
+      ]);
+      expect(dto.discrepancies).toHaveLength(1);
+      expect(dto.reasoning).toBe('r');
+      expect(dto._meta).toEqual({
+        ai_generated: true,
+        model: 'claude-sonnet-5',
+        prompt_version: 'v1.0',
+        input_hash: 'sha256:def',
+        generated_at: '2026-04-12T08:30:00Z',
+      });
+    });
+
+    it('returns the full analysis for consistent / low-confidence rows (no threshold, unlike the flag)', () => {
+      const consistent = {
+        ...base,
+        output: analysis({ overall_assessment: 'consistent', discrepancies: [] }),
+      } as unknown as AiOutput;
+      expect(toMismatchDto(consistent).overall_assessment).toBe('consistent');
+      expect(toMismatchFlagDto(consistent)).toBeNull(); // the flag suppresses it; the full endpoint does not
+
+      const lowConf = { ...base, output: analysis({ confidence: 'low' }) } as unknown as AiOutput;
+      expect(toMismatchDto(lowConf).confidence).toBe('low');
+      expect(toMismatchFlagDto(lowConf)).toBeNull();
     });
   });
 });

@@ -1212,6 +1212,75 @@
         "tags": ["proposals"]
       }
     },
+    "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/mismatch": {
+      "get": {
+        "operationId": "ProposalController_aiMismatch",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalMismatchResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["proposals"]
+      }
+    },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/similar": {
       "get": {
         "operationId": "ProposalController_similarProposals",
@@ -3497,7 +3566,7 @@
           "_meta"
         ]
       },
-      "ProposalAiMismatchFlagMetaDto": {
+      "ProposalAiMismatchMetaDto": {
         "type": "object",
         "properties": {
           "ai_generated": {
@@ -3533,7 +3602,7 @@
             "description": "The highest-severity discrepancy's description."
           },
           "_meta": {
-            "$ref": "#/components/schemas/ProposalAiMismatchFlagMetaDto"
+            "$ref": "#/components/schemas/ProposalAiMismatchMetaDto"
           }
         },
         "required": ["assessment", "summary", "_meta"]
@@ -3695,6 +3764,126 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ProposalAiSummaryDto"
+          }
+        },
+        "required": ["data"]
+      },
+      "MismatchDescriptionActionDto": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string",
+            "description": "A claim the proposal's prose makes about what it does."
+          },
+          "location": {
+            "type": "string",
+            "description": "Brief reference to where in the description the claim appears."
+          }
+        },
+        "required": ["claim", "location"]
+      },
+      "MismatchCalldataActionDto": {
+        "type": "object",
+        "properties": {
+          "action_index": {
+            "type": "number"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Plain-language summary of what the decoded calldata action does."
+          },
+          "significance": {
+            "type": "string",
+            "description": "high | medium | low"
+          }
+        },
+        "required": ["action_index", "summary", "significance"]
+      },
+      "MismatchDiscrepancyDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "value_mismatch | omitted_in_description | extra_in_description | misleading_phrasing | target_mismatch"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "description": "high | medium | low"
+          },
+          "description_excerpt": {
+            "type": "string",
+            "nullable": true
+          },
+          "related_action_indices": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "description",
+          "severity",
+          "description_excerpt",
+          "related_action_indices"
+        ]
+      },
+      "ProposalMismatchDto": {
+        "type": "object",
+        "properties": {
+          "overall_assessment": {
+            "type": "string",
+            "description": "consistent | minor_discrepancy | material_discrepancy | severe_discrepancy"
+          },
+          "confidence": {
+            "type": "string",
+            "description": "high | medium | low"
+          },
+          "description_actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MismatchDescriptionActionDto"
+            }
+          },
+          "calldata_actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MismatchCalldataActionDto"
+            }
+          },
+          "discrepancies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MismatchDiscrepancyDto"
+            }
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "The model's explanation of its assessment (shown to users)."
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/ProposalAiMismatchMetaDto"
+          }
+        },
+        "required": [
+          "overall_assessment",
+          "confidence",
+          "description_actions",
+          "calldata_actions",
+          "discrepancies",
+          "reasoning",
+          "_meta"
+        ]
+      },
+      "ProposalMismatchResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalMismatchDto"
           }
         },
         "required": ["data"]

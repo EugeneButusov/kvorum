@@ -26,11 +26,13 @@ import {
   ProposalAiSummaryResponseDto,
   ProposalDetailResponseDto,
   ProposalListResponseDto,
+  ProposalMismatchResponseDto,
   type ProposalTallySummaryDto,
 } from './proposal.dto';
 import {
   toAiSummaryDto,
   toForumSynthesisResponse,
+  toMismatchDto,
   toProposalDetailDto,
   toProposalListItemDto,
 } from './proposal.mappers';
@@ -225,6 +227,39 @@ export class ProposalController {
     }
 
     return { data: toAiSummaryDto(output) };
+  }
+
+  @ApiParam({ name: 'slug', type: String })
+  @ApiParam({ name: 'source_type', type: String })
+  @ApiParam({ name: 'source_id', type: String })
+  @ApiOkResponse({ type: ProposalMismatchResponseDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  @Get('daos/:slug/proposals/:source_type/:source_id/ai/mismatch')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 30, staleWhileRevalidateSecs: 300 })
+  async aiMismatch(
+    @Param('slug') slug: string,
+    @Param('source_type') sourceType: string,
+    @Param('source_id') sourceId: string,
+  ): Promise<ProposalMismatchResponseDto> {
+    const row = await this.repo.findOne(slug, sourceType, sourceId);
+    if (row === undefined) {
+      throw problemException('not-found', {
+        detail: `No proposal found for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    // The dedicated endpoint returns the FULL analysis for any stored row (SPEC §5.6) — 404 only when
+    // no analysis exists (non-binding / undecoded / unprocessed / capped), mirroring /ai/summary.
+    const actions = await this.repo.findActions(row.id);
+    const output = (await this.mismatches?.findForProposal(row.description, actions)) ?? null;
+    if (output === null) {
+      throw problemException('not-found', {
+        detail: `No mismatch analysis for dao=${slug}, source_type=${sourceType}, source_id=${sourceId}`,
+      });
+    }
+
+    return { data: toMismatchDto(output) };
   }
 
   @ApiParam({ name: 'slug', type: String })

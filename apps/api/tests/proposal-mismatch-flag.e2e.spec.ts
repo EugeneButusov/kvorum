@@ -135,4 +135,81 @@ describeHttpIf('proposal ai_mismatch_flag e2e', () => {
       await resetDaoProposalApiTables();
     }
   });
+
+  const MISMATCH_ENDPOINT = '/v1/daos/compound/proposals/compound_governor_bravo/42/ai/mismatch';
+
+  it('dedicated /ai/mismatch returns the full analysis + provenance for a material discrepancy', async () => {
+    const app = await createRealApp();
+    try {
+      await resetDaoProposalApiTables();
+      const seeded = await seedDaoProposalApiData();
+      const inputHash = await seedMismatchFor(seeded.proposalId, mismatchAnalysis());
+
+      const res = await request(app.getHttpServer())
+        .get(MISMATCH_ENDPOINT)
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+
+      expect(res.body.data.overall_assessment).toBe('material_discrepancy');
+      expect(res.body.data.confidence).toBe('high');
+      expect(res.body.data.discrepancies).toHaveLength(1);
+      expect(res.body.data.reasoning).toBe('The calldata value does not match the prose.');
+      expect(res.body.data._meta).toEqual({
+        ai_generated: true,
+        model: 'claude-sonnet-5',
+        prompt_version: 'v1.0',
+        input_hash: inputHash,
+        generated_at: '2026-04-12T08:30:00Z',
+      });
+    } finally {
+      await app.close();
+      await resetDaoProposalApiTables();
+    }
+  });
+
+  it('dedicated /ai/mismatch returns a consistent analysis (retrievable though it surfaces no flag)', async () => {
+    const app = await createRealApp();
+    try {
+      await resetDaoProposalApiTables();
+      const seeded = await seedDaoProposalApiData();
+      await seedMismatchFor(
+        seeded.proposalId,
+        mismatchAnalysis({ overall_assessment: 'consistent', discrepancies: [] }),
+      );
+
+      // The embedded flag is suppressed for `consistent`, but the dedicated endpoint still returns it.
+      const detail = await request(app.getHttpServer())
+        .get('/v1/daos/compound/proposals/compound_governor_bravo/42')
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+      expect(detail.body.data.ai_mismatch_flag).toBeNull();
+
+      const res = await request(app.getHttpServer())
+        .get(MISMATCH_ENDPOINT)
+        .set('Authorization', seeded.bearer)
+        .expect(200);
+      expect(res.body.data.overall_assessment).toBe('consistent');
+      expect(res.body.data.discrepancies).toEqual([]);
+      expect(res.body.data._meta.ai_generated).toBe(true);
+    } finally {
+      await app.close();
+      await resetDaoProposalApiTables();
+    }
+  });
+
+  it('dedicated /ai/mismatch 404s when no analysis exists', async () => {
+    const app = await createRealApp();
+    try {
+      await resetDaoProposalApiTables();
+      const seeded = await seedDaoProposalApiData(); // no ai_output seeded
+
+      await request(app.getHttpServer())
+        .get(MISMATCH_ENDPOINT)
+        .set('Authorization', seeded.bearer)
+        .expect(404);
+    } finally {
+      await app.close();
+      await resetDaoProposalApiTables();
+    }
+  });
 });

@@ -53,6 +53,7 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-080](0080-mismatch-methodology.md)                      | Calldata-vs-prose mismatch methodology (flag/ignore, surfacing threshold, reasoning, model)           | Proposed                      | 5.6, 7.2                                |
 | [ADR-081](0081-embedding-composition.md)                     | Proposal embedding composition (natural text, names-only actions, stable + change-controlled)         | Proposed                      | 5.8, 5.9                                |
 | [ADR-087](0087-service-side-actor-identity-resolution.md)    | Resolve actor identity in the service, not inside ClickHouse                                          | Accepted                      | 6.7, 6.9, 6.12                          |
+| [ADR-0088](0088-forum-synthesis-proposal-subresource.md)     | Forum synthesis exposed as a proposal sub-resource, not a thread-addressed route (amends §5.4)        | Accepted                      | 5.4                                     |
 
 ## Status legend
 
