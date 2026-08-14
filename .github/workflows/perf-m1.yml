@@ -100,8 +100,11 @@ jobs:
         run: pnpm --filter api build
 
       - name: Start API
+        # Boot the webpack bundle built in the previous step, not tsx-on-source: esbuild (tsx) rejects the
+        # legacy property decorators in the source-package DTOs (`Decorators are not valid here`), so the
+        # tsx boot never became healthy and the gate could not run. The build handles decorators.
         run: |
-          pnpm exec tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/main.ts > /tmp/api.log 2>&1 &
+          node dist/apps/api/main.js > /tmp/api.log 2>&1 &
           echo $! > /tmp/api.pid
         env:
           API_PORT: '3001'
