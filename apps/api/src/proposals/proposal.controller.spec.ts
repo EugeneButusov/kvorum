@@ -986,3 +986,123 @@ describe('ProposalController — ai_mismatch_flag', () => {
     expect(flagOf(out)).toBeNull();
   });
 });
+
+describe('ProposalController — ai/mismatch (dedicated)', () => {
+  function mismatchRow(outputOver: Record<string, unknown> = {}) {
+    return {
+      id: 'm1',
+      feature_name: 'mismatch_detector',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      model: 'claude-sonnet-5',
+      output: {
+        overall_assessment: 'material_discrepancy',
+        confidence: 'high',
+        description_actions: [{ claim: 'Sets reserve factor to 15%.', location: 'para 2' }],
+        calldata_actions: [
+          { action_index: 0, summary: 'setReserveFactor(0.25e18)', significance: 'high' },
+        ],
+        discrepancies: [
+          {
+            type: 'value_mismatch',
+            description: 'Calldata sets 25%, description says 15%.',
+            severity: 'high',
+            description_excerpt: '15%',
+            related_action_indices: [0],
+          },
+        ],
+        reasoning: 'The calldata value does not match the prose.',
+        ...outputOver,
+      },
+      cost_usd: '0.010000',
+      generated_at: new Date('2026-04-12T08:30:00Z'),
+      source_provenance: {},
+    };
+  }
+
+  function controllerWith(
+    reader: { findForProposal: ReturnType<typeof vi.fn> } | undefined,
+    repoOver: Record<string, unknown> = {},
+  ): ProposalController {
+    const repo = {
+      findOne: vi.fn().mockResolvedValue(baseProposalRow),
+      findActions: vi.fn().mockResolvedValue([]),
+      findChoices: vi.fn().mockResolvedValue([]),
+      resolveOriginChainId: vi.fn().mockResolvedValue('0x1'),
+      ...repoOver,
+    };
+    return new ProposalController(
+      repo as unknown as ProposalReadRepository,
+      {} as unknown as DaoReadRepository,
+      makeVoteRepo(),
+      makeExtensions(),
+      undefined, // aiSummaries
+      undefined, // similar
+      undefined, // forumSynth
+      reader as unknown as ProposalMismatchReadService,
+    );
+  }
+
+  it('returns the full analysis + provenance _meta for a stored row', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(mismatchRow()) };
+    const out = await controllerWith(reader).aiMismatch(
+      'compound',
+      'compound_governor_bravo',
+      '42',
+    );
+    const data = out.data as Record<string, unknown>;
+    expect(data['overall_assessment']).toBe('material_discrepancy');
+    expect(data['confidence']).toBe('high');
+    expect(data['discrepancies']).toHaveLength(1);
+    expect(data['reasoning']).toBe('The calldata value does not match the prose.');
+    expect(data['_meta']).toEqual({
+      ai_generated: true,
+      model: 'claude-sonnet-5',
+      prompt_version: 'v1.0',
+      input_hash: 'sha256:def',
+      generated_at: '2026-04-12T08:30:00Z',
+    });
+    // hashed from the proposal's own description + (empty) actions
+    expect(reader.findForProposal).toHaveBeenCalledWith('desc', []);
+  });
+
+  it('returns the full analysis even when consistent (bypasses the flag threshold)', async () => {
+    const reader = {
+      findForProposal: vi
+        .fn()
+        .mockResolvedValue(mismatchRow({ overall_assessment: 'consistent', discrepancies: [] })),
+    };
+    const out = await controllerWith(reader).aiMismatch(
+      'compound',
+      'compound_governor_bravo',
+      '42',
+    );
+    const data = out.data as Record<string, unknown>;
+    expect(data['overall_assessment']).toBe('consistent');
+    expect(data['discrepancies']).toEqual([]);
+    expect((data['_meta'] as Record<string, unknown>)['ai_generated']).toBe(true);
+  });
+
+  it('404s when the proposal is missing', async () => {
+    const controller = controllerWith(
+      { findForProposal: vi.fn() },
+      { findOne: vi.fn().mockResolvedValue(undefined) },
+    );
+    await expect(
+      controller.aiMismatch('compound', 'compound_governor_bravo', '999'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('404s when the proposal has no mismatch analysis', async () => {
+    const reader = { findForProposal: vi.fn().mockResolvedValue(null) };
+    await expect(
+      controllerWith(reader).aiMismatch('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+
+  it('404s (degrades) when the mismatch service is unwired', async () => {
+    await expect(
+      controllerWith(undefined).aiMismatch('compound', 'compound_governor_bravo', '42'),
+    ).rejects.toBeInstanceOf(ProblemException);
+  });
+});

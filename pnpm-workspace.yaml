@@ -22,9 +22,10 @@ overrides:
   # and <=8.5.17 path traversal in previous source map (GHSA-r28c-9q8g-f849); pin the latest 8.5.x.
   'next>postcss': '8.5.25'
   # nanoid: next>postcss pulls the 3.x line (vulnerable, GHSA-2v37-7h3g-55p8 — a custom generator with
-  # size 0 loops indefinitely). Rewrite the vulnerable 3.x range to the patched 3.3.17 (patch bump,
+  # size 0 loops indefinitely). The advisory's vulnerable range was widened to <3.3.18, so the earlier
+  # 3.3.17 pin no longer clears it; rewrite the vulnerable 3.x range to the patched 3.3.18 (patch bump,
   # API-compatible); a 4.x/5.x consumer is untouched.
-  'nanoid@<3.3.17': '3.3.17'
+  'nanoid@<3.3.18': '3.3.18'
   'ws': '8.21.0'
   # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j);
   # 2.2.0 is API-compatible for our usage (read API uses no file uploads).

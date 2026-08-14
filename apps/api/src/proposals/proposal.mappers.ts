@@ -26,11 +26,12 @@ import {
 import {
   ProposalActionDto,
   ProposalAiMismatchFlagDto,
-  ProposalAiMismatchFlagMetaDto,
+  ProposalAiMismatchMetaDto,
   ProposalAiSummaryDto,
   ProposalAiSummaryMetaDto,
   ProposalDetailDto,
   ProposalListItemDto,
+  ProposalMismatchDto,
   type ProposalTallySummaryDto,
 } from './proposal.dto';
 import { isoSeconds } from '../http/iso';
@@ -92,6 +93,17 @@ export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
   });
 }
 
+/** The shared mismatch provenance `_meta`, built from the top-level `ai_output` columns. */
+function mismatchMeta(output: AiOutput): ProposalAiMismatchMetaDto {
+  return Object.assign(new ProposalAiMismatchMetaDto(), {
+    ai_generated: true,
+    model: output.model,
+    prompt_version: output.prompt_version,
+    input_hash: output.input_hash,
+    generated_at: isoSeconds(output.generated_at),
+  });
+}
+
 /** Map a stored mismatch `ai_output` row into the embedded `ai_mismatch_flag` block (SPEC §5.4/§5.6).
  *  The stored MismatchAnalysis is run through the conservative surfacing threshold `mismatchFlag`
  *  (ADR-080): `null` (no embedded flag) unless the analysis is a material/severe, non-low-confidence
@@ -100,14 +112,16 @@ export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
 export function toMismatchFlagDto(output: AiOutput): ProposalAiMismatchFlagDto | null {
   const flag = mismatchFlag(output.output as MismatchAnalysis);
   if (flag === null) return null;
-  return Object.assign(new ProposalAiMismatchFlagDto(), flag, {
-    _meta: Object.assign(new ProposalAiMismatchFlagMetaDto(), {
-      ai_generated: true,
-      model: output.model,
-      prompt_version: output.prompt_version,
-      input_hash: output.input_hash,
-      generated_at: isoSeconds(output.generated_at),
-    }),
+  return Object.assign(new ProposalAiMismatchFlagDto(), flag, { _meta: mismatchMeta(output) });
+}
+
+/** Map a stored mismatch `ai_output` row into the dedicated `/ai/mismatch` response block (SPEC §5.4/§5.6).
+ *  Unlike the embedded flag, this returns the FULL MismatchAnalysis verbatim (bypassing the `mismatchFlag`
+ *  surfacing threshold) plus a provenance `_meta`, so every stored analysis — including consistent, minor,
+ *  and low-confidence ones — is retrievable. */
+export function toMismatchDto(output: AiOutput): ProposalMismatchDto {
+  return Object.assign(new ProposalMismatchDto(), output.output as MismatchAnalysis, {
+    _meta: mismatchMeta(output),
   });
 }
 

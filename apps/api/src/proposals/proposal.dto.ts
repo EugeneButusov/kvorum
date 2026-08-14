@@ -186,7 +186,9 @@ export class ProposalAiSummaryResponseDto {
   declare data: ProposalAiSummaryDto;
 }
 
-export class ProposalAiMismatchFlagMetaDto {
+// Shared mismatch provenance `_meta` — used by both the embedded `ai_mismatch_flag` and the dedicated
+// `/ai/mismatch` full-analysis response (mirrors the single ProposalAiSummaryMetaDto).
+export class ProposalAiMismatchMetaDto {
   @ApiProperty({ example: true, description: 'Always true — labels AI-generated content.' })
   declare ai_generated: boolean;
 
@@ -213,8 +215,80 @@ export class ProposalAiMismatchFlagDto {
   @ApiProperty({ description: "The highest-severity discrepancy's description." })
   declare summary: string;
 
-  @ApiProperty({ type: ProposalAiMismatchFlagMetaDto })
-  declare _meta: ProposalAiMismatchFlagMetaDto;
+  @ApiProperty({ type: ProposalAiMismatchMetaDto })
+  declare _meta: ProposalAiMismatchMetaDto;
+}
+
+export class MismatchDescriptionActionDto {
+  @ApiProperty({ description: "A claim the proposal's prose makes about what it does." })
+  declare claim: string;
+
+  @ApiProperty({ description: 'Brief reference to where in the description the claim appears.' })
+  declare location: string;
+}
+
+export class MismatchCalldataActionDto {
+  @ApiProperty()
+  declare action_index: number;
+
+  @ApiProperty({ description: 'Plain-language summary of what the decoded calldata action does.' })
+  declare summary: string;
+
+  @ApiProperty({ description: 'high | medium | low' })
+  declare significance: string;
+}
+
+export class MismatchDiscrepancyDto {
+  @ApiProperty({
+    description:
+      'value_mismatch | omitted_in_description | extra_in_description | misleading_phrasing | target_mismatch',
+  })
+  declare type: string;
+
+  @ApiProperty()
+  declare description: string;
+
+  @ApiProperty({ description: 'high | medium | low' })
+  declare severity: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  declare description_excerpt: string | null;
+
+  @ApiProperty({ type: [Number] })
+  declare related_action_indices: number[];
+}
+
+// SPEC §5.4/§5.6 — the FULL stored MismatchAnalysis + provenance `_meta`, returned by the dedicated
+// /ai/mismatch endpoint. Unlike the embedded `ai_mismatch_flag`, this bypasses the surfacing threshold:
+// every stored analysis (incl. consistent / minor / low-confidence) is retrievable here.
+export class ProposalMismatchDto {
+  @ApiProperty({
+    description: 'consistent | minor_discrepancy | material_discrepancy | severe_discrepancy',
+  })
+  declare overall_assessment: string;
+
+  @ApiProperty({ description: 'high | medium | low' })
+  declare confidence: string;
+
+  @ApiProperty({ type: [MismatchDescriptionActionDto] })
+  declare description_actions: MismatchDescriptionActionDto[];
+
+  @ApiProperty({ type: [MismatchCalldataActionDto] })
+  declare calldata_actions: MismatchCalldataActionDto[];
+
+  @ApiProperty({ type: [MismatchDiscrepancyDto] })
+  declare discrepancies: MismatchDiscrepancyDto[];
+
+  @ApiProperty({ description: "The model's explanation of its assessment (shown to users)." })
+  declare reasoning: string;
+
+  @ApiProperty({ type: ProposalAiMismatchMetaDto })
+  declare _meta: ProposalAiMismatchMetaDto;
+}
+
+export class ProposalMismatchResponseDto {
+  @ApiProperty({ type: ProposalMismatchDto })
+  declare data: ProposalMismatchDto;
 }
 
 @ApiExtraModels(...PROPOSAL_METADATA_DTOS)
