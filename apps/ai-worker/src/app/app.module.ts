@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  ProposalEmbeddingScanRepository,
   ProposalEmbeddingWriter,
   ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
@@ -16,6 +17,8 @@ import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
 import { ForumThreadReadRepository } from '@sources/forum';
 import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
+import { AiBackfillConfig } from '../backfill/ai-backfill-config';
+import { AiBackfillService } from '../backfill/ai-backfill.service';
 import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
@@ -75,6 +78,10 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       provide: ProposalEmbeddingRepository,
       useFactory: () => new ProposalEmbeddingRepository(pgDb),
     },
+    {
+      provide: ProposalEmbeddingScanRepository,
+      useFactory: () => new ProposalEmbeddingScanRepository(pgDb),
+    },
     { provide: LLM_CLIENT, useFactory: createWorkerLlmClient },
     {
       provide: AiCompletionCache,
@@ -101,6 +108,10 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     ForumSynthesisHandler,
     // Proposal-embedding handler (SPEC §5.8); self-registers with the handler registry on init.
     ProposalEmbeddingHandler,
+    // Full-history backfill driver (SPEC §10.7 / M5-7.1); inert unless AI_BACKFILL_ENABLED + a per-feature
+    // flag is set. Reuses the batch/sync machinery above over keyset-paginated full-history scans.
+    AiBackfillConfig,
+    AiBackfillService,
   ],
 })
 export class AppModule {}

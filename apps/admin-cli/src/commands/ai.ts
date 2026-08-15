@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import { PgBoss } from 'pg-boss';
+import { pgDb } from '@libs/db';
+import { queryCostReport, renderCostReport } from './ai-cost.js';
 import { emit, emitNotImplemented, ExitCode, fail, resolveFormat } from '../output.js';
 
 // Canonical AI feature_name → pg-boss main queue. Source of truth is the ai-worker's FEATURE_QUEUE
@@ -93,8 +95,35 @@ async function runRegenerate(
   }
 }
 
+/** Report per-feature month-to-date AI spend vs the caps from `ai_cost_log` — the daily backfill-monitoring
+ *  affordance (SPEC §7.8, M5-7.1). Read-only; complements the Prometheus `ai_worker_cost_usd` gauge. */
+async function runCost(opts: { format?: string; dryRun?: boolean }): Promise<void> {
+  const format = resolveFormat(opts.format);
+  if (opts.dryRun) {
+    emit(format, () => '[dry-run] would report ai_cost_log month-to-date spend per feature', {
+      dryRun: true,
+    });
+    return;
+  }
+  try {
+    const report = await queryCostReport(pgDb, new Date());
+    emit(format, () => renderCostReport(report), report);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fail(format, ExitCode.RuntimeFailure, `failed to read ai_cost_log: ${message}`);
+  } finally {
+    await pgDb.destroy().catch(() => {});
+  }
+}
+
 export function registerAi(program: Command): void {
   const ai = program.command('ai').description('AI feature management');
+
+  ai.command('cost')
+    .description('Report per-feature month-to-date AI spend vs the caps (from ai_cost_log)')
+    .option('--dry-run', 'show what would happen without querying')
+    .option('--format <format>', 'output format: human or json')
+    .action((opts) => runCost(opts));
 
   ai.command('disable <feature>')
     .description('Disable an AI feature')
@@ -109,6 +138,13 @@ export function registerAi(program: Command): void {
     .action((_feature, opts) => emitNotImplemented('ai enable', opts));
 
   const cap = ai.command('cap').description('AI spending cap management');
+
+  cap
+    .command('show')
+    .description('Show per-feature caps + month-to-date spend/utilization (from ai_cost_log)')
+    .option('--dry-run', 'show what would happen without querying')
+    .option('--format <format>', 'output format: human or json')
+    .action((opts) => runCost(opts));
 
   cap
     .command('set <feature> <usd>')

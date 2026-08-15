@@ -129,3 +129,131 @@ describeWithDb('ProposalSummaryScanRepository.findCandidates (integration)', () 
     });
   });
 });
+
+describeWithDb('ProposalSummaryScanRepository.findAllForBackfill (integration)', () => {
+  it('covers binding OR signaling proposals in EVERY state (incl. terminal), keyset-paginated', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seedFixture(trx);
+      const base = {
+        dao_id: daoId,
+        proposer_actor_id: actorId,
+        description: 'body',
+        description_hash: 'a'.repeat(64),
+        voting_starts_at: null,
+        voting_ends_at: null,
+        voting_starts_block: '1',
+        voting_ends_block: '2',
+        updated_at: new Date(),
+      };
+      const rows = await trx
+        .insertInto('proposal')
+        .values([
+          // included — binding, terminal (the windowed scan excludes terminal states)
+          {
+            ...base,
+            source_type: 'compound_governor_bravo',
+            source_id: 'bf-executed',
+            binding: true,
+            state: 'executed',
+            state_updated_at: new Date(),
+          },
+          {
+            ...base,
+            source_type: 'compound_governor_bravo',
+            source_id: 'bf-defeated',
+            binding: true,
+            state: 'defeated',
+            state_updated_at: new Date(),
+          },
+          // included — snapshot signaling, terminal
+          {
+            ...base,
+            source_type: 'snapshot',
+            source_id: 'bf-snapshot',
+            binding: false,
+            state: 'canceled',
+            state_updated_at: new Date(),
+          },
+          // excluded — non-binding, non-snapshot
+          {
+            ...base,
+            source_type: 'compound_governor_bravo',
+            source_id: 'bf-nonbinding',
+            binding: false,
+            state: 'executed',
+            state_updated_at: new Date(),
+          },
+        ])
+        .returning(['id', 'source_id'])
+        .execute();
+      const expected = new Set(
+        rows.filter((r) => r.source_id !== 'bf-nonbinding').map((r) => r.id),
+      );
+
+      const repo = new ProposalSummaryScanRepository(trx);
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      for (;;) {
+        const page = await repo.findAllForBackfill(cursor, 2);
+        if (page.length === 0) break;
+        seen.push(...page.map((r) => r.id));
+        cursor = page[page.length - 1]!.id;
+      }
+      const seenExpected = seen.filter((id) => expected.has(id));
+      expect(new Set(seenExpected)).toEqual(expected);
+      expect(
+        seen.filter((id) => rows.some((r) => r.id === id && r.source_id === 'bf-nonbinding')),
+      ).toEqual([]);
+      expect(seen.length).toBe(new Set(seen).size); // no page overlap
+    });
+  });
+
+  it('scopes to daoSlugs when provided', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seedFixture(trx);
+      const [other] = await trx
+        .insertInto('dao')
+        .values({
+          slug: 'summ-other',
+          name: 'O',
+          primary_token_address: '0x' + 'b'.repeat(40),
+          primary_chain_id: 1,
+          description: 'o',
+          website_url: 'https://o.example.com',
+          forum_url: 'https://f.o.example.com',
+          updated_at: new Date(),
+        })
+        .returning(['id'])
+        .execute();
+      const base = (dao_id: string) => ({
+        dao_id,
+        proposer_actor_id: actorId,
+        source_type: 'compound_governor_bravo',
+        description: 'b',
+        description_hash: 'a'.repeat(64),
+        binding: true,
+        state: 'executed',
+        state_updated_at: new Date(),
+        voting_starts_at: null,
+        voting_ends_at: null,
+        voting_starts_block: '1',
+        voting_ends_block: '2',
+        updated_at: new Date(),
+      });
+      const [inScope] = await trx
+        .insertInto('proposal')
+        .values({ ...base(daoId), source_id: 's-in' })
+        .returning(['id'])
+        .execute();
+      await trx
+        .insertInto('proposal')
+        .values({ ...base(other!.id), source_id: 's-out' })
+        .execute();
+
+      const ids = await new ProposalSummaryScanRepository(trx).findAllForBackfill(null, 100, [
+        'summ-scan-dao',
+      ]);
+      expect(ids.map((r) => r.id)).toEqual([inScope!.id]);
+    });
+  });
+});

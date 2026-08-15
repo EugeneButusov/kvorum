@@ -30,6 +30,7 @@ export { AiDlqRepository } from './persistence/ai-dlq-repository.js';
 export { AiJobDlqRepository } from './persistence/ai-job-dlq-repository.js';
 export { ProposalSummaryScanRepository } from './persistence/proposal-summary-scan-repository.js';
 export { ProposalMismatchScanRepository } from './persistence/proposal-mismatch-scan-repository.js';
+export { ProposalEmbeddingScanRepository } from './persistence/proposal-embedding-scan-repository.js';
 export { ProposalEmbeddingRepository } from './persistence/proposal-embedding-repository.js';
 export {
   SimilarProposalsRepository,

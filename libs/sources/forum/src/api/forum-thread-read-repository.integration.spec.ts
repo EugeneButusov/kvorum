@@ -239,3 +239,77 @@ describeWithDb(
     });
   },
 );
+
+describeWithDb('ForumThreadReadRepository.findAllForBackfill (integration)', () => {
+  it('covers high/medium content threads linked to a proposal in ANY state, keyset-paginated', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seed(trx);
+      const active = await insertProposal(trx, daoId, actorId, {
+        source_id: 'bf-active',
+        state: 'active',
+      });
+      const closed = await insertProposal(trx, daoId, actorId, {
+        source_id: 'bf-closed',
+        state: 'executed',
+      });
+
+      // included — high/medium, content-bearing, linked to active OR terminal (the windowed scan misses closed)
+      const tActive = await insertThread(trx, daoId, { topic: '101', rawContent: 'content' });
+      await link(trx, active, tActive, 'high');
+      const tClosed = await insertThread(trx, daoId, { topic: '102', rawContent: 'content' });
+      await link(trx, closed, tClosed, 'medium');
+      // excluded — low confidence / no content
+      const tLow = await insertThread(trx, daoId, { topic: '103', rawContent: 'content' });
+      await link(trx, closed, tLow, 'low');
+      const tEmpty = await insertThread(trx, daoId, { topic: '104', rawContent: null });
+      await link(trx, active, tEmpty, 'high');
+
+      const repo = new ForumThreadReadRepository(trx);
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      for (;;) {
+        const page = await repo.findAllForBackfill(cursor, 1);
+        if (page.length === 0) break;
+        seen.push(...page.map((r) => r.id));
+        cursor = page[page.length - 1]!.id;
+      }
+      const relevant = new Set([tActive, tClosed, tLow, tEmpty]);
+      expect(new Set(seen.filter((id) => relevant.has(id)))).toEqual(new Set([tActive, tClosed]));
+      expect(seen.length).toBe(new Set(seen).size);
+    });
+  });
+
+  it('scopes to daoSlugs when provided', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seed(trx);
+      const [other] = await trx
+        .insertInto('dao')
+        .values({
+          slug: 'forum-other',
+          name: 'O',
+          primary_token_address: '0x' + 'b'.repeat(40),
+          primary_chain_id: 1,
+          description: 'o',
+          website_url: 'https://o.example.com',
+          forum_url: 'https://f.o.example.com',
+          updated_at: new Date(),
+        })
+        .returning(['id'])
+        .execute();
+      const otherActor = await insertProposal(trx, other!.id, actorId, {
+        source_id: 'o-p',
+        state: 'active',
+      });
+      const inP = await insertProposal(trx, daoId, actorId, { source_id: 'in-p', state: 'active' });
+      const tIn = await insertThread(trx, daoId, { topic: '201', rawContent: 'content' });
+      await link(trx, inP, tIn, 'high');
+      const tOut = await insertThread(trx, other!.id, { topic: '202', rawContent: 'content' });
+      await link(trx, otherActor, tOut, 'high');
+
+      const ids = await new ForumThreadReadRepository(trx).findAllForBackfill(null, 100, [
+        'forum-scan-dao',
+      ]);
+      expect(ids.map((r) => r.id)).toEqual([tIn]);
+    });
+  });
+});
