@@ -26,9 +26,14 @@ function runAutocannon(opts) {
 function printLatency(label, result) {
   const latency = result.latency || {};
   const p50 = Number(latency.p50 || 0);
-  const p95 = Number(latency.p95 || 0);
+  // autocannon reports p90 / p97_5 / p99 — there is NO `p95` key, so `latency.p95` was always undefined
+  // → coerced to 0 (a fiction that passed unconditionally). Use p97_5, the nearest reported percentile
+  // (always ≥ p95), so the gate measures a real bound.
+  const p95 = Number(latency.p97_5 || 0);
   const p99 = Number(latency.p99 || 0);
-  console.log(`${label}: p50=${p50.toFixed(2)}ms p95=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`);
+  console.log(
+    `${label}: p50=${p50.toFixed(2)}ms p95(p97_5)=${p95.toFixed(2)}ms p99=${p99.toFixed(2)}ms`,
+  );
   return { p50, p95, p99 };
 }
 
