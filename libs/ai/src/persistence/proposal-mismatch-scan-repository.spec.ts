@@ -178,3 +178,116 @@ describeWithDb('ProposalMismatchScanRepository.findCandidates (integration)', ()
     });
   });
 });
+
+describeWithDb('ProposalMismatchScanRepository.findAllForBackfill (integration)', () => {
+  async function drainAll(
+    repo: ProposalMismatchScanRepository,
+    pageSize: number,
+    daoSlugs?: string[],
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    let cursor: string | null = null;
+    for (;;) {
+      const page = await repo.findAllForBackfill(cursor, pageSize, daoSlugs);
+      if (page.length === 0) break;
+      ids.push(...page.map((r) => r.id));
+      cursor = page[page.length - 1]!.id;
+    }
+    return ids;
+  }
+
+  it('covers binding+all-decoded proposals in EVERY state (incl. terminal), keyset-paginated', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seed(trx);
+      const base = {
+        dao_id: daoId,
+        source_type: 'compound_governor_bravo',
+        proposer_actor_id: actorId,
+        description: 'body',
+        description_hash: 'a'.repeat(64),
+        voting_starts_at: null,
+        voting_ends_at: null,
+        voting_starts_block: '1',
+        voting_ends_block: '2',
+      };
+      const mk = async (source_id: string, state: string, binding: boolean) => {
+        const id = await insertProposal(trx, base, {
+          source_id,
+          binding,
+          state,
+          stateAt: '2026-01-01T00:00:00Z',
+        });
+        return id;
+      };
+      // included — binding, all-decoded, across active AND terminal states (the windowed scan misses these)
+      const active = await mk('bf-active', 'active', true);
+      await addAction(trx, active, 0, 'decoded');
+      const executed = await mk('bf-executed', 'executed', true);
+      await addAction(trx, executed, 0, 'decoded');
+      const defeated = await mk('bf-defeated', 'defeated', true);
+      await addAction(trx, defeated, 0, 'decoded');
+      // excluded — pending action / undecodable / non-binding / no actions
+      const pending = await mk('bf-pending', 'executed', true);
+      await addAction(trx, pending, 0, 'pending');
+      const undec = await mk('bf-undec', 'executed', true);
+      await addAction(trx, undec, 0, 'undecodable');
+      const nonbinding = await mk('bf-nonbinding', 'executed', false);
+      await addAction(trx, nonbinding, 0, 'decoded');
+      await mk('bf-noactions', 'executed', true);
+
+      const repo = new ProposalMismatchScanRepository(trx);
+      const ids = await drainAll(repo, 2); // pageSize 2 forces multiple pages
+      expect(new Set(ids)).toEqual(new Set([active, executed, defeated]));
+      expect(ids.length).toBe(new Set(ids).size); // no overlap across pages
+    });
+  });
+
+  it('scopes to daoSlugs when provided', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seed(trx);
+      const [other] = await trx
+        .insertInto('dao')
+        .values({
+          slug: 'other-dao',
+          name: 'Other',
+          primary_token_address: '0x' + 'c'.repeat(40),
+          primary_chain_id: 1,
+          description: 'o',
+          website_url: 'https://o.example.com',
+          forum_url: 'https://forum.o.example.com',
+          updated_at: new Date(),
+        })
+        .returning(['id'])
+        .execute();
+      const base = (dao_id: string) => ({
+        dao_id,
+        source_type: 'compound_governor_bravo',
+        proposer_actor_id: actorId,
+        description: 'body',
+        description_hash: 'a'.repeat(64),
+        voting_starts_at: null,
+        voting_ends_at: null,
+        voting_starts_block: '1',
+        voting_ends_block: '2',
+      });
+      const inScope = await insertProposal(trx, base(daoId), {
+        source_id: 'in-scope',
+        binding: true,
+        state: 'executed',
+        stateAt: '2026-01-01T00:00:00Z',
+      });
+      await addAction(trx, inScope, 0, 'decoded');
+      const outScope = await insertProposal(trx, base(other!.id), {
+        source_id: 'out-scope',
+        binding: true,
+        state: 'executed',
+        stateAt: '2026-01-01T00:00:00Z',
+      });
+      await addAction(trx, outScope, 0, 'decoded');
+
+      const repo = new ProposalMismatchScanRepository(trx);
+      const ids = await repo.findAllForBackfill(null, 100, ['mismatch-dao']);
+      expect(ids.map((r) => r.id)).toEqual([inScope]);
+    });
+  });
+});

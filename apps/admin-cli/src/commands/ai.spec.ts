@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildCostReport } from './ai-cost.js';
 import { resolveRegenerateTarget } from './ai.js';
 
 describe('resolveRegenerateTarget', () => {
@@ -24,5 +25,34 @@ describe('resolveRegenerateTarget', () => {
   it('rejects a malformed entity_reference', () => {
     const out = resolveRegenerateTarget('forum_synthesizer', 'no-colon', false);
     expect('error' in out && out.error).toMatch(/invalid entity_reference/);
+  });
+});
+
+describe('buildCostReport', () => {
+  const since = new Date('2026-08-01T00:00:00Z');
+
+  it('computes utilization %, disabled at >= cap, and totals', () => {
+    const report = buildCostReport(
+      [
+        { feature: 'proposal_summarizer', spendUsd: 2.5, capUsd: 5 },
+        { feature: 'mismatch_detector', spendUsd: 20, capUsd: 20 }, // exactly at cap → disabled
+        { feature: 'forum_synthesizer', spendUsd: 0, capUsd: 15 },
+        { feature: 'embedding', spendUsd: 0.5, capUsd: 1 },
+      ],
+      since,
+    );
+    expect(report.since).toBe('2026-08-01T00:00:00.000Z');
+    const byFeature = Object.fromEntries(report.perFeature.map((r) => [r.feature, r]));
+    expect(byFeature['proposal_summarizer']).toMatchObject({ utilizationPct: 50, disabled: false });
+    expect(byFeature['mismatch_detector']).toMatchObject({ utilizationPct: 100, disabled: true });
+    expect(byFeature['forum_synthesizer']).toMatchObject({ utilizationPct: 0, disabled: false });
+    expect(report.totalSpendUsd).toBeCloseTo(23);
+    expect(report.ceilingUsd).toBe(41);
+  });
+
+  it('treats an empty ledger as zero spend, nothing disabled', () => {
+    const report = buildCostReport([{ feature: 'embedding', spendUsd: 0, capUsd: 1 }], since);
+    expect(report.perFeature[0]).toMatchObject({ spendUsd: 0, utilizationPct: 0, disabled: false });
+    expect(report.totalSpendUsd).toBe(0);
   });
 });

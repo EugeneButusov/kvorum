@@ -199,4 +199,46 @@ export class ForumThreadReadRepository {
       .limit(limit)
       .execute();
   }
+
+  /**
+   * The full-history synthesis backfill scan (SPEC §5.7, M5-7.1): content-bearing threads linked
+   * (`high`/`medium`) to a proposal in **any** state — no state filter, no close-grace window, no cap —
+   * keyset-paginated on the PK `ft.id`. Advance `cursor` to the last id seen; stop on an empty page.
+   * Optional `daoSlugs` scopes to specific DAOs via `ft.dao_id` (empty/undefined ⇒ all). Threads linked
+   * only to proposals that closed before the 48h steady-state grace — which the trigger scan can never
+   * reach — are covered here. Dedup against already-synthesized threads is the worker's
+   * `sha256(raw_content)` cache, as with the steady-state scans.
+   */
+  async findAllForBackfill(
+    cursor: string | null,
+    pageSize: number,
+    daoSlugs?: string[],
+  ): Promise<{ id: string }[]> {
+    const scopeDaos = daoSlugs !== undefined && daoSlugs.length > 0;
+    return this.db
+      .selectFrom('forum_thread as ft')
+      .select('ft.id')
+      .where('ft.raw_content', 'is not', null)
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('proposal_forum_link as pfl')
+            .select('pfl.id')
+            .whereRef('pfl.forum_thread_id', '=', 'ft.id')
+            .where('pfl.confidence', 'in', ['high', 'medium']),
+        ),
+      )
+      .$if(cursor !== null, (qb) => qb.where('ft.id', '>', cursor as string))
+      .$if(scopeDaos, (qb) =>
+        qb.where('ft.dao_id', 'in', (eb) =>
+          eb
+            .selectFrom('dao')
+            .select('dao.id')
+            .where('dao.slug', 'in', daoSlugs as string[]),
+        ),
+      )
+      .orderBy('ft.id', 'asc')
+      .limit(pageSize)
+      .execute();
+  }
 }
