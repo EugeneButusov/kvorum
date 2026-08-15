@@ -27,6 +27,7 @@ async function main(): Promise<void> {
   process.env['DATABASE_URL'] ??= 'postgresql://kvorum:kvorum@localhost:5432/kvorum';
   const { pgDb } = await import('../src/client');
   dbRef = pgDb;
+  await pgDb.deleteFrom('ai_output').execute();
   await pgDb.deleteFrom('proposal_choice').execute();
   await pgDb.deleteFrom('proposal_action').execute();
   await pgDb.deleteFrom('proposal').execute();
@@ -176,12 +177,90 @@ async function main(): Promise<void> {
 
   await pgDb.insertInto('proposal_choice').values(choices).execute();
 
+  // #450 / SPEC §7.2: seed AI output for the perf-gate detail target (proposal i=10 → source_id 10010,
+  // binding) so the gated read (`.../proposals/compound_governor/10010`) exercises the POPULATED
+  // ai_output path — the full-payload materialization + JSON serialization — not the empty miss path.
+  // Content-addressed by the same (description, actions) the API recomputes; reuse the shared hashers
+  // (relative imports — tsx does not resolve the @libs/* aliases) so the input_hash can never drift.
+  const { ProposalReadRepository } = await import('../src/proposal-read-repository');
+  const { proposalSummaryInputHash } = await import(
+    '../../ai/src/schemas/proposal-summary-input.js'
+  );
+  const { mismatchInputHash } = await import('../../ai/src/schemas/mismatch-input.js');
+  const readRepo = new ProposalReadRepository(pgDb);
+  const target = await readRepo.findOne('compound', 'compound_governor', '10010');
+  if (target === undefined) {
+    throw new Error('load-test seed: perf-gate detail target proposal 10010 was not seeded');
+  }
+  const targetActions = await readRepo.findActions(target.id);
+  const aiGeneratedAt = ts(base, 500);
+  await pgDb
+    .insertInto('ai_output')
+    .values([
+      {
+        feature_name: 'proposal_summarizer',
+        prompt_version: 'v1.0',
+        input_hash: proposalSummaryInputHash(target.description, targetActions),
+        model: 'claude-haiku-4-5',
+        output: {
+          tldr: 'Adjust a protocol parameter for the synthetic load-test proposal.',
+          proposal_type: 'parameter_change',
+          proposal_type_confidence: 'high',
+          affected_contracts: [`0x${'b'.repeat(40)}`],
+          key_changes: [{ description: 'Set a value', significance: 'medium' }],
+          funding_amount_usd: null,
+        },
+        cost_usd: '0.002000',
+        generated_at: aiGeneratedAt,
+        source_provenance: {
+          feature: 'proposal_summarizer',
+          model: 'claude-haiku-4-5',
+          promptVersion: 'v1.0',
+          inputHash: proposalSummaryInputHash(target.description, targetActions),
+          generatedAt: aiGeneratedAt.toISOString(),
+        },
+      },
+      {
+        feature_name: 'mismatch_detector',
+        prompt_version: 'v1.0',
+        input_hash: mismatchInputHash(target.description, targetActions),
+        model: 'claude-sonnet-5',
+        output: {
+          overall_assessment: 'material_discrepancy',
+          confidence: 'high',
+          description_actions: [{ claim: 'Sets a value', location: 'body' }],
+          calldata_actions: [{ action_index: 0, summary: 'set(...)', significance: 'high' }],
+          discrepancies: [
+            {
+              type: 'value_mismatch',
+              description: 'The calldata value differs from the prose.',
+              severity: 'high',
+              description_excerpt: null,
+              related_action_indices: [0],
+            },
+          ],
+          reasoning: 'Synthetic mismatch for the load-test detail target.',
+        },
+        cost_usd: '0.010000',
+        generated_at: aiGeneratedAt,
+        source_provenance: {
+          feature: 'mismatch_detector',
+          model: 'claude-sonnet-5',
+          promptVersion: 'v1.0',
+          inputHash: mismatchInputHash(target.description, targetActions),
+          generatedAt: aiGeneratedAt.toISOString(),
+        },
+      },
+    ])
+    .execute();
+
   console.log('Seeded load-test dataset:', {
     dao: 'compound',
     actors: actors.length,
     proposals: proposals.length,
     actions: actions.length,
     choices: choices.length,
+    ai_output: 2, // summary + mismatch on the perf-gate detail target (10010)
     bearer: `Bearer ${TEST_BEARER_KEY}`,
   });
 }

@@ -69,15 +69,21 @@ async function runOne(baseUrl: string, apiKey: string, target: Target): Promise<
     },
   });
 
-  const got = target.threshold.metric === 'p95' ? result.latency.p95 : result.latency.p99;
-  const ok = got <= target.threshold.maxMs;
+  // autocannon's latency object reports p90 / p97_5 / p99 — there is NO `p95` key, so reading
+  // `result.latency.p95` yields undefined (→ `undefined <= limit` is false → spurious FAIL). Gate the
+  // p95 targets on p97_5 instead: it is the nearest reported percentile and always ≥ p95, so the bound is
+  // conservative (stricter), never looser.
+  const latency = result.latency as unknown as Record<string, number>;
+  const metricKey = target.threshold.metric === 'p95' ? 'p97_5' : 'p99';
+  const got = latency[metricKey];
+  const ok = typeof got === 'number' && got <= target.threshold.maxMs;
   const status = ok ? 'OK' : 'FAIL';
 
   console.log(
-    `${status} ${target.name}: ${target.threshold.metric}=${got}ms (limit ${target.threshold.maxMs}ms)`,
+    `${status} ${target.name}: ${metricKey}=${got}ms (limit ${target.threshold.maxMs}ms)`,
   );
   if (!ok) {
-    throw new Error(`${target.name} exceeded latency budget`);
+    throw new Error(`${target.name} exceeded latency budget (${metricKey}=${got}ms)`);
   }
 }
 
