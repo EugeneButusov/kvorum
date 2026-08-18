@@ -24,7 +24,7 @@ describe('aiMetrics', () => {
     expect(() => aiMetrics.costUsd.record(1.5, { feature: 'proposal_summarizer' })).not.toThrow();
     expect(() => aiMetrics.featureDisabled.record(1, { feature: 'embedding' })).not.toThrow();
     expect(() =>
-      aiMetrics.jobsTotal.add(1, { feature: 'proposal_summarizer', outcome: 'dispatched' }),
+      aiMetrics.jobsTotal.add(1, { feature: 'proposal_summarizer', outcome: 'succeeded' }),
     ).not.toThrow();
     expect(() =>
       aiMetrics.latencySeconds.record(2, { feature: 'mismatch_detector' }),

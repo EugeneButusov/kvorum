@@ -1,0 +1,347 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "description": "AI cost and feature health (SPEC §6.20.2): per-feature spend + cap utilization, queue/DLQ depth, success/failure rate, and p95 generation latency for the ai-worker. Metric families: docs/metrics.md.",
+  "editable": true,
+  "graphTooltip": 1,
+  "tags": ["ai", "cost", "m5", "ai-worker"],
+  "timezone": "utc",
+  "title": "AI Cost & Feature Health",
+  "uid": "ai-cost-feature-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 0,
+        "regex": "",
+        "current": {}
+      },
+      {
+        "name": "feature",
+        "label": "Feature",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "definition": "label_values(ai_worker_cost_usd, feature)",
+        "query": { "query": "label_values(ai_worker_cost_usd, feature)", "refId": "feature" },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "current": { "text": "All", "value": ["$__all"] }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Month-to-date spend per feature",
+      "description": "ai_worker_cost_usd is recomputed each budget-cap tick from ai_cost_log; it resets at the UTC month boundary.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "ai_worker_cost_usd{feature=~\"$feature\"}",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Total month-to-date spend vs $41 ceiling",
+      "description": "Sum of per-feature month-to-date spend against the $41 monthly ceiling (SPEC §5.3 / DR-017). Warn at 90%, critical at 100%.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "min": 0,
+          "max": 41,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 36.9 },
+              { "color": "red", "value": 41 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(ai_worker_cost_usd)",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Daily spend per feature",
+      "description": "Derived from the month-to-date gauge as clamp_min(delta(...[24h]), 0). The value dips at the month rollover when the gauge resets — expected.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD", "custom": { "drawStyle": "bars", "fillOpacity": 40 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "clamp_min(delta(ai_worker_cost_usd{feature=~\"$feature\"}[24h]), 0)",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Budget-cap utilization %",
+      "description": "Month-to-date spend as a % of each feature's cap. Warn ≥90%, critical ≥100% (feature auto-disables per SPEC §5.3).",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "custom": { "drawStyle": "line", "thresholdsStyle": { "mode": "line" } }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "ai_worker_budget_utilization_percent{feature=~\"$feature\"}",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Feature disabled state",
+      "description": "1 = the budget cap has disabled the feature (authoritative live state, ADR-079); 0 = enabled.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "enabled", "color": "green" },
+                "1": { "text": "DISABLED", "color": "red" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "ai_worker_feature_disabled{feature=~\"$feature\"}",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Job success vs failure rate",
+      "description": "rate of terminal outcomes on ai_worker_jobs_total. Success rate = succeeded / (succeeded + failed).",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (feature) (rate(ai_worker_jobs_total{feature=~\"$feature\", outcome=\"succeeded\"}[$__rate_interval]))",
+          "legendFormat": "succeeded — {{feature}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (feature) (rate(ai_worker_jobs_total{feature=~\"$feature\", outcome=\"failed\"}[$__rate_interval]))",
+          "legendFormat": "failed — {{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "p95 generation latency",
+      "description": "histogram_quantile(0.95, ...). The top finite bucket is 60s, so p95 saturates near 60 for features slower than that.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.95, sum by (le, feature) (rate(ai_worker_latency_seconds_bucket{feature=~\"$feature\"}[$__rate_interval])))",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Main queue depth per feature",
+      "description": "Created + retry jobs waiting on each feature's main queue.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "ai_worker_job_queue_depth{queue!~\".*_dlq\"}",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "DLQ depth",
+      "description": "Dead-letter depth is the *_dlq slice of ai_worker_job_queue_depth (no dedicated DLQ series). Warn >100, critical >1000 (SPEC §6.20.2).",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "thresholdsStyle": { "mode": "line" }
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "ai_worker_job_queue_depth{queue=~\".*_dlq\"}",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Cache-hit rate per feature",
+      "description": "Content-hash cache hits per second — a high rate during backfill means the resumable re-scan is cheap.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (feature) (rate(ai_worker_cache_hits_total{feature=~\"$feature\"}[$__rate_interval]))",
+          "legendFormat": "{{feature}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Token throughput (input/output)",
+      "description": "LLM tokens consumed per second, split by kind — the cost driver behind ai_worker_cost_usd.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (feature, kind) (rate(ai_worker_tokens_total{feature=~\"$feature\"}[$__rate_interval]))",
+          "legendFormat": "{{feature}} — {{kind}}"
+        }
+      ]
+    }
+  ]
+}

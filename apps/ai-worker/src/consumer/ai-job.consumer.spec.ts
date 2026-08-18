@@ -20,10 +20,11 @@ const enabledBudget = { isDisabled: vi.fn().mockReturnValue(false) };
 describe('AiJobConsumer.handle', () => {
   const job: AiJob = { feature: 'proposal_summarizer', entityRef: 'proposal:p1' };
 
-  it('dispatches to a registered handler', async () => {
+  it('dispatches to a registered handler and records outcome=succeeded', async () => {
     const registry = new AiFeatureHandlerRegistry();
     const handler = { handle: vi.fn().mockResolvedValue(undefined) };
     registry.register('proposal_summarizer', handler);
+    const addSpy = vi.spyOn(aiMetrics.jobsTotal, 'add');
     const consumer = new AiJobConsumer(
       noopPort,
       registry,
@@ -31,6 +32,11 @@ describe('AiJobConsumer.handle', () => {
     ) as unknown as WithHandle;
     await consumer.handle(job);
     expect(handler.handle).toHaveBeenCalledWith(job);
+    expect(addSpy).toHaveBeenCalledWith(1, {
+      feature: 'proposal_summarizer',
+      outcome: 'succeeded',
+    });
+    addSpy.mockRestore();
   });
 
   it('gracefully skips (no throw) when no handler is registered', async () => {
@@ -43,17 +49,23 @@ describe('AiJobConsumer.handle', () => {
     await expect(consumer.handle(job)).resolves.toBeUndefined();
   });
 
-  it('propagates a throwing handler so pg-boss retries → DLQ', async () => {
+  it('records outcome=failed then propagates a throwing handler so pg-boss retries → DLQ', async () => {
     const registry = new AiFeatureHandlerRegistry();
     registry.register('proposal_summarizer', {
       handle: vi.fn().mockRejectedValue(new Error('boom')),
     });
+    const addSpy = vi.spyOn(aiMetrics.jobsTotal, 'add');
     const consumer = new AiJobConsumer(
       noopPort,
       registry,
       enabledBudget as never,
     ) as unknown as WithHandle;
     await expect(consumer.handle(job)).rejects.toThrow('boom');
+    expect(addSpy).toHaveBeenCalledWith(1, {
+      feature: 'proposal_summarizer',
+      outcome: 'failed',
+    });
+    addSpy.mockRestore();
   });
 
   it('skips + records jobsTotal(skipped_budget_disabled) when the feature is budget-disabled', async () => {
