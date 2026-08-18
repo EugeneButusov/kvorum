@@ -2,6 +2,12 @@ import { Command } from 'commander';
 import { PgBoss } from 'pg-boss';
 import { pgDb } from '@libs/db';
 import { queryCostReport, renderCostReport } from './ai-cost.js';
+import {
+  queryMonthlyCostReport,
+  renderMonthlyReport,
+  resolveMonthWindow,
+  resolvePreviousMonthWindow,
+} from './ai-report.js';
 import { emit, emitNotImplemented, ExitCode, fail, resolveFormat } from '../output.js';
 
 // Canonical AI feature_name → pg-boss main queue. Source of truth is the ai-worker's FEATURE_QUEUE
@@ -116,6 +122,40 @@ async function runCost(opts: { format?: string; dryRun?: boolean }): Promise<voi
   }
 }
 
+/** The monthly cost-attribution report (SPEC §7.8) for a full calendar month — by feature, model, and DAO,
+ *  plus total-vs-typical deviation. Read-only. Delivery (scheduling + emailing the operator) is deployment
+ *  configuration per §6.20.2/§7.8; this command produces the report (human or `--format json`). */
+async function runReport(opts: {
+  month?: string;
+  format?: string;
+  dryRun?: boolean;
+}): Promise<void> {
+  const format = resolveFormat(opts.format);
+  const window =
+    opts.month !== undefined
+      ? resolveMonthWindow(opts.month)
+      : resolvePreviousMonthWindow(new Date());
+  if ('error' in window) {
+    fail(format, ExitCode.ValidationFailure, window.error);
+  }
+  if (opts.dryRun) {
+    emit(format, () => `[dry-run] would report ai_cost_log attribution for ${window.label}`, {
+      dryRun: true,
+      window,
+    });
+    return;
+  }
+  try {
+    const report = await queryMonthlyCostReport(pgDb, window);
+    emit(format, () => renderMonthlyReport(report), report);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    fail(format, ExitCode.RuntimeFailure, `failed to read ai_cost_log: ${message}`);
+  } finally {
+    await pgDb.destroy().catch(() => {});
+  }
+}
+
 export function registerAi(program: Command): void {
   const ai = program.command('ai').description('AI feature management');
 
@@ -124,6 +164,15 @@ export function registerAi(program: Command): void {
     .option('--dry-run', 'show what would happen without querying')
     .option('--format <format>', 'output format: human or json')
     .action((opts) => runCost(opts));
+
+  ai.command('report')
+    .description(
+      'Monthly AI cost-attribution report by feature/model/DAO (from ai_cost_log) — SPEC §7.8',
+    )
+    .option('--month <YYYY-MM>', 'month to report (default: the previous full calendar month)')
+    .option('--dry-run', 'show what would happen without querying')
+    .option('--format <format>', 'output format: human or json')
+    .action((opts) => runReport(opts));
 
   ai.command('disable <feature>')
     .description('Disable an AI feature')

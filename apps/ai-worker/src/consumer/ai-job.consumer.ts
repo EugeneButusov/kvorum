@@ -52,7 +52,14 @@ export class AiJobConsumer implements OnApplicationBootstrap {
       return;
     }
 
-    await handler.handle(job);
-    aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'dispatched' });
+    // Terminal outcome for the success/failure-rate dashboard panel (SPEC §6.20.2). A throw still
+    // propagates so pg-boss retries → DLQ (AiJobDlqBridge); we only record it as `failed` first.
+    try {
+      await handler.handle(job);
+      aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'succeeded' });
+    } catch (err) {
+      aiMetrics.jobsTotal.add(1, { feature: job.feature, outcome: 'failed' });
+      throw err;
+    }
   }
 }
