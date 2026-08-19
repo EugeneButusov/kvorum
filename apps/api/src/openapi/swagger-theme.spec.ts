@@ -191,6 +191,24 @@ describe('page grid', () => {
   });
 });
 
+describe('copy-to-clipboard control', () => {
+  // Swagger ships the icon with a literal `fill="#ffffff"` on its <path>, sized for its own
+  // dark code blocks; against this theme's light surfaces it was a white icon on white. A
+  // presentation attribute loses to any CSS declaration, but only one that targets the path
+  // itself — colouring the <svg> leaves the attribute in force.
+  it('claims the icon fill on the path, not just the svg', () => {
+    expect(ruleBody('.copy-to-clipboard svg path')).toMatch(/fill:\s*var\(--ink-2\)/);
+  });
+
+  // The icon is a flex child with no intrinsic minimum, so without an explicit size it
+  // collapsed to zero width and left an empty box behind.
+  it('gives the icon an explicit size so it cannot collapse', () => {
+    const body = ruleBody('.copy-to-clipboard svg');
+    expect(body).toContain('flex: none;');
+    expect(body).toMatch(/width:\s*\d/);
+  });
+});
+
 describe('swagger branding', () => {
   it('serves the brand mark as an inline favicon', () => {
     expect(FAVICON_DATA_URI.startsWith('data:image/svg+xml,')).toBe(true);

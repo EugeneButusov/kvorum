@@ -858,14 +858,53 @@ html.dark-mode {
   text-shadow: none !important;
 }
 
+/* Copy-to-clipboard. Two faults to correct: the icon is a flex child with no intrinsic
+   minimum, so it collapsed to zero width and left an empty 6px box; and its <path> carries
+   a literal `fill="#ffffff"`, sized for Swagger's dark code blocks — invisible against the
+   light surfaces this theme uses. A presentation attribute loses to any CSS declaration, so
+   the path is claimed directly. */
 :root:root:root .swagger-ui .copy-to-clipboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--r-0);
+  /* The icon resolves through the `svg { fill: currentColor }` rule at the end of this
+     file, which ties with any `.copy-to-clipboard svg` fill and wins on order. So the
+     colour has to be set here, on `color` — Swagger's dark rule sets it to its own grey. */
+  color: var(--ink-2);
+}
+
+:root:root:root .swagger-ui .copy-to-clipboard:hover {
+  border-color: var(--line);
+  color: var(--ink);
 }
 
 :root:root:root .swagger-ui .copy-to-clipboard button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
+}
+
+:root:root:root .swagger-ui .copy-to-clipboard svg {
+  flex: none;
+  width: 15px;
+  height: 16px;
+  /* Inert while the path below carries its own fill, but set so a future icon without
+     one inherits the token rather than Swagger's grey. */
+  fill: var(--ink-2);
+}
+
+:root:root:root .swagger-ui .copy-to-clipboard svg path {
+  fill: var(--ink-2);
+}
+
+:root:root:root .swagger-ui .copy-to-clipboard:hover svg path {
+  fill: var(--ink);
 }
 
 :root:root:root .swagger-ui .model-box,
@@ -1104,4 +1143,38 @@ html.dark-mode {
 :root:root:root .swagger-ui .markdown,
 :root:root:root .swagger-ui .markdown p {
   color: var(--ink-2);
+}
+
+/* --- Schema tree + icon fills ----------------------------- */
+
+/* Swagger tints the schema block with `rgba(0,0,0,.05)` in light and a slate grey in dark,
+   neither of which is in the palette; embedded blocks inherit so only the outer one is
+   tinted. Rounded corners go with it. */
+:root:root:root .swagger-ui .json-schema-2020-12 {
+  background-color: var(--bg-3);
+  border-radius: var(--r-0);
+}
+
+:root:root:root .swagger-ui .model-box .json-schema-2020-12 {
+  background-color: transparent;
+}
+
+/* Icon fills are set per-icon by Swagger — and only in dark mode, so the light theme was
+   relying on its defaults. Both themes now take the token, and the SVGs inherit it. */
+:root:root:root .swagger-ui .expand-operation svg,
+:root:root:root .swagger-ui .opblock-control-arrow svg,
+:root:root:root .swagger-ui .authorization__btn svg,
+:root:root:root .swagger-ui .json-schema-2020-12 button svg,
+:root:root:root .swagger-ui .json-schema-2020-12-accordion__icon svg,
+:root:root:root .swagger-ui section.models .models-control svg,
+:root:root:root .swagger-ui .dialog-ux .modal-ux-header .close-modal svg {
+  fill: var(--ink-3);
+}
+
+:root:root:root .swagger-ui .scheme-container .btn.authorize svg {
+  fill: var(--bg-2);
+}
+
+:root:root:root .swagger-ui section.models.is-open h4 {
+  border-bottom: 1px solid var(--line-3);
 }
