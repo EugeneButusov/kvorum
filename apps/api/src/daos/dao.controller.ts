@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -26,7 +27,7 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('daos')
+@ApiTags('DAOs')
 @ApiBearerAuth()
 @Controller('v1/daos')
 export class DaoController {
@@ -36,6 +37,11 @@ export class DaoController {
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
+  @ApiOperation({
+    summary: 'List DAOs',
+    description:
+      'Every DAO Kvorum indexes, with its slug, display name, and governance model. The slug is the identifier every other DAO-scoped endpoint takes in its path.',
+  })
   @ApiOkResponse({ type: DaoListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiEndpointQuery(DAO_LIST_QUERY)
@@ -81,6 +87,11 @@ export class DaoController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get a DAO',
+    description:
+      'One DAO in full, including the governance sources configured for it and any source-specific metadata.',
+  })
   @ApiOkResponse({ type: DaoDetailResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })
@@ -97,6 +108,11 @@ export class DaoController {
     return { data: toDaoDetailDto(dao, sources, this.extensions) };
   }
 
+  @ApiOperation({
+    summary: "List a DAO's governance sources",
+    description:
+      "The governance systems indexed for this DAO — an on-chain governor, a Snapshot space, a forum — each with the contract or space it reads from. A DAO's `source_type` values come from here, and those are what the proposal paths take.",
+  })
   @ApiOkResponse({ type: DaoSourceListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiNotFoundResponse({ type: ProblemDto })

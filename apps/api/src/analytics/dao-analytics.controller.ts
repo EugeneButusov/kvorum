@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -40,7 +41,7 @@ import { badRequestProblem, problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
 import { buildPagination, canonicalQuery, decodeCursor, parseLimit } from '../pagination/cursor';
 
-@ApiTags('analytics')
+@ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('v1/daos/:slug/analytics')
 export class DaoAnalyticsController {
@@ -50,6 +51,11 @@ export class DaoAnalyticsController {
     private readonly routing: ActorRoutingService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Get proposal pass rate over time',
+    description:
+      "The share of a DAO's proposals that passed, bucketed over a time window. Use it to see whether a DAO's proposals are becoming more or less likely to succeed. Narrowable to a single proposal type.",
+  })
   @Get('proposal-pass-rate')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: PassRateResponseDto })
@@ -83,6 +89,11 @@ export class DaoAnalyticsController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get voting-power concentration',
+    description:
+      "How concentrated a DAO's voting power is over time — the share held by the largest holders, bucketed across the window. Returns 204 when no power-bearing delegation exists anywhere in the window.",
+  })
   @Get('concentration')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: ConcentrationResponseDto })
@@ -132,6 +143,11 @@ export class DaoAnalyticsController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get the delegation graph',
+    description:
+      'Delegation as a graph for the window: nodes are addresses, edges are delegations weighted by the power moved. Use `min_voting_power` to drop noise. An edge whose endpoint has no known actor is still returned — an undelegation to the zero address, for example — it simply contributes no node.',
+  })
   @Get('delegation-flow')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: DelegationFlowResponseDto })
@@ -184,6 +200,11 @@ export class DaoAnalyticsController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get the delegate leaderboard',
+    description:
+      "A DAO's delegates ranked by current voting power, with the number of delegators behind each.",
+  })
   @Get('delegates')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: DelegateLeaderboardResponseDto })
@@ -218,6 +239,11 @@ export class DaoAnalyticsController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get delegate voting alignment',
+    description:
+      'How often a delegate votes the same way as its peers, over a window. Use it to spot delegates that consistently vote with — or against — the rest of the delegate set.',
+  })
   @Get('delegate-alignment')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: DelegateAlignmentResponseDto })

@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -35,7 +36,7 @@ import {
 } from '../pagination/cursor';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('votes')
+@ApiTags('Votes')
 @ApiBearerAuth()
 @Controller('v1/daos/:slug/proposals/:source_type/:source_id/votes')
 export class VotesController {
@@ -47,6 +48,11 @@ export class VotesController {
     private readonly extensions: readonly SourceReadExtension[],
   ) {}
 
+  @ApiOperation({
+    summary: 'List votes on a proposal',
+    description:
+      'Every vote cast on this proposal, with the voter, choice, and voting power behind it. Filterable by voter and by choice — pass `primary_choice` to page through just the votes for one option.',
+  })
   @ApiEndpointQuery(VOTE_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
@@ -152,6 +158,11 @@ export class VotesController {
     };
   }
 
+  @ApiOperation({
+    summary: "Get one address's vote",
+    description:
+      'How a single address voted on this proposal, including the voting power it carried at the time. Returns 404 when the address did not vote.',
+  })
   @Get(':voter_address')
   @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   @ApiOkResponse({ type: VoteDetailResponseDto })

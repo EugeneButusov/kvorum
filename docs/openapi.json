@@ -3,6 +3,7 @@
   "paths": {
     "/": {
       "get": {
+        "description": "Service banner for the API root. Unauthenticated.",
         "operationId": "AppController_getData",
         "parameters": [],
         "responses": {
@@ -10,11 +11,13 @@
             "description": ""
           }
         },
-        "tags": ["App"]
+        "summary": "Get service metadata",
+        "tags": ["Service"]
       }
     },
     "/health": {
       "get": {
+        "description": "Liveness probe. Returns 200 while the process is serving; it does not check downstream dependencies. Unauthenticated.",
         "operationId": "HealthController_health",
         "parameters": [],
         "responses": {
@@ -22,11 +25,13 @@
             "description": ""
           }
         },
-        "tags": ["Health"]
+        "summary": "Check service health",
+        "tags": ["Service"]
       }
     },
     "/v1/actors/{address}": {
       "get": {
+        "description": "The profile for one address: its known identities and the DAOs it participates in. Addresses that have been merged into a canonical identity resolve here to that identity.",
         "operationId": "ActorsController_getByAddress",
         "parameters": [
           {
@@ -88,11 +93,13 @@
             "bearer": []
           }
         ],
-        "tags": ["actors"]
+        "summary": "Get an actor",
+        "tags": ["Actors"]
       }
     },
     "/v1/actors/{address}/proposals": {
       "get": {
+        "description": "Proposals authored by this address, newest first, across every indexed DAO unless narrowed with `dao`.",
         "operationId": "ActorProposalsController_list",
         "parameters": [
           {
@@ -188,11 +195,13 @@
             "bearer": []
           }
         ],
-        "tags": ["actors"]
+        "summary": "List an actor's proposals",
+        "tags": ["Actors"]
       }
     },
     "/v1/actors/{address}/votes": {
       "get": {
+        "description": "Every vote this address has cast, newest first, across every indexed DAO unless narrowed with `dao`. Each row carries the proposal's own label for the choice — \"for\", \"Option A\" — resolved from the proposal it was cast on, or `null` where the proposal declares no label at that index.",
         "operationId": "ActorVotesController_list",
         "parameters": [
           {
@@ -288,11 +297,13 @@
             "bearer": []
           }
         ],
-        "tags": ["actors"]
+        "summary": "List an actor's votes",
+        "tags": ["Actors"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/votes": {
       "get": {
+        "description": "Every vote cast on this proposal, with the voter, choice, and voting power behind it. Filterable by voter and by choice — pass `primary_choice` to page through just the votes for one option.",
         "operationId": "VotesController_list",
         "parameters": [
           {
@@ -412,11 +423,13 @@
             "bearer": []
           }
         ],
-        "tags": ["votes"]
+        "summary": "List votes on a proposal",
+        "tags": ["Votes"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/votes/{voter_address}": {
       "get": {
+        "description": "How a single address voted on this proposal, including the voting power it carried at the time. Returns 404 when the address did not vote.",
         "operationId": "VotesController_detail",
         "parameters": [
           {
@@ -502,11 +515,13 @@
             "bearer": []
           }
         ],
-        "tags": ["votes"]
+        "summary": "Get one address's vote",
+        "tags": ["Votes"]
       }
     },
     "/v1/daos": {
       "get": {
+        "description": "Every DAO Kvorum indexes, with its slug, display name, and governance model. The slug is the identifier every other DAO-scoped endpoint takes in its path.",
         "operationId": "DaoController_list",
         "parameters": [
           {
@@ -562,11 +577,13 @@
             "bearer": []
           }
         ],
-        "tags": ["daos"]
+        "summary": "List DAOs",
+        "tags": ["DAOs"]
       }
     },
     "/v1/daos/{slug}": {
       "get": {
+        "description": "One DAO in full, including the governance sources configured for it and any source-specific metadata.",
         "operationId": "DaoController_detail",
         "parameters": [
           {
@@ -615,11 +632,13 @@
             "bearer": []
           }
         ],
-        "tags": ["daos"]
+        "summary": "Get a DAO",
+        "tags": ["DAOs"]
       }
     },
     "/v1/daos/{slug}/sources": {
       "get": {
+        "description": "The governance systems indexed for this DAO — an on-chain governor, a Snapshot space, a forum — each with the contract or space it reads from. A DAO's `source_type` values come from here, and those are what the proposal paths take.",
         "operationId": "DaoController_sources",
         "parameters": [
           {
@@ -668,11 +687,13 @@
             "bearer": []
           }
         ],
-        "tags": ["daos"]
+        "summary": "List a DAO's governance sources",
+        "tags": ["DAOs"]
       }
     },
     "/v1/daos/{slug}/delegations": {
       "get": {
+        "description": "The DAO's delegation events in time order — each a delegator moving voting power to a delegate. Filterable by either end of the delegation and by block range. This is the event history; for who currently delegates to a given delegate, use the delegates endpoint.",
         "operationId": "DelegationsController_list",
         "parameters": [
           {
@@ -788,11 +809,13 @@
             "bearer": []
           }
         ],
-        "tags": ["delegations"]
+        "summary": "List delegation events",
+        "tags": ["Delegations"]
       }
     },
     "/v1/daos/{slug}/delegates/{delegate_address}/current": {
       "get": {
+        "description": "The set of addresses currently delegating to this delegate, with the power each contributes. Pass `as_of_block_number` to reconstruct the set as it stood at a past block.",
         "operationId": "DelegationsController_current",
         "parameters": [
           {
@@ -870,11 +893,13 @@
             "bearer": []
           }
         ],
-        "tags": ["delegations"]
+        "summary": "Get a delegate's current delegators",
+        "tags": ["Delegations"]
       }
     },
     "/v1/daos/{slug}/actors/{address}/delegation": {
       "get": {
+        "description": "Where this address currently delegates its voting power within the DAO, if anywhere. The mirror of the delegators endpoint, looking outward from one actor.",
         "operationId": "DelegationsController_actorDelegation",
         "parameters": [
           {
@@ -944,11 +969,13 @@
             "bearer": []
           }
         ],
-        "tags": ["delegations"]
+        "summary": "Get an actor's outgoing delegation",
+        "tags": ["Delegations"]
       }
     },
     "/v1/daos/{slug}/proposals": {
       "get": {
+        "description": "Proposals belonging to one DAO, newest first by default. Each row carries its current state and a per-choice tally summary; `null` means no votes have been recorded yet. Filterable by state, source type, proposer, whether the proposal is binding, and the voting window.",
         "operationId": "ProposalController_listByDao",
         "parameters": [
           {
@@ -1071,11 +1098,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "List a DAO's proposals",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}": {
       "get": {
+        "description": "One proposal in full: description, decoded on-chain actions, declared choices, and the originating chain. Includes the AI summary and calldata-mismatch verdict inline when they have been computed — both are `null` for a proposal the AI pipeline has not processed, which is not an error.",
         "operationId": "ProposalController_detail",
         "parameters": [
           {
@@ -1140,11 +1169,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Get a proposal",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/summary": {
       "get": {
+        "description": "The model-written plain-language summary of a proposal, with the model, prompt version, and confidence that produced it. Returns 404 when no summary has been generated — use the `ai_summary` field on the proposal detail response if you would rather treat absence as a null field than an error.",
         "operationId": "ProposalController_aiSummary",
         "parameters": [
           {
@@ -1209,11 +1240,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Get the AI summary",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/mismatch": {
       "get": {
+        "description": "The full analysis behind the mismatch flag: whether the proposal's executable calldata does what its description claims, with per-action findings and the model's reasoning. Returns 404 when the proposal has not been analysed.",
         "operationId": "ProposalController_aiMismatch",
         "parameters": [
           {
@@ -1278,11 +1311,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Get the calldata-mismatch analysis",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/similar": {
       "get": {
+        "description": "Proposals across every indexed DAO whose text is semantically closest to this one, ranked by embedding distance. Narrowable by DAO, source type, and time window. Degrades to an empty list — never a 404 — when the target has no embedding yet.",
         "operationId": "ProposalController_similarProposals",
         "parameters": [
           {
@@ -1402,11 +1437,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Find similar proposals",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/forum-synthesis": {
       "get": {
+        "description": "A synthesis of the linked forum thread: the themes raised, sentiment, and points of contention. Returns 404 when the proposal has no linked thread or the thread has not been synthesised. A thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.",
         "operationId": "ProposalController_aiForumSynthesis",
         "parameters": [
           {
@@ -1471,11 +1508,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Get the forum-discussion synthesis",
+        "tags": ["Proposals"]
       }
     },
     "/v1/daos/{slug}/proposals/{source_type}/{source_id}/tally": {
       "get": {
+        "description": "Current vote totals per choice, summed from indexed vote events at the confirmed head. Choices the proposal declared but which received no votes are present with a zero total, so the shape is stable for the whole voting period.",
         "operationId": "ProposalController_tally",
         "parameters": [
           {
@@ -1540,11 +1579,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "Get the vote tally",
+        "tags": ["Proposals"]
       }
     },
     "/v1/proposals": {
       "get": {
+        "description": "The cross-DAO proposal feed, newest first by default. Same shape as the per-DAO listing, with a `dao` filter instead of a path parameter — use this to follow governance activity across every indexed DAO in one paginated stream.",
         "operationId": "ProposalController_listCrossDao",
         "parameters": [
           {
@@ -1642,11 +1683,13 @@
             "bearer": []
           }
         ],
-        "tags": ["proposals"]
+        "summary": "List proposals across all DAOs",
+        "tags": ["Proposals"]
       }
     },
     "/v1/actors/{address}/analytics/cross-dao": {
       "get": {
+        "description": "One address's governance footprint across every DAO it participates in — where it votes, where it holds or receives delegated power, and how active it is in each.",
         "operationId": "ActorAnalyticsController_crossDao",
         "parameters": [
           {
@@ -1708,11 +1751,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get an actor's cross-DAO activity",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/analytics/proposal-pass-rate": {
       "get": {
+        "description": "The share of a DAO's proposals that passed, bucketed over a time window. Use it to see whether a DAO's proposals are becoming more or less likely to succeed. Narrowable to a single proposal type.",
         "operationId": "DaoAnalyticsController_passRate",
         "parameters": [
           {
@@ -1804,11 +1849,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get proposal pass rate over time",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/analytics/concentration": {
       "get": {
+        "description": "How concentrated a DAO's voting power is over time — the share held by the largest holders, bucketed across the window. Returns 204 when no power-bearing delegation exists anywhere in the window.",
         "operationId": "DaoAnalyticsController_concentration",
         "parameters": [
           {
@@ -1895,11 +1942,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get voting-power concentration",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/analytics/delegation-flow": {
       "get": {
+        "description": "Delegation as a graph for the window: nodes are addresses, edges are delegations weighted by the power moved. Use `min_voting_power` to drop noise. An edge whose endpoint has no known actor is still returned — an undelegation to the zero address, for example — it simply contributes no node.",
         "operationId": "DaoAnalyticsController_delegationFlow",
         "parameters": [
           {
@@ -1982,11 +2031,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get the delegation graph",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/analytics/delegates": {
       "get": {
+        "description": "A DAO's delegates ranked by current voting power, with the number of delegators behind each.",
         "operationId": "DaoAnalyticsController_delegateLeaderboard",
         "parameters": [
           {
@@ -2054,11 +2105,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get the delegate leaderboard",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/analytics/delegate-alignment": {
       "get": {
+        "description": "How often a delegate votes the same way as its peers, over a window. Use it to spot delegates that consistently vote with — or against — the rest of the delegate set.",
         "operationId": "DaoAnalyticsController_delegateAlignment",
         "parameters": [
           {
@@ -2169,11 +2222,13 @@
             "bearer": []
           }
         ],
-        "tags": ["analytics"]
+        "summary": "Get delegate voting alignment",
+        "tags": ["Analytics"]
       }
     },
     "/v1/daos/{slug}/forum/{external_id}": {
       "get": {
+        "description": "A Discourse thread linked to a DAO's governance, with its posts. `external_id` is the Discourse topic id, as reported in a proposal's off-chain discussion links.",
         "operationId": "ForumThreadController_getThread",
         "parameters": [
           {
@@ -2213,18 +2268,57 @@
             "bearer": []
           }
         ],
-        "tags": ["forum"]
+        "summary": "Get a forum thread",
+        "tags": ["Forum"]
       }
     }
   },
   "info": {
     "title": "Kvorum API",
-    "description": "Kvorum M1 DAO + proposal read API",
+    "description": "Read API over DAO governance data — proposals, votes, delegations, actors, and the\nanalytics derived from them. Every response is served from indexed chain state at the\nconfirmed head; nothing is read live from an RPC node.\n\n## Authentication\n\nAll `/v1` endpoints require an API key, sent as a bearer token:\n\n```\nAuthorization: Bearer kv_live_…\n```\n\nKeys are issued from the developer dashboard at\n[app.kvorum.watch/developer](https://app.kvorum.watch/developer). `GET /` and\n`GET /health` are unauthenticated.\n\n## Rate limits\n\nLimits are applied per key and returned on every response as `X-RateLimit-Limit`,\n`X-RateLimit-Remaining`, and `X-RateLimit-Reset`. Exceeding a limit returns\n`429` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints are cursor-paginated. Pass `limit` and follow the `next_cursor`\nreturned in the response envelope. Cursors are signed and opaque — construct them only\nfrom a previous response, never by hand.\n\n## Versioning\n\nThe path carries the major version. Additive changes (new fields, new endpoints) ship\nwithout notice; removals and breaking changes go to a new major.\n\n## Errors\n\nFailures return a JSON body with a stable machine-readable `code`, a human-readable\n`message`, and the HTTP status.",
     "version": "0.0.0",
     "contact": {}
   },
-  "tags": [],
-  "servers": [],
+  "tags": [
+    {
+      "name": "Proposals",
+      "description": "Governance proposals across every indexed DAO — listings, full detail, tally, and the AI-derived analyses (summary, calldata mismatch, forum synthesis)."
+    },
+    {
+      "name": "Votes",
+      "description": "Individual votes cast on a proposal, and the per-voter lookup."
+    },
+    {
+      "name": "DAOs",
+      "description": "The DAO directory and the governance sources configured for each."
+    },
+    {
+      "name": "Delegations",
+      "description": "Delegation events, a delegate’s current delegator set, and an actor’s outgoing delegation."
+    },
+    {
+      "name": "Actors",
+      "description": "Addresses and identities — profile, voting history, and proposals authored."
+    },
+    {
+      "name": "Analytics",
+      "description": "Aggregated governance health: pass rates, voting-power concentration, delegation flow, and delegate alignment."
+    },
+    {
+      "name": "Forum",
+      "description": "Discourse forum threads linked to on-chain proposals."
+    },
+    {
+      "name": "Service",
+      "description": "Liveness and service metadata. Unauthenticated."
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://api.kvorum.watch",
+      "description": "Production"
+    }
+  ],
   "components": {
     "securitySchemes": {
       "bearer": {

@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -29,7 +30,7 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('actors')
+@ApiTags('Actors')
 @ApiBearerAuth()
 @Controller('v1/actors/:address/proposals')
 export class ActorProposalsController {
@@ -38,6 +39,11 @@ export class ActorProposalsController {
     private readonly routing: ActorRoutingService,
   ) {}
 
+  @ApiOperation({
+    summary: "List an actor's proposals",
+    description:
+      'Proposals authored by this address, newest first, across every indexed DAO unless narrowed with `dao`.',
+  })
   @ApiEndpointQuery(ACTOR_PROPOSAL_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })

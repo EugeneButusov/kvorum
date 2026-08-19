@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -41,7 +42,7 @@ import {
 } from '../pagination/cursor';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('delegations')
+@ApiTags('Delegations')
 @ApiBearerAuth()
 @Controller('v1/daos/:slug')
 export class DelegationsController {
@@ -64,6 +65,11 @@ export class DelegationsController {
     return delegationModelFor(this.extensions, known?.source_type ?? '');
   }
 
+  @ApiOperation({
+    summary: 'List delegation events',
+    description:
+      "The DAO's delegation events in time order — each a delegator moving voting power to a delegate. Filterable by either end of the delegation and by block range. This is the event history; for who currently delegates to a given delegate, use the delegates endpoint.",
+  })
   @ApiEndpointQuery(DELEGATION_QUERY)
   @Get('delegations')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
@@ -129,6 +135,11 @@ export class DelegationsController {
     };
   }
 
+  @ApiOperation({
+    summary: "Get a delegate's current delegators",
+    description:
+      'The set of addresses currently delegating to this delegate, with the power each contributes. Pass `as_of_block_number` to reconstruct the set as it stood at a past block.',
+  })
   @Get('delegates/:delegate_address/current')
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })
   @ApiOkResponse({ type: CurrentDelegatorsResponseDto })
@@ -195,6 +206,11 @@ export class DelegationsController {
     };
   }
 
+  @ApiOperation({
+    summary: "Get an actor's outgoing delegation",
+    description:
+      'Where this address currently delegates its voting power within the DAO, if anywhere. The mirror of the delegators endpoint, looking outward from one actor.',
+  })
   @Get('actors/:address/delegation')
   @CacheControl({ visibility: 'private', maxAgeSecs: 0, mustRevalidate: true })
   @ApiOkResponse({ type: ActorDelegationResponseDto })

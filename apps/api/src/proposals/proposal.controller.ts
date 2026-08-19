@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -59,7 +60,7 @@ import {
 import { applyQuery } from '../query/kysely-filter';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('proposals')
+@ApiTags('Proposals')
 @ApiBearerAuth()
 @Controller('v1')
 export class ProposalController {
@@ -104,6 +105,11 @@ export class ProposalController {
     return byProposal;
   }
 
+  @ApiOperation({
+    summary: "List a DAO's proposals",
+    description:
+      'Proposals belonging to one DAO, newest first by default. Each row carries its current state and a per-choice tally summary; `null` means no votes have been recorded yet. Filterable by state, source type, proposer, whether the proposal is binding, and the voting window.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiOkResponse({ type: ProposalListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
@@ -151,6 +157,11 @@ export class ProposalController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get a proposal',
+    description:
+      'One proposal in full: description, decoded on-chain actions, declared choices, and the originating chain. Includes the AI summary and calldata-mismatch verdict inline when they have been computed — both are `null` for a proposal the AI pipeline has not processed, which is not an error.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -198,6 +209,11 @@ export class ProposalController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get the AI summary',
+    description:
+      'The model-written plain-language summary of a proposal, with the model, prompt version, and confidence that produced it. Returns 404 when no summary has been generated — use the `ai_summary` field on the proposal detail response if you would rather treat absence as a null field than an error.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -229,6 +245,11 @@ export class ProposalController {
     return { data: toAiSummaryDto(output) };
   }
 
+  @ApiOperation({
+    summary: 'Get the calldata-mismatch analysis',
+    description:
+      "The full analysis behind the mismatch flag: whether the proposal's executable calldata does what its description claims, with per-action findings and the model's reasoning. Returns 404 when the proposal has not been analysed.",
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -262,6 +283,11 @@ export class ProposalController {
     return { data: toMismatchDto(output) };
   }
 
+  @ApiOperation({
+    summary: 'Find similar proposals',
+    description:
+      'Proposals across every indexed DAO whose text is semantically closest to this one, ranked by embedding distance. Narrowable by DAO, source type, and time window. Degrades to an empty list — never a 404 — when the target has no embedding yet.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -295,6 +321,11 @@ export class ProposalController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Get the forum-discussion synthesis',
+    description:
+      'A synthesis of the linked forum thread: the themes raised, sentiment, and points of contention. Returns 404 when the proposal has no linked thread or the thread has not been synthesised. A thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -336,6 +367,11 @@ export class ProposalController {
     return toForumSynthesisResponse(output);
   }
 
+  @ApiOperation({
+    summary: 'Get the vote tally',
+    description:
+      'Current vote totals per choice, summed from indexed vote events at the confirmed head. Choices the proposal declared but which received no votes are present with a zero total, so the shape is stable for the whole voting period.',
+  })
   @ApiParam({ name: 'slug', type: String })
   @ApiParam({ name: 'source_type', type: String })
   @ApiParam({ name: 'source_id', type: String })
@@ -371,6 +407,11 @@ export class ProposalController {
     };
   }
 
+  @ApiOperation({
+    summary: 'List proposals across all DAOs',
+    description:
+      'The cross-DAO proposal feed, newest first by default. Same shape as the per-DAO listing, with a `dao` filter instead of a path parameter — use this to follow governance activity across every indexed DAO in one paginated stream.',
+  })
   @ApiOkResponse({ type: ProposalListResponseDto })
   @ApiUnauthorizedResponse({ type: ProblemDto })
   @ApiEndpointQuery(CROSS_DAO_PROPOSAL_QUERY)

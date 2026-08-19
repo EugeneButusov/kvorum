@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
@@ -14,12 +15,17 @@ import { ForumThreadResponseDto } from './forum-thread.dto';
  * in the forum source's Nest package so apps/api's core stays source-blind; the global problem-details
  * filter converts the NotFoundException. `{external_id}` is the Discourse topic id.
  */
-@ApiTags('forum')
+@ApiTags('Forum')
 @ApiBearerAuth()
 @Controller('v1/daos/:slug/forum')
 export class ForumThreadController {
   constructor(private readonly repo: ForumThreadReadRepository) {}
 
+  @ApiOperation({
+    summary: 'Get a forum thread',
+    description:
+      "A Discourse thread linked to a DAO's governance, with its posts. `external_id` is the Discourse topic id, as reported in a proposal's off-chain discussion links.",
+  })
   @Get(':external_id')
   @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   @ApiParam({ name: 'slug', type: String })
