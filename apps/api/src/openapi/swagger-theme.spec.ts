@@ -162,6 +162,35 @@ describe('topbar layout', () => {
   });
 });
 
+describe('page grid', () => {
+  // `.information-container` also carries `.wrapper`, so a `padding: … 0 …` shorthand here
+  // silently cancels the page gutter and shifts the title and intro one gutter left of every
+  // other section — which is what made the header read as a different, narrower column.
+  it('keeps the page gutter on the information container', () => {
+    const body = ruleBody('.information-container');
+    expect(body).toMatch(/padding:[^;]*var\(--gutter\)/);
+    expect(body).not.toMatch(/padding:[^;]*\s0\s/);
+  });
+
+  // A media query adds no specificity, so a narrowing rule only takes effect from later in
+  // the file than the rule it narrows.
+  it('declares the mobile gutter override after the rule it narrows', () => {
+    const base = themeCss.indexOf('.information-container {');
+    const override = themeCss.indexOf(
+      '.information-container {',
+      themeCss.indexOf('@media (max-width: 768px)', base),
+    );
+    expect(base).toBeGreaterThan(-1);
+    expect(override).toBeGreaterThan(base);
+  });
+
+  it('lets the intro prose fill the content column', () => {
+    // The header block spans the same column as the operations below it; capping it to a
+    // measure left it at half the page beside full-width cards.
+    expect(ruleBody('.info .renderedMarkdown p')).not.toContain('max-width');
+  });
+});
+
 describe('swagger branding', () => {
   it('serves the brand mark as an inline favicon', () => {
     expect(FAVICON_DATA_URI.startsWith('data:image/svg+xml,')).toBe(true);

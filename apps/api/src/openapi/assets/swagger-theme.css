@@ -441,9 +441,21 @@ html.dark-mode {
 /* --- Info header ------------------------------------------ */
 
 :root:root:root .swagger-ui .information-container {
-  padding: var(--space-10) 0 var(--space-6);
+  /* The horizontal padding has to stay the page gutter: this element also carries
+     `.wrapper`, so zeroing it detached the title and intro from the column every other
+     section sits in — by exactly one gutter, which read as the header being misaligned. */
+  padding: var(--space-10) var(--gutter) var(--space-6);
   border-bottom: 1px solid var(--line);
   margin-bottom: var(--space-8);
+}
+
+/* Must follow the rule above, not sit with the other responsive rules near the top: a
+   media query carries no extra specificity, so an earlier block would simply lose. */
+@media (max-width: 768px) {
+  :root:root:root .swagger-ui .information-container {
+    padding-right: var(--gutter-sm);
+    padding-left: var(--gutter-sm);
+  }
 }
 
 :root:root:root .swagger-ui .information-container .info {
@@ -488,7 +500,6 @@ html.dark-mode {
   font-size: var(--fs-14);
   line-height: var(--lh-prose);
   color: var(--ink-2);
-  max-width: 78ch;
 }
 
 :root:root:root .swagger-ui .info .renderedMarkdown h2 {
@@ -510,7 +521,6 @@ html.dark-mode {
 }
 
 :root:root:root .swagger-ui .info .renderedMarkdown ul {
-  max-width: 78ch;
   color: var(--ink-2);
   font-size: var(--fs-14);
   line-height: var(--lh-prose);
