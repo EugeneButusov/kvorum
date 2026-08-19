@@ -20,6 +20,20 @@ test('top-nav navigates to the proposals list and DAO pages', async ({ page }) =
   await expect(page).toHaveURL(/\/daos$/);
 });
 
+test('top-nav sends API Docs off-site to the API reference', async ({ page }) => {
+  await page.goto('/');
+  const link = page.getByRole('link', { name: /API Docs/ });
+  // Asserted, not followed: the reference is served by the API on another origin, which these
+  // backend-free smoke tests deliberately do not require to be running.
+  await expect(link).toHaveAttribute('href', /\/v1\/docs$/);
+  await expect(link).toHaveAttribute('target', '_blank');
+});
+
+test('the retired /docs placeholder is gone', async ({ page }) => {
+  const response = await page.goto('/docs');
+  expect(response?.status()).toBe(404);
+});
+
 test('proposal detail resolves without a 500 (graceful shell on a down backend)', async ({
   page,
 }) => {

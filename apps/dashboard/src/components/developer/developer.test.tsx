@@ -6,6 +6,8 @@ import { WagmiProvider } from 'wagmi';
 import { ApiKeysSection } from './api-keys-section';
 import { DeveloperDashboard } from './developer-dashboard';
 import { KeyStatusBadge } from './key-status-badge';
+import { QuickLinksSection } from './quick-links-section';
+import { API_DOCS_URL } from '../../lib/site';
 import { wagmiConfig } from '../../lib/wallet/config';
 import type { ApiKey } from '@/lib/developer/keys';
 
@@ -97,5 +99,24 @@ describe('ApiKeysSection', () => {
       client.setQueryData(['developer', 'keys'], []);
     });
     expect(screen.getByText(/No API keys yet/)).toBeInTheDocument();
+  });
+});
+
+describe('QuickLinksSection', () => {
+  it('sends API documentation to the API-hosted reference', () => {
+    render(<QuickLinksSection />);
+
+    const link = screen.getByRole('link', { name: /API documentation/ });
+    expect(link).toHaveAttribute('href', API_DOCS_URL);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it('keeps the OpenAPI spec on the same-origin BFF', () => {
+    render(<QuickLinksSection />);
+    expect(screen.getByRole('link', { name: /OpenAPI spec/ })).toHaveAttribute(
+      'href',
+      '/api/v1/openapi.json',
+    );
   });
 });

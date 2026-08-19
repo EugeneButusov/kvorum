@@ -1,12 +1,14 @@
 import { ArrowUpRight } from 'lucide-react';
 
 import { Section } from '@/components/ui/section';
+import { API_DOCS_URL } from '@/lib/site';
 
 // SPEC §6.13 §4 also lists a status page + support contact; those resources don't exist yet, so
-// they're omitted rather than pointed at fabricated URLs. The OpenAPI spec is served by the API at
-// v1/openapi.json (reached through the same-origin BFF).
+// they're omitted rather than pointed at fabricated URLs. Both links leave this app: the reference
+// is Swagger UI served by the API on its own origin, and the OpenAPI spec is fetched from
+// v1/openapi.json through the same-origin BFF.
 const LINKS = [
-  { label: 'API documentation', href: '/docs', external: false },
+  { label: 'API documentation', href: API_DOCS_URL, external: true },
   { label: 'OpenAPI spec (download)', href: '/api/v1/openapi.json', external: true },
 ];
 

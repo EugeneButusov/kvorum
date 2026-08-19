@@ -10,18 +10,28 @@ import { WalletMenu } from './wallet-menu';
 import { Logo } from '@/components/brand/Logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { API_DOCS_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
-const NAV = [
+type NavItem = { label: string; href: string; external?: boolean };
+
+// The reference is served by the API, not this app, so it leaves the SPA entirely — hence the
+// `↗` already in the label and the `external` branch in both renderers below.
+const NAV: NavItem[] = [
   { label: 'Home', href: '/' },
   { label: 'Proposals', href: '/proposals' },
   { label: 'DAOs', href: '/daos' },
   { label: 'Developer', href: '/developer' },
-  { label: 'API Docs ↗', href: '/docs' },
+  { label: 'API Docs ↗', href: API_DOCS_URL, external: true },
 ];
 
-function isActive(pathname: string, href: string): boolean {
-  return href === '/' ? pathname === '/' : pathname.startsWith(href);
+function isActive(pathname: string, item: NavItem): boolean {
+  // An off-site destination is never the current page. Stated rather than left to the fact that
+  // a pathname cannot start with "https://", so the rule survives a relative external href.
+  if (item.external === true) {
+    return false;
+  }
+  return item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
 }
 
 function navClass(active: boolean): string {
@@ -46,15 +56,23 @@ export function TopNav() {
       </Link>
 
       <nav className="hidden items-stretch md:flex">
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={navClass(isActive(pathname, item.href))}
-          >
-            {item.label}
-          </Link>
-        ))}
+        {NAV.map((item) =>
+          item.external === true ? (
+            <a
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noreferrer"
+              className={navClass(false)}
+            >
+              {item.label}
+            </a>
+          ) : (
+            <Link key={item.href} href={item.href} className={navClass(isActive(pathname, item))}>
+              {item.label}
+            </Link>
+          ),
+        )}
       </nav>
 
       <div className="flex flex-1 items-center justify-end gap-2 md:gap-3 md:pl-4">
@@ -78,19 +96,35 @@ export function TopNav() {
             </SheetHeader>
             <SearchBox />
             <nav className="flex flex-col">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    'border-b border-line-3 py-3 font-mono text-body-lg transition-colors',
-                    isActive(pathname, item.href) ? 'text-ink' : 'text-ink-2 hover:text-ink',
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {NAV.map((item) => {
+                const className = cn(
+                  'border-b border-line-3 py-3 font-mono text-body-lg transition-colors',
+                  isActive(pathname, item) ? 'text-ink' : 'text-ink-2 hover:text-ink',
+                );
+                // The drawer still closes behind an external entry — it opens a new tab, so
+                // leaving it open would strand the reader on a menu when they come back.
+                return item.external === true ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setOpen(false)}
+                    className={className}
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={className}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
             <WalletMenu />
           </SheetContent>
