@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -29,7 +30,7 @@ import {
 } from '../pagination/cursor';
 import { parseQuery } from '../query/query-parser';
 
-@ApiTags('actors')
+@ApiTags('Actors')
 @ApiBearerAuth()
 @Controller('v1/actors/:address/votes')
 export class ActorVotesController {
@@ -66,6 +67,11 @@ export class ActorVotesController {
     );
   }
 
+  @ApiOperation({
+    summary: "List an actor's votes",
+    description:
+      'Every vote this address has cast, newest first, across every indexed DAO unless narrowed with `dao`. Each row carries the proposal\'s own label for the choice — "for", "Option A" — resolved from the proposal it was cast on, or `null` where the proposal declares no label at that index.',
+  })
   @ApiEndpointQuery(ACTOR_VOTE_QUERY)
   @Get()
   @CacheControl({ visibility: 'public', maxAgeSecs: 15, staleWhileRevalidateSecs: 300 })

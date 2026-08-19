@@ -11,6 +11,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get service metadata
+     * @description Service banner for the API root. Unauthenticated.
+     */
     get: operations['AppController_getData'];
     put?: never;
     post?: never;
@@ -27,6 +31,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Check service health
+     * @description Liveness probe. Returns 200 while the process is serving; it does not check downstream dependencies. Unauthenticated.
+     */
     get: operations['HealthController_health'];
     put?: never;
     post?: never;
@@ -43,6 +51,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get an actor
+     * @description The profile for one address: its known identities and the DAOs it participates in. Addresses that have been merged into a canonical identity resolve here to that identity.
+     */
     get: operations['ActorsController_getByAddress'];
     put?: never;
     post?: never;
@@ -59,6 +71,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List an actor's proposals
+     * @description Proposals authored by this address, newest first, across every indexed DAO unless narrowed with `dao`.
+     */
     get: operations['ActorProposalsController_list'];
     put?: never;
     post?: never;
@@ -75,6 +91,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List an actor's votes
+     * @description Every vote this address has cast, newest first, across every indexed DAO unless narrowed with `dao`. Each row carries the proposal's own label for the choice — "for", "Option A" — resolved from the proposal it was cast on, or `null` where the proposal declares no label at that index.
+     */
     get: operations['ActorVotesController_list'];
     put?: never;
     post?: never;
@@ -91,6 +111,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List votes on a proposal
+     * @description Every vote cast on this proposal, with the voter, choice, and voting power behind it. Filterable by voter and by choice — pass `primary_choice` to page through just the votes for one option.
+     */
     get: operations['VotesController_list'];
     put?: never;
     post?: never;
@@ -107,6 +131,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get one address's vote
+     * @description How a single address voted on this proposal, including the voting power it carried at the time. Returns 404 when the address did not vote.
+     */
     get: operations['VotesController_detail'];
     put?: never;
     post?: never;
@@ -123,6 +151,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List DAOs
+     * @description Every DAO Kvorum indexes, with its slug, display name, and governance model. The slug is the identifier every other DAO-scoped endpoint takes in its path.
+     */
     get: operations['DaoController_list'];
     put?: never;
     post?: never;
@@ -139,6 +171,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get a DAO
+     * @description One DAO in full, including the governance sources configured for it and any source-specific metadata.
+     */
     get: operations['DaoController_detail'];
     put?: never;
     post?: never;
@@ -155,6 +191,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List a DAO's governance sources
+     * @description The governance systems indexed for this DAO — an on-chain governor, a Snapshot space, a forum — each with the contract or space it reads from. A DAO's `source_type` values come from here, and those are what the proposal paths take.
+     */
     get: operations['DaoController_sources'];
     put?: never;
     post?: never;
@@ -171,6 +211,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List delegation events
+     * @description The DAO's delegation events in time order — each a delegator moving voting power to a delegate. Filterable by either end of the delegation and by block range. This is the event history; for who currently delegates to a given delegate, use the delegates endpoint.
+     */
     get: operations['DelegationsController_list'];
     put?: never;
     post?: never;
@@ -187,6 +231,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get a delegate's current delegators
+     * @description The set of addresses currently delegating to this delegate, with the power each contributes. Pass `as_of_block_number` to reconstruct the set as it stood at a past block.
+     */
     get: operations['DelegationsController_current'];
     put?: never;
     post?: never;
@@ -203,6 +251,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get an actor's outgoing delegation
+     * @description Where this address currently delegates its voting power within the DAO, if anywhere. The mirror of the delegators endpoint, looking outward from one actor.
+     */
     get: operations['DelegationsController_actorDelegation'];
     put?: never;
     post?: never;
@@ -219,6 +271,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List a DAO's proposals
+     * @description Proposals belonging to one DAO, newest first by default. Each row carries its current state and a per-choice tally summary; `null` means no votes have been recorded yet. Filterable by state, source type, proposer, whether the proposal is binding, and the voting window.
+     */
     get: operations['ProposalController_listByDao'];
     put?: never;
     post?: never;
@@ -235,7 +291,91 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get a proposal
+     * @description One proposal in full: description, decoded on-chain actions, declared choices, and the originating chain. Includes the AI summary and calldata-mismatch verdict inline when they have been computed — both are `null` for a proposal the AI pipeline has not processed, which is not an error.
+     */
     get: operations['ProposalController_detail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the AI summary
+     * @description The model-written plain-language summary of a proposal, with the model, prompt version, and confidence that produced it. Returns 404 when no summary has been generated — use the `ai_summary` field on the proposal detail response if you would rather treat absence as a null field than an error.
+     */
+    get: operations['ProposalController_aiSummary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/mismatch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the calldata-mismatch analysis
+     * @description The full analysis behind the mismatch flag: whether the proposal's executable calldata does what its description claims, with per-action findings and the model's reasoning. Returns 404 when the proposal has not been analysed.
+     */
+    get: operations['ProposalController_aiMismatch'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/daos/{slug}/proposals/{source_type}/{source_id}/similar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Find similar proposals
+     * @description Proposals across every indexed DAO whose text is semantically closest to this one, ranked by embedding distance. Narrowable by DAO, source type, and time window. Degrades to an empty list — never a 404 — when the target has no embedding yet.
+     */
+    get: operations['ProposalController_similarProposals'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/forum-synthesis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the forum-discussion synthesis
+     * @description A synthesis of the linked forum thread: the themes raised, sentiment, and points of contention. Returns 404 when the proposal has no linked thread or the thread has not been synthesised. A thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.
+     */
+    get: operations['ProposalController_aiForumSynthesis'];
     put?: never;
     post?: never;
     delete?: never;
@@ -251,6 +391,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get the vote tally
+     * @description Current vote totals per choice, summed from indexed vote events at the confirmed head. Choices the proposal declared but which received no votes are present with a zero total, so the shape is stable for the whole voting period.
+     */
     get: operations['ProposalController_tally'];
     put?: never;
     post?: never;
@@ -267,6 +411,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * List proposals across all DAOs
+     * @description The cross-DAO proposal feed, newest first by default. Same shape as the per-DAO listing, with a `dao` filter instead of a path parameter — use this to follow governance activity across every indexed DAO in one paginated stream.
+     */
     get: operations['ProposalController_listCrossDao'];
     put?: never;
     post?: never;
@@ -283,6 +431,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get an actor's cross-DAO activity
+     * @description One address's governance footprint across every DAO it participates in — where it votes, where it holds or receives delegated power, and how active it is in each.
+     */
     get: operations['ActorAnalyticsController_crossDao'];
     put?: never;
     post?: never;
@@ -299,6 +451,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get proposal pass rate over time
+     * @description The share of a DAO's proposals that passed, bucketed over a time window. Use it to see whether a DAO's proposals are becoming more or less likely to succeed. Narrowable to a single proposal type.
+     */
     get: operations['DaoAnalyticsController_passRate'];
     put?: never;
     post?: never;
@@ -315,6 +471,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get voting-power concentration
+     * @description How concentrated a DAO's voting power is over time — the share held by the largest holders, bucketed across the window. Returns 204 when no power-bearing delegation exists anywhere in the window.
+     */
     get: operations['DaoAnalyticsController_concentration'];
     put?: never;
     post?: never;
@@ -331,6 +491,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get the delegation graph
+     * @description Delegation as a graph for the window: nodes are addresses, edges are delegations weighted by the power moved. Use `min_voting_power` to drop noise. An edge whose endpoint has no known actor is still returned — an undelegation to the zero address, for example — it simply contributes no node.
+     */
     get: operations['DaoAnalyticsController_delegationFlow'];
     put?: never;
     post?: never;
@@ -347,6 +511,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get the delegate leaderboard
+     * @description A DAO's delegates ranked by current voting power, with the number of delegators behind each.
+     */
     get: operations['DaoAnalyticsController_delegateLeaderboard'];
     put?: never;
     post?: never;
@@ -363,6 +531,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get delegate voting alignment
+     * @description How often a delegate votes the same way as its peers, over a window. Use it to spot delegates that consistently vote with — or against — the rest of the delegate set.
+     */
     get: operations['DaoAnalyticsController_delegateAlignment'];
     put?: never;
     post?: never;
@@ -379,6 +551,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /**
+     * Get a forum thread
+     * @description A Discourse thread linked to a DAO's governance, with its posts. `external_id` is the Discourse topic id, as reported in a proposal's off-chain discussion links.
+     */
     get: operations['ForumThreadController_getThread'];
     put?: never;
     post?: never;
@@ -744,6 +920,54 @@ export interface components {
       confidence: 'high' | 'medium' | 'low';
       last_activity_at?: Record<string, never> | null;
     };
+    ProposalAiSummaryKeyChangeDto: {
+      description: string;
+      /** @description high | medium | low */
+      significance: string;
+    };
+    ProposalAiSummaryMetaDto: {
+      /**
+       * @description Always true — labels AI-generated content.
+       * @example true
+       */
+      ai_generated: boolean;
+      model: string;
+      prompt_version: string;
+      /** @description sha256: of the summarized input (description + decoded actions). */
+      input_hash: string;
+      generated_at: string;
+    };
+    ProposalAiSummaryDto: {
+      tldr: string;
+      proposal_type: string;
+      /** @description high | medium | low */
+      proposal_type_confidence: string;
+      affected_contracts: string[];
+      key_changes: components['schemas']['ProposalAiSummaryKeyChangeDto'][];
+      beneficiaries?: string[];
+      funding_amount_usd: string | null;
+      notable_concerns?: string[];
+      _meta: components['schemas']['ProposalAiSummaryMetaDto'];
+    };
+    ProposalAiMismatchMetaDto: {
+      /**
+       * @description Always true — labels AI-generated content.
+       * @example true
+       */
+      ai_generated: boolean;
+      model: string;
+      prompt_version: string;
+      /** @description sha256: of the analyzed input (description + decoded actions). */
+      input_hash: string;
+      generated_at: string;
+    };
+    ProposalAiMismatchFlagDto: {
+      /** @description material_discrepancy | severe_discrepancy */
+      assessment: string;
+      /** @description The highest-severity discrepancy's description. */
+      summary: string;
+      _meta: components['schemas']['ProposalAiMismatchMetaDto'];
+    };
     ProposalDetailDto: {
       dao_slug: string;
       source_type: string;
@@ -772,9 +996,125 @@ export interface components {
           )
         | null;
       offchain_discussion_links: components['schemas']['OffchainDiscussionLinkDto'][];
+      /** @description AI-generated summary + provenance _meta; null when not yet produced or capped. */
+      ai_summary?: components['schemas']['ProposalAiSummaryDto'] | null;
+      /** @description Conservative calldata-vs-prose mismatch flag + provenance _meta. Null when no analysis exists (non-binding, undecoded, unprocessed, or capped) or when the analysis found no material/severe, confident discrepancy. The full analysis is at the dedicated /ai/mismatch endpoint. */
+      ai_mismatch_flag?: components['schemas']['ProposalAiMismatchFlagDto'] | null;
     };
     ProposalDetailResponseDto: {
       data: components['schemas']['ProposalDetailDto'];
+    };
+    ProposalAiSummaryResponseDto: {
+      data: components['schemas']['ProposalAiSummaryDto'];
+    };
+    MismatchDescriptionActionDto: {
+      /** @description A claim the proposal's prose makes about what it does. */
+      claim: string;
+      /** @description Brief reference to where in the description the claim appears. */
+      location: string;
+    };
+    MismatchCalldataActionDto: {
+      action_index: number;
+      /** @description Plain-language summary of what the decoded calldata action does. */
+      summary: string;
+      /** @description high | medium | low */
+      significance: string;
+    };
+    MismatchDiscrepancyDto: {
+      /** @description value_mismatch | omitted_in_description | extra_in_description | misleading_phrasing | target_mismatch */
+      type: string;
+      description: string;
+      /** @description high | medium | low */
+      severity: string;
+      description_excerpt: string | null;
+      related_action_indices: number[];
+    };
+    ProposalMismatchDto: {
+      /** @description consistent | minor_discrepancy | material_discrepancy | severe_discrepancy */
+      overall_assessment: string;
+      /** @description high | medium | low */
+      confidence: string;
+      description_actions: components['schemas']['MismatchDescriptionActionDto'][];
+      calldata_actions: components['schemas']['MismatchCalldataActionDto'][];
+      discrepancies: components['schemas']['MismatchDiscrepancyDto'][];
+      /** @description The model's explanation of its assessment (shown to users). */
+      reasoning: string;
+      _meta: components['schemas']['ProposalAiMismatchMetaDto'];
+    };
+    ProposalMismatchResponseDto: {
+      data: components['schemas']['ProposalMismatchDto'];
+    };
+    SimilarProposalItemDto: {
+      dao_slug: string;
+      dao_name: string;
+      source_type: string;
+      source_id: string;
+      title: string | null;
+      state: string;
+      created_at: string;
+      voting_starts_at: string | null;
+      voting_ends_at: string | null;
+      /** @description Cosine similarity in [-1, 1] (1 = identical). */
+      similarity: number;
+    };
+    SimilarProposalsMetaDto: {
+      /**
+       * @description Always true — labels AI-derived content (SPEC §5.2).
+       * @example true
+       */
+      ai_generated: boolean;
+      /** @description The embedding model + composition version the ranking used. */
+      embedding_version: string;
+    };
+    SimilarProposalsResponseDto: {
+      data: components['schemas']['SimilarProposalItemDto'][];
+      _meta: components['schemas']['SimilarProposalsMetaDto'];
+    };
+    ForumArgumentDto: {
+      summary: string;
+      /** @description Handles of participants making this argument (≤5). */
+      supporting_participants: string[];
+    };
+    ForumConcernDto: {
+      summary: string;
+      /** @description Handles of participants who raised it (≤3). */
+      raised_by: string[];
+    };
+    ForumParticipantDto: {
+      handle: string;
+      role_summary: string;
+    };
+    ForumSynthesisDto: {
+      arguments_for: components['schemas']['ForumArgumentDto'][];
+      arguments_against: components['schemas']['ForumArgumentDto'][];
+      unresolved_concerns: components['schemas']['ForumConcernDto'][];
+      notable_participants: components['schemas']['ForumParticipantDto'][];
+      /** @enum {string} */
+      sentiment: 'favorable' | 'mixed' | 'unfavorable' | 'contentious';
+      /** @enum {string} */
+      thread_health: 'constructive' | 'mixed' | 'unproductive';
+    };
+    ForumSynthesisMetaDto: {
+      /**
+       * @description Labels AI-derived content (SPEC §5.2). false when the thread was skipped.
+       * @example true
+       */
+      ai_generated: boolean;
+      /** @description Model that produced the synthesis (Haiku or Sonnet). */
+      model?: string;
+      prompt_version?: string;
+      /** @description sha256: of the synthesized thread `raw_content`. */
+      input_hash?: string;
+      generated_at?: string;
+      /**
+       * @description Present when the thread was not synthesized (KNOWN-016); `data` is then null.
+       * @enum {string}
+       */
+      skipped_reason?: 'non_english';
+    };
+    ForumSynthesisResponseDto: {
+      data: components['schemas']['ForumSynthesisDto'] | null;
+      _meta: components['schemas']['ForumSynthesisMetaDto'];
     };
     ProposalTallyChoiceDto: {
       choice_index: number;
@@ -1588,6 +1928,181 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ProposalDetailResponseDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ProposalController_aiSummary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        source_type: string;
+        source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProposalAiSummaryResponseDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ProposalController_aiMismatch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        source_type: string;
+        source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProposalMismatchResponseDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ProposalController_similarProposals: {
+    parameters: {
+      query?: {
+        /** @description Narrow to a single DAO by slug (default is cross-DAO). */
+        dao?: string;
+        /** @description Narrow to a proposal source_type. */
+        type?: string;
+        /** @description Lower bound on the proposal `created_at` (ISO-8601). */
+        from?: string;
+        /** @description Upper bound on the proposal `created_at` (ISO-8601). */
+        to?: string;
+        /** @description Max results, 1–20 (default 10). */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        slug: string;
+        source_type: string;
+        source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SimilarProposalsResponseDto'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ProposalController_aiForumSynthesis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        source_type: string;
+        source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForumSynthesisResponseDto'];
         };
       };
       401: {

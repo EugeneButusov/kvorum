@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
@@ -18,7 +19,7 @@ import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
 
-@ApiTags('actors')
+@ApiTags('Actors')
 @ApiBearerAuth()
 @Controller('v1/actors')
 export class ActorsController {
@@ -27,6 +28,11 @@ export class ActorsController {
     private readonly actorRepo: ActorRepository,
   ) {}
 
+  @ApiOperation({
+    summary: 'Get an actor',
+    description:
+      'The profile for one address: its known identities and the DAOs it participates in. Addresses that have been merged into a canonical identity resolve here to that identity.',
+  })
   @ApiParam({ name: 'address', type: String })
   @ApiOkResponse({ type: ActorResponseDto })
   @ApiResponse({ status: 301, description: 'Redirect to canonical primary address' })

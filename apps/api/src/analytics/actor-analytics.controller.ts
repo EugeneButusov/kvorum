@@ -4,6 +4,7 @@ import {
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -18,7 +19,7 @@ import { CacheControl } from '../cache/cache-control.decorator';
 import { problemException } from '../http/problem-exception';
 import { ProblemDto } from '../openapi/openapi.dto';
 
-@ApiTags('analytics')
+@ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('v1/actors/:address/analytics')
 export class ActorAnalyticsController {
@@ -27,6 +28,11 @@ export class ActorAnalyticsController {
     private readonly routing: ActorRoutingService,
   ) {}
 
+  @ApiOperation({
+    summary: "Get an actor's cross-DAO activity",
+    description:
+      "One address's governance footprint across every DAO it participates in — where it votes, where it holds or receives delegated power, and how active it is in each.",
+  })
   @Get('cross-dao')
   @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
   @ApiOkResponse({ type: CrossDaoActorDto })

@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { sql } from 'kysely';
 import { hashApiKey } from '../../../libs/auth/src/hash';
@@ -25,7 +25,7 @@ export type SeedContext = {
   proposalId: string;
 };
 
-export async function createRealApp(): Promise<INestApplication> {
+export async function createRealApp(): Promise<NestExpressApplication> {
   process.env['HMAC_PEPPER_CURRENT'] = TEST_PEPPER_B64;
   process.env['REDIS_URL'] = 'redis://127.0.0.1:6379';
 
@@ -42,7 +42,8 @@ export async function createRealApp(): Promise<INestApplication> {
       }),
     })
     .compile();
-  const app = moduleRef.createNestApplication();
+  // Typed as the Express app so configureOpenApi can register the docs static assets.
+  const app = moduleRef.createNestApplication<NestExpressApplication>();
   const { default: cookieParser } = await import('cookie-parser');
   app.use(cookieParser());
   configureOpenApi(app);
