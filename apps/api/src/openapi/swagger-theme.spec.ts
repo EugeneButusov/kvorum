@@ -46,10 +46,13 @@ function declaredTokens(css: string, selector: RegExp): Map<string, string> {
 /** Selectors of every rule in section 3, flattened out of any at-rule nesting. */
 function overrideSelectors(): string[] {
   const body = themeCss.slice(themeCss.indexOf(OVERRIDES_MARKER));
-  return [...body.matchAll(/([^{}]+)\{/g)]
-    .flatMap(([, group]) => (group ?? '').split(','))
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0 && !entry.startsWith('@'));
+  return (
+    [...body.matchAll(/([^{}]+)\{/g)]
+      .flatMap(([, group]) => (group ?? '').split(','))
+      // Prettier wraps long selectors across lines; compare them as single-line text.
+      .map((entry) => entry.trim().replace(/\s+/g, ' '))
+      .filter((entry) => entry.length > 0 && !entry.startsWith('@'))
+  );
 }
 
 const OVERRIDES_MARKER = ':root:root:root body';

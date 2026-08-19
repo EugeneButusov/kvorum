@@ -856,7 +856,12 @@ html.dark-mode {
   border-bottom: 1px solid var(--line-3);
 }
 
-:root:root:root .swagger-ui section.models h4 {
+/* The "Schemas" header — Swagger colours the inner <span>, not the heading, so the
+   heading rule alone leaves it on the vendor palette. */
+:root:root:root .swagger-ui section.models h4,
+:root:root:root .swagger-ui section.models h4 span,
+:root:root:root .swagger-ui section.models .models-control,
+:root:root:root .swagger-ui section.models .models-control span {
   font-family: var(--font-mono);
   font-size: var(--fs-105);
   font-weight: 600;
@@ -951,4 +956,129 @@ html.dark-mode {
 /* Swagger's inline SVG sprite carries hard-coded fills for the arrows. */
 :root:root:root .swagger-ui svg:not(:root) {
   fill: currentColor;
+}
+
+/* --- Expanded operation body ------------------------------ */
+
+/* Everything below an open operation. These selectors are nested to match Swagger's own
+   dark rules (`html.dark-mode .swagger-ui .opblock.opblock-get .opblock-body > …`, up to
+   six class components) rather than leaning harder on the `:root` prefix — matching its
+   structure is what keeps the prefix at three and the cascade legible. */
+
+:root:root:root .swagger-ui {
+  background: var(--bg);
+}
+
+:root:root:root .swagger-ui .opblock .opblock-section-header {
+  background: var(--bg-3);
+  border-top: 1px solid var(--line-3);
+  border-bottom: 1px solid var(--line-3);
+  box-shadow: none;
+}
+
+:root:root:root .swagger-ui .opblock .opblock-body > .opblock-description-wrapper,
+:root:root:root .swagger-ui .opblock .opblock-body > .opblock-title_normal,
+:root:root:root .swagger-ui .opblock .opblock-body > .opblock-section {
+  border-color: var(--line-3);
+  color: var(--ink-2);
+}
+
+:root:root:root .swagger-ui .opblock .opblock-body h4,
+:root:root:root .swagger-ui .opblock .opblock-body h5 {
+  border-color: var(--line-3);
+  color: var(--ink-3);
+}
+
+/* Try-it-out / cancel share the secondary button treatment. */
+:root:root:root .swagger-ui .opblock .opblock-section-header .try-out__btn,
+:root:root:root .swagger-ui .opblock .opblock-section-header .try-out__btn.cancel {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+
+:root:root:root .swagger-ui .opblock .opblock-section-header .try-out__btn:hover,
+:root:root:root .swagger-ui .opblock .opblock-section-header .try-out__btn.cancel:hover {
+  border-color: var(--line);
+}
+
+:root:root:root
+  .swagger-ui
+  .opblock
+  .response-control-media-type--accept-controller
+  select.content-type,
+:root:root:root .swagger-ui .opblock select.content-type {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+
+:root:root:root
+  .swagger-ui
+  .opblock
+  .response-control-media-type--accept-controller
+  .response-control-media-type__accept-message {
+  color: var(--ink-3);
+}
+
+/* Response examples and request samples — the biggest surface in an open operation.
+   The microlight highlighter writes `background: rgb(51,51,51); color: white` onto the
+   <pre> as an *inline style*, so no selector can reach it however specific: !important is
+   the only thing that outranks an inline declaration. Same reason the token spans below
+   need it — their colours are inline too. */
+:root:root:root .swagger-ui .opblock .highlight-code,
+:root:root:root .swagger-ui .opblock .highlight-code > .microlight,
+:root:root:root .swagger-ui .opblock pre.microlight,
+:root:root:root .swagger-ui .opblock .example.microlight,
+:root:root:root .swagger-ui .microlight,
+:root:root:root .swagger-ui .example.microlight {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--line-3);
+}
+
+:root:root:root .swagger-ui .opblock .microlight,
+:root:root:root .swagger-ui .opblock .microlight code,
+:root:root:root .swagger-ui .opblock .microlight span,
+:root:root:root .swagger-ui .microlight span {
+  /* Swagger's highlighter writes literal colours onto each token span. */
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+
+/* Inline code anywhere markdown is rendered — descriptions, not just the info block. */
+:root:root:root .swagger-ui .renderedMarkdown code,
+:root:root:root .swagger-ui .markdown code,
+:root:root:root .swagger-ui .opblock-description-wrapper code {
+  padding: 1px var(--space-1);
+  background: var(--bg-3);
+  border: 1px solid var(--line-3);
+  color: var(--ink);
+}
+
+/* Model / example tab strip. */
+:root:root:root .swagger-ui .opblock .tab li,
+:root:root:root .swagger-ui .opblock .tab li button.tablinks,
+:root:root:root .swagger-ui .tab li button.tablinks {
+  font-family: var(--font-mono);
+  font-size: var(--fs-105);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-mono-loose);
+  color: var(--ink-3);
+}
+
+:root:root:root .swagger-ui .opblock .tab li.active button.tablinks,
+:root:root:root .swagger-ui .tab li.active button.tablinks {
+  color: var(--ink);
+}
+
+/* Markdown-rendered prose — parameter and response descriptions, which reach the page as
+   `.renderedMarkdown` inside a table cell. Claimed by class rather than by cell: Swagger's
+   `html.dark-mode .swagger-ui table tbody tr td` carries five element components, which
+   outranks a same-shaped rule of ours, and matching it element-for-element would be a
+   worse trade than naming the wrapper. */
+:root:root:root .swagger-ui .renderedMarkdown,
+:root:root:root .swagger-ui .renderedMarkdown p,
+:root:root:root .swagger-ui .markdown,
+:root:root:root .swagger-ui .markdown p {
+  color: var(--ink-2);
 }
