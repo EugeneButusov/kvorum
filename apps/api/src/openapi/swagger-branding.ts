@@ -143,6 +143,22 @@ export const BOOTSTRAP_JS = `
     brandTopbar();
   }
 
+  // Swagger's shell HTML declares no viewport meta, so a phone lays the page out at the
+  // ~980px fallback width and zooms out — the responsive rules in the theme could never
+  // fire. The shell is not ours to edit, so add it here; browsers re-evaluate the viewport
+  // when the tag is inserted.
+  function ensureViewportMeta() {
+    if (document.querySelector('meta[name="viewport"]')) {
+      return;
+    }
+    var meta = document.createElement('meta');
+    meta.setAttribute('name', 'viewport');
+    meta.setAttribute('content', 'width=device-width, initial-scale=1');
+    document.head.appendChild(meta);
+  }
+
+  ensureViewportMeta();
+
   // Pre-empt the common case where the shell is already painted by the time this runs; the
   // ready handler re-applies regardless, which is what makes the reload order correct.
   applyStoredTheme();

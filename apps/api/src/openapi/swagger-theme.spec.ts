@@ -122,6 +122,46 @@ describe('swagger theme tokens', () => {
   });
 });
 
+/** Declaration block of the first rule whose selector list contains `needle`. */
+function ruleBody(needle: string): string {
+  const match = new RegExp(
+    `[^{}]*${needle.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}[^{}]*\\{([^}]*)\\}`,
+  ).exec(themeCss);
+  if (match === null) {
+    throw new Error(`no rule matching ${needle}`);
+  }
+  return match[1] ?? '';
+}
+
+describe('topbar layout', () => {
+  // Each of these was a real break: the gutter applied twice so the brand sat at 64px while
+  // the content below it sat at 32px; Swagger's `flex: 1` stretched the logo anchor across a
+  // third of the bar; and below its breakpoint Swagger turns the row into a wrapping column,
+  // scattering the lockup, label and toggle down the header on a phone.
+  it('does not re-apply the page gutter inside the topbar', () => {
+    const body = ruleBody('.topbar .topbar-wrapper');
+    expect(body).toContain('padding: 0;');
+    expect(body).toContain('max-width: none;');
+  });
+
+  it('pins the topbar to a single non-wrapping row', () => {
+    const body = ruleBody('.topbar .topbar-wrapper');
+    expect(body).toContain('flex-direction: row;');
+    expect(body).toContain('flex-wrap: nowrap;');
+  });
+
+  it('keeps the lockup hugging its contents', () => {
+    expect(ruleBody('.topbar .topbar-wrapper a.link')).toContain('flex: 0 0 auto;');
+  });
+
+  // The shim injects the Kvorum glyph into the same anchor Swagger's logo occupies, so an
+  // unqualified `.link > svg { display: none }` hid the brand mark it had just placed.
+  it('exempts the brand glyph when hiding Swagger’s logo', () => {
+    const hideRule = /\.link > svg([^{]*)\{[^}]*display:\s*none/.exec(themeCss);
+    expect(hideRule?.[1]).toContain(':not(.kv-brand-glyph)');
+  });
+});
+
 describe('swagger branding', () => {
   it('serves the brand mark as an inline favicon', () => {
     expect(FAVICON_DATA_URI.startsWith('data:image/svg+xml,')).toBe(true);

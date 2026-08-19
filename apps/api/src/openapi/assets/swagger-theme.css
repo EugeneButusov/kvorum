@@ -307,27 +307,40 @@ html.dark-mode {
   border-bottom: 1px solid var(--line);
 }
 
+/* The page gutter and max-width already come from the enclosing `.topbar > .wrapper`,
+   which the generic `.wrapper` rule above covers. Repeating them here indented the brand
+   to twice the gutter, so the header no longer lined up with the content beneath it. */
 :root:root:root .swagger-ui .topbar .topbar-wrapper,
 :root:root:root .topbar .topbar-wrapper {
-  max-width: var(--max-page);
+  max-width: none;
   height: var(--topbar-h);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
+  margin: 0;
+  padding: 0;
   display: flex;
+  /* Both explicit: Swagger turns this into a wrapping column below its own breakpoint,
+     which scattered the lockup, label and toggle down the bar on a phone. The row holds
+     at 320px — the items need ~273px of the 288px available. */
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-3);
 }
 
-/* The Swagger wordmark is replaced with the Kvorum lockup by the branding shim
-   in openapi.ts; this hides the original in case that script has not run yet. */
-:root:root:root .swagger-ui .topbar .topbar-wrapper .link > svg,
-:root:root:root .topbar .topbar-wrapper .link > svg {
+/* The Swagger wordmark is replaced with the Kvorum lockup by the branding shim in
+   openapi.ts; this hides the original in case that script has not run yet. Scoped away
+   from our own glyph — the shim injects it into the same anchor, so an unqualified
+   `.link > svg` hid the brand mark it had just put there. */
+:root:root:root .swagger-ui .topbar .topbar-wrapper .link > svg:not(.kv-brand-glyph),
+:root:root:root .topbar .topbar-wrapper .link > svg:not(.kv-brand-glyph) {
   display: none;
 }
 
+/* Swagger gives the logo anchor `flex: 1`, which stretched the lockup across a third of
+   the bar and pushed everything after it into the middle. It should hug its contents. */
 :root:root:root .swagger-ui .topbar .topbar-wrapper a.link,
 :root:root:root .topbar .topbar-wrapper a.link {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--space-2);
   max-width: none;
