@@ -44,11 +44,13 @@ module.exports = {
         foreground: 'var(--ink)',
         card: { DEFAULT: 'var(--bg-2)', foreground: 'var(--ink)' },
         popover: { DEFAULT: 'var(--bg-2)', foreground: 'var(--ink)' },
-        primary: { DEFAULT: 'var(--accent)', foreground: 'var(--paper)' }, // brand terminal-green
+        // foreground is --fill-ink, not --paper: these fills invert with the theme, so a fixed
+        // off-white label only holds in light mode. (ADR-077 §2)
+        primary: { DEFAULT: 'var(--accent)', foreground: 'var(--fill-ink)' }, // brand terminal-green
         secondary: { DEFAULT: 'var(--bg-3)', foreground: 'var(--ink)' },
         muted: { DEFAULT: 'var(--bg-3)', foreground: 'var(--ink-3)' },
         accent: { DEFAULT: 'var(--bg-3)', foreground: 'var(--ink)' }, // shadcn hover surface — NOT brand green
-        destructive: { DEFAULT: 'var(--warn)', foreground: 'var(--paper)' },
+        destructive: { DEFAULT: 'var(--warn)', foreground: 'var(--fill-ink)' },
         border: 'var(--line-2)',
         input: 'var(--line-2)',
         ring: 'var(--accent)', // brand-green focus ring (a11y §6)

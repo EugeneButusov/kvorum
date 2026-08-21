@@ -34,6 +34,11 @@
   --accent-bg: #d6f3e4;
   --accent-ink: #003d22;
 
+  /* Text/glyphs sitting ON a saturated fill (--accent, --warn) — the label of a primary or
+     destructive button. Must flip with the theme, because the fills do: dark green and dark
+     red take a light label, but the brighter dark-theme green and orange need a dark one. */
+  --fill-ink: #f7f7f4;
+
   /* --- Severity --- */
   --warn: #c43a1f; /* red — mismatches, defeats, errors */
   --warn-bg: #fbe1da;
@@ -91,6 +96,10 @@
   --accent-bg: #003d22;
   --accent-ink: #9bf3c3;
 
+  /* #00ff88 and #ff5a3c are bright enough that an off-white label lands at 1.25:1 and 2.89:1.
+     The darkest surface reads on both (14.6:1 and 6.3:1). */
+  --fill-ink: #0c0d0a;
+
   --warn: #ff5a3c;
   --warn-bg: #3a1108;
   --warn-ink: #ffb3a4;
@@ -123,9 +132,10 @@
   --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* Paper — theme-invariant off-white for text/glyphs on solid fills (green/red).
-     Backs shadcn --primary-foreground / --destructive-foreground so no raw hex
-     ever leaks outside this file (ADR-077 §2). Same value in light and dark. */
+  /* Paper — theme-invariant off-white. Same value in light and dark, for the rare mark that
+     must not flip with the theme. It used to back shadcn --primary-foreground /
+     --destructive-foreground (ADR-077 §2); those now take --fill-ink, which does flip —
+     holding them at off-white left dark-theme buttons at 1.25:1. */
   --paper: #f7f7f4;
 
   /* Type scale (px) */
