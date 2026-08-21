@@ -39,6 +39,28 @@ export function resolveStep(input: {
 }
 
 /**
+ * Wallet-connect failures, as something a person can act on. wagmi surfaces these as long typed
+ * errors whose `message` is a paragraph of RPC detail; the dialog shows this instead.
+ *
+ * This path only became reachable when the dialog started connecting on open — previously the user
+ * drove `connect` from a button and a rejection just returned them to that button.
+ */
+export function connectErrorMessage(error: unknown): string {
+  const name = error instanceof Error ? error.name : '';
+  const message = error instanceof Error ? error.message : '';
+
+  // No extension at all — the injected connector has nothing to talk to.
+  if (/ConnectorNotFound|ProviderNotFound/i.test(name + message)) {
+    return 'No browser wallet found. Install MetaMask or Rabby, then try again.';
+  }
+  // The wallet opened and the user dismissed it. Not an error worth alarming language.
+  if (/UserRejected|User rejected|denied/i.test(name + message)) {
+    return 'Connection cancelled.';
+  }
+  return 'Could not connect to your wallet.';
+}
+
+/**
  * Drives the SIWE handshake for the connect Dialog. Exposes the derived `step` (design-decisions
  * #391), plus the imperative actions the dialog wires to buttons. Signing auto-starts once the
  * wallet is connected on the correct chain, so the user flow is: connect → (switch chain) → sign.
@@ -75,7 +97,22 @@ export function useSiweFlow({
     // The injected connector configured in wagmiConfig; using the registered instance (rather than
     // a fresh injected()) keeps wagmi's connector state consistent.
     const connector = connectors[0];
-    if (connector) connect({ connector });
+    if (!connector) {
+      setPhase('error');
+      setError(connectErrorMessage(new Error('ConnectorNotFound')));
+      return;
+    }
+    // Failures must land in `error`, not silently return to `disconnected`: the dialog connects on
+    // open, so a step that re-renders as "start connecting" would immediately re-prompt the wallet.
+    connect(
+      { connector },
+      {
+        onError: (err) => {
+          setPhase('error');
+          setError(connectErrorMessage(err));
+        },
+      },
+    );
   }, [connect, connectors, reset]);
 
   const runSign = useCallback(async () => {

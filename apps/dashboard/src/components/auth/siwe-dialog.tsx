@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,35 @@ export function SiweDialog({
     },
   });
 
+  // Opening this dialog *is* the request to connect — the button that opened it already said so,
+  // and a second "Connect wallet" inside was a click that carried no decision. So go straight to
+  // the wallet; the dialog becomes the progress surface behind the extension's own prompt.
+  //
+  // Latched per opening rather than driven off `step`: a cancelled prompt returns the flow to
+  // `disconnected`, which would otherwise re-open the wallet immediately and trap the user in a
+  // loop they cannot dismiss.
+  const started = useRef(false);
+  const { step, start, retry } = flow;
+  useEffect(() => {
+    if (!open) {
+      started.current = false;
+      return;
+    }
+    if (started.current) {
+      return;
+    }
+    if (step === 'disconnected') {
+      started.current = true;
+      start();
+    } else if (step === 'error') {
+      // This dialog stays mounted while closed, so the flow's state outlives a dismissal: without
+      // this, reopening after a cancelled attempt would show a stale "Try again" rather than
+      // simply asking the wallet again, which is what reopening means.
+      started.current = true;
+      retry();
+    }
+  }, [open, step, start, retry]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -51,17 +81,13 @@ export function SiweDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4 pt-2">
-          {flow.step === 'disconnected' && (
-            <Button onClick={flow.start} className="w-full">
-              Connect wallet
-            </Button>
-          )}
-
-          {flow.step === 'connecting' && (
-            <Button disabled className="w-full">
-              <Loader2 className="animate-spin" />
-              Connecting…
-            </Button>
+          {/* Both are the same moment to the reader: the wallet is being opened. `disconnected`
+              is the tick before wagmi reports pending, not a state needing its own control. */}
+          {(flow.step === 'disconnected' || flow.step === 'connecting') && (
+            <div className="flex items-center gap-3 text-body text-ink-2">
+              <Loader2 className="size-4 animate-spin text-primary" />
+              Check your wallet — approve the connection.
+            </div>
           )}
 
           {flow.step === 'wrong-chain' && (
