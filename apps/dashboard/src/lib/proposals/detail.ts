@@ -66,6 +66,10 @@ export type ProposalDetailView = {
   voting: RawDetail['voting'];
   metadata: ProposalMetadata | null;
   offchainLinks: OffchainLinkView[];
+  // AI summary + mismatch flag ride inline on the detail response, so the Summary panel and the
+  // at-a-glance mismatch indicator need no extra request. null when not yet produced / capped.
+  aiSummary: NonNullable<RawDetail['ai_summary']> | null;
+  aiMismatchFlag: NonNullable<RawDetail['ai_mismatch_flag']> | null;
   lastUpdatedAt: string;
   confirmed: boolean;
 };
@@ -110,6 +114,8 @@ export function normalizeProposalDetail(dto: RawDetail): ProposalDetailView {
       confidence: l.confidence,
       lastActivityAt: asString(l.last_activity_at),
     })),
+    aiSummary: dto.ai_summary ?? null,
+    aiMismatchFlag: dto.ai_mismatch_flag ?? null,
     lastUpdatedAt: dto._meta.last_updated_at,
     confirmed: dto._meta.confirmed,
   };

@@ -3,7 +3,9 @@ import { configureAxe } from 'vitest-axe';
 
 import { DataTable, type ChartTableModel } from './charts/data-table';
 import { Figure } from './charts/figure';
+import { MismatchSection } from './proposal/mismatch-section';
 import { ProposalCard } from './proposal/proposal-card';
+import { SummaryPanel } from './proposal/summary-panel';
 import { ErrorContent } from './system/error-content';
 import { SystemPage } from './system/system-page';
 import { Banner } from './ui/banner';
@@ -107,6 +109,62 @@ describe('accessibility (axe) — §6.19', () => {
         <VoteTag choice="against">Against</VoteTag>
         <VoteTag choice="abstain">Abstain</VoteTag>
       </div>,
+    );
+  });
+
+  it('AI summary panel (rendered output) has no violations', async () => {
+    await expectNoViolations(
+      <SummaryPanel
+        summary={{
+          tldr: 'Raises the USDC supply cap on Base.',
+          proposal_type: 'parameter_change',
+          proposal_type_confidence: 'high',
+          affected_contracts: ['0xabc0000000000000000000000000000000000001'],
+          key_changes: [{ description: 'Supply cap 50M → 100M', significance: 'high' }],
+          funding_amount_usd: '0',
+          notable_concerns: ['Cap doubles in one step'],
+          _meta: {
+            ai_generated: true,
+            model: 'claude-sonnet',
+            prompt_version: 'v3',
+            input_hash: 'sha256:abc',
+            generated_at: '2026-08-01T00:00:00.000Z',
+          },
+        }}
+      />,
+    );
+  });
+
+  it('AI mismatch panel (rendered output) has no violations', async () => {
+    await expectNoViolations(
+      <MismatchSection
+        result={{
+          state: 'ok',
+          data: {
+            overall_assessment: 'material_discrepancy',
+            confidence: 'high',
+            description_actions: [],
+            calldata_actions: [],
+            discrepancies: [
+              {
+                type: 'value_mismatch',
+                description: 'Transfers 2x the stated amount.',
+                severity: 'high',
+                description_excerpt: 'transfer 100 USDC',
+                related_action_indices: [0],
+              },
+            ],
+            reasoning: 'The calldata moves twice what the description claims.',
+            _meta: {
+              ai_generated: true,
+              model: 'claude-sonnet',
+              prompt_version: 'v2',
+              input_hash: 'sha256:def',
+              generated_at: '2026-08-01T00:00:00.000Z',
+            },
+          },
+        }}
+      />,
     );
   });
 
