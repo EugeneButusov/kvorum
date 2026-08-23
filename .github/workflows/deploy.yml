@@ -1,7 +1,8 @@
 name: Deploy
 
 # Auto-deploy on merge to the default branch. Build once, gate on migrations, then
-# roll the api + indexer Deployments. The only credential this workflow holds is a
+# roll the api, indexer, ai-worker, and dashboard Deployments. The only credential
+# this workflow holds is a
 # scoped DigitalOcean token stored as a `production` Environment secret — no app
 # secrets ever touch CI (they live only in the in-cluster kvorum-secrets Secret).
 on:
@@ -111,4 +112,5 @@ jobs:
           set -euo pipefail
           kubectl -n kvorum rollout status deploy/kvorum-api --timeout=180s
           kubectl -n kvorum rollout status deploy/kvorum-indexer --timeout=180s
+          kubectl -n kvorum rollout status deploy/kvorum-ai-worker --timeout=180s
           kubectl -n kvorum rollout status deploy/kvorum-dashboard --timeout=180s

@@ -1,6 +1,7 @@
-# Non-secret runtime configuration shared by api + indexer + dashboard.
-# Secrets (DATABASE_URL, CLICKHOUSE_*, CURSOR_SECRET, CHAIN_CONFIG, ...) live in the
-# `kvorum-secrets` Secret, provisioned per-environment — see overlays/prod/secret.example.yaml.
+# Non-secret runtime configuration shared by api + indexer + ai-worker + dashboard.
+# Secrets (DATABASE_URL, CLICKHOUSE_*, CURSOR_SECRET, CHAIN_CONFIG, ANTHROPIC_API_KEY,
+# OPENAI_API_KEY, ...) live in the `kvorum-secrets` Secret, provisioned per-environment
+# — see overlays/prod/secret.example.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -34,3 +35,23 @@ data:
   # Push EVENT_POLL_INTERVAL_MS to 120000 for a further ~10% cut if 2-minute lag is acceptable.
   EVENT_POLL_INTERVAL_MS: '60000'
   HEAD_POLL_INTERVAL_MS: '60000'
+  # ── AI worker (apps/ai-worker) ──
+  # Monthly hard budget ceilings, USD (ADR-079). AiBudgetCapService recomputes
+  # month-to-date spend every 5 min and disables a feature at ≥100% of its cap at both
+  # the enqueue and the consume side; it auto-recovers on the 1st. Tightened below the
+  # code defaults (5/20/15/1 = $41) for this non-revenue deployment → $17/mo ceiling.
+  AI_CAP_SUMMARIZE_USD: '3'
+  AI_CAP_MISMATCH_USD: '8'
+  AI_CAP_FORUM_SYNTHESIS_USD: '5'
+  AI_CAP_EMBED_USD: '1'
+  # Steady-state trigger flags (ADR-078). Read from env every scan tick; default OFF so
+  # the worker deploys INERT — a healthy pod that spends nothing. Flip to 'true' (and
+  # `rollout restart deploy/kvorum-ai-worker` so the pod re-reads env) only AFTER the
+  # first deploy is confirmed healthy and the LLM keys are in kvorum-secrets. Once on,
+  # newly-transitioned proposals/threads (all DAOs) get summarized/analysed. The
+  # one-time historical backfill is a separate, transient toggle — see
+  # docs/runbooks/deployment.md and docs/runbooks/m5-ai-backfill.md, not committed here.
+  AI_TRIGGER_SUMMARIZE_ENABLED: 'false'
+  AI_TRIGGER_MISMATCH_ENABLED: 'false'
+  AI_TRIGGER_FORUM_SYNTHESIS_ENABLED: 'false'
+  AI_TRIGGER_EMBED_ENABLED: 'false'
