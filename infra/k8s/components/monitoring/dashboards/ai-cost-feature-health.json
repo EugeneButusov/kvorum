@@ -60,7 +60,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "ai_worker_cost_usd{feature=~\"$feature\"}",
+          "expr": "max by (feature) (ai_worker_cost_usd{feature=~\"$feature\"})",
           "legendFormat": "{{feature}}"
         }
       ]
@@ -93,7 +93,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "sum(ai_worker_cost_usd)",
+          "expr": "sum(max by (feature) (ai_worker_cost_usd))",
           "legendFormat": "total"
         }
       ]
@@ -114,7 +114,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "clamp_min(delta(ai_worker_cost_usd{feature=~\"$feature\"}[24h]), 0)",
+          "expr": "clamp_min(max by (feature) (delta(ai_worker_cost_usd{feature=~\"$feature\"}[24h])), 0)",
           "legendFormat": "{{feature}}"
         }
       ]
@@ -146,7 +146,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "ai_worker_budget_utilization_percent{feature=~\"$feature\"}",
+          "expr": "max by (feature) (ai_worker_budget_utilization_percent{feature=~\"$feature\"})",
           "legendFormat": "{{feature}}"
         }
       ]
@@ -189,7 +189,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "ai_worker_feature_disabled{feature=~\"$feature\"}",
+          "expr": "max by (feature) (ai_worker_feature_disabled{feature=~\"$feature\"})",
           "legendFormat": "{{feature}}"
         }
       ]
@@ -258,7 +258,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "ai_worker_job_queue_depth{queue!~\".*_dlq\"}",
+          "expr": "max by (queue) (ai_worker_job_queue_depth{queue!~\".*_dlq\"})",
           "legendFormat": "{{queue}}"
         }
       ]
@@ -294,7 +294,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "ai_worker_job_queue_depth{queue=~\".*_dlq\"}",
+          "expr": "max by (queue) (ai_worker_job_queue_depth{queue=~\".*_dlq\"})",
           "legendFormat": "{{queue}}"
         }
       ]
