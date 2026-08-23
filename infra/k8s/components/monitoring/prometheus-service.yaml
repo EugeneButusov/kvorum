@@ -1,0 +1,17 @@
+# ClusterIP so Grafana's provisioned datasource can reach Prometheus in-cluster at
+# http://kvorum-prometheus.kvorum:9090. Not exposed outside the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-prometheus
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http

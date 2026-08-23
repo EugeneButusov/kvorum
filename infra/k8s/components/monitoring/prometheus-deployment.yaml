@@ -1,0 +1,74 @@
+# In-cluster Prometheus — the datasource Grafana reads. Scrapes the kvorum pods'
+# :9091/metrics and stores 15 days locally. Singleton on an RWO volume, so Recreate
+# (the old pod must release the disk before the new one mounts).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvorum-prometheus
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-prometheus
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      serviceAccountName: kvorum-prometheus
+      securityContext:
+        # prom/prometheus runs as nobody(65534); fsGroup makes the RWO volume writable.
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.1.0
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--storage.tsdb.retention.time=15d'
+            - '--web.enable-lifecycle'
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: kvorum-prometheus-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: kvorum-prometheus-data

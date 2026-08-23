@@ -1,0 +1,27 @@
+# Reusable observability component: self-hosted Prometheus (scrapes the kvorum pods'
+# :9091/metrics) + Grafana (file-provisioned datasource + dashboards). Referenced by an
+# overlay's `components:` list, so monitoring is an opt-in per-environment concern kept
+# out of base/ (like components/expose-tunnel).
+#
+# Dashboards stay checked-in JSON under dashboards/; configMapGenerator turns them into
+# a hashed ConfigMap, so editing a dashboard + redeploying rolls Grafana and reloads it.
+# (They live inside this component, not infra/grafana-dashboards/, because the kustomize
+# load-restrictor forbids a generator from reading files outside its own directory.)
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - prometheus-rbac.yaml
+  - prometheus-config.yaml
+  - prometheus-pvc.yaml
+  - prometheus-deployment.yaml
+  - prometheus-service.yaml
+  - grafana-provisioning.yaml
+  - grafana-deployment.yaml
+  - grafana-service.yaml
+
+configMapGenerator:
+  - name: kvorum-grafana-dashboards
+    files:
+      - dashboards/ai-cost-feature-health.json
+      - dashboards/platform-health.json
