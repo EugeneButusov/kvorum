@@ -67,8 +67,8 @@
     },
     {
       "id": 2,
-      "title": "Total month-to-date spend vs $41 ceiling",
-      "description": "Sum of per-feature month-to-date spend against the $41 monthly ceiling (SPEC §5.3 / DR-017). Warn at 90%, critical at 100%.",
+      "title": "Total month-to-date spend vs $17 ceiling",
+      "description": "Sum of per-feature month-to-date spend against the $17 monthly ceiling (tightened caps: summarize $3 / mismatch $8 / forum $5 / embed $1). Warn at 90%, critical at 100%.",
       "type": "gauge",
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
@@ -76,13 +76,13 @@
         "defaults": {
           "unit": "currencyUSD",
           "min": 0,
-          "max": 41,
+          "max": 17,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 36.9 },
-              { "color": "red", "value": 41 }
+              { "color": "yellow", "value": 15.3 },
+              { "color": "red", "value": 17 }
             ]
           }
         },

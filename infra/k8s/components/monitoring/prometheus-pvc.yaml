@@ -1,0 +1,15 @@
+# Small block-storage volume so metric history survives pod restarts/deploys. 10Gi is
+# ample for 15-day retention of the low-cardinality kvorum series (~3 targets). DO's
+# default StorageClass (do-block-storage) provisions it; ~$1/mo.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kvorum-prometheus-data
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+spec:
+  accessModes: ['ReadWriteOnce']
+  resources:
+    requests:
+      storage: 10Gi

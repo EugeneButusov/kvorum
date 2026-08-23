@@ -1,0 +1,37 @@
+# Prometheus needs to discover the kvorum pods to scrape (Kubernetes pod SD).
+# Namespaced Role is sufficient: the scrape config restricts discovery to the
+# `kvorum` namespace, so no cluster-wide pod read is required.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kvorum-prometheus
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kvorum-prometheus
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+rules:
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kvorum-prometheus
+  labels:
+    app.kubernetes.io/name: kvorum-prometheus
+    app.kubernetes.io/part-of: kvorum
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kvorum-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: kvorum-prometheus

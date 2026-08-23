@@ -1,0 +1,18 @@
+# ClusterIP fronting Grafana. The Cloudflare Tunnel routes grafana.kvorum.watch →
+# http://kvorum-grafana.kvorum:80 (a Cloudflare-dashboard hostname route, no manifest
+# change — same pattern as the api/dashboard routes).
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-grafana
+  labels:
+    app.kubernetes.io/name: kvorum-grafana
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-grafana
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

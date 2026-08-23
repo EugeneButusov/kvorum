@@ -198,6 +198,14 @@ kubectl -n kvorum set env deploy/kvorum-ai-worker \
 Re-trigger a single missed entity with `node dist/apps/admin-cli/main.js ai regenerate <feature> <entity_ref> [--force]`
 (run in the ai-worker or indexer pod; the worker must be up so the queues exist).
 
+## Observability (Grafana + Prometheus)
+
+Cost/health dashboards are self-hosted in-cluster via the `components/monitoring` component
+(Prometheus scrapes the apps' `:9091/metrics`; Grafana file-provisions the dashboards). It ships
+with the normal `apply -k`. Setup (Grafana admin password + the `grafana.kvorum.watch` tunnel
+hostname), dashboards, and verification are in [`observability.md`](observability.md). Watch AI spend
+there against the $17 ceiling before/while running the AI backfill.
+
 ## Scale-up levers (overlay-only — `base/` never changes)
 
 | Want                                  | Change                                                                                      |

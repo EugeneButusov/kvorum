@@ -2034,7 +2034,7 @@ The specific stack is a deployment choice — the spec commits to _the shape_ (a
 3. **API health** — request volume by endpoint, p50/p95/p99 latency, error rate by status code, rate-limit-hit rate per API key tier.
 4. **System health** — host CPU, memory, disk; Postgres connection count, query latency, replication lag if applicable; Redis memory; ClickHouse query throughput.
 
-These dashboards are committed to the repository as Grafana JSON exports under `infra/grafana-dashboards/`. They are version-controlled like any other code.
+These dashboards are committed to the repository as Grafana JSON exports under `infra/k8s/components/monitoring/dashboards/` (file-provisioned into the self-hosted Grafana). They are version-controlled like any other code.
 
 **Alerting rules committed to ship in v1:**
 
@@ -2420,7 +2420,7 @@ Out of scope for the spec:
 
 - Specific deployment scripts (committed to `infra/` in the repository, but not in the spec).
 - Specific container images and their build processes (Dockerfiles in the repository).
-- Specific Grafana dashboard JSON (committed to `infra/grafana-dashboards/`).
+- Specific Grafana dashboard JSON (committed to `infra/k8s/components/monitoring/dashboards/`).
 - Specific incident response procedures beyond the runbook references — those are operator's craft, not spec.
 
 Known concerns originating in this section, recorded in the registry:

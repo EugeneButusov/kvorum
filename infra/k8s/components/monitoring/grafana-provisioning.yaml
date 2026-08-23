@@ -1,0 +1,43 @@
+# Grafana file-provisioning (same contract as the aave-v4-positions reference): a
+# datasource provider and a dashboard provider, both mounted read-only. Grafana loads
+# them on startup, so Grafana itself stays stateless (no PVC) — dashboards + datasource
+# are declared here, not clicked in the UI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvorum-grafana-datasource
+  labels:
+    app.kubernetes.io/name: kvorum-grafana
+    app.kubernetes.io/part-of: kvorum
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        url: http://kvorum-prometheus.kvorum:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvorum-grafana-dashboard-provider
+  labels:
+    app.kubernetes.io/name: kvorum-grafana
+    app.kubernetes.io/part-of: kvorum
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: kvorum
+        orgId: 1
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: false

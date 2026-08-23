@@ -49,7 +49,7 @@ $ curl -s localhost:9091/metrics | grep -E 'ai_worker_(feature_disabled|budget_u
 ```
 
 `ai_worker_feature_disabled{feature="…"} 1` ⇒ disabled. When the CLI and the gauge disagree, trust the gauge.
-The full picture is on the Grafana dashboard `infra/grafana-dashboards/ai-cost-feature-health.json`.
+The full picture is on the Grafana dashboard `infra/k8s/components/monitoring/dashboards/ai-cost-feature-health.json`.
 
 ---
 
