@@ -2,9 +2,10 @@ import { AIPanel } from '@/components/ui/ai-panel';
 import { Section } from '@/components/ui/section';
 
 /**
- * Recent mismatch flags (§6.4 §3) — Kvorum's flagship calldata-vs-prose detector. Its output is an
- * M5 AI feature; until then the section states its absence in the fenced AI treatment rather than
- * pretending the feature doesn't exist.
+ * Recent mismatch flags (§6.4 §3) — Kvorum's flagship calldata-vs-prose detector. Currently unmounted
+ * from the homepage (issue #608): the feed needs a proposal-keyed AI projection to be queryable
+ * cheaply, since `ai_output` is content-addressed with no proposal FK. Kept in place so it can be
+ * re-mounted, wired to the feed, when that projection lands.
  */
 export function MismatchFlags() {
   return (
