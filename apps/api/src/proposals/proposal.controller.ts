@@ -17,9 +17,12 @@ import {
   getProposalExtensionFor,
   type SourceReadExtension,
 } from '@libs/domain';
+import {
+  ForumSynthesisReadService,
+  ForumSynthesisResponseDto,
+  toForumSynthesisResponse,
+} from '@nest/forum';
 import { AiSummaryReadService } from './ai-summary-read.service';
-import { ForumSynthesisReadService } from './forum-synthesis-read.service';
-import { ForumSynthesisResponseDto } from './forum-synthesis.dto';
 import { ProposalMismatchReadService } from './proposal-mismatch-read.service';
 import { assembleTallySummary, assembleTally, extractChoiceScores } from './proposal-tally';
 import { ProposalTallyResponseDto } from './proposal-tally.dto';
@@ -32,7 +35,6 @@ import {
 } from './proposal.dto';
 import {
   toAiSummaryDto,
-  toForumSynthesisResponse,
   toMismatchDto,
   toProposalDetailDto,
   toProposalListItemDto,

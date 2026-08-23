@@ -564,6 +564,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/forum/{external_id}/ai/synthesis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the AI synthesis of a forum thread
+     * @description A synthesis of the thread's discussion: arguments for and against, unresolved concerns, notable participants, and overall sentiment. Content-addressed by the thread's raw content. Returns 404 when the thread is unknown, has no content, or has not been synthesised; a thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.
+     */
+    get: operations['ForumThreadController_getThreadSynthesis'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2092,6 +2112,44 @@ export interface operations {
         slug: string;
         source_type: string;
         source_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForumSynthesisResponseDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  ForumThreadController_getThreadSynthesis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        external_id: string;
       };
       cookie?: never;
     };

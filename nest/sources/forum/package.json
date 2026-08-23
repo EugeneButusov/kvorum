@@ -9,6 +9,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@libs/ai": "workspace:*",
     "@libs/chain": "workspace:*",
     "@libs/db": "workspace:*",
     "@nest/chain": "workspace:*",

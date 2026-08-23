@@ -1,6 +1,7 @@
 // Data layer for the forum-thread page (§6.12): fetch a single Discourse thread + its linked
 // proposals and normalize the generator-mistyped nullable fields.
 
+import type { ForumSynthesisSection } from '@/lib/ai/panel';
 import type { createApiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 
@@ -64,5 +65,30 @@ export async function fetchForumThread(
     return normalizeThread(data.data, slug);
   } catch {
     return null;
+  }
+}
+
+// The thread's AI synthesis (§6.12 §2). Content-addressed by the thread's raw content, so it 404s
+// until synthesised; a non-English thread returns 200 + data:null + a skip reason. Degrades to
+// `failed` on an unreachable API — the page still renders the raw thread.
+export async function fetchForumSynthesis(
+  api: ReturnType<typeof createApiClient>,
+  slug: string,
+  externalId: string,
+): Promise<ForumSynthesisSection> {
+  try {
+    const { data, response } = await api.GET('/v1/daos/{slug}/forum/{external_id}/ai/synthesis', {
+      params: { path: { slug, external_id: externalId } },
+    });
+    if (data) {
+      if (data.data === null) {
+        const reason = data._meta?.skipped_reason;
+        return reason ? { state: 'skipped', reason } : { state: 'coming-soon' };
+      }
+      return { state: 'ok', data: data.data, meta: data._meta };
+    }
+    return { state: response?.status === 404 ? 'coming-soon' : 'failed' };
+  } catch {
+    return { state: 'failed' };
   }
 }

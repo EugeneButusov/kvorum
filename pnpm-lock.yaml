@@ -929,6 +929,9 @@ importers:
 
   nest/sources/forum:
     dependencies:
+      '@libs/ai':
+        specifier: workspace:*
+        version: link:../../../libs/ai
       '@libs/chain':
         specifier: workspace:*
         version: link:../../../libs/chain
