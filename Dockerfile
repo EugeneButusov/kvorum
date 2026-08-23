@@ -5,6 +5,7 @@
 # container command in Kubernetes:
 #   api       → node dist/apps/api/main.js
 #   indexer   → node dist/apps/indexer/main.js
+#   ai-worker → node dist/apps/ai-worker/main.js
 #   dashboard → pnpm --filter dashboard start   (next start, serves apps/dashboard/.next)
 #   migrate   → pnpm -w db:migrate && pnpm -w db:migrate:ch
 #   admin-cli → node dist/apps/admin-cli/main.js <cmd>   (ad-hoc ops: backfill, dlq,
@@ -35,7 +36,7 @@ FROM base AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
-RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter dashboard build && pnpm --filter admin-cli build
+RUN pnpm --filter api build && pnpm --filter indexer build && pnpm --filter ai-worker build && pnpm --filter dashboard build && pnpm --filter admin-cli build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runtime

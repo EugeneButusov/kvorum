@@ -1,6 +1,6 @@
 # Runbook — Production deployment (DOKS)
 
-Deploys the full stack — `api` + `indexer` + `dashboard` — to DigitalOcean Kubernetes. Target ≈ **$50/mo**.
+Deploys the full stack — `api` + `indexer` + `ai-worker` + `dashboard` — to DigitalOcean Kubernetes. Target ≈ **$50/mo**.
 
 ## Topology
 
@@ -24,14 +24,22 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
 | Ingress    | Cloudflare Tunnel (`cloudflared` pod)      | $0             |
 | **Total**  |                                            | **~$50**       |
 
-- `api` and `dashboard` scale horizontally (api has an HPA; add one for the dashboard when needed). `indexer` is a **hard singleton** — `replicas: 1`, `Recreate`, never HPA'd (its chain pollers aren't leader-elected).
+- `api` and `dashboard` scale horizontally (api has an HPA; add one for the dashboard when needed). `indexer` is a **hard singleton** — `replicas: 1`, `Recreate`, never HPA'd (its chain pollers aren't leader-elected). `ai-worker` is likewise a **singleton** (`replicas: 1`, `Recreate` — its trigger/backfill scanners aren't leader-elected), but is mostly idle (LLM work is off-box) and carries **no** anti-affinity, so it co-schedules on whichever node has room. If it ever stays `Pending` on memory, add a node (see the capacity note).
 - `api` and `dashboard` both carry a required pod anti-affinity against `indexer`, so neither request-serving process shares the indexer's node — on the 2-node pool they land together on node A and the indexer keeps node B to itself.
-- **Capacity note:** node A now runs api + dashboard + cloudflared on 1 vCPU / 2 GB. That fits a light demo (summed requests ≈ 325m CPU / ~550 Mi). For headroom under real traffic, add a third `s-1vcpu-2gb` node (~+$12/mo) or bump the pool to `s-2vcpu-4gb` — overlay-only, `base/` unchanged.
+- **Capacity note:** the 2-node pool now also runs the `ai-worker` (requests 100m CPU / 256 Mi), which co-schedules wherever there is room — typically alongside the indexer on node B. Total requested across both nodes stays well under the 2 vCPU / 4 GB pool for a light demo, but headroom is thin. For real traffic, add a third `s-1vcpu-2gb` node (~+$12/mo) or bump the pool to `s-2vcpu-4gb` — overlay-only, `base/` unchanged. If the worker ever stays `Pending` on memory, that node bump is the fix.
 
 ## One-time setup
 
 1. **Cluster** — create a DOKS cluster with a 2-node `s-1vcpu-2gb` pool. Note the cluster name.
 2. **Postgres** — create a DO Managed Postgres 18 DB; use the **VPC / private-network** connection string (host starts with `private-`) and add both params: `?sslmode=require&uselibpqcompat=true`. The `uselibpqcompat=true` is **required** — modern `pg` treats bare `sslmode=require` as `verify-full`, which rejects DO's private-CA cert with `SELF_SIGNED_CERT_IN_CHAIN`; this param restores encrypt-without-CA-verify (safe over the private VPC).
+   - **pgvector (required before the first deploy carrying the `ai_003` migration).** The AI worker's `proposal_embedding` table is `vector(1536)`, and `ai_003_proposal_embedding.ts` runs `CREATE EXTENSION IF NOT EXISTS vector`. The app/migrate role usually **lacks** `CREATE EXTENSION` on DO Managed PG, so the extension must be created **once as `doadmin`** — `vector` is on DO's supported-extensions list, so no self-hosting is needed. It is created at the **database** level, so after this one step it exists for every role and the migration's `IF NOT EXISTS` is a permanent no-op. If it is missing when `ai_003` runs, the migrate gate **hard-fails and blocks the whole deploy.**
+     ```bash
+     # check (any role):
+     psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extname='vector';"
+     # if no row, create it once as doadmin (connection details → user `doadmin` in the DO panel):
+     psql "postgresql://doadmin:<pw>@<host>:25060/kvorum?sslmode=require" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+     ```
+     If direct `doadmin` use is disallowed in your org, enable `vector` for the cluster via the DO control panel / DO Support instead.
 3. **ClickHouse** — create an Elestio ClickHouse service **in the same region** as DOKS (keeps the write/read hop ~1–5 ms). Note host/user/password; create the `kvorum` database.
 4. **Redis** — create an Upstash Redis DB; grab the `rediss://` URL.
 5. **Cloudflare Tunnel** — in the Zero Trust dashboard create a tunnel, copy the connector **token**, and add **two** public hostname routes on it:
@@ -64,7 +72,7 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
 
 ## Deploying
 
-**Automatic** — merge to `main`. `deploy.yml` builds the image → pushes to GHCR → runs the migration Job and waits (a failed migration aborts the deploy) → rolls api + indexer + dashboard to the new tag → waits for rollout.
+**Automatic** — merge to `main`. `deploy.yml` builds the image → pushes to GHCR → runs the migration Job and waits (a failed migration aborts the deploy) → rolls api + indexer + ai-worker + dashboard to the new tag → waits for rollout.
 
 **Manual first deploy / from a laptop:**
 
@@ -76,7 +84,7 @@ kubectl -n kvorum wait --for=condition=complete job/kvorum-migrate --timeout=300
 cd infra/k8s/overlays/prod
 kustomize edit set image ghcr.io/kvorum/kvorum=$IMG
 kubectl apply -k .
-kubectl -n kvorum rollout status deploy/kvorum-api deploy/kvorum-indexer deploy/kvorum-dashboard
+kubectl -n kvorum rollout status deploy/kvorum-api deploy/kvorum-indexer deploy/kvorum-ai-worker deploy/kvorum-dashboard
 ```
 
 ## Rollback
@@ -84,6 +92,7 @@ kubectl -n kvorum rollout status deploy/kvorum-api deploy/kvorum-indexer deploy/
 ```bash
 kubectl -n kvorum rollout undo deploy/kvorum-api
 kubectl -n kvorum rollout undo deploy/kvorum-indexer
+kubectl -n kvorum rollout undo deploy/kvorum-ai-worker
 kubectl -n kvorum rollout undo deploy/kvorum-dashboard
 ```
 
@@ -132,6 +141,62 @@ both of which leave **derivation running**:
   ```
 - **Cluster-wide, temporary** — `INDEXER_LIVE_POLLER_ENABLED=false` disables the poller entirely (env
   override; the pod stays up for admin-cli execs). Reset by the next `apply -k`.
+
+## AI worker: go-live and backfill
+
+The `ai-worker` deploys **inert** — the `AI_TRIGGER_*_ENABLED` flags in `base/configmap.yaml` default
+to `'false'`, so the pod is healthy and spends nothing until you turn features on. Bring it live in
+three ordered steps; never spend before the pod is confirmed healthy. This is the DOKS translation of
+[`m5-ai-backfill.md`](m5-ai-backfill.md); pair it with [`m5-budget-cap-ops.md`](m5-budget-cap-ops.md)
+and [`m5-ai-dlq-triage.md`](m5-ai-dlq-triage.md).
+
+**Prerequisites:** pgvector installed (one-time setup step 2) and `ANTHROPIC_API_KEY` + `OPENAI_API_KEY`
+present in `kvorum-secrets` (the worker falls back to sentinel keys and fails only on the first LLM
+call otherwise). Budget caps are set in `base/configmap.yaml` (`AI_CAP_*_USD`, $17/mo total).
+
+**1 — verify healthy + inert.** After the deploy:
+
+```bash
+kubectl -n kvorum rollout status deploy/kvorum-ai-worker
+kubectl -n kvorum exec deploy/kvorum-ai-worker -- wget -qO- localhost:9091/health   # green
+kubectl -n kvorum logs deploy/kvorum-ai-worker | grep -i queue                      # 4 pg-boss queues created
+```
+
+**2 — enable steady-state triggers** (covers new proposals/threads, all DAOs). Flip the four flags to
+`'true'` in `base/configmap.yaml` (commit it), or for an immediate change edit the live ConfigMap; env
+is injected at pod start, so **restart** to pick it up:
+
+```bash
+kubectl -n kvorum edit configmap kvorum-config      # AI_TRIGGER_*_ENABLED: 'true'
+kubectl -n kvorum rollout restart deploy/kvorum-ai-worker
+```
+
+**3 — one-time historical backfill** (existing corpus; **transient** — set via env, don't commit).
+`kubectl set env` itself triggers a rollout. Stage cheap 0.5×-batch + embeddings first, then the 1×
+mismatch run:
+
+```bash
+# 3a — cheap features, scoped to the demo DAOs
+kubectl -n kvorum set env deploy/kvorum-ai-worker \
+  AI_BACKFILL_ENABLED=true AI_BACKFILL_SUMMARIZE_ENABLED=true \
+  AI_BACKFILL_FORUM_ENABLED=true AI_BACKFILL_EMBED_ENABLED=true \
+  AI_BACKFILL_DAOS=compound,aave
+kubectl -n kvorum exec deploy/kvorum-ai-worker -- wget -qO- localhost:9091/metrics | grep ai_worker_
+# 3b — mismatch (Sonnet 1×, tightest vs the $8 cap) once the cheap features settle
+kubectl -n kvorum set env deploy/kvorum-ai-worker AI_BACKFILL_MISMATCH_ENABLED=true
+```
+
+Verify coverage (source of truth, not the cursor — see `m5-ai-backfill.md` Phase 4) per feature, then
+**turn the backfill off** so only steady-state triggers run:
+
+```bash
+kubectl -n kvorum set env deploy/kvorum-ai-worker \
+  AI_BACKFILL_ENABLED- AI_BACKFILL_SUMMARIZE_ENABLED- AI_BACKFILL_FORUM_ENABLED- \
+  AI_BACKFILL_EMBED_ENABLED- AI_BACKFILL_MISMATCH_ENABLED- AI_BACKFILL_DAOS-
+```
+
+Re-trigger a single missed entity with `node dist/apps/admin-cli/main.js ai regenerate <feature> <entity_ref> [--force]`
+(run in the ai-worker or indexer pod; the worker must be up so the queues exist).
 
 ## Scale-up levers (overlay-only — `base/` never changes)
 
