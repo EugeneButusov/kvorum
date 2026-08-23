@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import { ActiveProposals } from '@/components/home/active-proposals';
 import { ActivityFeed } from '@/components/home/activity-feed';
 import { DaoHealthCards } from '@/components/home/dao-health-cards';
-import { MismatchFlags } from '@/components/home/mismatch-flags';
+// MismatchFlags (§6.4 §3) is unmounted until the homepage AI feed is built — see issue #608. The
+// feed needs a proposal-keyed AI projection; the component is kept for when that lands.
 import { StatsBar } from '@/components/home/stats-bar';
 import { PageContainer } from '@/components/shell/page-container';
 import { serverApi } from '@/lib/api/client';
@@ -55,7 +56,7 @@ export default async function HomePage() {
     <PageContainer className="flex flex-col gap-12">
       <StatsBar daoCount={daos.length} />
       <ActiveProposals initialItems={active} />
-      <MismatchFlags />
+      {/* <MismatchFlags /> — deferred until the homepage AI feed lands (issue #608). */}
       <DaoHealthCards daos={daos} />
       <ActivityFeed initialItems={recent} />
     </PageContainer>
