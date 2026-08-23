@@ -94,7 +94,7 @@ describe('ProposalSummaryBatchService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'proposal:prop-1',
+              customId: 'proposal_prop-1',
               parsed: { tldr: 'ok' },
               cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
             },
@@ -108,7 +108,7 @@ describe('ProposalSummaryBatchService', () => {
     expect(llm.submitBatch).toHaveBeenCalledOnce();
     const items = llm.submitBatch.mock.calls[0]![0] as FacadeBatchItem<unknown>[];
     expect(items).toHaveLength(1);
-    expect(items[0]!.customId).toBe('proposal:prop-1');
+    expect(items[0]!.customId).toBe('proposal_prop-1');
 
     await service.tick(); // poll → in_progress → no write
     expect(persist).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe('ProposalSummaryBatchService', () => {
         status: 'ended',
         results: [
           {
-            customId: 'proposal:prop-1',
+            customId: 'proposal_prop-1',
             parsed: { tldr: 'ok' },
             cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
           },
@@ -182,7 +182,7 @@ describe('ProposalSummaryBatchService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'proposal:prop-1',
+              customId: 'proposal_prop-1',
               parsed: { not_tldr: 1 },
               cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
             },
