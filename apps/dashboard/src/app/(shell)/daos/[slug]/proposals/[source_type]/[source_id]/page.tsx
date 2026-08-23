@@ -14,6 +14,12 @@ import { TallySection } from '@/components/proposal/tally-section';
 import { VotersTable } from '@/components/proposal/voters-table';
 import { SystemPage } from '@/components/system/system-page';
 import { Section } from '@/components/ui/section';
+import type {
+  AiSection,
+  ForumSynthesisSection,
+  ProposalMismatch,
+  SimilarProposalItem,
+} from '@/lib/ai/panel';
 import { serverApi } from '@/lib/api/client';
 import {
   normalizeProposalDetail,
@@ -107,6 +113,55 @@ async function loadTally(path: ProposalPath): Promise<TallyData> {
   }
 }
 
+// AI sections are static (unlike Tally, which polls). Each is fetched server-side and degrades the
+// section in isolation: a reachable 404 means "not generated yet" (coming-soon), an unreachable API
+// means "failed" — neither 500s the page.
+async function loadMismatch(path: ProposalPath): Promise<AiSection<ProposalMismatch>> {
+  try {
+    const { data, response } = await serverApi().GET(
+      '/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/mismatch',
+      { params: { path } },
+    );
+    if (data) return { state: 'ok', data: data.data };
+    return { state: response?.status === 404 ? 'coming-soon' : 'failed' };
+  } catch {
+    return { state: 'failed' };
+  }
+}
+
+async function loadForumSynthesis(path: ProposalPath): Promise<ForumSynthesisSection> {
+  try {
+    const { data, response } = await serverApi().GET(
+      '/v1/daos/{slug}/proposals/{source_type}/{source_id}/ai/forum-synthesis',
+      { params: { path } },
+    );
+    if (data) {
+      // 200 with data:null is a non-English skip (reason in _meta); otherwise it's a real synthesis.
+      if (data.data === null) {
+        const reason = data._meta?.skipped_reason;
+        return reason ? { state: 'skipped', reason } : { state: 'coming-soon' };
+      }
+      return { state: 'ok', data: data.data, meta: data._meta };
+    }
+    return { state: response?.status === 404 ? 'coming-soon' : 'failed' };
+  } catch {
+    return { state: 'failed' };
+  }
+}
+
+async function loadSimilar(path: ProposalPath): Promise<SimilarProposalItem[]> {
+  try {
+    const { data, error } = await serverApi().GET(
+      '/v1/daos/{slug}/proposals/{source_type}/{source_id}/similar',
+      { params: { path } },
+    );
+    if (error || !data) return [];
+    return data.data;
+  } catch {
+    return [];
+  }
+}
+
 export default async function ProposalDetailPage({ params }: { params: Params }) {
   const path = await params;
   const result = await loadDetail(path);
@@ -129,10 +184,15 @@ export default async function ProposalDetailPage({ params }: { params: Params })
   const detail = result.detail;
 
   // The tally is a cheap server-side aggregate; the voters table pages through the votes on its own,
-  // so we SSR only its first page. Both degrade to empty rather than 500 the page.
-  const [tally, initialVotes] = await Promise.all([
+  // so we SSR only its first page. The AI sections are static server fetches. Every one degrades in
+  // isolation rather than 500ing the page. (The summary + mismatch flag ride inline on the detail
+  // response already; only the full mismatch analysis, forum synthesis, and similar need a fetch.)
+  const [tally, initialVotes, mismatch, forumSynthesis, similar] = await Promise.all([
     loadTally(path),
     fetchVotesPage(serverApi(), path).catch<VotesPage>(() => ({ votes: [], nextCursor: null })),
+    loadMismatch(path),
+    loadForumSynthesis(path),
+    loadSimilar(path),
   ]);
   const tallyTotalPower = presentTally(tally, detail.choices).totalPower;
 
@@ -148,13 +208,13 @@ export default async function ProposalDetailPage({ params }: { params: Params })
         <ProposalHeader detail={detail} />
 
         <Anchor id="summary">
-          <SummaryPanel />
+          <SummaryPanel summary={detail.aiSummary} />
         </Anchor>
         <Anchor id="description">
           <DescriptionSection description={detail.description} />
         </Anchor>
         <Anchor id="mismatch">
-          <MismatchSection />
+          <MismatchSection result={mismatch} />
         </Anchor>
         <Anchor id="actions">
           <ActionsSection detail={detail} />
@@ -173,10 +233,10 @@ export default async function ProposalDetailPage({ params }: { params: Params })
           </Section>
         </Anchor>
         <Anchor id="forum">
-          <ForumSection links={detail.offchainLinks} />
+          <ForumSection links={detail.offchainLinks} synthesis={forumSynthesis} />
         </Anchor>
         <Anchor id="similar">
-          <SimilarSection />
+          <SimilarSection items={similar} />
         </Anchor>
       </main>
     </div>
