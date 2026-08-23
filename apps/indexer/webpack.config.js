@@ -51,6 +51,13 @@ module.exports = {
         options: { configFile: path.join(__dirname, 'tsconfig.app.json') },
         exclude: /node_modules/,
       },
+      {
+        // The @nest/forum barrel (imported for ForumSourceModule) transitively references @libs/ai,
+        // whose prompt templates are `*.md?raw` imports. The indexer never runs that read path, but
+        // webpack still resolves the modules, so it needs the same inlining rule apps/api uses.
+        resourceQuery: /raw/,
+        type: 'asset/source',
+      },
     ],
   },
   externals: [
