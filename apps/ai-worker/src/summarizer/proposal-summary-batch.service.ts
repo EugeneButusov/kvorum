@@ -9,6 +9,7 @@ import {
   computeInputHash,
   ProposalSummaryScanRepository,
   SystemClock,
+  toBatchCustomId,
   type BatchHandle,
   type Clock,
   type CompletionRequest,
@@ -109,7 +110,7 @@ export class ProposalSummaryBatchService {
         aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
         continue;
       }
-      const customId = `proposal:${proposal.id}`;
+      const customId = toBatchCustomId(`proposal:${proposal.id}`);
       items.set(customId, { req, ctx });
       batchItems.push({ customId, request: req as CompletionRequest<unknown> });
     }

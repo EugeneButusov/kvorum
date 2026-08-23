@@ -11,6 +11,7 @@ import {
   forumSynthesisInputContent,
   isLikelyEnglish,
   SystemClock,
+  toBatchCustomId,
   type BatchHandle,
   type Clock,
   type CompletionRequest,
@@ -141,7 +142,7 @@ export class ForumSynthesisBatchService {
       inputContent,
       routingReason: route.reason,
     };
-    return { item: { customId: `forum_thread:${id}`, request: req }, ctx };
+    return { item: { customId: toBatchCustomId(`forum_thread:${id}`), request: req }, ctx };
   }
 
   private async submit(): Promise<void> {
