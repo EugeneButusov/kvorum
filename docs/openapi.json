@@ -2271,6 +2271,52 @@
         "summary": "Get a forum thread",
         "tags": ["Forum"]
       }
+    },
+    "/v1/daos/{slug}/forum/{external_id}/ai/synthesis": {
+      "get": {
+        "description": "A synthesis of the thread's discussion: arguments for and against, unresolved concerns, notable participants, and overall sentiment. Content-addressed by the thread's raw content — the same stored analysis the proposal route serves. Returns 404 when the thread is unknown, has no content, or has not been synthesised; a thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.",
+        "operationId": "ForumThreadController_getThreadSynthesis",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "external_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForumSynthesisResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the AI synthesis of a forum thread",
+        "tags": ["Forum"]
+      }
     }
   },
   "info": {

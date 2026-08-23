@@ -6,7 +6,7 @@ import { ForumHeader } from '@/components/forum/forum-header';
 import { ForumSynthesis } from '@/components/forum/forum-synthesis';
 import { RawThread } from '@/components/forum/raw-thread';
 import { serverApi } from '@/lib/api/client';
-import { fetchForumThread, type ForumThreadView } from '@/lib/forum/thread';
+import { fetchForumSynthesis, fetchForumThread, type ForumThreadView } from '@/lib/forum/thread';
 
 type Params = Promise<{ slug: string; external_id: string }>;
 
@@ -32,10 +32,12 @@ export default async function ForumThreadPage({ params }: { params: Params }) {
   const thread = await loadThread(slug, external_id);
   if (!thread) notFound();
 
+  const synthesis = await fetchForumSynthesis(serverApi(), slug, external_id);
+
   return (
     <div className="flex flex-col gap-10">
       <ForumHeader thread={thread} />
-      <ForumSynthesis sourceHref={thread.sourceUrl} />
+      <ForumSynthesis synthesis={synthesis} sourceHref={thread.sourceUrl} />
       <RawThread content={thread.rawContent} />
     </div>
   );

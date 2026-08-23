@@ -1,11 +1,4 @@
-import {
-  isForumSkip,
-  mismatchFlag,
-  type AiOutput,
-  type ForumSynthesis,
-  type MismatchAnalysis,
-  type ProposalSummary,
-} from '@libs/ai';
+import { mismatchFlag, type AiOutput, type MismatchAnalysis, type ProposalSummary } from '@libs/ai';
 import type { ProposalAction, ProposalChoice } from '@libs/db';
 import type {
   OffchainDiscussionLinkView,
@@ -18,11 +11,6 @@ import {
   ProposalPayloadGroupDto,
   ProposalVotingDto,
 } from '@nest/sources';
-import {
-  ForumSynthesisDto,
-  ForumSynthesisMetaDto,
-  ForumSynthesisResponseDto,
-} from './forum-synthesis.dto';
 import {
   ProposalActionDto,
   ProposalAiMismatchFlagDto,
@@ -123,32 +111,6 @@ export function toMismatchDto(output: AiOutput): ProposalMismatchDto {
   return Object.assign(new ProposalMismatchDto(), output.output as MismatchAnalysis, {
     _meta: mismatchMeta(output),
   });
-}
-
-/** Map a stored forum-synthesis `ai_output` row into the `…/ai/forum-synthesis` response envelope
- *  (SPEC §5.7). A non-English skip-marker row yields `data: null` + `_meta.skipped_reason`; a real
- *  synthesis yields the ForumSynthesis payload + a provenance `_meta` (`model` distinguishes
- *  Haiku/Sonnet). Envelope-level `_meta` so both cases share one shape. */
-export function toForumSynthesisResponse(output: AiOutput): ForumSynthesisResponseDto {
-  if (isForumSkip(output.output)) {
-    return {
-      data: null,
-      _meta: Object.assign(new ForumSynthesisMetaDto(), {
-        ai_generated: false,
-        skipped_reason: output.output._meta.skipped_reason,
-      }),
-    };
-  }
-  return {
-    data: Object.assign(new ForumSynthesisDto(), output.output as ForumSynthesis),
-    _meta: Object.assign(new ForumSynthesisMetaDto(), {
-      ai_generated: true,
-      model: output.model,
-      prompt_version: output.prompt_version,
-      input_hash: output.input_hash,
-      generated_at: isoSeconds(output.generated_at),
-    }),
-  };
 }
 
 export function toProposalDetailDto(
