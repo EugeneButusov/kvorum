@@ -44,14 +44,15 @@ data:
   AI_CAP_MISMATCH_USD: '8'
   AI_CAP_FORUM_SYNTHESIS_USD: '5'
   AI_CAP_EMBED_USD: '1'
-  # Steady-state trigger flags (ADR-078). Read from env every scan tick; default OFF so
-  # the worker deploys INERT — a healthy pod that spends nothing. Flip to 'true' (and
-  # `rollout restart deploy/kvorum-ai-worker` so the pod re-reads env) only AFTER the
-  # first deploy is confirmed healthy and the LLM keys are in kvorum-secrets. Once on,
-  # newly-transitioned proposals/threads (all DAOs) get summarized/analysed. The
-  # one-time historical backfill is a separate, transient toggle — see
-  # docs/runbooks/deployment.md and docs/runbooks/m5-ai-backfill.md, not committed here.
-  AI_TRIGGER_SUMMARIZE_ENABLED: 'false'
-  AI_TRIGGER_MISMATCH_ENABLED: 'false'
-  AI_TRIGGER_FORUM_SYNTHESIS_ENABLED: 'false'
-  AI_TRIGGER_EMBED_ENABLED: 'false'
+  # Steady-state trigger flags (ADR-078). Read from env every scan tick. ENABLED at
+  # go-live (the initial deploy landed the worker inert and healthy; LLM keys are in
+  # kvorum-secrets, pgvector is present). With these on, newly-transitioned
+  # proposals/threads (all DAOs) get summarized/analysed within the scan lookback,
+  # bounded by the $17/mo caps above. The one-time historical backfill is a separate,
+  # transient toggle — see docs/runbooks/deployment.md and docs/runbooks/m5-ai-backfill.md,
+  # not committed here. To pause a feature, set its flag back to 'false' (a deploy or
+  # rollout restart re-reads env).
+  AI_TRIGGER_SUMMARIZE_ENABLED: 'true'
+  AI_TRIGGER_MISMATCH_ENABLED: 'true'
+  AI_TRIGGER_FORUM_SYNTHESIS_ENABLED: 'true'
+  AI_TRIGGER_EMBED_ENABLED: 'true'
