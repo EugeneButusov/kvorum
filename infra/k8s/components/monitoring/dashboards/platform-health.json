@@ -31,7 +31,7 @@
     {
       "id": 1,
       "title": "Scrape targets up",
-      "description": "up per scrape target. 1 = the Prometheus scrape of that pod's :9091/metrics succeeded.",
+      "description": "up per scrape target, evaluated instantly (now) so pods retired by a rollout drop off instead of lingering as a stale DOWN tile. 1 = the Prometheus scrape of that pod's :9091/metrics succeeded.",
       "type": "stat",
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
@@ -67,7 +67,8 @@
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "up{job=~\"kvorum-.*\"}",
-          "legendFormat": "{{job}}"
+          "legendFormat": "{{job}}",
+          "instant": true
         }
       ]
     },
