@@ -1,15 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { FORUM_MODEL_HAIKU } from '@libs/ai';
-import type {
-  BatchHandle,
-  FacadeBatchItem,
-  LLMClient,
-  ProviderBatchResult,
-  RenderedPrompt,
-} from '@libs/ai';
+import type { BatchHandle, FacadeBatchItem, LLMClient, RenderedPrompt } from '@libs/ai';
 import type { ForumThreadForSynthesis } from '@sources/forum';
 import { ForumSynthesisBatchService } from './forum-synthesis-batch.service';
+import type { DurableBatch, PollOutcome } from '../batch/durable-batch';
 import { aiMetrics } from '../metrics/ai-metrics';
 
 const ENGLISH =
@@ -52,25 +47,34 @@ class FakeLlm implements LLMClient {
       provider: 'fake',
     }),
   );
-  fetchBatch: (h: BatchHandle) => Promise<ProviderBatchResult>;
-  constructor(private readonly fetches: ProviderBatchResult[]) {
-    this.fetchBatch = vi.fn(async () => this.fetches.shift() ?? { status: 'ended', results: [] });
-  }
+  fetchBatch = vi.fn(async () => ({ status: 'ended' as const, results: [] }));
+}
+
+function fakeDurable(poll: PollOutcome[] = [{ state: 'idle' }]) {
+  const queue = [...poll];
+  return {
+    pollOpen: vi.fn(async () => queue.shift() ?? { state: 'idle' }),
+    record: vi.fn(async () => {}),
+    getCursor: vi.fn(async () => null),
+    advanceCursor: vi.fn(async () => {}),
+  } as unknown as DurableBatch & {
+    pollOpen: ReturnType<typeof vi.fn>;
+    record: ReturnType<typeof vi.fn>;
+  };
 }
 
 function deps(over: {
   candidateThread?: ForumThreadForSynthesis;
   closedIds?: string[];
   existingOutput?: boolean;
-  fetches?: ProviderBatchResult[];
+  poll?: PollOutcome[];
   enabled?: boolean;
   disabled?: boolean;
 }) {
-  const persist = vi.fn(async () => {});
-  const dlqInsert = vi.fn(async () => {});
-  const costsInsert = vi.fn(async () => {});
+  const persist = vi.fn(async () => {}); // the non-English skip path still writes via AiCompletionCache
   const t = over.candidateThread ?? thread();
-  const llm = new FakeLlm(over.fetches ?? []);
+  const llm = new FakeLlm();
+  const durable = fakeDurable(over.poll);
   const service = new ForumSynthesisBatchService(
     llm,
     {
@@ -88,96 +92,70 @@ function deps(over: {
     } as never,
     { find: async () => (over.existingOutput ? ({ id: 'o1' } as never) : undefined) } as never,
     { persist } as never,
-    { insert: dlqInsert } as never,
+    durable,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
-    { insert: costsInsert } as never,
   );
-  return { service, llm, persist, dlqInsert, costsInsert };
+  return { service, llm, durable, persist };
 }
 
 describe('ForumSynthesisBatchService', () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it('inert when the feature is disabled by the trigger flag', async () => {
-    const { service, llm } = deps({ enabled: false });
+    const { service, llm, durable } = deps({ enabled: false });
     await service.tick();
+    expect(durable.pollOpen).not.toHaveBeenCalled();
     expect(llm.submitBatch).not.toHaveBeenCalled();
   });
 
   it('inert when the budget cap disabled the feature', async () => {
-    const { service, llm } = deps({ disabled: true });
+    const { service, llm, durable } = deps({ disabled: true });
     await service.tick();
+    expect(durable.pollOpen).not.toHaveBeenCalled();
     expect(llm.submitBatch).not.toHaveBeenCalled();
   });
 
-  it('submits a forum-thread batch item and persists on the ended poll', async () => {
-    const { service, llm, persist } = deps({
-      fetches: [
-        { status: 'in_progress', results: [] },
-        {
-          status: 'ended',
-          results: [
-            {
-              customId: 'forum_thread_t1',
-              parsed: { sentiment: 'mixed' },
-              cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
-            },
-          ],
-        },
-      ],
-    });
-
-    await service.tick(); // submit
+  it('submits a forum-thread batch item and records it durably when idle', async () => {
+    const { service, llm, durable } = deps({ poll: [{ state: 'idle' }] });
+    await service.tick();
     expect(llm.submitBatch).toHaveBeenCalledOnce();
     const items = llm.submitBatch.mock.calls[0]![0] as FacadeBatchItem<unknown>[];
-    expect(items).toHaveLength(1);
     expect(items[0]!.customId).toBe('forum_thread_t1');
     expect(items[0]!.request).toMatchObject({ mode: 'batch', routingReason: 'short' });
+    expect(durable.record).toHaveBeenCalledOnce();
+    const [feature, , descriptors, cursor] = durable.record.mock.calls[0]!;
+    expect(feature).toBe('forum_synthesizer');
+    expect(descriptors[0].customId).toBe('forum_thread_t1');
+    expect(descriptors[0].routingReason).toBe('short');
+    expect(cursor).toBeNull();
+  });
 
-    await service.tick(); // poll → in_progress → no write
-    expect(persist).not.toHaveBeenCalled();
-
-    await service.tick(); // poll → ended → persist
-    expect(persist).toHaveBeenCalledOnce();
+  it('does not submit while a batch is still in flight', async () => {
+    const { service, llm, durable } = deps({ poll: [{ state: 'waiting' }] });
+    await service.tick();
+    expect(llm.submitBatch).not.toHaveBeenCalled();
+    expect(durable.record).not.toHaveBeenCalled();
   });
 
   it('skips an already-cached thread and never submits', async () => {
     const hits = vi.spyOn(aiMetrics.cacheHitsTotal, 'add');
-    const { service, llm } = deps({ existingOutput: true });
+    const { service, llm, durable } = deps({ existingOutput: true });
     await service.tick();
     expect(llm.submitBatch).not.toHaveBeenCalled();
+    expect(durable.record).not.toHaveBeenCalled();
     expect(hits).toHaveBeenCalledWith(1, { feature: 'forum_synthesizer' });
   });
 
   it('persists a skip marker for a non-English thread and never submits it', async () => {
-    const { service, llm, persist } = deps({ candidateThread: thread({ rawContent: CHINESE }) });
+    const { service, llm, durable, persist } = deps({
+      candidateThread: thread({ rawContent: CHINESE }),
+    });
     await service.tick();
     expect(llm.submitBatch).not.toHaveBeenCalled();
+    expect(durable.record).not.toHaveBeenCalled();
     expect(persist).toHaveBeenCalledOnce();
     const [, result] = persist.mock.calls[0]!;
     expect(result.output).toEqual({ _meta: { skipped_reason: 'non_english' } });
-  });
-
-  it('dead-letters a schema-violating batch result instead of persisting', async () => {
-    const { service, persist, dlqInsert, costsInsert } = deps({
-      fetches: [
-        {
-          status: 'ended',
-          results: [
-            {
-              customId: 'forum_thread_t1',
-              parsed: { not_sentiment: 1 },
-              cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
-            },
-          ],
-        },
-      ],
-    });
-    await service.tick(); // submit
-    await service.tick(); // poll → ended → invalid → DLQ
-    expect(dlqInsert).toHaveBeenCalledOnce();
-    expect(persist).not.toHaveBeenCalled();
-    expect(costsInsert).toHaveBeenCalledOnce();
   });
 });

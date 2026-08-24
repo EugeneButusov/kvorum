@@ -62,11 +62,6 @@ function cost(model: string, usage: AnthropicUsage, batch: boolean): CostUsd {
 export class AnthropicProvider implements LlmProvider {
   readonly id = 'anthropic';
 
-  // The Anthropic SDK's batch-result `message` does not reliably echo the request model
-  // (the Message Batches results stream is not guaranteed to carry it back), so we thread
-  // the request model through ourselves, keyed by batch id, for batch pricing in fetchBatch.
-  private readonly batchModelsByBatchId = new Map<string, Map<string, string>>();
-
   constructor(private readonly client: Anthropic) {}
 
   async completeStructured(req: ProviderCompletionRequest): Promise<ProviderCompletionResult> {
@@ -98,19 +93,18 @@ export class AnthropicProvider implements LlmProvider {
       })),
     });
 
-    const modelsByCustomId = new Map(items.map((item) => [item.customId, item.request.model]));
-    this.batchModelsByBatchId.set(batch.id, modelsByCustomId);
-
     return { id: batch.id, provider: this.id };
   }
 
-  async fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult> {
+  async fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string>,
+  ): Promise<ProviderBatchResult> {
     const status = await this.client.messages.batches.retrieve(handle.id);
     if (status.processing_status !== 'ended') {
       return { status: 'in_progress', results: [] };
     }
 
-    const modelsByCustomId = this.batchModelsByBatchId.get(handle.id);
     const results: ProviderBatchItemResult[] = [];
     const stream = await this.client.messages.batches.results(handle.id);
     for await (const entry of stream as AsyncIterable<{
@@ -119,15 +113,13 @@ export class AnthropicProvider implements LlmProvider {
     }>) {
       if (entry.result.type !== 'succeeded' || !entry.result.message) continue;
       const message = entry.result.message;
-      // The Message Batches results stream does not reliably echo the request model, so
-      // resolve pricing from the model we recorded in submitBatch. If this process never saw
-      // the matching submitBatch call (e.g. a worker restarted between submit and fetch), we
-      // cannot safely price the result — silently booking $0 would violate the pricing
-      // contract, so we throw instead.
-      const model = modelsByCustomId?.get(entry.custom_id);
+      // The Message Batches results stream does not reliably echo the request model, so pricing
+      // uses the model the caller recorded per custom_id in durable batch state. A missing entry
+      // means a real inconsistency (not a restart), so we throw rather than silently book $0.
+      const model = modelByCustomId[entry.custom_id];
       if (!model) {
         throw new Error(
-          `Cannot price batch result for custom_id "${entry.custom_id}": no submitBatch model record for batch "${handle.id}" in this process`,
+          `Cannot price batch result for custom_id "${entry.custom_id}": no model supplied for batch "${handle.id}"`,
         );
       }
       results.push({

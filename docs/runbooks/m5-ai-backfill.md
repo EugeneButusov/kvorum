@@ -5,11 +5,12 @@ embeddings) across the indexed DAOs, under the $41/mo ceiling, resumably. This i
 the tooling built in **#451** (`AiBackfillService`); it is **paid** work — it requires live LLM keys and spends
 real budget.
 
-> **The cursor is not the source of truth.** Resumability is the content-hash cache: an unchanged input is a
-> cache hit and costs nothing, so a restart re-scans from the start and skips everything already done. Final
-> completeness is the **AC #1 coverage query** (all historical proposals have summaries/embeddings, etc.) plus
-> a cheap re-run — **not** the in-memory cursor, because a sync job enqueued just before the cap trips is
-> skipped at the worker while the cursor advances past it.
+> **Restarts are safe (#617).** The in-flight Anthropic batch (`ai_batch`) and the walk cursor
+> (`ai_backfill_cursor`) are durable, so a restart resumes the batch (no orphaned paid batch) and the walk
+> (no re-scan from page 1) instead of losing them. Resumability is still backstopped by the content-hash
+> cache (an unchanged input is a free cache hit). Final completeness is the **AC #1 coverage query** (all
+> historical proposals have summaries/embeddings, etc.) plus a cheap re-run — not the cursor, because a sync
+> job enqueued just before the cap trips is skipped at the worker while the cursor advances past it.
 
 Pairs with:
 
@@ -104,13 +105,18 @@ psql -c "
   WHERE d.slug IN ('compound','aave','lido')
     AND (p.binding OR p.source_type = 'snapshot')
     AND NOT EXISTS (
-      SELECT 1 FROM ai_output o
-      WHERE o.feature_name = 'proposal_summarizer' AND o.entity_reference = 'proposal:' || p.id
+      -- ai_output is content-addressed (no proposal ref); ai_cost_log carries entity_reference.
+      SELECT 1 FROM ai_cost_log c
+      WHERE c.feature_name = 'proposal_summarizer' AND c.entity_reference = 'proposal:' || p.id
     )
 "
 ```
 
-Expected: **0** (or explained — e.g. non-English forum threads are deliberately skipped). Repeat per feature.
+Expected: **0** (or explained). Note this counts proposals that were _attempted_ (charged); a proposal
+whose LLM output failed schema validation has a cost row but sits in `ai_dlq` with no `ai_output` — subtract
+the per-feature `ai_dlq` count for true usable coverage, or count `ai_output` rows directly
+(`SELECT count(*) FROM ai_output WHERE feature_name = 'proposal_summarizer'`). Non-English forum threads are
+deliberately skipped. Repeat per feature.
 A non-zero count means re-run the relevant feature (cache-free, so only the gaps cost anything). When coverage
 is complete, **turn the backfill off** (`AI_BACKFILL_ENABLED=false`, re-provision, restart) so the driver goes
 idle and only steady-state triggers run.

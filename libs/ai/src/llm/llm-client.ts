@@ -86,8 +86,11 @@ export class DefaultLlmClient implements LLMClient {
     return this.provider.submitBatch(providerItems);
   }
 
-  fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult> {
-    return this.provider.fetchBatch(handle);
+  fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string>,
+  ): Promise<ProviderBatchResult> {
+    return this.provider.fetchBatch(handle, modelByCustomId);
   }
 
   private toProviderRequest(req: CompletionRequest<unknown>): ProviderCompletionRequest {
