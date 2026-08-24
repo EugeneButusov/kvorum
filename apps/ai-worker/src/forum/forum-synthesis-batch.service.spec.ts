@@ -119,7 +119,7 @@ describe('ForumSynthesisBatchService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'forum_thread:t1',
+              customId: 'forum_thread_t1',
               parsed: { sentiment: 'mixed' },
               cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
             },
@@ -132,7 +132,7 @@ describe('ForumSynthesisBatchService', () => {
     expect(llm.submitBatch).toHaveBeenCalledOnce();
     const items = llm.submitBatch.mock.calls[0]![0] as FacadeBatchItem<unknown>[];
     expect(items).toHaveLength(1);
-    expect(items[0]!.customId).toBe('forum_thread:t1');
+    expect(items[0]!.customId).toBe('forum_thread_t1');
     expect(items[0]!.request).toMatchObject({ mode: 'batch', routingReason: 'short' });
 
     await service.tick(); // poll → in_progress → no write
@@ -166,7 +166,7 @@ describe('ForumSynthesisBatchService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'forum_thread:t1',
+              customId: 'forum_thread_t1',
               parsed: { not_sentiment: 1 },
               cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
             },

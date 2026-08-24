@@ -118,7 +118,7 @@ describe('AiBackfillService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'proposal:prop-1',
+              customId: 'proposal_prop-1',
               parsed: { tldr: 'ok' },
               cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
             },
@@ -143,7 +143,7 @@ describe('AiBackfillService', () => {
           status: 'ended',
           results: [
             {
-              customId: 'proposal:prop-1',
+              customId: 'proposal_prop-1',
               parsed: { tldr: 'ok' },
               cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
             },

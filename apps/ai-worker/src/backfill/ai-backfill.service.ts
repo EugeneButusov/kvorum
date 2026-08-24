@@ -13,6 +13,7 @@ import {
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
   SystemClock,
+  toBatchCustomId,
   type BatchHandle,
   type Clock,
   type CompletionRequest,
@@ -211,7 +212,10 @@ export class AiBackfillService {
           aiMetrics.cacheHitsTotal.add(1, { feature: 'proposal_summarizer' });
           return null;
         }
-        return { item: { customId: `proposal:${proposal.id}`, request: req }, ctx };
+        return {
+          item: { customId: toBatchCustomId(`proposal:${proposal.id}`), request: req },
+          ctx,
+        };
       },
     };
   }
@@ -251,7 +255,7 @@ export class AiBackfillService {
           inputContent,
           routingReason: route.reason,
         };
-        return { item: { customId: `forum_thread:${id}`, request: req }, ctx };
+        return { item: { customId: toBatchCustomId(`forum_thread:${id}`), request: req }, ctx };
       },
     };
   }
