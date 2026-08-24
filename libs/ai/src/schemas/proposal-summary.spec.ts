@@ -23,18 +23,25 @@ describe('ProposalSummarySchema', () => {
     );
   });
 
-  it('rejects a tldr longer than 400 chars', () => {
-    expect(ProposalSummarySchema.safeParse({ ...VALID, tldr: 'x'.repeat(401) }).success).toBe(
-      false,
-    );
+  it('accepts a tldr in the previously-rejected 400–600 range', () => {
+    // Anthropic strips maxLength from the sent schema, so the model overruns the old 400 cap; a
+    // slightly-long-but-valid tldr must not be dead-lettered.
+    const parsed = ProposalSummarySchema.parse({ ...VALID, tldr: 'x'.repeat(500) });
+    expect(parsed.tldr.length).toBe(500);
   });
 
-  it('rejects more than 5 key_changes', () => {
-    const six = Array.from({ length: 6 }, () => ({
+  it('clamps an over-long tldr instead of rejecting it', () => {
+    const parsed = ProposalSummarySchema.parse({ ...VALID, tldr: 'lorem '.repeat(300) });
+    expect(parsed.tldr.length).toBeLessThanOrEqual(600);
+  });
+
+  it('clamps more than the max key_changes instead of rejecting', () => {
+    const twelve = Array.from({ length: 12 }, () => ({
       description: 'c',
       significance: 'low' as const,
     }));
-    expect(ProposalSummarySchema.safeParse({ ...VALID, key_changes: six }).success).toBe(false);
+    const parsed = ProposalSummarySchema.parse({ ...VALID, key_changes: twelve });
+    expect(parsed.key_changes).toHaveLength(8);
   });
 
   it('accepts funding_amount_usd as a string', () => {
