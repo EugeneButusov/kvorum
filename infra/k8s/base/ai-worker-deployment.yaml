@@ -43,6 +43,13 @@ spec:
           env:
             - name: OTEL_SERVICE_NAME
               value: ai-worker
+            # The ai-worker holds TWO Postgres pools — the app pool (PG_POOL_MAX) and pg-boss's own
+            # (PGBOSS_POOL_MAX). Their sum plus api + indexer must stay under the ~25-connection
+            # managed PG limit. See the PG_POOL_MAX note in libs/db/src/client.ts.
+            - name: PG_POOL_MAX
+              value: '3'
+            - name: PGBOSS_POOL_MAX
+              value: '3'
           # No app HTTP port — probes hit /health on the ops server (OPS_PORT).
           readinessProbe:
             httpGet:
