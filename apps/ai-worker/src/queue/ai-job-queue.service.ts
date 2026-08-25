@@ -11,6 +11,13 @@ import type { AiQueueJob, AiQueuePort, AiSendOptions } from './ai-queue.port';
 /** Default forensics window for AI jobs: 7 days. Overridable via AI_JOB_TTL_SECONDS. */
 const DEFAULT_JOB_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+/**
+ * pg-boss maintains its own Postgres pool, separate from the app's `pgDb` pool. Cap it so the
+ * ai-worker's total footprint (app pool + this) stays under the managed-PG connection limit —
+ * see the PG_POOL_MAX note in @libs/db/client. Overridable via PGBOSS_POOL_MAX.
+ */
+const DEFAULT_PGBOSS_POOL_MAX = 5;
+
 @Injectable()
 export class AiJobQueueService
   implements AiQueuePort, OnApplicationBootstrap, OnApplicationShutdown
@@ -29,6 +36,7 @@ export class AiJobQueueService
       connectionString: process.env['DATABASE_URL'],
       schema: 'pgboss',
       migrate: false,
+      max: readPositiveInt('PGBOSS_POOL_MAX', DEFAULT_PGBOSS_POOL_MAX),
     });
     /* v8 ignore next -- boss 'error' event is fired by pg-boss internals; not deterministically testable */
     this.boss.on('error', (e: Error) => this.logger.error('pgboss_error', e));

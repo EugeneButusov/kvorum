@@ -44,6 +44,11 @@ spec:
           env:
             - name: OTEL_SERVICE_NAME
               value: indexer
+            # Postgres pool ceiling. The indexer is the busiest DB client (pollers, derivation,
+            # reconcilers, decode sweep) so it gets the largest share of the ~25-connection managed
+            # PG budget. See the PG_POOL_MAX note in libs/db/src/client.ts.
+            - name: PG_POOL_MAX
+              value: '5'
           # No app HTTP port — probes hit /health on the ops server (OPS_PORT).
           readinessProbe:
             httpGet:

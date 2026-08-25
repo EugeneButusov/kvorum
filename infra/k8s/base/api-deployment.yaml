@@ -56,6 +56,11 @@ spec:
           env:
             - name: OTEL_SERVICE_NAME
               value: api
+            # Postgres pool ceiling per replica. Kept small because the managed PG allows only
+            # ~25 connections total and this deployment is capped at 2 replicas (see api-hpa).
+            # See the PG_POOL_MAX note in libs/db/src/client.ts.
+            - name: PG_POOL_MAX
+              value: '2'
           readinessProbe:
             httpGet:
               path: /health
