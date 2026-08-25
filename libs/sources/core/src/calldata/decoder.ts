@@ -1,4 +1,4 @@
-import { Interface, FunctionFragment } from 'ethers';
+import { AbiCoder, Interface, FunctionFragment } from 'ethers';
 import type { LoadedAbiLibrary } from './abi-library';
 import type { DecodeResult, DecoderDependencies } from './types';
 
@@ -14,17 +14,21 @@ function serialise(value: unknown): unknown {
   return value;
 }
 
-function decodedArguments(
-  iface: Interface,
-  fragment: FunctionFragment,
-  calldata: string,
-): Record<string, unknown> {
-  const raw = iface.decodeFunctionData(fragment, calldata);
+/** Map a decoded parameter tuple to `{ paramName | index: value }`, BigInt-safe. */
+function namedArgs(fragment: FunctionFragment, raw: ArrayLike<unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (let i = 0; i < fragment.inputs.length; i++) {
     result[fragment.inputs[i]!.name || String(i)] = serialise(raw[i]);
   }
   return result;
+}
+
+function decodedArguments(
+  iface: Interface,
+  fragment: FunctionFragment,
+  calldata: string,
+): Record<string, unknown> {
+  return namedArgs(fragment, iface.decodeFunctionData(fragment, calldata));
 }
 
 export interface DecodeInput {
@@ -44,11 +48,24 @@ export class CalldataDecoder {
     const targetAddress = input.targetAddress.toLowerCase();
     const library = this.deps.bundledAbisFor(input.sourceType);
 
-    // ── Step 1: calldata sanity / empty-calldata fallback ──────────────────────
+    // ── Step 1: calldata sanity ────────────────────────────────────────────────
     if (!HEX_RE.test(calldata) || calldata.length % 2 !== 0) {
       this.deps.logger.error('calldata_malformed', { targetAddress, calldata });
       return { kind: 'miss' };
     }
+
+    // ── Step 2: function-signature-driven decode ──────────────────────────────
+    // Compound/Aave Bravo-style governors carry the function in ProposalCreated.signatures[i]
+    // and store `calldata` as the ABI-encoded ARGUMENTS ONLY (the Timelock re-prepends the
+    // 4-byte selector at execution). When a signature is present it is authoritative — the
+    // selector-based path below would read the first 4 bytes of the *arguments* as a bogus
+    // selector and always miss. This also subsumes the emitted bare-selector (R3) form.
+    if (functionSignature) {
+      const bySignature = this.decodeFromSignature(functionSignature, calldata, targetAddress);
+      if (bySignature !== null) return bySignature;
+    }
+
+    // ── Step 3: empty / too-short calldata ─────────────────────────────────────
     if (calldata === '0x') {
       return {
         kind: 'decoded',
@@ -62,7 +79,7 @@ export class CalldataDecoder {
       return { kind: 'miss' };
     }
 
-    // ── Step 2: heuristic decoder ─────────────────────────────────────────────
+    // ── Step 4: heuristic decoder ─────────────────────────────────────────────
     if (this.deps.decodeByHeuristic) {
       const heuristic = this.deps.decodeByHeuristic(calldata);
       if (heuristic !== null) {
@@ -75,29 +92,72 @@ export class CalldataDecoder {
       }
     }
 
-    // ── Step 3: event_emitted shortcut (R3) ───────────────────────────────────
-    if (calldata.length === 10 && functionSignature) {
-      try {
-        const fragment = FunctionFragment.from(functionSignature);
-        if (fragment.selector.toLowerCase() === calldata.slice(0, 10).toLowerCase()) {
-          return {
-            kind: 'decoded',
-            decodedFunction: fragment.format('sighash'),
-            decodedArguments: {},
-            source: 'event_emitted',
-          };
-        }
-        this.deps.logger.warn('event_emitted_selector_mismatch', {
-          targetAddress,
-          functionSignature,
-          calldata,
-        });
-      } catch {
-        // Malformed function_signature — fall through
-      }
+    return this.decodeWithAddress(targetAddress, chainId, calldata, functionSignature, library);
+  }
+
+  /**
+   * Decode using an event-provided function signature. Handles two on-chain encodings:
+   *  - **bare selector** (`calldata` is exactly the 4-byte selector) → decoded with no args (R3);
+   *  - **split encoding** (`calldata` is the ABI-encoded arguments only, no selector prefix) →
+   *    decode the args against the signature. This is the Compound/Aave Bravo/Alpha case.
+   * Returns null (fall through to address-based decoding) on a malformed signature, a bare
+   * selector that doesn't match, or args that don't fit the signature.
+   */
+  private decodeFromSignature(
+    functionSignature: string,
+    calldata: string,
+    targetAddress: string,
+  ): DecodeResult | null {
+    let fragment: FunctionFragment;
+    try {
+      fragment = FunctionFragment.from(functionSignature);
+    } catch {
+      return null; // malformed signature — fall through
     }
 
-    return this.decodeWithAddress(targetAddress, chainId, calldata, functionSignature, library);
+    // Bare-selector form: the wire calldata is just the selector emitted alongside the signature.
+    if (calldata.length === 10) {
+      if (calldata.toLowerCase() === fragment.selector.toLowerCase()) {
+        return {
+          kind: 'decoded',
+          decodedFunction: fragment.format('sighash'),
+          decodedArguments: {},
+          source: 'event_emitted',
+        };
+      }
+      this.deps.logger.warn('event_emitted_selector_mismatch', {
+        targetAddress,
+        functionSignature,
+        calldata,
+      });
+      return null;
+    }
+
+    try {
+      // A full-input calldata (selector + args) that still carries a signature: decode normally
+      // rather than treating the leading selector bytes as an argument.
+      if (calldata.slice(0, 10).toLowerCase() === fragment.selector.toLowerCase()) {
+        return {
+          kind: 'decoded',
+          decodedFunction: fragment.format('sighash'),
+          decodedArguments: decodedArguments(new Interface([fragment]), fragment, calldata),
+          source: 'function_signature',
+        };
+      }
+      // Split-encoding form: calldata is the ABI-encoded arguments only (no selector prefix).
+      const args =
+        fragment.inputs.length === 0
+          ? {}
+          : namedArgs(fragment, AbiCoder.defaultAbiCoder().decode(fragment.inputs, calldata));
+      return {
+        kind: 'decoded',
+        decodedFunction: fragment.format('sighash'),
+        decodedArguments: args,
+        source: 'function_signature',
+      };
+    } catch {
+      return null; // args don't fit the signature — fall through
+    }
   }
 
   /** Steps 4–9, recursive on proxy resolution. */

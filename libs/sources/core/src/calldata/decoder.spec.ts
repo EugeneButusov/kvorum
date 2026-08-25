@@ -1,4 +1,4 @@
-import { FunctionFragment, Interface } from 'ethers';
+import { AbiCoder, FunctionFragment, Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
 import { CalldataDecoder } from './decoder';
 import { ChainNotReadyError } from './errors/chain-not-ready.error';
@@ -188,6 +188,94 @@ describe('CalldataDecoder.decode — step 3: event_emitted shortcut', () => {
       targetAddress: ADDR,
       calldata: '0x00000000',
       functionSignature: 'not!!!valid())',
+    });
+    expect(result).toEqual({ kind: 'miss' });
+  });
+});
+
+describe('CalldataDecoder — function_signature (Bravo split encoding)', () => {
+  const coder = AbiCoder.defaultAbiCoder();
+
+  it('decodes args-only calldata against the signature (no selector prefix)', async () => {
+    // Compound Bravo: calldata is the ABI-encoded args only; the function is in signatures[i].
+    const argsOnly = coder.encode(['address', 'uint256'], [ADDR.toLowerCase(), 5000n]);
+    const decoder = new CalldataDecoder(makeDeps());
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: argsOnly,
+      functionSignature: '_setCollateralFactor(address,uint256)',
+    });
+    expect(result).toMatchObject({
+      kind: 'decoded',
+      decodedFunction: '_setCollateralFactor(address,uint256)',
+      source: 'function_signature',
+    });
+    const args = (result as { decodedArguments: Record<string, unknown> }).decodedArguments;
+    expect(String(args['0']).toLowerCase()).toBe(ADDR.toLowerCase());
+    expect(args['1']).toBe('5000'); // BigInt serialised to decimal string
+  });
+
+  it('decodes a tuple-argument signature', async () => {
+    const argsOnly = coder.encode(
+      ['tuple(uint256,uint8,address,uint40)'],
+      [[1n, 2, ADDR.toLowerCase(), 3n]],
+    );
+    const decoder = new CalldataDecoder(makeDeps());
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: argsOnly,
+      functionSignature: 'forwardPayloadForExecution((uint256,uint8,address,uint40))',
+    });
+    expect(result).toMatchObject({ kind: 'decoded', source: 'function_signature' });
+  });
+
+  it('decodes a no-arg signature with empty (0x) calldata, preserving the name', async () => {
+    const decoder = new CalldataDecoder(makeDeps());
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: '0x',
+      functionSignature: '_acceptAdmin()',
+    });
+    expect(result).toEqual({
+      kind: 'decoded',
+      decodedFunction: '_acceptAdmin()',
+      decodedArguments: {},
+      source: 'function_signature',
+    });
+  });
+
+  it('decodes full-input calldata that also carries a signature (selector prefix present)', async () => {
+    const full = TRANSFER_IFACE.encodeFunctionData('transfer', [ADDR.toLowerCase(), 1n]);
+    const decoder = new CalldataDecoder(makeDeps());
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: full,
+      functionSignature: 'transfer(address,uint256)',
+    });
+    expect(result).toMatchObject({
+      kind: 'decoded',
+      decodedFunction: 'transfer(address,uint256)',
+      source: 'function_signature',
+    });
+  });
+
+  it('falls through to address-based decoding when args do not fit the signature', async () => {
+    // 2 bytes of data can't satisfy uint256 → decode throws → fall through → miss (no ABIs mocked).
+    const decoder = new CalldataDecoder(makeDeps());
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: '0xdead',
+      functionSignature: 'foo(uint256)',
     });
     expect(result).toEqual({ kind: 'miss' });
   });
