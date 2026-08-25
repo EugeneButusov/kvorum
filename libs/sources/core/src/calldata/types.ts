@@ -6,6 +6,7 @@ export type DecodeSource =
   | 'empty_calldata'
   | 'heuristic'
   | 'event_emitted'
+  | 'function_signature'
   | 'abi_cache'
   | 'bundled_library'
   | 'proxy_resolved'
