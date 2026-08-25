@@ -29,6 +29,8 @@ export type DecodeResult =
 
 export interface EtherscanClientLike {
   fetchAbi(chainId: string, address: string): Promise<readonly unknown[] | null>;
+  /** Resolve a proxy's implementation address (any proxy Etherscan recognises), or null. */
+  fetchImplementation(chainId: string, address: string): Promise<string | null>;
 }
 
 export interface HeuristicResult {

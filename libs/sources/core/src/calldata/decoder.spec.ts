@@ -589,7 +589,7 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
         Promise.resolve(addr === IMPL_ADDR.toLowerCase() ? implAbi : null),
       );
     const deps = makeDeps({
-      etherscanClient: { fetchAbi },
+      etherscanClient: { fetchAbi, fetchImplementation: vi.fn().mockResolvedValue(null) },
       proxyResolverFor: vi.fn().mockReturnValue({
         resolve: vi.fn().mockResolvedValue({
           implementation: IMPL_ADDR,
@@ -620,6 +620,7 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     const deps = makeDeps({
       etherscanClient: {
         fetchAbi: vi.fn().mockResolvedValue(abi),
+        fetchImplementation: vi.fn().mockResolvedValue(null),
       },
     });
     const decoder = new CalldataDecoder(deps);
@@ -635,10 +636,56 @@ describe('CalldataDecoder — step 7: etherscan', () => {
     expect(deps.selectorIndex.bulkInsert).toHaveBeenCalled();
   });
 
+  it('decodes via the implementation when getsourcecode resolves a non-standard proxy', async () => {
+    // The RPC resolver misses it (default not_a_proxy). The proxy's own ABI lacks the selector;
+    // getsourcecode points at the impl, whose ABI decodes it (source proxy_resolved).
+    const implAbi = JSON.parse(TRANSFER_IFACE.formatJson()) as unknown[];
+    const proxyAbi = [
+      {
+        type: 'function',
+        name: 'admin',
+        inputs: [],
+        outputs: [{ type: 'address' }],
+        stateMutability: 'view',
+      },
+    ];
+    const fetchAbi = vi
+      .fn()
+      .mockImplementation((_c: string, addr: string) =>
+        Promise.resolve(addr === IMPL_ADDR.toLowerCase() ? implAbi : proxyAbi),
+      );
+    const fetchImplementation = vi.fn().mockResolvedValue(IMPL_ADDR.toLowerCase());
+    const deps = makeDeps({ etherscanClient: { fetchAbi, fetchImplementation } });
+    const decoder = new CalldataDecoder(deps);
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: TRANSFER_CALLDATA,
+      functionSignature: null,
+    });
+    expect(result).toMatchObject({
+      kind: 'decoded',
+      decodedFunction: 'transfer(address,uint256)',
+      source: 'proxy_resolved',
+    });
+    expect(fetchImplementation).toHaveBeenCalledWith(CHAIN, ADDR.toLowerCase());
+    expect(fetchAbi).toHaveBeenCalledWith(CHAIN, IMPL_ADDR.toLowerCase());
+    // impl ABI is cached against the proxy address for future direct hits.
+    expect(deps.abiCache.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ address: ADDR.toLowerCase(), source: 'proxy_resolved' }),
+    );
+  });
+
   it('falls through to step 8 when Etherscan returns ABI but selector is absent', async () => {
     // ABI has only an event, no function matching TRANSFER_SELECTOR
     const abi = [{ type: 'event', name: 'Transfer', inputs: [{ type: 'address', name: 'from' }] }];
-    const deps = makeDeps({ etherscanClient: { fetchAbi: vi.fn().mockResolvedValue(abi) } });
+    const deps = makeDeps({
+      etherscanClient: {
+        fetchAbi: vi.fn().mockResolvedValue(abi),
+        fetchImplementation: vi.fn().mockResolvedValue(null),
+      },
+    });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
@@ -651,7 +698,12 @@ describe('CalldataDecoder — step 7: etherscan', () => {
   });
 
   it('falls through to step 8 when Etherscan returns null', async () => {
-    const deps = makeDeps({ etherscanClient: { fetchAbi: vi.fn().mockResolvedValue(null) } });
+    const deps = makeDeps({
+      etherscanClient: {
+        fetchAbi: vi.fn().mockResolvedValue(null),
+        fetchImplementation: vi.fn().mockResolvedValue(null),
+      },
+    });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
       chainId: CHAIN,
@@ -665,7 +717,10 @@ describe('CalldataDecoder — step 7: etherscan', () => {
 
   it('falls through and logs when Etherscan fetchAbi throws', async () => {
     const deps = makeDeps({
-      etherscanClient: { fetchAbi: vi.fn().mockRejectedValue(new Error('network error')) },
+      etherscanClient: {
+        fetchAbi: vi.fn().mockRejectedValue(new Error('network error')),
+        fetchImplementation: vi.fn().mockResolvedValue(null),
+      },
     });
     const decoder = new CalldataDecoder(deps);
     const result = await decoder.decode({
