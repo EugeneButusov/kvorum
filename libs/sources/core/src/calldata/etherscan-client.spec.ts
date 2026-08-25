@@ -24,6 +24,7 @@ function makeClient(overrides: Partial<ConstructorParameters<typeof EtherscanCli
     apiKey: 'test-key',
     baseUrl: BASE_URL,
     supportedChainIds: [CHAIN],
+    sleep: async () => {}, // no real timers in tests
     logger,
     ...overrides,
   });
@@ -93,14 +94,79 @@ describe('EtherscanClient', () => {
     expect(logger.info).toHaveBeenCalledWith('etherscan_not_found', expect.anything());
   });
 
-  it('returns null and logs info on HTTP 429 (rate limit)', async () => {
-    const { client, logger } = makeClient();
+  it('returns null and logs rate_limited (not unavailable) after exhausting retries on HTTP 429', async () => {
+    const { client, logger } = makeClient({ maxRateLimitRetries: 2 });
     globalThis.fetch = mockFetch(429, '', false);
 
     const result = await client.fetchAbi(CHAIN, ADDR);
 
     expect(result).toBeNull();
     expect(logger.info).toHaveBeenCalledWith('etherscan_rate_limited', expect.anything());
+    expect(logger.info).not.toHaveBeenCalledWith('etherscan_abi_unavailable', expect.anything());
+  });
+
+  it('treats an HTTP-200 "Max rate limit reached" body as retryable, not unavailable', async () => {
+    const { client, logger } = makeClient({ maxRateLimitRetries: 1 });
+    globalThis.fetch = mockFetch(200, {
+      status: '0',
+      message: 'NOTOK',
+      result: 'Max rate limit reached',
+    });
+
+    const result = await client.fetchAbi(CHAIN, ADDR);
+
+    expect(result).toBeNull();
+    expect(logger.info).toHaveBeenCalledWith('etherscan_rate_limited', expect.anything());
+    expect(logger.info).not.toHaveBeenCalledWith('etherscan_abi_unavailable', expect.anything());
+  });
+
+  it('retries a rate-limited request and returns the ABI once it succeeds', async () => {
+    const { client } = makeClient({ maxRateLimitRetries: 3 });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: '0', result: 'Max rate limit reached' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: '1', message: 'OK', result: JSON.stringify(SAMPLE_ABI) }),
+      });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await client.fetchAbi(CHAIN, ADDR);
+
+    expect(result).toEqual(SAMPLE_ABI);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fetchImplementation returns the lowercased implementation for a recognised proxy', async () => {
+    const impl = '0xCFC1fa6b7cA982176529899d99AF6473AD80DF4F';
+    const { client } = makeClient();
+    globalThis.fetch = mockFetch(200, {
+      status: '1',
+      message: 'OK',
+      result: [{ Proxy: '1', Implementation: impl, ContractName: 'X' }],
+    });
+
+    const result = await client.fetchImplementation(CHAIN, ADDR);
+
+    expect(result).toBe(impl.toLowerCase());
+  });
+
+  it('fetchImplementation returns null when the contract is not a proxy', async () => {
+    const { client } = makeClient();
+    globalThis.fetch = mockFetch(200, {
+      status: '1',
+      message: 'OK',
+      result: [{ Proxy: '0', Implementation: '', ContractName: 'X' }],
+    });
+
+    const result = await client.fetchImplementation(CHAIN, ADDR);
+
+    expect(result).toBeNull();
   });
 
   it('returns null and logs warn when response body is not valid JSON', async () => {

@@ -283,42 +283,56 @@ export class CalldataDecoder {
     // ── Step 7: Etherscan enrichment (off by default) ─────────────────────────
     if (this.deps.etherscanClient !== null) {
       try {
-        const abi = await this.deps.etherscanClient.fetchAbi(chainId, address);
-        if (abi !== null && abi.length > 0) {
-          const iface = new Interface(abi as never[]);
-          const selectorRows = iface.fragments
-            .filter((f) => f.type === 'function')
-            .map((f) => {
-              const fn = f as FunctionFragment;
-              return {
-                selector: fn.selector.toLowerCase(),
-                signature: fn.format('sighash'),
-                source: 'etherscan',
-                imported_at: new Date(),
-              };
-            });
-          if (selectorRows.length > 0) {
-            await this.deps.selectorIndex.bulkInsert(selectorRows);
-          }
-
-          await this.deps.abiCache.upsert({
-            chain_id: chainId,
-            address,
-            abi: abi as unknown,
-            source: 'etherscan',
-            fetched_at: new Date(),
-            implementation_chain: null,
-          });
-
-          const fragment = iface.getFunction(selector);
+        // 7a — the target's own verified ABI.
+        const direct = await this.enrichFromEtherscan(address, chainId);
+        if (direct !== null) {
+          const fragment = direct.iface.getFunction(selector);
           if (fragment !== null) {
-            const args = decodedArguments(iface, fragment as FunctionFragment, calldata);
             return {
               kind: 'decoded',
               decodedFunction: (fragment as FunctionFragment).format('sighash'),
-              decodedArguments: args,
+              decodedArguments: decodedArguments(
+                direct.iface,
+                fragment as FunctionFragment,
+                calldata,
+              ),
               source: 'etherscan',
             };
+          }
+        }
+
+        // 7b — proxy → implementation via getsourcecode. Etherscan recognises proxies the RPC
+        // slot-checker (Step 6) cannot, notably non-standard ones like Compound's Unitroller, so
+        // when the target's own ABI lacks the selector we decode against its implementation's ABI.
+        if (!isProxyRecurse) {
+          const impl = await this.deps.etherscanClient.fetchImplementation(chainId, address);
+          if (impl !== null && impl !== address) {
+            const viaImpl = await this.enrichFromEtherscan(impl, chainId);
+            if (viaImpl !== null) {
+              const fragment = viaImpl.iface.getFunction(selector);
+              if (fragment !== null) {
+                // Cache the implementation ABI against the proxy address so future decodes of this
+                // proxy hit the cache (Step 4) instead of re-resolving.
+                await this.deps.abiCache.upsert({
+                  chain_id: chainId,
+                  address,
+                  abi: viaImpl.abi,
+                  source: 'proxy_resolved',
+                  fetched_at: new Date(),
+                  implementation_chain: [impl],
+                });
+                return {
+                  kind: 'decoded',
+                  decodedFunction: (fragment as FunctionFragment).format('sighash'),
+                  decodedArguments: decodedArguments(
+                    viaImpl.iface,
+                    fragment as FunctionFragment,
+                    calldata,
+                  ),
+                  source: 'proxy_resolved',
+                };
+              }
+            }
           }
         }
       } catch (err) {
@@ -339,5 +353,48 @@ export class CalldataDecoder {
 
     // ── Step 9: miss ──────────────────────────────────────────────────────────
     return { kind: 'miss' };
+  }
+
+  /**
+   * Fetch a verified ABI from Etherscan for one address, warm `abi_cache` + `selector_index`, and
+   * return an ethers Interface over it. Returns null when the address has no usable verified ABI
+   * (unverified, rate-limited past retries, or empty). Callers match the selector against the Interface.
+   */
+  private async enrichFromEtherscan(
+    address: string,
+    chainId: string,
+  ): Promise<{ iface: Interface; abi: unknown } | null> {
+    const client = this.deps.etherscanClient;
+    if (client === null) return null;
+
+    const abi = await client.fetchAbi(chainId, address);
+    if (abi === null || abi.length === 0) return null;
+
+    const iface = new Interface(abi as never[]);
+    const selectorRows = iface.fragments
+      .filter((f) => f.type === 'function')
+      .map((f) => {
+        const fn = f as FunctionFragment;
+        return {
+          selector: fn.selector.toLowerCase(),
+          signature: fn.format('sighash'),
+          source: 'etherscan',
+          imported_at: new Date(),
+        };
+      });
+    if (selectorRows.length > 0) {
+      await this.deps.selectorIndex.bulkInsert(selectorRows);
+    }
+
+    await this.deps.abiCache.upsert({
+      chain_id: chainId,
+      address,
+      abi: abi as unknown,
+      source: 'etherscan',
+      fetched_at: new Date(),
+      implementation_chain: null,
+    });
+
+    return { iface, abi };
   }
 }

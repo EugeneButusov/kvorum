@@ -334,7 +334,10 @@ describe('CalldataDecoder', () => {
           lookupBySelector: vi.fn().mockResolvedValue([]),
           bulkInsert: bulkInsertMock,
         } as unknown as DecoderDependencies['selectorIndex'],
-        etherscanClient: { fetchAbi: vi.fn().mockResolvedValue(CUSTOM_ABI) },
+        etherscanClient: {
+          fetchAbi: vi.fn().mockResolvedValue(CUSTOM_ABI),
+          fetchImplementation: vi.fn().mockResolvedValue(null),
+        },
       });
 
       const decoder = new CalldataDecoder(deps);
