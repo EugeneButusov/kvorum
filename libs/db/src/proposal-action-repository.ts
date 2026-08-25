@@ -13,8 +13,76 @@ export interface PendingDecodeRow {
   source_type: string;
 }
 
+/** Scope for re-queuing already-attempted decode rows. */
+export interface RedecodeFilter {
+  /** Restrict to these DAO slugs (joins proposal → dao). Empty/undefined ⇒ all DAOs. */
+  daoSlugs?: readonly string[];
+  /** Restrict to these proposal source types. Empty/undefined ⇒ all source types. */
+  sourceTypes?: readonly string[];
+  /** Include terminal `undecodable` rows (10 attempts exhausted). Default true. */
+  includeUndecodable?: boolean;
+  /** Also include `pending` rows still counting down `next_decode_at` (clears their backoff). Default false. */
+  includePending?: boolean;
+}
+
 export class ProposalActionRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
+
+  /** Resolve the decode_status values a RedecodeFilter targets (never includes 'decoded'). */
+  private redecodeStatuses(filter: RedecodeFilter): ('undecodable' | 'pending')[] {
+    const statuses: ('undecodable' | 'pending')[] = [];
+    if (filter.includeUndecodable ?? true) statuses.push('undecodable');
+    if (filter.includePending ?? false) statuses.push('pending');
+    return statuses;
+  }
+
+  /** Subquery selecting proposal_action ids matching the filter's status + dao/source scope. */
+  private scopedActionIds(filter: RedecodeFilter, statuses: ('undecodable' | 'pending')[]) {
+    let q = this.db
+      .selectFrom('proposal_action as pa')
+      .innerJoin('proposal as p', 'p.id', 'pa.proposal_id')
+      .select('pa.id')
+      .where('pa.decode_status', 'in', statuses);
+    if (filter.sourceTypes && filter.sourceTypes.length > 0) {
+      q = q.where('p.source_type', 'in', filter.sourceTypes as never[]);
+    }
+    if (filter.daoSlugs && filter.daoSlugs.length > 0) {
+      q = q.innerJoin('dao as d', 'd.id', 'p.dao_id').where('d.slug', 'in', filter.daoSlugs);
+    }
+    return q;
+  }
+
+  /** Count rows a resetForRedecode call would affect (for --dry-run). */
+  async countForRedecode(filter: RedecodeFilter): Promise<number> {
+    const statuses = this.redecodeStatuses(filter);
+    if (statuses.length === 0) return 0;
+    const row = await this.scopedActionIds(filter, statuses)
+      .clearSelect()
+      .select((eb) => eb.fn.countAll<string>().as('n'))
+      .executeTakeFirst();
+    return Number(row?.n ?? 0);
+  }
+
+  /**
+   * Re-queue already-attempted decode rows so the indexer sweep re-processes them: resets
+   * decode_status to 'pending', zeroes the attempt counter, and clears next_decode_at. This does
+   * NOT decode anything — the running CalldataDecoderWorkerService does the work. Returns the number
+   * of rows re-queued.
+   */
+  async resetForRedecode(filter: RedecodeFilter): Promise<number> {
+    const statuses = this.redecodeStatuses(filter);
+    if (statuses.length === 0) return 0;
+    const result = await this.db
+      .updateTable('proposal_action')
+      .set({
+        decode_status: 'pending',
+        decode_attempt_count: 0,
+        next_decode_at: null,
+      })
+      .where('id', 'in', this.scopedActionIds(filter, statuses))
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows ?? 0n);
+  }
 
   /**
    * Selects up to `limit` pending rows and locks them via FOR UPDATE SKIP LOCKED.

@@ -490,6 +490,40 @@ describe('CalldataDecoder — step 6: proxy resolution', () => {
     });
     expect(result).toEqual({ kind: 'miss' });
   });
+
+  it('resolves a proxy whose implementation ABI is only available on Etherscan', async () => {
+    // Neither the proxy nor the impl is in cache/bundled; the impl is verified on Etherscan.
+    // The isProxyRecurse pass still reaches step 7, so the impl address is fetched and decoded.
+    const implAbi = JSON.parse(TRANSFER_IFACE.formatJson()) as unknown[];
+    const fetchAbi = vi
+      .fn()
+      .mockImplementation((_chain: string, addr: string) =>
+        Promise.resolve(addr === IMPL_ADDR.toLowerCase() ? implAbi : null),
+      );
+    const deps = makeDeps({
+      etherscanClient: { fetchAbi },
+      proxyResolverFor: vi.fn().mockReturnValue({
+        resolve: vi.fn().mockResolvedValue({
+          implementation: IMPL_ADDR,
+          reason: 'resolved',
+          path: [{ proxyAddress: ADDR.toLowerCase(), slot: '0x...', kind: 'eip1967' }],
+          capped: false,
+        }),
+      }),
+    });
+    const decoder = new CalldataDecoder(deps);
+    const result = await decoder.decode({
+      chainId: CHAIN,
+      sourceType: SOURCE_TYPE,
+      targetAddress: ADDR,
+      calldata: TRANSFER_CALLDATA,
+      functionSignature: null,
+    });
+    expect(result).toMatchObject({ kind: 'decoded', decodedFunction: 'transfer(address,uint256)' });
+    // The recursion fetched the *implementation* address from Etherscan, not the proxy.
+    expect(fetchAbi).toHaveBeenCalledWith(CHAIN, IMPL_ADDR.toLowerCase());
+    expect(deps.selectorIndex.bulkInsert).toHaveBeenCalled();
+  });
 });
 
 describe('CalldataDecoder — step 7: etherscan', () => {

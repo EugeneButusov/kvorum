@@ -198,6 +198,43 @@ kubectl -n kvorum set env deploy/kvorum-ai-worker \
 Re-trigger a single missed entity with `node dist/apps/admin-cli/main.js ai regenerate <feature> <entity_ref> [--force]`
 (run in the ai-worker or indexer pod; the worker must be up so the queues exist).
 
+## Calldata decoder coverage (unblocks mismatch) — #620
+
+The AI **mismatch** detector only runs on a proposal when **every** one of its `proposal_action` rows
+is `decode_status = 'decoded'` — a single undecodable action excludes the whole proposal. Governance
+proposals call arbitrary contracts the bundled ABI library can't enumerate, so decoder coverage is the
+real cap on the mismatch corpus. Enabling **Etherscan enrichment** lets the indexer fetch a target's
+verified ABI on demand (and cache it), which also covers proxied targets (it resolves the
+implementation address). Steps (operator-run):
+
+```bash
+# 1 — size the gap first (mismatch_eligible vs binding); queries are in issue #620.
+#     Run against prod PG to confirm the fix targets a real gap and to see the top undecoded selectors.
+
+# 2 — provide the key + enable. ETHERSCAN_ENRICHMENT_ENABLED is already 'true' in base config; set a
+#     real key in kvorum-secrets (free tier is fine) and roll the indexer so it re-reads env.
+kubectl -n kvorum create secret generic kvorum-secrets \
+  --from-literal=ETHERSCAN_API_KEY='REPLACE_ME' --dry-run=client -o yaml | kubectl apply -f -
+# (only if you rotate other keys too — otherwise patch just this key via your normal secret flow)
+kubectl -n kvorum rollout restart deploy/kvorum-indexer
+
+# 3 — re-queue rows that already exhausted their 10 decode attempts (terminal 'undecodable'); the
+#     sweep only picks up 'pending'. --dry-run first to see the count.
+kubectl -n kvorum exec deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js \
+  derive redecode --dao compound --dao aave --dry-run
+kubectl -n kvorum exec deploy/kvorum-indexer -- node dist/apps/admin-cli/main.js \
+  derive redecode --dao compound --dao aave --confirm --production
+
+# 4 — watch the sweep drain (decoded outcomes from etherscan/proxy_resolved), then re-run the #620
+#     diagnostic: mismatch_eligible should rise toward binding.
+kubectl -n kvorum exec deploy/kvorum-indexer -- wget -qO- localhost:9091/metrics \
+  | grep -E 'calldata_decode|abi_decode_success'
+```
+
+Then re-run the **mismatch backfill** (step 3b above) so the newly-eligible proposals get analysed.
+`ETHERSCAN_API_KEY` is already documented in `overlays/prod/secret.example.yaml` and the indexer
+already mounts `kvorum-secrets`, so no manifest change is needed beyond setting the value.
+
 ## Observability (Grafana + Prometheus)
 
 Cost/health dashboards are self-hosted in-cluster via the `components/monitoring` component

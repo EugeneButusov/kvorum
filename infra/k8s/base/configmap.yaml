@@ -35,6 +35,15 @@ data:
   # Push EVENT_POLL_INTERVAL_MS to 120000 for a further ~10% cut if 2-minute lag is acceptable.
   EVENT_POLL_INTERVAL_MS: '60000'
   HEAD_POLL_INTERVAL_MS: '60000'
+  # Calldata decoder (apps/indexer). When enabled, an undecodable proposal_action is enriched by
+  # fetching the target's verified ABI from the Etherscan V2 unified API (one key, all chains via a
+  # chainid param), caching it in abi_cache/selector_index so subsequent decodes are free. This is
+  # the intended long-tail coverage path for governance actions that call arbitrary contracts (the
+  # bundled ABI library only covers well-known core contracts). Requires ETHERSCAN_API_KEY in
+  # kvorum-secrets (already mounted on the indexer). Off ⇒ decoder relies on bundled ABIs + proxy
+  # resolution only, and proposals with any undecodable action are excluded from the AI mismatch
+  # detector. See #620.
+  ETHERSCAN_ENRICHMENT_ENABLED: 'true'
   # ── AI worker (apps/ai-worker) ──
   # Monthly hard budget ceilings, USD (ADR-079). AiBudgetCapService recomputes
   # month-to-date spend every 5 min and disables a feature at ≥100% of its cap at both

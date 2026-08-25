@@ -3,21 +3,29 @@ import type { EtherscanClientLike } from './types';
 
 export interface EtherscanClientConfig {
   apiKey: string | null;
-  baseUrlByChainId: Record<string, string>;
+  /** Etherscan V2 unified endpoint (e.g. https://api.etherscan.io/v2/api). */
+  baseUrl: string;
+  /** Hex chain ids this client will resolve; unknown ids short-circuit to a graceful miss. */
+  supportedChainIds: readonly string[];
   logger?: Logger;
 }
 
 export class EtherscanClient implements EtherscanClientLike {
-  constructor(private readonly config: EtherscanClientConfig) {}
+  private readonly supported: ReadonlySet<string>;
+
+  constructor(private readonly config: EtherscanClientConfig) {
+    this.supported = new Set(config.supportedChainIds.map((id) => id.toLowerCase()));
+  }
 
   async fetchAbi(chainId: string, address: string): Promise<readonly unknown[] | null> {
-    const baseUrl = this.config.baseUrlByChainId[chainId];
-    if (baseUrl === undefined) {
+    const decimalChainId = this.toDecimalChainId(chainId);
+    if (decimalChainId === null) {
       this.config.logger?.info('etherscan_chain_not_configured', { chainId });
       return null;
     }
 
-    const url = new URL('/api', baseUrl);
+    const url = new URL(this.config.baseUrl);
+    url.searchParams.set('chainid', decimalChainId);
     url.searchParams.set('module', 'contract');
     url.searchParams.set('action', 'getabi');
     url.searchParams.set('address', address);
@@ -90,5 +98,19 @@ export class EtherscanClient implements EtherscanClientLike {
       fragmentCount: abi.length,
     });
     return abi as readonly unknown[];
+  }
+
+  /**
+   * Convert a supported hex chain id (e.g. `0xa86a`) to the decimal string the V2 `chainid`
+   * param expects (e.g. `43114`). Returns null for chains outside the allowlist or malformed ids.
+   */
+  private toDecimalChainId(chainId: string): string | null {
+    const normalised = chainId.toLowerCase();
+    if (!this.supported.has(normalised)) return null;
+    try {
+      return BigInt(normalised).toString(10);
+    } catch {
+      return null;
+    }
   }
 }

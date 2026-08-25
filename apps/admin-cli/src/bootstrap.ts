@@ -8,6 +8,7 @@ import {
   DaoReadRepository,
   DaoSourceRepository,
   DlqRepository,
+  ProposalActionRepository,
   ProposalReadRepository,
   SystemStatusRepository,
   UserRepository,
@@ -23,6 +24,7 @@ export interface AdminCliContainer {
   actorRepository: ActorRepository;
   actorMergeRepository: ActorMergeRepository;
   proposalReadRepository: ProposalReadRepository;
+  proposalActionRepository: ProposalActionRepository;
   userRepository: UserRepository;
   compoundGovernorArchivePayloadRepository: GovernorArchivePayloadRepository;
   apiKeyRepository: ApiKeyRepository;
@@ -40,6 +42,7 @@ export function buildContainer(): AdminCliContainer {
     actorRepository: new ActorRepository(pgDb),
     actorMergeRepository: new ActorMergeRepository(pgDb),
     proposalReadRepository: new ProposalReadRepository(pgDb),
+    proposalActionRepository: new ProposalActionRepository(pgDb),
     userRepository: new UserRepository(pgDb),
     compoundGovernorArchivePayloadRepository: new GovernorArchivePayloadRepository(chDb),
     apiKeyRepository: new ApiKeyRepository(pgDb),

@@ -11,6 +11,16 @@ type DeriveReplayOptions = DeriveCommon & {
   production?: boolean;
   dryRun?: boolean;
 };
+type DeriveRedecodeOptions = DeriveCommon & {
+  dao?: string[];
+  source?: string[];
+  includePending?: boolean;
+  // commander sets `undecodable: false` when --no-undecodable is passed; defaults to true otherwise.
+  undecodable?: boolean;
+  confirm?: boolean;
+  production?: boolean;
+  dryRun?: boolean;
+};
 
 export function registerDerive(program: Command): void {
   const derive = program.command('derive').description('Derived data management');
@@ -154,6 +164,71 @@ export function registerDerive(program: Command): void {
               : `Verification failed; differing fields: ${diffs.join(', ')} (${payload.scope})`,
           payload,
         );
+      });
+    });
+
+  derive
+    .command('redecode')
+    .description('Re-queue already-attempted proposal_action rows for calldata decoding')
+    .option('--dao <slug...>', 'DAO slug(s) to scope to (repeatable); omit for all DAOs')
+    .option('--source <type...>', 'proposal source type(s) to scope to (repeatable)')
+    .option('--include-pending', 'also clear the retry timer on pending (backed-off) rows')
+    .option('--no-undecodable', 'do not include terminal undecodable rows')
+    .option('--confirm', 'confirm the operation')
+    .option('--production', 'acknowledge production environment')
+    .option('--dry-run', 'show how many rows would be re-queued without making changes')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(opts: DeriveRedecodeOptions) {
+      await withDeriveFormat(this, opts, async (format) => {
+        const includeUndecodable = opts.undecodable ?? true;
+        const includePending = opts.includePending ?? false;
+        if (!includeUndecodable && !includePending) {
+          fail(
+            format,
+            ExitCode.ValidationFailure,
+            'nothing to re-queue: pass --include-pending or drop --no-undecodable',
+          );
+        }
+
+        const filter = {
+          daoSlugs: opts.dao,
+          sourceTypes: opts.source,
+          includeUndecodable,
+          includePending,
+        };
+        const { proposalActionRepository } = buildContainer();
+
+        if (opts.dryRun === true) {
+          const rows = await proposalActionRepository.countForRedecode(filter);
+          emit(format, () => `Would re-queue ${rows} proposal_action row(s) for decoding`, {
+            dry_run: true,
+            affected_rows: rows,
+            filter,
+          });
+          return;
+        }
+
+        if (opts.confirm !== true || opts.production !== true) {
+          fail(
+            format,
+            ExitCode.ValidationFailure,
+            'derive redecode requires both --confirm and --production',
+          );
+        }
+
+        await withAudit('derive redecode', { ...opts }, async () => {
+          const count = await proposalActionRepository.resetForRedecode(filter);
+          emit(
+            format,
+            () =>
+              `Re-queued ${count} proposal_action row(s); the running indexer sweep will re-decode them`,
+            {
+              requeued_rows: count,
+              filter,
+              note: 'Resets rows to pending only; the CalldataDecoderWorkerService performs decoding',
+            },
+          );
+        });
       });
     });
 }

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EtherscanClient } from './etherscan-client';
 
-const CHAIN = '1';
+const CHAIN = '0x1';
 const ADDR = '0x0000000000000000000000000000000000000001';
-const BASE_URL = 'https://api.etherscan.io';
+const BASE_URL = 'https://api.etherscan.io/v2/api';
 
 const SAMPLE_ABI = [
   {
@@ -22,7 +22,8 @@ function makeClient(overrides: Partial<ConstructorParameters<typeof EtherscanCli
   const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const client = new EtherscanClient({
     apiKey: 'test-key',
-    baseUrlByChainId: { [CHAIN]: BASE_URL },
+    baseUrl: BASE_URL,
+    supportedChainIds: [CHAIN],
     logger,
     ...overrides,
   });
@@ -142,13 +143,32 @@ describe('EtherscanClient', () => {
     expect(logger.info).toHaveBeenCalledWith('etherscan_abi_unavailable', expect.anything());
   });
 
-  it('returns null and logs info when chainId is not in the configured map', async () => {
-    const { client, logger } = makeClient({ baseUrlByChainId: {} });
+  it('returns null and logs info when chainId is not in the supported set', async () => {
+    const { client, logger } = makeClient({ supportedChainIds: [] });
 
-    const result = await client.fetchAbi('999', ADDR);
+    const result = await client.fetchAbi('0x999', ADDR);
 
     expect(result).toBeNull();
     expect(logger.info).toHaveBeenCalledWith('etherscan_chain_not_configured', expect.anything());
+  });
+
+  it('targets the V2 unified endpoint with the decimal chainid param', async () => {
+    const { client } = makeClient({ supportedChainIds: ['0xa86a'] });
+    const fetchMock = mockFetch(200, {
+      status: '1',
+      message: 'OK',
+      result: JSON.stringify(SAMPLE_ABI),
+    });
+    globalThis.fetch = fetchMock;
+
+    await client.fetchAbi('0xa86a', ADDR);
+
+    const calledUrl = new URL((fetchMock as ReturnType<typeof vi.fn>).mock.calls[0][0] as string);
+    expect(`${calledUrl.origin}${calledUrl.pathname}`).toBe(BASE_URL);
+    expect(calledUrl.searchParams.get('chainid')).toBe('43114');
+    expect(calledUrl.searchParams.get('module')).toBe('contract');
+    expect(calledUrl.searchParams.get('action')).toBe('getabi');
+    expect(calledUrl.searchParams.get('address')).toBe(ADDR);
   });
 
   it('returns null and logs info on network-level fetch error', async () => {

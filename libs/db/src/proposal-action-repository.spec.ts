@@ -290,6 +290,139 @@ describeWithDb('ProposalActionRepository — markUndecodable', () => {
   });
 });
 
+describeWithDb('ProposalActionRepository — resetForRedecode', () => {
+  /** Insert an action with an explicit decode_status/attempt/timer. */
+  async function insertAction(
+    trx: typeof pgDb,
+    proposalId: string,
+    args: {
+      action_index: number;
+      decode_status: 'pending' | 'decoded' | 'undecodable';
+      decode_attempt_count?: number;
+      next_decode_at?: Date | null;
+    },
+  ): Promise<string> {
+    const [row] = await trx
+      .insertInto('proposal_action')
+      .values({
+        proposal_id: proposalId,
+        action_index: args.action_index,
+        target_address: '0x' + 'e'.repeat(40),
+        target_chain_id: '1',
+        value_wei: '0',
+        calldata: '0xa9059cbb',
+        decode_status: args.decode_status,
+        decode_attempt_count: args.decode_attempt_count ?? 0,
+        next_decode_at: args.next_decode_at ?? null,
+      })
+      .returning(['id'])
+      .execute();
+    return row!.id;
+  }
+
+  it('re-queues undecodable rows and leaves decoded/pending untouched by default', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const proposalId = await insertMinimalProposal(trx);
+        const repo = new ProposalActionRepository(trx as never);
+
+        const undecodableId = await insertAction(trx, proposalId, {
+          action_index: 0,
+          decode_status: 'undecodable',
+          decode_attempt_count: 10,
+          next_decode_at: null,
+        });
+        const decodedId = await insertAction(trx, proposalId, {
+          action_index: 1,
+          decode_status: 'decoded',
+        });
+        const pendingId = await insertAction(trx, proposalId, {
+          action_index: 2,
+          decode_status: 'pending',
+          next_decode_at: new Date(Date.now() + 86400000),
+        });
+
+        expect(await repo.countForRedecode({ sourceTypes: ['test_source_alpha'] })).toBe(1);
+
+        const affected = await repo.resetForRedecode({ sourceTypes: ['test_source_alpha'] });
+        expect(affected).toBe(1);
+
+        const rows = await trx
+          .selectFrom('proposal_action')
+          .select(['id', 'decode_status', 'decode_attempt_count', 'next_decode_at'])
+          .where('id', 'in', [undecodableId, decodedId, pendingId])
+          .execute();
+        const byId = new Map(rows.map((r) => [r.id, r]));
+
+        // undecodable → pending, counter zeroed, timer cleared
+        expect(byId.get(undecodableId)?.decode_status).toBe('pending');
+        expect(byId.get(undecodableId)?.decode_attempt_count).toBe(0);
+        expect(byId.get(undecodableId)?.next_decode_at).toBeNull();
+        // decoded untouched
+        expect(byId.get(decodedId)?.decode_status).toBe('decoded');
+        // pending untouched (backoff timer preserved) when includePending is false
+        expect(byId.get(pendingId)?.next_decode_at).not.toBeNull();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('with includePending, also clears the backoff timer on pending rows', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const proposalId = await insertMinimalProposal(trx);
+        const repo = new ProposalActionRepository(trx as never);
+
+        const pendingId = await insertAction(trx, proposalId, {
+          action_index: 0,
+          decode_status: 'pending',
+          decode_attempt_count: 3,
+          next_decode_at: new Date(Date.now() + 86400000),
+        });
+
+        const affected = await repo.resetForRedecode({
+          sourceTypes: ['test_source_alpha'],
+          includeUndecodable: false,
+          includePending: true,
+        });
+        expect(affected).toBe(1);
+
+        const row = await trx
+          .selectFrom('proposal_action')
+          .select(['decode_status', 'decode_attempt_count', 'next_decode_at'])
+          .where('id', '=', pendingId)
+          .executeTakeFirstOrThrow();
+        expect(row.decode_status).toBe('pending');
+        expect(row.decode_attempt_count).toBe(0);
+        expect(row.next_decode_at).toBeNull();
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+
+  it('scopes by source type — a non-matching source resets nothing', async () => {
+    await expect(
+      pgDb.transaction().execute(async (trx) => {
+        const proposalId = await insertMinimalProposal(trx);
+        const repo = new ProposalActionRepository(trx as never);
+
+        await insertAction(trx, proposalId, {
+          action_index: 0,
+          decode_status: 'undecodable',
+          decode_attempt_count: 10,
+        });
+
+        expect(await repo.countForRedecode({ sourceTypes: ['no_such_source'] })).toBe(0);
+        expect(await repo.resetForRedecode({ sourceTypes: ['no_such_source'] })).toBe(0);
+
+        throw new RollbackSignal();
+      }),
+    ).rejects.toThrow(RollbackSignal);
+  });
+});
+
 describeWithDb('ProposalActionRepository — SKIP LOCKED (R2)', () => {
   // This test verifies the concurrent-transaction locking behaviour. T1 holds a
   // row lock; T2 must skip the locked row rather than blocking.
