@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 
 import { DaoHeader } from '@/components/dao/dao-header';
-import { GovernanceTracks } from '@/components/dao/governance-tracks';
 import { HealthSnapshot } from '@/components/dao/health-snapshot';
 import { TopDelegates } from '@/components/dao/top-delegates';
 import { ProposalCard } from '@/components/home/proposal-card';
@@ -98,6 +97,7 @@ export default async function DaoOverviewPage({ params }: { params: Promise<{ sl
         tokenAddress={dao.tokenAddress}
         websiteUrl={dao.websiteUrl}
         forumUrl={dao.forumUrl}
+        sourceTypes={dao.sourceTypes}
       />
 
       <section className="flex flex-col gap-4">
@@ -112,8 +112,6 @@ export default async function DaoOverviewPage({ params }: { params: Promise<{ sl
           </div>
         )}
       </section>
-
-      <GovernanceTracks sourceTypes={dao.sourceTypes} />
 
       <div className="grid gap-10 lg:grid-cols-2">
         <HealthSnapshot
