@@ -60,7 +60,13 @@ describe('resolveTracks', () => {
 
   it('drops track machinery that shares an electorate or holds no vote', () => {
     expect(
-      resolveTracks(['aave_voting_machine', 'aave_payloads_controller', 'discourse_forum']),
+      resolveTracks([
+        'aave_voting_machine',
+        'aave_payloads_controller',
+        'discourse_forum',
+        'snapshot_delegate_registry',
+        'snapshot_split_delegation',
+      ]),
     ).toEqual([]);
   });
 

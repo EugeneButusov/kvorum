@@ -79,6 +79,9 @@ const INFRASTRUCTURE_TYPES = new Set([
   'aave_payloads_controller',
   // Discussion, not a vote: no electorate, no voting-power semantics. The header links out to it.
   'discourse_forum',
+  // Snapshot delegation indexers — ingestion plumbing for who-delegates-to-whom, not a vote.
+  'snapshot_delegate_registry',
+  'snapshot_split_delegation',
 ]);
 
 function isInfrastructure(sourceType: string): boolean {
