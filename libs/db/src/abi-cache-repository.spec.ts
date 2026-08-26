@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { AbiCacheRepository } from './abi-cache-repository';
+import { pgDb } from './client';
 import type { NewAbiCache } from './schema/pg';
+
+// Real-Postgres tests; skipped when DATABASE_URL is unset so pure-unit CI still passes.
+const describeWithDb = process.env['DATABASE_URL'] != null ? describe : describe.skip;
 
 const SAMPLE_ABI = [{ type: 'function', name: 'transfer', inputs: [], outputs: [] }];
 
@@ -115,11 +119,11 @@ describe('AbiCacheRepository', () => {
         }),
       );
 
-      expect(insert.capturedUpdateSet).toMatchObject({
-        source: 'etherscan',
-        fetched_at: fetchedAt,
-        implementation_chain: ['0xproxy'],
-      });
+      const updateSet = insert.capturedUpdateSet as Record<string, unknown>;
+      expect(updateSet).toMatchObject({ source: 'etherscan', fetched_at: fetchedAt });
+      // abi + implementation_chain are ::jsonb-cast sql expressions (not raw arrays).
+      expect(updateSet['abi']).toBeDefined();
+      expect(updateSet['implementation_chain']).toBeDefined();
     });
 
     it('coerces missing implementation_chain to null in update set', async () => {
@@ -131,5 +135,56 @@ describe('AbiCacheRepository', () => {
       const updateSet = insert.capturedUpdateSet as Record<string, unknown>;
       expect(updateSet['implementation_chain']).toBeNull();
     });
+  });
+});
+
+describeWithDb('AbiCacheRepository — jsonb array serialization (real Postgres)', () => {
+  const repo = new AbiCacheRepository(pgDb);
+
+  afterAll(async () => {
+    await pgDb.deleteFrom('abi_cache').where('chain_id', '=', 'spec-0x1').execute();
+    await pgDb.destroy();
+  });
+
+  it('round-trips an array-valued ABI and implementation_chain (regression: was invalid json)', async () => {
+    const addr = '0x' + 'ab'.repeat(20);
+    const abi = [
+      {
+        type: 'function',
+        name: 'setSupplyCap',
+        inputs: [{ name: 'cap', type: 'uint128' }],
+        outputs: [],
+        stateMutability: 'nonpayable',
+      },
+      { type: 'event', name: 'Evt', inputs: [] },
+    ];
+
+    // Would throw `invalid input syntax for type json` before the ::jsonb-cast fix.
+    await repo.upsert({
+      chain_id: 'spec-0x1',
+      address: addr,
+      abi,
+      source: 'etherscan',
+      fetched_at: new Date(),
+      implementation_chain: ['0x' + '11'.repeat(20)],
+    });
+
+    const row = await repo.findByAddress('spec-0x1', addr);
+    expect(Array.isArray(row?.abi)).toBe(true);
+    expect((row?.abi as unknown[]).length).toBe(2);
+    expect(row?.implementation_chain).toEqual(['0x' + '11'.repeat(20)]);
+
+    // Conflict path (doUpdateSet) must serialise the array too.
+    await repo.upsert({
+      chain_id: 'spec-0x1',
+      address: addr,
+      abi,
+      source: 'proxy_resolved',
+      fetched_at: new Date(),
+      implementation_chain: null,
+    });
+    const updated = await repo.findByAddress('spec-0x1', addr);
+    expect(updated?.source).toBe('proxy_resolved');
+    expect(Array.isArray(updated?.abi)).toBe(true);
   });
 });
