@@ -3,6 +3,7 @@ import { configureAxe } from 'vitest-axe';
 
 import { DataTable, type ChartTableModel } from './charts/data-table';
 import { Figure } from './charts/figure';
+import { DaoHeader } from './dao/dao-header';
 import { MismatchSection } from './proposal/mismatch-section';
 import { ProposalCard } from './proposal/proposal-card';
 import { SummaryPanel } from './proposal/summary-panel';
@@ -67,6 +68,21 @@ describe('accessibility (axe) — §6.19', () => {
 
   it('data table (the accessible alternative) has no violations', async () => {
     await expectNoViolations(<DataTable model={TABLE} />);
+  });
+
+  it('the DAO header, tracks row included, has no violations', async () => {
+    // The tracks list is named by a sibling span via aria-labelledby — exactly the wiring axe
+    // catches when it goes wrong.
+    await expectNoViolations(
+      <DaoHeader
+        name="Aave"
+        description="Aave is a decentralized non-custodial liquidity protocol."
+        tokenAddress="0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"
+        websiteUrl="https://aave.com"
+        forumUrl="https://governance.aave.com"
+        sourceTypes={['aave_governance_v3', 'aave_governor_v2', 'snapshot']}
+      />,
+    );
   });
 
   it('banners across severities have no violations', async () => {
