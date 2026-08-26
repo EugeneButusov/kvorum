@@ -5,7 +5,7 @@
 
 import { fetchConcentration, fetchPassRate, rangeFrom } from '@/lib/analytics/health';
 import type { createApiClient } from '@/lib/api/client';
-import { sourceLabel } from '@/lib/proposals/source';
+import { resolveTracks } from '@/lib/dao/tracks';
 
 type Api = ReturnType<typeof createApiClient>;
 
@@ -19,7 +19,7 @@ export type DaoDirectoryEntry = {
   description: string | null;
   websiteUrl: string | null;
   forumUrl: string | null;
-  /** Human governor/source labels, e.g. ["Governor Bravo", "Snapshot"]. */
+  /** Governance-track labels, e.g. ["Governor Bravo", "Snapshot"] — plumbing excluded. */
   governors: string[];
   /** 90-day pass rate (%), or null when the analytics have no resolved proposals. */
   passRatePct: number | null;
@@ -35,7 +35,7 @@ async function fetchGovernors(api: Api, slug: string): Promise<string[]> {
       params: { path: { slug } },
     });
     if (error || !data) return [];
-    return data.data.map((s) => sourceLabel(s.source_type));
+    return resolveTracks(data.data.map((s) => s.source_type)).map((t) => t.label);
   } catch {
     return [];
   }
