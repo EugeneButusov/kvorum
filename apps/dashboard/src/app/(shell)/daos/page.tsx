@@ -69,11 +69,6 @@ export default async function DaosPage() {
             </Table>
           </div>
         )}
-
-        <p className="font-mono text-caption text-ink-3">
-          TVL, treasury, a composite health grade, activity trends, and mismatch flags land with
-          their data sources (external feeds / analytics / M5).
-        </p>
       </main>
     </>
   );
