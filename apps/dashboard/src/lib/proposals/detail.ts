@@ -253,5 +253,6 @@ export function presentTally(data: TallyData, choices: ChoiceView[]): PresentedT
 
 function leadingOf(segments: TallySegment[]): TallySegment | null {
   if (segments.length === 0) return null;
-  return segments.reduce((best, s) => (s.pct > best.pct ? s : best));
+  const best = segments.reduce((acc, s) => (s.pct > acc.pct ? s : acc));
+  return best.pct > 0 ? best : null;
 }
