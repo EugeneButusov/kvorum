@@ -5,13 +5,9 @@ import { HealthSnapshot } from '@/components/dao/health-snapshot';
 import { TopDelegates } from '@/components/dao/top-delegates';
 import { ProposalCard } from '@/components/home/proposal-card';
 import { ProposalRow } from '@/components/proposal/proposal-row';
-import {
-  fetchConcentration,
-  fetchPassRate,
-  fetchTopDelegates,
-  rangeFrom,
-} from '@/lib/analytics/health';
+import { fetchConcentration, fetchPassRate, rangeFrom } from '@/lib/analytics/health';
 import { serverApi } from '@/lib/api/client';
+import { loadDelegateLeaderboard } from '@/lib/daos/delegates';
 import {
   fetchProposalPage,
   type ProposalFilters,
@@ -86,7 +82,7 @@ export default async function DaoOverviewPage({ params }: { params: Promise<{ sl
     loadProposals(slug, BASE_FILTERS, { field: 'state_updated_at', dir: 'desc' }),
     fetchConcentration(serverApi(), slug, { from: from1y }),
     fetchPassRate(serverApi(), slug, from1y),
-    fetchTopDelegates(serverApi(), slug, 5),
+    loadDelegateLeaderboard(serverApi(), slug, 5),
   ]);
 
   return (
