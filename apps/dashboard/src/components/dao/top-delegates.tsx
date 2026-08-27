@@ -1,10 +1,16 @@
 import Link from 'next/link';
 
-import type { TopDelegate } from '@/lib/analytics/health';
+import type { DelegateLeaderboardEntry } from '@/lib/daos/delegates';
 import { formatCompactNumber } from '@/lib/format';
 
 /** Top delegates (§6.6 §5): the five largest by current voting power, linking to their scorecards. */
-export function TopDelegates({ slug, delegates }: { slug: string; delegates: TopDelegate[] }) {
+export function TopDelegates({
+  slug,
+  delegates,
+}: {
+  slug: string;
+  delegates: DelegateLeaderboardEntry[];
+}) {
   return (
     <section className="flex flex-col gap-4">
       <header className="flex items-baseline justify-between gap-3 border-b border-line-2 pb-2">
@@ -20,15 +26,20 @@ export function TopDelegates({ slug, delegates }: { slug: string; delegates: Top
         <p className="font-mono text-mono-body text-ink-3">No delegate voting power recorded.</p>
       ) : (
         <ol className="flex flex-col">
-          {delegates.map((d, i) => (
+          {delegates.map((d) => (
             <li key={d.address}>
               <Link
-                href={`/daos/${slug}/delegates/${d.address}`}
+                href={d.href}
                 className="flex items-center gap-3 border-b border-line-3 py-2.5 font-mono text-mono-body transition-colors hover:bg-bg-3"
               >
-                <span className="w-5 tabular-nums text-ink-4">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-ink">{d.label}</span>
-                <span className="tabular-nums text-ink-2">{formatCompactNumber(d.power)}</span>
+                <span className="w-5 tabular-nums text-ink-4">{d.rank}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">
+                  {d.displayName ?? `${d.address.slice(0, 6)}…${d.address.slice(-4)}`}
+                </span>
+                <span className="tabular-nums text-ink-3">{d.sharePct}%</span>
+                <span className="tabular-nums text-ink-2">
+                  {formatCompactNumber(d.votingPower)}
+                </span>
               </Link>
             </li>
           ))}

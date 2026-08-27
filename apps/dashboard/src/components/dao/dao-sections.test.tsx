@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 
 import { HealthSnapshot } from './health-snapshot';
 import { TopDelegates } from './top-delegates';
-import type { TopDelegate } from '@/lib/analytics/health';
+import type { DelegateLeaderboardEntry } from '@/lib/daos/delegates';
 
 describe('HealthSnapshot', () => {
   it('renders the headline metrics and links to the full dashboard', () => {
@@ -23,9 +23,25 @@ describe('HealthSnapshot', () => {
 });
 
 describe('TopDelegates', () => {
-  const delegates: TopDelegate[] = [
-    { address: '0xaaa', label: 'whale.eth', power: 500000 },
-    { address: '0xbbb', label: 'Gauntlet', power: 120000 },
+  const delegates: DelegateLeaderboardEntry[] = [
+    {
+      rank: 1,
+      address: '0xaaa',
+      displayName: 'whale.eth',
+      votingPower: 500000,
+      sharePct: 12.5,
+      delegatorCount: 42,
+      href: '/daos/lido/delegates/0xaaa',
+    },
+    {
+      rank: 2,
+      address: '0xbbb',
+      displayName: 'Gauntlet',
+      votingPower: 120000,
+      sharePct: 3,
+      delegatorCount: 18,
+      href: '/daos/lido/delegates/0xbbb',
+    },
   ];
 
   it('ranks delegates and links each to its scorecard', () => {
@@ -37,6 +53,7 @@ describe('TopDelegates', () => {
       '/daos/lido/delegates/0xaaa',
     );
     expect(within(rows[0]!).getByText('500K')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('12.5%')).toBeInTheDocument();
   });
 
   it('shows an empty state with no delegates', () => {
