@@ -2,6 +2,7 @@ import {
   RateLimiterService,
   RedisUnavailableError,
   TestRateLimiterService,
+  type PeekResult,
 } from './rate-limiter.service';
 
 type SlidingWindowFn = (
@@ -58,6 +59,36 @@ describe('RateLimiterService', () => {
     const error = new RedisUnavailableError('string cause');
     expect(error.message).toBe('Redis unavailable for rate limiting');
   });
+
+  describe('peek', () => {
+    it('maps peekSlidingWindow response to PeekResult', async () => {
+      const peekSlidingWindow = vi.fn(async () => [5, 45, 120, 3600]);
+      const service = new RateLimiterService({ peekSlidingWindow } as never);
+
+      const result = await service.peek('apikey:k1', 'authenticated_free', 1_700_000_000_000);
+
+      expect(peekSlidingWindow).toHaveBeenCalledWith(
+        'rl:apikey:k1:m',
+        'rl:apikey:k1:d',
+        1_700_000_000_000,
+      );
+      expect(result).toEqual<PeekResult>({
+        minute: { used: 5, limit: 60, resetSeconds: 45 },
+        day: { used: 120, limit: 10_000, resetSeconds: 3600 },
+      });
+    });
+
+    it('throws RedisUnavailableError when peekSlidingWindow fails', async () => {
+      const peekSlidingWindow = vi.fn(async () => {
+        throw new Error('ECONNREFUSED');
+      });
+      const service = new RateLimiterService({ peekSlidingWindow } as never);
+
+      await expect(service.peek('apikey:k1', 'authenticated_free')).rejects.toBeInstanceOf(
+        RedisUnavailableError,
+      );
+    });
+  });
 });
 
 describe('TestRateLimiterService', () => {
@@ -66,5 +97,14 @@ describe('TestRateLimiterService', () => {
     const result = await svc.consume('any', 'authenticated_free');
     expect(result.allowed).toBe(true);
     expect(result.limit).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it('peek returns zeroed counts with tier limits', async () => {
+    const svc = new TestRateLimiterService();
+    const result = await svc.peek('any', 'authenticated_free');
+    expect(result).toEqual<PeekResult>({
+      minute: { used: 0, limit: 60, resetSeconds: 0 },
+      day: { used: 0, limit: 10_000, resetSeconds: 0 },
+    });
   });
 });
