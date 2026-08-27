@@ -214,9 +214,14 @@ describeIf('Anvil integration', () => {
       { from, data: bytecode },
     ]);
 
-    const receipt = await client.send<{ contractAddress: string }>('eth_getTransactionReceipt', [
-      deployTxHash,
-    ]);
+    let receipt: { contractAddress: string } | null = null;
+    for (let i = 0; i < 20 && !receipt; i++) {
+      receipt = await client.send<{ contractAddress: string } | null>('eth_getTransactionReceipt', [
+        deployTxHash,
+      ]);
+      if (!receipt) await new Promise((r) => setTimeout(r, 250));
+    }
+    if (!receipt) throw new Error(`receipt not available after retries for tx ${deployTxHash}`);
     const deployedAddr = receipt.contractAddress.toLowerCase();
 
     // Sanity check: verify the slot was actually written
