@@ -8,6 +8,7 @@ import { DaoHealthCards } from '@/components/home/dao-health-cards';
 import { StatsBar } from '@/components/home/stats-bar';
 import { PageContainer } from '@/components/shell/page-container';
 import { serverApi } from '@/lib/api/client';
+import { COMING_SOON_SLUGS } from '@/lib/daos/directory';
 import { normalizeListItem, type ProposalListItemView } from '@/lib/proposals/list';
 
 export const metadata: Metadata = {
@@ -46,11 +47,12 @@ async function loadProposals(query: {
 }
 
 export default async function HomePage() {
-  const [daos, active, recent] = await Promise.all([
+  const [allDaos, active, recent] = await Promise.all([
     loadDaos(),
     loadProposals({ state: 'active', sort: 'voting_ends_at', limit: 12 }),
     loadProposals({ sort: '-state_updated_at', limit: 15 }),
   ]);
+  const daos = allDaos.filter((d) => !COMING_SOON_SLUGS.has(d.slug));
 
   return (
     <PageContainer className="flex flex-col gap-12">

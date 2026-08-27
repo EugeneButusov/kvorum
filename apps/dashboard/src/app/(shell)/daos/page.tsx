@@ -75,6 +75,27 @@ export default async function DaosPage() {
 }
 
 function DaoRow({ dao }: { dao: DaoDirectoryEntry }) {
+  if (dao.comingSoon) {
+    return (
+      <TableRow className="opacity-50">
+        <TableCell className="align-top">
+          <div className="flex items-start gap-3">
+            <span className="grid size-7 shrink-0 place-items-center border border-line-2 font-mono text-small font-bold text-ink-3">
+              {dao.name.charAt(0).toUpperCase()}
+            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-body-lg font-semibold text-ink-3">{dao.name}</span>
+              <span className="font-mono text-pill text-ink-4">coming soon</span>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="whitespace-nowrap text-right align-top">—</TableCell>
+        <TableCell className="whitespace-nowrap text-right align-top">—</TableCell>
+        <TableCell />
+      </TableRow>
+    );
+  }
+
   return (
     <TableRow>
       <TableCell className="align-top">
