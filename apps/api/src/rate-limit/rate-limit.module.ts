@@ -11,6 +11,7 @@ import {
 } from './rate-limiter.service';
 import { RATE_LIMITER } from './rate-limiter.token';
 import { createRateLimitRedis, type SlidingWindowRedis } from './redis.client';
+import { UsageRecorderService } from './usage-recorder.service';
 
 const RATE_LIMIT_CONFIG = Symbol('RATE_LIMIT_CONFIG');
 const RATE_LIMIT_REDIS = Symbol('RATE_LIMIT_REDIS');
@@ -61,9 +62,19 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
       useExisting: RateLimiterService,
     },
     {
+      provide: UsageRecorderService,
+      useFactory: (redis: SlidingWindowRedis) => {
+        const isTest = process.env['NODE_ENV'] === 'test';
+        if (isTest) return new UsageRecorderService(createNoopRateLimitRedis());
+        return new UsageRecorderService(redis);
+      },
+      inject: [RATE_LIMIT_REDIS],
+    },
+    {
       provide: RateLimitInterceptor,
-      useFactory: (rateLimiterService: RateLimiter) => new RateLimitInterceptor(rateLimiterService),
-      inject: [RATE_LIMITER],
+      useFactory: (rateLimiterService: RateLimiter, usageRecorder: UsageRecorderService) =>
+        new RateLimitInterceptor(rateLimiterService, usageRecorder),
+      inject: [RATE_LIMITER, UsageRecorderService],
     },
     {
       provide: APP_INTERCEPTOR,
@@ -80,9 +91,7 @@ class RedisLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
       inject: [RATE_LIMITER],
     },
   ],
-  // Exported so the auth controller can @UseGuards(AuthIpRateLimitGuard); RATE_LIMITER travels with
-  // it because @UseGuards re-resolves the guard's deps in the host module's injector.
-  exports: [AuthIpRateLimitGuard, RATE_LIMITER],
+  exports: [AuthIpRateLimitGuard, RATE_LIMITER, RateLimiterService, UsageRecorderService],
 })
 export class RateLimitModule {}
 
@@ -92,5 +101,10 @@ function createNoopRateLimitRedis(): SlidingWindowRedis {
     quit: async () => 'OK',
     disconnect: () => undefined,
     slidingWindow: async () => [1, 1, 1, 0, 0, 'minute'],
+    peekSlidingWindow: async () => [0, 0, 0, 0],
+    hincrby: async () => 0,
+    hgetall: async () => ({}),
+    expire: async () => 0,
+    pipeline: () => ({ exec: async () => [] }),
   } as unknown as SlidingWindowRedis;
 }
