@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  ActorSearchRow,
-  DaoSearchRow,
-  ProposalSearchRow,
+import {
   SearchReadRepository,
+  type ActorSearchRow,
+  type DaoSearchRow,
+  type ProposalSearchRow,
 } from './search-read-repository';
 import { problemException } from '../http/problem-exception';
 
