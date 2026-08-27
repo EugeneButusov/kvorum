@@ -2,6 +2,7 @@ import { HttpException, InternalServerErrorException } from '@nestjs/common';
 import { of } from 'rxjs';
 import { RateLimitInterceptor } from './rate-limit.interceptor';
 import { RedisUnavailableError } from './rate-limiter.service';
+import type { UsageRecorderService } from './usage-recorder.service';
 import { apiMetrics } from '../observability/api-metrics';
 
 vi.mock('../observability/api-metrics', () => ({
@@ -19,6 +20,10 @@ type HttpContextMock = {
   };
 };
 
+function mockRecorder(): UsageRecorderService {
+  return { record: vi.fn(), getDailyUsage: vi.fn() } as unknown as UsageRecorderService;
+}
+
 describe('RateLimitInterceptor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +31,7 @@ describe('RateLimitInterceptor', () => {
 
   it('no-ops when request has no apiKey', async () => {
     const consume = vi.fn();
-    const interceptor = new RateLimitInterceptor({ consume } as never);
+    const interceptor = new RateLimitInterceptor({ consume } as never, mockRecorder());
     const next = { handle: vi.fn(() => of({ ok: true })) };
 
     const setHeader = vi.fn();
@@ -44,7 +49,7 @@ describe('RateLimitInterceptor', () => {
     expect(next.handle).toHaveBeenCalled();
   });
 
-  it('sets headers and allows request when quota is available', async () => {
+  it('sets headers, records usage, and allows request when quota is available', async () => {
     const consume = vi.fn(async () => ({
       allowed: true,
       limit: 60,
@@ -53,7 +58,8 @@ describe('RateLimitInterceptor', () => {
       retryAfterSeconds: 0,
       bindingWindow: 'minute',
     }));
-    const interceptor = new RateLimitInterceptor({ consume } as never);
+    const recorder = mockRecorder();
+    const interceptor = new RateLimitInterceptor({ consume } as never, recorder);
     const next = { handle: vi.fn(() => of({ ok: true })) };
 
     const setHeader = vi.fn();
@@ -70,9 +76,10 @@ describe('RateLimitInterceptor', () => {
     expect(setHeader).toHaveBeenCalledWith('RateLimit-Remaining', '59');
     expect(setHeader).toHaveBeenCalledWith('RateLimit-Reset', '60');
     expect(next.handle).toHaveBeenCalled();
+    expect(recorder.record).toHaveBeenCalledWith('k1');
   });
 
-  it('throws 429 and increments minute quota metric', async () => {
+  it('throws 429, increments minute quota metric, and does not record usage', async () => {
     const consume = vi.fn(async () => ({
       allowed: false,
       limit: 60,
@@ -81,7 +88,8 @@ describe('RateLimitInterceptor', () => {
       retryAfterSeconds: 12,
       bindingWindow: 'minute',
     }));
-    const interceptor = new RateLimitInterceptor({ consume } as never);
+    const recorder = mockRecorder();
+    const interceptor = new RateLimitInterceptor({ consume } as never, recorder);
 
     const setHeader = vi.fn();
     const context: HttpContextMock = {
@@ -100,6 +108,7 @@ describe('RateLimitInterceptor', () => {
       reason: 'quota_minute',
     });
     expect(setHeader).toHaveBeenCalledWith('Retry-After', '12');
+    expect(recorder.record).not.toHaveBeenCalled();
   });
 
   it('throws 429 and increments day quota metric', async () => {
@@ -111,7 +120,7 @@ describe('RateLimitInterceptor', () => {
       retryAfterSeconds: 86400,
       bindingWindow: 'day',
     }));
-    const interceptor = new RateLimitInterceptor({ consume } as never);
+    const interceptor = new RateLimitInterceptor({ consume } as never, mockRecorder());
 
     const setHeader = vi.fn();
     const context: HttpContextMock = {
@@ -136,7 +145,7 @@ describe('RateLimitInterceptor', () => {
     const consume = vi.fn(async () => {
       throw new RedisUnavailableError(new Error('down'));
     });
-    const interceptor = new RateLimitInterceptor({ consume } as never);
+    const interceptor = new RateLimitInterceptor({ consume } as never, mockRecorder());
 
     const setHeader = vi.fn();
     const context: HttpContextMock = {
@@ -158,7 +167,7 @@ describe('RateLimitInterceptor', () => {
   });
 
   it('throws 500 on unknown tier', async () => {
-    const interceptor = new RateLimitInterceptor({ consume: vi.fn() } as never);
+    const interceptor = new RateLimitInterceptor({ consume: vi.fn() } as never, mockRecorder());
     const context: HttpContextMock = {
       switchToHttp: () => ({
         getRequest: () => ({ apiKey: { id: 'k1', tier: 'mystery_tier' } }),

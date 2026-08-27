@@ -15,6 +15,7 @@ import {
   type RateLimitResult,
 } from './rate-limiter.service';
 import { RATE_LIMITER } from './rate-limiter.token';
+import type { UsageRecorderService } from './usage-recorder.service';
 import { problemException } from '../http/problem-exception';
 import { apiMetrics } from '../observability/api-metrics';
 
@@ -24,7 +25,10 @@ const SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS = 5;
 export class RateLimitInterceptor implements NestInterceptor {
   private readonly logger = new Logger(RateLimitInterceptor.name);
 
-  constructor(@Inject(RATE_LIMITER) private readonly rateLimiter: RateLimiter) {}
+  constructor(
+    @Inject(RATE_LIMITER) private readonly rateLimiter: RateLimiter,
+    private readonly usageRecorder: UsageRecorderService,
+  ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler) {
     const http = context.switchToHttp();
@@ -71,6 +75,8 @@ export class RateLimitInterceptor implements NestInterceptor {
       });
       throw problemException('rate-limited', { detail: 'Rate limit exceeded.' });
     }
+
+    this.usageRecorder.record(request.apiKey.id);
 
     return next.handle();
   }

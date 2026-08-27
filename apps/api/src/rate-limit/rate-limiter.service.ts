@@ -22,8 +22,20 @@ export interface RateLimitResult {
   bindingWindow: 'minute' | 'day';
 }
 
+export interface WindowState {
+  used: number;
+  limit: number;
+  resetSeconds: number;
+}
+
+export interface PeekResult {
+  minute: WindowState;
+  day: WindowState;
+}
+
 export interface RateLimiter {
   consume(identity: string, tier: Tier, nowMs?: number): Promise<RateLimitResult>;
+  peek(identity: string, tier: Tier, nowMs?: number): Promise<PeekResult>;
 }
 
 @Injectable()
@@ -49,6 +61,25 @@ export class RedisRateLimiterService implements RateLimiter {
       throw new RedisUnavailableError(error);
     }
   }
+
+  async peek(identity: string, tier: Tier, nowMs = Date.now()): Promise<PeekResult> {
+    const limits = TIERS[tier];
+    const keys: [string, string] = [`rl:${identity}:m`, `rl:${identity}:d`];
+
+    try {
+      const [minuteCount, minuteReset, dayCount, dayReset] = await this.redis.peekSlidingWindow(
+        ...keys,
+        nowMs,
+      );
+
+      return {
+        minute: { used: minuteCount, limit: limits.perMinute, resetSeconds: minuteReset },
+        day: { used: dayCount, limit: limits.perDay, resetSeconds: dayReset },
+      };
+    } catch (error: unknown) {
+      throw new RedisUnavailableError(error);
+    }
+  }
 }
 
 @Injectable()
@@ -64,6 +95,14 @@ export class TestRateLimiterService implements RateLimiter {
       resetSeconds: 0,
       retryAfterSeconds: 0,
       bindingWindow: 'minute',
+    };
+  }
+
+  async peek(_identity: string, tier: Tier): Promise<PeekResult> {
+    const limits = TIERS[tier];
+    return {
+      minute: { used: 0, limit: limits.perMinute, resetSeconds: 0 },
+      day: { used: 0, limit: limits.perDay, resetSeconds: 0 },
     };
   }
 }
