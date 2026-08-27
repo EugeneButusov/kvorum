@@ -9,6 +9,8 @@ import { resolveTracks } from '@/lib/dao/tracks';
 
 type Api = ReturnType<typeof createApiClient>;
 
+export const COMING_SOON_SLUGS: ReadonlySet<string> = new Set(['lido']);
+
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
@@ -27,6 +29,8 @@ export type DaoDirectoryEntry = {
   top10Pct: number | null;
   /** Change in top-10 share over ~90 days (percentage points), or null. */
   top10Delta: number | null;
+  /** True when the DAO is tracked but not yet publicly available. */
+  comingSoon: boolean;
 };
 
 async function fetchGovernors(api: Api, slug: string): Promise<string[]> {
@@ -67,6 +71,21 @@ export async function loadDaoDirectory(api: Api, now: number): Promise<DaoDirect
 
   return Promise.all(
     daos.map(async (dao): Promise<DaoDirectoryEntry> => {
+      const comingSoon = COMING_SOON_SLUGS.has(dao.slug);
+      if (comingSoon) {
+        return {
+          slug: dao.slug,
+          name: dao.name,
+          description: asString(dao.description),
+          websiteUrl: asString(dao.website_url),
+          forumUrl: asString(dao.forum_url),
+          governors: [],
+          passRatePct: null,
+          top10Pct: null,
+          top10Delta: null,
+          comingSoon,
+        };
+      }
       const [governors, passRate, concentration] = await Promise.all([
         fetchGovernors(api, dao.slug),
         fetchPassRate(api, dao.slug, from),
@@ -82,6 +101,7 @@ export async function loadDaoDirectory(api: Api, now: number): Promise<DaoDirect
         passRatePct: passRate.overallPct,
         top10Pct: concentration.current?.top10Pct ?? null,
         top10Delta: concentration.delta90Top10,
+        comingSoon,
       };
     }),
   );
