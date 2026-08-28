@@ -2226,6 +2226,81 @@
         "tags": ["Analytics"]
       }
     },
+    "/v1/search": {
+      "get": {
+        "description": "Full-text search with ranked results per entity type. Automatically detects hex addresses and routes to direct address lookup for actors.",
+        "operationId": "SearchController_search",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Narrow to one entity type; omit to search all",
+            "schema": {
+              "enum": ["proposal", "dao", "actor"],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Max results per entity type (default 5, max 25)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Search query (min 1 char, max 200)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Search across proposals, DAOs, and actors",
+        "tags": ["Search"]
+      }
+    },
     "/v1/daos/{slug}/forum/{external_id}": {
       "get": {
         "description": "A Discourse thread linked to a DAO's governance, with its posts. `external_id` is the Discourse topic id, as reported in a proposal's off-chain discussion links.",
@@ -4645,6 +4720,105 @@
           }
         },
         "required": ["focal_delegate", "peers", "pagination", "_meta"]
+      },
+      "ProposalSearchItemDto": {
+        "type": "object",
+        "properties": {
+          "dao_slug": {
+            "type": "string"
+          },
+          "dao_name": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "object",
+            "nullable": true
+          },
+          "state": {
+            "type": "string"
+          },
+          "voting_starts_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "rank": {
+            "type": "number"
+          }
+        },
+        "required": ["dao_slug", "dao_name", "source_type", "source_id", "state", "rank"]
+      },
+      "DaoSearchItemDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "number"
+          }
+        },
+        "required": ["slug", "name", "description", "rank"]
+      },
+      "ActorSearchItemDto": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "object",
+            "nullable": true
+          },
+          "primary_address": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "number"
+          }
+        },
+        "required": ["primary_address", "rank"]
+      },
+      "SearchDataDto": {
+        "type": "object",
+        "properties": {
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposalSearchItemDto"
+            }
+          },
+          "daos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaoSearchItemDto"
+            }
+          },
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActorSearchItemDto"
+            }
+          }
+        },
+        "required": ["proposals", "daos", "actors"]
+      },
+      "SearchResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SearchDataDto"
+          }
+        },
+        "required": ["data"]
       },
       "ForumThreadLinkedProposalDto": {
         "type": "object",
