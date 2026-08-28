@@ -17,6 +17,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('./search-box', () => ({ SearchBox: () => null }));
 vi.mock('./wallet-menu', () => ({ WalletMenu: () => null }));
 vi.mock('@/components/theme-toggle', () => ({ ThemeToggle: () => null }));
+vi.mock('../search/command-palette', () => ({ CommandPalette: () => null }));
 
 describe('TopNav', () => {
   it('sends API Docs to the API-hosted reference in a new tab', () => {

@@ -3,11 +3,12 @@
 import { Menu } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SearchBox } from './search-box';
 import { WalletMenu } from './wallet-menu';
 import { Logo } from '@/components/brand/Logo';
+import { CommandPalette } from '@/components/search/command-palette';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { API_DOCS_URL } from '@/lib/site';
@@ -44,6 +45,18 @@ function navClass(active: boolean): string {
 export function TopNav() {
   const pathname = usePathname() ?? '/';
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <header className="flex h-14 items-stretch border-b border-line bg-bg-2 px-4 md:px-8">
@@ -76,7 +89,7 @@ export function TopNav() {
       </nav>
 
       <div className="flex flex-1 items-center justify-end gap-2 md:gap-3 md:pl-4">
-        <SearchBox className="hidden lg:flex" />
+        <SearchBox className="hidden lg:flex" onClick={() => setPaletteOpen(true)} />
         <WalletMenu className="hidden md:inline-flex" />
         <ThemeToggle />
 
@@ -94,7 +107,12 @@ export function TopNav() {
             <SheetHeader>
               <SheetTitle>Menu</SheetTitle>
             </SheetHeader>
-            <SearchBox />
+            <SearchBox
+              onClick={() => {
+                setOpen(false);
+                setPaletteOpen(true);
+              }}
+            />
             <nav className="flex flex-col">
               {NAV.map((item) => {
                 const className = cn(
@@ -130,6 +148,8 @@ export function TopNav() {
           </SheetContent>
         </Sheet>
       </div>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </header>
   );
 }
