@@ -33,6 +33,7 @@ import { MismatchModule } from '../proposals/mismatch.module';
 import { ProposalController } from '../proposals/proposal.controller';
 import { SimilarProposalsModule } from '../proposals/similar-proposals.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
+import { SearchModule } from '../search/search.module';
 import { VotesController } from '../votes/votes.controller';
 
 @Module({
@@ -51,6 +52,7 @@ import { VotesController } from '../votes/votes.controller';
     ForumSynthesisModule,
     MismatchModule,
     RateLimitModule,
+    SearchModule,
     SourcesModule,
     SourceApiModule,
     VotesModule,

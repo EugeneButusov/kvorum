@@ -29,6 +29,10 @@ const TAGS: ReadonlyArray<readonly [name: string, description: string]> = [
   ],
   ['Actors', 'Addresses and identities — profile, voting history, and proposals authored.'],
   [
+    'Search',
+    'Cross-entity keyword search over proposals, DAOs, and actors, with automatic address detection.',
+  ],
+  [
     'Analytics',
     'Aggregated governance health: pass rates, voting-power concentration, delegation flow, and delegate alignment.',
   ],
