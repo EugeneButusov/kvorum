@@ -234,6 +234,15 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               </>
             )}
 
+            {hasQuery && hasResults && (
+              <button
+                onClick={() => navigate(`/search?q=${encodeURIComponent(debouncedQuery)}`)}
+                className="w-full border-t border-line-2 px-3 py-2 text-center text-small text-accent transition-colors hover:bg-bg-3 hover:underline"
+              >
+                See all results &rarr;
+              </button>
+            )}
+
             {hasQuery && !isFetching && !hasResults && (
               <div className="px-3 py-8 text-center text-small text-ink-3">
                 No results for &ldquo;{debouncedQuery}&rdquo;
