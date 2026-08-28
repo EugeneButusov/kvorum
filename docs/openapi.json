@@ -2422,6 +2422,10 @@
       "description": "Addresses and identities — profile, voting history, and proposals authored."
     },
     {
+      "name": "Search",
+      "description": "Cross-entity keyword search over proposals, DAOs, and actors, with automatic address detection."
+    },
+    {
       "name": "Analytics",
       "description": "Aggregated governance health: pass rates, voting-power concentration, delegation flow, and delegate alignment."
     },
