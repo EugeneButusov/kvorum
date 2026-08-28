@@ -116,7 +116,7 @@ export function SearchPage({ initialData, initialQuery }: SearchPageProps) {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder="Search proposals, DAOs, actors…"
-          className="w-full border border-line-2 bg-bg py-2.5 pl-9 pr-3 font-mono text-body text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line"
+          className="w-full border border-line-2 bg-bg py-2.5 pl-9 pr-3 font-mono text-body text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line focus-visible:outline-none"
           autoFocus
           spellCheck={false}
         />
