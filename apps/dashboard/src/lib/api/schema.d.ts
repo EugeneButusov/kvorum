@@ -544,6 +544,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Search across proposals, DAOs, and actors
+     * @description Full-text search with ranked results per entity type. Automatically detects hex addresses and routes to direct address lookup for actors.
+     */
+    get: operations['SearchController_search'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/daos/{slug}/forum/{external_id}': {
     parameters: {
       query?: never;
@@ -573,7 +593,7 @@ export interface paths {
     };
     /**
      * Get the AI synthesis of a forum thread
-     * @description A synthesis of the thread's discussion: arguments for and against, unresolved concerns, notable participants, and overall sentiment. Content-addressed by the thread's raw content. Returns 404 when the thread is unknown, has no content, or has not been synthesised; a thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.
+     * @description A synthesis of the thread's discussion: arguments for and against, unresolved concerns, notable participants, and overall sentiment. Content-addressed by the thread's raw content — the same stored analysis the proposal route serves. Returns 404 when the thread is unknown, has no content, or has not been synthesised; a thread skipped for being non-English returns 200 with `data: null` and a reason in `_meta`.
      */
     get: operations['ForumThreadController_getThreadSynthesis'];
     put?: never;
@@ -1258,6 +1278,35 @@ export interface components {
       peers: components['schemas']['DelegateAlignmentPeerDto'][];
       pagination: components['schemas']['PaginationDto'];
       _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    ProposalSearchItemDto: {
+      dao_slug: string;
+      dao_name: string;
+      source_type: string;
+      source_id: string;
+      title?: Record<string, never> | null;
+      state: string;
+      voting_starts_at?: Record<string, never> | null;
+      rank: number;
+    };
+    DaoSearchItemDto: {
+      slug: string;
+      name: string;
+      description: string;
+      rank: number;
+    };
+    ActorSearchItemDto: {
+      display_name?: Record<string, never> | null;
+      primary_address: string;
+      rank: number;
+    };
+    SearchDataDto: {
+      proposals: components['schemas']['ProposalSearchItemDto'][];
+      daos: components['schemas']['DaoSearchItemDto'][];
+      actors: components['schemas']['ActorSearchItemDto'][];
+    };
+    SearchResponseDto: {
+      data: components['schemas']['SearchDataDto'];
     };
     ForumThreadLinkedProposalDto: {
       source_type: string;
@@ -2143,44 +2192,6 @@ export interface operations {
       };
     };
   };
-  ForumThreadController_getThreadSynthesis: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: string;
-        external_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ForumSynthesisResponseDto'];
-        };
-      };
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDto'];
-        };
-      };
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProblemDto'];
-        };
-      };
-    };
-  };
   ProposalController_tally: {
     parameters: {
       query?: never;
@@ -2573,6 +2584,48 @@ export interface operations {
       };
     };
   };
+  SearchController_search: {
+    parameters: {
+      query: {
+        /** @description Narrow to one entity type; omit to search all */
+        type?: 'proposal' | 'dao' | 'actor';
+        /** @description Max results per entity type (default 5, max 25) */
+        limit?: number;
+        /** @description Search query (min 1 char, max 200) */
+        q: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SearchResponseDto'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
   ForumThreadController_getThread: {
     parameters: {
       query?: never;
@@ -2591,6 +2644,34 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ForumThreadResponseDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ForumThreadController_getThreadSynthesis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        external_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForumSynthesisResponseDto'];
         };
       };
       404: {
