@@ -1,5 +1,6 @@
 import type { Logger } from '@libs/chain';
 import type { ProposalState } from '@libs/db';
+import { ProposalRepository } from '@libs/db';
 import type { ReconcileOutcome, StateReconciler } from '@sources/core';
 import {
   GovernorStateDecodeError,
@@ -13,6 +14,7 @@ import {
   encodeTimelockCall,
   mapGovernorStateCode,
 } from '../abi/governor-state';
+import { decodeTotalSupplyResult, encodeTotalSupplyCall } from '../abi/total-supply';
 import type {
   CompoundProposalRepository,
   StaleReconciliationRow,
@@ -29,6 +31,7 @@ export class CompoundStateReconciler implements StateReconciler<StaleReconciliat
   constructor(
     private readonly logger: Logger,
     readonly sourceTypes: readonly string[],
+    private readonly proposalRepo: ProposalRepository,
   ) {}
 
   async reconcileRow(args: {
@@ -50,6 +53,15 @@ export class CompoundStateReconciler implements StateReconciler<StaleReconciliat
     });
 
     await proposals.markReconcileChecked(row.id, confirmedThreshold.toString());
+
+    if (row.eligible_voting_power === null && row.voting_starts_block !== null) {
+      const totalSupplyHex = await chainCtx.client.send<string>('eth_call', [
+        { to: row.primary_token_address, data: encodeTotalSupplyCall() },
+        `0x${BigInt(row.voting_starts_block).toString(16)}`,
+      ]);
+      const totalSupply = decodeTotalSupplyResult(totalSupplyHex);
+      await this.proposalRepo.fillEligibleVotingPower(row.id, totalSupply.toString());
+    }
 
     if (mapped === row.state) return { outcome: 'already_consistent' };
     if (mapped === 'executed' || mapped === 'queued' || mapped === 'canceled') {

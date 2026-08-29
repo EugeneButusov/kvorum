@@ -1,3 +1,4 @@
+import { Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
 import { CompoundStateReconciler } from './compound-state-reconciler';
 import {
@@ -6,13 +7,25 @@ import {
   GovernorStateDecodeError,
 } from '../abi/governor-state';
 
+const TOKEN = '0xc00e94cb662c3520282e6f5717214004a7f26888';
+const ERC20 = new Interface(['function totalSupply() view returns (uint256)']);
+
 function makeLogger() {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 }
 
+function makeProposalRepo() {
+  return { fillEligibleVotingPower: vi.fn().mockResolvedValue(undefined) };
+}
+
 describe('CompoundStateReconciler', () => {
   it('reconciles oz governor row to defeated using voting_ends_block timestamp', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn().mockResolvedValue(1),
@@ -40,6 +53,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '21690000',
         voting_ends_block: '21690100',
         queued_at_block: null,
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 21699999n,
       confirmedThresholdTag: '0x14b063f',
@@ -65,7 +80,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns already_consistent when onchain state equals local state', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -89,6 +109,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '100',
         voting_ends_block: '200',
         queued_at_block: null,
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -101,7 +123,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns missed_event when onchain state is executed', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -122,6 +149,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '100',
         voting_ends_block: '200',
         queued_at_block: null,
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -133,7 +162,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns expired_no_queued_at_block when state is expired but queued_at_block is null', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -154,6 +188,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: null,
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -165,7 +201,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns guard_skipped for defeated when voting_ends_block is null', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -186,6 +227,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: null,
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -197,7 +240,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns guard_skipped for active when voting_starts_block is null', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -218,6 +266,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: null,
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -229,7 +279,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns guard_skipped when reconcileState returns 0', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn().mockResolvedValue(0), // no rows updated
@@ -254,6 +309,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '100',
         voting_ends_block: '200',
         queued_at_block: null,
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -265,7 +322,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('throws when readBlockTimestamp gets a response without a timestamp field', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -291,6 +353,8 @@ describe('CompoundStateReconciler', () => {
           voting_starts_block: '100',
           voting_ends_block: '200',
           queued_at_block: null,
+          eligible_voting_power: '1000',
+          primary_token_address: TOKEN,
         },
         confirmedThreshold: 999n,
         confirmedThresholdTag: '0x3e7',
@@ -302,51 +366,17 @@ describe('CompoundStateReconciler', () => {
 
   it('returns corrected for expired state with full timelock resolution and cache hit', async () => {
     const TIMELOCK_ADDR = '0x' + 'aa'.repeat(20);
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn().mockResolvedValue(1),
     };
 
-    const send = vi.fn(async (method: string, params: unknown[]) => {
-      if (method === 'eth_call') {
-        const req = params[0] as { to: string };
-        if (req.to.toLowerCase() === '0xgov') {
-          // First call: state(), second call: timelock()
-          const callCount = (send.mock.calls as unknown[]).filter(([m]) => m === 'eth_call').length;
-          if (callCount === 1) {
-            return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('state', [6n]); // expired
-          }
-          return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('timelock', [TIMELOCK_ADDR]);
-        }
-        // GRACE_PERIOD and delay calls to timelock
-        if (req.to.toLowerCase() === TIMELOCK_ADDR) {
-          return TIMELOCK_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [86400n]); // 1 day
-        }
-      }
-      if (method === 'eth_getBlockByNumber') return { timestamp: '0x1000' };
-      throw new Error(`unexpected: ${method}`);
-    });
-
-    // The send mock needs to differentiate GRACE_PERIOD from delay — let's use different approach
-    // Since both GRACE_PERIOD and delay are called in parallel, let's return same value for both
-    const _resolvedSend = vi.fn(async (method: string, params: unknown[]) => {
-      if (method === 'eth_call') {
-        const req = params[0] as { to: string; data: string };
-        if (req.to.toLowerCase() === '0xgov') {
-          // state call
-          return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('state', [6n]);
-        }
-        // timelock() call is first to timelockAddress, then GRACE_PERIOD, delay
-        if (req.to.toLowerCase() !== '0xgov') {
-          // Timelock GRACE_PERIOD or delay call
-          return TIMELOCK_INTERFACE.encodeFunctionResult('GRACE_PERIOD', [86400n]);
-        }
-      }
-      if (method === 'eth_getBlockByNumber') return { timestamp: '0x1000' };
-    });
-
-    // Actually, let's build a simpler but complete mock:
     let ethCallCount = 0;
     const mockSend = vi.fn(async (method: string) => {
       if (method === 'eth_call') {
@@ -372,6 +402,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '100',
         voting_ends_block: '200',
         queued_at_block: '210',
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -394,6 +426,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '100',
         voting_ends_block: '200',
         queued_at_block: '210',
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -406,7 +440,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns expired_no_queued_at_block when resolveTimelockParams returns null (validateSeconds fails)', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -438,6 +477,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: '100',
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -449,7 +490,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('rethrows GovernorStateDecodeError from resolveTimelockParams', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -478,6 +524,8 @@ describe('CompoundStateReconciler', () => {
           voting_starts_block: null,
           voting_ends_block: null,
           queued_at_block: '100',
+          eligible_voting_power: null,
+          primary_token_address: TOKEN,
         },
         confirmedThreshold: 999n,
         confirmedThresholdTag: '0x3e7',
@@ -488,7 +536,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('returns guard_skipped when mapped state has no timestamp branch (e.g. succeeded)', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -509,6 +562,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: null,
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -520,7 +575,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('catches non-GovernorStateDecodeError from resolveTimelockParams and returns null', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn(),
@@ -548,6 +608,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: null,
         voting_ends_block: null,
         queued_at_block: '100',
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 999n,
       confirmedThresholdTag: '0x3e7',
@@ -560,7 +622,12 @@ describe('CompoundStateReconciler', () => {
   });
 
   it('reconciles pending row to active when startBlock has been confirmed', async () => {
-    const reconciler = new CompoundStateReconciler(makeLogger() as never, ['compound_governor_oz']);
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
     const proposals = {
       markReconcileChecked: vi.fn().mockResolvedValue(undefined),
       reconcileState: vi.fn().mockResolvedValue(1),
@@ -588,6 +655,8 @@ describe('CompoundStateReconciler', () => {
         voting_starts_block: '21700000',
         voting_ends_block: '21740000',
         queued_at_block: null,
+        eligible_voting_power: '1000',
+        primary_token_address: TOKEN,
       },
       confirmedThreshold: 21710000n,
       confirmedThresholdTag: '0x14b2f10',
@@ -609,5 +678,109 @@ describe('CompoundStateReconciler', () => {
     const blockFetches = send.mock.calls.filter(([m]) => m === 'eth_getBlockByNumber');
     expect(blockFetches).toHaveLength(1);
     expect(blockFetches[0]![1]).toEqual([`0x${BigInt('21700000').toString(16)}`, false]);
+  });
+
+  it('fills eligible_voting_power when null and voting_starts_block is set', async () => {
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
+    const proposals = {
+      markReconcileChecked: vi.fn().mockResolvedValue(undefined),
+      reconcileState: vi.fn(),
+    };
+
+    const totalSupply = 10_000_000n * 10n ** 18n;
+    const send = vi.fn(async (method: string, params: unknown[]) => {
+      if (method === 'eth_call') {
+        const req = params[0] as { to: string };
+        if (req.to.toLowerCase() === '0xgov') {
+          return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('state', [0n]); // pending
+        }
+        if (req.to.toLowerCase() === TOKEN) {
+          return ERC20.encodeFunctionResult('totalSupply', [totalSupply]);
+        }
+      }
+      throw new Error(`unexpected: ${method}`);
+    });
+
+    await reconciler.reconcileRow({
+      row: {
+        id: 'p-vp',
+        source_id: '42',
+        source_type: 'compound_governor_oz',
+        chain_id: '0x1',
+        governor_address: '0xGov',
+        state: 'pending',
+        voting_starts_block: '500',
+        voting_ends_block: '600',
+        queued_at_block: null,
+        eligible_voting_power: null,
+        primary_token_address: TOKEN,
+      },
+      confirmedThreshold: 999n,
+      confirmedThresholdTag: '0x3e7',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(proposalRepo.fillEligibleVotingPower).toHaveBeenCalledWith(
+      'p-vp',
+      totalSupply.toString(),
+    );
+    const tokenCalls = send.mock.calls.filter(
+      ([m, p]) =>
+        m === 'eth_call' &&
+        (p as unknown[])[0] &&
+        ((p as unknown[])[0] as { to: string }).to.toLowerCase() === TOKEN,
+    );
+    expect(tokenCalls).toHaveLength(1);
+    expect(tokenCalls[0]![1][1]).toBe(`0x${BigInt('500').toString(16)}`);
+  });
+
+  it('skips totalSupply call when eligible_voting_power is already set', async () => {
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new CompoundStateReconciler(
+      makeLogger() as never,
+      ['compound_governor_oz'],
+      proposalRepo as never,
+    );
+    const proposals = {
+      markReconcileChecked: vi.fn().mockResolvedValue(undefined),
+      reconcileState: vi.fn(),
+    };
+
+    const send = vi.fn(async (method: string) => {
+      if (method === 'eth_call') {
+        return GOVERNOR_STATE_INTERFACE.encodeFunctionResult('state', [0n]); // pending
+      }
+      throw new Error(`unexpected: ${method}`);
+    });
+
+    await reconciler.reconcileRow({
+      row: {
+        id: 'p-vp-skip',
+        source_id: '43',
+        source_type: 'compound_governor_oz',
+        chain_id: '0x1',
+        governor_address: '0xGov',
+        state: 'pending',
+        voting_starts_block: '500',
+        voting_ends_block: '600',
+        queued_at_block: null,
+        eligible_voting_power: '999000000000000000000',
+        primary_token_address: TOKEN,
+      },
+      confirmedThreshold: 999n,
+      confirmedThresholdTag: '0x3e7',
+      proposals: proposals as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
+    // Only 1 eth_call (the state() call), no totalSupply call
+    expect(send.mock.calls.filter(([m]) => m === 'eth_call')).toHaveLength(1);
   });
 });

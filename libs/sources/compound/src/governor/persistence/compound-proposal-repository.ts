@@ -17,6 +17,8 @@ export interface StaleReconciliationRow extends BaseStaleReconciliationRow {
   voting_starts_block: string | null;
   voting_ends_block: string | null;
   queued_at_block: string | null;
+  eligible_voting_power: string | null;
+  primary_token_address: string;
 }
 
 export interface ReconcileStateInput {
@@ -58,6 +60,8 @@ export class CompoundProposalRepository
         'proposal.voting_starts_block',
         'proposal.voting_ends_block',
         'compound_proposal_meta.queued_at_block',
+        'proposal.eligible_voting_power',
+        'dao.primary_token_address',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'succeeded', 'queued'])

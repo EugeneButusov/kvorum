@@ -164,6 +164,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         projectionApplier: GovernorProjectionApplier,
         voteProjectionApplier: GovernorVoteProjectionApplier,
         delegationProjectionApplier: CompTokenDelegationProjectionApplier,
+        sharedProposalRepo: ProposalRepository,
       ): SourcePlugin => {
         const governorPayloads = new GovernorArchivePayloadRepository(chDb);
         const compTokenPayloads = new CompTokenArchivePayloadRepository(chDb);
@@ -187,16 +188,19 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
             }),
             createCompoundGovernorBravoReconcilePlugin({
               proposals: proposalRepo,
+              proposalRepo: sharedProposalRepo,
               metrics,
               logger: reconcileLogger,
             }),
             createCompoundGovernorOzReconcilePlugin({
               proposals: proposalRepo,
+              proposalRepo: sharedProposalRepo,
               metrics,
               logger: reconcileLogger,
             }),
             createCompoundGovernorAlphaReconcilePlugin({
               proposals: proposalRepo,
+              proposalRepo: sharedProposalRepo,
               metrics,
               logger: reconcileLogger,
             }),
@@ -238,6 +242,7 @@ export const COMPOUND_SOURCE_PLUGIN = 'COMPOUND_SOURCE_PLUGIN';
         GovernorProjectionApplier,
         GovernorVoteProjectionApplier,
         CompTokenDelegationProjectionApplier,
+        ProposalRepository,
       ],
     },
   ],
