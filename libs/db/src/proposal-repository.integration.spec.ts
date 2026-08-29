@@ -44,6 +44,43 @@ async function seedScanFixture(trx: typeof pgDb): Promise<{ daoId: string; actor
   return { daoId: dao!.id, actorId: actor!.id };
 }
 
+describeWithDb('ProposalRepository.fillEligibleVotingPower (integration)', () => {
+  it('sets eligible_voting_power from null', async () => {
+    await inRollback(async (trx) => {
+      const { daoId, actorId } = await seedScanFixture(trx);
+      const [inserted] = await trx
+        .insertInto('proposal')
+        .values({
+          dao_id: daoId,
+          source_type: 'compound_governor_bravo',
+          source_id: 'p-evp',
+          proposer_actor_id: actorId,
+          description: 'body',
+          description_hash: 'b'.repeat(64),
+          binding: true,
+          voting_starts_at: null,
+          voting_ends_at: null,
+          voting_starts_block: '1',
+          voting_ends_block: '2',
+          state: 'active',
+          state_updated_at: new Date('2026-01-01T00:00:00Z'),
+          updated_at: new Date(),
+        })
+        .returning(['id'])
+        .execute();
+
+      const repo = new ProposalRepository(trx);
+
+      const before = await repo.findById(inserted!.id);
+      expect(before?.eligible_voting_power).toBeNull();
+
+      await repo.fillEligibleVotingPower(inserted!.id, '999000000000000000000');
+      const after = await repo.findById(inserted!.id);
+      expect(after?.eligible_voting_power).toBe('999000000000000000000');
+    });
+  });
+});
+
 describeWithDb('ProposalRepository.findById (integration)', () => {
   it('returns the row by id, or undefined when absent', async () => {
     await inRollback(async (trx) => {

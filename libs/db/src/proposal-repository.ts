@@ -257,6 +257,17 @@ export class ProposalRepository {
     return this.db.selectFrom('proposal').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
+  async fillEligibleVotingPower(proposalId: string, votingPower: string): Promise<void> {
+    await this.db
+      .updateTable('proposal')
+      .set({
+        eligible_voting_power: votingPower,
+        updated_at: sql<Date>`now()`,
+      })
+      .where('id', '=', proposalId)
+      .execute();
+  }
+
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {
     return this.db
       .selectFrom('proposal')
