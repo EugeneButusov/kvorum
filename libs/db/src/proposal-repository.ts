@@ -261,7 +261,7 @@ export class ProposalRepository {
     await this.db
       .updateTable('proposal')
       .set({
-        eligible_voting_power: sql`coalesce(eligible_voting_power, ${votingPower})`,
+        eligible_voting_power: votingPower,
         updated_at: sql<Date>`now()`,
       })
       .where('id', '=', proposalId)

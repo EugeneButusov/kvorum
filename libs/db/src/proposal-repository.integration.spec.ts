@@ -45,7 +45,7 @@ async function seedScanFixture(trx: typeof pgDb): Promise<{ daoId: string; actor
 }
 
 describeWithDb('ProposalRepository.fillEligibleVotingPower (integration)', () => {
-  it('sets eligible_voting_power when null (write-once via COALESCE)', async () => {
+  it('sets eligible_voting_power from null', async () => {
     await inRollback(async (trx) => {
       const { daoId, actorId } = await seedScanFixture(trx);
       const [inserted] = await trx
@@ -71,13 +71,12 @@ describeWithDb('ProposalRepository.fillEligibleVotingPower (integration)', () =>
 
       const repo = new ProposalRepository(trx);
 
+      const before = await repo.findById(inserted!.id);
+      expect(before?.eligible_voting_power).toBeNull();
+
       await repo.fillEligibleVotingPower(inserted!.id, '999000000000000000000');
       const after = await repo.findById(inserted!.id);
       expect(after?.eligible_voting_power).toBe('999000000000000000000');
-
-      await repo.fillEligibleVotingPower(inserted!.id, '111');
-      const unchanged = await repo.findById(inserted!.id);
-      expect(unchanged?.eligible_voting_power).toBe('999000000000000000000');
     });
   });
 });
