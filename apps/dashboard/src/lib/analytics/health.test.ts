@@ -1,4 +1,10 @@
-import { rangeFrom, toConcentrationView, toDelegationFlowView, toPassRateView } from './health';
+import {
+  rangeFrom,
+  toConcentrationView,
+  toDelegationFlowView,
+  toLorenzBars,
+  toPassRateView,
+} from './health';
 import type { components } from '@/lib/api/schema';
 
 const E18 = 10n ** 18n;
@@ -75,6 +81,16 @@ describe('toPassRateView', () => {
     expect(view.series[0]!.values).toEqual([0]);
     expect(view.overallPct).toBeNull();
   });
+
+  it('computes per-bucket sparklineValues aggregated across sources', () => {
+    const view = toPassRateView([
+      { source_type: 'a', bucket: '2026-05-01', passed: 2, failed: 1, pass_rate: null },
+      { source_type: 'b', bucket: '2026-05-01', passed: 1, failed: 1, pass_rate: null },
+      { source_type: 'a', bucket: '2026-06-01', passed: 4, failed: 0, pass_rate: null },
+    ]);
+    // Bucket 2026-05-01: 3 passed / 5 decided = 60%. Bucket 2026-06-01: 4 / 4 = 100%.
+    expect(view.sparklineValues).toEqual([60, 100]);
+  });
 });
 
 describe('toDelegationFlowView', () => {
@@ -146,6 +162,29 @@ describe('toDelegationFlowView', () => {
     const view = toDelegationFlowView(nodes, edges, 1);
     expect(view.edges).toHaveLength(1);
     expect(view.edges[0]!.weight).toBe(5);
+  });
+});
+
+describe('toLorenzBars', () => {
+  it('produces the right number of bars with cumulative shares', () => {
+    const bars = toLorenzBars([10, 20, 30, 40], 4);
+    expect(bars).toHaveLength(4);
+    expect(bars[bars.length - 1]!.cumulativePct).toBe(100);
+  });
+
+  it('flags the top quintile', () => {
+    const bars = toLorenzBars([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5);
+    const topQuintile = bars.filter((b) => b.isTopQuintile);
+    expect(topQuintile).toHaveLength(1);
+    expect(topQuintile[0]!.rank).toBe(5);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(toLorenzBars([])).toEqual([]);
+  });
+
+  it('returns empty when all shares are zero', () => {
+    expect(toLorenzBars([0, 0, 0])).toEqual([]);
   });
 });
 
