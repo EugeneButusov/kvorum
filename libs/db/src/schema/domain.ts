@@ -103,6 +103,8 @@ export interface ProposalTable {
   state_updated_at: Date;
   created_at: Generated<Date>;
   updated_at: Date;
+  // numeric(78,0) — total eligible VP at proposal snapshot; null when source cannot provide it
+  eligible_voting_power: string | null;
 }
 
 export type Proposal = Selectable<ProposalTable>;

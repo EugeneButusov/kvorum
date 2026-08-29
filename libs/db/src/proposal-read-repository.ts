@@ -97,6 +97,7 @@ export class ProposalReadRepository {
         'proposal.state_updated_at as proposal_state_updated_at',
         'proposal.created_at as proposal_created_at',
         'proposal.updated_at as proposal_updated_at',
+        'proposal.eligible_voting_power as proposal_eligible_voting_power',
       ])
       .where('dao.slug', '=', daoSlug)
       .where('proposal.source_type', '=', sourceType)
@@ -138,6 +139,7 @@ export class ProposalReadRepository {
       state_updated_at: row.proposal_state_updated_at,
       created_at: row.proposal_created_at,
       updated_at: row.proposal_updated_at,
+      eligible_voting_power: row.proposal_eligible_voting_power ?? null,
     };
 
     return { dao, proposal };
