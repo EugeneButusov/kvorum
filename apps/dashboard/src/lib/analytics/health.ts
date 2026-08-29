@@ -114,6 +114,8 @@ export type PassRateView = {
   series: Series[];
   /** Overall pass rate across the window (%), or null when nothing resolved. */
   overallPct: number | null;
+  /** Per-bucket aggregate pass rate (%) across all sources — feeds the trends sparkline. */
+  sparklineValues: number[];
 };
 
 export function toPassRateView(rows: PassRateRow[]): PassRateView {
@@ -132,10 +134,18 @@ export function toPassRateView(rows: PassRateRow[]): PassRateView {
   const passed = rows.reduce((s, r) => s + r.passed, 0);
   const decided = rows.reduce((s, r) => s + r.passed + r.failed, 0);
 
+  const sparklineValues = bucketKeys.map((b) => {
+    const inBucket = rows.filter((r) => r.bucket === b);
+    const p = inBucket.reduce((s, r) => s + r.passed, 0);
+    const d = inBucket.reduce((s, r) => s + r.passed + r.failed, 0);
+    return d > 0 ? Math.round((p / d) * 1000) / 10 : 0;
+  });
+
   return {
     buckets: bucketKeys.map(bucketLabel),
     series,
     overallPct: decided > 0 ? Math.round((passed / decided) * 1000) / 10 : null,
+    sparklineValues,
   };
 }
 
@@ -149,6 +159,41 @@ export async function fetchPassRate(api: Api, slug: string, from?: string): Prom
   } catch {
     return toPassRateView([]);
   }
+}
+
+// —— Lorenz bars ——————————————————————————————————————————————————————————————————
+
+export type LorenzBar = {
+  rank: number;
+  cumulativePct: number;
+  isTopQuintile: boolean;
+};
+
+/**
+ * Build a Lorenz-style bar histogram from per-delegate VP shares: `bucketCount` equal-ranked bars,
+ * each bar's height = cumulative share up to that rank. Top-quintile bars are flagged for the warn
+ * colour treatment in the §6.7 hi-fi.
+ */
+export function toLorenzBars(shares: number[], bucketCount = 20): LorenzBar[] {
+  if (shares.length === 0) return [];
+  const sorted = [...shares].sort((a, b) => a - b);
+  const total = sorted.reduce((s, v) => s + v, 0);
+  if (total === 0) return [];
+
+  const bars: LorenzBar[] = [];
+  const step = sorted.length / bucketCount;
+  let cumulative = 0;
+  for (let i = 0; i < bucketCount; i++) {
+    const from = Math.round(i * step);
+    const to = Math.round((i + 1) * step);
+    for (let j = from; j < to; j++) cumulative += sorted[j] ?? 0;
+    bars.push({
+      rank: i + 1,
+      cumulativePct: Math.round((cumulative / total) * 1000) / 10,
+      isTopQuintile: i >= bucketCount - Math.ceil(bucketCount / 5),
+    });
+  }
+  return bars;
 }
 
 // —— Delegation flow ——————————————————————————————————————————————————————————————
