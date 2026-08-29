@@ -58,6 +58,7 @@ export class AragonStateReconciler implements StateReconciler<AragonStaleReconci
         supportRequiredPct: vote.supportRequired.toString(),
         minAcceptQuorumPct: vote.minAcceptQuorum.toString(),
       });
+      await this.proposalRepo.fillEligibleVotingPower(row.id, vote.votingPower.toString());
       enriched = true;
     }
 

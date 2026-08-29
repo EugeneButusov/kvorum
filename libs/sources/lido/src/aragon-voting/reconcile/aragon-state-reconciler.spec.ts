@@ -56,7 +56,10 @@ function build(getVoteHex: string) {
     fillSupportQuorum: vi.fn().mockResolvedValue(undefined),
     reconcileState: vi.fn().mockResolvedValue(1),
   };
-  const proposalRepo = { insertActions: vi.fn().mockResolvedValue(1) };
+  const proposalRepo = {
+    insertActions: vi.fn().mockResolvedValue(1),
+    fillEligibleVotingPower: vi.fn().mockResolvedValue(undefined),
+  };
   const reconciler = new AragonStateReconciler(
     silentLogger,
     ['aragon_voting'],
@@ -84,6 +87,7 @@ describe('AragonStateReconciler', () => {
       supportRequiredPct: '500000000000000000',
       minAcceptQuorumPct: '50000000000000000',
     });
+    expect(proposalRepo.fillEligibleVotingPower).toHaveBeenCalledWith('p-1', '1000');
     expect(proposals.reconcileState).toHaveBeenCalledWith(
       expect.objectContaining({ expectedStates: ['active'], targetState: 'succeeded' }),
     );
@@ -144,6 +148,7 @@ describe('AragonStateReconciler', () => {
     });
     expect(outcome).toEqual({ outcome: 'still_open' });
     expect(proposalRepo.insertActions).not.toHaveBeenCalled();
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
   });
 
   it('surfaces missed_event when on-chain executed but local is not', async () => {
