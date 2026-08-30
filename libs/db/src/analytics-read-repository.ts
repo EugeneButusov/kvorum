@@ -229,6 +229,10 @@ export class AnalyticsReadRepository {
     });
   }
 
+  // KNOWN-032: cross-DB join (PG proposals → CH votes → app-level aggregation) is not optimal;
+  // eligible_voting_power lives in PG only because the proposal table is there. A CH materialized
+  // view pre-joining eligible VP with cast VP per proposal would eliminate the round-trip and the
+  // in-memory grouping. Revisit when eligible VP is replicated to CH or the proposal table moves.
   async participationByBucket(args: {
     daoId: string;
     bucket: BucketGrain;
