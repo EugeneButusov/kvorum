@@ -163,13 +163,7 @@ export async function fetchPassRate(api: Api, slug: string, from?: string): Prom
 
 // —— Participation ———————————————————————————————————————————————————————————————
 
-type ParticipationApiRow = {
-  source_type: string;
-  bucket: string;
-  participation_rate: number | null;
-  proposal_count: number;
-  proposals_with_data: number;
-};
+type ParticipationRow = components['schemas']['ParticipationRowDto'];
 
 export type ParticipationView = {
   buckets: string[];
@@ -178,7 +172,7 @@ export type ParticipationView = {
   sparklineValues: number[];
 };
 
-export function toParticipationView(rows: ParticipationApiRow[]): ParticipationView {
+export function toParticipationView(rows: ParticipationRow[]): ParticipationView {
   const bucketKeys = [...new Set(rows.map((r) => r.bucket))].sort((a, b) => a.localeCompare(b));
   const types = [...new Set(rows.map((r) => r.source_type))];
   const byKey = new Map(rows.map((r) => [`${r.source_type}:${r.bucket}`, r]));
@@ -194,8 +188,9 @@ export function toParticipationView(rows: ParticipationApiRow[]): ParticipationV
   let totalWeighted = 0;
   let totalWeight = 0;
   for (const row of rows) {
-    if (row.participation_rate != null && row.proposals_with_data > 0) {
-      totalWeighted += row.participation_rate * row.proposals_with_data;
+    const rate = num(row.participation_rate);
+    if (rate != null && row.proposals_with_data > 0) {
+      totalWeighted += rate * row.proposals_with_data;
       totalWeight += row.proposals_with_data;
     }
   }
@@ -205,8 +200,9 @@ export function toParticipationView(rows: ParticipationApiRow[]): ParticipationV
     let w = 0;
     let wt = 0;
     for (const r of inBucket) {
-      if (r.participation_rate != null && r.proposals_with_data > 0) {
-        w += r.participation_rate * r.proposals_with_data;
+      const rate = num(r.participation_rate);
+      if (rate != null && r.proposals_with_data > 0) {
+        w += rate * r.proposals_with_data;
         wt += r.proposals_with_data;
       }
     }
@@ -227,14 +223,11 @@ export async function fetchParticipation(
   from?: string,
 ): Promise<ParticipationView> {
   try {
-    const { data, error } = await api.GET(
-      '/v1/daos/{slug}/analytics/participation' as never,
-      {
-        params: { path: { slug }, query: { bucket: 'monthly', ...(from ? { from } : {}) } },
-      } as never,
-    );
+    const { data, error } = await api.GET('/v1/daos/{slug}/analytics/participation', {
+      params: { path: { slug }, query: { bucket: 'monthly', ...(from ? { from } : {}) } },
+    });
     if (error || !data) return toParticipationView([]);
-    return toParticipationView((data as { data: ParticipationApiRow[] }).data);
+    return toParticipationView(data.data);
   } catch {
     return toParticipationView([]);
   }

@@ -464,6 +464,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/analytics/participation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get participation rate over time
+     * @description The share of eligible voting power that actually voted, bucketed over a time window. Computed per proposal as cast VP / eligible VP, then averaged per bucket. Only proposals with eligible VP data contribute.
+     */
+    get: operations['DaoAnalyticsController_participation'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/daos/{slug}/analytics/concentration': {
     parameters: {
       query?: never;
@@ -1204,6 +1224,17 @@ export interface components {
     };
     PassRateResponseDto: {
       data: components['schemas']['PassRateRowDto'][];
+      _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    ParticipationRowDto: {
+      source_type: string;
+      bucket: string;
+      participation_rate?: Record<string, never> | null;
+      proposal_count: number;
+      proposals_with_data: number;
+    };
+    ParticipationResponseDto: {
+      data: components['schemas']['ParticipationRowDto'][];
       _meta: components['schemas']['AnalyticsMetaDto'];
     };
     ConcentrationTopShareDto: {
@@ -2344,6 +2375,56 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PassRateResponseDto'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  DaoAnalyticsController_participation: {
+    parameters: {
+      query?: {
+        bucket?: 'daily' | 'weekly' | 'monthly';
+        from?: string;
+        to?: string;
+        proposal_type?: string;
+      };
+      header?: never;
+      path: {
+        slug: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ParticipationResponseDto'];
         };
       };
       400: {
