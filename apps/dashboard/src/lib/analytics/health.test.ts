@@ -3,6 +3,7 @@ import {
   toConcentrationView,
   toDelegationFlowView,
   toLorenzBars,
+  toParticipationView,
   toPassRateView,
 } from './health';
 import type { components } from '@/lib/api/schema';
@@ -90,6 +91,74 @@ describe('toPassRateView', () => {
     ]);
     // Bucket 2026-05-01: 3 passed / 5 decided = 60%. Bucket 2026-06-01: 4 / 4 = 100%.
     expect(view.sparklineValues).toEqual([60, 100]);
+  });
+});
+
+describe('toParticipationView', () => {
+  it('builds per-source series and the overall weighted participation rate', () => {
+    const view = toParticipationView([
+      {
+        source_type: 'compound_governor',
+        bucket: '2026-05-01',
+        participation_rate: 0.2,
+        proposal_count: 3,
+        proposals_with_data: 2,
+      },
+      {
+        source_type: 'compound_governor',
+        bucket: '2026-06-01',
+        participation_rate: 0.4,
+        proposal_count: 2,
+        proposals_with_data: 2,
+      },
+    ]);
+    expect(view.series[0]!.label).toBe('compound_governor');
+    expect(view.series[0]!.values).toEqual([20, 40]);
+    // Weighted: (0.2 * 2 + 0.4 * 2) / (2 + 2) = 0.3 → 30%
+    expect(view.overallPct).toBe(30);
+  });
+
+  it('returns null overall when no rows have data', () => {
+    const view = toParticipationView([
+      {
+        source_type: 'x',
+        bucket: '2026-05-01',
+        participation_rate: null,
+        proposal_count: 1,
+        proposals_with_data: 0,
+      },
+    ]);
+    expect(view.overallPct).toBeNull();
+    expect(view.sparklineValues).toEqual([0]);
+  });
+
+  it('computes per-bucket sparklineValues weighted across sources', () => {
+    const view = toParticipationView([
+      {
+        source_type: 'a',
+        bucket: '2026-05-01',
+        participation_rate: 0.1,
+        proposal_count: 1,
+        proposals_with_data: 1,
+      },
+      {
+        source_type: 'b',
+        bucket: '2026-05-01',
+        participation_rate: 0.3,
+        proposal_count: 3,
+        proposals_with_data: 3,
+      },
+    ]);
+    // Weighted: (0.1 * 1 + 0.3 * 3) / (1 + 3) = 1.0 / 4 = 0.25 → 25%
+    expect(view.sparklineValues).toEqual([25]);
+  });
+
+  it('handles empty rows gracefully', () => {
+    const view = toParticipationView([]);
+    expect(view.buckets).toEqual([]);
+    expect(view.series).toEqual([]);
+    expect(view.overallPct).toBeNull();
+    expect(view.sparklineValues).toEqual([]);
   });
 });
 

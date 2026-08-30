@@ -1853,6 +1853,104 @@
         "tags": ["Analytics"]
       }
     },
+    "/v1/daos/{slug}/analytics/participation": {
+      "get": {
+        "description": "The share of eligible voting power that actually voted, bucketed over a time window. Computed per proposal as cast VP / eligible VP, then averaged per bucket. Only proposals with eligible VP data contribute.",
+        "operationId": "DaoAnalyticsController_participation",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bucket",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipationResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get participation rate over time",
+        "tags": ["Analytics"]
+      }
+    },
     "/v1/daos/{slug}/analytics/concentration": {
       "get": {
         "description": "How concentrated a DAO's voting power is over time — the share held by the largest holders, bucketed across the window. Returns 204 when no power-bearing delegation exists anywhere in the window.",
@@ -4466,6 +4564,43 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PassRateRowDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
+      },
+      "ParticipationRowDto": {
+        "type": "object",
+        "properties": {
+          "source_type": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string"
+          },
+          "participation_rate": {
+            "type": "object",
+            "nullable": true
+          },
+          "proposal_count": {
+            "type": "number"
+          },
+          "proposals_with_data": {
+            "type": "number"
+          }
+        },
+        "required": ["source_type", "bucket", "proposal_count", "proposals_with_data"]
+      },
+      "ParticipationResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRowDto"
             }
           },
           "_meta": {

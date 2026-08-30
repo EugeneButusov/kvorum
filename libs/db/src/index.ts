@@ -21,6 +21,7 @@ export type {
   DelegateLeaderboardRow,
   DelegationFlowEdgeRow,
   MirrorEnvelope,
+  ParticipationRow,
   PassRateRow,
 } from './analytics-read-repository';
 export type {

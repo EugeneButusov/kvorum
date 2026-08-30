@@ -32,6 +32,9 @@ import {
   toDelegationFlowNodeDtos,
 } from './delegation-flow.mappers';
 import { DELEGATION_FLOW_QUERY_SCHEMA } from './delegation-flow.query';
+import { ParticipationQueryDto, ParticipationResponseDto } from './participation.dto';
+import { toParticipationRowDto } from './participation.mappers';
+import { PARTICIPATION_QUERY_SCHEMA } from './participation.query';
 import { PassRateQueryDto, PassRateResponseDto } from './proposal-pass-rate.dto';
 import { toPassRateRowDto } from './proposal-pass-rate.mappers';
 import { PASS_RATE_QUERY_SCHEMA } from './proposal-pass-rate.query';
@@ -85,6 +88,44 @@ export class DaoAnalyticsController {
 
     return {
       data: rows.map(toPassRateRowDto),
+      _meta: { confirmed: true, derived_through: null },
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Get participation rate over time',
+    description:
+      'The share of eligible voting power that actually voted, bucketed over a time window. Computed per proposal as cast VP / eligible VP, then averaged per bucket. Only proposals with eligible VP data contribute.',
+  })
+  @Get('participation')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
+  @ApiOkResponse({ type: ParticipationResponseDto })
+  @ApiBadRequestResponse({ type: ProblemDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  async participation(
+    @Param('slug') slug: string,
+    @Query() raw: ParticipationQueryDto,
+  ): Promise<ParticipationResponseDto> {
+    const dao = await this.daoRepo.findDaoBySlug(slug);
+    if (dao === undefined) {
+      throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
+    }
+
+    const parsed = PARTICIPATION_QUERY_SCHEMA.safeParse(raw);
+    if (!parsed.success) throw validationFromZod(parsed.error.issues[0]);
+
+    const query = parsed.data;
+    const rows = await this.repo.participationByBucket({
+      daoId: dao.id,
+      bucket: query.bucket ?? 'monthly',
+      from: query.from,
+      to: query.to,
+      proposalType: query.proposal_type,
+    });
+
+    return {
+      data: rows.map(toParticipationRowDto),
       _meta: { confirmed: true, derived_through: null },
     };
   }

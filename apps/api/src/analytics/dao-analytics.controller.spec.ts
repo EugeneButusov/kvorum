@@ -13,6 +13,7 @@ const baseMeta = { mirrorLastEtl: new Date('2026-01-15') };
 function makeRepo(overrides: Record<string, unknown> = {}) {
   return {
     passRateByBucket: vi.fn().mockResolvedValue([]),
+    participationByBucket: vi.fn().mockResolvedValue([]),
     concentrationByBucket: vi.fn().mockResolvedValue({ rows: [], ...baseMeta }),
     findEarliestDelegationEventAt: vi.fn().mockResolvedValue(new Date('2025-01-01')),
     delegationFlowEdges: vi.fn().mockResolvedValue({ rows: [], ...baseMeta }),
@@ -72,6 +73,63 @@ describe('DaoAnalyticsController', () => {
       await expect(
         controller.passRate('test-dao', { bucket: 'invalid-grain' } as never),
       ).rejects.toBeInstanceOf(ProblemException);
+    });
+  });
+
+  describe('participation', () => {
+    it('returns participation data for known dao', async () => {
+      const repo = makeRepo({
+        participationByBucket: vi.fn().mockResolvedValue([
+          {
+            source_type: 'compound_governor',
+            bucket: new Date('2026-07-01'),
+            participation_rate: 0.235,
+            proposal_count: 5,
+            proposals_with_data: 4,
+          },
+        ]),
+      });
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+
+      const out = await controller.participation('test-dao', {
+        bucket: 'monthly',
+        from: new Date('2025-01-01'),
+        to: new Date('2026-01-01'),
+      } as never);
+      expect(out.data).toHaveLength(1);
+      expect(out.data[0]!.participation_rate).toBe(0.235);
+      expect(out.data[0]!.proposal_count).toBe(5);
+      expect(out._meta).toEqual({ confirmed: true, derived_through: null });
+    });
+
+    it('throws not-found when dao is missing', async () => {
+      const repo = makeRepo();
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(undefined) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+
+      await expect(controller.participation('unknown', {} as never)).rejects.toBeInstanceOf(
+        ProblemException,
+      );
+    });
+
+    it('throws 400 on invalid query params', async () => {
+      const repo = makeRepo();
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+
+      await expect(
+        controller.participation('test-dao', { bucket: 'invalid-grain' } as never),
+      ).rejects.toBeInstanceOf(ProblemException);
+    });
+
+    it('returns empty data when no proposals have eligible VP', async () => {
+      const repo = makeRepo();
+      const daoRepo = { findDaoBySlug: vi.fn().mockResolvedValue(baseDao) };
+      const controller = new DaoAnalyticsController(repo as never, daoRepo as never, {} as never);
+
+      const out = await controller.participation('test-dao', { bucket: 'monthly' } as never);
+      expect(out.data).toEqual([]);
     });
   });
 

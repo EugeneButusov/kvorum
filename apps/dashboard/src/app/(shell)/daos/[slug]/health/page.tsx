@@ -4,7 +4,13 @@ import { HealthTakeawaysSection } from '@/components/health/health-takeaways-sec
 import { RecentProposalsSection } from '@/components/health/recent-proposals-section';
 import { TreasurySection } from '@/components/health/treasury-section';
 import { TrendsSection } from '@/components/health/trends-section';
-import { fetchConcentration, fetchPassRate, rangeFrom, toLorenzBars } from '@/lib/analytics/health';
+import {
+  fetchConcentration,
+  fetchParticipation,
+  fetchPassRate,
+  rangeFrom,
+  toLorenzBars,
+} from '@/lib/analytics/health';
 import { serverApi } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { resolveTracks } from '@/lib/dao/tracks';
@@ -53,10 +59,11 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
   const { slug } = await params;
   const from90d = rangeFrom('90d', Date.now());
 
-  const [meta, concentration, passRate, delegates, proposals] = await Promise.all([
+  const [meta, concentration, passRate, participation, delegates, proposals] = await Promise.all([
     loadDaoMeta(slug),
     fetchConcentration(serverApi(), slug, { from: from90d }),
     fetchPassRate(serverApi(), slug, from90d),
+    fetchParticipation(serverApi(), slug, from90d),
     loadDelegateLeaderboard(serverApi(), slug, 50),
     fetchProposalPage(serverApi(), {
       slug,
@@ -73,7 +80,10 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
       label: 'Pass rate (90d)',
       value: passRate.overallPct == null ? '—' : `${passRate.overallPct}%`,
     },
-    { label: 'Participation', value: '—' },
+    {
+      label: 'Participation',
+      value: participation.overallPct == null ? '—' : `${participation.overallPct}%`,
+    },
     {
       label: 'Top-10 VP',
       value: concentration.current == null ? '—' : `${concentration.current.top10Pct.toFixed(1)}%`,
@@ -95,7 +105,7 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
       />
 
       <HealthTakeawaysSection slug={slug} />
-      <TrendsSection passRate={passRate} />
+      <TrendsSection passRate={passRate} participation={participation} />
       <ConcentrationSection
         delegates={top10}
         concentration={concentration}
