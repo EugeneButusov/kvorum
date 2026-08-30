@@ -15,6 +15,148 @@ function makeChain<T>(result: T) {
   return chain;
 }
 
+describe('AnalyticsReadRepository — participationByBucket', () => {
+  function makePgChain<T>(result: T) {
+    const chain = {
+      select: vi.fn(),
+      where: vi.fn(),
+      execute: vi.fn().mockResolvedValue(result),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    return chain;
+  }
+
+  function makeChChain<T>(result: T) {
+    const chain = {
+      select: vi.fn(),
+      where: vi.fn(),
+      groupBy: vi.fn(),
+      execute: vi.fn().mockResolvedValue(result),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    chain.groupBy.mockReturnValue(chain);
+    return chain;
+  }
+
+  it('joins PG proposals with CH vote totals and computes participation rate', async () => {
+    const pgRows = [
+      {
+        id: 'p1',
+        source_type: 'compound_governor',
+        eligible_voting_power: '1000000',
+        bucket: new Date('2026-07-01'),
+      },
+      {
+        id: 'p2',
+        source_type: 'compound_governor',
+        eligible_voting_power: '2000000',
+        bucket: new Date('2026-07-01'),
+      },
+    ];
+    const chRows = [
+      { proposal_id: 'p1', cast_vp: '250000' },
+      { proposal_id: 'p2', cast_vp: '500000' },
+    ];
+    const pgChainInst = makePgChain(pgRows);
+    const chChainInst = makeChChain(chRows);
+    const pg = { selectFrom: vi.fn().mockReturnValue(pgChainInst) };
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChainInst) };
+    const repo = new AnalyticsReadRepository(ch as never, pg as never);
+
+    const result = await repo.participationByBucket({
+      daoId: 'dao-1',
+      bucket: 'monthly',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.source_type).toBe('compound_governor');
+    expect(result[0]!.proposal_count).toBe(2);
+    expect(result[0]!.proposals_with_data).toBe(2);
+    // p1: 250000/1000000 = 0.25, p2: 500000/2000000 = 0.25 → avg = 0.25
+    expect(result[0]!.participation_rate).toBe(0.25);
+  });
+
+  it('returns empty when no PG proposals have eligible VP', async () => {
+    const pgChainInst = makePgChain([]);
+    const pg = { selectFrom: vi.fn().mockReturnValue(pgChainInst) };
+    const ch = { selectFrom: vi.fn() };
+    const repo = new AnalyticsReadRepository(ch as never, pg as never);
+
+    const result = await repo.participationByBucket({
+      daoId: 'dao-1',
+      bucket: 'monthly',
+    });
+
+    expect(result).toEqual([]);
+    expect(ch.selectFrom).not.toHaveBeenCalled();
+  });
+
+  it('sets participation_rate to null when no proposals have cast votes', async () => {
+    const pgRows = [
+      {
+        id: 'p1',
+        source_type: 'test_type',
+        eligible_voting_power: '1000000',
+        bucket: new Date('2026-07-01'),
+      },
+    ];
+    const pgChainInst = makePgChain(pgRows);
+    const chChainInst = makeChChain([]);
+    const pg = { selectFrom: vi.fn().mockReturnValue(pgChainInst) };
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChainInst) };
+    const repo = new AnalyticsReadRepository(ch as never, pg as never);
+
+    const result = await repo.participationByBucket({
+      daoId: 'dao-1',
+      bucket: 'monthly',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.proposal_count).toBe(1);
+    expect(result[0]!.proposals_with_data).toBe(0);
+    expect(result[0]!.participation_rate).toBeNull();
+  });
+
+  it('groups by source_type and bucket, sorting by bucket', async () => {
+    const pgRows = [
+      {
+        id: 'p1',
+        source_type: 'aave_governor_v2',
+        eligible_voting_power: '1000',
+        bucket: new Date('2026-08-01'),
+      },
+      {
+        id: 'p2',
+        source_type: 'compound_governor',
+        eligible_voting_power: '2000',
+        bucket: new Date('2026-07-01'),
+      },
+    ];
+    const chRows = [
+      { proposal_id: 'p1', cast_vp: '500' },
+      { proposal_id: 'p2', cast_vp: '400' },
+    ];
+    const pgChainInst = makePgChain(pgRows);
+    const chChainInst = makeChChain(chRows);
+    const pg = { selectFrom: vi.fn().mockReturnValue(pgChainInst) };
+    const ch = { selectFrom: vi.fn().mockReturnValue(chChainInst) };
+    const repo = new AnalyticsReadRepository(ch as never, pg as never);
+
+    const result = await repo.participationByBucket({
+      daoId: 'dao-1',
+      bucket: 'monthly',
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0]!.source_type).toBe('compound_governor');
+    expect(result[0]!.bucket).toEqual(new Date('2026-07-01'));
+    expect(result[1]!.source_type).toBe('aave_governor_v2');
+    expect(result[1]!.bucket).toEqual(new Date('2026-08-01'));
+  });
+});
+
 describe('AnalyticsReadRepository — guard tests for accidentally-safe aggregate reads', () => {
   it('guard R1: findEarliestDelegationEventAt returns the single min result unchanged', async () => {
     // Safe because min(created_at) over the VIEW rows = min over the support set.

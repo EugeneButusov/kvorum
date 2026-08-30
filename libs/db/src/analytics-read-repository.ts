@@ -63,6 +63,14 @@ export type PassRateRow = {
   pass_rate: number | null;
 };
 
+export type ParticipationRow = {
+  source_type: string;
+  bucket: Date;
+  participation_rate: number | null;
+  proposal_count: number;
+  proposals_with_data: number;
+};
+
 export type ConcentrationBucketRow = {
   bucket: Date;
   weights: string[];
@@ -219,6 +227,90 @@ export class AnalyticsReadRepository {
         pass_rate: denominator > 0 ? passed / denominator : null,
       };
     });
+  }
+
+  async participationByBucket(args: {
+    daoId: string;
+    bucket: BucketGrain;
+    from?: Date;
+    to?: Date;
+    proposalType?: string;
+  }): Promise<ParticipationRow[]> {
+    const bucketExpr = pgTimeBucketExpression('proposal.voting_starts_at', args.bucket);
+
+    let qb = this.pgDb
+      .selectFrom('proposal')
+      .select([
+        'proposal.id',
+        'proposal.source_type',
+        'proposal.eligible_voting_power',
+        bucketExpr.as('bucket'),
+      ])
+      .where('proposal.dao_id', '=', args.daoId)
+      .where('proposal.eligible_voting_power', 'is not', null)
+      .where('proposal.voting_starts_at', 'is not', null)
+      .where('proposal.state', 'in', [...RESOLVED_STATES]);
+
+    if (args.from !== undefined) qb = qb.where('proposal.voting_starts_at', '>=', args.from);
+    if (args.to !== undefined) qb = qb.where('proposal.voting_starts_at', '<=', args.to);
+    if (args.proposalType !== undefined)
+      qb = qb.where('proposal.source_type', '=', args.proposalType);
+
+    const pgRows = await qb.execute();
+    if (pgRows.length === 0) return [];
+
+    const proposalIds = pgRows.map((r) => r.id);
+    const chRows = await this.chDb
+      .selectFrom(sql<VoteEventsProjectionTable>`vote_events_projection`.as('v'))
+      .select('v.proposal_id')
+      .select(sql<string>`toString(sum(v.voting_power))`.as('cast_vp'))
+      .where('v.proposal_id', 'in', proposalIds)
+      .where('v.superseded', '=', 0)
+      .groupBy('v.proposal_id')
+      .execute();
+
+    const castVpByProposal = new Map(chRows.map((r) => [r.proposal_id, r.cast_vp]));
+
+    const groups = new Map<
+      string,
+      { source_type: string; bucket: Date; proposals: { eligible: bigint; cast: bigint | null }[] }
+    >();
+
+    for (const row of pgRows) {
+      const key = `${row.source_type}|${row.bucket.toISOString()}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = { source_type: row.source_type, bucket: row.bucket, proposals: [] };
+        groups.set(key, group);
+      }
+      const castRaw = castVpByProposal.get(row.id);
+      group.proposals.push({
+        eligible: BigInt(row.eligible_voting_power!),
+        cast: castRaw !== undefined ? BigInt(castRaw) : null,
+      });
+    }
+
+    const results: ParticipationRow[] = [];
+    for (const group of groups.values()) {
+      const withData = group.proposals.filter((p) => p.cast !== null && p.cast > 0n);
+      let rate: number | null = null;
+      if (withData.length > 0) {
+        const sum = withData.reduce(
+          (acc, p) => acc + Number((p.cast! * 1_000_000n) / p.eligible) / 1_000_000,
+          0,
+        );
+        rate = sum / withData.length;
+      }
+      results.push({
+        source_type: group.source_type,
+        bucket: group.bucket,
+        participation_rate: rate,
+        proposal_count: group.proposals.length,
+        proposals_with_data: withData.length,
+      });
+    }
+
+    return results.sort((a, b) => a.bucket.getTime() - b.bucket.getTime());
   }
 
   /**

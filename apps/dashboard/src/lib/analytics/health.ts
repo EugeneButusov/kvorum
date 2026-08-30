@@ -161,6 +161,85 @@ export async function fetchPassRate(api: Api, slug: string, from?: string): Prom
   }
 }
 
+// —— Participation ———————————————————————————————————————————————————————————————
+
+type ParticipationApiRow = {
+  source_type: string;
+  bucket: string;
+  participation_rate: number | null;
+  proposal_count: number;
+  proposals_with_data: number;
+};
+
+export type ParticipationView = {
+  buckets: string[];
+  series: Series[];
+  overallPct: number | null;
+  sparklineValues: number[];
+};
+
+export function toParticipationView(rows: ParticipationApiRow[]): ParticipationView {
+  const bucketKeys = [...new Set(rows.map((r) => r.bucket))].sort((a, b) => a.localeCompare(b));
+  const types = [...new Set(rows.map((r) => r.source_type))];
+  const byKey = new Map(rows.map((r) => [`${r.source_type}:${r.bucket}`, r]));
+
+  const series: Series[] = types.map((type) => ({
+    label: type,
+    values: bucketKeys.map((b) => {
+      const rate = num(byKey.get(`${type}:${b}`)?.participation_rate);
+      return rate == null ? 0 : Math.round(rate * 1000) / 10;
+    }),
+  }));
+
+  let totalWeighted = 0;
+  let totalWeight = 0;
+  for (const row of rows) {
+    if (row.participation_rate != null && row.proposals_with_data > 0) {
+      totalWeighted += row.participation_rate * row.proposals_with_data;
+      totalWeight += row.proposals_with_data;
+    }
+  }
+
+  const sparklineValues = bucketKeys.map((b) => {
+    const inBucket = rows.filter((r) => r.bucket === b);
+    let w = 0;
+    let wt = 0;
+    for (const r of inBucket) {
+      if (r.participation_rate != null && r.proposals_with_data > 0) {
+        w += r.participation_rate * r.proposals_with_data;
+        wt += r.proposals_with_data;
+      }
+    }
+    return wt > 0 ? Math.round((w / wt) * 1000) / 10 : 0;
+  });
+
+  return {
+    buckets: bucketKeys.map(bucketLabel),
+    series,
+    overallPct: totalWeight > 0 ? Math.round((totalWeighted / totalWeight) * 1000) / 10 : null,
+    sparklineValues,
+  };
+}
+
+export async function fetchParticipation(
+  api: Api,
+  slug: string,
+  from?: string,
+): Promise<ParticipationView> {
+  try {
+    const { data, error } = await api.GET(
+      '/v1/daos/{slug}/analytics/participation' as never,
+      {
+        params: { path: { slug }, query: { bucket: 'monthly', ...(from ? { from } : {}) } },
+      } as never,
+    );
+    if (error || !data) return toParticipationView([]);
+    return toParticipationView((data as { data: ParticipationApiRow[] }).data);
+  } catch {
+    return toParticipationView([]);
+  }
+}
+
 // —— Lorenz bars ——————————————————————————————————————————————————————————————————
 
 export type LorenzBar = {

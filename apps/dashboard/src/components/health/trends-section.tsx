@@ -1,8 +1,14 @@
 import { SparklineCard } from './sparkline-card';
 import { Section } from '@/components/ui/section';
-import type { PassRateView } from '@/lib/analytics/health';
+import type { ParticipationView, PassRateView } from '@/lib/analytics/health';
 
-export function TrendsSection({ passRate }: { passRate: PassRateView }) {
+export function TrendsSection({
+  passRate,
+  participation,
+}: {
+  passRate: PassRateView;
+  participation: ParticipationView;
+}) {
   const buckets = passRate.buckets;
   const dateRange = buckets.length >= 2 ? `${buckets[0]} → ${buckets[buckets.length - 1]}` : '—';
 
@@ -17,8 +23,8 @@ export function TrendsSection({ passRate }: { passRate: PassRateView }) {
           label="Participation rate"
           source="% VP that voted"
           dateRange={dateRange}
-          currentValue="—"
-          comingSoon
+          currentValue={participation.overallPct != null ? `${participation.overallPct}%` : '—'}
+          values={participation.sparklineValues}
         />
         <SparklineCard
           label="Pass rate"
