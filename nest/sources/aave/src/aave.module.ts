@@ -449,6 +449,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         aaveTokenArchiveWriter: AaveTokenArchiveWriter,
         aaveTokenDelegationProjectionApplier: AaveTokenDelegationProjectionApplier,
         aaveTokenActorAddressDeriver: AaveTokenActorAddressDeriver,
+        sharedProposalRepo: ProposalRepository,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         return {
@@ -488,6 +489,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             }),
             createAaveGovernorV2ReconcilePlugin({
               proposals,
+              proposalRepo: sharedProposalRepo,
               metrics,
               logger: toChainLogger(new Logger('AaveGovernorV2Reconcile')),
             }),
@@ -533,6 +535,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveTokenArchiveWriter,
         AaveTokenDelegationProjectionApplier,
         AaveTokenActorAddressDeriver,
+        ProposalRepository,
       ],
     },
   ],

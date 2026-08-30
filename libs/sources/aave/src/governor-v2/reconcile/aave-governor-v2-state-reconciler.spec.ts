@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AaveGovernorV2StateReconciler } from './aave-governor-v2-state-reconciler';
 import type { AaveStaleReconciliationRow } from '../../persistence/aave-proposal-repository';
+import { GOVERNANCE_STRATEGY_INTERFACE } from '../abi/governance-strategy';
 import {
   GOVERNOR_V2_STATE_INTERFACE,
   EXECUTOR_GRACE_PERIOD_INTERFACE,
@@ -16,9 +17,15 @@ const ZERO32 = '0x' + '00'.repeat(32);
 const BY_ID_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalById')!.selector;
 const STATE_SELECTOR = GOVERNOR_V2_STATE_INTERFACE.getFunction('getProposalState')!.selector;
 const GRACE_SELECTOR = EXECUTOR_GRACE_PERIOD_INTERFACE.getFunction('GRACE_PERIOD')!.selector;
+const STRATEGY_SELECTOR =
+  GOVERNANCE_STRATEGY_INTERFACE.getFunction('getTotalVotingSupplyAt')!.selector;
 
 function makeLogger() {
   return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+}
+
+function makeProposalRepo() {
+  return { fillEligibleVotingPower: vi.fn().mockResolvedValue(undefined) };
 }
 
 function makeRow(overrides: Partial<AaveStaleReconciliationRow> = {}): AaveStaleReconciliationRow {
@@ -32,6 +39,8 @@ function makeRow(overrides: Partial<AaveStaleReconciliationRow> = {}): AaveStale
     creation_block: '11500000',
     voting_starts_block: '11500000',
     voting_ends_block: '11550000',
+    eligible_voting_power: '1000',
+    voting_strategy_address: STRATEGY,
     ...overrides,
   };
 }
@@ -75,13 +84,14 @@ function encodeProposal(f: {
   ]);
 }
 
-/** A client.send dispatching getProposalById / getProposalState / GRACE_PERIOD / block by selector. */
+/** A client.send dispatching getProposalById / getProposalState / GRACE_PERIOD / strategy / block by selector. */
 function makeSend(opts: {
   proposal: string;
   /** getProposalState code, or 'revert' to make the eth_call throw (non-transient). */
   stateCode?: number | 'revert';
   grace?: bigint | string;
   blockTimestampHex?: string;
+  totalVotingSupply?: bigint;
 }) {
   return vi.fn(async (method: string, params: unknown[]) => {
     if (method === 'eth_getBlockByNumber') return { timestamp: opts.blockTimestampHex ?? '0x64' };
@@ -102,13 +112,22 @@ function makeSend(opts: {
               opts.grace ?? 86_400n,
             ]);
       }
+      if (data.startsWith(STRATEGY_SELECTOR)) {
+        return GOVERNANCE_STRATEGY_INTERFACE.encodeFunctionResult('getTotalVotingSupplyAt', [
+          opts.totalVotingSupply ?? 16_000_000n * 10n ** 18n,
+        ]);
+      }
     }
     throw new Error(`unexpected send: ${method}`);
   });
 }
 
-function make() {
-  return new AaveGovernorV2StateReconciler(makeLogger() as never, ['aave_governor_v2']);
+function make(proposalRepo = makeProposalRepo()) {
+  return new AaveGovernorV2StateReconciler(
+    makeLogger() as never,
+    ['aave_governor_v2'],
+    proposalRepo as never,
+  );
 }
 
 describe('AaveGovernorV2StateReconciler', () => {
@@ -465,5 +484,83 @@ describe('AaveGovernorV2StateReconciler', () => {
     });
 
     expect(proposals.markReconcileChecked).toHaveBeenCalledWith('proposal-v2-1', '12000000');
+  });
+
+  it('fills eligible_voting_power when null and voting_strategy_address is set', async () => {
+    const proposalRepo = makeProposalRepo();
+    const supply = 16_000_000n * 10n ** 18n;
+    const send = makeSend({
+      proposal: encodeProposal({ startBlock: 13_000_000n }),
+      totalVotingSupply: supply,
+    });
+
+    await make(proposalRepo).reconcileRow({
+      row: makeRow({
+        state: 'pending',
+        eligible_voting_power: null,
+        voting_strategy_address: STRATEGY,
+        voting_starts_block: '11500000',
+      }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: makeProposals() as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    const strategyCall = send.mock.calls.find(
+      (c) =>
+        c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(STRATEGY_SELECTOR),
+    );
+    expect(strategyCall).toBeDefined();
+    expect((strategyCall![1] as [{ to: string }])[0].to).toBe(STRATEGY);
+    expect((strategyCall![1] as [unknown, string])[1]).toBe('0x' + BigInt(11_500_000).toString(16));
+    expect(proposalRepo.fillEligibleVotingPower).toHaveBeenCalledWith(
+      'proposal-v2-1',
+      supply.toString(),
+    );
+  });
+
+  it('skips strategy call when eligible_voting_power is already set', async () => {
+    const proposalRepo = makeProposalRepo();
+    const send = makeSend({ proposal: encodeProposal({ startBlock: 13_000_000n }) });
+
+    await make(proposalRepo).reconcileRow({
+      row: makeRow({ state: 'pending', eligible_voting_power: '1000' }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: makeProposals() as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    const strategyCall = send.mock.calls.find(
+      (c) =>
+        c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(STRATEGY_SELECTOR),
+    );
+    expect(strategyCall).toBeUndefined();
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
+  });
+
+  it('skips strategy call when voting_strategy_address is null', async () => {
+    const proposalRepo = makeProposalRepo();
+    const send = makeSend({ proposal: encodeProposal({ startBlock: 13_000_000n }) });
+
+    await make(proposalRepo).reconcileRow({
+      row: makeRow({
+        state: 'pending',
+        eligible_voting_power: null,
+        voting_strategy_address: null,
+      }),
+      confirmedThreshold: 12_000_000n,
+      confirmedThresholdTag: '0xb71b00',
+      proposals: makeProposals() as never,
+      chainCtx: { client: { send }, chainCfg: { chainId: '0x1' } },
+    });
+
+    const strategyCall = send.mock.calls.find(
+      (c) =>
+        c[0] === 'eth_call' && (c[1] as [{ data: string }])[0].data.startsWith(STRATEGY_SELECTOR),
+    );
+    expect(strategyCall).toBeUndefined();
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
   });
 });

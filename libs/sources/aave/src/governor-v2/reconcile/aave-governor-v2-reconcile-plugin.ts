@@ -1,4 +1,5 @@
 import type { Logger } from '@libs/chain';
+import type { ProposalRepository } from '@libs/db';
 import {
   ReconcileDriver,
   type ReconcileDriverConfig,
@@ -11,6 +12,7 @@ import { SUPPORTED_CHAIN_IDS, AaveGovernorV2ConfigSchema } from '../plugin/plugi
 
 export interface AaveGovernorV2ReconcilePluginDeps {
   proposals: AaveProposalRepository;
+  proposalRepo: ProposalRepository;
   metrics: ReconcileDriverMetrics;
   logger: Logger;
 }
@@ -18,7 +20,11 @@ export interface AaveGovernorV2ReconcilePluginDeps {
 export function createAaveGovernorV2ReconcilePlugin(
   deps: AaveGovernorV2ReconcilePluginDeps,
 ): SourceIngester {
-  const reconciler = new AaveGovernorV2StateReconciler(deps.logger, ['aave_governor_v2']);
+  const reconciler = new AaveGovernorV2StateReconciler(
+    deps.logger,
+    ['aave_governor_v2'],
+    deps.proposalRepo,
+  );
   const config: ReconcileDriverConfig = {
     batchSize: Number(process.env['AAVE_V2_STATE_RECONCILE_BATCH_SIZE'] ?? 50),
     rpcFailEscalateAfter: Number(process.env['AAVE_V2_STATE_RECONCILE_RPC_FAIL_ESCALATE'] ?? 5),

@@ -13,6 +13,8 @@ export interface AaveStaleReconciliationRow extends BaseStaleReconciliationRow {
   creation_block: string;
   voting_starts_block: string | null;
   voting_ends_block: string | null;
+  eligible_voting_power: string | null;
+  voting_strategy_address: string | null;
 }
 
 export type AaveV2StaleReconciliationRow = AaveStaleReconciliationRow;
@@ -169,6 +171,8 @@ export class AaveProposalRepository
         'aave_proposal_metadata.creation_block',
         'proposal.voting_starts_block',
         'proposal.voting_ends_block',
+        'proposal.eligible_voting_power',
+        'aave_proposal_metadata.voting_strategy_address',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'queued'])

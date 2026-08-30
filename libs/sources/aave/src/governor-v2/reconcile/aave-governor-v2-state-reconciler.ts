@@ -1,10 +1,15 @@
 import type { Logger } from '@libs/chain';
 import type { ProposalState } from '@libs/db';
+import { ProposalRepository } from '@libs/db';
 import { type ReconcileOutcome, type StateReconciler, isTransientRpcError } from '@sources/core';
 import type {
   AaveProposalRepository,
   AaveStaleReconciliationRow,
 } from '../../persistence/aave-proposal-repository';
+import {
+  decodeTotalVotingSupplyAtResult,
+  encodeTotalVotingSupplyAtCall,
+} from '../abi/governance-strategy';
 import {
   AAVE_V2_STATE_FAILED,
   AAVE_V2_STATE_SUCCEEDED,
@@ -31,6 +36,7 @@ export class AaveGovernorV2StateReconciler implements StateReconciler<AaveStaleR
   constructor(
     private readonly logger: Logger,
     readonly sourceTypes: readonly string[],
+    private readonly proposalRepo: ProposalRepository,
   ) {}
 
   async reconcileRow(args: {
@@ -56,6 +62,20 @@ export class AaveGovernorV2StateReconciler implements StateReconciler<AaveStaleR
     const derived = deriveAaveV2State(summary, confirmedThreshold);
 
     await proposals.markReconcileChecked(row.id, confirmedThreshold.toString());
+
+    if (
+      row.eligible_voting_power === null &&
+      row.voting_strategy_address !== null &&
+      row.voting_starts_block !== null
+    ) {
+      const blockNumber = BigInt(row.voting_starts_block);
+      const totalSupplyHex = await chainCtx.client.send<string>('eth_call', [
+        { to: row.voting_strategy_address, data: encodeTotalVotingSupplyAtCall(blockNumber) },
+        `0x${blockNumber.toString(16)}`,
+      ]);
+      const totalSupply = decodeTotalVotingSupplyAtResult(totalSupplyHex);
+      await this.proposalRepo.fillEligibleVotingPower(row.id, totalSupply.toString());
+    }
 
     const resolved = await this.resolveTargetState(derived, {
       row,
