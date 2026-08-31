@@ -1,3 +1,9 @@
+export type {
+  EligibleVpProposalContext,
+  EligibleVpRpcSend,
+  EligibleVpProvider,
+} from './eligible-vp';
+
 export { decodeEvmScript, EvmScriptDecodeError } from './calldata/evmscript';
 export type { EvmScriptCall, EvmScriptDecodeErrorReason } from './calldata/evmscript';
 

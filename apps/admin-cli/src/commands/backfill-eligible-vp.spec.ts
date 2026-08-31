@@ -1,34 +1,26 @@
 import { Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  fetchCompoundVp,
-  fetchAaveV2Vp,
-  fetchAragonVp,
-  SUPPORTED_VP_FETCHERS,
-} from './backfill-eligible-vp.js';
+import { aaveV2EligibleVpProvider } from '@sources/aave';
+import { compoundEligibleVpProvider } from '@sources/compound';
+import type { EligibleVpProposalContext, EligibleVpRpcSend } from '@sources/core';
+import { aragonEligibleVpProvider } from '@sources/lido';
+import { buildVpFetcherMap } from '../plugins/eligible-vp-providers.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeRow(overrides: Record<string, unknown> = {}) {
+function makeCtx(overrides: Partial<EligibleVpProposalContext> = {}): EligibleVpProposalContext {
   return {
-    id: 'proposal-1',
-    source_id: '42',
-    source_type: 'compound_governor_bravo',
-    voting_starts_block: '18000000',
-    primary_token_address: '0xComp',
-    chain_id: '0x1',
-    voting_address: null as string | null,
-    voting_strategy_address: null as string | null,
+    sourceId: '42',
+    votingStartsBlock: '18000000',
+    primaryTokenAddress: '0xComp',
+    votingAddress: null,
+    votingStrategyAddress: null,
     ...overrides,
   };
 }
 
-function makeClient(returnValue: string) {
-  return {
-    send: vi.fn().mockResolvedValue(returnValue),
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-  };
+function makeSend(returnValue: string): EligibleVpRpcSend {
+  return vi.fn().mockResolvedValue(returnValue);
 }
 
 function encodeUint256(value: bigint): string {
@@ -36,106 +28,107 @@ function encodeUint256(value: bigint): string {
   return iface.encodeFunctionResult('f', [value]);
 }
 
-// ── Dispatch map ─────────────────────────────────────────────────────────────
+// ── Registry map ────────────────────────────────────────────────────────────
 
-describe('SUPPORTED_VP_FETCHERS', () => {
-  it('maps compound governor variants to the same fetcher', () => {
-    expect(SUPPORTED_VP_FETCHERS.get('compound_governor_bravo')).toBe(fetchCompoundVp);
-    expect(SUPPORTED_VP_FETCHERS.get('compound_governor_alpha')).toBe(fetchCompoundVp);
-    expect(SUPPORTED_VP_FETCHERS.get('compound_governor_oz')).toBe(fetchCompoundVp);
+describe('buildVpFetcherMap', () => {
+  const map = buildVpFetcherMap([
+    compoundEligibleVpProvider,
+    aaveV2EligibleVpProvider,
+    aragonEligibleVpProvider,
+  ]);
+
+  it('maps compound governor variants to the same provider', () => {
+    expect(map.get('compound_governor_bravo')).toBe(compoundEligibleVpProvider);
+    expect(map.get('compound_governor_alpha')).toBe(compoundEligibleVpProvider);
+    expect(map.get('compound_governor_oz')).toBe(compoundEligibleVpProvider);
   });
 
   it('maps aave governor v2', () => {
-    expect(SUPPORTED_VP_FETCHERS.get('aave_governor_v2')).toBe(fetchAaveV2Vp);
+    expect(map.get('aave_governor_v2')).toBe(aaveV2EligibleVpProvider);
   });
 
   it('maps aragon voting', () => {
-    expect(SUPPORTED_VP_FETCHERS.get('aragon_voting')).toBe(fetchAragonVp);
+    expect(map.get('aragon_voting')).toBe(aragonEligibleVpProvider);
   });
 
   it('returns undefined for unsupported source types', () => {
-    expect(SUPPORTED_VP_FETCHERS.get('snapshot')).toBeUndefined();
-    expect(SUPPORTED_VP_FETCHERS.get('easy_track')).toBeUndefined();
-    expect(SUPPORTED_VP_FETCHERS.get('dual_governance')).toBeUndefined();
+    expect(map.get('snapshot')).toBeUndefined();
+    expect(map.get('easy_track')).toBeUndefined();
+    expect(map.get('dual_governance')).toBeUndefined();
   });
 });
 
-// ── Compound fetcher ─────────────────────────────────────────────────────────
+// ── Compound provider ───────────────────────────────────────────────────────
 
-describe('fetchCompoundVp', () => {
+describe('compoundEligibleVpProvider', () => {
   it('calls totalSupply at the correct block and decodes the result', async () => {
     const expectedVp = 10_000_000n * 10n ** 18n;
     const encoded = encodeUint256(expectedVp);
-    const client = makeClient(encoded);
-    const row = makeRow();
+    const send = makeSend(encoded);
+    const ctx = makeCtx();
 
-    const result = await fetchCompoundVp(row, client);
+    const result = await compoundEligibleVpProvider.fetchEligibleVp(ctx, send);
 
     expect(result).toBe(expectedVp);
-    expect(client.send).toHaveBeenCalledOnce();
-    const [method, params] = client.send.mock.calls[0]!;
+    expect(send).toHaveBeenCalledOnce();
+    const [method, params] = (send as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(method).toBe('eth_call');
     expect((params as unknown[])[1]).toBe(`0x${BigInt('18000000').toString(16)}`);
   });
 
-  it('returns null when voting_starts_block is null', async () => {
-    const client = makeClient('0x');
-    const row = makeRow({ voting_starts_block: null });
+  it('returns null when votingStartsBlock is null', async () => {
+    const send = makeSend('0x');
+    const ctx = makeCtx({ votingStartsBlock: null });
 
-    const result = await fetchCompoundVp(row, client);
+    const result = await compoundEligibleVpProvider.fetchEligibleVp(ctx, send);
 
     expect(result).toBeNull();
-    expect(client.send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
-// ── Aave v2 fetcher ──────────────────────────────────────────────────────────
+// ── Aave v2 provider ────────────────────────────────────────────────────────
 
-describe('fetchAaveV2Vp', () => {
+describe('aaveV2EligibleVpProvider', () => {
   it('calls getTotalVotingSupplyAt with the correct block number', async () => {
     const expectedVp = 16_000_000n * 10n ** 18n;
     const encoded = encodeUint256(expectedVp);
-    const client = makeClient(encoded);
-    const row = makeRow({
-      source_type: 'aave_governor_v2',
-      voting_strategy_address: '0xStrategy',
-      voting_starts_block: '19500000',
+    const send = makeSend(encoded);
+    const ctx = makeCtx({
+      votingStrategyAddress: '0xStrategy',
+      votingStartsBlock: '19500000',
     });
 
-    const result = await fetchAaveV2Vp(row, client);
+    const result = await aaveV2EligibleVpProvider.fetchEligibleVp(ctx, send);
 
     expect(result).toBe(expectedVp);
-    expect(client.send).toHaveBeenCalledOnce();
-    const [, params] = client.send.mock.calls[0]!;
+    expect(send).toHaveBeenCalledOnce();
+    const [, params] = (send as ReturnType<typeof vi.fn>).mock.calls[0]!;
     const callParams = params as [{ to: string; data: string }, string];
     expect(callParams[0].to).toBe('0xStrategy');
     expect(callParams[1]).toBe(`0x${BigInt('19500000').toString(16)}`);
   });
 
-  it('returns null when voting_starts_block is null', async () => {
-    const client = makeClient('0x');
-    const row = makeRow({
-      source_type: 'aave_governor_v2',
-      voting_strategy_address: '0xS',
-      voting_starts_block: null,
-    });
+  it('returns null when votingStartsBlock is null', async () => {
+    const send = makeSend('0x');
+    const ctx = makeCtx({ votingStrategyAddress: '0xS', votingStartsBlock: null });
 
-    expect(await fetchAaveV2Vp(row, client)).toBeNull();
-    expect(client.send).not.toHaveBeenCalled();
+    expect(await aaveV2EligibleVpProvider.fetchEligibleVp(ctx, send)).toBeNull();
+    expect(send).not.toHaveBeenCalled();
   });
 
-  it('returns null when voting_strategy_address is null', async () => {
-    const client = makeClient('0x');
-    const row = makeRow({ source_type: 'aave_governor_v2', voting_strategy_address: null });
+  it('returns null when votingStrategyAddress is null', async () => {
+    const send = makeSend('0x');
+    const ctx = makeCtx({ votingStrategyAddress: null });
 
-    expect(await fetchAaveV2Vp(row, client)).toBeNull();
-    expect(client.send).not.toHaveBeenCalled();
+    expect(await aaveV2EligibleVpProvider.fetchEligibleVp(ctx, send)).toBeNull();
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
-// ── Aragon fetcher ───────────────────────────────────────────────────────────
+// ── Aragon provider ─────────────────────────────────────────────────────────
 
-describe('fetchAragonVp', () => {
+describe('aragonEligibleVpProvider', () => {
   it('calls getVote and extracts votingPower', async () => {
     const expectedVp = 5_000_000n * 10n ** 18n;
     const iface = new Interface([
@@ -154,28 +147,27 @@ describe('fetchAragonVp', () => {
       '0x', // script
       0, // phase
     ]);
-    const client = makeClient(encoded);
-    const row = makeRow({
-      source_type: 'aragon_voting',
-      source_id: '180',
-      voting_address: '0xVoting',
+    const send = makeSend(encoded);
+    const ctx = makeCtx({
+      sourceId: '180',
+      votingAddress: '0xVoting',
     });
 
-    const result = await fetchAragonVp(row, client);
+    const result = await aragonEligibleVpProvider.fetchEligibleVp(ctx, send);
 
     expect(result).toBe(expectedVp);
-    expect(client.send).toHaveBeenCalledOnce();
-    const [, params] = client.send.mock.calls[0]!;
+    expect(send).toHaveBeenCalledOnce();
+    const [, params] = (send as ReturnType<typeof vi.fn>).mock.calls[0]!;
     const callParams = params as [{ to: string }, string];
     expect(callParams[0].to).toBe('0xVoting');
     expect(callParams[1]).toBe('latest');
   });
 
-  it('returns null when voting_address is null', async () => {
-    const client = makeClient('0x');
-    const row = makeRow({ source_type: 'aragon_voting', voting_address: null });
+  it('returns null when votingAddress is null', async () => {
+    const send = makeSend('0x');
+    const ctx = makeCtx({ votingAddress: null });
 
-    expect(await fetchAragonVp(row, client)).toBeNull();
-    expect(client.send).not.toHaveBeenCalled();
+    expect(await aragonEligibleVpProvider.fetchEligibleVp(ctx, send)).toBeNull();
+    expect(send).not.toHaveBeenCalled();
   });
 });

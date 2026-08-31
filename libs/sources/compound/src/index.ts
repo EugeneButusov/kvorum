@@ -54,6 +54,7 @@ export {
   GovernorStateDecodeError,
   encodeTotalSupplyCall,
   decodeTotalSupplyResult,
+  compoundEligibleVpProvider,
   encodeStateCall,
   decodeStateResult,
   encodeTimelockCall,

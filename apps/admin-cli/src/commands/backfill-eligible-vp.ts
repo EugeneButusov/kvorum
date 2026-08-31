@@ -2,10 +2,11 @@ import { sql } from 'kysely';
 import { ProposalRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { emit, type OutputFormat } from '../output.js';
+import { buildVpFetcherMap, loadEligibleVpProviders } from '../plugins/eligible-vp-providers.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface BackfillCandidateRow {
+export interface BackfillCandidateRow {
   id: string;
   source_id: string;
   source_type: string;
@@ -21,8 +22,6 @@ interface RpcClient {
   start(): Promise<void>;
   stop(): Promise<void>;
 }
-
-type VpFetcher = (row: BackfillCandidateRow, client: RpcClient) => Promise<bigint | null>;
 
 // ── Query ────────────────────────────────────────────────────────────────────
 
@@ -59,71 +58,6 @@ export async function findCandidates(
 
   return query.execute() as Promise<BackfillCandidateRow[]>;
 }
-
-// ── Per-source VP fetchers ───────────────────────────────────────────────────
-
-export async function fetchCompoundVp(
-  row: BackfillCandidateRow,
-  client: RpcClient,
-): Promise<bigint | null> {
-  if (row.voting_starts_block == null) return null;
-
-  const { encodeTotalSupplyCall, decodeTotalSupplyResult } = await import('@sources/compound');
-
-  const blockTag = `0x${BigInt(row.voting_starts_block).toString(16)}`;
-  const hex = await client.send<string>('eth_call', [
-    { to: row.primary_token_address, data: encodeTotalSupplyCall() },
-    blockTag,
-  ]);
-  return decodeTotalSupplyResult(hex);
-}
-
-export async function fetchAaveV2Vp(
-  row: BackfillCandidateRow,
-  client: RpcClient,
-): Promise<bigint | null> {
-  if (row.voting_starts_block == null || row.voting_strategy_address == null) return null;
-
-  const { encodeTotalVotingSupplyAtCall, decodeTotalVotingSupplyAtResult } = await import(
-    '@sources/aave'
-  );
-
-  const blockNumber = BigInt(row.voting_starts_block);
-  const blockTag = `0x${blockNumber.toString(16)}`;
-  const hex = await client.send<string>('eth_call', [
-    { to: row.voting_strategy_address, data: encodeTotalVotingSupplyAtCall(blockNumber) },
-    blockTag,
-  ]);
-  return decodeTotalVotingSupplyAtResult(hex);
-}
-
-export async function fetchAragonVp(
-  row: BackfillCandidateRow,
-  client: RpcClient,
-): Promise<bigint | null> {
-  if (row.voting_address == null) return null;
-
-  const { encodeGetVote, decodeGetVote } = await import('@sources/lido');
-
-  const hex = await client.send<string>('eth_call', [
-    { to: row.voting_address, data: encodeGetVote(row.source_id) },
-    'latest',
-  ]);
-  const vote = decodeGetVote(hex);
-  return vote.votingPower;
-}
-
-// ── Dispatch map ─────────────────────────────────────────────────────────────
-
-const SUPPORTED_VP_FETCHERS = new Map<string, VpFetcher>([
-  ['compound_governor_bravo', fetchCompoundVp],
-  ['compound_governor_alpha', fetchCompoundVp],
-  ['compound_governor_oz', fetchCompoundVp],
-  ['aave_governor_v2', fetchAaveV2Vp],
-  ['aragon_voting', fetchAragonVp],
-]);
-
-export { SUPPORTED_VP_FETCHERS };
 
 // ── RPC client pool ──────────────────────────────────────────────────────────
 
@@ -186,6 +120,8 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
 
   process.stderr.write(`Found ${candidates.length} proposal(s) with NULL eligible_voting_power.\n`);
 
+  const providers = await loadEligibleVpProviders();
+  const fetcherMap = buildVpFetcherMap(providers);
   const pool = await buildRpcClientPool();
   const proposalRepo = new ProposalRepository(pgDb);
 
@@ -206,8 +142,8 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
         break;
       }
 
-      const fetcher = SUPPORTED_VP_FETCHERS.get(row.source_type);
-      if (fetcher == null) {
+      const provider = fetcherMap.get(row.source_type);
+      if (provider == null) {
         skippedTypes.add(row.source_type);
         skipped++;
         continue;
@@ -215,7 +151,14 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
 
       try {
         const client = await pool.get(row.chain_id);
-        const vp = await fetcher(row, client);
+        const ctx = {
+          sourceId: row.source_id,
+          votingStartsBlock: row.voting_starts_block,
+          primaryTokenAddress: row.primary_token_address,
+          votingAddress: row.voting_address,
+          votingStrategyAddress: row.voting_strategy_address,
+        };
+        const vp = await provider.fetchEligibleVp(ctx, client.send.bind(client));
 
         if (vp == null) {
           process.stderr.write(

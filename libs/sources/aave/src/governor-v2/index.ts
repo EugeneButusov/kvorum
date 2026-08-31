@@ -9,6 +9,7 @@ export {
   encodeTotalVotingSupplyAtCall,
   decodeTotalVotingSupplyAtResult,
 } from './abi/governance-strategy';
+export { aaveV2EligibleVpProvider } from './eligible-vp-provider';
 export {
   GOVERNOR_V2_STATE_INTERFACE,
   EXECUTOR_GRACE_PERIOD_INTERFACE,
