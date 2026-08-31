@@ -52,6 +52,8 @@ export {
   GOVERNOR_STATE_INTERFACE,
   TIMELOCK_INTERFACE,
   GovernorStateDecodeError,
+  encodeTotalSupplyCall,
+  decodeTotalSupplyResult,
   encodeStateCall,
   decodeStateResult,
   encodeTimelockCall,

@@ -26,6 +26,7 @@ export type {
 export { DecodeError } from '@sources/core';
 
 export { decodeCompoundLog } from './abi/decoder';
+export { encodeTotalSupplyCall, decodeTotalSupplyResult } from './abi/total-supply';
 export {
   GOVERNOR_STATE_INTERFACE,
   TIMELOCK_INTERFACE,

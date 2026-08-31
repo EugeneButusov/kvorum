@@ -6,6 +6,10 @@ export {
 export type { AaveGovernorV2EventType, AaveGovernorV2Topics } from './abi/events';
 export { decodeAaveGovernorV2Log } from './abi/decoder';
 export {
+  encodeTotalVotingSupplyAtCall,
+  decodeTotalVotingSupplyAtResult,
+} from './abi/governance-strategy';
+export {
   GOVERNOR_V2_STATE_INTERFACE,
   EXECUTOR_GRACE_PERIOD_INTERFACE,
   AaveGovernorV2StateDecodeError,

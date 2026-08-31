@@ -376,6 +376,28 @@ export function registerBackfill(program: Command): void {
         }
       });
     });
+
+  backfill
+    .command('eligible-vp')
+    .description('Backfill eligible_voting_power for historical proposals')
+    .requiredOption('--dao <slug>', 'DAO slug to scope the backfill')
+    .option('--source-type <type>', 'limit to a specific source type')
+    .option('--dry-run', 'log what would be written without making changes')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(
+      this: Command,
+      opts: BackfillCommonOptions & { dao: string; sourceType?: string; dryRun?: boolean },
+    ) {
+      await withBackfillFormat(this, opts, async (format) => {
+        const { runEligibleVpBackfill } = await import('./backfill-eligible-vp.js');
+        await runEligibleVpBackfill({
+          daoSlug: opts.dao,
+          sourceType: opts.sourceType,
+          dryRun: opts.dryRun === true,
+          format,
+        });
+      });
+    });
 }
 
 /**
