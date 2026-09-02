@@ -1,52 +1,7 @@
-import { ProposalRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
+import { buildContainer } from '../bootstrap.js';
 import { emit, type OutputFormat } from '../output.js';
 import { buildVpFetcherMap, loadEligibleVpProviders } from '../plugins/eligible-vp-providers.js';
-
-interface RpcClient {
-  send<T = unknown>(method: string, params: unknown[]): Promise<T>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
-}
-
-// ── RPC client pool ──────────────────────────────────────────────────────────
-
-export interface RpcClientPool {
-  get(chainId: string): Promise<RpcClient>;
-  stopAll(): Promise<void>;
-}
-
-export async function buildRpcClientPool(): Promise<RpcClientPool> {
-  const { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger } =
-    await import('@libs/chain');
-
-  const chainConfigs = parseChainConfigFromEnv(process.env);
-  const configByChainId = new Map(chainConfigs.map((c) => [normalizeChainId(c.chainId), c]));
-  const clients = new Map<string, RpcClient>();
-
-  return {
-    async get(chainId: string): Promise<RpcClient> {
-      const normalized = normalizeChainId(chainId);
-      const existing = clients.get(normalized);
-      if (existing != null) return existing;
-
-      const config = configByChainId.get(normalized);
-      if (config == null) throw new Error(`No chain config for ${normalized}`);
-
-      const client = new FailoverRpcClient(config, { logger: consoleLogger });
-      await client.start();
-      clients.set(normalized, client);
-      return client;
-    },
-
-    async stopAll(): Promise<void> {
-      await Promise.all([...clients.values()].map((c) => c.stop()));
-      clients.clear();
-    },
-  };
-}
-
-// ── Orchestrator ─────────────────────────────────────────────────────────────
 
 export interface BackfillEligibleVpOptions {
   daoSlug: string;
@@ -56,8 +11,14 @@ export interface BackfillEligibleVpOptions {
 }
 
 export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Promise<void> {
-  const proposalRepo = new ProposalRepository(pgDb);
-  const candidates = await proposalRepo.findEligibleVpCandidates(opts.daoSlug, opts.sourceType);
+  const { FailoverRpcClient, normalizeChainId, parseChainConfigFromEnv, consoleLogger } =
+    await import('@libs/chain');
+
+  const { proposalRepository } = buildContainer();
+  const candidates = await proposalRepository.findEligibleVpCandidates(
+    opts.daoSlug,
+    opts.sourceType,
+  );
   if (candidates.length === 0) {
     emit(opts.format, () => 'No proposals with NULL eligible_voting_power found.', {
       filled: 0,
@@ -73,7 +34,29 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
 
   const providers = await loadEligibleVpProviders();
   const fetcherMap = buildVpFetcherMap(providers);
-  const pool = await buildRpcClientPool();
+
+  const chainConfigs = parseChainConfigFromEnv(process.env);
+  const configByChainId = new Map(chainConfigs.map((c) => [normalizeChainId(c.chainId), c]));
+  const clients = new Map<string, InstanceType<typeof FailoverRpcClient>>();
+
+  async function getClient(chainId: string): Promise<InstanceType<typeof FailoverRpcClient>> {
+    const normalized = normalizeChainId(chainId);
+    const existing = clients.get(normalized);
+    if (existing != null) return existing;
+
+    const config = configByChainId.get(normalized);
+    if (config == null) throw new Error(`No chain config for ${normalized}`);
+
+    const client = new FailoverRpcClient(config, { logger: consoleLogger });
+    await client.start();
+    clients.set(normalized, client);
+    return client;
+  }
+
+  async function stopAll(): Promise<void> {
+    await Promise.all([...clients.values()].map((c) => c.stop()));
+    clients.clear();
+  }
 
   const controller = new AbortController();
   const onSignal = () => controller.abort();
@@ -100,7 +83,7 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
       }
 
       try {
-        const client = await pool.get(row.chain_id);
+        const client = await getClient(row.chain_id);
         const ctx = {
           sourceId: row.source_id,
           votingStartsBlock: row.voting_starts_block,
@@ -123,7 +106,7 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
             `  [${i + 1}/${candidates.length}] dry-run ${row.id} (${row.source_type}): ${vp.toString()}\n`,
           );
         } else {
-          await proposalRepo.fillEligibleVotingPower(row.id, vp.toString());
+          await proposalRepository.fillEligibleVotingPower(row.id, vp.toString());
           process.stderr.write(
             `  [${i + 1}/${candidates.length}] filled ${row.id} (${row.source_type}): ${vp.toString()}\n`,
           );
@@ -152,7 +135,7 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
   } finally {
     process.off('SIGINT', onSignal);
     process.off('SIGTERM', onSignal);
-    await pool.stopAll();
+    await stopAll();
   }
 
   if (skippedTypes.size > 0) {

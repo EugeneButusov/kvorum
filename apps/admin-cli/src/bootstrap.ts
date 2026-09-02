@@ -10,6 +10,7 @@ import {
   DlqRepository,
   ProposalActionRepository,
   ProposalReadRepository,
+  ProposalRepository,
   SystemStatusRepository,
   UserRepository,
   chDb,
@@ -30,6 +31,7 @@ export interface AdminCliContainer {
   apiKeyRepository: ApiKeyRepository;
   dlqRepository: DlqRepository;
   adminAuditRepository: AdminAuditRepository;
+  proposalRepository: ProposalRepository;
   archiveDerivationRepository: ArchiveDerivationAdminRepository;
   systemStatusRepository: SystemStatusRepository;
 }
@@ -48,6 +50,7 @@ export function buildContainer(): AdminCliContainer {
     apiKeyRepository: new ApiKeyRepository(pgDb),
     dlqRepository: new DlqRepository(pgDb),
     adminAuditRepository: new AdminAuditRepository(pgDb),
+    proposalRepository: new ProposalRepository(pgDb),
     archiveDerivationRepository: new ArchiveDerivationAdminRepository(pgDb),
     systemStatusRepository: new SystemStatusRepository(pgDb),
   };
