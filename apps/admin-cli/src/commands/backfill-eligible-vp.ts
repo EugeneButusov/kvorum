@@ -1,62 +1,12 @@
-import { sql } from 'kysely';
 import { ProposalRepository, pgDb } from '@libs/db';
 import { withAudit } from '../audit.js';
 import { emit, type OutputFormat } from '../output.js';
 import { buildVpFetcherMap, loadEligibleVpProviders } from '../plugins/eligible-vp-providers.js';
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-export interface BackfillCandidateRow {
-  id: string;
-  source_id: string;
-  source_type: string;
-  voting_starts_block: string | null;
-  primary_token_address: string;
-  chain_id: string;
-  voting_address: string | null;
-  voting_strategy_address: string | null;
-}
-
 interface RpcClient {
   send<T = unknown>(method: string, params: unknown[]): Promise<T>;
   start(): Promise<void>;
   stop(): Promise<void>;
-}
-
-// ── Query ────────────────────────────────────────────────────────────────────
-
-export async function findCandidates(
-  daoSlug: string,
-  sourceType?: string,
-): Promise<BackfillCandidateRow[]> {
-  let query = pgDb
-    .selectFrom('proposal')
-    .innerJoin('dao', 'dao.id', 'proposal.dao_id')
-    .innerJoin('dao_source', (join) =>
-      join
-        .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
-        .onRef('dao_source.source_type', '=', 'proposal.source_type'),
-    )
-    .leftJoin('aave_proposal_metadata', 'aave_proposal_metadata.proposal_id', 'proposal.id')
-    .select([
-      'proposal.id',
-      'proposal.source_id',
-      'proposal.source_type',
-      'proposal.voting_starts_block',
-      'dao.primary_token_address',
-      'dao_source.chain_id',
-      sql<string | null>`dao_source.source_config ->> 'voting_address'`.as('voting_address'),
-      'aave_proposal_metadata.voting_strategy_address',
-    ])
-    .where('proposal.eligible_voting_power', 'is', null)
-    .where('dao.slug', '=', daoSlug)
-    .orderBy('proposal.created_at', 'asc');
-
-  if (sourceType != null) {
-    query = query.where('proposal.source_type', '=', sourceType);
-  }
-
-  return query.execute() as Promise<BackfillCandidateRow[]>;
 }
 
 // ── RPC client pool ──────────────────────────────────────────────────────────
@@ -106,7 +56,8 @@ export interface BackfillEligibleVpOptions {
 }
 
 export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Promise<void> {
-  const candidates = await findCandidates(opts.daoSlug, opts.sourceType);
+  const proposalRepo = new ProposalRepository(pgDb);
+  const candidates = await proposalRepo.findEligibleVpCandidates(opts.daoSlug, opts.sourceType);
   if (candidates.length === 0) {
     emit(opts.format, () => 'No proposals with NULL eligible_voting_power found.', {
       filled: 0,
@@ -123,7 +74,6 @@ export async function runEligibleVpBackfill(opts: BackfillEligibleVpOptions): Pr
   const providers = await loadEligibleVpProviders();
   const fetcherMap = buildVpFetcherMap(providers);
   const pool = await buildRpcClientPool();
-  const proposalRepo = new ProposalRepository(pgDb);
 
   const controller = new AbortController();
   const onSignal = () => controller.abort();

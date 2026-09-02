@@ -54,6 +54,7 @@ export { ProposalActionRepository } from './proposal-action-repository';
 export { SelectorIndexRepository } from './selector-index-repository';
 export type {
   AdvanceProposalStateInput,
+  EligibleVpCandidateRow,
   InsertProposalResult,
   PendingTimestampFillRow,
   ProposalActionInput,
