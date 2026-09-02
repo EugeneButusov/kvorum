@@ -112,6 +112,7 @@ export {
   decodeGetVote,
 } from './aragon-voting/abi/get-vote';
 export type { AragonGetVoteResult } from './aragon-voting/abi/get-vote';
+export { aragonEligibleVpProvider } from './aragon-voting/eligible-vp-provider';
 export { AragonStateReconciler } from './aragon-voting/reconcile/aragon-state-reconciler';
 export { createLidoAragonVotingReconcilePlugin } from './aragon-voting/reconcile/aragon-reconcile-plugin';
 export type { LidoAragonVotingReconcilePluginDeps } from './aragon-voting/reconcile/aragon-reconcile-plugin';

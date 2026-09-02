@@ -29,6 +29,17 @@ export interface AdvanceProposalStateInput {
   stateUpdatedAt: Date;
 }
 
+export interface EligibleVpCandidateRow {
+  id: string;
+  source_id: string;
+  source_type: string;
+  voting_starts_block: string | null;
+  primary_token_address: string;
+  chain_id: string;
+  voting_address: string | null;
+  voting_strategy_address: string | null;
+}
+
 export interface PendingTimestampFillRow {
   id: string;
   chain_id: string;
@@ -295,6 +306,45 @@ export class ProposalRepository {
       .orderBy('proposal.voting_starts_block', 'asc')
       .limit(limit)
       .execute();
+  }
+
+  async findEligibleVpCandidates(
+    daoSlug: string,
+    sourceType?: string,
+  ): Promise<EligibleVpCandidateRow[]> {
+    let query = this.db
+      .selectFrom('proposal')
+      .innerJoin('dao', 'dao.id', 'proposal.dao_id')
+      .innerJoin('dao_source', (join) =>
+        join
+          .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
+          .onRef('dao_source.source_type', '=', 'proposal.source_type'),
+      )
+      .select([
+        'proposal.id',
+        'proposal.source_id',
+        'proposal.source_type',
+        'proposal.voting_starts_block',
+        'dao.primary_token_address',
+        'dao_source.chain_id',
+        sql<string | null>`dao_source.source_config ->> 'voting_address'`.as('voting_address'),
+        // aave_proposal_metadata is added to PgDatabase via module augmentation
+        // in libs/sources/aave — not visible to libs/db's typed schema
+        sql<
+          string | null
+        >`(SELECT voting_strategy_address FROM aave_proposal_metadata WHERE proposal_id = proposal.id)`.as(
+          'voting_strategy_address',
+        ),
+      ])
+      .where('proposal.eligible_voting_power', 'is', null)
+      .where('dao.slug', '=', daoSlug)
+      .orderBy('proposal.created_at', 'asc');
+
+    if (sourceType != null) {
+      query = query.where('proposal.source_type', '=', sourceType);
+    }
+
+    return query.execute();
   }
 
   async fillTimestamps(rows: readonly TimestampFillInput[]): Promise<void> {
