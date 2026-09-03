@@ -1,3 +1,4 @@
+import { Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
 import { AaveGovernanceStateReconciler } from './aave-governance-state-reconciler';
 import {
@@ -7,6 +8,12 @@ import {
 
 function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+}
+
+function makeProposalRepo() {
+  return {
+    fillEligibleVotingPower: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 function makeProposals() {
@@ -52,6 +59,9 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
     governance_address: '0x9aee0b04504cef83a65ac3f0e838d0593bcb2bc7',
     state: 'active',
     creation_block: '12',
+    eligible_voting_power: null,
+    voting_starts_block: null,
+    primary_token_address: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
     ...overrides,
   };
 }
@@ -59,9 +69,11 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
 describe('AaveGovernanceStateReconciler', () => {
   it('reconciles an expired row using creation block timestamp plus expiration time', async () => {
     const proposals = makeProposals();
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     const result = await reconciler.reconcileRow({
       row: makeRow(),
@@ -83,9 +95,11 @@ describe('AaveGovernanceStateReconciler', () => {
 
   it('returns already_consistent when onchain state matches local state', async () => {
     const proposals = makeProposals();
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     const result = await reconciler.reconcileRow({
       row: makeRow({ state: 'expired' }),
@@ -138,9 +152,11 @@ describe('AaveGovernanceStateReconciler', () => {
   it('returns guard_skipped when reconcileState updates no rows', async () => {
     const proposals = makeProposals();
     proposals.reconcileState.mockResolvedValue(0);
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     const result = await reconciler.reconcileRow({
       row: makeRow(),
@@ -155,9 +171,11 @@ describe('AaveGovernanceStateReconciler', () => {
 
   it('returns guard_skipped when expiration is outside accepted bounds', async () => {
     const proposals = makeProposals();
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     const result = await reconciler.reconcileRow({
       row: makeRow(),
@@ -188,9 +206,11 @@ describe('AaveGovernanceStateReconciler', () => {
 
   it('rethrows decode errors while resolving expiration', async () => {
     const proposals = makeProposals();
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     await expect(
       reconciler.reconcileRow({
@@ -219,9 +239,11 @@ describe('AaveGovernanceStateReconciler', () => {
   it('caches expiration time per chain and governance address', async () => {
     const proposals = makeProposals();
     const chainCtx = makeChainCtx();
-    const reconciler = new AaveGovernanceStateReconciler(makeLogger() as never, [
-      'aave_governance_v3',
-    ]);
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      makeProposalRepo() as never,
+    );
 
     await reconciler.reconcileRow({
       row: makeRow(),
@@ -246,5 +268,95 @@ describe('AaveGovernanceStateReconciler', () => {
         ),
     );
     expect(expirationCalls).toHaveLength(1);
+  });
+
+  it('fills eligible VP via totalSupply when voting_starts_block is set and VP is null', async () => {
+    const proposals = makeProposals();
+    const proposalRepo = makeProposalRepo();
+    const expectedVp = 16_000_000n * 10n ** 18n;
+    const erc20Iface = new Interface(['function totalSupply() view returns (uint256)']);
+    const totalSupplySelector = erc20Iface.getFunction('totalSupply')!.selector;
+
+    const chainCtx = makeChainCtx((method, params) => {
+      if (method === 'eth_call') {
+        const request = params[0] as { data: string };
+        if (request.data.startsWith(totalSupplySelector)) {
+          return erc20Iface.encodeFunctionResult('totalSupply', [expectedVp]);
+        }
+        if (
+          request.data.startsWith(
+            GOVERNANCE_STATE_INTERFACE.getFunction('getProposalState')!.selector,
+          )
+        ) {
+          return GOVERNANCE_STATE_INTERFACE.encodeFunctionResult('getProposalState', [7n]);
+        }
+        return GOVERNANCE_STATE_INTERFACE.encodeFunctionResult('PROPOSAL_EXPIRATION_TIME', [
+          86400n,
+        ]);
+      }
+      return { timestamp: '0x64' };
+    });
+
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      proposalRepo as never,
+    );
+
+    await reconciler.reconcileRow({
+      row: makeRow({ voting_starts_block: '18000000' }),
+      proposals: proposals as never,
+      confirmedThreshold: 1000n,
+      confirmedThresholdTag: '0x3e8',
+      chainCtx: chainCtx as never,
+    });
+
+    expect(proposalRepo.fillEligibleVotingPower).toHaveBeenCalledWith(
+      'proposal-1',
+      expectedVp.toString(),
+    );
+  });
+
+  it('skips eligible VP fill when voting_starts_block is null', async () => {
+    const proposals = makeProposals();
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      proposalRepo as never,
+    );
+
+    await reconciler.reconcileRow({
+      row: makeRow({ voting_starts_block: null }),
+      proposals: proposals as never,
+      confirmedThreshold: 1000n,
+      confirmedThresholdTag: '0x3e8',
+      chainCtx: makeChainCtx() as never,
+    });
+
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
+  });
+
+  it('skips eligible VP fill when eligible_voting_power is already set', async () => {
+    const proposals = makeProposals();
+    const proposalRepo = makeProposalRepo();
+    const reconciler = new AaveGovernanceStateReconciler(
+      makeLogger() as never,
+      ['aave_governance_v3'],
+      proposalRepo as never,
+    );
+
+    await reconciler.reconcileRow({
+      row: makeRow({
+        voting_starts_block: '18000000',
+        eligible_voting_power: '16000000000000000000000000',
+      }),
+      proposals: proposals as never,
+      confirmedThreshold: 1000n,
+      confirmedThresholdTag: '0x3e8',
+      chainCtx: makeChainCtx() as never,
+    });
+
+    expect(proposalRepo.fillEligibleVotingPower).not.toHaveBeenCalled();
   });
 });

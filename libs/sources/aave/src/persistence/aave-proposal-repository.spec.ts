@@ -231,7 +231,7 @@ describe('AaveProposalRepository', () => {
     expect(select.selectFrom).toHaveBeenCalledWith('proposal');
     expect(select.chain.execute).toHaveBeenCalledOnce();
     expect(result).toEqual([{ id: 'proposal-1', state: 'active' }]);
-    expect(select.chain.innerJoin).toHaveBeenCalledTimes(2);
+    expect(select.chain.innerJoin).toHaveBeenCalledTimes(3);
     expect(select.chain.where).toHaveBeenCalledWith('proposal.source_type', 'in', [
       'aave_governance_v3',
     ]);

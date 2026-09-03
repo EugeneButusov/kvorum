@@ -41,6 +41,7 @@ function makeRow(overrides: Partial<AaveStaleReconciliationRow> = {}): AaveStale
     voting_ends_block: '11550000',
     eligible_voting_power: '1000',
     voting_strategy_address: STRATEGY,
+    primary_token_address: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
     ...overrides,
   };
 }

@@ -1,4 +1,5 @@
 import type { Logger } from '@libs/chain';
+import type { ProposalRepository } from '@libs/db';
 import type { ReconcileOutcome, StateReconciler } from '@sources/core';
 import type {
   AaveProposalRepository,
@@ -12,6 +13,7 @@ import {
   encodeGetProposalStateCall,
   mapAaveStateCode,
 } from '../abi/governance-state';
+import { decodeTotalSupplyResult, encodeTotalSupplyCall } from '../abi/total-supply';
 
 export class AaveGovernanceStateReconciler implements StateReconciler<AaveStaleReconciliationRow> {
   private readonly expirationCache = new Map<string, number>();
@@ -19,6 +21,7 @@ export class AaveGovernanceStateReconciler implements StateReconciler<AaveStaleR
   constructor(
     private readonly logger: Logger,
     readonly sourceTypes: readonly string[],
+    private readonly proposalRepo: ProposalRepository,
   ) {}
 
   async reconcileRow(args: {
@@ -40,6 +43,15 @@ export class AaveGovernanceStateReconciler implements StateReconciler<AaveStaleR
     });
 
     await proposals.markReconcileChecked(row.id, confirmedThreshold.toString());
+
+    if (row.eligible_voting_power === null && row.voting_starts_block !== null) {
+      const hex = await chainCtx.client.send<string>('eth_call', [
+        { to: row.primary_token_address, data: encodeTotalSupplyCall() },
+        `0x${BigInt(row.voting_starts_block).toString(16)}`,
+      ]);
+      const totalSupply = decodeTotalSupplyResult(hex);
+      await this.proposalRepo.fillEligibleVotingPower(row.id, totalSupply.toString());
+    }
 
     if (mapped === row.state) return { outcome: 'already_consistent' };
     if (mapped !== 'expired') {

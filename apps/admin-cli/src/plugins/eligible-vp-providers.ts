@@ -9,6 +9,7 @@ export async function loadEligibleVpProviders(): Promise<readonly EligibleVpProv
   return [
     compound.compoundEligibleVpProvider,
     aave.aaveV2EligibleVpProvider,
+    aave.aaveV3EligibleVpProvider,
     lido.aragonEligibleVpProvider,
   ];
 }

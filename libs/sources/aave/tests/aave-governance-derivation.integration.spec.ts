@@ -298,10 +298,10 @@ describeIf('aave governance derivation integration', () => {
       description: 'Loaded body',
       description_hash: DESCRIPTION_HASH,
       binding: true,
-      // v3 voting runs on the voting machine's chain, so mainnet reports no start/end block and the
-      // TimestampFillerService (which requires one) can never resolve this window — it comes from
-      // VotingActivated instead.
-      voting_starts_block: null,
+      // v3 voting runs on the voting machine's chain — voting_starts_block is filled from the
+      // VotingActivated event's archive block_number; voting_ends_block stays null (no on-chain end
+      // block for v3).
+      voting_starts_block: '102',
       voting_ends_block: null,
       state: 'executed',
     });

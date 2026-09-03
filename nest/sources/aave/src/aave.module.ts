@@ -484,6 +484,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
             }),
             createAaveGovernanceV3ReconcilePlugin({
               proposals,
+              proposalRepo: sharedProposalRepo,
               metrics,
               logger: toChainLogger(new Logger('AaveGovernanceReconcile')),
             }),

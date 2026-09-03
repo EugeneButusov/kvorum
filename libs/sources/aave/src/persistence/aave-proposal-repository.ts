@@ -15,6 +15,7 @@ export interface AaveStaleReconciliationRow extends BaseStaleReconciliationRow {
   voting_ends_block: string | null;
   eligible_voting_power: string | null;
   voting_strategy_address: string | null;
+  primary_token_address: string;
 }
 
 export type AaveV2StaleReconciliationRow = AaveStaleReconciliationRow;
@@ -153,6 +154,7 @@ export class AaveProposalRepository
 
     return this.db
       .selectFrom('proposal')
+      .innerJoin('dao', 'dao.id', 'proposal.dao_id')
       .innerJoin('dao_source', (join) =>
         join
           .onRef('dao_source.dao_id', '=', 'proposal.dao_id')
@@ -173,6 +175,7 @@ export class AaveProposalRepository
         'proposal.voting_ends_block',
         'proposal.eligible_voting_power',
         'aave_proposal_metadata.voting_strategy_address',
+        'dao.primary_token_address',
       ])
       .where('proposal.source_type', 'in', sourceTypes)
       .where('proposal.state', 'in', ['pending', 'active', 'queued'])
