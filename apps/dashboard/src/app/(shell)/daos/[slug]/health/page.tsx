@@ -2,7 +2,6 @@ import { ConcentrationSection } from '@/components/health/concentration-section'
 import { HealthHeader, type HealthKpi } from '@/components/health/health-header';
 import { HealthTakeawaysSection } from '@/components/health/health-takeaways-section';
 import { RecentProposalsSection } from '@/components/health/recent-proposals-section';
-import { TreasurySection } from '@/components/health/treasury-section';
 import { TrendsSection } from '@/components/health/trends-section';
 import {
   fetchConcentration,
@@ -118,7 +117,6 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
         concentration={concentration}
         lorenzBars={lorenzBars}
       />
-      <TreasurySection />
       <RecentProposalsSection proposals={proposals.items.slice(0, 6)} />
     </div>
   );
