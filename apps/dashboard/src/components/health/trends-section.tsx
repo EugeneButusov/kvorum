@@ -1,13 +1,15 @@
 import { SparklineCard } from './sparkline-card';
 import { Section } from '@/components/ui/section';
-import type { ParticipationView, PassRateView } from '@/lib/analytics/health';
+import type { ForumActivityView, ParticipationView, PassRateView } from '@/lib/analytics/health';
 
 export function TrendsSection({
   passRate,
   participation,
+  forumActivity,
 }: {
   passRate: PassRateView;
   participation: ParticipationView;
+  forumActivity: ForumActivityView;
 }) {
   const buckets = passRate.buckets;
   const dateRange = buckets.length >= 2 ? `${buckets[0]} → ${buckets[buckets.length - 1]}` : '—';
@@ -37,8 +39,10 @@ export function TrendsSection({
           label="Forum activity"
           source="posts / week"
           dateRange={dateRange}
-          currentValue="—"
-          comingSoon
+          currentValue={forumActivity.currentValue}
+          values={
+            forumActivity.sparklineValues.length > 0 ? forumActivity.sparklineValues : undefined
+          }
         />
       </div>
     </Section>

@@ -2324,6 +2324,96 @@
         "tags": ["Analytics"]
       }
     },
+    "/v1/daos/{slug}/analytics/forum-activity": {
+      "get": {
+        "description": "Forum post volume for a DAO's Discourse governance category, bucketed over a time window. Derived from crawled thread data in the archive.",
+        "operationId": "DaoAnalyticsController_forumActivity",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bucket",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForumActivityResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get forum activity over time",
+        "tags": ["Analytics"]
+      }
+    },
     "/v1/search": {
       "get": {
         "description": "Full-text search with ranked results per entity type. Automatically detects hex addresses and routes to direct address lookup for actors.",
@@ -4859,6 +4949,33 @@
           }
         },
         "required": ["focal_delegate", "peers", "pagination", "_meta"]
+      },
+      "ForumActivityRowDto": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "post_count": {
+            "type": "number"
+          }
+        },
+        "required": ["bucket", "post_count"]
+      },
+      "ForumActivityResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ForumActivityRowDto"
+            }
+          },
+          "_meta": {
+            "$ref": "#/components/schemas/AnalyticsMetaDto"
+          }
+        },
+        "required": ["data", "_meta"]
       },
       "ProposalSearchItemDto": {
         "type": "object",

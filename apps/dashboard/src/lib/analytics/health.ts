@@ -233,6 +233,41 @@ export async function fetchParticipation(
   }
 }
 
+// —— Forum activity —————————————————————————————————————————————————————————————
+
+type ForumActivityRow = components['schemas']['ForumActivityRowDto'];
+
+export type ForumActivityView = {
+  sparklineValues: number[];
+  currentValue: string;
+};
+
+export function toForumActivityView(rows: ForumActivityRow[]): ForumActivityView {
+  const sorted = [...rows].sort((a, b) => a.bucket.localeCompare(b.bucket));
+  const sparklineValues = sorted.map((r) => r.post_count);
+  const last = sorted[sorted.length - 1];
+  return {
+    sparklineValues,
+    currentValue: last != null ? String(last.post_count) : '—',
+  };
+}
+
+export async function fetchForumActivity(
+  api: Api,
+  slug: string,
+  from?: string,
+): Promise<ForumActivityView> {
+  try {
+    const { data, error } = await api.GET('/v1/daos/{slug}/analytics/forum-activity', {
+      params: { path: { slug }, query: { bucket: 'weekly', ...(from ? { from } : {}) } },
+    });
+    if (error || !data) return toForumActivityView([]);
+    return toForumActivityView(data.data);
+  } catch {
+    return toForumActivityView([]);
+  }
+}
+
 // —— Lorenz bars ——————————————————————————————————————————————————————————————————
 
 export type LorenzBar = {

@@ -6,6 +6,7 @@ import { TreasurySection } from '@/components/health/treasury-section';
 import { TrendsSection } from '@/components/health/trends-section';
 import {
   fetchConcentration,
+  fetchForumActivity,
   fetchParticipation,
   fetchPassRate,
   rangeFrom,
@@ -59,18 +60,20 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
   const { slug } = await params;
   const from90d = rangeFrom('90d', Date.now());
 
-  const [meta, concentration, passRate, participation, delegates, proposals] = await Promise.all([
-    loadDaoMeta(slug),
-    fetchConcentration(serverApi(), slug, { from: from90d }),
-    fetchPassRate(serverApi(), slug, from90d),
-    fetchParticipation(serverApi(), slug, from90d),
-    loadDelegateLeaderboard(serverApi(), slug, 50),
-    fetchProposalPage(serverApi(), {
-      slug,
-      filters: { dao: [], state: [] },
-      sort: { field: 'voting_ends_at', dir: 'desc' },
-    }).catch(() => ({ items: [], nextCursor: null })),
-  ]);
+  const [meta, concentration, passRate, participation, forumActivity, delegates, proposals] =
+    await Promise.all([
+      loadDaoMeta(slug),
+      fetchConcentration(serverApi(), slug, { from: from90d }),
+      fetchPassRate(serverApi(), slug, from90d),
+      fetchParticipation(serverApi(), slug, from90d),
+      fetchForumActivity(serverApi(), slug, from90d),
+      loadDelegateLeaderboard(serverApi(), slug, 50),
+      fetchProposalPage(serverApi(), {
+        slug,
+        filters: { dao: [], state: [] },
+        sort: { field: 'voting_ends_at', dir: 'desc' },
+      }).catch(() => ({ items: [], nextCursor: null })),
+    ]);
 
   const top10 = delegates.slice(0, 10);
   const lorenzBars = toLorenzBars(delegates.map((d) => d.sharePct));
@@ -105,7 +108,11 @@ export default async function DaoHealthPage({ params }: { params: Promise<{ slug
       />
 
       <HealthTakeawaysSection slug={slug} />
-      <TrendsSection passRate={passRate} participation={participation} />
+      <TrendsSection
+        passRate={passRate}
+        participation={participation}
+        forumActivity={forumActivity}
+      />
       <ConcentrationSection
         delegates={top10}
         concentration={concentration}

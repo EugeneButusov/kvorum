@@ -16,6 +16,7 @@ export type {
   ActorPowerRow,
   AnalyticsClickHouseDatabase,
   ConcentrationBucketRow,
+  ForumActivityRow,
   CrossDaoSummaryRow,
   DelegateAlignmentRow,
   DelegateLeaderboardRow,
