@@ -919,27 +919,32 @@ export class AnalyticsReadRepository {
         ? sql`AND post_ts <= ${args.to.toISOString().replace('T', ' ').replace('Z', '')}`
         : sql``;
 
-    const rows = await sql<{ bucket: string; post_count: string }>`
-      SELECT
-        ${sql.raw(bucketFn)}(post_ts) AS bucket,
-        count() AS post_count
-      FROM (
-        SELECT
-          parseDateTimeBestEffort(
-            JSONExtractString(post, 'createdAt')
-          ) AS post_ts
-        FROM archive_event_discourse_forum FINAL
-        ARRAY JOIN JSONExtractArrayRaw(payload, 'posts') AS post
-        WHERE dao_source_id IN (${idPlaceholders})
+    const rows = await this.chDb
+      .selectFrom(
+        sql<{ bucket: string; post_count: string }>`(
+          SELECT
+            ${sql.raw(bucketFn)}(post_ts) AS bucket,
+            count() AS post_count
+          FROM (
+            SELECT
+              parseDateTimeBestEffort(
+                JSONExtractString(post, 'createdAt')
+              ) AS post_ts
+            FROM archive_event_discourse_forum FINAL
+            ARRAY JOIN JSONExtractArrayRaw(payload, 'posts') AS post
+            WHERE dao_source_id IN (${idPlaceholders})
+          )
+          WHERE 1 = 1
+            ${fromClause}
+            ${toClause}
+          GROUP BY bucket
+          ORDER BY bucket ASC
+        )`.as('t'),
       )
-      WHERE 1 = 1
-        ${fromClause}
-        ${toClause}
-      GROUP BY bucket
-      ORDER BY bucket ASC
-    `.execute(this.chDb);
+      .selectAll()
+      .execute();
 
-    return rows.rows.map((r) => ({
+    return rows.map((r) => ({
       bucket: chTimestampToDate(r.bucket),
       post_count: Number(r.post_count),
     }));
