@@ -564,6 +564,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/daos/{slug}/analytics/forum-activity': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get forum activity over time
+     * @description Forum post volume for a DAO's Discourse governance category, bucketed over a time window. Derived from crawled thread data in the archive.
+     */
+    get: operations['DaoAnalyticsController_forumActivity'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/search': {
     parameters: {
       query?: never;
@@ -1235,6 +1255,14 @@ export interface components {
     };
     ParticipationResponseDto: {
       data: components['schemas']['ParticipationRowDto'][];
+      _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    ForumActivityRowDto: {
+      bucket: string;
+      post_count: number;
+    };
+    ForumActivityResponseDto: {
+      data: components['schemas']['ForumActivityRowDto'][];
       _meta: components['schemas']['AnalyticsMetaDto'];
     };
     ConcentrationTopShareDto: {
@@ -2638,6 +2666,55 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProblemDto'];
+        };
+      };
+    };
+  };
+  DaoAnalyticsController_forumActivity: {
+    parameters: {
+      query?: {
+        bucket?: 'daily' | 'weekly' | 'monthly';
+        from?: string;
+        to?: string;
+      };
+      header?: never;
+      path: {
+        slug: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ForumActivityResponseDto'];
+        };
       };
       400: {
         headers: {

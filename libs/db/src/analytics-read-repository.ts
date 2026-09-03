@@ -51,6 +51,8 @@ export function bucketGrid(from: Date, to: Date, grain: BucketGrain): Date[] {
   return out;
 }
 
+export type ForumActivityRow = { bucket: Date; post_count: number };
+
 const RESOLVED_PASS_STATES = ['executed', 'succeeded'] as const;
 const RESOLVED_FAIL_STATES = ['defeated', 'expired', 'vetoed'] as const;
 const RESOLVED_STATES = [...RESOLVED_PASS_STATES, ...RESOLVED_FAIL_STATES] as const;
@@ -882,5 +884,64 @@ export class AnalyticsReadRepository {
     }
 
     return result;
+  }
+
+  async forumActivityByBucket(args: {
+    daoId: string;
+    bucket: BucketGrain;
+    from?: Date;
+    to?: Date;
+  }): Promise<ForumActivityRow[]> {
+    const sources = await this.pgDb
+      .selectFrom('dao_source')
+      .select('id')
+      .where('dao_id', '=', args.daoId)
+      .where('source_type', '=', 'discourse_forum')
+      .execute();
+    if (sources.length === 0) return [];
+    const ids = sources.map((s) => s.id);
+
+    const bucketFn =
+      args.bucket === 'daily'
+        ? 'toStartOfDay'
+        : args.bucket === 'weekly'
+          ? 'toStartOfWeek'
+          : 'toStartOfMonth';
+
+    const idPlaceholders = sql.join(ids.map((id) => sql`${id}`));
+
+    const fromClause =
+      args.from !== undefined
+        ? sql`AND post_ts >= ${args.from.toISOString().replace('T', ' ').replace('Z', '')}`
+        : sql``;
+    const toClause =
+      args.to !== undefined
+        ? sql`AND post_ts <= ${args.to.toISOString().replace('T', ' ').replace('Z', '')}`
+        : sql``;
+
+    const rows = await sql<{ bucket: string; post_count: string }>`
+      SELECT
+        ${sql.raw(bucketFn)}(post_ts) AS bucket,
+        count() AS post_count
+      FROM (
+        SELECT
+          parseDateTimeBestEffort(
+            JSONExtractString(post, 'createdAt')
+          ) AS post_ts
+        FROM archive_event_discourse_forum FINAL
+        ARRAY JOIN JSONExtractArrayRaw(payload, 'posts') AS post
+        WHERE dao_source_id IN (${idPlaceholders})
+      )
+      WHERE 1 = 1
+        ${fromClause}
+        ${toClause}
+      GROUP BY bucket
+      ORDER BY bucket ASC
+    `.execute(this.chDb);
+
+    return rows.rows.map((r) => ({
+      bucket: chTimestampToDate(r.bucket),
+      post_count: Number(r.post_count),
+    }));
   }
 }

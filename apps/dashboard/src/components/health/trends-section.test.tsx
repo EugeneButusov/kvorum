@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import { TrendsSection } from './trends-section';
-import type { ParticipationView, PassRateView } from '@/lib/analytics/health';
+import type { ForumActivityView, ParticipationView, PassRateView } from '@/lib/analytics/health';
 
 const passRate: PassRateView = {
   buckets: ['2026-05', '2026-06', '2026-07'],
@@ -17,6 +17,11 @@ const participation: ParticipationView = {
   sparklineValues: [20, 25, 30],
 };
 
+const forumActivity: ForumActivityView = {
+  sparklineValues: [42, 58, 31],
+  currentValue: '31',
+};
+
 const emptyParticipation: ParticipationView = {
   buckets: [],
   series: [],
@@ -24,32 +29,66 @@ const emptyParticipation: ParticipationView = {
   sparklineValues: [],
 };
 
+const emptyForumActivity: ForumActivityView = {
+  sparklineValues: [],
+  currentValue: '—',
+};
+
 describe('TrendsSection', () => {
   it('renders three sparkline cards', () => {
-    render(<TrendsSection passRate={passRate} participation={participation} />);
+    render(
+      <TrendsSection
+        passRate={passRate}
+        participation={participation}
+        forumActivity={forumActivity}
+      />,
+    );
     expect(screen.getByText('Participation rate')).toBeInTheDocument();
     expect(screen.getByText('Pass rate')).toBeInTheDocument();
     expect(screen.getByText('Forum activity')).toBeInTheDocument();
   });
 
   it('shows the overall pass rate value', () => {
-    render(<TrendsSection passRate={passRate} participation={participation} />);
+    render(
+      <TrendsSection
+        passRate={passRate}
+        participation={participation}
+        forumActivity={forumActivity}
+      />,
+    );
     expect(screen.getByText('72.5%')).toBeInTheDocument();
   });
 
   it('shows the overall participation rate value', () => {
-    render(<TrendsSection passRate={passRate} participation={participation} />);
+    render(
+      <TrendsSection
+        passRate={passRate}
+        participation={participation}
+        forumActivity={forumActivity}
+      />,
+    );
     expect(screen.getByText('25.5%')).toBeInTheDocument();
   });
 
-  it('shows coming-soon placeholder only for forum activity', () => {
-    render(<TrendsSection passRate={passRate} participation={participation} />);
-    const pending = screen.getAllByText('endpoint pending');
-    expect(pending).toHaveLength(1);
+  it('shows the forum activity current value', () => {
+    render(
+      <TrendsSection
+        passRate={passRate}
+        participation={participation}
+        forumActivity={forumActivity}
+      />,
+    );
+    expect(screen.getByText('31')).toBeInTheDocument();
   });
 
   it('displays an em-dash when participation rate is null', () => {
-    render(<TrendsSection passRate={passRate} participation={emptyParticipation} />);
+    render(
+      <TrendsSection
+        passRate={passRate}
+        participation={emptyParticipation}
+        forumActivity={emptyForumActivity}
+      />,
+    );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
@@ -59,6 +98,7 @@ describe('TrendsSection', () => {
       <TrendsSection
         passRate={{ ...passRate, overallPct: null, sparklineValues: [] }}
         participation={emptyParticipation}
+        forumActivity={emptyForumActivity}
       />,
     );
     const dashes = screen.getAllByText('—');

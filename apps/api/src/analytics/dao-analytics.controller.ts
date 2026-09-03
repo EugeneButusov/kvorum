@@ -32,6 +32,9 @@ import {
   toDelegationFlowNodeDtos,
 } from './delegation-flow.mappers';
 import { DELEGATION_FLOW_QUERY_SCHEMA } from './delegation-flow.query';
+import { ForumActivityQueryDto, ForumActivityResponseDto } from './forum-activity.dto';
+import { toForumActivityRowDto } from './forum-activity.mappers';
+import { FORUM_ACTIVITY_QUERY_SCHEMA } from './forum-activity.query';
 import { ParticipationQueryDto, ParticipationResponseDto } from './participation.dto';
 import { toParticipationRowDto } from './participation.mappers';
 import { PARTICIPATION_QUERY_SCHEMA } from './participation.query';
@@ -387,6 +390,43 @@ export class DaoAnalyticsController {
       ),
       pagination: page.pagination,
       _meta: toAnalyticsMeta(result.mirrorLastEtl),
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Get forum activity over time',
+    description:
+      "Forum post volume for a DAO's Discourse governance category, bucketed over a time window. Derived from crawled thread data in the archive.",
+  })
+  @Get('forum-activity')
+  @CacheControl({ visibility: 'public', maxAgeSecs: 60, staleWhileRevalidateSecs: 3600 })
+  @ApiOkResponse({ type: ForumActivityResponseDto })
+  @ApiBadRequestResponse({ type: ProblemDto })
+  @ApiUnauthorizedResponse({ type: ProblemDto })
+  @ApiNotFoundResponse({ type: ProblemDto })
+  async forumActivity(
+    @Param('slug') slug: string,
+    @Query() raw: ForumActivityQueryDto,
+  ): Promise<ForumActivityResponseDto> {
+    const dao = await this.daoRepo.findDaoBySlug(slug);
+    if (dao === undefined) {
+      throw problemException('not-found', { detail: `No DAO found for slug=${slug}` });
+    }
+
+    const parsed = FORUM_ACTIVITY_QUERY_SCHEMA.safeParse(raw);
+    if (!parsed.success) throw validationFromZod(parsed.error.issues[0]);
+
+    const query = parsed.data;
+    const rows = await this.repo.forumActivityByBucket({
+      daoId: dao.id,
+      bucket: query.bucket ?? 'weekly',
+      from: query.from,
+      to: query.to,
+    });
+
+    return {
+      data: rows.map(toForumActivityRowDto),
+      _meta: { confirmed: true, derived_through: null },
     };
   }
 }
