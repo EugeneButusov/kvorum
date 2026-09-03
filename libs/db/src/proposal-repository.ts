@@ -279,6 +279,20 @@ export class ProposalRepository {
       .execute();
   }
 
+  async fillVotingStartsBlock(proposalId: string, blockNumber: string): Promise<void> {
+    await this.db
+      .updateTable('proposal')
+      .set((eb) => ({
+        voting_starts_block: eb.fn('coalesce', [
+          eb.ref('voting_starts_block'),
+          eb.val(blockNumber),
+        ]),
+        updated_at: sql<Date>`now()`,
+      }))
+      .where('id', '=', proposalId)
+      .execute();
+  }
+
   async findPendingTimestampFill(limit: number): Promise<PendingTimestampFillRow[]> {
     return this.db
       .selectFrom('proposal')

@@ -307,6 +307,7 @@ export class AaveGovernanceProjectionApplier {
           },
         ]);
       }
+      await repositories.proposals.fillVotingStartsBlock(proposal.id, row.block_number);
       this.record(row, advanced > 0 ? 'derived' : 'skipped_state_guard', null);
     } else if (projection.kind === 'proposal_state_transition') {
       const advanced = await repositories.proposals.advanceState({

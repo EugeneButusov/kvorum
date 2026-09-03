@@ -77,6 +77,7 @@ export {
   encodeGetProposalStateCall,
   mapAaveStateCode,
 } from './abi/governance-state';
+export { aaveV3EligibleVpProvider } from './eligible-vp-provider';
 export { AaveGovernanceStateReconciler } from './reconcile/aave-governance-state-reconciler';
 export type { AaveGovernanceReconcilePluginDeps } from './reconcile/aave-governance-reconcile-plugin';
 export { createAaveGovernanceV3ReconcilePlugin } from './reconcile/aave-governance-reconcile-plugin';

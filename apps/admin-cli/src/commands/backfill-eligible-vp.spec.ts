@@ -1,6 +1,6 @@
 import { Interface } from 'ethers';
 import { describe, expect, it, vi } from 'vitest';
-import { aaveV2EligibleVpProvider } from '@sources/aave';
+import { aaveV2EligibleVpProvider, aaveV3EligibleVpProvider } from '@sources/aave';
 import { compoundEligibleVpProvider } from '@sources/compound';
 import type { EligibleVpProposalContext, EligibleVpRpcSend } from '@sources/core';
 import { aragonEligibleVpProvider } from '@sources/lido';
@@ -34,6 +34,7 @@ describe('buildVpFetcherMap', () => {
   const map = buildVpFetcherMap([
     compoundEligibleVpProvider,
     aaveV2EligibleVpProvider,
+    aaveV3EligibleVpProvider,
     aragonEligibleVpProvider,
   ]);
 
@@ -45,6 +46,10 @@ describe('buildVpFetcherMap', () => {
 
   it('maps aave governor v2', () => {
     expect(map.get('aave_governor_v2')).toBe(aaveV2EligibleVpProvider);
+  });
+
+  it('maps aave governance v3', () => {
+    expect(map.get('aave_governance_v3')).toBe(aaveV3EligibleVpProvider);
   });
 
   it('maps aragon voting', () => {
@@ -122,6 +127,35 @@ describe('aaveV2EligibleVpProvider', () => {
     const ctx = makeCtx({ votingStrategyAddress: null });
 
     expect(await aaveV2EligibleVpProvider.fetchEligibleVp(ctx, send)).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+// ── Aave v3 provider ───────────────────────────────────────────────────────
+
+describe('aaveV3EligibleVpProvider', () => {
+  it('calls totalSupply at the correct block and decodes the result', async () => {
+    const expectedVp = 16_000_000n * 10n ** 18n;
+    const encoded = encodeUint256(expectedVp);
+    const send = makeSend(encoded);
+    const ctx = makeCtx({ votingStartsBlock: '20000000' });
+
+    const result = await aaveV3EligibleVpProvider.fetchEligibleVp(ctx, send);
+
+    expect(result).toBe(expectedVp);
+    expect(send).toHaveBeenCalledOnce();
+    const [method, params] = (send as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect(method).toBe('eth_call');
+    expect((params as unknown[])[1]).toBe(`0x${BigInt('20000000').toString(16)}`);
+  });
+
+  it('returns null when votingStartsBlock is null', async () => {
+    const send = makeSend('0x');
+    const ctx = makeCtx({ votingStartsBlock: null });
+
+    const result = await aaveV3EligibleVpProvider.fetchEligibleVp(ctx, send);
+
+    expect(result).toBeNull();
     expect(send).not.toHaveBeenCalled();
   });
 });

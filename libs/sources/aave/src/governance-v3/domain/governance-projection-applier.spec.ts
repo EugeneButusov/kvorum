@@ -521,6 +521,28 @@ describe('AaveGovernanceProjectionApplier', () => {
     );
   });
 
+  it('fills voting_starts_block from the archive row block_number on VotingActivated', async () => {
+    const { pgDb } = makeProjectionTx({ existingProposal: { id: 'proposal-1', source_id: '42' } });
+    const fillVotingStartsBlock = vi
+      .spyOn(ProposalRepository.prototype, 'fillVotingStartsBlock')
+      .mockResolvedValue(undefined);
+
+    const applier = new AaveGovernanceProjectionApplier({
+      pgDb: pgDb as never,
+      registry: makeRegistry(),
+      archive: { incrementAttemptCount: vi.fn() } as never,
+      dlq: { markRetrySucceeded: vi.fn() } as never,
+      payloads: { fetchPayloads: vi.fn().mockResolvedValue([ACTIVATED_PAYLOAD]) } as never,
+      ipfsFetcher: { fetchTitleDescription: vi.fn() } as never,
+      metrics: makeMetrics(),
+      logger: { warn: vi.fn(), error: vi.fn() } as never,
+    });
+
+    await applier.applyBatch([{ ...ROW, event_type: 'VotingActivated' }]);
+
+    expect(fillVotingStartsBlock).toHaveBeenCalledWith('proposal-1', '100');
+  });
+
   it('retries VotingActivated when the activation block time cannot be resolved', async () => {
     const { pgDb } = makeProjectionTx({ existingProposal: { id: 'proposal-1', source_id: '42' } });
     const fillTimestamps = vi
