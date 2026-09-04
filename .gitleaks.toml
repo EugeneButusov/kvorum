@@ -19,13 +19,7 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Public governance token contract addresses (not secrets)"
-regexTarget = "line"
-regexes = [
-  # COMP token (Compound)
-  '''0xc00e94cb662c3520282e6f5717214004a7f26888''',
-  # AAVE token (Aave) — both lowercase and EIP-55 checksummed forms (gitleaks regex is
-  # case-sensitive; the `(?i)` inline flag is not honored by the CI gitleaks version).
-  '''0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9''',
-  '''0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9''',
-]
+description = "Ethereum addresses — 0x-prefixed 40-hex-char strings are public chain identifiers, not secrets"
+ruleIDs = ["generic-api-key"]
+regexTarget = "secret"
+regexes = ['''(?i)0x[0-9a-f]{40}''']
