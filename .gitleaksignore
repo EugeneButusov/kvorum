@@ -25,3 +25,9 @@ d7078e025e80bbc05926cde1d9be6092cfb1d9f0:apps/dashboard/src/components/dao/dao-h
 2bb70ec79ac15ad2be681f596a7d7c3c6fec603d:libs/sources/aave/src/governor-v2/reconcile/aave-governor-v2-state-reconciler.spec.ts:generic-api-key:44
 c389b3c73af4cdd33a87410a3011cdbd2702a060:libs/sources/aave/src/governance-v3/reconcile/aave-governance-state-reconciler.spec.ts:generic-api-key:64
 c389b3c73af4cdd33a87410a3011cdbd2702a060:libs/sources/aave/src/governor-v2/reconcile/aave-governor-v2-state-reconciler.spec.ts:generic-api-key:44
+e1b0a6696fd7eca51f478908bcd8453f01d98017:libs/sources/aave/src/aave-token/domain/delegation-power-sweep-driver.spec.ts:generic-api-key:12
+efee1e27f9e4288623f4f4a290f7510df208923c:libs/sources/aave/src/aave-token/plugin/delegation-power-sweep-plugin.spec.ts:generic-api-key:37
+efee1e27f9e4288623f4f4a290f7510df208923c:libs/sources/aave/src/aave-token/plugin/delegation-power-sweep-plugin.spec.ts:generic-api-key:39
+efee1e27f9e4288623f4f4a290f7510df208923c:libs/sources/aave/src/aave-token/plugin/delegation-power-sweep-plugin.spec.ts:generic-api-key:46
+40df02571d2527008a7700bfabc4c99b660d7987:libs/sources/aave/src/aave-token/plugin/delegation-power-sweep-plugin.spec.ts:generic-api-key:56
+40df02571d2527008a7700bfabc4c99b660d7987:libs/sources/aave/src/aave-token/plugin/delegation-power-sweep-plugin.spec.ts:generic-api-key:85
