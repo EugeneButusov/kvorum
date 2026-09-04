@@ -19,6 +19,18 @@ vi.mock('@libs/db', async (importOriginal) => {
       public insert = vi.fn();
       constructor(_db: unknown) {}
     },
+    DaoSourceRepository: class {
+      public findDaoIdForSource = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DelegateDiscoveryRepository: class {
+      public findKnownDelegateAddresses = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DelegationFlowProjectionWriter: class {
+      public insertBatch = vi.fn();
+      constructor(_db: unknown) {}
+    },
   };
 });
 

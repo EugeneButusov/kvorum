@@ -1,4 +1,4 @@
-import { defineCounter, defineGauge } from '@libs/observability';
+import { defineCounter, defineGauge, defineHistogram } from '@libs/observability';
 
 export const aaveMetrics = {
   ipfsTitleFetch: defineCounter({
@@ -31,5 +31,14 @@ export const aaveMetrics = {
     name: 'stitch_unmatched_payload',
     description:
       'Count of Aave PayloadsController events held with no declared payload row in the latest batch, by target chain and event type',
+  }),
+  delegationPowerSweep: defineCounter({
+    name: 'aave_delegation_power_sweep',
+    description: 'Aave delegation power sweep tick outcomes',
+  }),
+  delegationPowerSweepDuration: defineHistogram({
+    name: 'aave_delegation_power_sweep_duration_seconds',
+    description: 'Wall-clock duration of one delegation power sweep tick',
+    buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
   }),
 } as const;

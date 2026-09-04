@@ -3,6 +3,7 @@ import { ChainContextRegistry } from '@libs/chain';
 import {
   ArchiveDerivationRepository,
   ArchiveEventRepository,
+  DaoSourceRepository,
   DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
@@ -54,6 +55,7 @@ import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
+import { AaveDelegationPowerSweepService } from './aave-delegation-power-sweep.service';
 import { aaveMetrics } from './aave-metrics';
 import { buildDriverMetrics } from '../../reconcile-metrics';
 
@@ -65,6 +67,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
     DbModule.forFeature([
       ArchiveDerivationRepository,
       ArchiveEventRepository,
+      DaoSourceRepository,
       DlqRepository,
       ProposalRepository,
       VoteEventsProjectionReadRepository,
@@ -539,6 +542,7 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         ProposalRepository,
       ],
     },
+    AaveDelegationPowerSweepService,
   ],
   exports: [AAVE_SOURCE_PLUGIN],
 })
