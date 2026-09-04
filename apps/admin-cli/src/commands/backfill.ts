@@ -378,6 +378,35 @@ export function registerBackfill(program: Command): void {
     });
 
   backfill
+    .command('delegation-power')
+    .description('Backfill delegation voting power for Aave delegates via on-chain getPowerCurrent')
+    .requiredOption('--dao <slug>', 'DAO slug (e.g. aave)')
+    .option('--block <N>', 'block number to query at (default: latest)')
+    .option('--batch-size <N>', 'addresses per RPC batch (default 50)')
+    .option('--dry-run', 'log what would be written without making changes')
+    .option('--format <format>', 'output format: human or json')
+    .action(async function action(
+      this: Command,
+      opts: BackfillCommonOptions & {
+        dao: string;
+        block?: string;
+        batchSize?: string;
+        dryRun?: boolean;
+      },
+    ) {
+      await withBackfillFormat(this, opts, async (format) => {
+        const { runDelegationPowerBackfill } = await import('./backfill-delegation-power.js');
+        await runDelegationPowerBackfill({
+          daoSlug: opts.dao,
+          block: opts.block,
+          batchSize: opts.batchSize != null ? Number(opts.batchSize) : 50,
+          dryRun: opts.dryRun === true,
+          format,
+        });
+      });
+    });
+
+  backfill
     .command('eligible-vp')
     .description('Backfill eligible_voting_power for historical proposals')
     .requiredOption('--dao <slug>', 'DAO slug to scope the backfill')

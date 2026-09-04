@@ -5,8 +5,24 @@ export type { AaveTokenEventType } from './abi/events';
 
 export { decodeAaveTokenLog } from './abi/decoder';
 
+export {
+  encodeGetPowerCurrentCall,
+  decodeGetPowerCurrentResult,
+  AaveTokenPowerDecodeError,
+} from './abi/get-power-current';
+
 export type { AaveTokenEvent, DelegateChangedPayload } from './domain/types';
-export { projectVotingDelegateChanged, ZERO_ADDRESS } from './domain/delegation-projector';
+export {
+  projectVotingDelegateChanged,
+  projectSweepVotesChanged,
+  ZERO_ADDRESS,
+} from './domain/delegation-projector';
+export { DelegationPowerSweepDriver } from './domain/delegation-power-sweep-driver';
+export type {
+  DelegationPowerSweepDeps,
+  DelegationPowerSweepConfig,
+  DelegationPowerSweepHeadArgs,
+} from './domain/delegation-power-sweep-driver';
 export { AaveTokenDelegationProjectionApplier } from './domain/aave-token-delegation-projection-applier';
 export type {
   AaveTokenDelegationDerivationFailureReason,
@@ -45,3 +61,6 @@ export {
   AAVE_TOKEN_SUPPORTED_CHAIN_IDS,
   createAaveTokenPlugin,
 } from './plugin/plugin';
+
+export type { DelegationPowerSweepPluginDeps } from './plugin/delegation-power-sweep-plugin';
+export { createAaveDelegationPowerSweepPlugin } from './plugin/delegation-power-sweep-plugin';

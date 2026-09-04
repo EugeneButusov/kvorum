@@ -19,6 +19,18 @@ vi.mock('@libs/db', async (importOriginal) => {
       public insert = vi.fn();
       constructor(_db: unknown) {}
     },
+    DaoSourceRepository: class {
+      public findDaoIdForSource = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DelegateDiscoveryRepository: class {
+      public findKnownDelegateAddresses = vi.fn();
+      constructor(_db: unknown) {}
+    },
+    DelegationFlowProjectionWriter: class {
+      public insertBatch = vi.fn();
+      constructor(_db: unknown) {}
+    },
   };
 });
 
@@ -42,7 +54,7 @@ describe('AaveSourceModule', () => {
     const plugin = moduleRef.get<SourcePlugin>(AAVE_SOURCE_PLUGIN);
 
     expect(plugin.name).toBe('aave');
-    expect(plugin.ingesters).toHaveLength(8);
+    expect(plugin.ingesters).toHaveLength(9);
     expect(plugin.ingesters.map((ingester) => ingester.sourceType).sort()).toEqual([
       'aave_governance_v3',
       'aave_governance_v3_reconcile',
@@ -51,6 +63,7 @@ describe('AaveSourceModule', () => {
       'aave_payloads_controller',
       'aave_payloads_controller_reconcile',
       'aave_token',
+      'aave_token_delegation_sweep',
       'aave_voting_machine',
     ]);
 

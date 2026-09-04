@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchiveDerivationRow } from '@libs/db';
-import { projectVotingDelegateChanged, ZERO_ADDRESS } from './delegation-projector';
+import {
+  projectVotingDelegateChanged,
+  projectSweepVotesChanged,
+  ZERO_ADDRESS,
+} from './delegation-projector';
 
 const ROW: ArchiveDerivationRow = {
   id: 'archive-1',
@@ -57,5 +61,53 @@ describe('aave-token delegation-projector', () => {
 
   it('exports the canonical zero-address constant', () => {
     expect(ZERO_ADDRESS).toBe('0x0000000000000000000000000000000000000000');
+  });
+});
+
+describe('projectSweepVotesChanged', () => {
+  it('produces a votes_changed row with self-referential delegate/delegator', () => {
+    const delegate = `0x${'cd'.repeat(20)}`;
+    const row = projectSweepVotesChanged(delegate, 1_000_000n, {
+      daoId: 'dao-1',
+      delegationId: 'sweep-1',
+      blockNumber: '200',
+      createdAt: new Date('2026-06-01T00:00:00Z'),
+    });
+
+    expect(row).toEqual({
+      delegation_id: 'sweep-1',
+      dao_id: 'dao-1',
+      delegator_address: delegate,
+      delegate_address: delegate,
+      voting_power: '1000000',
+      block_number: '200',
+      log_index: 0,
+      event_type: 'votes_changed',
+      created_at: new Date('2026-06-01T00:00:00Z'),
+    });
+  });
+
+  it('writes zero power for delegates who lost all voting power', () => {
+    const row = projectSweepVotesChanged(`0x${'ab'.repeat(20)}`, 0n, {
+      daoId: 'dao-1',
+      delegationId: 'sweep-2',
+      blockNumber: '300',
+      createdAt: new Date('2026-06-02T00:00:00Z'),
+    });
+
+    expect(row.voting_power).toBe('0');
+    expect(row.event_type).toBe('votes_changed');
+  });
+
+  it('lowercases the delegate address', () => {
+    const row = projectSweepVotesChanged('0xABCDEF1234567890ABCDEF1234567890ABCDEF12', 100n, {
+      daoId: 'dao-1',
+      delegationId: 'sweep-3',
+      blockNumber: '400',
+      createdAt: new Date('2026-06-03T00:00:00Z'),
+    });
+
+    expect(row.delegator_address).toBe('0xabcdef1234567890abcdef1234567890abcdef12');
+    expect(row.delegate_address).toBe('0xabcdef1234567890abcdef1234567890abcdef12');
   });
 });

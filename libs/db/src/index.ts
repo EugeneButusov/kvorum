@@ -45,6 +45,7 @@ export { DlqRepository } from './dlq-repository';
 export { SeenLogRepository } from './seen-log-repository';
 export type { SeenLog, SeenLogTable, NewSeenLog } from './schema/seen-log';
 export { DaoSourceRepository } from './dao-source-repository';
+export { DelegateDiscoveryRepository } from './delegate-discovery-repository';
 export { DaoAdminRepository } from './dao-admin-repository';
 export { DaoReadRepository } from './dao-read-repository';
 export { SystemStatusRepository } from './system-status-repository';

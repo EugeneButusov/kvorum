@@ -7,6 +7,24 @@ import type { DelegateChangedPayload } from './types';
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
+export function projectSweepVotesChanged(
+  delegateAddress: string,
+  votingPower: bigint,
+  ctx: { daoId: string; delegationId: string; blockNumber: string; createdAt: Date },
+): NewDelegationFlowProjectionRow {
+  return {
+    delegation_id: ctx.delegationId,
+    dao_id: ctx.daoId,
+    delegator_address: delegateAddress.toLowerCase(),
+    delegate_address: delegateAddress.toLowerCase(),
+    voting_power: votingPower.toString(),
+    block_number: ctx.blockNumber,
+    log_index: 0,
+    event_type: 'votes_changed',
+    created_at: ctx.createdAt,
+  };
+}
+
 // Projects a VOTING-power DelegateChanged into a single delegation-relationship row,
 // 1:1 with Compound's `delegate_changed` rows. voting_power is '0' — V3 emits no
 // power-delta event, so a per-delegation power amount is not sourceable (ADR-0070).
