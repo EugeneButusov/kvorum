@@ -49,6 +49,61 @@ describe('createAaveDelegationPowerSweepPlugin', () => {
     expect(spec.listener).toBeTypeOf('function');
   });
 
+  it('listener skips when headBlock is below headLag', async () => {
+    const deps = makeDeps();
+    const plugin = createAaveDelegationPowerSweepPlugin(deps);
+    const spec = plugin.buildIngestSpec(CTX as never, {
+      token_address: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
+    });
+    if (spec.kind !== 'evm-block-head-poller') throw new Error('wrong kind');
+
+    spec.listener({
+      head: {
+        chainId: '0x1',
+        blockNumber: 0n,
+        blockHash: '0x',
+        parentHash: '0x',
+        timestamp: 0n,
+        observedAt: new Date(),
+      },
+      chainCfg: { chainId: '0x1', name: 'ethereum', headLag: 12, providers: [] } as never,
+      headBlock: 11n,
+      client: { send: vi.fn() } as never,
+    });
+
+    await new Promise<void>((r) => setTimeout(r, 10));
+    expect(deps.daoIdResolver.findDaoIdForSource).not.toHaveBeenCalled();
+  });
+
+  it('listener calls driver.onConfirmedHead when headBlock exceeds headLag', async () => {
+    const deps = makeDeps();
+    (deps.daoIdResolver.findDaoIdForSource as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined,
+    );
+    const plugin = createAaveDelegationPowerSweepPlugin(deps);
+    const spec = plugin.buildIngestSpec(CTX as never, {
+      token_address: '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
+    });
+    if (spec.kind !== 'evm-block-head-poller') throw new Error('wrong kind');
+
+    spec.listener({
+      head: {
+        chainId: '0x1',
+        blockNumber: 0n,
+        blockHash: '0x',
+        parentHash: '0x',
+        timestamp: 0n,
+        observedAt: new Date(),
+      },
+      chainCfg: { chainId: '0x1', name: 'ethereum', headLag: 12, providers: [] } as never,
+      headBlock: 1000n,
+      client: { send: vi.fn() } as never,
+    });
+
+    await new Promise<void>((r) => setTimeout(r, 50));
+    expect(deps.daoIdResolver.findDaoIdForSource).toHaveBeenCalledWith(CTX.daoSourceId);
+  });
+
   it('omits buildBackfillRuntime — not backfillable', () => {
     const plugin = createAaveDelegationPowerSweepPlugin(makeDeps());
     expect(plugin.buildBackfillRuntime).toBeUndefined();
