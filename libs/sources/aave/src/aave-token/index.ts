@@ -61,6 +61,3 @@ export {
   AAVE_TOKEN_SUPPORTED_CHAIN_IDS,
   createAaveTokenPlugin,
 } from './plugin/plugin';
-
-export type { DelegationPowerSweepPluginDeps } from './plugin/delegation-power-sweep-plugin';
-export { createAaveDelegationPowerSweepPlugin } from './plugin/delegation-power-sweep-plugin';

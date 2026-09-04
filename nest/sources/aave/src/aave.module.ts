@@ -4,8 +4,6 @@ import {
   ArchiveDerivationRepository,
   ArchiveEventRepository,
   DaoSourceRepository,
-  DelegateDiscoveryRepository,
-  DelegationFlowProjectionWriter,
   DlqRepository,
   ProposalRepository,
   VoteEventsProjectionReadRepository,
@@ -51,13 +49,13 @@ import {
   createAaveGovernanceV3ReconcilePlugin,
   createAaveGovernanceV3Plugin,
   createAaveVotingMachinePlugin,
-  createAaveDelegationPowerSweepPlugin,
   makeAaveReadExtension,
 } from '@sources/aave';
 import type { SourcePlugin } from '@sources/core';
 import { ChainContextModule } from '@nest/chain';
 import { toChainLogger } from '@nest/chain';
 import { DbModule } from '@nest/db';
+import { AaveDelegationPowerSweepService } from './aave-delegation-power-sweep.service';
 import { aaveMetrics } from './aave-metrics';
 import { buildDriverMetrics } from '../../reconcile-metrics';
 
@@ -455,7 +453,6 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         aaveTokenDelegationProjectionApplier: AaveTokenDelegationProjectionApplier,
         aaveTokenActorAddressDeriver: AaveTokenActorAddressDeriver,
         sharedProposalRepo: ProposalRepository,
-        daoSourceRepo: DaoSourceRepository,
       ): SourcePlugin => {
         const metrics = buildDriverMetrics();
         return {
@@ -505,12 +502,6 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
               metrics,
               logger: toChainLogger(new Logger('AavePayloadsControllerReconcile')),
             }),
-            createAaveDelegationPowerSweepPlugin({
-              discovery: new DelegateDiscoveryRepository(chDb),
-              writer: new DelegationFlowProjectionWriter(chDb),
-              daoIdResolver: daoSourceRepo,
-              logger: toChainLogger(new Logger('AaveDelegationPowerSweep')),
-            }),
           ],
           derivers: [
             projectionApplier,
@@ -549,9 +540,9 @@ export const AAVE_SOURCE_PLUGIN = 'AAVE_SOURCE_PLUGIN';
         AaveTokenDelegationProjectionApplier,
         AaveTokenActorAddressDeriver,
         ProposalRepository,
-        DaoSourceRepository,
       ],
     },
+    AaveDelegationPowerSweepService,
   ],
   exports: [AAVE_SOURCE_PLUGIN],
 })

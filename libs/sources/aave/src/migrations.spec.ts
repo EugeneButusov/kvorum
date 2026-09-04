@@ -24,7 +24,6 @@ import {
   down as downAaveTokenSeed,
   up as upAaveTokenSeed,
 } from '../migrations-postgres/aave_005_token';
-import { down as downAaveDelegationSweepSeed } from '../migrations-postgres/aave_006_delegation_sweep';
 import { AAVE_VOTING_MACHINE_SUPPORTED_CHAIN_IDS } from './voting-machine/plugin/plugin';
 
 class RollbackSignal extends Error {}
@@ -166,11 +165,10 @@ describeWithPg('aave_002_seed migration', () => {
           .where('dao.slug', '=', 'aave')
           .execute();
 
-        // 35 from aave_002_seed + 1 aave_token dao_source from aave_005_token + 1
-        // aave_token_delegation_sweep from aave_006 + 2 cross-DAO off-chain seeds
-        // (snapshot_002 + forum_002: aave snapshot + discourse_forum), all committed by
-        // the CI `db:migrate` step that runs before the test suite.
-        expect(sourceRows).toHaveLength(39);
+        // 35 from aave_002_seed + 1 aave_token dao_source from aave_005_token + 2 cross-DAO
+        // off-chain seeds (snapshot_002 + forum_002: aave snapshot + discourse_forum), all
+        // committed by the CI `db:migrate` step that runs before the test suite.
+        expect(sourceRows).toHaveLength(38);
         expect(sourceRows).toContainEqual({
           source_type: 'aave_governance_v3',
           chain_id: '0x1',
@@ -382,7 +380,6 @@ describeWithPg('aave_002_seed payload reconcile rows', () => {
             qb.selectFrom('dao').select('id').where('slug', '=', 'aave'),
           )
           .execute();
-        await downAaveDelegationSweepSeed(tx);
         await downAaveTokenSeed(tx);
         await downAaveSeed(tx);
 
