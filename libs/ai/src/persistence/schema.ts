@@ -21,6 +21,8 @@ export interface AiCostLogTable {
   model: string;
   input_tokens: number;
   output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
   cost_usd: string;
   dao_id: string | null;
   entity_reference: string | null;

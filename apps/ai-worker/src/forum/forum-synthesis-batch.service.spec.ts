@@ -121,7 +121,13 @@ describe('ForumSynthesisBatchService', () => {
             {
               customId: 'forum_thread_t1',
               parsed: { sentiment: 'mixed' },
-              cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
+              cost: {
+                totalUsd: 0.0025,
+                inputTokens: 15000,
+                outputTokens: 1000,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+              },
             },
           ],
         },
@@ -168,7 +174,13 @@ describe('ForumSynthesisBatchService', () => {
             {
               customId: 'forum_thread_t1',
               parsed: { not_sentiment: 1 },
-              cost: { totalUsd: 0.0025, inputTokens: 15000, outputTokens: 1000 },
+              cost: {
+                totalUsd: 0.0025,
+                inputTokens: 15000,
+                outputTokens: 1000,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+              },
             },
           ],
         },

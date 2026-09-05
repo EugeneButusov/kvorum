@@ -13,6 +13,8 @@ export interface CostUsd {
   totalUsd: number;
   inputTokens: number;
   outputTokens: number;
+  cacheCreationInputTokens: number;
+  cacheReadInputTokens: number;
 }
 
 export interface Provenance {

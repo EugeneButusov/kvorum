@@ -36,7 +36,13 @@ function proposal(over: { state?: string; voting_ends_at?: Date | null }): unkno
 function completion(): CompletionResult<{ tldr: string }> {
   return {
     output: { tldr: 'ok' },
-    cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
+    cost: {
+      totalUsd: 0.002,
+      inputTokens: 100,
+      outputTokens: 20,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     provenance: {
       feature: 'proposal_summarizer',
       model: 'claude-haiku-4-5',
