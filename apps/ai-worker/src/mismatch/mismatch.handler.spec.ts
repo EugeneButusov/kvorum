@@ -20,7 +20,13 @@ function rendered(): RenderedPrompt<{ overall_assessment: string }> {
 function completion(): CompletionResult<{ overall_assessment: string }> {
   return {
     output: { overall_assessment: 'consistent' },
-    cost: { totalUsd: 0.05, inputTokens: 12000, outputTokens: 1500 },
+    cost: {
+      totalUsd: 0.05,
+      inputTokens: 12000,
+      outputTokens: 1500,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     provenance: {
       feature: 'mismatch_detector',
       model: 'claude-sonnet-5',

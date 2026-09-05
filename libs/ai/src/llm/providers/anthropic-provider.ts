@@ -12,13 +12,30 @@ import type {
 
 interface Pricing {
   inputPerMTok: number;
+  cacheWritePerMTok: number;
+  cacheReadPerMTok: number;
   outputPerMTok: number;
 }
 
 export const ANTHROPIC_PRICING: Record<string, Pricing> = {
-  'claude-haiku-4-5': { inputPerMTok: 1, outputPerMTok: 5 },
-  'claude-sonnet-5': { inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-opus-4-8': { inputPerMTok: 5, outputPerMTok: 25 },
+  'claude-haiku-4-5': {
+    inputPerMTok: 1,
+    cacheWritePerMTok: 1.25,
+    cacheReadPerMTok: 0.1,
+    outputPerMTok: 5,
+  },
+  'claude-sonnet-5': {
+    inputPerMTok: 2,
+    cacheWritePerMTok: 2.5,
+    cacheReadPerMTok: 0.2,
+    outputPerMTok: 10,
+  },
+  'claude-opus-4-8': {
+    inputPerMTok: 5,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
+    outputPerMTok: 25,
+  },
 };
 
 const DEFAULT_MAX_TOKENS = 4096;
@@ -26,6 +43,8 @@ const DEFAULT_MAX_TOKENS = 4096;
 interface AnthropicUsage {
   input_tokens: number;
   output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
 }
 interface AnthropicTextBlock {
   type: string;
@@ -53,10 +72,20 @@ function priceFor(model: string): Pricing {
 function cost(model: string, usage: AnthropicUsage, batch: boolean): CostUsd {
   const p = priceFor(model);
   const factor = batch ? 0.5 : 1;
+  const cacheCreation = usage.cache_creation_input_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
   const totalUsd =
     (usage.input_tokens / 1_000_000) * p.inputPerMTok * factor +
+    (cacheCreation / 1_000_000) * p.cacheWritePerMTok * factor +
+    (cacheRead / 1_000_000) * p.cacheReadPerMTok * factor +
     (usage.output_tokens / 1_000_000) * p.outputPerMTok * factor;
-  return { totalUsd, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens };
+  return {
+    totalUsd,
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+    cacheCreationInputTokens: cacheCreation,
+    cacheReadInputTokens: cacheRead,
+  };
 }
 
 export class AnthropicProvider implements LlmProvider {

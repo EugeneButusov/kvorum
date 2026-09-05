@@ -10,7 +10,13 @@ import type {
   ProviderCompletionResult,
 } from './ports.js';
 
-const ZERO_COST = { totalUsd: 0, inputTokens: 0, outputTokens: 0 };
+const ZERO_COST = {
+  totalUsd: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheCreationInputTokens: 0,
+  cacheReadInputTokens: 0,
+};
 
 /** A scripted LlmProvider: returns queued `parsed` payloads in order. */
 export class FakeLlmProvider implements LlmProvider {

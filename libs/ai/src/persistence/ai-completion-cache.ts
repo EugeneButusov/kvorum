@@ -91,6 +91,8 @@ export class AiCompletionCache {
         model: req.model,
         input_tokens: result.cost.inputTokens,
         output_tokens: result.cost.outputTokens,
+        cache_creation_input_tokens: result.cost.cacheCreationInputTokens,
+        cache_read_input_tokens: result.cost.cacheReadInputTokens,
         cost_usd: costUsd,
         dao_id: ctx.daoId,
         entity_reference: ctx.entityReference,
