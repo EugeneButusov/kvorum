@@ -172,6 +172,8 @@ export class ProposalSummaryBatchService {
         model: req.model,
         input_tokens: cost.inputTokens,
         output_tokens: cost.outputTokens,
+        cache_creation_input_tokens: cost.cacheCreationInputTokens,
+        cache_read_input_tokens: cost.cacheReadInputTokens,
         cost_usd: String(cost.totalUsd),
         dao_id: ctx.daoId,
         entity_reference: ctx.entityReference,

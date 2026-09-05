@@ -44,7 +44,13 @@ export function buildForumSkip(
   const result: CompletionResult<ForumSynthesis> = {
     // Not a valid ForumSynthesis — the skip marker occupies the same `output` column, hence the cast.
     output: forumSkipMarker('non_english') as unknown as ForumSynthesis,
-    cost: { totalUsd: 0, inputTokens: 0, outputTokens: 0 },
+    cost: {
+      totalUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     provenance: {
       feature: rendered.feature,
       model: FORUM_SKIP_MODEL,

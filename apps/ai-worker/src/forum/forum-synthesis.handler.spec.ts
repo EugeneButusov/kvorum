@@ -33,7 +33,13 @@ function rendered(): RenderedPrompt<{ sentiment: string }> {
 function completion(): CompletionResult<{ sentiment: string }> {
   return {
     output: { sentiment: 'mixed' },
-    cost: { totalUsd: 0.005, inputTokens: 15000, outputTokens: 1000 },
+    cost: {
+      totalUsd: 0.005,
+      inputTokens: 15000,
+      outputTokens: 1000,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     provenance: {
       feature: 'forum_synthesizer',
       model: FORUM_MODEL_HAIKU,
@@ -224,7 +230,13 @@ describe('ForumSynthesisHandler', () => {
     expect(persist).toHaveBeenCalledOnce();
     const [req, result] = persist.mock.calls[0]!;
     expect(result.output).toEqual({ _meta: { skipped_reason: 'non_english' } });
-    expect(result.cost).toEqual({ totalUsd: 0, inputTokens: 0, outputTokens: 0 });
+    expect(result.cost).toEqual({
+      totalUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    });
     expect(req.model).toBe('none');
   });
 

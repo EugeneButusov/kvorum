@@ -32,6 +32,30 @@ describe('AnthropicProvider.completeStructured', () => {
     expect(res.cost.totalUsd).toBeCloseTo(0.002, 9);
     expect(res.cost.inputTokens).toBe(1000);
     expect(res.cost.outputTokens).toBe(200);
+    expect(res.cost.cacheCreationInputTokens).toBe(0);
+    expect(res.cost.cacheReadInputTokens).toBe(0);
+  });
+
+  it('includes cache token costs in totalUsd', async () => {
+    const create = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: '{"tldr":"x"}' }],
+      usage: {
+        input_tokens: 500,
+        output_tokens: 100,
+        cache_creation_input_tokens: 2000,
+        cache_read_input_tokens: 3000,
+      },
+    });
+    const provider = new AnthropicProvider(mockClient({ create }));
+    const res = await provider.completeStructured({ ...req, model: 'claude-sonnet-5' });
+
+    // sonnet-5: $2/MTok in, $2.5/MTok cache-write, $0.2/MTok cache-read, $10/MTok out
+    // 500/1e6*2 + 2000/1e6*2.5 + 3000/1e6*0.2 + 100/1e6*10 = 0.001 + 0.005 + 0.0006 + 0.001 = 0.0076
+    expect(res.cost.totalUsd).toBeCloseTo(0.0076, 9);
+    expect(res.cost.inputTokens).toBe(500);
+    expect(res.cost.outputTokens).toBe(100);
+    expect(res.cost.cacheCreationInputTokens).toBe(2000);
+    expect(res.cost.cacheReadInputTokens).toBe(3000);
   });
 
   it('passes the json schema through output_config.format', async () => {

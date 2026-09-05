@@ -10,7 +10,13 @@ const DESC = 'Body.';
 function embedding() {
   return {
     vector: [0.1, 0.2, 0.3],
-    cost: { totalUsd: 0.0001, inputTokens: 4200, outputTokens: 0 },
+    cost: {
+      totalUsd: 0.0001,
+      inputTokens: 4200,
+      outputTokens: 0,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     model: 'text-embedding-3-small',
   };
 }

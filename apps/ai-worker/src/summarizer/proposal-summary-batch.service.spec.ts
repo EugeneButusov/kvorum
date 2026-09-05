@@ -96,7 +96,13 @@ describe('ProposalSummaryBatchService', () => {
             {
               customId: 'proposal_prop-1',
               parsed: { tldr: 'ok' },
-              cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
+              cost: {
+                totalUsd: 0.002,
+                inputTokens: 100,
+                outputTokens: 20,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+              },
             },
           ],
         },
@@ -141,7 +147,13 @@ describe('ProposalSummaryBatchService', () => {
           {
             customId: 'proposal_prop-1',
             parsed: { tldr: 'ok' },
-            cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
+            cost: {
+              totalUsd: 0.002,
+              inputTokens: 100,
+              outputTokens: 20,
+              cacheCreationInputTokens: 0,
+              cacheReadInputTokens: 0,
+            },
           },
         ],
       },
@@ -184,7 +196,13 @@ describe('ProposalSummaryBatchService', () => {
             {
               customId: 'proposal_prop-1',
               parsed: { not_tldr: 1 },
-              cost: { totalUsd: 0.002, inputTokens: 100, outputTokens: 20 },
+              cost: {
+                totalUsd: 0.002,
+                inputTokens: 100,
+                outputTokens: 20,
+                cacheCreationInputTokens: 0,
+                cacheReadInputTokens: 0,
+              },
             },
           ],
         },

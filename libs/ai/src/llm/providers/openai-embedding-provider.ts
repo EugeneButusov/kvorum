@@ -38,6 +38,8 @@ export class OpenAiEmbeddingProvider implements EmbeddingProvider {
       totalUsd: (inputTokens / 1_000_000) * price.inputPerMTok,
       inputTokens,
       outputTokens: 0,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
     };
   }
 }
