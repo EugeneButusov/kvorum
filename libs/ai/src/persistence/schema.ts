@@ -57,6 +57,26 @@ export interface AiJobDlqTable {
 export type AiJobDlq = Selectable<AiJobDlqTable>;
 export type NewAiJobDlq = Insertable<AiJobDlqTable>;
 
+export interface AiBatchTable {
+  id: Generated<string>;
+  provider: string;
+  provider_batch_id: string;
+  feature: string;
+  pending_cursor: string | null;
+  items: unknown; // jsonb — BatchItemDescriptor[]
+  submitted_at: Date;
+}
+export type AiBatch = Selectable<AiBatchTable>;
+export type NewAiBatch = Insertable<AiBatchTable>;
+
+export interface AiBackfillCursorTable {
+  feature: string;
+  cursor: string;
+  updated_at: Date;
+}
+export type AiBackfillCursor = Selectable<AiBackfillCursorTable>;
+export type NewAiBackfillCursor = Insertable<AiBackfillCursorTable>;
+
 export interface ProposalEmbeddingTable {
   id: Generated<string>;
   proposal_id: string;
@@ -82,6 +102,8 @@ declare module '@libs/db' {
     ai_cost_log: AiCostLogTable;
     ai_dlq: AiDlqTable;
     ai_job_dlq: AiJobDlqTable;
+    ai_batch: AiBatchTable;
+    ai_backfill_cursor: AiBackfillCursorTable;
     proposal_embedding: ProposalEmbeddingTable;
   }
 }

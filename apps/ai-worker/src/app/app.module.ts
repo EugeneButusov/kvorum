@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import {
+  AiBackfillCursorRepository,
+  AiBatchRepository,
   AiCompletionCache,
   AiCostLogRepository,
   AiDlqRepository,
@@ -11,6 +13,7 @@ import {
   ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
+  SystemClock,
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
@@ -19,6 +22,7 @@ import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
 import { AiBackfillConfig } from '../backfill/ai-backfill-config';
 import { AiBackfillService } from '../backfill/ai-backfill.service';
+import { DurableBatch } from '../batch/durable-batch';
 import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
@@ -65,6 +69,8 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
+    { provide: AiBatchRepository, useFactory: () => new AiBatchRepository(pgDb) },
+    { provide: AiBackfillCursorRepository, useFactory: () => new AiBackfillCursorRepository(pgDb) },
     { provide: ForumThreadReadRepository, useFactory: () => new ForumThreadReadRepository(pgDb) },
     {
       provide: ProposalSummaryScanRepository,
@@ -93,6 +99,33 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       useFactory: (embeddings: ProposalEmbeddingRepository, costs: AiCostLogRepository) =>
         new ProposalEmbeddingWriter(pgDb, embeddings, costs),
       inject: [ProposalEmbeddingRepository, AiCostLogRepository],
+    },
+    // Durable in-flight-batch gateway (#617): the DB is the source of truth for open batches + the
+    // backfill cursor, so a restart resumes them instead of orphaning a paid batch / re-walking.
+    {
+      provide: DurableBatch,
+      useFactory: (
+        llm: LLMClient,
+        batches: AiBatchRepository,
+        cursors: AiBackfillCursorRepository,
+        outputs: AiOutputRepository,
+        costs: AiCostLogRepository,
+        dlq: AiDlqRepository,
+      ) =>
+        new DurableBatch(pgDb, llm, batches, cursors, {
+          outputs,
+          costs,
+          dlq,
+          clock: new SystemClock(),
+        }),
+      inject: [
+        LLM_CLIENT,
+        AiBatchRepository,
+        AiBackfillCursorRepository,
+        AiOutputRepository,
+        AiCostLogRepository,
+        AiDlqRepository,
+      ],
     },
     ProposalSummaryAssembler,
     ProposalSummaryBatchService,

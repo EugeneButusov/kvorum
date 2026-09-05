@@ -5,9 +5,10 @@ import type { NewAiDlq } from './schema.js';
 export class AiDlqRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
-  /** Upsert on the unique key: a repeat failure of the same input bumps one row (poison-safe). */
-  async insert(row: NewAiDlq): Promise<void> {
-    await this.db
+  /** Upsert on the unique key: a repeat failure of the same input bumps one row (poison-safe).
+   *  `executor` (a transaction handle) overrides `this.db` so the write can join a caller's tx. */
+  async insert(row: NewAiDlq, executor: Kysely<PgDatabase> = this.db): Promise<void> {
+    await executor
       .insertInto('ai_dlq')
       .values(row)
       .onConflict((oc) =>

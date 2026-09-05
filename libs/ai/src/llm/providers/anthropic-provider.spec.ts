@@ -85,7 +85,7 @@ describe('AnthropicProvider batch primitives', () => {
     const handle = await provider.submitBatch([{ customId: 'p-1', request: req }]);
     expect(handle).toEqual({ id: 'batch_123', provider: 'anthropic' });
 
-    const out = await provider.fetchBatch(handle);
+    const out = await provider.fetchBatch(handle, { 'p-1': req.model });
     expect(out.status).toBe('ended');
     expect(out.results[0]?.customId).toBe('p-1');
     expect(out.results[0]?.parsed).toEqual({ tldr: 'y' });
@@ -96,11 +96,11 @@ describe('AnthropicProvider batch primitives', () => {
   it('fetchBatch reports in_progress with no results', async () => {
     const batches = { retrieve: vi.fn().mockResolvedValue({ processing_status: 'in_progress' }) };
     const provider = new AnthropicProvider(mockClient({ batches }));
-    const out = await provider.fetchBatch({ id: 'b', provider: 'anthropic' });
+    const out = await provider.fetchBatch({ id: 'b', provider: 'anthropic' }, {});
     expect(out).toEqual({ status: 'in_progress', results: [] });
   });
 
-  it('fetchBatch throws when no submitBatch model record exists for the batch (e.g. after a process restart)', async () => {
+  it('fetchBatch throws when a result custom_id has no supplied model (pricing inconsistency)', async () => {
     const batches = {
       retrieve: vi.fn().mockResolvedValue({ processing_status: 'ended' }),
       results: vi.fn().mockReturnValue(
@@ -118,11 +118,13 @@ describe('AnthropicProvider batch primitives', () => {
         })(),
       ),
     };
-    // Fresh provider — no prior submitBatch call, so the model map is empty.
     const provider = new AnthropicProvider(mockClient({ batches }));
 
-    await expect(provider.fetchBatch({ id: 'batch_123', provider: 'anthropic' })).rejects.toThrow(
-      'Cannot price batch result for custom_id "p-1": no submitBatch model record for batch "batch_123" in this process',
+    // The supplied model map is missing 'p-1' — a real inconsistency, not a restart.
+    await expect(
+      provider.fetchBatch({ id: 'batch_123', provider: 'anthropic' }, {}),
+    ).rejects.toThrow(
+      'Cannot price batch result for custom_id "p-1": no model supplied for batch "batch_123"',
     );
   });
 });

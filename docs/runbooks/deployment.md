@@ -150,6 +150,10 @@ three ordered steps; never spend before the pod is confirmed healthy. This is th
 [`m5-ai-backfill.md`](m5-ai-backfill.md); pair it with [`m5-budget-cap-ops.md`](m5-budget-cap-ops.md)
 and [`m5-ai-dlq-triage.md`](m5-ai-dlq-triage.md).
 
+Restarts are safe (#617): the in-flight Anthropic batch and the backfill walk cursor are durable
+(`ai_batch` / `ai_backfill_cursor`), so a `rollout restart` / `set env` mid-backfill resumes the batch
+and the walk rather than orphaning a paid batch or re-scanning from page 1.
+
 **Prerequisites:** pgvector installed (one-time setup step 2) and `ANTHROPIC_API_KEY` + `OPENAI_API_KEY`
 present in `kvorum-secrets` (the worker falls back to sentinel keys and fails only on the first LLM
 call otherwise). Budget caps are set in `base/configmap.yaml` (`AI_CAP_*_USD`, $17/mo total).
