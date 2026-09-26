@@ -27,21 +27,27 @@ overrides:
   # API-compatible); a 4.x/5.x consumer is untouched.
   'nanoid@<3.3.18': '3.3.18'
   'ws': '8.21.0'
-  # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j);
-  # 2.2.0 is API-compatible for our usage (read API uses no file uploads).
-  'multer': '^2.2.0'
+  # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j). The earlier
+  # ^2.2.0 pin resolved to 2.2.0, which three later advisories cover — GHSA-wc9g-mqfw-jrwm
+  # (crafted upload DoS), GHSA-qfvm-cv95-jqjf (fd leak on aborted uploads, no patch for 2.2.0
+  # itself) and GHSA-535w-7cp7-47q4 (oversized array index in field names). All are patched in
+  # 2.3.0. API-compatible for our usage (the read API uses no file uploads).
+  'multer': '^2.3.0'
   'express>qs': '6.15.2'
   'body-parser>qs': '6.15.2'
   'superagent>qs': '6.15.2'
-  # js-yaml: @nestjs/swagger + dev tooling pull the 4.x line (vulnerable). Two chained
+  # js-yaml: @nestjs/swagger + dev tooling pull the 4.x line (vulnerable). Three chained
   # advisories force quadratic CPU on adversarial YAML — GHSA-52cp-r559-cp3m (merge-key chains,
-  # patched 4.3.0) and GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (!!omap resolution, patched 4.3.1).
-  # Rewrite the vulnerable range to the latest patched 4.x; a 3.x/5.x consumer is untouched.
-  'js-yaml@>=4.0.0 <4.3.1': '4.3.1'
+  # patched 4.3.0), GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (!!omap resolution, patched 4.3.1) and
+  # the maxTotalMergeKeys bypass (patched 4.3.2), which widened the vulnerable range past the
+  # previous 4.3.1 pin. Rewrite the vulnerable range to the latest patched 4.x; a 3.x/5.x
+  # consumer is untouched.
+  'js-yaml@>=4.0.0 <4.3.2': '4.3.2'
   # sharp: next pulls 0.34.5 (vulnerable via bundled libvips, GHSA-f88m-g3jw-g9cj —
-  # CVE-2026-33327/33328/35590/35591). Rewrite the vulnerable range to the patched 0.35.x line
-  # (same major, next's image-optimization API is unaffected).
-  'sharp@<0.35.0': '0.35.3'
+  # CVE-2026-33327/33328/35590/35591), and 0.35.3 is in turn covered by GHSA-g89c-p67h-r497
+  # (bundled libheif), which widened the vulnerable range to <0.35.4. Rewrite to the patched
+  # 0.35.x line (same major, next's image-optimization API is unaffected).
+  'sharp@<0.35.4': '0.35.4'
   # browserslist: next>styled-jsx>@babel/core pulls <=4.28.6 (two high advisories —
   # GHSA-c83g-rgw3-j3cx unbounded memory growth, GHSA-73wf-gq98-2v4g prototype write
   # via untrusted stats). Rewrite the vulnerable range to the patched 4.28.7.
