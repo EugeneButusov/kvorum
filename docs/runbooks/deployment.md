@@ -51,6 +51,7 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
 6. **In-cluster secret** — create `kvorum-secrets` from the keys documented in
    [`infra/k8s/overlays/prod/secret.example.yaml`](../../infra/k8s/overlays/prod/secret.example.yaml).
    Values live **only** in the cluster — never commit them.
+
    ```bash
    kubectl create namespace kvorum
    kubectl -n kvorum create secret generic kvorum-secrets \
@@ -60,15 +61,32 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
      # ...all keys from secret.example.yaml...
      --from-literal=TUNNEL_TOKEN='...'
    ```
+
    **Public reads:** the API gates every read behind the `ApiKeyGuard` (keyless per-IP reads
    are deferred, ADR-086). `INTERNAL_READ_TOKEN` is the shared secret the dashboard BFF presents
    so anonymous visitors can read — both the API and the dashboard consume it. Without it, every
    dashboard page is empty (the BFF's reads 401). Direct API access still needs a real key.
+
 7. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`:
    - Secret `DIGITALOCEAN_ACCESS_TOKEN` — a scoped DO API token (read + Kubernetes).
    - Variable `DOKS_CLUSTER` — the cluster name from step 1.
 
    This DO token is the **only** credential CI holds. No app secret is ever exposed to GitHub.
+
+### Chain config
+
+`CHAIN_CONFIG` drives the provider bill more than any other setting. Two rules:
+
+- **List only chains that have a live `dao_source`.** Every configured chain materialises a chain
+  context with a `HeadTracker` and per-provider health-check loops — roughly 300 calls/hour —
+  whether or not anything polls it. Production polls 3 chains; `.env.example` shows 6.
+- **Set `blocksPerMinute` per chain.** Reconcile plugins fall back to `5`, a mainnet figure, so on
+  ~2s-block chains the intended 2h recheck gap collapses to ~20min. Aave's voting machines run on
+  Polygon and Avalanche, so this is load-bearing here. Use eth 5 / polygon, avalanche, base,
+  optimism 30 / arbitrum 240.
+
+Give each chain a free public fallback at `priority: 2`; `libs/chain` fails over on error or open
+circuit, so it costs nothing in steady state.
 
 ## Deploying
 
@@ -144,15 +162,16 @@ both of which leave **derivation running**:
 
 ## AI worker: go-live and backfill
 
-The `ai-worker` deploys **inert** — the `AI_TRIGGER_*_ENABLED` flags in `base/configmap.yaml` default
-to `'false'`, so the pod is healthy and spends nothing until you turn features on. Bring it live in
-three ordered steps; never spend before the pod is confirmed healthy. This is the DOKS translation of
+The `AI_TRIGGER_*_ENABLED` flags in `base/configmap.yaml` are committed as `'true'`, so the worker
+starts scanning and spending as soon as the pod is healthy — it does **not** deploy inert. For the
+never-spend-before-healthy ordering the steps below assume, set all four to `'false'` first, deploy,
+verify, then flip them back. This is the DOKS translation of
 [`m5-ai-backfill.md`](m5-ai-backfill.md); pair it with [`m5-budget-cap-ops.md`](m5-budget-cap-ops.md)
 and [`m5-ai-dlq-triage.md`](m5-ai-dlq-triage.md).
 
 **Prerequisites:** pgvector installed (one-time setup step 2) and `ANTHROPIC_API_KEY` + `OPENAI_API_KEY`
 present in `kvorum-secrets` (the worker falls back to sentinel keys and fails only on the first LLM
-call otherwise). Budget caps are set in `base/configmap.yaml` (`AI_CAP_*_USD`, $17/mo total).
+call otherwise). Budget caps are set in `base/configmap.yaml` (`AI_CAP_*_USD`, $5/mo total).
 
 **1 — verify healthy + inert.** After the deploy:
 
@@ -241,7 +260,8 @@ Cost/health dashboards are self-hosted in-cluster via the `components/monitoring
 (Prometheus scrapes the apps' `:9091/metrics`; Grafana file-provisions the dashboards). It ships
 with the normal `apply -k`. Setup (Grafana admin password + the `grafana.kvorum.watch` tunnel
 hostname), dashboards, and verification are in [`observability.md`](observability.md). Watch AI spend
-there against the $17 ceiling before/while running the AI backfill.
+there against the $5 ceiling before/while running the AI backfill (raise the caps first —
+$5 will not cover a backfill).
 
 ## Scale-up levers (overlay-only — `base/` never changes)
 

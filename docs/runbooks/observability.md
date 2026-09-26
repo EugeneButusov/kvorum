@@ -29,7 +29,7 @@ kvorum-grafana  (ClusterIP :80→3000)  ──tunnel──►  https://grafana.k
 
 Committed JSON under `infra/k8s/components/monitoring/dashboards/`:
 
-- `ai-cost-feature-health.json` — per-feature month-to-date spend, total vs the **$17** ceiling,
+- `ai-cost-feature-health.json` — per-feature month-to-date spend, total vs the **$5** ceiling,
   budget-cap utilization, disabled-state, job success/failure, p95 latency, queue/DLQ depth, cache
   hits, token throughput.
 - `platform-health.json` — scrape liveness, API request rate / p95 / 5xx / rate-limit rejections,

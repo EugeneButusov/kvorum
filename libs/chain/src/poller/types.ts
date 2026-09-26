@@ -53,7 +53,7 @@ export interface EventPollerOptions {
   filter: LogFilter;
   /** Resumable watermark. Omit for the legacy head-anchored window (no catch-up after downtime). */
   cursor?: PollCursorStore;
-  /** Max blocks fetched per tick while catching up. Default = 500 — providers cap eth_getLogs
+  /** Max blocks fetched per tick while catching up. Default = 10_000 — providers cap eth_getLogs
    *  ranges, so a long outage is walked in chunks rather than demanded in one call. */
   maxBlocksPerTick?: number;
   /** Source type (e.g. 'compound_governor') — required for 5-tuple idempotency key

@@ -32,9 +32,11 @@ data:
   #     2h regardless, and the lag gauge + timestamp filler tolerate a stale head, so raising
   #     it is safe. The event poller derives its own confirmed head per tick, so it is
   #     unaffected by this.
-  # Push EVENT_POLL_INTERVAL_MS to 120000 for a further ~10% cut if 2-minute lag is acceptable.
-  EVENT_POLL_INTERVAL_MS: '60000'
-  HEAD_POLL_INTERVAL_MS: '60000'
+  EVENT_POLL_INTERVAL_MS: '3600000'
+  HEAD_POLL_INTERVAL_MS: '3600000'
+  # One eth_call (getPowerCurrent) per delegate per sweep; BATCH_SIZE is concurrency, not a
+  # cap. 7200 blocks ≈ daily, up from the code default of 450 (≈90 min).
+  AAVE_DELEGATION_SWEEP_COOLDOWN_BLOCKS: '7200'
   # Calldata decoder (apps/indexer). When enabled, an undecodable proposal_action is enriched by
   # fetching the target's verified ABI from the Etherscan V2 unified API (one key, all chains via a
   # chainid param), caching it in abi_cache/selector_index so subsequent decodes are free. This is
@@ -48,16 +50,17 @@ data:
   # Monthly hard budget ceilings, USD (ADR-079). AiBudgetCapService recomputes
   # month-to-date spend every 5 min and disables a feature at ≥100% of its cap at both
   # the enqueue and the consume side; it auto-recovers on the 1st. Tightened below the
-  # code defaults (5/20/15/1 = $41) for this non-revenue deployment → $17/mo ceiling.
-  AI_CAP_SUMMARIZE_USD: '3'
-  AI_CAP_MISMATCH_USD: '8'
-  AI_CAP_FORUM_SYNTHESIS_USD: '5'
+  # code defaults (5/20/15/1 = $41) for this non-revenue deployment → $5/mo ceiling. Raise
+  # before re-running a backfill, or the feature disables itself part-way through.
+  AI_CAP_SUMMARIZE_USD: '1'
+  AI_CAP_MISMATCH_USD: '2'
+  AI_CAP_FORUM_SYNTHESIS_USD: '1'
   AI_CAP_EMBED_USD: '1'
   # Steady-state trigger flags (ADR-078). Read from env every scan tick. ENABLED at
   # go-live (the initial deploy landed the worker inert and healthy; LLM keys are in
   # kvorum-secrets, pgvector is present). With these on, newly-transitioned
   # proposals/threads (all DAOs) get summarized/analysed within the scan lookback,
-  # bounded by the $17/mo caps above. The one-time historical backfill is a separate,
+  # bounded by the $5/mo caps above. The one-time historical backfill is a separate,
   # transient toggle — see docs/runbooks/deployment.md and docs/runbooks/m5-ai-backfill.md,
   # not committed here. To pause a feature, set its flag back to 'false' (a deploy or
   # rollout restart re-reads env).
