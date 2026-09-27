@@ -2,6 +2,8 @@
 
 Deploys the full stack — `api` + `indexer` + `ai-worker` + `dashboard`, plus Postgres and ClickHouse — to one DigitalOcean droplet running k3s. Target ≈ **$25/mo**. Rationale and measured capacity: [ADR-0090](../adr/0090-single-node-k3s-topology.md).
 
+Migrating an existing DOKS deployment onto this topology is a one-time procedure with its own gates and rollback points: [`single-node-migration.md`](single-node-migration.md).
+
 ## Topology
 
 ```
