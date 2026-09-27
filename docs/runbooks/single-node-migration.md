@@ -260,11 +260,30 @@ In the Zero Trust dashboard:
 
 ### 2.3 Deploy
 
-```bash
-IMG=ghcr.io/<owner>/kvorum:$(git rev-parse origin/main)
-cd infra/k8s/overlays/prod && kustomize edit set image "ghcr.io/kvorum/kvorum=$IMG" && cd -
+Run from the repository root — the first line guarantees it regardless of where you were. The owner is derived from the remote and **lowercased**, because GHCR rejects uppercase path segments and the build workflow publishes the lowercased form (`${GITHUB_REPOSITORY,,}`). Typing `ghcr.io/EugeneButusov/...` by hand gets an image that does not exist, and you find out 300 seconds later when the migration gate times out on `ImagePullBackOff`.
 
-# copy the manifests to the host and run the deploy script there
+```bash
+cd "$(git rev-parse --show-toplevel)"
+
+OWNER=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+)/[^/]+$#\1#' | sed 's/\.git$//' | tr 'A-Z' 'a-z')
+IMG="ghcr.io/$OWNER/kvorum:$(git rev-parse origin/main)"
+echo "$IMG"          # sanity-check: all lowercase, 40-char sha
+
+(cd infra/k8s/overlays/prod && kustomize edit set image "ghcr.io/kvorum/kvorum=$IMG")
+```
+
+The subshell around `kustomize edit` means you stay where you are rather than depending on `cd -`.
+
+Confirm the image was actually built and pushed for that commit before deploying — the deploy workflow only publishes on merge to `main`:
+
+```bash
+gh api "/orgs/$OWNER/packages/container/kvorum/versions" --jq '.[0].metadata.container.tags' 2>/dev/null \
+  || gh api "/users/$OWNER/packages/container/kvorum/versions" --jq '.[0].metadata.container.tags'
+```
+
+Then ship it:
+
+```bash
 tar czf /tmp/bundle.tar.gz infra/k8s infra/scripts/deploy.sh
 scp /tmp/bundle.tar.gz deploy@<droplet-ip>:/tmp/
 ssh deploy@<droplet-ip> 'rm -rf ~/kvorum-deploy && mkdir -p ~/kvorum-deploy \
