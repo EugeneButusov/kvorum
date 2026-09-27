@@ -1,8 +1,18 @@
 # Nightly datastore backups to an S3-compatible bucket. Pairs with components/data —
 # self-hosted datastores on node-local storage make this load-bearing, not optional.
+#
+# The scripts are real files under scripts/ rather than inline YAML, so they are
+# syntax-highlightable and shellcheck-able. configMapGenerator hashes the ConfigMap name,
+# so editing a script rolls the CronJob's pod template. They must live inside this
+# directory: the kustomize load-restrictor forbids a generator reading outside it.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
 resources:
-  - backup-scripts.yaml
   - backup-cronjob.yaml
+
+configMapGenerator:
+  - name: kvorum-backup-scripts
+    files:
+      - scripts/dump.sh
+      - scripts/upload.sh
