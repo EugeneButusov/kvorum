@@ -76,7 +76,7 @@ If a pod stays `Pending` on memory, resize the droplet — the anti-affinity rul
 
 3. **Datastore credentials** — Postgres and ClickHouse read their users and passwords from `kvorum-secrets` (step 6), and both initialise on first start. No external provisioning, no `CREATE EXTENSION` pre-step: the Postgres image ships pgvector and the app role owns the database, so `ai_003` creates the extension itself.
 
-   Storage comes from k3s's built-in `local-path` StorageClass, i.e. the droplet's own disk. **This means node loss is data loss** — set up the backup CronJob and run a restore drill before relying on it.
+   Storage comes from k3s's built-in `local-path` StorageClass, i.e. the droplet's own disk. **This means node loss is data loss.** Create the backup bucket and its token now (`R2_*` in step 6), and run a restore drill before putting real data on it — see [`backup-restore.md`](backup-restore.md).
 
 4. **Redis** — create an Upstash Redis database; grab the `rediss://` URL. Kept external deliberately: it is free and it keeps session state off the box.
 

@@ -1,0 +1,8 @@
+# Nightly datastore backups to an S3-compatible bucket. Pairs with components/data —
+# self-hosted datastores on node-local storage make this load-bearing, not optional.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - backup-scripts.yaml
+  - backup-cronjob.yaml
