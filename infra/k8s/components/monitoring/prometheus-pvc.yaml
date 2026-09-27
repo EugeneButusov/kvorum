@@ -1,7 +1,5 @@
-# Small volume so metric history survives pod restarts/deploys. 5Gi is ample for 7-day
-# retention of the low-cardinality kvorum series (~3 targets). Provisioned by the default
-# StorageClass — on the single-node k3s host that is `local-path`, which uses the node's own
-# disk and costs nothing, rather than a billed do-block-storage volume.
+# Small volume so metric history survives pod restarts. 5Gi covers 7-day retention of the
+# low-cardinality kvorum series. The default StorageClass on k3s is `local-path` (node disk).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

@@ -1,9 +1,4 @@
-# ClickHouse 24, the same major docker-compose.yml uses for local dev and CI.
-#
-# ClickHouse is the source of truth for chain-event-derived data (ADR-0062), not an archive
-# tier — proposal detail, the delegate pages, actor pages and DAO health all read it
-# synchronously, so it is load-bearing for the demo and cannot simply be dropped to save the
-# managed-service bill. Moving it in-cluster keeps the contract and removes the cost.
+# Source of truth for derived data (ADR-0062), so it moves host rather than being dropped.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -42,8 +37,6 @@ spec:
                 secretKeyRef:
                   name: kvorum-secrets
                   key: CLICKHOUSE_PASSWORD
-            # Without this the bundled default user stays password-less and world-readable
-            # from inside the cluster.
             - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
               value: '1'
           readinessProbe:
@@ -67,12 +60,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/clickhouse
-            # subPath, NOT a directory mount: mounting over /etc/clickhouse-server/config.d
-            # shadows the image's own docker_related_config.xml, which is what sets
-            # listen_host to 0.0.0.0/::. Without it the server binds loopback only, so it
-            # answers /ping inside the container but every probe and client hitting the pod
-            # IP gets connection refused. Trade-off: a subPath mount does not receive
-            # ConfigMap updates in place, so a config change needs the pod recreated.
+            # subPath is required: mounting the directory shadows the image's
+            # docker_related_config.xml, which sets listen_host, leaving the server on
+            # loopback only. Cost: ConfigMap edits need the pod recreated.
             - name: config
               mountPath: /etc/clickhouse-server/config.d/kvorum-limits.xml
               subPath: kvorum-limits.xml

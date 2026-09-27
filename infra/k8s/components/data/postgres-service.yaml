@@ -1,8 +1,3 @@
-# Headless-adjacent ClusterIP for the Postgres StatefulSet. DATABASE_URL points here:
-# postgresql://<user>:<pw>@kvorum-postgres.kvorum:5432/kvorum
-#
-# No sslmode/uselibpqcompat query params are needed any more — traffic never leaves the
-# node, so the DO managed-Postgres private-CA workaround (SELF_SIGNED_CERT_IN_CHAIN) is gone.
 apiVersion: v1
 kind: Service
 metadata:

@@ -1,8 +1,5 @@
-# ClusterIP for the ClickHouse StatefulSet. CLICKHOUSE_URL points at the HTTP interface:
-# http://kvorum-clickhouse.kvorum:8123
-#
-# Only the HTTP interface is exposed. @clickhouse/client and clickhouse-migrations speak
-# HTTP exclusively, so the native protocol (9000) is deliberately absent.
+# HTTP interface only — @clickhouse/client and clickhouse-migrations do not speak the
+# native protocol.
 apiVersion: v1
 kind: Service
 metadata:

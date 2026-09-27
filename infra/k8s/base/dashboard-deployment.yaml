@@ -11,9 +11,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: kvorum-dashboard
   strategy:
-    # Single-node topology: a surge pod has nowhere to land, so maxSurge 1 / maxUnavailable 0
-    # leaves the new pod Pending until deploy.yml's rollout-status timeout fails the deploy.
-    # Replace-then-start instead and accept ~20s of downtime per deploy.
+    # Single node: a surge pod has nowhere to land, so maxSurge 1 would stall the rollout.
+    # Costs ~20s of downtime per deploy.
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
@@ -26,9 +25,7 @@ spec:
     spec:
       affinity:
         podAntiAffinity:
-          # Prefer to keep the public-facing SSR/BFF process off the indexer's node (same
-          # rule as the API). Preferred, not required: on the single-node topology a hard
-          # rule leaves the pod Pending forever. Spreads first once a node is added.
+          # Same rule as the API: keep the SSR/BFF process off the indexer's node.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:

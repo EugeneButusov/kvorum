@@ -1,10 +1,5 @@
-# ClickHouse memory ceiling. The server's defaults assume a dedicated host; this box also
-# carries Postgres, four Node services and Prometheus, so the caches are trimmed hard.
-# The dataset is far below anything that needs them: ADR-038 sizes v1 at ~10k rows/year and
-# says to revisit partitioning only past ~10M rows.
-#
-# max_server_memory_usage is an absolute cap rather than a ratio so it stays correct
-# regardless of what the kernel reports for a shared node.
+# Caches trimmed hard: this node also carries Postgres, four Node services and Prometheus,
+# and the dataset is tiny (ADR-038).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,15 +14,10 @@ data:
         <mark_cache_size>134217728</mark_cache_size>
         <uncompressed_cache_size>0</uncompressed_cache_size>
         <max_concurrent_queries>32</max_concurrent_queries>
-        <!-- background_pool_size is deliberately left at its default. Lowering it saves only
-             thread stacks (max_server_memory_usage above is the real ceiling) and it is
-             coupled to an internal invariant: the server refuses to start with BAD_ARGUMENTS
-             unless background_pool_size * background_merges_mutations_concurrency_ratio is at
-             least number_of_free_entries_in_pool_to_execute_mutation (20 by default), because
-             mutations could otherwise never run. -->
-        <!-- Log to stdout so `kubectl logs` works; the image's default file logging hides
-             startup errors and fills the node's disk. Single node, no replication, so
-             warning-level is plenty. -->
+        <!-- Do NOT set background_pool_size: below ~10 the server exits BAD_ARGUMENTS,
+             since it must stay >= number_of_free_entries_in_pool_to_execute_mutation
+             divided by the concurrency ratio. -->
+        <!-- Console, not the image's default file logging, which hides startup errors. -->
         <logger>
             <level>warning</level>
             <console>1</console>

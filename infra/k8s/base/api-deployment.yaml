@@ -11,9 +11,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: kvorum-api
   strategy:
-    # Single-node topology: a surge pod has nowhere to land, so maxSurge 1 / maxUnavailable 0
-    # leaves the new pod Pending until deploy.yml's rollout-status timeout fails the deploy.
-    # Replace-then-start instead and accept ~20s of downtime per deploy.
+    # Single node: a surge pod has nowhere to land, so maxSurge 1 would stall the rollout.
+    # Costs ~20s of downtime per deploy.
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
@@ -26,10 +25,9 @@ spec:
     spec:
       affinity:
         podAntiAffinity:
-          # Prefer to keep the API off the indexer's node, so the indexer's bursty
-          # derivation/RPC CPU does not degrade request latency. Preferred, not required:
-          # the single-node topology has nowhere else to put it, and a hard rule leaves the
-          # whole set Pending forever. Still spreads first as soon as a node is added.
+          # Keep the API off the indexer's node so its bursty derivation/RPC CPU cannot
+          # degrade request latency. Preferred, not required — a hard rule leaves the set
+          # Pending forever on a single node.
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
