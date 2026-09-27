@@ -15,16 +15,15 @@ Expect ~2–3 hours of hands-on work plus a 48-hour soak.
 A destructive command against the wrong context is the worst thing that can happen during this. Do not rely on `current-context`:
 
 ```bash
-# save both under memorable names
-doctl kubernetes cluster kubeconfig save <doks-name>   # → do-fra1-kvorum-prod
-export KUBECONFIG=~/.kube/config:~/.kube/k3s.yaml       # after Phase 1 writes k3s.yaml
+doctl kubernetes cluster kubeconfig save <doks-name>   # → context do-fra1-kvorum-prod
 
-kubectl config get-contexts
 alias kold='kubectl --context=do-fra1-kvorum-prod -n kvorum'
-alias knew='kubectl --context=default -n kvorum'        # k3s names its context `default`
+alias knew='kubectl --context=kvorum-k3s -n kvorum'
 ```
 
 Every command below is written as `kold` or `knew`. If you find yourself typing bare `kubectl`, stop.
+
+`knew` only starts working after **Phase 1.4**, which creates the `kvorum-k3s` context and sets the `KUBECONFIG` that makes both clusters visible. Until then it fails with `context "kvorum-k3s" does not exist` — that is expected, not a problem with your setup.
 
 **2. Nothing is deleted until Phase 7.** If a phase fails, the old stack is still serving traffic and you can walk away.
 
@@ -165,24 +164,34 @@ That must succeed without a password prompt and list the node. If `kubectl` is p
 
 ### 1.4 Get a kubeconfig on your laptop
 
+The k3s API is firewalled off, so reach it through an SSH tunnel rather than opening 6443. k3s's own kubeconfig already points at `https://127.0.0.1:6443`, which is exactly what the tunnel serves — so it needs **no** rewriting.
+
 ```bash
-ssh root@<droplet-ip> 'cat /etc/rancher/k3s/k3s.yaml' \
-  | sed "s/127.0.0.1/<droplet-ip>/" > ~/.kube/k3s.yaml
+ssh root@<droplet-ip> 'cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/k3s.yaml
 chmod 600 ~/.kube/k3s.yaml
 ```
 
-The k3s API is firewalled off, so reach it over an SSH tunnel rather than opening 6443:
+Rename the context. k3s calls everything `default`, which is both collision-prone and a dangerous name for the cluster that is about to become production while another one is still live:
 
 ```bash
-ssh -N -L 6443:127.0.0.1:6443 root@<droplet-ip> &
-sed -i '' "s|https://<droplet-ip>:6443|https://127.0.0.1:6443|" ~/.kube/k3s.yaml
+KUBECONFIG=~/.kube/k3s.yaml kubectl config rename-context default kvorum-k3s
 ```
 
-Set up the `knew` alias from the top of this document and confirm:
+Open the tunnel — it has to stay up for every `knew` command in this runbook:
 
 ```bash
+ssh -f -N -L 6443:127.0.0.1:6443 root@<droplet-ip>
+```
+
+Now make both clusters visible at once and confirm:
+
+```bash
+export KUBECONFIG=~/.kube/config:~/.kube/k3s.yaml
+kubectl config get-contexts        # expect do-fra1-kvorum-prod AND kvorum-k3s
 knew get nodes
 ```
+
+`KUBECONFIG` is per-shell. Put that `export` in your shell profile, or re-run it in every new terminal — otherwise `kubectl` reads only `~/.kube/config` and `knew` fails with `context "kvorum-k3s" does not exist`.
 
 ---
 
