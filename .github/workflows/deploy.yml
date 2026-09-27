@@ -60,7 +60,6 @@ jobs:
     #   secret DEPLOY_SSH_KEY      — private key for the deploy user on the droplet
     #   secret DEPLOY_KNOWN_HOSTS  — `ssh-keyscan <host>` output, so the host key is pinned
     #   secret DEPLOY_HOST         — user@host of the droplet
-    # These are the only credentials CI holds; no app secret is ever exposed to GitHub.
     environment: production
     env:
       IMAGE: ${{ needs.build.outputs.image }}:${{ github.sha }}
