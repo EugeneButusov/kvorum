@@ -14,16 +14,29 @@ Expect ~2–3 hours of hands-on work plus a 48-hour soak.
 
 A destructive command against the wrong context is the worst thing that can happen during this. Do not rely on `current-context`:
 
+This migration spans hours and probably several terminals, and both the aliases and `KUBECONFIG` are per-shell. Put them in a file you can re-source rather than retyping them:
+
 ```bash
 doctl kubernetes cluster kubeconfig save <doks-name>   # → context do-fra1-kvorum-prod
 
+cat > ~/kvorum-migration.env <<'ENV'
+export KUBECONFIG=~/.kube/config:~/.kube/k3s.yaml
 alias kold='kubectl --context=do-fra1-kvorum-prod -n kvorum'
 alias knew='kubectl --context=kvorum-k3s -n kvorum'
+ENV
+```
+
+Then in **every** new terminal:
+
+```bash
+source ~/kvorum-migration.env
 ```
 
 Every command below is written as `kold` or `knew`. If you find yourself typing bare `kubectl`, stop.
 
-`knew` only starts working after **Phase 1.4**, which creates the `kvorum-k3s` context and sets the `KUBECONFIG` that makes both clusters visible. Until then it fails with `context "kvorum-k3s" does not exist` — that is expected, not a problem with your setup.
+`knew` only starts working after **Phase 1.4**, which creates the `kvorum-k3s` context. Until then it fails with `context "kvorum-k3s" does not exist` — expected, not a broken setup.
+
+If an alias reports a context you do not recognise, the alias itself is stale: it is a shell string, so re-sourcing the file above is the fix. `kubectl config get-contexts` shows the truth.
 
 **2. Nothing is deleted until Phase 7.** If a phase fails, the old stack is still serving traffic and you can walk away.
 
@@ -177,11 +190,14 @@ Rename the context. k3s calls everything `default`, which is both collision-pron
 KUBECONFIG=~/.kube/k3s.yaml kubectl config rename-context default kvorum-k3s
 ```
 
-Open the tunnel — it has to stay up for every `knew` command in this runbook:
+Open the tunnel — it has to stay up for every `knew` command in this runbook. Skip if one is already listening, and fail loudly rather than silently if the forward cannot be set up:
 
 ```bash
-ssh -f -N -L 6443:127.0.0.1:6443 root@<droplet-ip>
+lsof -nP -iTCP:6443 -sTCP:LISTEN >/dev/null 2>&1 \
+  || ssh -f -N -o ExitOnForwardFailure=yes -L 6443:127.0.0.1:6443 root@<droplet-ip>
 ```
+
+`ExitOnForwardFailure=yes` matters: without it, an `ssh` that loses the bind (because an earlier tunnel still holds the port) stays running and forwards nothing, so the session looks healthy while every `knew` command fails. Check with `lsof -nP -iTCP:6443 -sTCP:LISTEN`, and `curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:6443/version` — a `401` means the tunnel is good and only auth is left.
 
 Now make both clusters visible at once and confirm:
 
