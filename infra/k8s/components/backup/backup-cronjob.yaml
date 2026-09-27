@@ -1,0 +1,121 @@
+# Nightly logical backup of both datastores. Required, not optional: components/data puts
+# Postgres and ClickHouse on `local-path`, so losing the node loses the data.
+#
+# Two stages over a shared emptyDir — the dump image has pg_dump, the upload image has
+# rclone, and neither has both. R2 is S3-compatible; any S3 endpoint works.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kvorum-backup
+  labels:
+    app.kubernetes.io/name: kvorum-backup
+    app.kubernetes.io/part-of: kvorum
+spec:
+  schedule: '17 3 * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: kvorum-backup
+            app.kubernetes.io/part-of: kvorum
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: dump
+              image: postgres:18-alpine
+              command: ['sh', '/scripts/dump.sh']
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: DATABASE_URL
+                - name: CLICKHOUSE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: CLICKHOUSE_URL
+                - name: CLICKHOUSE_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: CLICKHOUSE_USER
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: CLICKHOUSE_PASSWORD
+                - name: CLICKHOUSE_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: CLICKHOUSE_DATABASE
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: scripts
+                  mountPath: /scripts
+          containers:
+            - name: upload
+              image: rclone/rclone:1.71
+              command: ['sh', '/scripts/upload.sh']
+              env:
+                - name: R2_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: R2_BUCKET
+                # rclone reads its whole remote definition from RCLONE_CONFIG_<NAME>_*,
+                # so no config file is mounted and no credential is written to disk.
+                - name: RCLONE_CONFIG_R2_TYPE
+                  value: s3
+                - name: RCLONE_CONFIG_R2_PROVIDER
+                  value: Cloudflare
+                - name: RCLONE_CONFIG_R2_REGION
+                  value: auto
+                - name: RCLONE_CONFIG_R2_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: R2_ENDPOINT
+                - name: RCLONE_CONFIG_R2_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: R2_ACCESS_KEY_ID
+                - name: RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: kvorum-secrets
+                      key: R2_SECRET_ACCESS_KEY
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: scripts
+                  mountPath: /scripts
+          volumes:
+            - name: backup
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: kvorum-backup-scripts
