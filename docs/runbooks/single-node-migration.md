@@ -215,35 +215,37 @@ knew get nodes
 
 ### 2.1 Create the namespace and secret
 
-Generate fresh datastore passwords. `DATABASE_URL` **must embed the same password** the StatefulSet initialises with, or the apps will authenticate against a database created with a different one — a confusing failure.
+Do this with the script, not by hand. The secret has 22 keys drawn from three places — 10 copied from the old cluster, 7 derived, 5 that only you have — and the pairing that matters most is invisible: `DATABASE_URL` must embed the same password the StatefulSet initialises Postgres with, or the apps authenticate against a database created with a different one and the failure surfaces hours later.
 
 ```bash
 knew create namespace kvorum
 
-PGPW=$(openssl rand -hex 24); CHPW=$(openssl rand -hex 24)
-knew create secret generic kvorum-secrets \
-  --from-literal=POSTGRES_USER='kvorum' \
-  --from-literal=POSTGRES_PASSWORD="$PGPW" \
-  --from-literal=DATABASE_URL="postgresql://kvorum:$PGPW@kvorum-postgres.kvorum:5432/kvorum" \
-  --from-literal=CLICKHOUSE_USER='kvorum' \
-  --from-literal=CLICKHOUSE_PASSWORD="$CHPW" \
-  --from-literal=CLICKHOUSE_URL='http://kvorum-clickhouse.kvorum:8123' \
-  --from-literal=CLICKHOUSE_DATABASE='kvorum' \
-  --from-literal=R2_BUCKET='kvorum-backups' \
-  --from-literal=R2_ENDPOINT='https://<account-id>.r2.cloudflarestorage.com' \
-  --from-literal=R2_ACCESS_KEY_ID='...' \
-  --from-literal=R2_SECRET_ACCESS_KEY='...' \
-  --from-literal=TUNNEL_TOKEN='<new tunnel token from 2.2>' \
-  # ...and every remaining key from ~/kvorum-secrets.env, unchanged:
-  # REDIS_URL CURSOR_SECRET HMAC_PEPPER_CURRENT INTERNAL_READ_TOKEN CHAIN_CONFIG
-  # SNAPSHOT_API_KEY ETHERSCAN_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY GRAFANA_ADMIN_PASSWORD
+OLD_CONTEXT=do-fra1-kvorum-prod NEW_CONTEXT=kvorum-k3s \
+R2_BUCKET=kvorum-backups \
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com \
+R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+TUNNEL_TOKEN=<token from 2.2> \
+  ./infra/scripts/migration-secret.sh
 ```
 
-Cross-check you missed nothing:
+Omit any of the five supplied values and it prompts for them without echoing. It prints key names only, never values.
+
+| Class    | Keys                                                                                                                                                                                        | Source                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| carried  | `REDIS_URL` `CURSOR_SECRET` `HMAC_PEPPER_CURRENT` `INTERNAL_READ_TOKEN` `CHAIN_CONFIG` `SNAPSHOT_API_KEY` `ETHERSCAN_API_KEY` `ANTHROPIC_API_KEY` `OPENAI_API_KEY` `GRAFANA_ADMIN_PASSWORD` | read from the old cluster    |
+| derived  | `POSTGRES_USER` `POSTGRES_PASSWORD` `DATABASE_URL` `CLICKHOUSE_USER` `CLICKHOUSE_PASSWORD` `CLICKHOUSE_URL` `CLICKHOUSE_DATABASE`                                                           | generated here, consistently |
+| supplied | `R2_BUCKET` `R2_ENDPOINT` `R2_ACCESS_KEY_ID` `R2_SECRET_ACCESS_KEY` `TUNNEL_TOKEN`                                                                                                          | you                          |
+
+It refuses to run in three cases, each a mistake worth stopping for:
+
+- **The secret already exists** (override with `FORCE=1`). Re-running after Postgres has initialised generates a password that no longer matches the volume, locking you out of your own data. Only force while the datastores are still empty.
+- **A carried key is missing** from the old secret, rather than silently producing a secret with a hole in it.
+- **The result does not match** the key list in `secret.example.yaml`, which is the contract the manifests are written against.
+
+Confirm — key names only, no values:
 
 ```bash
-diff <(knew get secret kvorum-secrets -o jsonpath='{.data}' | jq -r 'keys[]' | sort) \
-     <(cat infra/k8s/overlays/prod/secret.example.yaml | yq '.stringData | keys[]' | sort)
+knew get secret kvorum-secrets -o jsonpath='{.data}' | jq -r 'keys[]' | wc -l   # 22
 ```
 
 ### 2.2 Create a _second_ Cloudflare Tunnel
