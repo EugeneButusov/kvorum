@@ -54,6 +54,8 @@ See SPEC §8.4 for the ADR process. Numbering continues from the v1.0 DRs (DR-00
 | [ADR-081](0081-embedding-composition.md)                     | Proposal embedding composition (natural text, names-only actions, stable + change-controlled)         | Proposed                      | 5.8, 5.9                                |
 | [ADR-087](0087-service-side-actor-identity-resolution.md)    | Resolve actor identity in the service, not inside ClickHouse                                          | Accepted                      | 6.7, 6.9, 6.12                          |
 | [ADR-0088](0088-forum-synthesis-proposal-subresource.md)     | Forum synthesis exposed as a proposal sub-resource, not a thread-addressed route (amends §5.4)        | Accepted                      | 5.4                                     |
+| [ADR-0089](0089-search-architecture.md)                      | PostgreSQL full-text search for cross-entity keyword search                                           | Accepted                      | n/a (new capability)                    |
+| [ADR-0090](0090-single-node-k3s-topology.md)                 | Single-node k3s deployment topology (supersedes the §7.1/§7.8 Hetzner Compose design)                 | Accepted                      | 7.1, 7.5, 7.7, 7.8                      |
 
 ## Status legend
 

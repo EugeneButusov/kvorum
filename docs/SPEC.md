@@ -2091,6 +2091,11 @@ The design priorities for non-functional requirements, in order: **honest commit
 
 ### 7.1 Service inventory and deployment topology
 
+> **Superseded by [ADR-0090](adr/0090-single-node-k3s-topology.md) (2026-09-27).** The single-host Hetzner CX32 /
+> Docker Compose topology described below was never deployed. Production ran on DigitalOcean Kubernetes with
+> managed Postgres and ClickHouse, and now runs on **one `s-2vcpu-4gb` droplet with k3s**, both datastores
+> in-cluster. `docs/runbooks/deployment.md` is the operational source of truth.
+
 Kvorum v1 deploys six service classes plus three supporting infrastructure components. All run on a single Hetzner CX32 (or equivalent ~4 vCPU, 8 GB RAM) host via Docker Compose.
 
 **Kvorum services:**
@@ -2274,6 +2279,9 @@ These are appropriate for a funded organization; they are not appropriate commit
 
 ### 7.7 Capacity planning and scaling path
 
+> **Host sizing superseded by [ADR-0090](adr/0090-single-node-k3s-topology.md) (2026-09-27).** The scaling path
+> below is sound, but its host figures assume the Hetzner topology. Current capacity is measured in ADR-0090.
+
 **v1 expected scale:**
 
 - ~3,000 indexed proposals across all v1 DAOs (cumulative)
@@ -2304,6 +2312,11 @@ The deployment is structured so that horizontal scaling is achievable without re
 The migration from v1 to v1.x is straightforward: connection strings change, Compose service definitions are removed for the moved components. The migration to v2 is more involved but non-blocking — v1 ships without it.
 
 ### 7.8 Cost ceiling and budget enforcement
+
+> **Superseded by [ADR-0090](adr/0090-single-node-k3s-topology.md) (2026-09-27).** The €60/month ceiling and the
+> breakdown below assume the Hetzner single-host topology that was never built, and they omit the managed
+> datastore lines that dominated the real bill. Actual spend was ~$93.56/month of infrastructure; the current
+> topology is ~$24.60 plus up to $5 of LLM spend. See ADR-0090 for the live figures.
 
 **Total monthly operational cost ceiling: €60.** Realistic typical spend: ~€25/month.
 

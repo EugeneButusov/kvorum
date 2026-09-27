@@ -77,10 +77,14 @@ under Dashboards and populate against the auto-provisioned Prometheus datasource
 
 ## Capacity
 
-Prometheus (req 150m/256Mi) + Grafana (req 100m/128Mi) fit the 2× `s-1vcpu-2gb` pool for demo-level
-load. If either pod is `Pending` on memory (e.g. while the api HPA is bursting), apply the
-`deployment.md` scale-up: add one `s-1vcpu-2gb` node (~+$12/mo) or bump the pool to `s-2vcpu-4gb`.
-The Prometheus PVC is ~$1/mo of DO block storage.
+Prometheus (req 150m/256Mi) + Grafana (req 100m/128Mi) are ~384Mi of the 2540Mi the whole stack
+requests on the single `s-2vcpu-4gb` node — see the capacity table in
+[`deployment.md`](deployment.md). Retention is 7 days on a 5Gi `local-path` volume, i.e. the
+droplet's own disk, so it costs nothing but **does not survive losing the node**. Metrics are
+disposable; the datastore backups are what matter.
+
+If either pod is `Pending` on memory, resize the droplet or add a node — the request-serving pods
+carry `preferred` anti-affinity against the indexer, so a second node also spreads them off it.
 
 ## Editing the scrape config
 

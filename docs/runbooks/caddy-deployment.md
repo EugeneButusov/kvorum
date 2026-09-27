@@ -1,5 +1,12 @@
 # Caddy deployment runbook
 
+> **Superseded for production (2026-09-27) by [ADR-0090](../adr/0090-single-node-k3s-topology.md).** Production
+> ingress is a Cloudflare Tunnel (`components/expose-tunnel`), not Caddy — there is no public port and no ACME
+> flow. `infra/caddy/Caddyfile` is dead configuration; only `infra/caddy/Caddyfile.dev` is still live, used by
+> `docker-compose.dev.yml` for local TLS testing. This runbook is retained for that local use and for the
+> `status.kvorum` DNS note at the end. Removing the production Caddyfile also means dropping the
+> "Validate Caddyfile" step from CI, so it is left as a separate cleanup.
+
 Covers first deployment, reloads, cert monitoring, and the status-page topology decision.
 
 ## Prerequisites
