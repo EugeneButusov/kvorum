@@ -101,20 +101,49 @@ kubectl get node -o json | jq '.items[0].status | {cap: .capacity.memory, alloc:
 
 `alloc` must be **lower** than `cap`. If they are equal the reservation did not apply, and the scheduler will happily fill the node into an OOM. Fix before continuing.
 
-### 1.2 Create the deploy user
+### 1.2 Generate the CI deploy key
+
+There is no existing key to reuse — create a dedicated one for this, **on your laptop**, not on the droplet. Never reuse your personal key: this one is going into a CI secret, and its only job is deploying.
+
+```bash
+ssh-keygen -t ed25519 -N '' -C 'github-actions-kvorum-deploy' -f ~/.ssh/kvorum-deploy
+```
+
+`-N ''` means no passphrase, because CI cannot type one. That makes the private half a bearer credential for your cluster, so it goes into the GitHub secret and nowhere else.
+
+| Half                       | Goes to                                     |
+| -------------------------- | ------------------------------------------- |
+| `~/.ssh/kvorum-deploy.pub` | the droplet's `authorized_keys` (next step) |
+| `~/.ssh/kvorum-deploy`     | GitHub secret `DEPLOY_SSH_KEY` (Phase 7.4)  |
+
+When pasting the private key into GitHub, include the `-----BEGIN...` and `-----END...` lines and keep the trailing newline. A truncated key fails with an unhelpful `Load key: error in libcrypto`.
+
+### 1.3 Create the deploy user
 
 ```bash
 adduser --disabled-password --gecos '' deploy
 install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
-# paste the CI public key:
+# paste the CONTENTS of ~/.ssh/kvorum-deploy.pub (one line, starts `ssh-ed25519 AAAA…`)
 sudo -u deploy tee /home/deploy/.ssh/authorized_keys >/dev/null
 chmod 600 /home/deploy/.ssh/authorized_keys
 usermod -aG k3s deploy
 ```
 
+Or from your laptop in one step: `ssh-copy-id -i ~/.ssh/kvorum-deploy.pub deploy@<droplet-ip>`.
+
 Group-readable kubeconfig, never `0644` — on a shared host that is cluster-admin for every local account.
 
-### 1.3 Get a kubeconfig on your laptop
+**Verify before moving on**, or the first CI deploy fails on something you cannot see from the workflow logs:
+
+```bash
+ssh -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes deploy@<droplet-ip> 'kubectl get nodes'
+```
+
+That must succeed without a password prompt and list the node. If `kubectl` is permission-denied, the `k3s` group membership has not taken effect — reconnect, since group changes only apply to new sessions.
+
+> **Optional hardening.** Prefixing the `authorized_keys` line with `restrict,` disables port/agent/X11 forwarding and pty allocation for that key. Both `scp` and the workflow's non-interactive `ssh` work without a pty, but verify the first deploy after adding it and drop the prefix if anything misbehaves.
+
+### 1.4 Get a kubeconfig on your laptop
 
 ```bash
 ssh root@<droplet-ip> 'cat /etc/rancher/k3s/k3s.yaml' \
@@ -351,7 +380,17 @@ After ~2 hours confirm `poll_cursor_block` advanced for each live source and the
 
 ### 7.4 Point CI at the new host
 
-Add to the GitHub `production` environment: `DEPLOY_HOST` (`deploy@<droplet-ip>`), `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan <droplet-ip>`). Remove `DIGITALOCEAN_ACCESS_TOKEN` and the `DOKS_CLUSTER` variable.
+Add three secrets to the GitHub `production` environment:
+
+```bash
+echo "deploy@<droplet-ip>"                 # → DEPLOY_HOST
+cat ~/.ssh/kvorum-deploy                   # → DEPLOY_SSH_KEY   (private half, from 1.2)
+ssh-keyscan <droplet-ip> 2>/dev/null       # → DEPLOY_KNOWN_HOSTS
+```
+
+`DEPLOY_KNOWN_HOSTS` pins the host key so the workflow never needs `StrictHostKeyChecking=no`, which would accept a man-in-the-middle on the one channel that can change production. Run `ssh-keyscan` from a network you trust — it is trust-on-first-use, and you are recording that decision.
+
+Then remove `DIGITALOCEAN_ACCESS_TOKEN` and the `DOKS_CLUSTER` variable.
 
 Merge a trivial change and confirm the workflow deploys end to end.
 
