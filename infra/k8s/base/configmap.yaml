@@ -37,6 +37,11 @@ data:
   # One eth_call (getPowerCurrent) per delegate per sweep; BATCH_SIZE is concurrency, not a
   # cap. 7200 blocks ≈ daily, up from the code default of 450 (≈90 min).
   AAVE_DELEGATION_SWEEP_COOLDOWN_BLOCKS: '7200'
+  # Aave cross-chain stitch deferral (KNOWN-028). A payload/vote whose counterpart has not landed
+  # steps aside for this long instead of pinning the block-ordered queue head. Descoped
+  # aave_payloads_controller rows have no counterpart coming, so they re-attempt and re-hold forever:
+  # at the 60s code default that is ~72k wasted UPDATEs/day. An hour matches the poll cadence.
+  AAVE_STITCH_HOLD_BACKOFF_MS: '3600000'
   # Calldata decoder (apps/indexer). When enabled, an undecodable proposal_action is enriched by
   # fetching the target's verified ABI from the Etherscan V2 unified API (one key, all chains via a
   # chainid param), caching it in abi_cache/selector_index so subsequent decodes are free. This is
