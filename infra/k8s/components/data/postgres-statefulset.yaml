@@ -1,0 +1,86 @@
+# Postgres 18 with pgvector, the same image docker-compose.yml uses for local dev.
+#
+# Using the pgvector image (rather than plain postgres:18 plus an extension install) removes
+# the DO-managed prerequisite that gated every deploy: there, the migrate role lacked
+# CREATE EXTENSION, so `vector` had to be created once by hand as doadmin or the ai_003
+# migration hard-failed the whole deploy gate. Here the app role owns the database.
+#
+# Memory: shared_buffers is deliberately small. The working set is tiny (ADR-038 sizes v1 at
+# ~10k rows/year) and this box also carries ClickHouse, four Node services and Prometheus.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kvorum-postgres
+  labels:
+    app.kubernetes.io/name: kvorum-postgres
+    app.kubernetes.io/part-of: kvorum
+spec:
+  serviceName: kvorum-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-postgres
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg18
+          args:
+            - postgres
+            - -c
+            - shared_buffers=192MB
+            - -c
+            - max_connections=100
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            # PGDATA must be a subdirectory of the mount: Postgres 18 refuses to initialise
+            # into a directory it does not own outright, and a PVC root can carry lost+found.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: kvorum
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            exec:
+              command: ['sh', '-c', 'pg_isready -U "$POSTGRES_USER" -d kvorum']
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ['sh', '-c', 'pg_isready -U "$POSTGRES_USER" -d kvorum']
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 320Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi

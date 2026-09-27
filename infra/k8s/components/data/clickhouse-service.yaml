@@ -1,0 +1,20 @@
+# ClusterIP for the ClickHouse StatefulSet. CLICKHOUSE_URL points at the HTTP interface:
+# http://kvorum-clickhouse.kvorum:8123
+#
+# Only the HTTP interface is exposed. @clickhouse/client and clickhouse-migrations speak
+# HTTP exclusively, so the native protocol (9000) is deliberately absent.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-clickhouse
+  labels:
+    app.kubernetes.io/name: kvorum-clickhouse
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-clickhouse
+  ports:
+    - name: http
+      port: 8123
+      targetPort: http

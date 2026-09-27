@@ -1,0 +1,19 @@
+# In-cluster Postgres + ClickHouse. Referenced by an overlay's `components:` list, so the
+# choice between managed and in-cluster datastores stays a per-environment concern kept out
+# of base/ (like components/expose-tunnel and components/monitoring).
+#
+# Both are single-replica StatefulSets on the node's own disk via the default StorageClass
+# (k3s ships `local-path`). Neither gets a tunnel route: they are ClusterIP-only, so unlike
+# the managed services they replace, neither is reachable from the internet at all.
+#
+# Durability is the operator's job here — see the backup CronJob and the restore drill in
+# the deployment runbook. The data is also re-derivable from a backfill as a last resort.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - postgres-statefulset.yaml
+  - postgres-service.yaml
+  - clickhouse-config.yaml
+  - clickhouse-statefulset.yaml
+  - clickhouse-service.yaml

@@ -1,0 +1,90 @@
+# ClickHouse 24, the same major docker-compose.yml uses for local dev and CI.
+#
+# ClickHouse is the source of truth for chain-event-derived data (ADR-0062), not an archive
+# tier — proposal detail, the delegate pages, actor pages and DAO health all read it
+# synchronously, so it is load-bearing for the demo and cannot simply be dropped to save the
+# managed-service bill. Moving it in-cluster keeps the contract and removes the cost.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kvorum-clickhouse
+  labels:
+    app.kubernetes.io/name: kvorum-clickhouse
+    app.kubernetes.io/part-of: kvorum
+spec:
+  serviceName: kvorum-clickhouse
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kvorum-clickhouse
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-clickhouse
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      containers:
+        - name: clickhouse
+          image: clickhouse/clickhouse-server:24
+          ports:
+            - name: http
+              containerPort: 8123
+          env:
+            - name: CLICKHOUSE_DB
+              value: kvorum
+            - name: CLICKHOUSE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: CLICKHOUSE_USER
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kvorum-secrets
+                  key: CLICKHOUSE_PASSWORD
+            # Without this the bundled default user stays password-less and world-readable
+            # from inside the cluster.
+            - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+              value: '1'
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 150m
+              memory: 640Mi
+            limits:
+              memory: 1280Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            # subPath, NOT a directory mount: mounting over /etc/clickhouse-server/config.d
+            # shadows the image's own docker_related_config.xml, which is what sets
+            # listen_host to 0.0.0.0/::. Without it the server binds loopback only, so it
+            # answers /ping inside the container but every probe and client hitting the pod
+            # IP gets connection refused. Trade-off: a subPath mount does not receive
+            # ConfigMap updates in place, so a config change needs the pod recreated.
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/kvorum-limits.xml
+              subPath: kvorum-limits.xml
+      volumes:
+        - name: config
+          configMap:
+            name: kvorum-clickhouse-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi

@@ -1,0 +1,35 @@
+# ClickHouse memory ceiling. The server's defaults assume a dedicated host; this box also
+# carries Postgres, four Node services and Prometheus, so the caches are trimmed hard.
+# The dataset is far below anything that needs them: ADR-038 sizes v1 at ~10k rows/year and
+# says to revisit partitioning only past ~10M rows.
+#
+# max_server_memory_usage is an absolute cap rather than a ratio so it stays correct
+# regardless of what the kernel reports for a shared node.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kvorum-clickhouse-config
+  labels:
+    app.kubernetes.io/name: kvorum-clickhouse
+    app.kubernetes.io/part-of: kvorum
+data:
+  kvorum-limits.xml: |
+    <clickhouse>
+        <max_server_memory_usage>805306368</max_server_memory_usage>
+        <mark_cache_size>134217728</mark_cache_size>
+        <uncompressed_cache_size>0</uncompressed_cache_size>
+        <max_concurrent_queries>32</max_concurrent_queries>
+        <!-- background_pool_size is deliberately left at its default. Lowering it saves only
+             thread stacks (max_server_memory_usage above is the real ceiling) and it is
+             coupled to an internal invariant: the server refuses to start with BAD_ARGUMENTS
+             unless background_pool_size * background_merges_mutations_concurrency_ratio is at
+             least number_of_free_entries_in_pool_to_execute_mutation (20 by default), because
+             mutations could otherwise never run. -->
+        <!-- Log to stdout so `kubectl logs` works; the image's default file logging hides
+             startup errors and fills the node's disk. Single node, no replication, so
+             warning-level is plenty. -->
+        <logger>
+            <level>warning</level>
+            <console>1</console>
+        </logger>
+    </clickhouse>

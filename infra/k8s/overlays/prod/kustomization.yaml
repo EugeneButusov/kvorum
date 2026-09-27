@@ -24,6 +24,10 @@ resources:
 
 components:
   - ../../components/expose-tunnel
+  # In-cluster Postgres + ClickHouse on the node's own disk, replacing DO Managed Postgres
+  # and Elestio ClickHouse. Overlay-only so the managed/in-cluster choice stays a
+  # per-environment concern. See components/data.
+  - ../../components/data
   # Self-hosted Prometheus + Grafana (cost/health dashboards). Overlay-only so
   # monitoring stays an opt-in per-environment concern. See components/monitoring.
   - ../../components/monitoring
