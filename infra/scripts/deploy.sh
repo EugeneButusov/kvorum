@@ -35,14 +35,16 @@ echo "  image:      $IMAGE"
 echo "  kubeconfig: $KUBECONFIG"
 kubectl version -o json 2>/dev/null | sed -n 's/.*"gitVersion": "\(v[^"]*\)".*/  server:     \1/p' | tail -1 || true
 
-# Guard against deploying a tag other than the one asked for — the overlay is what
-# `apply -k` actually uses, so a stale edit here would silently ship the wrong build.
-log "verifying the overlay references the requested image"
-IMAGE_TAG="${IMAGE##*:}"
-if ! grep -q "newTag: ${IMAGE_TAG}\$" "$OVERLAY/kustomization.yaml"; then
-  echo "ERROR: $OVERLAY/kustomization.yaml does not pin newTag: ${IMAGE_TAG}" >&2
-  echo "       run: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
-  grep -A3 '^images:' "$OVERLAY/kustomization.yaml" >&2 || true
+# Guard against deploying something other than what was asked for. Checked against the
+# RENDERED output, not the kustomization source: the tag alone is not enough, because an
+# edit that sets newTag but not newName leaves the image pointing at the placeholder
+# registry path while still matching on tag.
+log "verifying the overlay renders the requested image"
+if ! kubectl kustomize "$OVERLAY" | grep -qF "image: ${IMAGE}"; then
+  echo "ERROR: $OVERLAY does not render ${IMAGE}" >&2
+  echo "       it currently renders:" >&2
+  kubectl kustomize "$OVERLAY" | grep -oE 'image: [^ ]+' | sort -u | sed 's/^/         /' >&2
+  echo "       fix with: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
   exit 1
 fi
 echo "  ok"

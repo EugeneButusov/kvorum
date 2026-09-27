@@ -274,12 +274,39 @@ echo "$IMG"          # sanity-check: all lowercase, 40-char sha
 
 The subshell around `kustomize edit` means you stay where you are rather than depending on `cd -`.
 
-Confirm the image was actually built and pushed for that commit before deploying — the deploy workflow only publishes on merge to `main`:
+> **This edit is throwaway — do not commit it.** `kustomize edit` rewrites the file with its own
+> formatting: it de-indents list items, which fails `prettier --check` and so blocks a commit, and
+> it detaches comments from the entries they describe. The pinned image belongs in the deploy
+> bundle, not in git; CI does the same edit on an ephemeral runner. Revert once the bundle is
+> built:
+>
+> ```bash
+> git checkout infra/k8s/overlays/prod/kustomization.yaml
+> ```
+
+Check what it actually produced before shipping — `deploy.sh` verifies this too, but seeing it
+here is cheaper than a failed deploy:
 
 ```bash
-gh api "/orgs/$OWNER/packages/container/kvorum/versions" --jq '.[0].metadata.container.tags' 2>/dev/null \
-  || gh api "/users/$OWNER/packages/container/kvorum/versions" --jq '.[0].metadata.container.tags'
+kubectl kustomize infra/k8s/overlays/prod | grep -oE 'image: ghcr[^ ]+' | sort -u
 ```
+
+Both the registry path and the tag must be right. Setting the tag without the owner renders
+`ghcr.io/kvorum/kvorum:<sha>` — the placeholder path from `base/`, which does not exist.
+
+Confirm the image was actually built and pushed for that commit — it is published only on merge to `main`, so a local commit will not have one:
+
+```bash
+SHA=$(git rev-parse origin/main)
+RID=$(gh run list --workflow=deploy.yml --commit="$SHA" --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run view "$RID" --json jobs --jq '.jobs[] | "\(.conclusion // .status)\t\(.name)"'
+```
+
+Only **`Build & push image` must be `success`** — that is the job that pushes to GHCR.
+
+`Migrate & roll out` will show `failure` for every commit between merging the SSH deploy change and finishing this migration, because it targets a host whose `DEPLOY_*` secrets do not exist yet. That is expected during the cutover, not a problem, and it does not affect the image. It also means **the old cluster stops auto-deploying** from that commit onward — it stays pinned at whatever it last received until the new host takes over.
+
+This uses the `repo` scope you already have. Querying the registry directly (`gh api …/packages/container/…`) needs `read:packages`, which a default `gh auth login` does not grant — it answers 403, or 404 if you also guess `orgs` for a user-owned package.
 
 Then ship it:
 
