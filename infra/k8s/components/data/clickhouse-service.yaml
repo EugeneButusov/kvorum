@@ -1,0 +1,17 @@
+# HTTP interface only — @clickhouse/client and clickhouse-migrations do not speak the
+# native protocol.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kvorum-clickhouse
+  labels:
+    app.kubernetes.io/name: kvorum-clickhouse
+    app.kubernetes.io/part-of: kvorum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kvorum-clickhouse
+  ports:
+    - name: http
+      port: 8123
+      targetPort: http

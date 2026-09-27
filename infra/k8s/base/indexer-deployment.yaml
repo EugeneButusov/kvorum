@@ -24,11 +24,14 @@ spec:
     spec:
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: kvorum-api
-              topologyKey: kubernetes.io/hostname
+          # Mirror of the api/dashboard rule.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kvorum-api
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: indexer
           image: ghcr.io/kvorum/kvorum:latest

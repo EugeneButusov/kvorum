@@ -24,6 +24,7 @@ resources:
 
 components:
   - ../../components/expose-tunnel
+  - ../../components/data
   # Self-hosted Prometheus + Grafana (cost/health dashboards). Overlay-only so
   # monitoring stays an opt-in per-environment concern. See components/monitoring.
   - ../../components/monitoring

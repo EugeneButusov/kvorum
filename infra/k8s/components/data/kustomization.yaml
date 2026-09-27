@@ -1,0 +1,11 @@
+# In-cluster Postgres + ClickHouse, replacing the managed services. Overlay-only, so the
+# managed/in-cluster choice stays a per-environment concern. Both are ClusterIP-only.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - postgres-statefulset.yaml
+  - postgres-service.yaml
+  - clickhouse-config.yaml
+  - clickhouse-statefulset.yaml
+  - clickhouse-service.yaml

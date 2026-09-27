@@ -11,10 +11,12 @@ spec:
     matchLabels:
       app.kubernetes.io/name: kvorum-api
   strategy:
+    # Single node: a surge pod has nowhere to land, so maxSurge 1 would stall the rollout.
+    # Costs ~20s of downtime per deploy.
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      maxUnavailable: 1
+      maxSurge: 0
   template:
     metadata:
       labels:
@@ -23,13 +25,16 @@ spec:
     spec:
       affinity:
         podAntiAffinity:
-          # Hard split: the API must never share a node with the indexer, so the
-          # indexer's bursty derivation/RPC CPU cannot degrade request latency.
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: kvorum-indexer
-              topologyKey: kubernetes.io/hostname
+          # Keep the API off the indexer's node so its bursty derivation/RPC CPU cannot
+          # degrade request latency. Preferred, not required — a hard rule leaves the set
+          # Pending forever on a single node.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kvorum-indexer
+                topologyKey: kubernetes.io/hostname
       # Soft self-spread: as more nodes are added, additional API replicas fan out
       # instead of stacking. ScheduleAnyway keeps single-node scheduling working.
       topologySpreadConstraints:

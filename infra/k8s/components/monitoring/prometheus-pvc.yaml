@@ -1,6 +1,5 @@
-# Small block-storage volume so metric history survives pod restarts/deploys. 10Gi is
-# ample for 15-day retention of the low-cardinality kvorum series (~3 targets). DO's
-# default StorageClass (do-block-storage) provisions it; ~$1/mo.
+# Small volume so metric history survives pod restarts. 5Gi covers 7-day retention of the
+# low-cardinality kvorum series. The default StorageClass on k3s is `local-path` (node disk).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -12,4 +11,4 @@ spec:
   accessModes: ['ReadWriteOnce']
   resources:
     requests:
-      storage: 10Gi
+      storage: 5Gi

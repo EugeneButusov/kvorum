@@ -1,10 +1,8 @@
 # Horizontal autoscaling for the API only. Requires metrics-server (present by
 # default on DOKS). The indexer is deliberately absent — it is a hard singleton.
-# Scale-up lever: raise maxReplicas in the overlay once the node pool has headroom.
-# maxReplicas is 2 (not 3) because the managed PG allows only ~25 connections: with
-# PG_POOL_MAX=2 per api replica, 2 replicas + indexer (5) + ai-worker (3 + pg-boss 3)
-# = ~15, under the usable budget. Raising it requires more PG connections (larger
-# tier or a PgBouncer connection pool) — see the PG_POOL_MAX note in libs/db/src/client.ts.
+# Scale-up lever: raise maxReplicas in the overlay once the node pool has headroom. It is 1
+# on a single node, where a second replica competes for the same CPU rather than adding
+# capacity. The ~25-connection managed-PG ceiling that capped this at 2 no longer applies.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -17,7 +15,7 @@ spec:
     kind: Deployment
     name: kvorum-api
   minReplicas: 1
-  maxReplicas: 2
+  maxReplicas: 1
   metrics:
     - type: Resource
       resource:
