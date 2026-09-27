@@ -120,16 +120,36 @@ When pasting the private key into GitHub, include the `-----BEGIN...` and `-----
 
 ### 1.3 Create the deploy user
 
+On the droplet, create the user and its `.ssh` directory:
+
 ```bash
 adduser --disabled-password --gecos '' deploy
 install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
-# paste the CONTENTS of ~/.ssh/kvorum-deploy.pub (one line, starts `ssh-ed25519 AAAA…`)
-sudo -u deploy tee /home/deploy/.ssh/authorized_keys >/dev/null
-chmod 600 /home/deploy/.ssh/authorized_keys
 usermod -aG k3s deploy
 ```
 
-Or from your laptop in one step: `ssh-copy-id -i ~/.ssh/kvorum-deploy.pub deploy@<droplet-ip>`.
+Then install the public key **from your laptop**, so it never goes near a clipboard:
+
+```bash
+ssh root@<droplet-ip> \
+  'cat > /home/deploy/.ssh/authorized_keys \
+   && chown deploy:deploy /home/deploy/.ssh/authorized_keys \
+   && chmod 600 /home/deploy/.ssh/authorized_keys' \
+  < ~/.ssh/kvorum-deploy.pub
+```
+
+This is the form to prefer: the key is piped byte-for-byte from the file, so there is no paste to mangle and no ambiguity about when input ends.
+
+If you only have console access to the droplet and must paste, use a heredoc — **not** a bare `tee`. `tee` reads until end-of-file, so after pasting a key you have to press Enter and then `Ctrl-D`; until you do, it sits there and looks like it ignored you. A heredoc carries its own terminator, so paste the whole block including the final `KEY` line:
+
+```bash
+sudo -u deploy tee /home/deploy/.ssh/authorized_keys >/dev/null <<'KEY'
+ssh-ed25519 AAAAC3Nz…rest-of-your-public-key… github-actions-kvorum-deploy
+KEY
+chmod 600 /home/deploy/.ssh/authorized_keys
+```
+
+`ssh-copy-id` does not help here: the `deploy` user has no credential yet, so there is nothing for it to authenticate with.
 
 Group-readable kubeconfig, never `0644` — on a shared host that is cluster-admin for every local account.
 
