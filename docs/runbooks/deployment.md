@@ -1,64 +1,112 @@
-# Runbook — Production deployment (DOKS)
+# Runbook — Production deployment (single-node k3s)
 
-Deploys the full stack — `api` + `indexer` + `ai-worker` + `dashboard` — to DigitalOcean Kubernetes. Target ≈ **$50/mo**.
+Deploys the full stack — `api` + `indexer` + `ai-worker` + `dashboard`, plus Postgres and ClickHouse — to one DigitalOcean droplet running k3s. Target ≈ **$25/mo**. Rationale and measured capacity: [ADR-0090](../adr/0090-single-node-k3s-topology.md).
 
 ## Topology
 
 ```
-                          ┌─ api.<domain>       ──► kvorum-api        Service ─► api pods       (node A)
-Cloudflare (TLS/DDoS) ─tunnel─┤                                                  dashboard pods  (node A)
-                          └─ dashboard.<domain> ──► kvorum-dashboard  Service ─┘
-                                                    kvorum-indexer    (singleton)  indexer pod  (node B) ← hard split
-External (via kvorum-secrets):  Elestio ClickHouse · DO Managed Postgres · Upstash Redis · Alchemy RPC
+                              ┌─ api.<domain>       ──► kvorum-api        Service ─► api pod
+Cloudflare (TLS/DDoS) ─tunnel─┼─ dashboard.<domain> ──► kvorum-dashboard  Service ─► dashboard pod
+                              └─ grafana.<domain>   ──► kvorum-grafana    Service ─► grafana pod
+
+  one droplet (s-2vcpu-4gb, k3s)
+    api · dashboard · indexer (singleton) · ai-worker (singleton) · cloudflared · prometheus · grafana
+    kvorum-postgres (StatefulSet, local-path)   ClusterIP only, no tunnel route
+    kvorum-clickhouse (StatefulSet, local-path) ClusterIP only, no tunnel route
+
+External (via kvorum-secrets):  Upstash Redis · Alchemy RPC (+ free fallbacks) · Etherscan · Anthropic/OpenAI
 ```
 
-The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); the dashboard proxies to
-`kvorum-api` in-cluster via `BACKEND_API_URL`. `api.<domain>` is exposed too for the public/developer API.
+The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); the dashboard proxies to `kvorum-api` in-cluster via `BACKEND_API_URL`. `api.<domain>` is exposed too for the public/developer API.
 
-| Piece      | Choice                                     | ~ / mo         |
-| ---------- | ------------------------------------------ | -------------- |
-| Cluster    | DOKS, free control plane, 2× `s-1vcpu-2gb` | $24            |
-| ClickHouse | Elestio managed (external)                 | $11            |
-| Postgres   | DO Managed Postgres 18 (external)          | $15            |
-| Redis      | Upstash (sessions + rate-limiter)          | $0 (free tier) |
-| Ingress    | Cloudflare Tunnel (`cloudflared` pod)      | $0             |
-| **Total**  |                                            | **~$50**       |
+| Piece      | Choice                                          | ~ / mo         |
+| ---------- | ----------------------------------------------- | -------------- |
+| Host       | 1× `s-2vcpu-4gb` droplet, k3s (80 GB SSD incl.) | $24            |
+| Postgres   | in-cluster StatefulSet, `local-path`            | $0             |
+| ClickHouse | in-cluster StatefulSet, `local-path`            | $0             |
+| Snapshots  | weekly droplet snapshot (~10 GB used)           | ~$0.60         |
+| Redis      | Upstash (sessions + rate-limiter)               | $0 (free tier) |
+| Ingress    | Cloudflare Tunnel (`cloudflared` pod)           | $0             |
+| Backups    | Cloudflare R2 (free tier)                       | $0             |
+| RPC        | Alchemy free tier + free public fallbacks       | $0             |
+| **Total**  |                                                 | **~$24.60**    |
 
-- `api` and `dashboard` scale horizontally (api has an HPA; add one for the dashboard when needed). `indexer` is a **hard singleton** — `replicas: 1`, `Recreate`, never HPA'd (its chain pollers aren't leader-elected). `ai-worker` is likewise a **singleton** (`replicas: 1`, `Recreate` — its trigger/backfill scanners aren't leader-elected), but is mostly idle (LLM work is off-box) and carries **no** anti-affinity, so it co-schedules on whichever node has room. If it ever stays `Pending` on memory, add a node (see the capacity note).
-- `api` and `dashboard` both carry a required pod anti-affinity against `indexer`, so neither request-serving process shares the indexer's node — on the 2-node pool they land together on node A and the indexer keeps node B to itself.
-- **Capacity note:** the 2-node pool now also runs the `ai-worker` (requests 100m CPU / 256 Mi), which co-schedules wherever there is room — typically alongside the indexer on node B. Total requested across both nodes stays well under the 2 vCPU / 4 GB pool for a light demo, but headroom is thin. For real traffic, add a third `s-1vcpu-2gb` node (~+$12/mo) or bump the pool to `s-2vcpu-4gb` — overlay-only, `base/` unchanged. If the worker ever stays `Pending` on memory, that node bump is the fix.
+LLM spend is separate and capped in `base/configmap.yaml` (`AI_CAP_*_USD`, $5/mo).
+
+### Capacity
+
+Measured on a 4 GiB single-node k3s cluster (see ADR-0090 for method):
+
+|                                        |                                                        |
+| -------------------------------------- | ------------------------------------------------------ |
+| Allocatable                            | 4.10 GiB of 4.10 GiB — k3s reserves nothing by default |
+| k3s + containerd + kube-system at idle | 511 MiB                                                |
+| Full stack memory **requests**         | 2540Mi (60%)                                           |
+| Full stack CPU requests                | 1275m of 2000m, plus 200m kube-system                  |
+
+Three things follow, and all of them matter:
+
+- **Set `system-reserved`.** Because k3s reserves nothing, the scheduler cannot see that 511 MiB. Install with `--kubelet-arg=system-reserved=memory=768Mi` or the node can be scheduled into an OOM.
+- **Memory limits are overcommitted** (5674Mi against 4096Mi). Requests plus real overhead come to ~3051Mi, so there is ~1 GiB of genuine headroom — but a simultaneous spike to every limit would OOM the node.
+- **CPU headroom is thin.** Hourly polling is what makes it comfortable; the indexer is near-idle between ticks. Restoring a fast poll cadence needs a resize first.
+
+If a pod stays `Pending` on memory, resize the droplet — the anti-affinity rules are `preferred` and the topology-spread constraints already exist, so adding a node also works and spreads the request-serving pods off the indexer automatically.
+
+### Process shapes
+
+- `indexer` is a **hard singleton** — `replicas: 1`, `Recreate`, never HPA'd (its chain pollers are not leader-elected). `ai-worker` is likewise a singleton for the same reason, but is mostly idle since LLM work is off-box.
+- `api` and `dashboard` carry a **preferred** (not required) anti-affinity against `indexer`. On one node they co-schedule with it; as soon as a node is added they move off it. A required rule would leave the whole set `Pending` forever here.
+- `api` and `dashboard` roll with `maxUnavailable: 1 / maxSurge: 0`, because a surge pod has nowhere to land. Each deploy therefore costs ~20s of downtime.
+- Both datastores are ClusterIP-only with no tunnel route, so neither is reachable from the internet.
 
 ## One-time setup
 
-1. **Cluster** — create a DOKS cluster with a 2-node `s-1vcpu-2gb` pool. Note the cluster name.
-2. **Postgres** — create a DO Managed Postgres 18 DB; use the **VPC / private-network** connection string (host starts with `private-`) and add both params: `?sslmode=require&uselibpqcompat=true`. The `uselibpqcompat=true` is **required** — modern `pg` treats bare `sslmode=require` as `verify-full`, which rejects DO's private-CA cert with `SELF_SIGNED_CERT_IN_CHAIN`; this param restores encrypt-without-CA-verify (safe over the private VPC).
-   - **pgvector (required before the first deploy carrying the `ai_003` migration).** The AI worker's `proposal_embedding` table is `vector(1536)`, and `ai_003_proposal_embedding.ts` runs `CREATE EXTENSION IF NOT EXISTS vector`. The app/migrate role usually **lacks** `CREATE EXTENSION` on DO Managed PG, so the extension must be created **once as `doadmin`** — `vector` is on DO's supported-extensions list, so no self-hosting is needed. It is created at the **database** level, so after this one step it exists for every role and the migration's `IF NOT EXISTS` is a permanent no-op. If it is missing when `ai_003` runs, the migrate gate **hard-fails and blocks the whole deploy.**
-     ```bash
-     # check (any role):
-     psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extname='vector';"
-     # if no row, create it once as doadmin (connection details → user `doadmin` in the DO panel):
-     psql "postgresql://doadmin:<pw>@<host>:25060/kvorum?sslmode=require" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
-     ```
-     If direct `doadmin` use is disallowed in your org, enable `vector` for the cluster via the DO control panel / DO Support instead.
-3. **ClickHouse** — create an Elestio ClickHouse service **in the same region** as DOKS (keeps the write/read hop ~1–5 ms). Note host/user/password; create the `kvorum` database.
-4. **Redis** — create an Upstash Redis DB; grab the `rediss://` URL.
-5. **Cloudflare Tunnel** — in the Zero Trust dashboard create a tunnel, copy the connector **token**, and add **two** public hostname routes on it:
+1. **Droplet** — create one `s-2vcpu-4gb` droplet. Lock the DO Cloud Firewall to SSH only: the Kubernetes API never needs a public port, and ingress arrives through the Cloudflare Tunnel, which dials out.
+
+2. **k3s** — install with Traefik and ServiceLB disabled (ingress is the tunnel pod) and with kubelet reservations set, per the capacity note above:
+
+   ```bash
+   curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="\
+     --disable=traefik \
+     --disable=servicelb \
+     --kubelet-arg=system-reserved=memory=768Mi,cpu=200m" sh -
+   ```
+
+   Verify before going further — `kubectl get node -o json` should report `status.allocatable.memory` **below** `status.capacity.memory`. If they are equal, the reservation did not apply and the node can be scheduled into an OOM.
+
+3. **Datastore credentials** — Postgres and ClickHouse read their users and passwords from `kvorum-secrets` (step 6), and both initialise on first start. No external provisioning, no `CREATE EXTENSION` pre-step: the Postgres image ships pgvector and the app role owns the database, so `ai_003` creates the extension itself.
+
+   Storage comes from k3s's built-in `local-path` StorageClass, i.e. the droplet's own disk. **This means node loss is data loss** — set up the backup CronJob and run a restore drill before relying on it.
+
+4. **Redis** — create an Upstash Redis database; grab the `rediss://` URL. Kept external deliberately: it is free and it keeps session state off the box.
+
+5. **Cloudflare Tunnel** — in the Zero Trust dashboard create a tunnel, copy the connector **token**, and add **three** public hostname routes on it:
    - `dashboard.<domain>` (and/or the apex) → `http://kvorum-dashboard.kvorum:80` — the human-facing site.
    - `api.<domain>` → `http://kvorum-api.kvorum:80` — the public/developer API.
+   - `grafana.<domain>` → `http://kvorum-grafana.kvorum:80` — the cost/health dashboards.
 
-   Both routes ride the single `cloudflared` connector; adding the second hostname is a Cloudflare-dashboard action only — no manifest change. Point the dashboard's session/SIWE env at these hosts (`SIWE_DOMAIN=dashboard.<domain>`, and `SESSION_COOKIE_DOMAIN=.<domain>` if you want the cookie shared with `api.<domain>`) in `kvorum-secrets`.
+   Postgres and ClickHouse deliberately get **no** route: they are ClusterIP-only and must stay off the internet.
+
+   All routes ride the single `cloudflared` connector; adding a hostname is a Cloudflare-dashboard action only — no manifest change. Point the dashboard's session/SIWE env at these hosts (`SIWE_DOMAIN=dashboard.<domain>`, and `SESSION_COOKIE_DOMAIN=.<domain>` if you want the cookie shared with `api.<domain>`) in `kvorum-secrets`.
 
 6. **In-cluster secret** — create `kvorum-secrets` from the keys documented in
    [`infra/k8s/overlays/prod/secret.example.yaml`](../../infra/k8s/overlays/prod/secret.example.yaml).
    Values live **only** in the cluster — never commit them.
 
+   The datastores initialise from `POSTGRES_*` / `CLICKHOUSE_*` on first start, so **create this secret before the first `apply -k`** — and make sure `DATABASE_URL` embeds the same password, or the apps authenticate against a database that was initialised with a different one.
+
    ```bash
    kubectl create namespace kvorum
+   PGPW=$(openssl rand -hex 24); CHPW=$(openssl rand -hex 24)
    kubectl -n kvorum create secret generic kvorum-secrets \
-     --from-literal=DATABASE_URL='...' \
-     --from-literal=CLICKHOUSE_URL='https://...:8443' \
+     --from-literal=POSTGRES_USER='kvorum' \
+     --from-literal=POSTGRES_PASSWORD="$PGPW" \
+     --from-literal=DATABASE_URL="postgresql://kvorum:$PGPW@kvorum-postgres.kvorum:5432/kvorum" \
+     --from-literal=CLICKHOUSE_USER='kvorum' \
+     --from-literal=CLICKHOUSE_PASSWORD="$CHPW" \
+     --from-literal=CLICKHOUSE_URL='http://kvorum-clickhouse.kvorum:8123' \
      --from-literal=INTERNAL_READ_TOKEN="$(openssl rand -base64 32)" \
-     # ...all keys from secret.example.yaml...
+     # ...all remaining keys from secret.example.yaml...
      --from-literal=TUNNEL_TOKEN='...'
    ```
 
@@ -67,7 +115,9 @@ The browser only ever talks to the **dashboard** (Next.js SSR + BFF, ADR-084); t
    so anonymous visitors can read — both the API and the dashboard consume it. Without it, every
    dashboard page is empty (the BFF's reads 401). Direct API access still needs a real key.
 
-7. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`:
+7. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`.
+
+   > **Pending:** the workflow still authenticates with `doctl` and runs `doctl kubernetes cluster kubeconfig save`, which cannot work against k3s — there is no DOKS cluster and the API server has no public port. Until that is reworked to deploy over SSH, apply manually from the droplet (see **Deploying → Manual**). The secret and variable below are the DOKS-era requirements, listed so they can be removed once the rework lands.
    - Secret `DIGITALOCEAN_ACCESS_TOKEN` — a scoped DO API token (read + Kubernetes).
    - Variable `DOKS_CLUSTER` — the cluster name from step 1.
 
@@ -92,7 +142,9 @@ circuit, so it costs nothing in steady state.
 
 **Automatic** — merge to `main`. `deploy.yml` builds the image → pushes to GHCR → runs the migration Job and waits (a failed migration aborts the deploy) → rolls api + indexer + ai-worker + dashboard to the new tag → waits for rollout.
 
-**Manual first deploy / from a laptop:**
+> **Pending on k3s:** the workflow reaches the cluster with `doctl kubernetes cluster kubeconfig save`, which has no DOKS cluster to target. Until it is reworked to deploy over SSH, only the manual path below works. The build job is unaffected — the image is still pushed to GHCR on every merge, so the manual path just needs the SHA.
+
+**Manual deploy (run on the droplet, where `kubectl` already points at k3s):**
 
 ```bash
 IMG=ghcr.io/<owner>/kvorum:$(git rev-parse HEAD)   # after the build workflow pushed it
@@ -265,15 +317,15 @@ $5 will not cover a backfill).
 
 ## Scale-up levers (overlay-only — `base/` never changes)
 
-| Want                                  | Change                                                                                      |
-| ------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Survive node loss / reschedule        | Add a node to the pool — soft topology-spread fans api/dashboard replicas out automatically |
-| Handle API traffic                    | Raise `maxReplicas` in `base/api-hpa.yaml` (or patch in the overlay)                        |
-| Handle dashboard traffic              | Add a `dashboard-hpa.yaml` (mirror `api-hpa.yaml`) or raise `replicas` in the overlay       |
-| Relieve the shared api+dashboard node | Add a third node — the required anti-affinity only pins them off the indexer, not together  |
-| Dedicated node pools per workload     | Add node pools + a `nodeSelector` patch (api→poolA, indexer→poolB)                          |
-| Conventional ingress + fixed IP       | Swap `components/expose-tunnel` → a DO-LB Ingress component                                 |
-| Pull ClickHouse back in-cluster       | Point `CLICKHOUSE_*` at a self-hosted StatefulSet — app change is config-only               |
+| Want                              | Change                                                                                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Survive node loss / reschedule    | Add a node — the preferred anti-affinity and soft topology-spread move api/dashboard off the indexer automatically. Note the datastores use `local-path`, so they do **not** reschedule: that needs a restore, or a networked StorageClass |
+| Handle API traffic                | Raise `maxReplicas` in `base/api-hpa.yaml` (or patch in the overlay)                                                                                                                                                                       |
+| Handle dashboard traffic          | Add a `dashboard-hpa.yaml` (mirror `api-hpa.yaml`) or raise `replicas` in the overlay                                                                                                                                                      |
+| Relieve the shared node           | Add a node — the anti-affinity is preferred, so api/dashboard move off the indexer on their own                                                                                                                                            |
+| Dedicated node pools per workload | Add node pools + a `nodeSelector` patch (api→poolA, indexer→poolB)                                                                                                                                                                         |
+| Conventional ingress + fixed IP   | Swap `components/expose-tunnel` → a DO-LB Ingress component                                                                                                                                                                                |
+| Move a datastore back to managed  | Point `DATABASE_URL` / `CLICKHOUSE_*` at the managed endpoint and drop `components/data` from the overlay — app change is config-only. Restores automatic backups at ~$13–27/mo each                                                       |
 
 ## Future: zero cluster creds in CI
 

@@ -6,6 +6,12 @@
 - **Amends**: 0062
 - **Related**: supersedes ADR-026; refined by ADR-041 (cross-DB integrity contract); `docs/plan-m1-e1.md`, `docs/proposal-orm-choice.md`
 
+> **Partially superseded (2026-09-27) by [ADR-0090](0090-single-node-k3s-topology.md):** every host-sizing and cost
+> figure below — the Hetzner CX32 → CX42 upgrade, the €60/month ceiling — describes a single-host Docker Compose
+> deployment that was never built. Production ran on DOKS with managed datastores and now runs on one k3s droplet
+> with both datastores in-cluster. **The ClickHouse-layer decision here is unaffected** and remains current, as
+> refined by [ADR-0062](0062-ch-source-of-truth-for-derivations.md).
+
 ## Context
 
 ADR-026 (Proposed, 2026-05-08) defers all of ClickHouse to v1.x and ships v1 on Postgres only. Its reasoning was operational: the planned single-host CX32 (8 GB RAM) deployment cannot comfortably accommodate Postgres + Redis + ClickHouse + 6 services + monitoring stack at v1 scale.
