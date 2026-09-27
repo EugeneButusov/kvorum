@@ -66,10 +66,13 @@ If a pod stays `Pending` on memory, resize the droplet — the anti-affinity rul
 2. **k3s** — install with Traefik and ServiceLB disabled (ingress is the tunnel pod) and with kubelet reservations set, per the capacity note above:
 
    ```bash
+   sudo groupadd -f k3s
    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="\
      --disable=traefik \
      --disable=servicelb \
-     --kubelet-arg=system-reserved=memory=768Mi,cpu=200m" sh -
+     --kubelet-arg=system-reserved=memory=768Mi,cpu=200m \
+     --write-kubeconfig-group=k3s \
+     --write-kubeconfig-mode=0640" sh -
    ```
 
    Verify before going further — `kubectl get node -o json` should report `status.allocatable.memory` **below** `status.capacity.memory`. If they are equal, the reservation did not apply and the node can be scheduled into an OOM.
@@ -115,13 +118,28 @@ If a pod stays `Pending` on memory, resize the droplet — the anti-affinity rul
    so anonymous visitors can read — both the API and the dashboard consume it. Without it, every
    dashboard page is empty (the BFF's reads 401). Direct API access still needs a real key.
 
-7. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`.
+7. **Deploy user on the droplet** — CI connects as an unprivileged user that can reach k3s:
 
-   > **Pending:** the workflow still authenticates with `doctl` and runs `doctl kubernetes cluster kubeconfig save`, which cannot work against k3s — there is no DOKS cluster and the API server has no public port. Until that is reworked to deploy over SSH, apply manually from the droplet (see **Deploying → Manual**). The secret and variable below are the DOKS-era requirements, listed so they can be removed once the rework lands.
-   - Secret `DIGITALOCEAN_ACCESS_TOKEN` — a scoped DO API token (read + Kubernetes).
-   - Variable `DOKS_CLUSTER` — the cluster name from step 1.
+   ```bash
+   sudo adduser --disabled-password --gecos '' deploy
+   sudo install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+   # paste the CI public key:
+   sudo -u deploy tee /home/deploy/.ssh/authorized_keys >/dev/null
+   sudo chmod 600 /home/deploy/.ssh/authorized_keys
 
-   This DO token is the **only** credential CI holds. No app secret is ever exposed to GitHub.
+   # let it read the k3s kubeconfig without being root
+   sudo groupadd -f k3s && sudo usermod -aG k3s deploy
+   sudo chgrp k3s /etc/rancher/k3s/k3s.yaml && sudo chmod 640 /etc/rancher/k3s/k3s.yaml
+   ```
+
+   The `chgrp`/`chmod` are only needed if k3s was installed without the `--write-kubeconfig-*` flags in step 2. Group-readable, not `0644` — a world-readable kubeconfig on a shared host is cluster-admin for every local account.
+
+8. **GitHub `production` environment** (Settings → Environments) — used by `.github/workflows/deploy.yml`:
+   - Secret `DEPLOY_HOST` — `deploy@<droplet-ip>`.
+   - Secret `DEPLOY_SSH_KEY` — the private half of the key added above.
+   - Secret `DEPLOY_KNOWN_HOSTS` — output of `ssh-keyscan <droplet-ip>`. The workflow pins the host key from this rather than using `StrictHostKeyChecking=no`, which would accept a man-in-the-middle on the one channel that can change production.
+
+   These are the **only** credentials CI holds. No app secret is ever exposed to GitHub.
 
 ### Chain config
 
@@ -140,22 +158,21 @@ circuit, so it costs nothing in steady state.
 
 ## Deploying
 
-**Automatic** — merge to `main`. `deploy.yml` builds the image → pushes to GHCR → runs the migration Job and waits (a failed migration aborts the deploy) → rolls api + indexer + ai-worker + dashboard to the new tag → waits for rollout.
+**Automatic** — merge to `main`. `deploy.yml` builds the image and pushes it to GHCR, pins that tag in the prod overlay, copies `infra/k8s` plus the deploy script to the droplet over SSH, and runs [`infra/scripts/deploy.sh`](../../infra/scripts/deploy.sh) there. That script is the whole deploy: bootstrap, migration gate, `apply -k`, rollout waits.
 
-> **Pending on k3s:** the workflow reaches the cluster with `doctl kubernetes cluster kubeconfig save`, which has no DOKS cluster to target. Until it is reworked to deploy over SSH, only the manual path below works. The build job is unaffected — the image is still pushed to GHCR on every merge, so the manual path just needs the SHA.
+The manual path below runs **the same script**, so there is no second code path to drift.
 
-**Manual deploy (run on the droplet, where `kubectl` already points at k3s):**
+**Manual deploy (run on the droplet):**
 
 ```bash
 IMG=ghcr.io/<owner>/kvorum:$(git rev-parse HEAD)   # after the build workflow pushed it
-kubectl -n kvorum delete job kvorum-migrate --ignore-not-found
-sed "s#ghcr.io/kvorum/kvorum:latest#$IMG#" infra/k8s/base/migrate-job.yaml | kubectl -n kvorum apply -f -
-kubectl -n kvorum wait --for=condition=complete job/kvorum-migrate --timeout=300s
-cd infra/k8s/overlays/prod
-kustomize edit set image ghcr.io/kvorum/kvorum=$IMG
-kubectl apply -k .
-kubectl -n kvorum rollout status deploy/kvorum-api deploy/kvorum-indexer deploy/kvorum-ai-worker deploy/kvorum-dashboard
+cd infra/k8s/overlays/prod && kustomize edit set image "ghcr.io/kvorum/kvorum=$IMG" && cd -
+./infra/scripts/deploy.sh "$IMG"
 ```
+
+The `kustomize edit` is separate because CI does it on the runner, keeping kustomize off the droplet — `deploy.sh` only needs `kubectl`, which k3s ships. The script refuses to run if the overlay does not pin the tag you asked for, so a stale edit cannot silently ship the wrong build.
+
+Useful overrides: `MIGRATE_TIMEOUT` (default `300s`), `ROLLOUT_TIMEOUT` (`180s`), `KUBECONFIG` (`/etc/rancher/k3s/k3s.yaml`).
 
 ## Rollback
 
