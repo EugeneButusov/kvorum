@@ -4,7 +4,13 @@ OUT=/backup
 rm -rf "$OUT"/* 2>/dev/null || true
 
 echo "[dump] postgres"
-pg_dump -Fc --no-owner --no-privileges -f "$OUT/postgres.dump" "$DATABASE_URL"
+# `uselibpqcompat` belongs to node-postgres, not libpq. The old managed-Postgres URL
+# carries it, so strip it here as well as in the one-time migration path. This keeps the
+# backup component usable during the overlap and makes the script tolerant of either URL.
+PG_URL=$(printf '%s' "$DATABASE_URL" \
+  | sed -e 's/uselibpqcompat=true//' -e 's/&&/\&/g' -e 's/?&/?/' -e 's/[?&]$//')
+pg_dump -Fc --no-owner --no-privileges -f "$OUT/postgres.dump" "$PG_URL"
+unset PG_URL
 
 # ClickHouse over the HTTP interface. Only *MergeTree tables hold data — the
 # projection VIEWs and the MVs are derived and rebuild from these on restore.
@@ -22,12 +28,16 @@ CH_Q() {
 
 echo "[dump] clickhouse table list"
 CH_Q "SELECT name FROM system.tables WHERE database = '$CLICKHOUSE_DATABASE' \
-  AND engine LIKE '%MergeTree' ORDER BY name FORMAT TabSeparated" > "$OUT/ch-tables.txt"
+  AND engine LIKE '%MergeTree' \
+  AND name NOT IN ('_migrations', 'vote_events_agg', 'delegation_flow_agg') \
+  ORDER BY name FORMAT TabSeparated" > "$OUT/ch-tables.txt"
 wc -l < "$OUT/ch-tables.txt" | tr -d ' ' | xargs echo "[dump] clickhouse tables:"
 
 while IFS= read -r t; do
   [ -n "$t" ] || continue
-  CH_Q "SELECT * FROM \`$t\` FORMAT Native" > "$OUT/ch__$t.native"
+  # Large forum payloads exceed the single-node memory ceiling if emitted as one Native
+  # block. The file can contain many blocks; restore consumes them incrementally.
+  CH_Q "SELECT * FROM \`$t\` SETTINGS max_block_size=256 FORMAT Native" > "$OUT/ch__$t.native"
 done < "$OUT/ch-tables.txt"
 
 echo "[dump] compressing"
