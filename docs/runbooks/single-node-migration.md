@@ -349,16 +349,23 @@ The app pods will be up but serving an **empty** database. That is expected; dat
 
 ---
 
-## Phase 3 — Stop the old indexer
+## Phase 3 — Freeze both indexers
 
-Freeze the source so cursors do not advance mid-copy and leave holes:
+Freeze the old source so cursors do not advance mid-copy and leave holes. Freeze the new
+indexer too: it initially starts against an empty Postgres database and sees no sources, but
+the Phase 4 restore can make it reconnect or restart against the populated database. Without
+an explicit gate, that restart could begin polling before ClickHouse has been copied.
 
 ```bash
 kold set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED=false
 kold rollout status deploy/kvorum-indexer
+
+knew set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED=false
+knew rollout status deploy/kvorum-indexer
 ```
 
-Derivation keeps running; only live polling stops. From here the old stack is read-only in effect, and the clock is running — keep Phases 4–6 tight.
+Derivation keeps running; only live polling stops. From here the old stack is read-only in
+effect, and the clock is running — keep Phases 4–6 tight.
 
 ---
 
@@ -378,7 +385,7 @@ kold delete pod pgdump --ignore-not-found      # a pod from an earlier attempt h
 
 kold run pgdump --image=postgres:18-alpine --restart=Never --overrides='{
   "spec": { "containers": [{
-    "name": "pgdump", "image": "postgres:18-alpine", "command": ["sleep","3600"],
+    "name": "pgdump", "image": "postgres:18-alpine", "command": ["sleep","86400"],
     "env": [{ "name": "DATABASE_URL", "valueFrom": {
       "secretKeyRef": { "name": "kvorum-secrets", "key": "DATABASE_URL" } } }]
   }]}}'
@@ -402,6 +409,12 @@ kold cp pgdump:/tmp/pg.dump ./pg.dump
 ls -la pg.dump
 kold delete pod pgdump
 ```
+
+The pod stays alive for 24 hours because `kubectl cp` runs `tar` inside the source
+container. Once the container reaches `Succeeded`, its `/tmp/pg.dump` still appears in the
+pod's old writable layer but `kubectl` can no longer exec into it to retrieve the file. If
+that happens, delete and recreate the pod and dump again; the frozen source makes the retry
+safe.
 
 Restore into the new cluster. **Restore the full dump — do not run `db:migrate` first.** The
 dump carries schema, data _and_ the Kysely migration table, so a later migrate run correctly
@@ -438,35 +451,135 @@ The reverse order applies here: ClickHouse dumps carry **no DDL**, so the schema
 
 Elestio exposes the HTTP interface on **:18123**, not the prominently displayed native :29000 — `@clickhouse/client` speaks HTTP only.
 
+Load both sets of credentials from the cluster secrets. Do not transcribe or print them:
+
 ```bash
-OLD_CH='https://<elestio-host>:18123'
-NEW_CH='http://localhost:58123'     # via: knew port-forward svc/kvorum-clickhouse 58123:8123
+OLD_SECRET=$(kold get secret kvorum-secrets -o json)
+NEW_SECRET=$(knew get secret kvorum-secrets -o json)
 
-TABLES=$(curl -sS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=kvorum" --data-binary \
-  "SELECT name FROM system.tables WHERE database='kvorum' AND engine LIKE '%MergeTree' FORMAT TabSeparated")
+OLD_CH=$(printf '%s' "$OLD_SECRET" | jq -er '.data.CLICKHOUSE_URL | @base64d')
+OLD_CH=${OLD_CH%/}
+OLD_U=$(printf '%s' "$OLD_SECRET" | jq -er '.data.CLICKHOUSE_USER | @base64d')
+OLD_P=$(printf '%s' "$OLD_SECRET" | jq -er '.data.CLICKHOUSE_PASSWORD | @base64d')
+OLD_DB=$(printf '%s' "$OLD_SECRET" | jq -er '.data.CLICKHOUSE_DATABASE | @base64d')
 
-for t in $TABLES; do
-  echo "→ $t"
-  curl -sS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=kvorum" \
-    --data-binary "SELECT * FROM \`$t\` FORMAT Native" \
-  | curl -sS -u "kvorum:$CHPW" \
-      "$NEW_CH/?database=kvorum&query=INSERT+INTO+%60$t%60+FORMAT+Native" --data-binary @-
-done
+NEW_U=$(printf '%s' "$NEW_SECRET" | jq -er '.data.CLICKHOUSE_USER | @base64d')
+NEW_P=$(printf '%s' "$NEW_SECRET" | jq -er '.data.CLICKHOUSE_PASSWORD | @base64d')
+NEW_DB=$(printf '%s' "$NEW_SECRET" | jq -er '.data.CLICKHOUSE_DATABASE | @base64d')
+NEW_CH='http://127.0.0.1:58123'
+
+unset OLD_SECRET NEW_SECRET
 ```
 
-Only `*MergeTree` tables. The projection `VIEW`s and materialized views are derived and rebuild from these.
+In a second terminal, source the migration environment and leave the ClickHouse forward
+running:
+
+```bash
+source ~/kvorum-migration.env
+knew port-forward svc/kvorum-clickhouse 58123:8123
+```
+
+Back in the first terminal, prove both endpoints and credentials work before moving data.
+These queries print only the authenticated username and database, never the password:
+
+```bash
+curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
+  --data-binary 'SELECT currentUser(), currentDatabase() FORMAT TabSeparated'
+curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
+  --data-binary 'SELECT currentUser(), currentDatabase() FORMAT TabSeparated'
+```
+
+Build an explicit file of source-data tables. Do not copy `_migrations`: Phase 2 already
+created the target's migration metadata. Do not copy the two `*_agg` tables either: their
+materialized views populate them as the corresponding `*_raw` tables are inserted, and
+copying both raw and aggregate storage would double the aggregate state.
+
+```bash
+TABLES_FILE=/tmp/kvorum-ch-tables.txt
+
+curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" --data-binary \
+  "SELECT name
+   FROM system.tables
+   WHERE database='$OLD_DB'
+     AND engine LIKE '%MergeTree'
+     AND name NOT IN ('_migrations', 'vote_events_agg', 'delegation_flow_agg')
+   ORDER BY name
+   FORMAT TabSeparated" > "$TABLES_FILE"
+
+wc -l "$TABLES_FILE"       # expect 17 for the current schema
+cat "$TABLES_FILE"
+```
+
+Import line by line rather than using `for t in $TABLES`: zsh does not split a multiline
+scalar on newlines, so that form turns the entire list into one malformed table name. The
+subshell also makes `pipefail` local and lets any failed transfer stop the import without
+closing the operator's shell.
+
+The preflight refuses to start if any target source table already has rows. Native inserts
+are not idempotent, so after a partial transfer, stop and clean up the partial target rather
+than blindly running the loop again.
+
+```bash
+(
+  set -o pipefail
+
+  while IFS= read -r t; do
+    rows=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
+      --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+    if [ "$rows" != 0 ]; then
+      echo "ERROR: target table $t already has $rows row(s); refusing a duplicate import" >&2
+      exit 1
+    fi
+  done < "$TABLES_FILE"
+
+  for t in vote_events_agg delegation_flow_agg; do
+    rows=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
+      --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+    if [ "$rows" != 0 ]; then
+      echo "ERROR: derived target table $t already has $rows row(s); refusing a duplicate import" >&2
+      exit 1
+    fi
+  done
+
+  while IFS= read -r t; do
+    echo "→ $t"
+    curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
+      --data-binary "SELECT * FROM \`$t\` FORMAT Native" \
+    | curl -fsS -u "$NEW_U:$NEW_P" \
+        "$NEW_CH/?database=$NEW_DB&query=INSERT%20INTO%20%60${t}%60%20FORMAT%20Native" \
+        --data-binary @-
+    echo "  ok"
+  done < "$TABLES_FILE"
+)
+```
+
+Only source `*MergeTree` tables cross the wire. The projection `VIEW`s already exist from
+the migrations, and the materialized views rebuild the aggregate storage from the raw
+inserts.
 
 ### 4.3 Compare row counts
 
 ```bash
-for t in $TABLES; do
-  a=$(curl -sS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=kvorum" --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
-  b=$(curl -sS -u "kvorum:$CHPW"  "$NEW_CH/?database=kvorum" --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+while IFS= read -r t; do
+  a=$(curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
+    --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+  b=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
+    --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
   [ "$a" = "$b" ] && echo "  ok   $t ($a)" || echo "  MISMATCH $t: old=$a new=$b"
+done < "$TABLES_FILE"
+
+# Compare the logical projections, not the physical AggregatingMergeTree row counts: the
+# number of physical aggregate-state rows depends on background merge timing.
+for view in vote_events_projection delegation_flow_projection; do
+  a=$(curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
+    --data-binary "SELECT count() FROM \`$view\` FORMAT TSV")
+  b=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
+    --data-binary "SELECT count() FROM \`$view\` FORMAT TSV")
+  [ "$a" = "$b" ] && echo "  ok   $view ($a)" || echo "  MISMATCH $view: old=$a new=$b"
 done
 ```
 
-Every table must match before you continue.
+Every copied source table and both logical projections must match before you continue.
 
 ---
 
@@ -490,7 +603,7 @@ Test through the **temporary** hostname (`new.<domain>`) while production still 
 
 - [ ] All pods `Running` on the single node, none `Pending`; requests below allocatable.
 - [ ] **Row counts match** the Phase 0 baseline: `proposal` (~650), `actor`, `archive_event`, `dao`.
-- [ ] Every ClickHouse table count matches (Phase 4.3).
+- [ ] Every copied ClickHouse source table and both logical projection counts match (Phase 4.3).
 - [ ] **ClickHouse read paths** — the surfaces that go dark if CH is wrong (ADR-0062): proposal detail with tally and vote list, `/actors/[address]`, `/daos/[slug]/delegates`, `/delegates/[address]`, `/daos/[slug]/health`.
 - [ ] `pnpm --filter dashboard test:smoke` against `new.<domain>` — 7 flows. The script is `test:smoke`, **not** `test:e2e`.
 - [ ] **Auth** — SIWE login, key CRUD, sign-out-everywhere. Confirms Upstash Redis still reaches the new cluster.
@@ -510,12 +623,16 @@ Postgres and ClickHouse get **no route** — they stay ClusterIP-only.
 ### 7.2 Start the new indexer
 
 ```bash
-knew get cm kvorum-config -o jsonpath='{.data.INDEXER_LIVE_POLLER_ENABLED}'   # unset = enabled
-knew rollout restart deploy/kvorum-indexer
+knew set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED-
+knew rollout status deploy/kvorum-indexer
 knew logs deploy/kvorum-indexer --tail=50 | grep -E 'poller_tick|started [0-9]+ source'
 ```
 
-Expect `started 19 source(s) across 3 chain(s)` and one tick batch at boot. Next batch in ~1 hour — the cadence is hourly. Derivation and stitch logs run on their own intervals and are **not** evidence about poll cadence.
+The trailing `-` removes the temporary Deployment override from Phase 3, revealing the
+application default (enabled); `set env` triggers the rollout. Expect
+`started 19 source(s) across 3 chain(s)` and one tick batch at boot. Next batch in ~1 hour —
+the cadence is hourly. Derivation and stitch logs run on their own intervals and are **not**
+evidence about poll cadence.
 
 ### 7.3 Soak for 48 hours
 
