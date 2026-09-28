@@ -56,6 +56,30 @@ log "bootstrapping namespace and config"
 kubectl apply -f "$OVERLAY/namespace.yaml"
 kubectl -n "$NS" apply -f "$K8S/base/configmap.yaml"
 
+# The datastores must exist before the gate can reach them. They are created by `apply -k`,
+# which runs after the gate, so on a fresh cluster the migration resolves
+# kvorum-postgres.kvorum against nothing and fails with ENOTFOUND. Apply just the datastore
+# objects first and wait for them.
+#
+# Only the datastore resources, not the whole overlay: the gate exists so that no Deployment
+# rolls against an un-migrated schema, and applying everything here would defeat it.
+DATASTORE_SELECTOR='app.kubernetes.io/name in (kvorum-postgres,kvorum-clickhouse)'
+DATASTORE_TIMEOUT="${DATASTORE_TIMEOUT:-300s}"
+
+if kubectl kustomize "$OVERLAY" | grep -q '^  name: kvorum-postgres$'; then
+  log "bringing up in-cluster datastores"
+  kubectl kustomize "$OVERLAY" \
+    | kubectl -n "$NS" apply --selector="$DATASTORE_SELECTOR" -f -
+  for sts in kvorum-postgres kvorum-clickhouse; do
+    kubectl -n "$NS" rollout status "statefulset/$sts" --timeout="$DATASTORE_TIMEOUT" \
+      || { echo "ERROR: $sts did not become ready — aborting before the migration gate" >&2
+           kubectl -n "$NS" describe "statefulset/$sts" >&2 || true
+           exit 1; }
+  done
+else
+  log "no in-cluster datastores in this overlay — assuming external"
+fi
+
 # The gate: a failed migration must abort before any Deployment rolls, so code never runs
 # against an un-migrated schema.
 log "running migrations (deploy gate)"
