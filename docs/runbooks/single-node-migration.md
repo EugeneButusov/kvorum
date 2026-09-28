@@ -619,7 +619,7 @@ Test through the **temporary** hostname (`new.<domain>`) while production still 
 - [ ] **Row counts match** the Phase 0 baseline: `proposal` (~650), `actor`, `archive_event`, `dao`.
 - [ ] Every copied ClickHouse source table and both logical projection counts match (Phase 4.3).
 - [ ] **ClickHouse read paths** — the surfaces that go dark if CH is wrong (ADR-0062): proposal detail with tally and vote list, `/actors/[address]`, `/daos/[slug]/delegates`, `/delegates/[address]`, `/daos/[slug]/health`.
-- [ ] `pnpm --filter dashboard test:smoke` against `new.<domain>` — 7 flows. The script is `test:smoke`, **not** `test:e2e`.
+- [ ] `PLAYWRIGHT_BASE_URL=https://new.<domain> pnpm --filter dashboard test:smoke` — 9 tests against the temporary public hostname. Setting `PLAYWRIGHT_BASE_URL` skips the local Next build/server; omit it for the normal local smoke suite. The script is `test:smoke`, **not** `test:e2e`.
 - [ ] **Auth** — SIWE login, key CRUD, sign-out-everywhere. Confirms Upstash Redis still reaches the new cluster.
 - [ ] **Grafana** at its temporary hostname: three scrape targets `UP`, both dashboards render.
 - [ ] Backup job completed and a restore drill passed (Phase 5).
