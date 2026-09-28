@@ -6,10 +6,13 @@ Postgres and ClickHouse run in-cluster on `local-path` volumes (ADR-0090), i.e. 
 
 `components/backup` runs a nightly CronJob at 03:17 UTC, in two stages over a shared `emptyDir`:
 
-1. **dump** (`postgres:18-alpine`) — `pg_dump -Fc` of the whole database, then every ClickHouse `*MergeTree` table as `FORMAT Native`. Table discovery is dynamic (`system.tables`), so a new source's tables are picked up without touching the job. Everything is gzipped.
+1. **dump** (`postgres:18-alpine`) — `pg_dump -Fc` of the whole database, then every ClickHouse source `*MergeTree` table as `FORMAT Native`. Table discovery is dynamic (`system.tables`), so a new source's tables are picked up without touching the job. Migration metadata and the two materialized-view aggregate targets are excluded; migrations recreate them, and restoring both raw and aggregate state would double the aggregates. Everything is gzipped.
 2. **upload** (`rclone/rclone`) — pushes to `s3://$R2_BUCKET/daily/<timestamp>/`, and additionally to `weekly/` on Sundays. Retention is 7 days on `daily/`, 28 on `weekly/`.
 
-Projection `VIEW`s and materialized views are deliberately **not** dumped: they are derived, and they repopulate from the `*MergeTree` tables.
+Projection `VIEW`s, materialized views, and their `*_agg` targets are deliberately **not** dumped: they are derived, and they repopulate from the `*_raw` tables. `_migrations` is not dumped either because the schema-first restore recreates that metadata.
+
+Native output uses 256-row blocks. The forum archive's JSON payloads are large enough that
+one default-sized block can exceed the single-node ClickHouse memory ceiling during restore.
 
 The bucket must already exist — the job runs with `--s3-no-check-bucket` so its token needs only object read/write, not bucket creation.
 
@@ -65,19 +68,39 @@ Schema first, data second — the dump carries no DDL.
 # 1. schema, from the migrations
 pnpm -w db:migrate:ch
 
-# 2. per table
+# 2. per source table, into empty tables
 rclone copy "r2:$R2_BUCKET/daily/<timestamp>/" /tmp/chrestore/
 cd /tmp/chrestore && gunzip -f ./*.native.gz
 
-for f in ch__*.native; do
-  t=${f#ch__}; t=${t%.native}
-  curl -sS -u "$CLICKHOUSE_USER:$CLICKHOUSE_PASSWORD" \
-    "$CLICKHOUSE_URL/?database=$CLICKHOUSE_DATABASE&query=INSERT+INTO+$t+FORMAT+Native" \
-    --data-binary "@$f"
-done
+(
+  set -e -o pipefail
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    rows=$(curl -fsS -u "$CLICKHOUSE_USER:$CLICKHOUSE_PASSWORD" \
+      "$CLICKHOUSE_URL/?database=$CLICKHOUSE_DATABASE" \
+      --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+    if [ "$rows" != 0 ]; then
+      echo "ERROR: target table $t already has $rows row(s); restore into an empty target" >&2
+      exit 1
+    fi
+  done < ch-tables.txt
+
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    curl -fsS -u "$CLICKHOUSE_USER:$CLICKHOUSE_PASSWORD" \
+      "$CLICKHOUSE_URL/?database=$CLICKHOUSE_DATABASE&query=INSERT%20INTO%20%60${t}%60%20FORMAT%20Native" \
+      --data-binary "@ch__$t.native"
+  done < ch-tables.txt
+)
 ```
 
-The tables are `ReplacingMergeTree`, so re-inserting rows that are already present dedupes on merge rather than duplicating — restoring over a partially-populated table is safe. Read with `SELECT … FINAL` to see deduped results, and never run `OPTIMIZE TABLE FINAL` from a script.
+Do not restore over partially populated tables. The archive tables use `ReplacingMergeTree`,
+but `vote_events_raw` and `delegation_flow_raw` are plain `MergeTree`; replaying them creates
+permanent duplicates and also doubles the materialized aggregate state. The preflight above
+therefore refuses any non-empty source table. For `ReplacingMergeTree` verification, read
+with `SELECT … FINAL` so background merge timing does not look like data loss; never run
+`OPTIMIZE TABLE FINAL` from a script.
 
 Verify a large `UInt256` survived, e.g. `SELECT toString(voting_power) FROM vote_events_raw LIMIT 1` — reading such a column as a JS number silently loses precision, which has broken derivation before.
 

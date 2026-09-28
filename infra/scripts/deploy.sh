@@ -35,14 +35,16 @@ echo "  image:      $IMAGE"
 echo "  kubeconfig: $KUBECONFIG"
 kubectl version -o json 2>/dev/null | sed -n 's/.*"gitVersion": "\(v[^"]*\)".*/  server:     \1/p' | tail -1 || true
 
-# Guard against deploying a tag other than the one asked for — the overlay is what
-# `apply -k` actually uses, so a stale edit here would silently ship the wrong build.
-log "verifying the overlay references the requested image"
-IMAGE_TAG="${IMAGE##*:}"
-if ! grep -q "newTag: ${IMAGE_TAG}\$" "$OVERLAY/kustomization.yaml"; then
-  echo "ERROR: $OVERLAY/kustomization.yaml does not pin newTag: ${IMAGE_TAG}" >&2
-  echo "       run: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
-  grep -A3 '^images:' "$OVERLAY/kustomization.yaml" >&2 || true
+# Guard against deploying something other than what was asked for. Checked against the
+# RENDERED output, not the kustomization source: the tag alone is not enough, because an
+# edit that sets newTag but not newName leaves the image pointing at the placeholder
+# registry path while still matching on tag.
+log "verifying the overlay renders the requested image"
+if ! kubectl kustomize "$OVERLAY" | grep -qF "image: ${IMAGE}"; then
+  echo "ERROR: $OVERLAY does not render ${IMAGE}" >&2
+  echo "       it currently renders:" >&2
+  kubectl kustomize "$OVERLAY" | grep -oE 'image: [^ ]+' | sort -u | sed 's/^/         /' >&2
+  echo "       fix with: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
   exit 1
 fi
 echo "  ok"
@@ -53,6 +55,30 @@ echo "  ok"
 log "bootstrapping namespace and config"
 kubectl apply -f "$OVERLAY/namespace.yaml"
 kubectl -n "$NS" apply -f "$K8S/base/configmap.yaml"
+
+# The datastores must exist before the gate can reach them. They are created by `apply -k`,
+# which runs after the gate, so on a fresh cluster the migration resolves
+# kvorum-postgres.kvorum against nothing and fails with ENOTFOUND. Apply just the datastore
+# objects first and wait for them.
+#
+# Only the datastore resources, not the whole overlay: the gate exists so that no Deployment
+# rolls against an un-migrated schema, and applying everything here would defeat it.
+DATASTORE_SELECTOR='app.kubernetes.io/name in (kvorum-postgres,kvorum-clickhouse)'
+DATASTORE_TIMEOUT="${DATASTORE_TIMEOUT:-300s}"
+
+if kubectl kustomize "$OVERLAY" | grep -q '^  name: kvorum-postgres$'; then
+  log "bringing up in-cluster datastores"
+  kubectl kustomize "$OVERLAY" \
+    | kubectl -n "$NS" apply --selector="$DATASTORE_SELECTOR" -f -
+  for sts in kvorum-postgres kvorum-clickhouse; do
+    kubectl -n "$NS" rollout status "statefulset/$sts" --timeout="$DATASTORE_TIMEOUT" \
+      || { echo "ERROR: $sts did not become ready — aborting before the migration gate" >&2
+           kubectl -n "$NS" describe "statefulset/$sts" >&2 || true
+           exit 1; }
+  done
+else
+  log "no in-cluster datastores in this overlay — assuming external"
+fi
 
 # The gate: a failed migration must abort before any Deployment rolls, so code never runs
 # against an un-migrated schema.
