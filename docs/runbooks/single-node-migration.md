@@ -366,30 +366,69 @@ Derivation keeps running; only live polling stops. From here the old stack is re
 
 ### 4.1 Postgres
 
-Dump **from inside the old cluster**. DO Managed Postgres is usually restricted to the VPC, so the droplet cannot reach it directly — dumping from a pod avoids adding trusted sources and removing them later.
+Dump **from inside the old cluster**. DO Managed Postgres is reachable on its VPC-private host
+(`private-…`), so neither your laptop nor the droplet can connect to it — a pod in the old
+cluster can. Dumping there also means the credential never leaves the cluster.
+
+The dump pod takes `DATABASE_URL` straight from the existing secret, so there is nothing to
+copy or paste:
 
 ```bash
-kold run pgdump --image=postgres:18-alpine --restart=Never -- sleep 3600
-kold wait --for=condition=Ready pod/pgdump --timeout=120s
+kold run pgdump --image=postgres:18-alpine --restart=Never --overrides='{
+  "spec": { "containers": [{
+    "name": "pgdump", "image": "postgres:18-alpine", "command": ["sleep","3600"],
+    "env": [{ "name": "DATABASE_URL", "valueFrom": {
+      "secretKeyRef": { "name": "kvorum-secrets", "key": "DATABASE_URL" } } }]
+  }]}}'
 
-# uses the old DATABASE_URL; strip &uselibpqcompat=true — libpq rejects that param
-kold exec pgdump -- sh -c \
-  'pg_dump -Fc --no-owner --no-privileges "$OLD_URL" > /tmp/pg.dump' \
-  # pass OLD_URL via --env when creating the pod, or export it inside
+kold wait --for=condition=Ready pod/pgdump --timeout=120s
+```
+
+`uselibpqcompat=true` is a node-postgres parameter. `pg_dump` uses libpq, which rejects
+unknown keywords outright, so it has to come off the URL first — done inside the pod so the
+credential is never echoed:
+
+```bash
+kold exec pgdump -- sh -c '
+  URL=$(printf "%s" "$DATABASE_URL" \
+    | sed -e "s/uselibpqcompat=true//" -e "s/&&/\&/g" -e "s/?&/?/" -e "s/[?&]$//")
+  pg_dump -Fc --no-owner --no-privileges "$URL" > /tmp/pg.dump
+  ls -la /tmp/pg.dump
+'
 
 kold cp pgdump:/tmp/pg.dump ./pg.dump
 ls -la pg.dump
+kold delete pod pgdump
 ```
 
-Restore into the new cluster. **Restore the full dump — do not run `db:migrate` first.** The dump carries schema, data _and_ the Kysely migration table, so a later migrate run correctly finds nothing pending. Running migrations first would collide with the restored schema.
+Restore into the new cluster. **Restore the full dump — do not run `db:migrate` first.** The
+dump carries schema, data _and_ the Kysely migration table, so a later migrate run correctly
+finds nothing pending. The deploy already created the schema, so drop and recreate the database
+first to avoid restoring on top of it:
 
 ```bash
 knew cp ./pg.dump kvorum-postgres-0:/tmp/pg.dump
-knew exec kvorum-postgres-0 -- sh -c \
-  'pg_restore -U kvorum -d kvorum --no-owner --no-privileges /tmp/pg.dump'
+
+knew exec kvorum-postgres-0 -- sh -c '
+  psql -U kvorum -d postgres -c "DROP DATABASE IF EXISTS kvorum WITH (FORCE)" \
+                              -c "CREATE DATABASE kvorum OWNER kvorum"
+  pg_restore -U kvorum -d kvorum --no-owner --no-privileges /tmp/pg.dump
+'
 ```
 
-Some `already exists` notices are normal — the deploy gate created the schema. If that bothers you, drop and recreate the database first, then restore.
+`WITH (FORCE)` terminates the app connections holding the database open; without it the drop
+blocks behind them. The apps reconnect on their own.
+
+Verify before moving on — `vector` must be present, or `ai_003` and every embedding read will
+fail later:
+
+```bash
+knew exec kvorum-postgres-0 -- psql -U kvorum -d kvorum -tAc \
+  "select count(*) from information_schema.tables where table_schema='public'"
+knew exec kvorum-postgres-0 -- psql -U kvorum -d kvorum -tAc \
+  "select extname from pg_extension order by 1"
+knew exec kvorum-postgres-0 -- psql -U kvorum -d kvorum -tAc "select count(*) from proposal"
+```
 
 ### 4.2 ClickHouse
 
