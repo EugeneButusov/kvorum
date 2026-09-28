@@ -512,8 +512,13 @@ cat "$TABLES_FILE"
 
 Import line by line rather than using `for t in $TABLES`: zsh does not split a multiline
 scalar on newlines, so that form turns the entire list into one malformed table name. The
-subshell also makes `pipefail` local and lets any failed transfer stop the import without
-closing the operator's shell.
+subshell also makes `errexit` and `pipefail` local and lets any failed transfer stop the
+import without closing the operator's shell.
+
+`max_block_size=256` is deliberate. The forum archive contains large JSON payloads; allowing
+the source to emit all ~2,900 rows as one Native block makes the destination allocate more
+than its 768 MiB server memory ceiling while decoding it. Small Native blocks keep the
+transfer streaming within the single-node limit.
 
 The preflight refuses to start if any target source table already has rows. Native inserts
 are not idempotent, so after a partial transfer, stop and clean up the partial target rather
@@ -521,7 +526,7 @@ than blindly running the loop again.
 
 ```bash
 (
-  set -o pipefail
+  set -e -o pipefail
 
   while IFS= read -r t; do
     rows=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
@@ -544,7 +549,7 @@ than blindly running the loop again.
   while IFS= read -r t; do
     echo "→ $t"
     curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
-      --data-binary "SELECT * FROM \`$t\` FORMAT Native" \
+      --data-binary "SELECT * FROM \`$t\` SETTINGS max_block_size=256 FORMAT Native" \
     | curl -fsS -u "$NEW_U:$NEW_P" \
         "$NEW_CH/?database=$NEW_DB&query=INSERT%20INTO%20%60${t}%60%20FORMAT%20Native" \
         --data-binary @-
@@ -561,10 +566,17 @@ inserts.
 
 ```bash
 while IFS= read -r t; do
+  engine=$(curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
+    --data-binary "SELECT engine FROM system.tables WHERE database='$OLD_DB' AND name='$t' FORMAT TSV")
+  case "$engine" in
+    ReplacingMergeTree) final=' FINAL' ;;
+    *) final='' ;;
+  esac
+
   a=$(curl -fsS -u "$OLD_U:$OLD_P" "$OLD_CH/?database=$OLD_DB" \
-    --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+    --data-binary "SELECT count() FROM \`$t\`${final} FORMAT TSV")
   b=$(curl -fsS -u "$NEW_U:$NEW_P" "$NEW_CH/?database=$NEW_DB" \
-    --data-binary "SELECT count() FROM \`$t\` FORMAT TSV")
+    --data-binary "SELECT count() FROM \`$t\`${final} FORMAT TSV")
   [ "$a" = "$b" ] && echo "  ok   $t ($a)" || echo "  MISMATCH $t: old=$a new=$b"
 done < "$TABLES_FILE"
 
