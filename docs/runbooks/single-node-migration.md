@@ -312,11 +312,30 @@ Then ship it:
 
 ```bash
 tar czf /tmp/bundle.tar.gz infra/k8s infra/scripts/deploy.sh
-scp /tmp/bundle.tar.gz deploy@<droplet-ip>:/tmp/
-ssh deploy@<droplet-ip> 'rm -rf ~/kvorum-deploy && mkdir -p ~/kvorum-deploy \
-  && tar xzf /tmp/bundle.tar.gz -C ~/kvorum-deploy \
-  && ~/kvorum-deploy/infra/scripts/deploy.sh '"$IMG"
+scp -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes /tmp/bundle.tar.gz deploy@<droplet-ip>:/tmp/
+ssh -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes deploy@<droplet-ip> \
+  'rm -rf ~/kvorum-deploy && mkdir -p ~/kvorum-deploy \
+   && tar xzf /tmp/bundle.tar.gz -C ~/kvorum-deploy \
+   && ~/kvorum-deploy/infra/scripts/deploy.sh '"$IMG"
 ```
+
+Every `ssh`/`scp` to the deploy user needs `-i ~/.ssh/kvorum-deploy`: it is a dedicated key, so
+your agent will not offer it by default and the connection fails with
+`Permission denied (publickey)` — which reads like a broken `authorized_keys` rather than a
+missing flag. `IdentitiesOnly=yes` stops ssh working through your other keys first and tripping
+the server's `MaxAuthTries`.
+
+Better, set it once in `~/.ssh/config` and drop the flags from every command in this runbook:
+
+```
+Host kvorum-droplet
+  HostName <droplet-ip>
+  User deploy
+  IdentityFile ~/.ssh/kvorum-deploy
+  IdentitiesOnly yes
+```
+
+Then it is `scp /tmp/bundle.tar.gz kvorum-droplet:/tmp/` and `ssh kvorum-droplet '…'`.
 
 The script bootstraps the namespace and ConfigMap, runs the migration gate, applies the manifests and waits for rollouts. On a fresh cluster the gate creates the whole schema in both stores.
 
