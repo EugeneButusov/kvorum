@@ -630,7 +630,20 @@ Test through the **temporary** hostname (`new.<domain>`) while production still 
 
 ### 7.1 Move the hostnames
 
-In the Cloudflare Zero Trust dashboard, move `dashboard.<domain>`, `api.<domain>` and `grafana.<domain>` from the old tunnel to the new one. DNS updates automatically. Delete the temporary `new.<domain>` route.
+In the Cloudflare Zero Trust dashboard, move the production dashboard, API and Grafana
+hostnames from the old tunnel to the new one. **Remove each route from the old tunnel before
+adding it to the new tunnel.** Removing an old route after the same hostname was added to the
+new tunnel can delete the shared DNS record and leave the new route returning Cloudflare error 1016. A short cutover gap is safer than an ambiguous duplicate route.
+
+For each hostname, add the published application route on the new tunnel and then verify that
+Cloudflare recreated a proxied CNAME to `<new-tunnel-UUID>.cfargotunnel.com`. If the route exists
+but DNS was removed, delete and recreate that route on the new tunnel (or recreate its CNAME
+manually). Finally delete the temporary `new.<domain>` route.
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code}\n' https://app.<domain>/
+curl -fsS https://api.<domain>/health
+```
 
 Postgres and ClickHouse get **no route** — they stay ClusterIP-only.
 
@@ -640,12 +653,16 @@ Postgres and ClickHouse get **no route** — they stay ClusterIP-only.
 knew set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED-
 knew scale deploy/kvorum-indexer --replicas=1
 knew rollout status deploy/kvorum-indexer
-knew logs deploy/kvorum-indexer --tail=50 | grep -E 'poller_tick|started [0-9]+ source'
+knew logs deploy/kvorum-indexer --since=10m \
+  | grep -E 'poller_tick|started [0-9]+ source' \
+  | tail -20
 ```
 
 The trailing `-` defensively removes any temporary poller override left by an interrupted
 migration; the application default is enabled. Scaling back to the singleton replica starts
-the target for the first time against the complete data. Expect
+the target for the first time against the complete data. The time-windowed log check is
+intentional: a startup catch-up can emit hundreds of debug lines and push the useful messages
+out of a small `--tail` window. Expect
 `started 19 source(s) across 3 chain(s)` and one tick batch at boot. Next batch in ~1 hour —
 the cadence is hourly. Derivation and stitch logs run on their own intervals and are **not**
 evidence about poll cadence.
@@ -663,19 +680,170 @@ After ~2 hours confirm `poll_cursor_block` advanced for each live source and the
 
 ### 7.4 Point CI at the new host
 
-Add three secrets to the GitHub `production` environment:
+The deploy job in `.github/workflows/deploy.yml` uses the GitHub environment named
+`production`. It builds and pushes the image on every push to `main`, then connects to the droplet
+as the unprivileged `deploy` user. Application secrets never enter GitHub Actions; they remain in
+the in-cluster `kvorum-secrets` Secret.
+
+#### Verify the deploy credential locally
+
+Use the dedicated key created in Phase 1.2. Do not substitute your personal SSH key.
 
 ```bash
-echo "deploy@<droplet-ip>"                 # → DEPLOY_HOST
-cat ~/.ssh/kvorum-deploy                   # → DEPLOY_SSH_KEY   (private half, from 1.2)
-ssh-keyscan <droplet-ip> 2>/dev/null       # → DEPLOY_KNOWN_HOSTS
+DROPLET_IP=<droplet-ip>
+DEPLOY_KEY="$HOME/.ssh/kvorum-deploy"
+
+test -s "$DEPLOY_KEY"
+test -s "$DEPLOY_KEY.pub"
+ssh-keygen -y -f "$DEPLOY_KEY" >/dev/null
+
+ssh -i "$DEPLOY_KEY" -o BatchMode=yes -o IdentitiesOnly=yes \
+  "deploy@$DROPLET_IP" \
+  'set -e
+   id
+   test -r /etc/rancher/k3s/k3s.yaml
+   kubectl get nodes
+   kubectl -n kvorum get pods'
 ```
 
-`DEPLOY_KNOWN_HOSTS` pins the host key so the workflow never needs `StrictHostKeyChecking=no`, which would accept a man-in-the-middle on the one channel that can change production. Run `ssh-keyscan` from a network you trust — it is trust-on-first-use, and you are recording that decision.
+This must connect without a password prompt, show membership in the `k3s` group, list the node as
+`Ready`, and list the application pods. Fix this before touching GitHub secrets; CI uses the same
+key, user and kubeconfig access.
 
-Then remove `DIGITALOCEAN_ACCESS_TOKEN` and the `DOKS_CLUSTER` variable.
+#### Pin and verify the SSH host key
 
-Merge a trivial change and confirm the workflow deploys end to end.
+`ssh-keyscan` discovers a key but does not authenticate it. Compare its fingerprint with the key
+read over the already-trusted root session (or from the DigitalOcean console):
+
+```bash
+KNOWN_HOSTS_FILE=$(mktemp)
+ssh-keyscan -t ed25519 "$DROPLET_IP" 2>/dev/null > "$KNOWN_HOSTS_FILE"
+test -s "$KNOWN_HOSTS_FILE"
+
+# Trusted copy from the droplet:
+ssh root@"$DROPLET_IP" \
+  'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+
+# Copy that GitHub Actions will pin:
+ssh-keygen -lf "$KNOWN_HOSTS_FILE"
+```
+
+The two `SHA256:...` fingerprints must be identical. Keep the `ssh-keyscan` line itself—not the
+fingerprint—as `DEPLOY_KNOWN_HOSTS`. Because `DEPLOY_HOST` uses the IP address, scan that same IP;
+a known-hosts entry keyed only by a DNS name will not match.
+
+#### Add the GitHub environment secrets
+
+With the GitHub CLI (recommended, because it preserves the private key byte-for-byte):
+
+```bash
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+gh auth status
+
+gh secret set DEPLOY_HOST \
+  --repo "$REPO" --env production --body "deploy@$DROPLET_IP"
+gh secret set DEPLOY_SSH_KEY \
+  --repo "$REPO" --env production < "$DEPLOY_KEY"
+gh secret set DEPLOY_KNOWN_HOSTS \
+  --repo "$REPO" --env production < "$KNOWN_HOSTS_FILE"
+
+rm -f "$KNOWN_HOSTS_FILE"
+
+gh secret list --repo "$REPO" --env production
+```
+
+The final command must include these three names (GitHub never displays their values):
+
+```text
+DEPLOY_HOST
+DEPLOY_KNOWN_HOSTS
+DEPLOY_SSH_KEY
+```
+
+UI alternative: repository **Settings → Environments → production → Environment secrets**. Add
+the same three values there. `DEPLOY_SSH_KEY` is the complete private file, including its
+`BEGIN`/`END` lines and final newline. Do not add these as ordinary repository secrets: the deploy
+job explicitly consumes the `production` environment.
+
+`DEPLOY_KNOWN_HOSTS` lets the workflow retain normal strict host-key checking; it never uses
+`StrictHostKeyChecking=no`. `DEPLOY_SSH_KEY` effectively has cluster-admin access through the k3s
+kubeconfig, so restrict access to the `production` environment and rotate the key if it is ever
+exposed.
+
+#### Run and observe the first CI deployment
+
+The workflow has no manual trigger; merging this migration PR to `main` is the first deployment.
+Set the three secrets **before** merging. In GitHub Actions, the `Deploy` workflow should complete
+both jobs:
+
+1. **Build & push image** — builds the merge SHA and pushes it to GHCR.
+2. **Migrate & roll out** — pins that immutable image, copies the deployment bundle over SSH,
+   runs the Postgres/ClickHouse migration gate, applies the production overlay and waits for all
+   four Deployments.
+
+Watch it from the CLI:
+
+```bash
+gh run list --repo "$REPO" --workflow deploy.yml --branch main --limit 5
+RUN_ID=<id-from-the-list>
+gh run watch "$RUN_ID" --repo "$REPO" --exit-status
+```
+
+If it fails, get the useful section without scrolling through the build log:
+
+```bash
+gh run view "$RUN_ID" --repo "$REPO" --log-failed
+```
+
+Common failure locations are diagnostic:
+
+- **Configure SSH / Copy manifests** — malformed private key, wrong `DEPLOY_HOST`, or host-key
+  mismatch.
+- **Migrate and roll out**, immediately on `kubectl` — `deploy` is not in the `k3s` group or cannot
+  read `/etc/rancher/k3s/k3s.yaml`.
+- **kvorum-migrate Job** — datastore connectivity or a real schema migration failure. The script
+  aborts before rolling application Deployments and prints the Job logs.
+- **rollout status** — inspect the named Deployment with `knew describe` and `knew logs`; do not
+  bypass the migration gate or timeout.
+
+After correcting an environment secret, rerun the failed jobs from the Actions UI or use:
+
+```bash
+gh run rerun "$RUN_ID" --repo "$REPO" --failed
+```
+
+#### Verify the result before removing old CI credentials
+
+```bash
+git fetch origin main
+SHA=$(git rev-parse origin/main)
+
+knew get deploy \
+  kvorum-api kvorum-indexer kvorum-ai-worker kvorum-dashboard \
+  -o custom-columns=NAME:.metadata.name,READY:.status.readyReplicas,IMAGE:.spec.template.spec.containers[0].image
+
+echo "expected image tag: $SHA"
+knew get job kvorum-migrate
+curl -fsS -o /dev/null -w 'dashboard %{http_code}\n' https://app.<domain>/
+curl -fsS -o /dev/null -w 'api %{http_code}\n' https://api.<domain>/health
+```
+
+All four Deployments must be ready and use an image ending in `:$SHA`; the migration Job must be
+`Complete`; both HTTP probes must return `200`.
+
+Only after that succeeds, remove the now-unused **repository-scoped** DOKS credential and
+variable. They are not `production` environment values, so omit `--env`:
+
+```bash
+gh secret delete DIGITALOCEAN_ACCESS_TOKEN --repo "$REPO"
+gh variable delete DOKS_CLUSTER --repo "$REPO"
+
+gh secret list --repo "$REPO"
+gh variable list --repo "$REPO"
+```
+
+Removing those CI values does not delete the old infrastructure. Keep the old cluster and
+datastores intact until the soak and backup/restore gate permit Phase 8.
 
 ---
 

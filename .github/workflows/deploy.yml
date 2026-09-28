@@ -2,9 +2,9 @@ name: Deploy
 
 # Auto-deploy on merge to the default branch. Build once, gate on migrations, then
 # roll the api, indexer, ai-worker, and dashboard Deployments. The only credential
-# this workflow holds is a
-# scoped DigitalOcean token stored as a `production` Environment secret — no app
-# secrets ever touch CI (they live only in the in-cluster kvorum-secrets Secret).
+# this workflow holds is the dedicated droplet SSH key stored in the `production`
+# Environment — no app secrets ever touch CI (they live only in the in-cluster
+# kvorum-secrets Secret).
 on:
   push:
     branches: [main]
