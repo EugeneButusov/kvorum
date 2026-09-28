@@ -260,7 +260,7 @@ In the Zero Trust dashboard:
 
 ### 2.3 Deploy
 
-Run from the repository root — the first line guarantees it regardless of where you were. The owner is derived from the remote and **lowercased**, because GHCR rejects uppercase path segments and the build workflow publishes the lowercased form (`${GITHUB_REPOSITORY,,}`). Typing `ghcr.io/EugeneButusov/...` by hand gets an image that does not exist, and you find out 300 seconds later when the migration gate times out on `ImagePullBackOff`.
+Run from the repository root. The image reference is derived from the remote and **lowercased**, because GHCR rejects uppercase path segments and the build workflow publishes the lowercased form (`${GITHUB_REPOSITORY,,}`). Typing the owner as it appears on GitHub names an image that does not exist, and the symptom arrives five minutes later as the migration gate timing out on `ImagePullBackOff`.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -268,31 +268,7 @@ cd "$(git rev-parse --show-toplevel)"
 OWNER=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+)/[^/]+$#\1#' | sed 's/\.git$//' | tr 'A-Z' 'a-z')
 IMG="ghcr.io/$OWNER/kvorum:$(git rev-parse origin/main)"
 echo "$IMG"          # sanity-check: all lowercase, 40-char sha
-
-(cd infra/k8s/overlays/prod && kustomize edit set image "ghcr.io/kvorum/kvorum=$IMG")
 ```
-
-The subshell around `kustomize edit` means you stay where you are rather than depending on `cd -`.
-
-> **This edit is throwaway — do not commit it.** `kustomize edit` rewrites the file with its own
-> formatting: it de-indents list items, which fails `prettier --check` and so blocks a commit, and
-> it detaches comments from the entries they describe. The pinned image belongs in the deploy
-> bundle, not in git; CI does the same edit on an ephemeral runner. Revert once the bundle is
-> built:
->
-> ```bash
-> git checkout infra/k8s/overlays/prod/kustomization.yaml
-> ```
-
-Check what it actually produced before shipping — `deploy.sh` verifies this too, but seeing it
-here is cheaper than a failed deploy:
-
-```bash
-kubectl kustomize infra/k8s/overlays/prod | grep -oE 'image: ghcr[^ ]+' | sort -u
-```
-
-Both the registry path and the tag must be right. Setting the tag without the owner renders
-`ghcr.io/kvorum/kvorum:<sha>` — the placeholder path from `base/`, which does not exist.
 
 Confirm the image was actually built and pushed for that commit — it is published only on merge to `main`, so a local commit will not have one:
 
@@ -304,14 +280,32 @@ gh run view "$RID" --json jobs --jq '.jobs[] | "\(.conclusion // .status)\t\(.na
 
 Only **`Build & push image` must be `success`** — that is the job that pushes to GHCR.
 
-`Migrate & roll out` will show `failure` for every commit between merging the SSH deploy change and finishing this migration, because it targets a host whose `DEPLOY_*` secrets do not exist yet. That is expected during the cutover, not a problem, and it does not affect the image. It also means **the old cluster stops auto-deploying** from that commit onward — it stays pinned at whatever it last received until the new host takes over.
+`Migrate & roll out` will show `failure` for every commit between merging the SSH deploy change and finishing this migration, because it targets a host whose `DEPLOY_*` secrets do not exist yet. Expected during the cutover, and it does not affect the image. It also means **the old cluster stops auto-deploying** from that commit onward — it stays pinned at whatever it last received until the new host takes over.
 
-This uses the `repo` scope you already have. Querying the registry directly (`gh api …/packages/container/…`) needs `read:packages`, which a default `gh auth login` does not grant — it answers 403, or 404 if you also guess `orgs` for a user-owned package.
+This uses the `repo` scope you already have. Querying the registry directly (`gh api …/packages/container/…`) needs `read:packages`, which a default `gh auth login` does not grant.
 
-Then ship it:
+### Build the bundle
+
+Pin the image in a **copy**, never in the working tree:
 
 ```bash
-tar czf /tmp/bundle.tar.gz infra/k8s infra/scripts/deploy.sh
+BUNDLE=$(mktemp -d)
+cp -R infra "$BUNDLE/"
+(cd "$BUNDLE/infra/k8s/overlays/prod" && kustomize edit set image "ghcr.io/kvorum/kvorum=$IMG")
+
+# confirm it renders what you meant — deploy.sh checks this too, but failing here is cheaper
+kubectl kustomize "$BUNDLE/infra/k8s/overlays/prod" | grep -oE 'image: ghcr[^ ]+' | sort -u
+
+COPYFILE_DISABLE=1 tar --no-xattrs -czf /tmp/bundle.tar.gz -C "$BUNDLE" infra/k8s infra/scripts/deploy.sh
+```
+
+Working from a copy matters for three reasons. `kustomize edit` rewrites the file with its own formatting — de-indenting list items so `prettier --check` fails and lefthook blocks your next commit, and detaching comments from the entries they describe. The pin is deploy-time state that does not belong in git. And pinning in place means every `git checkout` of that file silently invalidates an already-built tarball, which then deploys the wrong image — or, since `deploy.sh` renders and checks the real reference, refuses to deploy at all.
+
+`COPYFILE_DISABLE=1 --no-xattrs` suppresses the macOS extended attributes that make GNU tar print a `LIBARCHIVE.xattr.com.apple.provenance` warning for every file on extraction. Harmless, but two dozen lines of it hides real errors.
+
+### Ship it
+
+```bash
 scp -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes /tmp/bundle.tar.gz deploy@<droplet-ip>:/tmp/
 ssh -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes deploy@<droplet-ip> \
   'rm -rf ~/kvorum-deploy && mkdir -p ~/kvorum-deploy \
@@ -319,11 +313,7 @@ ssh -i ~/.ssh/kvorum-deploy -o IdentitiesOnly=yes deploy@<droplet-ip> \
    && ~/kvorum-deploy/infra/scripts/deploy.sh '"$IMG"
 ```
 
-Every `ssh`/`scp` to the deploy user needs `-i ~/.ssh/kvorum-deploy`: it is a dedicated key, so
-your agent will not offer it by default and the connection fails with
-`Permission denied (publickey)` — which reads like a broken `authorized_keys` rather than a
-missing flag. `IdentitiesOnly=yes` stops ssh working through your other keys first and tripping
-the server's `MaxAuthTries`.
+Every `ssh`/`scp` to the deploy user needs `-i ~/.ssh/kvorum-deploy`: it is a dedicated key, so your agent will not offer it by default and the connection fails with `Permission denied (publickey)` — which reads like a broken `authorized_keys` rather than a missing flag. `IdentitiesOnly=yes` stops ssh working through your other keys first and tripping the server's `MaxAuthTries`.
 
 Better, set it once in `~/.ssh/config` and drop the flags from every command in this runbook:
 
