@@ -256,7 +256,14 @@ In the Zero Trust dashboard:
 
 1. Create a new tunnel, e.g. `kvorum-k3s`. Copy its connector token into `TUNNEL_TOKEN` above.
 2. Give it **one temporary hostname** for testing, e.g. `new.<domain>` → `http://kvorum-dashboard.kvorum:80`.
-3. Leave the production hostnames on the old tunnel for now.
+
+> **Copy the connector token, not the tunnel ID.** The dashboard shows the tunnel's UUID
+> prominently; the token is the long base64 string inside the `cloudflared service install …`
+> command it gives you. They are easy to confuse, and the UUID is accepted everywhere until
+> `cloudflared` starts and says `Provided Tunnel token is not valid`. A real token is ~180–200
+> characters and base64-decodes to JSON with `a`, `t` and `s` claims; a UUID is 36 characters
+> with four dashes. `migration-secret.sh` rejects the UUID form, but if you are patching the
+> secret by hand there is nothing to catch it. 3. Leave the production hostnames on the old tunnel for now.
 
 ### 2.3 Deploy
 

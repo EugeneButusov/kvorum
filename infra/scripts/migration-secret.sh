@@ -100,6 +100,36 @@ for k in "${SUPPLIED[@]}"; do
     [[ -n "$v" ]] || die "$k cannot be empty"
   fi
   printf '%s' "$v" > "$WORK/$k"
+
+  # Shape checks for the two that are easy to confuse with something else. Cheap here;
+  # otherwise the mistake surfaces only after a full deploy, as a CrashLoopBackOff.
+  case "$k" in
+    TUNNEL_TOKEN)
+      python3 - "$WORK/$k" <<'TOKEN_EOF' || die "TUNNEL_TOKEN does not look like a connector token"
+import base64, json, sys
+t = open(sys.argv[1]).read().strip()
+if len(t) == 36 and t.count('-') == 4:
+    print('   TUNNEL_TOKEN looks like a tunnel UUID, not a connector token.', file=sys.stderr)
+    print('   The token is the long base64 string in the tunnel\'s install command.', file=sys.stderr)
+    sys.exit(1)
+try:
+    claims = json.loads(base64.b64decode(t + '=' * (-len(t) % 4)))
+except Exception:
+    print('   TUNNEL_TOKEN is not base64-encoded JSON.', file=sys.stderr)
+    sys.exit(1)
+if not {'a', 't', 's'} <= set(claims):
+    print(f'   TUNNEL_TOKEN decoded but lacks the expected claims; got {sorted(claims)}.', file=sys.stderr)
+    sys.exit(1)
+TOKEN_EOF
+      ;;
+    R2_ENDPOINT)
+      case "$v" in
+        https://*) ;;
+        *) die "R2_ENDPOINT must be an https:// URL, e.g. https://<account-id>.r2.cloudflarestorage.com" ;;
+      esac
+      ;;
+  esac
+
   args+=("--from-file=$k=$WORK/$k")
   log "   supplied $k"
 done
