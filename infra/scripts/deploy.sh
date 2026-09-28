@@ -35,14 +35,17 @@ echo "  image:      $IMAGE"
 echo "  kubeconfig: $KUBECONFIG"
 kubectl version -o json 2>/dev/null | sed -n 's/.*"gitVersion": "\(v[^"]*\)".*/  server:     \1/p' | tail -1 || true
 
-# Guard against deploying a tag other than the one asked for — the overlay is what
-# `apply -k` actually uses, so a stale edit here would silently ship the wrong build.
-log "verifying the overlay references the requested image"
-IMAGE_TAG="${IMAGE##*:}"
-if ! grep -q "newTag: ${IMAGE_TAG}\$" "$OVERLAY/kustomization.yaml"; then
-  echo "ERROR: $OVERLAY/kustomization.yaml does not pin newTag: ${IMAGE_TAG}" >&2
-  echo "       run: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
-  grep -A3 '^images:' "$OVERLAY/kustomization.yaml" >&2 || true
+# Guard against deploying something other than what was asked for. Check rendered
+# output: matching only newTag misses a stale or incorrect registry path.
+log "verifying the overlay renders the requested image"
+RENDERED_OVERLAY=$(mktemp)
+trap 'rm -f "$RENDERED_OVERLAY"' EXIT
+kubectl kustomize "$OVERLAY" > "$RENDERED_OVERLAY"
+if ! grep -F "image: ${IMAGE}" "$RENDERED_OVERLAY" >/dev/null; then
+  echo "ERROR: $OVERLAY does not render ${IMAGE}" >&2
+  echo "       it currently renders:" >&2
+  grep -oE 'image: [^ ]+' "$RENDERED_OVERLAY" | sort -u | sed 's/^/         /' >&2
+  echo "       fix with: (cd $OVERLAY && kustomize edit set image ghcr.io/kvorum/kvorum=$IMAGE)" >&2
   exit 1
 fi
 echo "  ok"
@@ -53,6 +56,25 @@ echo "  ok"
 log "bootstrapping namespace and config"
 kubectl apply -f "$OVERLAY/namespace.yaml"
 kubectl -n "$NS" apply -f "$K8S/base/configmap.yaml"
+
+# A fresh host has no datastore objects yet, but the migration gate below must
+# reach both stores before application Deployments are applied. Bootstrap only
+# the datastore resources, then wait for them; existing clusters are unchanged.
+DATASTORE_SELECTOR='app.kubernetes.io/name in (kvorum-postgres,kvorum-clickhouse)'
+DATASTORE_TIMEOUT="${DATASTORE_TIMEOUT:-300s}"
+
+if grep '^  name: kvorum-postgres$' "$RENDERED_OVERLAY" >/dev/null; then
+  log "bringing up in-cluster datastores"
+  kubectl -n "$NS" apply --selector="$DATASTORE_SELECTOR" -f "$RENDERED_OVERLAY"
+  for sts in kvorum-postgres kvorum-clickhouse; do
+    kubectl -n "$NS" rollout status "statefulset/$sts" --timeout="$DATASTORE_TIMEOUT" \
+      || { echo "ERROR: $sts did not become ready — aborting before the migration gate" >&2
+           kubectl -n "$NS" describe "statefulset/$sts" >&2 || true
+           exit 1; }
+  done
+else
+  log "no in-cluster datastores in this overlay — assuming external"
+fi
 
 # The gate: a failed migration must abort before any Deployment rolls, so code never runs
 # against an un-migrated schema.

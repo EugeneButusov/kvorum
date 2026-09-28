@@ -2,9 +2,9 @@ name: Deploy
 
 # Auto-deploy on merge to the default branch. Build once, gate on migrations, then
 # roll the api, indexer, ai-worker, and dashboard Deployments. The only credential
-# this workflow holds is a
-# scoped DigitalOcean token stored as a `production` Environment secret — no app
-# secrets ever touch CI (they live only in the in-cluster kvorum-secrets Secret).
+# this workflow holds is the dedicated droplet SSH key stored in the `production`
+# Environment — no app secrets ever touch CI (they live only in the in-cluster
+# kvorum-secrets Secret).
 on:
   push:
     branches: [main]
@@ -84,14 +84,24 @@ jobs:
           grep -A3 '^images:' kustomization.yaml
 
       - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
+          for name in DEPLOY_HOST DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing production environment secret: $name"
+              exit 1
+            fi
+          done
           install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           # Host key pinned from a secret — never StrictHostKeyChecking=no, which would
           # accept a man-in-the-middle on the one channel that can change production.
-          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Copy manifests to the host
