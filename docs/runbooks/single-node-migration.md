@@ -374,6 +374,8 @@ The dump pod takes `DATABASE_URL` straight from the existing secret, so there is
 copy or paste:
 
 ```bash
+kold delete pod pgdump --ignore-not-found      # a pod from an earlier attempt has no env wired in
+
 kold run pgdump --image=postgres:18-alpine --restart=Never --overrides='{
   "spec": { "containers": [{
     "name": "pgdump", "image": "postgres:18-alpine", "command": ["sleep","3600"],
