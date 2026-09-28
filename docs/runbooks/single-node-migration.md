@@ -351,21 +351,23 @@ The app pods will be up but serving an **empty** database. That is expected; dat
 
 ## Phase 3 — Freeze both indexers
 
-Freeze the old source so cursors do not advance mid-copy and leave holes. Freeze the new
-indexer too: it initially starts against an empty Postgres database and sees no sources, but
-the Phase 4 restore can make it reconnect or restart against the populated database. Without
-an explicit gate, that restart could begin polling before ClickHouse has been copied.
+Freeze the old source so cursors do not advance mid-copy and leave holes. Stop the new
+indexer completely: it initially starts against an empty Postgres database and sees no
+sources, but the Phase 4 restore can make it reconnect or restart against the populated
+database. Disabling only its live poller is insufficient because derivation would still run
+against the incomplete ClickHouse copy.
 
 ```bash
 kold set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED=false
 kold rollout status deploy/kvorum-indexer
 
-knew set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED=false
-knew rollout status deploy/kvorum-indexer
+knew scale deploy/kvorum-indexer --replicas=0
+knew wait --for=delete pod -l app.kubernetes.io/name=kvorum-indexer --timeout=120s
 ```
 
-Derivation keeps running; only live polling stops. From here the old stack is read-only in
-effect, and the clock is running — keep Phases 4–6 tight.
+Derivation keeps running on the old stack; only its live polling stops. The new indexer stays
+fully stopped until Phase 7. From here the old stack is read-only in effect, and the clock is
+running — keep Phases 4–6 tight.
 
 ---
 
@@ -636,12 +638,14 @@ Postgres and ClickHouse get **no route** — they stay ClusterIP-only.
 
 ```bash
 knew set env deploy/kvorum-indexer INDEXER_LIVE_POLLER_ENABLED-
+knew scale deploy/kvorum-indexer --replicas=1
 knew rollout status deploy/kvorum-indexer
 knew logs deploy/kvorum-indexer --tail=50 | grep -E 'poller_tick|started [0-9]+ source'
 ```
 
-The trailing `-` removes the temporary Deployment override from Phase 3, revealing the
-application default (enabled); `set env` triggers the rollout. Expect
+The trailing `-` defensively removes any temporary poller override left by an interrupted
+migration; the application default is enabled. Scaling back to the singleton replica starts
+the target for the first time against the complete data. Expect
 `started 19 source(s) across 3 chain(s)` and one tick batch at boot. Next batch in ~1 hour —
 the cadence is hourly. Derivation and stitch logs run on their own intervals and are **not**
 evidence about poll cadence.
