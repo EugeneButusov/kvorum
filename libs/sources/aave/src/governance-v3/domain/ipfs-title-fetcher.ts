@@ -14,6 +14,10 @@ export interface AaveIpfsTitleFetcherDeps {
   timeoutMs?: number;
 }
 
+const DEFAULT_GATEWAY_URL = 'https://ipfs.filebase.io/ipfs';
+const DEFAULT_FALLBACK_GATEWAY_URL = 'https://gateway.pinata.cloud/ipfs';
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 export class AaveIpfsTitleFetcher {
   private readonly fetchImpl: typeof fetch;
   private readonly gateways: readonly string[];
@@ -21,10 +25,13 @@ export class AaveIpfsTitleFetcher {
 
   constructor(deps: AaveIpfsTitleFetcherDeps = {}) {
     this.fetchImpl = deps.fetchImpl ?? fetch;
-    this.gateways = [deps.gatewayUrl ?? 'https://ipfs.io/ipfs', deps.fallbackGatewayUrl]
+    this.gateways = [
+      deps.gatewayUrl ?? DEFAULT_GATEWAY_URL,
+      deps.fallbackGatewayUrl ?? DEFAULT_FALLBACK_GATEWAY_URL,
+    ]
       .filter((value): value is string => typeof value === 'string' && value.length > 0)
       .map((value) => value.replace(/\/$/, ''));
-    this.timeoutMs = deps.timeoutMs ?? 2_500;
+    this.timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
   async fetchTitleDescription(descriptionHash: string): Promise<AaveIpfsFetchResult> {

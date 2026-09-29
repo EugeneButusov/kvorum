@@ -134,6 +134,34 @@ describe('AaveIpfsTitleFetcher', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('uses the live default gateways in order when no gateway override is supplied', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 429 })
+      .mockResolvedValueOnce(
+        respond(JSON.stringify({ title: 'Recovered title', description: 'Recovered body' })),
+      );
+    const fetcher = new AaveIpfsTitleFetcher({ fetchImpl });
+
+    await expect(fetcher.fetchTitleDescription('12'.repeat(32))).resolves.toEqual({
+      kind: 'resolved',
+      title: 'Recovered title',
+      description: 'Recovered body',
+    });
+
+    const cid = 'QmPZC2gZNhRMpi7GvJtab1tvciuLeDmnvT8f1fk1D6egsj';
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      `https://ipfs.filebase.io/ipfs/${cid}`,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      `https://gateway.pinata.cloud/ipfs/${cid}`,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
   it('returns schema_mismatch for a document that is neither JSON nor front matter', async () => {
     const fetcher = new AaveIpfsTitleFetcher({
       fetchImpl: vi.fn().mockResolvedValue(respond('bad body')),

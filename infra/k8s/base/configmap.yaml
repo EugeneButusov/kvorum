@@ -42,6 +42,11 @@ data:
   # aave_payloads_controller rows have no counterpart coming, so they re-attempt and re-hold forever:
   # at the 60s code default that is ~72k wasted UPDATEs/day. An hour matches the poll cadence.
   AAVE_STITCH_HOLD_BACKOFF_MS: '3600000'
+  # Aave proposal title/description enrichment. ipfs.io's path gateway was retired in September
+  # 2026; use two independent public gateways and allow enough time for an uncached CID fetch.
+  IPFS_GATEWAY_URL: https://ipfs.filebase.io/ipfs
+  IPFS_GATEWAY_FALLBACK_URL: https://gateway.pinata.cloud/ipfs
+  IPFS_FETCH_TIMEOUT_MS: '15000'
   # Calldata decoder (apps/indexer). When enabled, an undecodable proposal_action is enriched by
   # fetching the target's verified ABI from the Etherscan V2 unified API (one key, all chains via a
   # chainid param), caching it in abi_cache/selector_index so subsequent decodes are free. This is

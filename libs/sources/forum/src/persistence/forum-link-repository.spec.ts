@@ -34,7 +34,13 @@ describe('ForumLinkRepository', () => {
   });
 
   it('markProposalsScanned builds an update for a non-empty id list', async () => {
-    await expect(repo().markProposalsScanned(['p1', 'p2'])).resolves.toBeUndefined();
+    const updatedAt = new Date('2026-09-20T12:00:00Z');
+    await expect(
+      repo().markProposalsScanned([
+        { id: 'p1', updatedAt },
+        { id: 'p2', updatedAt },
+      ]),
+    ).resolves.toBeUndefined();
   });
 
   it('builds findThreadsByDao without error', async () => {

@@ -42,7 +42,8 @@ export type ProposalForumLinkUpdate = Updateable<ProposalForumLinkTable>;
 
 // The forum-linker sweep's watermark: a proposal with a row here has been evaluated for forum
 // links. Kept as a forum-owned extension table (not a column on core `proposal`) so nothing about
-// forum linking leaks into libs/db. A row is removed to re-queue a proposal when a new thread lands.
+// forum linking leaks into libs/db. A row is removed to re-queue a proposal when a new thread lands;
+// it is also treated as stale when proposal.updated_at advances after scanned_at.
 export interface ProposalForumLinkScanTable {
   proposal_id: string;
   scanned_at: Generated<Date>;

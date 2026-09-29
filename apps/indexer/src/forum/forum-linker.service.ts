@@ -16,8 +16,9 @@ const THREAD_CAP = readPositiveInt('FORUM_LINK_THREAD_CAP', 5000);
  * Proposal-driven forum linker (SPEC §3.7 high + medium). Each tick takes a bounded batch of
  * not-yet-scanned proposals of forum-enabled DAOs, loads each involved DAO's threads once, computes
  * deterministic links (description-URL → high, community-curated title → medium), inserts them
- * idempotently, and stamps the proposals scanned. The thread-derivation applier re-queues a DAO's
- * unlinked proposals when a new thread lands, so both arrival orders converge.
+ * idempotently, and stamps the proposal content version scanned. The thread-derivation applier
+ * re-queues a DAO's unlinked proposals when a new thread lands, while a later proposal content
+ * update makes its scan watermark stale, so both arrival orders and late enrichments converge.
  */
 @Injectable()
 export class ForumLinkerService {
@@ -54,7 +55,7 @@ export class ForumLinkerService {
         }
       }
 
-      await this.links.markProposalsScanned(proposals.map((p) => p.id));
+      await this.links.markProposalsScanned(proposals);
       forumMetrics.proposalsLinkScanned.add(proposals.length);
       if (created > 0) {
         this.logger.log('forum_links_created', { scanned: proposals.length, created });
