@@ -8,6 +8,7 @@ export interface UnscannedProposal {
   daoId: string;
   title: string | null;
   description: string;
+  updatedAt: Date;
 }
 
 /** A candidate forum thread for matching. */
@@ -30,7 +31,8 @@ export interface NewForumLink {
 export class ForumLinkRepository {
   constructor(private readonly db: Kysely<PgDatabase>) {}
 
-  /** Proposals of forum-enabled DAOs with no scan row yet (not-yet-evaluated), oldest first. */
+  /** Proposals of forum-enabled DAOs that have never been scanned, or whose content changed after
+   *  the last scan, oldest first. The latter lets late metadata enrichment repair forum links. */
   async findUnscannedProposals(limit: number): Promise<UnscannedProposal[]> {
     const rows = await this.db
       .selectFrom('proposal')
@@ -44,14 +46,16 @@ export class ForumLinkRepository {
             .where('dao_source.source_type', '=', 'discourse_forum'),
         ),
       )
-      // Not yet scanned (anti-join against the watermark table).
+      // No current scan watermark. A watermark older than proposal.updated_at is stale, so a late
+      // title/description enrichment automatically re-queues the proposal for linking.
       .where((eb) =>
         eb.not(
           eb.exists(
             eb
               .selectFrom('proposal_forum_link_scan')
               .select('proposal_forum_link_scan.proposal_id')
-              .whereRef('proposal_forum_link_scan.proposal_id', '=', 'proposal.id'),
+              .whereRef('proposal_forum_link_scan.proposal_id', '=', 'proposal.id')
+              .whereRef('proposal_forum_link_scan.scanned_at', '>=', 'proposal.updated_at'),
           ),
         ),
       )
@@ -60,6 +64,7 @@ export class ForumLinkRepository {
         'proposal.dao_id as daoId',
         'proposal.title as title',
         'proposal.description as description',
+        'proposal.updated_at as updatedAt',
       ])
       .orderBy('proposal.created_at', 'asc')
       .limit(limit)
@@ -67,13 +72,25 @@ export class ForumLinkRepository {
     return rows;
   }
 
-  /** Stamp proposals as scanned so the sweep doesn't reprocess them until a new thread re-queues. */
-  async markProposalsScanned(ids: readonly string[]): Promise<void> {
-    if (ids.length === 0) return;
+  /** Stamp the content version that was scanned. Using the selected proposal.updated_at rather than
+   *  now() closes the race where metadata changes after the read but before this write. */
+  async markProposalsScanned(
+    proposals: readonly Pick<UnscannedProposal, 'id' | 'updatedAt'>[],
+  ): Promise<void> {
+    if (proposals.length === 0) return;
     await this.db
       .insertInto('proposal_forum_link_scan')
-      .values(ids.map((proposal_id) => ({ proposal_id })))
-      .onConflict((oc) => oc.column('proposal_id').doNothing())
+      .values(
+        proposals.map((proposal) => ({
+          proposal_id: proposal.id,
+          scanned_at: proposal.updatedAt,
+        })),
+      )
+      .onConflict((oc) =>
+        oc
+          .column('proposal_id')
+          .doUpdateSet((eb) => ({ scanned_at: eb.ref('excluded.scanned_at') })),
+      )
       .execute();
   }
 

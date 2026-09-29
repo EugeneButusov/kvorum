@@ -41,11 +41,17 @@ Validation caveat:
 
 `aave_governance_v3` proposal derivation performs a best-effort post-commit IPFS metadata fetch for title/description enrichment. Operators can override the defaults with:
 
-- `IPFS_GATEWAY_URL` — primary gateway base. Default: `https://ipfs.io/ipfs`
-- `IPFS_GATEWAY_FALLBACK_URL` — optional fallback gateway tried before leaving the row in DLQ
-- `IPFS_FETCH_TIMEOUT_MS` — per-gateway timeout in milliseconds. Default: `2500`
+- `IPFS_GATEWAY_URL` — primary gateway base. Default: `https://ipfs.filebase.io/ipfs`
+- `IPFS_GATEWAY_FALLBACK_URL` — fallback gateway tried before leaving the row in DLQ. Default:
+  `https://gateway.pinata.cloud/ipfs`
+- `IPFS_FETCH_TIMEOUT_MS` — per-gateway timeout in milliseconds. Default: `15000`
 
 Failures do not block proposal derivation; they leave or keep a retryable `aave_ipfs_title_fetch` DLQ row for `admin-cli dlq retry`.
+
+Before retrying a parked row, verify at least one configured gateway can serve its CID. Then run
+`admin-cli dlq retry <dlq_id> --dry-run` followed by the same command without `--dry-run`. A successful
+retry updates `proposal.updated_at`; the forum linker treats its earlier scan watermark as stale and
+automatically re-evaluates the recovered title and description on its next pass.
 
 ## Registering sources
 

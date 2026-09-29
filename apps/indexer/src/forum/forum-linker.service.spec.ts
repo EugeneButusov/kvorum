@@ -18,6 +18,8 @@ function makeRepo(over: Partial<Record<keyof ForumLinkRepository, unknown>> = {}
 }
 
 describe('ForumLinkerService', () => {
+  const updatedAt = new Date('2026-09-20T12:00:00Z');
+
   it('does nothing when no proposals are pending', async () => {
     const repo = makeRepo();
     await new ForumLinkerService(repo).tick();
@@ -33,8 +35,9 @@ describe('ForumLinkerService', () => {
           daoId: 'dao-1',
           title: 'Add feed',
           description: 'https://research.lido.fi/t/x/100',
+          updatedAt,
         },
-        { id: 'p2', daoId: 'dao-1', title: 'Raise limit', description: 'no link' },
+        { id: 'p2', daoId: 'dao-1', title: 'Raise limit', description: 'no link', updatedAt },
       ]),
       findThreadsByDao: vi.fn().mockResolvedValue([
         { id: 't1', forumHost: 'research.lido.fi', forumTopicId: '100', title: 'anything' },
@@ -68,19 +71,24 @@ describe('ForumLinkerService', () => {
       linkMethod: 'community_curated',
     });
 
-    expect(repo.markProposalsScanned).toHaveBeenCalledWith(['p1', 'p2']);
+    expect(repo.markProposalsScanned).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'p1', updatedAt }),
+      expect.objectContaining({ id: 'p2', updatedAt }),
+    ]);
   });
 
   it('still marks proposals scanned when nothing matches', async () => {
     const repo = makeRepo({
       findUnscannedProposals: vi
         .fn()
-        .mockResolvedValue([{ id: 'p1', daoId: 'dao-1', title: 'x', description: 'y' }]),
+        .mockResolvedValue([{ id: 'p1', daoId: 'dao-1', title: 'x', description: 'y', updatedAt }]),
       findThreadsByDao: vi.fn().mockResolvedValue([]),
     });
     await new ForumLinkerService(repo).tick();
     expect(repo.insertLink).not.toHaveBeenCalled();
-    expect(repo.markProposalsScanned).toHaveBeenCalledWith(['p1']);
+    expect(repo.markProposalsScanned).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'p1', updatedAt }),
+    ]);
   });
 
   it('swallows repository errors (best-effort sweep)', async () => {
