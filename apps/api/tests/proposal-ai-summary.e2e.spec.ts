@@ -30,12 +30,16 @@ async function seedSummaryFor(proposalId: string): Promise<string> {
       feature_name: 'proposal_summarizer',
       prompt_version: 'v1.0',
       input_hash: inputHash,
+      provider: 'anthropic',
+      generation_profile_id: 'anthropic-fast-v1',
       model: 'claude-haiku-4-5-20251001',
       output: SUMMARY_OUTPUT,
       cost_usd: '0.002000',
       generated_at: new Date('2026-04-12T08:30:00.000Z'),
       source_provenance: {
         feature: 'proposal_summarizer',
+        provider: 'anthropic',
+        generationProfileId: 'anthropic-fast-v1',
         model: 'claude-haiku-4-5-20251001',
         promptVersion: 'v1.0',
         inputHash,
@@ -61,6 +65,8 @@ describeHttpIf('proposal ai_summary e2e', () => {
       expect(detail.body.data.ai_summary.tldr).toBe('Raise the reserve factor.');
       expect(detail.body.data.ai_summary._meta).toEqual({
         ai_generated: true,
+        provider: 'anthropic',
+        generation_profile_id: 'anthropic-fast-v1',
         model: 'claude-haiku-4-5-20251001',
         prompt_version: 'v1.0',
         input_hash: inputHash,

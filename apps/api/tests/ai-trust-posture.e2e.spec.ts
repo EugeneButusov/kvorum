@@ -68,18 +68,29 @@ async function seedAiOutput(
   output: unknown,
   model: string,
 ): Promise<void> {
+  const provider = model === 'none' ? 'internal' : 'anthropic';
+  const generationProfileId =
+    model === 'none'
+      ? 'internal-forum-skip-v1'
+      : model.includes('sonnet')
+        ? 'anthropic-strong-v1'
+        : 'anthropic-fast-v1';
   await pgDb
     .insertInto('ai_output')
     .values({
       feature_name: featureName,
       prompt_version: 'v1.0',
       input_hash: inputHash,
+      provider,
+      generation_profile_id: generationProfileId,
       model,
       output,
       cost_usd: '0.005000',
       generated_at: new Date('2026-05-15T12:00:00.000Z'),
       source_provenance: {
         feature: featureName,
+        provider,
+        generationProfileId,
         model,
         promptVersion: 'v1.0',
         inputHash,
@@ -90,9 +101,11 @@ async function seedAiOutput(
 }
 
 // Labeling + Provenance (§5.2): the `_meta` block on a completion feature identifies the model, prompt
-// version, input hash, and generation time, and is labeled ai_generated: true.
+// provider, profile, version, input hash, and generation time, and is labeled ai_generated: true.
 function assertProvenance(meta: Record<string, unknown>): void {
   expect(meta['ai_generated']).toBe(true);
+  expect(meta['provider']).toBe('anthropic');
+  expect(meta['generation_profile_id']).toMatch(/^anthropic-(fast|strong)-v1$/);
   expect(typeof meta['model']).toBe('string');
   expect((meta['model'] as string).length).toBeGreaterThan(0);
   expect(meta['prompt_version']).toBe('v1.0');
