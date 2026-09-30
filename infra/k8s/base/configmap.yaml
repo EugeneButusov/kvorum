@@ -57,6 +57,10 @@ data:
   # detector. See #620.
   ETHERSCAN_ENRICHMENT_ENABLED: 'true'
   # ── AI worker (apps/ai-worker) ──
+  # One switch controls summaries, mismatch detection, and forum synthesis. Exact
+  # models are resolved from versioned fast/strong profiles in @libs/ai. Embeddings
+  # continue to use OpenAI independently.
+  AI_LLM_PROVIDER: 'anthropic'
   # Monthly hard budget ceilings, USD (ADR-079). AiBudgetCapService recomputes
   # month-to-date spend every 5 min and disables a feature at ≥100% of its cap at both
   # the enqueue and the consume side; it auto-recovers on the 1st. Tightened below the

@@ -8,7 +8,7 @@ describe('FORUM_SYNTHESIZER_TEMPLATE', () => {
     expect(FORUM_SYNTHESIZER_TEMPLATE.feature ?? FORUM_SYNTHESIZER_TEMPLATE.name).toBe(
       'forum_synthesizer',
     );
-    expect(FORUM_SYNTHESIZER_TEMPLATE.model).toBe('claude-haiku-4-5');
+    expect(FORUM_SYNTHESIZER_TEMPLATE.modelTier).toBe('fast');
   });
 
   it('renders the thread content, proposal title and DAO into the prompt', () => {

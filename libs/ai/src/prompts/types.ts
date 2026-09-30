@@ -1,10 +1,10 @@
 import type { ZodType } from 'zod';
-import type { LlmMessage } from '../llm/ports.js';
+import type { LlmMessage, ModelTier } from '../llm/ports.js';
 
 export interface PromptFrontmatter {
   name: string;
   version: string;
-  model: string;
+  modelTier: ModelTier;
   schema: string;
   description: string;
   /** Optional AI feature this template serves, decoupled from `name` (#437). Absent → the feature
@@ -15,7 +15,7 @@ export interface PromptFrontmatter {
 export interface PromptTemplate<T = unknown> {
   name: string;
   version: string;
-  model: string;
+  modelTier: ModelTier;
   schema: ZodType<T>;
   description: string;
   body: string;
@@ -26,7 +26,7 @@ export interface PromptTemplate<T = unknown> {
 export interface RenderedPrompt<T = unknown> {
   feature: string;
   promptVersion: string;
-  model: string;
+  modelTier: ModelTier;
   schema: ZodType<T>;
   messages: LlmMessage[];
   inputContent: string;

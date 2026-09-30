@@ -28,7 +28,9 @@ function baseRow(overrides: Partial<NewAiOutput> = {}): NewAiOutput {
     feature_name: 'test_summarizer',
     prompt_version: 'v1.0',
     input_hash: 'sha256:aaa',
+    provider: 'anthropic',
     model: 'claude-haiku-4-5',
+    generation_profile_id: 'anthropic-fast-v1',
     output: { tldr: 'hello' },
     cost_usd: '0.002000',
     generated_at: new Date('2026-07-09T00:00:00Z'),
@@ -64,6 +66,25 @@ describeWithDb('AiOutputRepository (integration)', () => {
         .where('input_hash', '=', 'sha256:aaa')
         .executeTakeFirstOrThrow();
       expect(Number(count.n)).toBe(1);
+    });
+  });
+
+  it('allows Anthropic and OpenAI profiles to coexist for the same content key', async () => {
+    await inRollback(async (trx) => {
+      const repo = new AiOutputRepository(trx);
+      const anthropic = await repo.insert(baseRow());
+      const openai = await repo.insert(
+        baseRow({
+          provider: 'openai',
+          model: 'gpt-6-luna',
+          generation_profile_id: 'openai-fast-v1',
+          output: { tldr: 'openai' },
+        }),
+      );
+      expect(openai.id).not.toBe(anthropic.id);
+      expect(
+        await repo.find('test_summarizer', 'v1.0', 'sha256:aaa', 'openai-fast-v1'),
+      ).toMatchObject({ output: { tldr: 'openai' } });
     });
   });
 });

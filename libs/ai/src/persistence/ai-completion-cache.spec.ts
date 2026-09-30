@@ -33,7 +33,9 @@ function req(
   return {
     feature: 'test_summarizer',
     promptVersion: 'v1.0',
+    provider: 'anthropic',
     model: 'claude-haiku-4-5',
+    generationProfileId: 'anthropic-fast-v1',
     schema,
     messages: [{ role: 'user', content: 'summarize' }],
     mode: 'sync',
@@ -45,10 +47,18 @@ function req(
 function result(output: { tldr: string }): CompletionResult<{ tldr: string }> {
   return {
     output,
-    cost: { totalUsd: 0.002, inputTokens: 1000, outputTokens: 200 },
+    cost: {
+      totalUsd: 0.002,
+      inputTokens: 1000,
+      outputTokens: 200,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     provenance: {
       feature: 'test_summarizer',
+      provider: 'anthropic',
       model: 'claude-haiku-4-5',
+      generationProfileId: 'anthropic-fast-v1',
       promptVersion: 'v1.0',
       inputHash: 'sha256:unused-in-cache',
       generatedAt: '2026-07-10T00:00:00.000Z',

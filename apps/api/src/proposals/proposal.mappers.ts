@@ -73,7 +73,9 @@ export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
   return Object.assign(new ProposalAiSummaryDto(), output.output as ProposalSummary, {
     _meta: Object.assign(new ProposalAiSummaryMetaDto(), {
       ai_generated: true,
+      provider: output.provider,
       model: output.model,
+      generation_profile_id: output.generation_profile_id,
       prompt_version: output.prompt_version,
       input_hash: output.input_hash,
       generated_at: isoSeconds(output.generated_at),
@@ -85,7 +87,9 @@ export function toAiSummaryDto(output: AiOutput): ProposalAiSummaryDto {
 function mismatchMeta(output: AiOutput): ProposalAiMismatchMetaDto {
   return Object.assign(new ProposalAiMismatchMetaDto(), {
     ai_generated: true,
+    provider: output.provider,
     model: output.model,
+    generation_profile_id: output.generation_profile_id,
     prompt_version: output.prompt_version,
     input_hash: output.input_hash,
     generated_at: isoSeconds(output.generated_at),

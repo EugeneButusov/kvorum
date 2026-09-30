@@ -56,7 +56,7 @@ describe('ProposalSummaryAssembler', () => {
     const assembler = new ProposalSummaryAssembler(fakeReads([action(0)]));
     const { rendered, ctx } = await assembler.assemble(proposal());
     expect(rendered.feature).toBe('proposal_summarizer');
-    expect(rendered.model).toBe('claude-haiku-4-5');
+    expect(rendered.modelTier).toBe('fast');
     expect(rendered.messages[0]?.content).toContain('Raise the USDC reserve factor to 15%.');
     expect(rendered.messages[0]?.content).toContain('setReserveFactor');
     expect(ctx).toEqual({ daoId: 'dao-1', entityReference: 'proposal:prop-1' });

@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiOutputRepository,
   chooseForumModel,
+  completionRequestFromRendered,
   computeInputHash,
   forumSynthesisInputContent,
   isLikelyEnglish,
@@ -63,7 +64,7 @@ interface BatchState {
  * Full-history AI backfill driver (M5-7.1). On each tick it advances, per enabled feature, one unit of
  * work over the ENTIRE historical corpus — keyset-paginated so it never stalls on already-cached rows
  * (the flaw that makes the steady-state batch drivers unusable for backfill). Batch features
- * (summary/forum) submit to the Anthropic Batch API (0.5×) and poll/persist; sync features
+ * (summary/forum) submit through the active provider's batch API and poll/persist; sync features
  * (mismatch/embedding) enqueue to the existing pg-boss queues so the live handlers process them. Inert
  * unless `AI_BACKFILL_ENABLED` + the per-feature flag are set. Resumability is the content-hash cache
  * (unchanged input ⇒ cache hit ⇒ no call): a restart re-scans from the start and skips everything done.
@@ -198,17 +199,18 @@ export class AiBackfillService {
       scanPage: (c, p, d) => this.summaryScan.findAllForBackfill(c, p, d),
       buildItem: async (proposal) => {
         const { rendered, ctx } = await this.summaryAssembler.assemble(proposal);
-        const req: CompletionRequest<unknown> = {
-          feature: rendered.feature,
-          promptVersion: rendered.promptVersion,
-          model: rendered.model,
-          schema: rendered.schema,
-          messages: rendered.messages,
+        const req: CompletionRequest<unknown> = completionRequestFromRendered(rendered, {
           mode: 'batch',
-          inputContent: rendered.inputContent,
-        };
+        });
         const inputHash = computeInputHash(req.inputContent);
-        if ((await this.outputs.find(req.feature, req.promptVersion, inputHash)) !== undefined) {
+        if (
+          (await this.outputs.find(
+            req.feature,
+            req.promptVersion,
+            inputHash,
+            req.generationProfileId,
+          )) !== undefined
+        ) {
           aiMetrics.cacheHitsTotal.add(1, { feature: 'proposal_summarizer' });
           return null;
         }
@@ -232,29 +234,30 @@ export class AiBackfillService {
         const { rendered, ctx, rawContent } = this.forumAssembler.assemble(thread);
         const inputContent = forumSynthesisInputContent(rawContent);
         const inputHash = computeInputHash(inputContent);
+        const english = isLikelyEnglish(rawContent);
+        const route = chooseForumModel(rawContent);
+        const req: CompletionRequest<unknown> = completionRequestFromRendered(rendered, {
+          mode: 'batch',
+          inputContent,
+          modelTier: route.modelTier,
+          routingReason: route.reason,
+        });
         if (
-          (await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash)) !==
-          undefined
+          (await this.outputs.find(
+            rendered.feature,
+            rendered.promptVersion,
+            inputHash,
+            english ? req.generationProfileId : 'internal-forum-skip-v1',
+          )) !== undefined
         ) {
           aiMetrics.cacheHitsTotal.add(1, { feature: 'forum_synthesizer' });
           return null;
         }
-        if (!isLikelyEnglish(rawContent)) {
+        if (!english) {
           const skip = buildForumSkip(rendered, inputContent, inputHash, this.clock.now());
           await this.cache.persist(skip.req, skip.result, ctx);
           return null;
         }
-        const route = chooseForumModel(rawContent);
-        const req: CompletionRequest<unknown> = {
-          feature: rendered.feature,
-          promptVersion: rendered.promptVersion,
-          model: route.model,
-          schema: rendered.schema,
-          messages: rendered.messages,
-          mode: 'batch',
-          inputContent,
-          routingReason: route.reason,
-        };
         return { item: { customId: toBatchCustomId(`forum_thread:${id}`), request: req }, ctx };
       },
     };

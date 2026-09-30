@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   AiCompletionCache,
+  AiCostLogRepository,
   AiDlqRepository,
   AiOutputRepository,
+  completionRequestFromRendered,
   computeInputHash,
   LlmSchemaViolationError,
   type CompletionRequest,
@@ -57,6 +59,7 @@ export class ProposalSummaryHandler implements AiFeatureHandler, OnModuleInit {
     private readonly outputs: AiOutputRepository,
     private readonly cache: AiCompletionCache,
     private readonly dlq: AiDlqRepository,
+    private readonly costs: AiCostLogRepository,
     private readonly config: AiTriggerConfig,
     private readonly budget: AiBudgetState,
     private readonly registry: AiFeatureHandlerRegistry,
@@ -77,17 +80,16 @@ export class ProposalSummaryHandler implements AiFeatureHandler, OnModuleInit {
 
   private async summarizeSync(proposal: Proposal): Promise<void> {
     const { rendered, ctx } = await this.assembler.assemble(proposal);
-    const req: CompletionRequest<ProposalSummary> = {
-      feature: rendered.feature,
-      promptVersion: rendered.promptVersion,
-      model: rendered.model,
-      schema: rendered.schema,
-      messages: rendered.messages,
+    const req: CompletionRequest<ProposalSummary> = completionRequestFromRendered(rendered, {
       mode: 'sync',
-      inputContent: rendered.inputContent,
-    };
+    });
     const inputHash = computeInputHash(req.inputContent);
-    const existing = await this.outputs.find(req.feature, req.promptVersion, inputHash);
+    const existing = await this.outputs.find(
+      req.feature,
+      req.promptVersion,
+      inputHash,
+      req.generationProfileId,
+    );
     if (existing !== undefined) {
       aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
       return;
@@ -118,12 +120,28 @@ export class ProposalSummaryHandler implements AiFeatureHandler, OnModuleInit {
       feature_name: err.feature,
       prompt_version: err.promptVersion,
       input_hash: err.inputHash,
+      provider: err.provider,
       model: err.model,
+      generation_profile_id: err.generationProfileId,
       raw_output: err.rawOutput as never,
       zod_error: err.zodError as never,
       attempts: err.attempts,
       first_seen_at: now,
       last_seen_at: now,
+    });
+    await this.costs.insert({
+      timestamp: now,
+      feature_name: err.feature,
+      provider: err.provider,
+      model: err.model,
+      generation_profile_id: err.generationProfileId,
+      input_tokens: err.cost.inputTokens,
+      output_tokens: err.cost.outputTokens,
+      cache_creation_input_tokens: err.cost.cacheCreationInputTokens,
+      cache_read_input_tokens: err.cost.cacheReadInputTokens,
+      cost_usd: String(err.cost.totalUsd),
+      dao_id: ctx.daoId,
+      entity_reference: ctx.entityReference,
     });
     this.logger.warn('ai_summary_schema_violation', { entityRef: ctx.entityReference });
   }

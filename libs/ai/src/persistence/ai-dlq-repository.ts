@@ -11,13 +11,16 @@ export class AiDlqRepository {
       .insertInto('ai_dlq')
       .values(row)
       .onConflict((oc) =>
-        oc.columns(['feature_name', 'prompt_version', 'input_hash']).doUpdateSet({
-          last_seen_at: row.last_seen_at,
-          attempts: row.attempts,
-          model: row.model,
-          raw_output: (row.raw_output ?? null) as never,
-          zod_error: row.zod_error as never,
-        }),
+        oc
+          .columns(['feature_name', 'prompt_version', 'input_hash', 'generation_profile_id'])
+          .doUpdateSet({
+            last_seen_at: row.last_seen_at,
+            attempts: row.attempts,
+            provider: row.provider,
+            model: row.model,
+            raw_output: (row.raw_output ?? null) as never,
+            zod_error: row.zod_error as never,
+          }),
       )
       .execute();
   }

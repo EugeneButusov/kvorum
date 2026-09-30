@@ -18,7 +18,7 @@ function rendered(): RenderedPrompt<{ tldr: string }> {
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    model: 'claude-haiku-4-5',
+    modelTier: 'fast',
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'summarize' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),

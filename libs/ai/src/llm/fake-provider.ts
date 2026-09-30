@@ -20,7 +20,7 @@ const ZERO_COST = {
 
 /** A scripted LlmProvider: returns queued `parsed` payloads in order. */
 export class FakeLlmProvider implements LlmProvider {
-  readonly id = 'fake';
+  readonly id = 'anthropic';
   private readonly queue: unknown[];
   public calls: ProviderCompletionRequest[] = [];
 

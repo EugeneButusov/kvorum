@@ -23,7 +23,9 @@ export function buildProvenance(
 ): Provenance {
   return {
     feature: req.feature,
+    provider: req.provider,
     model: req.model,
+    generationProfileId: req.generationProfileId,
     promptVersion: req.promptVersion,
     inputHash,
     generatedAt: clock.now(),

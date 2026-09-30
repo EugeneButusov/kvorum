@@ -2,7 +2,7 @@
 name: proposal_summarizer_signaling
 feature: proposal_summarizer
 version: v1.0
-model: claude-haiku-4-5
+model_tier: fast
 schema: ProposalSummarySchema
 description: Summarize a non-binding Snapshot signaling proposal into a structured ProposalSummary.
 ---

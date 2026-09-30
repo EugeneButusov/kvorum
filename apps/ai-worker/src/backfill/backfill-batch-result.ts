@@ -20,7 +20,7 @@ export interface BackfillBatchDeps {
 }
 
 /**
- * Validate + persist one Anthropic batch result during a backfill, generic over the feature's schema.
+ * Validate + persist one provider batch result during a backfill, generic over the feature's schema.
  * Identical in shape to the steady-state batch services' `processResult` (a schema violation dead-letters
  * and still books the cost we already paid; a valid result persists to the content-hash cache with
  * provenance + records token metrics). Kept in the backfill module so a backfill bug can't reach the
@@ -41,7 +41,9 @@ export async function processBackfillBatchResult(
       feature_name: req.feature,
       prompt_version: req.promptVersion,
       input_hash: inputHash,
+      provider: req.provider,
       model: req.model,
+      generation_profile_id: req.generationProfileId,
       raw_output: parsed as never,
       zod_error: validated.error as never,
       attempts: 1,
@@ -51,7 +53,9 @@ export async function processBackfillBatchResult(
     await deps.costs.insert({
       timestamp: now,
       feature_name: req.feature,
+      provider: req.provider,
       model: req.model,
+      generation_profile_id: req.generationProfileId,
       input_tokens: cost.inputTokens,
       output_tokens: cost.outputTokens,
       cache_creation_input_tokens: cost.cacheCreationInputTokens,

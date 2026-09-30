@@ -9,6 +9,9 @@ export interface LlmMessage {
 
 export type CompletionMode = 'sync' | 'batch';
 
+export type CompletionProviderId = 'anthropic' | 'openai' | 'internal';
+export type ModelTier = 'fast' | 'strong';
+
 export interface CostUsd {
   totalUsd: number;
   inputTokens: number;
@@ -19,7 +22,9 @@ export interface CostUsd {
 
 export interface Provenance {
   feature: string;
+  provider: CompletionProviderId;
   model: string;
+  generationProfileId: string;
   promptVersion: string;
   inputHash: string; // 'sha256:<hex>'
   generatedAt: string; // ISO-8601
@@ -31,7 +36,9 @@ export interface Provenance {
 export interface CompletionRequest<T> {
   feature: string;
   promptVersion: string;
+  provider: CompletionProviderId;
   model: string;
+  generationProfileId: string;
   schema: ZodType<T>;
   system?: string;
   messages: LlmMessage[];
@@ -84,6 +91,10 @@ export interface BatchItem {
 export interface BatchHandle {
   id: string;
   provider: string;
+  /** Facade-created child handles when a provider requires one model per remote batch. */
+  children?: BatchHandle[];
+  /** Pricing metadata needed to fetch a provider batch after serialization/restart. */
+  itemModels?: Record<string, string>;
 }
 
 export interface ProviderBatchItemResult {

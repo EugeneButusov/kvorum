@@ -107,7 +107,11 @@ describe('AnthropicProvider batch primitives', () => {
     const provider = new AnthropicProvider(mockClient({ batches }));
 
     const handle = await provider.submitBatch([{ customId: 'p-1', request: req }]);
-    expect(handle).toEqual({ id: 'batch_123', provider: 'anthropic' });
+    expect(handle).toEqual({
+      id: 'batch_123',
+      provider: 'anthropic',
+      itemModels: { 'p-1': 'claude-haiku-4-5' },
+    });
 
     const out = await provider.fetchBatch(handle);
     expect(out.status).toBe('ended');
@@ -124,7 +128,7 @@ describe('AnthropicProvider batch primitives', () => {
     expect(out).toEqual({ status: 'in_progress', results: [] });
   });
 
-  it('fetchBatch throws when no submitBatch model record exists for the batch (e.g. after a process restart)', async () => {
+  it('fetchBatch throws when a restored handle lacks its model pricing metadata', async () => {
     const batches = {
       retrieve: vi.fn().mockResolvedValue({ processing_status: 'ended' }),
       results: vi.fn().mockReturnValue(
@@ -142,11 +146,10 @@ describe('AnthropicProvider batch primitives', () => {
         })(),
       ),
     };
-    // Fresh provider — no prior submitBatch call, so the model map is empty.
     const provider = new AnthropicProvider(mockClient({ batches }));
 
     await expect(provider.fetchBatch({ id: 'batch_123', provider: 'anthropic' })).rejects.toThrow(
-      'Cannot price batch result for custom_id "p-1": no submitBatch model record for batch "batch_123" in this process',
+      'Cannot price batch result for custom_id "p-1": batch handle "batch_123" has no model metadata',
     );
   });
 });

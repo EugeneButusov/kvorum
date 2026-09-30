@@ -7,7 +7,7 @@ describe('MISMATCH_DETECTOR_TEMPLATE', () => {
   it('has the pinned frontmatter and the mismatch schema', () => {
     expect(MISMATCH_DETECTOR_TEMPLATE.name).toBe('mismatch_detector');
     expect(MISMATCH_DETECTOR_TEMPLATE.version).toBe('v1.0');
-    expect(MISMATCH_DETECTOR_TEMPLATE.model).toBe('claude-sonnet-5');
+    expect(MISMATCH_DETECTOR_TEMPLATE.modelTier).toBe('strong');
     expect(MISMATCH_DETECTOR_TEMPLATE.schema).toBe(MismatchAnalysisSchema);
   });
 

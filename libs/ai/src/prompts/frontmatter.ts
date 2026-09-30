@@ -1,6 +1,6 @@
 import { PromptTemplateError, type PromptFrontmatter } from './types.js';
 
-const REQUIRED_KEYS = ['name', 'version', 'model', 'schema', 'description'] as const;
+const REQUIRED_KEYS = ['name', 'version', 'model_tier', 'schema', 'description'] as const;
 // Optional keys accepted in frontmatter but not required. `feature` (#437) decouples the AI
 // feature from the template name so template variants can share one feature.
 const OPTIONAL_KEYS = ['feature'] as const;
@@ -75,11 +75,16 @@ export function parseFrontmatter(raw: string): ParsedTemplate {
     frontmatter: {
       name: requireKey(parsed, 'name'),
       version: requireKey(parsed, 'version'),
-      model: requireKey(parsed, 'model'),
+      modelTier: parseModelTier(requireKey(parsed, 'model_tier')),
       schema: requireKey(parsed, 'schema'),
       description: requireKey(parsed, 'description'),
       feature: parsed.get('feature'),
     },
     body,
   };
+}
+
+function parseModelTier(value: string): PromptFrontmatter['modelTier'] {
+  if (value === 'fast' || value === 'strong') return value;
+  throw new PromptTemplateError(`frontmatter "model_tier" must be "fast" or "strong"`);
 }

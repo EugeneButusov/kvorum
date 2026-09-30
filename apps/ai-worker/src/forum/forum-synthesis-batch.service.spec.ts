@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { FORUM_MODEL_HAIKU } from '@libs/ai';
 import type {
   BatchHandle,
   FacadeBatchItem,
@@ -21,7 +20,7 @@ function rendered(): RenderedPrompt<{ sentiment: string }> {
   return {
     feature: 'forum_synthesizer',
     promptVersion: 'v1.0',
-    model: FORUM_MODEL_HAIKU,
+    modelTier: 'fast',
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'synthesize' }],
     inputContent: 'ignored — the service overrides with raw_content',

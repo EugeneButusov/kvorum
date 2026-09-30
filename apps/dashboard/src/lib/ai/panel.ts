@@ -39,7 +39,9 @@ export function toAiConfidence(value: string | null | undefined): AiConfidence |
 }
 
 type ProvenanceMeta = {
+  provider?: string;
   model?: string;
+  generation_profile_id?: string;
   prompt_version?: string;
   generated_at?: string;
 };
@@ -49,11 +51,17 @@ export function toProvenance(meta: ProvenanceMeta | null | undefined): AIProvena
   if (!meta) return undefined;
   const parsed = meta.generated_at ? Date.parse(meta.generated_at) : NaN;
   const provenance: AIProvenance = {
+    provider: meta.provider,
     model: meta.model,
+    generationProfileId: meta.generation_profile_id,
     promptVersion: meta.prompt_version,
     generatedAt: Number.isNaN(parsed) ? undefined : parsed,
   };
-  return provenance.model || provenance.promptVersion || provenance.generatedAt != null
+  return provenance.provider ||
+    provenance.model ||
+    provenance.generationProfileId ||
+    provenance.promptVersion ||
+    provenance.generatedAt != null
     ? provenance
     : undefined;
 }

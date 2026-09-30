@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
   AiOutputRepository,
+  chooseForumModel,
   FORUM_SYNTHESIZER_TEMPLATE,
   forumSynthesisInputHash,
+  resolveGenerationProfile,
   type AiOutput,
 } from '@libs/ai';
 
@@ -20,7 +22,9 @@ export class ForumSynthesisReadService {
 
   async findForContent(rawContent: string): Promise<AiOutput | null> {
     const inputHash = forumSynthesisInputHash(rawContent);
-    const row = await this.outputs.find(FEATURE, VERSION, inputHash);
-    return row ?? null;
+    const route = chooseForumModel(rawContent);
+    const profile = resolveGenerationProfile(route.modelTier);
+    const row = await this.outputs.find(FEATURE, VERSION, inputHash, profile.id);
+    return row ?? (await this.outputs.find(FEATURE, VERSION, inputHash)) ?? null;
   }
 }

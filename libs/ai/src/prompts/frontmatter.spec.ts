@@ -5,7 +5,7 @@ import { PromptTemplateError } from './types.js';
 const VALID = `---
 name: fixture_greeting
 version: v1.0
-model: claude-haiku-4-5
+model_tier: fast
 schema: FixtureSchema
 description: Produces a greeting: with a colon in the description.
 ---
@@ -18,7 +18,7 @@ describe('parseFrontmatter', () => {
     expect(frontmatter).toEqual({
       name: 'fixture_greeting',
       version: 'v1.0',
-      model: 'claude-haiku-4-5',
+      modelTier: 'fast',
       schema: 'FixtureSchema',
       description: 'Produces a greeting: with a colon in the description.',
     });
@@ -30,8 +30,8 @@ describe('parseFrontmatter', () => {
   });
 
   it('throws when a required key is missing', () => {
-    const raw = VALID.replace('model: claude-haiku-4-5\n', '');
-    expect(() => parseFrontmatter(raw)).toThrow(/missing required key: "model"/);
+    const raw = VALID.replace('model_tier: fast\n', '');
+    expect(() => parseFrontmatter(raw)).toThrow(/missing required key: "model_tier"/);
   });
 
   it('throws on an unknown key', () => {
@@ -62,7 +62,7 @@ describe('parseFrontmatter', () => {
   });
 
   it('rejects a non-fence line like "----" as the closing fence', () => {
-    const raw = '---\nname: x\nversion: v1.0\nmodel: m\nschema: s\ndescription: d\n----\n';
+    const raw = '---\nname: x\nversion: v1.0\nmodel_tier: fast\nschema: s\ndescription: d\n----\n';
     expect(() => parseFrontmatter(raw)).toThrow(/missing its closing "---" fence/);
   });
 
@@ -72,12 +72,12 @@ describe('parseFrontmatter', () => {
   });
 
   it('parses correctly with a "---" close at end-of-file (no trailing body)', () => {
-    const raw = '---\nname: x\nversion: v1.0\nmodel: m\nschema: s\ndescription: d\n---';
+    const raw = '---\nname: x\nversion: v1.0\nmodel_tier: strong\nschema: s\ndescription: d\n---';
     const { frontmatter, body } = parseFrontmatter(raw);
     expect(frontmatter).toEqual({
       name: 'x',
       version: 'v1.0',
-      model: 'm',
+      modelTier: 'strong',
       schema: 's',
       description: 'd',
     });

@@ -7,6 +7,7 @@ import {
   AiOutputRepository,
   buildProvenance,
   chooseForumModel,
+  completionRequestFromRendered,
   computeInputHash,
   forumSynthesisInputContent,
   isLikelyEnglish,
@@ -24,7 +25,11 @@ import {
 } from '@libs/ai';
 import { readPositiveInt } from '@libs/utils';
 import { ForumThreadReadRepository } from '@sources/forum';
-import { buildForumSkip, ForumSynthesisAssembler } from './forum-synthesis.assembler';
+import {
+  buildForumSkip,
+  FORUM_SKIP_PROFILE,
+  ForumSynthesisAssembler,
+} from './forum-synthesis.assembler';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { LLM_CLIENT } from '../llm/llm.provider';
 import { aiMetrics } from '../metrics/ai-metrics';
@@ -52,7 +57,7 @@ interface InFlightBatch {
  * Self-healing, in-process batch driver for forum-thread syntheses (SPEC §5.7). Batch is the default
  * cost-efficient path (0.5× pricing); the queue handler runs only the urgent/forced sync fallback. On
  * each tick: if idle, scan candidate threads (voting-phase + recently-closed) lacking a current
- * synthesis and submit one Anthropic batch, routing each thread's model by length/contentiousness and
+ * synthesis and submit one provider batch, routing each thread's tier by length/contentiousness and
  * skipping non-English threads inline; if a batch is in flight, poll it and, once ended, validate +
  * persist each result (or dead-letter it). Inert unless the feature is enabled and its budget is not
  * disabled. A restart drops in-flight state; the next scan re-submits (the sha256(raw_content) cache
@@ -121,27 +126,29 @@ export class ForumSynthesisBatchService {
     const { rendered, ctx, rawContent } = this.assembler.assemble(thread);
     const inputContent = forumSynthesisInputContent(rawContent);
     const inputHash = computeInputHash(inputContent);
-    const existing = await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash);
+    const english = isLikelyEnglish(rawContent);
+    const route = chooseForumModel(rawContent);
+    const req: CompletionRequest<ForumSynthesis> = completionRequestFromRendered(rendered, {
+      mode: 'batch',
+      inputContent,
+      modelTier: route.modelTier,
+      routingReason: route.reason,
+    });
+    const existing = await this.outputs.find(
+      rendered.feature,
+      rendered.promptVersion,
+      inputHash,
+      english ? req.generationProfileId : FORUM_SKIP_PROFILE,
+    );
     if (existing !== undefined) {
       aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
       return null;
     }
-    if (!isLikelyEnglish(rawContent)) {
+    if (!english) {
       const skip = buildForumSkip(rendered, inputContent, inputHash, this.clock.now());
       await this.cache.persist(skip.req, skip.result, ctx);
       return null;
     }
-    const route = chooseForumModel(rawContent);
-    const req: CompletionRequest<ForumSynthesis> = {
-      feature: rendered.feature,
-      promptVersion: rendered.promptVersion,
-      model: route.model,
-      schema: rendered.schema,
-      messages: rendered.messages,
-      mode: 'batch',
-      inputContent,
-      routingReason: route.reason,
-    };
     return { item: { customId: toBatchCustomId(`forum_thread:${id}`), request: req }, ctx };
   }
 
@@ -201,7 +208,9 @@ export class ForumSynthesisBatchService {
         feature_name: req.feature,
         prompt_version: req.promptVersion,
         input_hash: inputHash,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         raw_output: parsed as never,
         zod_error: validated.error as never,
         attempts: 1,
@@ -211,7 +220,9 @@ export class ForumSynthesisBatchService {
       await this.costs.insert({
         timestamp: now,
         feature_name: req.feature,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         input_tokens: cost.inputTokens,
         output_tokens: cost.outputTokens,
         cache_creation_input_tokens: cost.cacheCreationInputTokens,

@@ -1012,6 +1012,10 @@ export interface components {
        */
       ai_generated: boolean;
       model: string;
+      /** @enum {string} */
+      provider: 'anthropic' | 'openai' | 'internal';
+      /** @description Versioned provider/model profile used for cache identity. */
+      generation_profile_id: string;
       prompt_version: string;
       /** @description sha256: of the summarized input (description + decoded actions). */
       input_hash: string;
@@ -1036,6 +1040,10 @@ export interface components {
        */
       ai_generated: boolean;
       model: string;
+      /** @enum {string} */
+      provider: 'anthropic' | 'openai' | 'internal';
+      /** @description Versioned provider/model profile used for cache identity. */
+      generation_profile_id: string;
       prompt_version: string;
       /** @description sha256: of the analyzed input (description + decoded actions). */
       input_hash: string;
@@ -1180,8 +1188,12 @@ export interface components {
        * @example true
        */
       ai_generated: boolean;
-      /** @description Model that produced the synthesis (Haiku or Sonnet). */
+      /** @description Exact model that produced the synthesis. */
       model?: string;
+      /** @enum {string} */
+      provider?: 'anthropic' | 'openai' | 'internal';
+      /** @description Versioned provider/model profile used for cache identity. */
+      generation_profile_id?: string;
       prompt_version?: string;
       /** @description sha256: of the synthesized thread `raw_content`. */
       input_hash?: string;
@@ -1257,14 +1269,6 @@ export interface components {
       data: components['schemas']['ParticipationRowDto'][];
       _meta: components['schemas']['AnalyticsMetaDto'];
     };
-    ForumActivityRowDto: {
-      bucket: string;
-      post_count: number;
-    };
-    ForumActivityResponseDto: {
-      data: components['schemas']['ForumActivityRowDto'][];
-      _meta: components['schemas']['AnalyticsMetaDto'];
-    };
     ConcentrationTopShareDto: {
       n_1: number;
       n_5: number;
@@ -1336,6 +1340,14 @@ export interface components {
       focal_delegate: components['schemas']['DelegateAlignmentFocalDto'];
       peers: components['schemas']['DelegateAlignmentPeerDto'][];
       pagination: components['schemas']['PaginationDto'];
+      _meta: components['schemas']['AnalyticsMetaDto'];
+    };
+    ForumActivityRowDto: {
+      bucket: string;
+      post_count: number;
+    };
+    ForumActivityResponseDto: {
+      data: components['schemas']['ForumActivityRowDto'][];
       _meta: components['schemas']['AnalyticsMetaDto'];
     };
     ProposalSearchItemDto: {

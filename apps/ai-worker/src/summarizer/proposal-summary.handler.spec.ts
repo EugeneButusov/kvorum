@@ -15,7 +15,7 @@ function rendered(): RenderedPrompt<{ tldr: string }> {
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    model: 'claude-haiku-4-5',
+    modelTier: 'fast',
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'summarize' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),
@@ -45,7 +45,9 @@ function completion(): CompletionResult<{ tldr: string }> {
     },
     provenance: {
       feature: 'proposal_summarizer',
+      provider: 'anthropic',
       model: 'claude-haiku-4-5',
+      generationProfileId: 'anthropic-fast-v1',
       promptVersion: 'v1.0',
       inputHash: 'sha256:x',
       generatedAt: NOW.toISOString(),
@@ -58,7 +60,16 @@ function violation(): LlmSchemaViolationError {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
     inputHash: 'sha256:x',
+    provider: 'anthropic',
     model: 'claude-haiku-4-5',
+    generationProfileId: 'anthropic-fast-v1',
+    cost: {
+      totalUsd: 0.004,
+      inputTokens: 200,
+      outputTokens: 40,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     rawOutput: { not_tldr: 1 },
     zodError: SCHEMA.safeParse({}).error!,
     attempts: 2,
@@ -75,6 +86,7 @@ function deps(over: {
   const complete = vi.fn(over.complete ?? (async () => completion()));
   const persist = vi.fn(async () => {});
   const dlqInsert = vi.fn(async () => {});
+  const costsInsert = vi.fn(async () => {});
   const register = vi.fn();
   const handler = new ProposalSummaryHandler(
     { complete } as never,
@@ -88,11 +100,12 @@ function deps(over: {
     { find: async () => (over.existingOutput ? ({ id: 'o1' } as never) : undefined) } as never,
     { persist } as never,
     { insert: dlqInsert } as never,
+    { insert: costsInsert } as never,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
     { register } as never,
   );
-  return { handler, complete, persist, dlqInsert, register };
+  return { handler, complete, persist, dlqInsert, costsInsert, register };
 }
 
 const JOB = { feature: 'proposal_summarizer', entityRef: 'proposal:prop-1' } as never;

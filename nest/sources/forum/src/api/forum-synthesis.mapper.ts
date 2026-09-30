@@ -25,7 +25,9 @@ export function toForumSynthesisResponse(output: AiOutput): ForumSynthesisRespon
     data: Object.assign(new ForumSynthesisDto(), output.output as ForumSynthesis),
     _meta: Object.assign(new ForumSynthesisMetaDto(), {
       ai_generated: true,
+      provider: output.provider,
       model: output.model,
+      generation_profile_id: output.generation_profile_id,
       prompt_version: output.prompt_version,
       input_hash: output.input_hash,
       generated_at: isoSeconds(output.generated_at),
