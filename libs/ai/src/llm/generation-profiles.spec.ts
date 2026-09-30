@@ -5,6 +5,7 @@ import {
   readActiveCompletionProvider,
   resolveGenerationProfile,
 } from './generation-profiles.js';
+import { ModelTier } from './ports.js';
 
 const previous = process.env['AI_LLM_PROVIDER'];
 
@@ -17,11 +18,11 @@ describe('generation profiles', () => {
   it('defaults to Anthropic and resolves both providers deterministically', () => {
     delete process.env['AI_LLM_PROVIDER'];
     expect(readActiveCompletionProvider()).toBe('anthropic');
-    expect(resolveGenerationProfile('fast')).toMatchObject({
+    expect(resolveGenerationProfile(ModelTier.Fast)).toMatchObject({
       id: 'anthropic-fast-v1',
       model: 'claude-haiku-4-5',
     });
-    expect(resolveGenerationProfile('strong', 'openai')).toMatchObject({
+    expect(resolveGenerationProfile(ModelTier.Strong, 'openai')).toMatchObject({
       id: 'openai-strong-v1',
       model: 'gpt-6.1-sol',
     });
@@ -36,7 +37,7 @@ describe('generation profiles', () => {
       {
         feature: 'proposal_summarizer',
         promptVersion: 'v1.0',
-        modelTier: 'fast',
+        modelTier: ModelTier.Fast,
         schema: z.object({ tldr: z.string() }),
         messages: [{ role: 'user', content: 'summarize' }],
         inputContent: 'body',

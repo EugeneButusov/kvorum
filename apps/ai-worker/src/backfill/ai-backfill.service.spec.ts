@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import type { BatchHandle, FacadeBatchItem, LLMClient, ProviderBatchResult } from '@libs/ai';
+import {
+  ModelTier,
+  type BatchHandle,
+  type FacadeBatchItem,
+  type LLMClient,
+  type ProviderBatchResult,
+} from '@libs/ai';
 import { AiBackfillService } from './ai-backfill.service';
 
 const SCHEMA = z.object({ tldr: z.string() });
@@ -8,7 +14,7 @@ function rendered() {
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    modelTier: 'fast',
+    modelTier: ModelTier.Fast,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'summarize' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ModelTier } from '@libs/ai';
 import type { Proposal, ProposalAction, ProposalReadRepository } from '@libs/db';
 import { ProposalSummaryAssembler } from './proposal-summary.assembler';
 
@@ -56,7 +57,7 @@ describe('ProposalSummaryAssembler', () => {
     const assembler = new ProposalSummaryAssembler(fakeReads([action(0)]));
     const { rendered, ctx } = await assembler.assemble(proposal());
     expect(rendered.feature).toBe('proposal_summarizer');
-    expect(rendered.modelTier).toBe('fast');
+    expect(rendered.modelTier).toBe(ModelTier.Fast);
     expect(rendered.messages[0]?.content).toContain('Raise the USDC reserve factor to 15%.');
     expect(rendered.messages[0]?.content).toContain('setReserveFactor');
     expect(ctx).toEqual({ daoId: 'dao-1', entityReference: 'proposal:prop-1' });

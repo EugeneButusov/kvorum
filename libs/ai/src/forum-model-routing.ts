@@ -1,14 +1,13 @@
+import { ModelTier } from './llm/ports.js';
+
 // SPEC §5.7 — automatic fast↔strong routing for forum-thread synthesis.
 //
 // The synthesizer prompt is model-agnostic; this pure function picks which capability tier runs
 // each job. The active provider resolves that tier to an exact model before cache lookup.
-export const FORUM_MODEL_FAST = 'fast';
-export const FORUM_MODEL_STRONG = 'strong';
-
 export type ForumRoutingReason = 'long' | 'contentious' | 'short';
 
 export interface ForumModelRoute {
-  modelTier: 'fast' | 'strong';
+  modelTier: ModelTier;
   reason: ForumRoutingReason;
   estimatedTokens: number;
 }
@@ -83,11 +82,11 @@ function isContentious(window: string): boolean {
 export function chooseForumModel(rawContent: string): ForumModelRoute {
   const estimatedTokens = estimateTokens(rawContent);
   if (estimatedTokens >= TOKEN_ROUTE_THRESHOLD) {
-    return { modelTier: FORUM_MODEL_STRONG, reason: 'long', estimatedTokens };
+    return { modelTier: ModelTier.Strong, reason: 'long', estimatedTokens };
   }
   const window = rawContent.slice(0, CONTENTION_WINDOW_TOKENS * CHARS_PER_TOKEN);
   if (isContentious(window)) {
-    return { modelTier: FORUM_MODEL_STRONG, reason: 'contentious', estimatedTokens };
+    return { modelTier: ModelTier.Strong, reason: 'contentious', estimatedTokens };
   }
-  return { modelTier: FORUM_MODEL_FAST, reason: 'short', estimatedTokens };
+  return { modelTier: ModelTier.Fast, reason: 'short', estimatedTokens };
 }

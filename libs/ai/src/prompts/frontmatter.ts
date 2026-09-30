@@ -1,4 +1,5 @@
 import { PromptTemplateError, type PromptFrontmatter } from './types.js';
+import { ModelTier } from '../llm/ports.js';
 
 const REQUIRED_KEYS = ['name', 'version', 'model_tier', 'schema', 'description'] as const;
 // Optional keys accepted in frontmatter but not required. `feature` (#437) decouples the AI
@@ -85,6 +86,7 @@ export function parseFrontmatter(raw: string): ParsedTemplate {
 }
 
 function parseModelTier(value: string): PromptFrontmatter['modelTier'] {
-  if (value === 'fast' || value === 'strong') return value;
+  if (value === ModelTier.Fast) return ModelTier.Fast;
+  if (value === ModelTier.Strong) return ModelTier.Strong;
   throw new PromptTemplateError(`frontmatter "model_tier" must be "fast" or "strong"`);
 }

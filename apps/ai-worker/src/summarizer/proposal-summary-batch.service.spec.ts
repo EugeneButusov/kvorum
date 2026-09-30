@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import type {
-  BatchHandle,
-  FacadeBatchItem,
-  LLMClient,
-  ProviderBatchResult,
-  RenderedPrompt,
+import {
+  ModelTier,
+  type BatchHandle,
+  type FacadeBatchItem,
+  type LLMClient,
+  type ProviderBatchResult,
+  type RenderedPrompt,
 } from '@libs/ai';
 import { ProposalSummaryBatchService } from './proposal-summary-batch.service';
 import { aiMetrics } from '../metrics/ai-metrics';
@@ -18,7 +19,7 @@ function rendered(): RenderedPrompt<{ tldr: string }> {
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    modelTier: 'fast',
+    modelTier: ModelTier.Fast,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'summarize' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { LlmSchemaViolationError, type CompletionResult, type RenderedPrompt } from '@libs/ai';
+import {
+  LlmSchemaViolationError,
+  ModelTier,
+  type CompletionResult,
+  type RenderedPrompt,
+} from '@libs/ai';
 import { MismatchHandler } from './mismatch.handler';
 import { aiMetrics } from '../metrics/ai-metrics';
 
@@ -10,7 +15,7 @@ function rendered(): RenderedPrompt<{ overall_assessment: string }> {
   return {
     feature: 'mismatch_detector',
     promptVersion: 'v1.0',
-    modelTier: 'strong',
+    modelTier: ModelTier.Strong,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'analyze' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),

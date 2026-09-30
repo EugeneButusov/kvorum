@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseFrontmatter } from './frontmatter.js';
 import { PromptTemplateError } from './types.js';
+import { ModelTier } from '../llm/ports.js';
 
 const VALID = `---
 name: fixture_greeting
@@ -18,7 +19,7 @@ describe('parseFrontmatter', () => {
     expect(frontmatter).toEqual({
       name: 'fixture_greeting',
       version: 'v1.0',
-      modelTier: 'fast',
+      modelTier: ModelTier.Fast,
       schema: 'FixtureSchema',
       description: 'Produces a greeting: with a colon in the description.',
     });
@@ -77,7 +78,7 @@ describe('parseFrontmatter', () => {
     expect(frontmatter).toEqual({
       name: 'x',
       version: 'v1.0',
-      modelTier: 'strong',
+      modelTier: ModelTier.Strong,
       schema: 's',
       description: 'd',
     });

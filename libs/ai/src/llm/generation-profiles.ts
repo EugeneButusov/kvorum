@@ -1,8 +1,8 @@
-import type {
-  CompletionMode,
-  CompletionProviderId,
-  CompletionRequest,
+import {
   ModelTier,
+  type CompletionMode,
+  type CompletionProviderId,
+  type CompletionRequest,
 } from './ports.js';
 import type { RenderedPrompt } from '../prompts/types.js';
 
@@ -20,30 +20,30 @@ export const GENERATION_PROFILES: Record<
   Record<ModelTier, GenerationProfile>
 > = {
   anthropic: {
-    fast: {
+    [ModelTier.Fast]: {
       id: 'anthropic-fast-v1',
       provider: 'anthropic',
-      tier: 'fast',
+      tier: ModelTier.Fast,
       model: 'claude-haiku-4-5',
     },
-    strong: {
+    [ModelTier.Strong]: {
       id: 'anthropic-strong-v1',
       provider: 'anthropic',
-      tier: 'strong',
+      tier: ModelTier.Strong,
       model: 'claude-sonnet-5',
     },
   },
   openai: {
-    fast: {
+    [ModelTier.Fast]: {
       id: 'openai-fast-v1',
       provider: 'openai',
-      tier: 'fast',
+      tier: ModelTier.Fast,
       model: 'gpt-6-luna',
     },
-    strong: {
+    [ModelTier.Strong]: {
       id: 'openai-strong-v1',
       provider: 'openai',
-      tier: 'strong',
+      tier: ModelTier.Strong,
       model: 'gpt-6.1-sol',
     },
   },

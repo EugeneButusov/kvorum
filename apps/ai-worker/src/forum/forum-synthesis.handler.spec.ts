@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { LlmSchemaViolationError, type CompletionResult, type RenderedPrompt } from '@libs/ai';
+import {
+  LlmSchemaViolationError,
+  ModelTier,
+  type CompletionResult,
+  type RenderedPrompt,
+} from '@libs/ai';
 import type { ForumThreadForSynthesis } from '@sources/forum';
 import { ForumSynthesisHandler } from './forum-synthesis.handler';
 import { aiMetrics } from '../metrics/ai-metrics';
@@ -17,7 +22,7 @@ function rendered(): RenderedPrompt<{ sentiment: string }> {
   return {
     feature: 'forum_synthesizer',
     promptVersion: 'v1.0',
-    modelTier: 'fast',
+    modelTier: ModelTier.Fast,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'synthesize' }],
     inputContent: 'ignored — handler overrides with raw_content',

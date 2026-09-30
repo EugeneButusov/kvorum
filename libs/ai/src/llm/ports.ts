@@ -10,7 +10,10 @@ export interface LlmMessage {
 export type CompletionMode = 'sync' | 'batch';
 
 export type CompletionProviderId = 'anthropic' | 'openai' | 'internal';
-export type ModelTier = 'fast' | 'strong';
+export enum ModelTier {
+  Fast = 'fast',
+  Strong = 'strong',
+}
 
 export interface CostUsd {
   totalUsd: number;

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { LlmSchemaViolationError, type CompletionResult, type RenderedPrompt } from '@libs/ai';
+import {
+  LlmSchemaViolationError,
+  ModelTier,
+  type CompletionResult,
+  type RenderedPrompt,
+} from '@libs/ai';
 import { ProposalSummaryHandler } from './proposal-summary.handler';
 import { aiMetrics } from '../metrics/ai-metrics';
 
@@ -15,7 +20,7 @@ function rendered(): RenderedPrompt<{ tldr: string }> {
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    modelTier: 'fast',
+    modelTier: ModelTier.Fast,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'summarize' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),
