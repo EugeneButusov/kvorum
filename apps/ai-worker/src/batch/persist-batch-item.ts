@@ -1,11 +1,11 @@
 import type { Kysely } from 'kysely';
 import {
-  batchSchemaFor,
   buildProvenanceFromFields,
   type AiCostLogRepository,
   type AiDlqRepository,
   type AiOutputRepository,
   type BatchItemDescriptor,
+  type BatchSchemaRegistry,
   type Clock,
   type CostUsd,
 } from '@libs/ai';
@@ -17,6 +17,7 @@ export interface PersistBatchDeps {
   readonly costs: AiCostLogRepository;
   readonly dlq: AiDlqRepository;
   readonly clock: Clock;
+  readonly schemas: BatchSchemaRegistry;
 }
 
 /**
@@ -25,9 +26,9 @@ export interface PersistBatchDeps {
  * already paid; a valid result writes the content-hash cache (`ai_output`) + cost ledger and records
  * token metrics. Shared by the live summary/forum drivers, the backfill driver, AND the post-restart
  * resume path — which has only the descriptor, not the original `CompletionRequest` (no live Zod
- * schema, no `inputContent`). The schema is resolved from the feature; `input_hash` is carried on the
- * descriptor. Because the whole drain runs in one transaction, re-polling after a mid-drain restart
- * rolls back cleanly and never double-books `ai_cost_log`.
+ * schema, no `inputContent`). The schema is resolved from the feature + prompt version; `input_hash`
+ * is carried on the descriptor. Because the whole drain runs in one transaction, re-polling after a
+ * mid-drain restart rolls back cleanly and never double-books `ai_cost_log`.
  */
 export async function persistBatchItemResult(
   descriptor: BatchItemDescriptor,
@@ -53,7 +54,9 @@ export async function persistBatchItemResult(
     entity_reference: descriptor.entityReference,
   };
 
-  const validated = batchSchemaFor(descriptor.feature).safeParse(parsed);
+  const validated = deps.schemas
+    .get(descriptor.feature, descriptor.promptVersion)
+    .safeParse(parsed);
   if (!validated.success) {
     await deps.dlq.insert(
       {

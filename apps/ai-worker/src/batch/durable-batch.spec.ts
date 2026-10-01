@@ -1,6 +1,13 @@
 import type { Kysely } from 'kysely';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BatchHandle, BatchItemDescriptor, LLMClient, OpenBatch } from '@libs/ai';
+import {
+  BatchSchemaRegistry,
+  ProposalSummarySchema,
+  type BatchHandle,
+  type BatchItemDescriptor,
+  type LLMClient,
+  type OpenBatch,
+} from '@libs/ai';
 import type { PgDatabase } from '@libs/db';
 import { DurableBatch, toDescriptor } from './durable-batch';
 import type { PersistBatchDeps } from './persist-batch-item';
@@ -68,6 +75,13 @@ function makeHarness(over: { open?: OpenBatch | null; fetch?: unknown } = {}) {
     costs: { insert: vi.fn(async () => {}) } as never,
     dlq: { insert: vi.fn(async () => {}) } as never,
     clock: { now: () => '2026-08-24T00:00:00.000Z' },
+    schemas: new BatchSchemaRegistry([
+      {
+        feature: 'proposal_summarizer',
+        promptVersion: 'v1.0',
+        schema: ProposalSummarySchema,
+      },
+    ]),
   };
   const durable = new DurableBatch(fakeDb, llm, batches as never, cursors as never, persistDeps);
   return { durable, batches, cursors, llm, persistDeps };
