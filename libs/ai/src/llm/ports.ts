@@ -115,7 +115,12 @@ export interface LlmProvider {
   readonly id: CompletionProviderId;
   completeStructured(req: ProviderCompletionRequest): Promise<ProviderCompletionResult>;
   submitBatch(items: BatchItem[]): Promise<BatchHandle>;
-  fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult>;
+  // `modelByCustomId` is supplied by the caller (from durable state) so pricing survives a restart
+  // even when a provider's batch-result stream does not echo the original request model.
+  fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string>,
+  ): Promise<ProviderBatchResult>;
 }
 
 export interface EmbeddingProvider {
@@ -128,9 +133,30 @@ export interface FacadeBatchItem<T> {
   request: CompletionRequest<T>;
 }
 
+/**
+ * The durable, serializable description of one submitted batch item — enough to re-price, re-validate
+ * and persist its result after a restart, without the non-serializable Zod `schema` or the large
+ * `inputContent` (only its already-computed `inputHash` is kept). Stored as the `ai_batch.items` jsonb.
+ */
+export interface BatchItemDescriptor {
+  customId: string;
+  feature: string;
+  provider: CompletionProviderId;
+  promptVersion: string;
+  model: string;
+  generationProfileId: string;
+  inputHash: string;
+  routingReason?: string;
+  daoId: string | null;
+  entityReference: string | null;
+}
+
 export interface LLMClient {
   complete<T>(req: CompletionRequest<T>): Promise<CompletionResult<T>>;
   embed(req: EmbeddingRequest): Promise<EmbeddingResult>;
   submitBatch(items: FacadeBatchItem<unknown>[]): Promise<BatchHandle>;
-  fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult>;
+  fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string>,
+  ): Promise<ProviderBatchResult>;
 }

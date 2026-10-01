@@ -129,7 +129,10 @@ export class AnthropicProvider implements LlmProvider {
     };
   }
 
-  async fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult> {
+  async fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string> = {},
+  ): Promise<ProviderBatchResult> {
     const status = await this.client.messages.batches.retrieve(handle.id);
     if (status.processing_status !== 'ended') {
       return { status: 'in_progress', results: [] };
@@ -147,7 +150,7 @@ export class AnthropicProvider implements LlmProvider {
       // resolve pricing from the model metadata serialized into the handle at submission. If an
       // older or malformed handle lacks it, we cannot safely price the result — silently booking
       // $0 would violate the pricing contract, so we throw instead.
-      const model = handle.itemModels?.[entry.custom_id];
+      const model = modelByCustomId[entry.custom_id] ?? handle.itemModels?.[entry.custom_id];
       if (!model) {
         throw new Error(
           `Cannot price batch result for custom_id "${entry.custom_id}": batch handle "${handle.id}" has no model metadata`,

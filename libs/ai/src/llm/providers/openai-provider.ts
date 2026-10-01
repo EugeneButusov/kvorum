@@ -190,7 +190,10 @@ export class OpenAiProvider implements LlmProvider {
     return { id: batch.id, provider: this.id };
   }
 
-  async fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult> {
+  async fetchBatch(
+    handle: BatchHandle,
+    _modelByCustomId: Record<string, string> = {},
+  ): Promise<ProviderBatchResult> {
     if (handle.provider !== this.id) {
       throw new Error(`Cannot fetch ${handle.provider} batch with the OpenAI provider`);
     }
