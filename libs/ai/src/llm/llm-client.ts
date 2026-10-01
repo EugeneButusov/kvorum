@@ -114,12 +114,15 @@ export class DefaultLlmClient implements LLMClient {
     };
   }
 
-  async fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult> {
+  async fetchBatch(
+    handle: BatchHandle,
+    modelByCustomId: Record<string, string>,
+  ): Promise<ProviderBatchResult> {
     if (!handle.children || handle.children.length === 0) {
-      return this.provider.fetchBatch(handle);
+      return this.provider.fetchBatch(handle, modelByCustomId);
     }
     const childResults = await Promise.all(
-      handle.children.map((child) => this.provider.fetchBatch(child)),
+      handle.children.map((child) => this.provider.fetchBatch(child, modelByCustomId)),
     );
     if (childResults.some((result) => result.status === 'in_progress')) {
       return { status: 'in_progress', results: [] };

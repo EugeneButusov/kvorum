@@ -2,8 +2,6 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
   AiCompletionCache,
-  AiCostLogRepository,
-  AiDlqRepository,
   AiOutputRepository,
   chooseForumModel,
   completionRequestFromRendered,
@@ -15,7 +13,7 @@ import {
   ProposalSummaryScanRepository,
   SystemClock,
   toBatchCustomId,
-  type BatchHandle,
+  type BatchItemDescriptor,
   type Clock,
   type CompletionRequest,
   type CostContext,
@@ -26,7 +24,7 @@ import type { Proposal } from '@libs/db';
 import { readPositiveInt } from '@libs/utils';
 import { ForumThreadReadRepository } from '@sources/forum';
 import { AiBackfillConfig } from './ai-backfill-config';
-import { processBackfillBatchResult } from './backfill-batch-result';
+import { DurableBatch, toDescriptor } from '../batch/durable-batch';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { buildForumSkip, ForumSynthesisAssembler } from '../forum/forum-synthesis.assembler';
 import { LLM_CLIENT } from '../llm/llm.provider';
@@ -50,35 +48,19 @@ interface BatchPlan<Row extends { id: string }> {
   buildItem(row: Row): Promise<PreparedItem | null>;
 }
 
-interface InFlightBatch {
-  handle: BatchHandle;
-  items: Map<string, { req: CompletionRequest<unknown>; ctx: CostContext }>;
-  pendingCursor: string;
-}
-interface BatchState {
-  cursor: string | null;
-  inFlight: InFlightBatch | null;
-}
-
 /**
  * Full-history AI backfill driver (M5-7.1). On each tick it advances, per enabled feature, one unit of
  * work over the ENTIRE historical corpus — keyset-paginated so it never stalls on already-cached rows
  * (the flaw that makes the steady-state batch drivers unusable for backfill). Batch features
  * (summary/forum) submit through the active provider's batch API and poll/persist; sync features
- * (mismatch/embedding) enqueue to the existing pg-boss queues so the live handlers process them. Inert
- * unless `AI_BACKFILL_ENABLED` + the per-feature flag are set. Resumability is the content-hash cache
- * (unchanged input ⇒ cache hit ⇒ no call): a restart re-scans from the start and skips everything done.
- * The cursor is an in-memory progress optimization — final completeness is the AC #1 coverage query
- * plus a (cache-free) re-run, NOT the cursor, because a sync job enqueued just before the budget cap
- * trips is skipped at the worker yet the cursor advanced past it.
+ * (mismatch/embedding) enqueue to the existing pg-boss queues. Both batch state and scan cursors are
+ * durable, so a restart resumes the provider request and historical walk instead of starting over.
  */
 @Injectable()
 export class AiBackfillService {
   private readonly logger = new Logger('AiBackfill');
   private readonly clock: Clock = new SystemClock();
   private ticking = false;
-  private readonly batchState = new Map<AiFeature, BatchState>();
-  private readonly syncCursor = new Map<AiFeature, string | null>();
 
   constructor(
     @Inject(LLM_CLIENT) private readonly llm: LLMClient,
@@ -91,8 +73,7 @@ export class AiBackfillService {
     private readonly forumAssembler: ForumSynthesisAssembler,
     private readonly outputs: AiOutputRepository,
     private readonly cache: AiCompletionCache,
-    private readonly dlq: AiDlqRepository,
-    private readonly costs: AiCostLogRepository,
+    private readonly durable: DurableBatch,
     private readonly budget: AiBudgetState,
     private readonly config: AiBackfillConfig,
   ) {}
@@ -129,63 +110,28 @@ export class AiBackfillService {
   // ── Batch features (summary, forum): submit the Batch API (0.5×), poll, persist, advance cursor ──
 
   private async driveBatch<Row extends { id: string }>(plan: BatchPlan<Row>): Promise<void> {
-    const st = this.batchState.get(plan.feature) ?? { cursor: null, inFlight: null };
-    // Always drain an in-flight batch — we already paid Anthropic for it — even if the cap just tripped.
-    if (st.inFlight !== null) {
-      const res = await this.llm.fetchBatch(st.inFlight.handle);
-      if (res.status !== 'ended') return;
-      for (const item of res.results) {
-        const entry = st.inFlight.items.get(item.customId);
-        if (entry === undefined) continue;
-        try {
-          await processBackfillBatchResult(entry.req, entry.ctx, item.parsed, item.cost, {
-            cache: this.cache,
-            dlq: this.dlq,
-            costs: this.costs,
-            clock: this.clock,
-          });
-        } catch (err) {
-          this.logger.warn('ai_backfill_result_failed', {
-            feature: plan.feature,
-            customId: item.customId,
-            error: String(err),
-          });
-        }
-      }
-      st.cursor = st.inFlight.pendingCursor;
-      st.inFlight = null;
-      this.batchState.set(plan.feature, st);
-      return;
-    }
+    const poll = await this.durable.pollOpen(plan.feature);
+    if (poll.state !== 'idle') return;
     // Idle → submit the next page. Gate NEW submits on the budget (this is the "pause near cap").
     if (this.budget.isDisabled(plan.feature)) return;
-    const rows = await plan.scanPage(st.cursor, this.config.pageSize(), this.config.daoSlugs());
-    if (rows.length === 0) {
-      this.batchState.set(plan.feature, st); // drained — nothing more to do
-      return;
-    }
+    const cursor = await this.durable.getCursor(plan.feature);
+    const rows = await plan.scanPage(cursor, this.config.pageSize(), this.config.daoSlugs());
+    if (rows.length === 0) return;
     const pageCursor = rows[rows.length - 1]!.id;
     const items: FacadeBatchItem<unknown>[] = [];
-    const pending = new Map<string, { req: CompletionRequest<unknown>; ctx: CostContext }>();
+    const descriptors: BatchItemDescriptor[] = [];
     for (const row of rows) {
       const built = await plan.buildItem(row);
       if (built === null) continue; // cache-hit / inline skip
       items.push(built.item);
-      pending.set(built.item.customId, {
-        req: built.item.request as CompletionRequest<unknown>,
-        ctx: built.ctx,
-      });
+      descriptors.push(toDescriptor(built.item, built.ctx));
     }
     if (items.length === 0) {
-      // Every row was already done — advance the cursor and continue next tick. THIS is the anti-stall
-      // guarantee: unlike the steady-state driver, an all-cache-hit page never re-blocks progress.
-      st.cursor = pageCursor;
-      this.batchState.set(plan.feature, st);
+      await this.durable.advanceCursor(plan.feature, pageCursor);
       return;
     }
     const handle = await this.llm.submitBatch(items);
-    st.inFlight = { handle, items: pending, pendingCursor: pageCursor };
-    this.batchState.set(plan.feature, st);
+    await this.durable.record(plan.feature, handle, descriptors, pageCursor);
     this.logger.log('ai_backfill_batch_submitted', {
       feature: plan.feature,
       batchId: handle.id,
@@ -274,7 +220,7 @@ export class AiBackfillService {
     ) => Promise<{ id: string }[]>,
   ): Promise<void> {
     if (this.budget.isDisabled(feature)) return;
-    const cursor = this.syncCursor.get(feature) ?? null;
+    const cursor = await this.durable.getCursor(feature);
     const rows = await scanPage(cursor, this.config.pageSize(), this.config.daoSlugs());
     if (rows.length === 0) return; // drained
     const throttle = readPositiveInt(
@@ -291,7 +237,7 @@ export class AiBackfillService {
       });
       if (id !== null) count += 1;
     }
-    this.syncCursor.set(feature, rows[rows.length - 1]!.id);
+    await this.durable.advanceCursor(feature, rows[rows.length - 1]!.id);
     if (count > 0) this.logger.log('ai_backfill_enqueued', { feature, count });
   }
 }

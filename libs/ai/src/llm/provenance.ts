@@ -21,14 +21,26 @@ export function buildProvenance(
   inputHash: string,
   clock: Clock,
 ): Provenance {
+  return buildProvenanceFromFields(req, inputHash, clock);
+}
+
+export function buildProvenanceFromFields(
+  fields: Pick<
+    Provenance,
+    'feature' | 'provider' | 'model' | 'generationProfileId' | 'promptVersion'
+  > &
+    Pick<Partial<Provenance>, 'routingReason'>,
+  inputHash: string,
+  clock: Clock,
+): Provenance {
   return {
-    feature: req.feature,
-    provider: req.provider,
-    model: req.model,
-    generationProfileId: req.generationProfileId,
-    promptVersion: req.promptVersion,
+    feature: fields.feature,
+    provider: fields.provider,
+    model: fields.model,
+    generationProfileId: fields.generationProfileId,
+    promptVersion: fields.promptVersion,
     inputHash,
     generatedAt: clock.now(),
-    ...(req.routingReason !== undefined ? { routingReason: req.routingReason } : {}),
+    ...(fields.routingReason !== undefined ? { routingReason: fields.routingReason } : {}),
   };
 }
