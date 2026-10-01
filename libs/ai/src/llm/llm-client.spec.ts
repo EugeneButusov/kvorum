@@ -191,5 +191,7 @@ describe('DefaultLlmClient batches', () => {
     const result = await client.fetchBatch(handle);
     expect(result.status).toBe('ended');
     expect(result.results).toHaveLength(2);
+    expect(fetchBatch).toHaveBeenCalledTimes(2);
+    expect(fetchBatch.mock.calls.every(([child]) => child.provider === 'openai')).toBe(true);
   });
 });

@@ -1,16 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import {
+  AiBackfillCursorRepository,
+  AiBatchRepository,
+  BatchSchemaRegistry,
   AiCompletionCache,
   AiCostLogRepository,
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  FORUM_SYNTHESIZER_TEMPLATE,
   ProposalEmbeddingScanRepository,
   ProposalEmbeddingWriter,
   ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
+  PROPOSAL_SUMMARY_TEMPLATE,
+  SystemClock,
   type LLMClient,
 } from '@libs/ai';
 import { ProposalReadRepository, ProposalRepository, pgDb } from '@libs/db';
@@ -19,6 +25,7 @@ import { OpsServer } from '@nest/observability';
 import { ShutdownLogger } from './shutdown-logger';
 import { AiBackfillConfig } from '../backfill/ai-backfill-config';
 import { AiBackfillService } from '../backfill/ai-backfill.service';
+import { DurableBatch } from '../batch/durable-batch';
 import { AiBudgetCapService } from '../budget/ai-budget-cap.service';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
@@ -65,6 +72,24 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: ProposalReadRepository, useFactory: () => new ProposalReadRepository(pgDb) },
     { provide: AiOutputRepository, useFactory: () => new AiOutputRepository(pgDb) },
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
+    { provide: AiBatchRepository, useFactory: () => new AiBatchRepository(pgDb) },
+    { provide: AiBackfillCursorRepository, useFactory: () => new AiBackfillCursorRepository(pgDb) },
+    {
+      provide: BatchSchemaRegistry,
+      useFactory: () =>
+        new BatchSchemaRegistry([
+          {
+            feature: PROPOSAL_SUMMARY_TEMPLATE.feature ?? PROPOSAL_SUMMARY_TEMPLATE.name,
+            promptVersion: PROPOSAL_SUMMARY_TEMPLATE.version,
+            schema: PROPOSAL_SUMMARY_TEMPLATE.schema,
+          },
+          {
+            feature: FORUM_SYNTHESIZER_TEMPLATE.feature ?? FORUM_SYNTHESIZER_TEMPLATE.name,
+            promptVersion: FORUM_SYNTHESIZER_TEMPLATE.version,
+            schema: FORUM_SYNTHESIZER_TEMPLATE.schema,
+          },
+        ]),
+    },
     { provide: ForumThreadReadRepository, useFactory: () => new ForumThreadReadRepository(pgDb) },
     {
       provide: ProposalSummaryScanRepository,
@@ -93,6 +118,36 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
       useFactory: (embeddings: ProposalEmbeddingRepository, costs: AiCostLogRepository) =>
         new ProposalEmbeddingWriter(pgDb, embeddings, costs),
       inject: [ProposalEmbeddingRepository, AiCostLogRepository],
+    },
+    // Durable in-flight-batch gateway (#617): the DB is the source of truth for open batches + the
+    // backfill cursor, so a restart resumes them instead of orphaning a paid batch / re-walking.
+    {
+      provide: DurableBatch,
+      useFactory: (
+        llm: LLMClient,
+        batches: AiBatchRepository,
+        cursors: AiBackfillCursorRepository,
+        outputs: AiOutputRepository,
+        costs: AiCostLogRepository,
+        dlq: AiDlqRepository,
+        schemas: BatchSchemaRegistry,
+      ) =>
+        new DurableBatch(pgDb, llm, batches, cursors, {
+          outputs,
+          costs,
+          dlq,
+          clock: new SystemClock(),
+          schemas,
+        }),
+      inject: [
+        LLM_CLIENT,
+        AiBatchRepository,
+        AiBackfillCursorRepository,
+        AiOutputRepository,
+        AiCostLogRepository,
+        AiDlqRepository,
+        BatchSchemaRegistry,
+      ],
     },
     ProposalSummaryAssembler,
     ProposalSummaryBatchService,
