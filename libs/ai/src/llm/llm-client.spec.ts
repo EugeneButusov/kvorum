@@ -15,9 +15,9 @@ function req(
   return {
     feature: 'proposal_summarizer',
     promptVersion: 'v1.0',
-    provider: 'anthropic',
-    model: 'claude-haiku-4-5',
-    generationProfileId: 'anthropic-fast-v1',
+    provider: 'fake',
+    model: 'fake-model',
+    generationProfileId: 'fake-v1',
     schema,
     messages: [{ role: 'user', content: 'summarize' }],
     mode: 'sync',
@@ -40,9 +40,9 @@ describe('DefaultLlmClient.complete', () => {
     expect(result.output).toEqual({ tldr: 'raises reserve factor' });
     expect(result.provenance).toEqual({
       feature: 'proposal_summarizer',
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5',
-      generationProfileId: 'anthropic-fast-v1',
+      provider: 'fake',
+      model: 'fake-model',
+      generationProfileId: 'fake-v1',
       promptVersion: 'v1.0',
       inputHash: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
       generatedAt: '2026-07-08T00:00:00.000Z',
@@ -87,7 +87,7 @@ describe('DefaultLlmClient.complete', () => {
         },
       });
     const provider = {
-      id: 'anthropic',
+      id: 'fake',
       completeStructured,
       submitBatch: vi.fn(),
       fetchBatch: vi.fn(),

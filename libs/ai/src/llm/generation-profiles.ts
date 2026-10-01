@@ -6,7 +6,7 @@ import {
 } from './ports.js';
 import type { RenderedPrompt } from '../prompts/types.js';
 
-export type ActiveCompletionProvider = Exclude<CompletionProviderId, 'internal'>;
+export type ActiveCompletionProvider = Exclude<CompletionProviderId, 'internal' | 'fake'>;
 
 export interface GenerationProfile {
   id: string;

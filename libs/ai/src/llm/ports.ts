@@ -9,7 +9,7 @@ export interface LlmMessage {
 
 export type CompletionMode = 'sync' | 'batch';
 
-export type CompletionProviderId = 'anthropic' | 'openai' | 'internal';
+export type CompletionProviderId = 'anthropic' | 'openai' | 'internal' | 'fake';
 export enum ModelTier {
   Fast = 'fast',
   Strong = 'strong',
@@ -93,7 +93,7 @@ export interface BatchItem {
 
 export interface BatchHandle {
   id: string;
-  provider: string;
+  provider: CompletionProviderId;
   /** Facade-created child handles when a provider requires one model per remote batch. */
   children?: BatchHandle[];
   /** Pricing metadata needed to fetch a provider batch after serialization/restart. */
@@ -112,7 +112,7 @@ export interface ProviderBatchResult {
 }
 
 export interface LlmProvider {
-  readonly id: string;
+  readonly id: CompletionProviderId;
   completeStructured(req: ProviderCompletionRequest): Promise<ProviderCompletionResult>;
   submitBatch(items: BatchItem[]): Promise<BatchHandle>;
   fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult>;
