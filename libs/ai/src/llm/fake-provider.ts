@@ -38,10 +38,7 @@ export class FakeLlmProvider implements LlmProvider {
     return Promise.resolve({ id: `fake-batch-${items.length}`, provider: this.id });
   }
 
-  fetchBatch(
-    _handle: BatchHandle,
-    _modelByCustomId: Record<string, string>,
-  ): Promise<ProviderBatchResult> {
+  fetchBatch(_handle: BatchHandle): Promise<ProviderBatchResult> {
     return Promise.resolve({ status: 'ended', results: [] });
   }
 }

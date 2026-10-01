@@ -96,7 +96,7 @@ export interface BatchHandle {
   provider: CompletionProviderId;
   /** Facade-created child handles when a provider requires one model per remote batch. */
   children?: BatchHandle[];
-  /** Pricing metadata needed to fetch a provider batch after serialization/restart. */
+  /** Provider-owned metadata needed to fetch/price a batch after serialization and restart. */
   itemModels?: Record<string, string>;
 }
 
@@ -115,12 +115,7 @@ export interface LlmProvider {
   readonly id: CompletionProviderId;
   completeStructured(req: ProviderCompletionRequest): Promise<ProviderCompletionResult>;
   submitBatch(items: BatchItem[]): Promise<BatchHandle>;
-  // `modelByCustomId` is supplied by the caller (from durable state) so pricing survives a restart
-  // even when a provider's batch-result stream does not echo the original request model.
-  fetchBatch(
-    handle: BatchHandle,
-    modelByCustomId: Record<string, string>,
-  ): Promise<ProviderBatchResult>;
+  fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult>;
 }
 
 export interface EmbeddingProvider {
@@ -155,8 +150,5 @@ export interface LLMClient {
   complete<T>(req: CompletionRequest<T>): Promise<CompletionResult<T>>;
   embed(req: EmbeddingRequest): Promise<EmbeddingResult>;
   submitBatch(items: FacadeBatchItem<unknown>[]): Promise<BatchHandle>;
-  fetchBatch(
-    handle: BatchHandle,
-    modelByCustomId: Record<string, string>,
-  ): Promise<ProviderBatchResult>;
+  fetchBatch(handle: BatchHandle): Promise<ProviderBatchResult>;
 }
