@@ -24,7 +24,10 @@ export * from './schemas/mismatch-input.js';
 export * from './schemas/forum-synthesis.js';
 export * from './schemas/forum-synthesis-input.js';
 export * from './schemas/proposal-embedding-input.js';
-export { batchSchemaFor } from './schemas/batch-schema-registry.js';
+export {
+  BatchSchemaRegistry,
+  type BatchSchemaRegistration,
+} from './schemas/batch-schema-registry.js';
 export * from './forum-model-routing.js';
 export * from './forum-language.js';
 export * from './persistence/schema.js';

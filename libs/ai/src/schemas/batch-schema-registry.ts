@@ -1,22 +1,47 @@
 import type { ZodType } from 'zod';
-import { ForumSynthesisSchema } from './forum-synthesis.js';
-import { ProposalSummarySchema } from './proposal-summary.js';
+
+export interface BatchSchemaRegistration {
+  feature: string;
+  promptVersion: string;
+  schema: ZodType<unknown>;
+}
+
+function key(feature: string, promptVersion: string): string {
+  return `${feature}\u0000${promptVersion}`;
+}
 
 /**
- * The output schema for each provider **batch** feature, keyed by feature name. Used to validate a
- * batch result when persisting it — including after a restart, where the original `CompletionRequest`
- * (and its live Zod `schema`) is gone and only the durable `ai_batch` descriptor survives. Only the
- * two batch features appear here; sync features (mismatch/embedding) never go through this path.
+ * Runtime registry for durable provider-batch output schemas. The registry is configured at the
+ * application composition root, so a new batch feature contributes its own versioned schema without
+ * changing this library. Versioning is part of the key because an old provider batch may finish after
+ * a deployment has introduced a newer prompt/output schema.
  */
-const BATCH_SCHEMAS: Record<string, ZodType<unknown>> = {
-  proposal_summarizer: ProposalSummarySchema,
-  forum_synthesizer: ForumSynthesisSchema,
-};
+export class BatchSchemaRegistry {
+  private readonly schemas = new Map<string, ZodType<unknown>>();
 
-export function batchSchemaFor(feature: string): ZodType<unknown> {
-  const schema = BATCH_SCHEMAS[feature];
-  if (schema === undefined) {
-    throw new Error(`No batch output schema registered for feature "${feature}"`);
+  constructor(registrations: readonly BatchSchemaRegistration[] = []) {
+    for (const registration of registrations) this.register(registration);
   }
-  return schema;
+
+  register(registration: BatchSchemaRegistration): void {
+    const registrationKey = key(registration.feature, registration.promptVersion);
+    if (this.schemas.has(registrationKey)) {
+      throw new Error(
+        `Duplicate batch output schema for feature "${registration.feature}" ` +
+          `and prompt version "${registration.promptVersion}"`,
+      );
+    }
+    this.schemas.set(registrationKey, registration.schema);
+  }
+
+  get(feature: string, promptVersion: string): ZodType<unknown> {
+    const schema = this.schemas.get(key(feature, promptVersion));
+    if (schema === undefined) {
+      throw new Error(
+        `No batch output schema registered for feature "${feature}" ` +
+          `and prompt version "${promptVersion}"`,
+      );
+    }
+    return schema;
+  }
 }

@@ -3,16 +3,19 @@ import { ScheduleModule } from '@nestjs/schedule';
 import {
   AiBackfillCursorRepository,
   AiBatchRepository,
+  BatchSchemaRegistry,
   AiCompletionCache,
   AiCostLogRepository,
   AiDlqRepository,
   AiJobDlqRepository,
   AiOutputRepository,
+  FORUM_SYNTHESIZER_TEMPLATE,
   ProposalEmbeddingScanRepository,
   ProposalEmbeddingWriter,
   ProposalEmbeddingRepository,
   ProposalMismatchScanRepository,
   ProposalSummaryScanRepository,
+  PROPOSAL_SUMMARY_TEMPLATE,
   SystemClock,
   type LLMClient,
 } from '@libs/ai';
@@ -71,6 +74,22 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
     { provide: AiDlqRepository, useFactory: () => new AiDlqRepository(pgDb) },
     { provide: AiBatchRepository, useFactory: () => new AiBatchRepository(pgDb) },
     { provide: AiBackfillCursorRepository, useFactory: () => new AiBackfillCursorRepository(pgDb) },
+    {
+      provide: BatchSchemaRegistry,
+      useFactory: () =>
+        new BatchSchemaRegistry([
+          {
+            feature: PROPOSAL_SUMMARY_TEMPLATE.feature ?? PROPOSAL_SUMMARY_TEMPLATE.name,
+            promptVersion: PROPOSAL_SUMMARY_TEMPLATE.version,
+            schema: PROPOSAL_SUMMARY_TEMPLATE.schema,
+          },
+          {
+            feature: FORUM_SYNTHESIZER_TEMPLATE.feature ?? FORUM_SYNTHESIZER_TEMPLATE.name,
+            promptVersion: FORUM_SYNTHESIZER_TEMPLATE.version,
+            schema: FORUM_SYNTHESIZER_TEMPLATE.schema,
+          },
+        ]),
+    },
     { provide: ForumThreadReadRepository, useFactory: () => new ForumThreadReadRepository(pgDb) },
     {
       provide: ProposalSummaryScanRepository,
@@ -111,12 +130,14 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
         outputs: AiOutputRepository,
         costs: AiCostLogRepository,
         dlq: AiDlqRepository,
+        schemas: BatchSchemaRegistry,
       ) =>
         new DurableBatch(pgDb, llm, batches, cursors, {
           outputs,
           costs,
           dlq,
           clock: new SystemClock(),
+          schemas,
         }),
       inject: [
         LLM_CLIENT,
@@ -125,6 +146,7 @@ import { AiTriggerScanner } from '../trigger/ai-trigger-scanner';
         AiOutputRepository,
         AiCostLogRepository,
         AiDlqRepository,
+        BatchSchemaRegistry,
       ],
     },
     ProposalSummaryAssembler,
