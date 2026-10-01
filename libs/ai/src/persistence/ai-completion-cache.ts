@@ -37,7 +37,12 @@ export class AiCompletionCache {
 
   async complete<T>(req: CompletionRequest<T>, ctx: CostContext): Promise<CachedCompletion<T>> {
     const inputHash = computeInputHash(req.inputContent);
-    const hit = await this.outputs.find(req.feature, req.promptVersion, inputHash);
+    const hit = await this.outputs.find(
+      req.feature,
+      req.promptVersion,
+      inputHash,
+      req.generationProfileId,
+    );
     if (hit !== undefined) {
       // Stored output was schema-validated at write time under this (feature, prompt_version).
       return { output: hit.output as T, cached: true };
@@ -88,7 +93,9 @@ export class AiCompletionCache {
       {
         timestamp: now,
         feature_name: req.feature,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         input_tokens: result.cost.inputTokens,
         output_tokens: result.cost.outputTokens,
         cache_creation_input_tokens: result.cost.cacheCreationInputTokens,
@@ -104,7 +111,9 @@ export class AiCompletionCache {
         feature_name: req.feature,
         prompt_version: req.promptVersion,
         input_hash: inputHash,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         output: result.output,
         cost_usd: costUsd,
         generated_at: now,

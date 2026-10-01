@@ -50,7 +50,9 @@ export class ProposalEmbeddingWriter {
       {
         timestamp: now,
         feature_name: 'embedding',
+        provider: 'openai',
         model: write.model,
+        generation_profile_id: `openai-embedding-${write.model}-v1`,
         input_tokens: write.inputTokens,
         output_tokens: 0,
         cache_creation_input_tokens: 0,

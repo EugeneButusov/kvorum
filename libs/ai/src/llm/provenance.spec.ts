@@ -6,7 +6,9 @@ import { buildProvenance, computeInputHash, SystemClock, type Clock } from './pr
 const baseReq: CompletionRequest<unknown> = {
   feature: 'proposal_summarizer',
   promptVersion: 'v1.0',
+  provider: 'anthropic',
   model: 'claude-haiku-4-5',
+  generationProfileId: 'anthropic-fast-v1',
   schema: z.object({}),
   messages: [{ role: 'user', content: 'hi' }],
   mode: 'sync',
@@ -33,7 +35,9 @@ describe('buildProvenance', () => {
     const prov = buildProvenance(baseReq, hash, fixed);
     expect(prov).toEqual({
       feature: 'proposal_summarizer',
+      provider: 'anthropic',
       model: 'claude-haiku-4-5',
+      generationProfileId: 'anthropic-fast-v1',
       promptVersion: 'v1.0',
       inputHash: hash,
       generatedAt: '2026-07-08T00:00:00.000Z',

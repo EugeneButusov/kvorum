@@ -5,7 +5,9 @@ export interface AiOutputTable {
   feature_name: string;
   prompt_version: string;
   input_hash: string;
+  provider: string;
   model: string;
+  generation_profile_id: string;
   output: unknown; // jsonb
   cost_usd: string; // numeric(12,6) → JS string
   generated_at: Date;
@@ -18,7 +20,9 @@ export interface AiCostLogTable {
   id: Generated<string>;
   timestamp: Date;
   feature_name: string;
+  provider: string;
   model: string;
+  generation_profile_id: string;
   input_tokens: number;
   output_tokens: number;
   cache_creation_input_tokens: number;
@@ -35,7 +39,9 @@ export interface AiDlqTable {
   feature_name: string;
   prompt_version: string;
   input_hash: string;
+  provider: string;
   model: string;
+  generation_profile_id: string;
   raw_output: unknown | null; // jsonb, nullable
   zod_error: unknown; // jsonb
   attempts: number;

@@ -31,18 +31,24 @@ async function seedSynthesisFor(
 ): Promise<string> {
   const inputHash = forumSynthesisInputHash(rawContent);
   const model = opts.skip ? 'none' : 'claude-haiku-4-5';
+  const provider = opts.skip ? 'internal' : 'anthropic';
+  const generationProfileId = opts.skip ? 'internal-forum-skip-v1' : 'anthropic-fast-v1';
   await pgDb
     .insertInto('ai_output')
     .values({
       feature_name: 'forum_synthesizer',
       prompt_version: 'v1.0',
       input_hash: inputHash,
+      provider,
+      generation_profile_id: generationProfileId,
       model,
       output: opts.skip ? { _meta: { skipped_reason: 'non_english' } } : SYNTHESIS_OUTPUT,
       cost_usd: opts.skip ? '0.000000' : '0.005000',
       generated_at: new Date('2026-05-15T12:00:00.000Z'),
       source_provenance: {
         feature: 'forum_synthesizer',
+        provider,
+        generationProfileId,
         model,
         promptVersion: 'v1.0',
         inputHash,
@@ -73,6 +79,8 @@ describeHttpIf('proposal forum-synthesis e2e', () => {
       expect(res.body.data.notable_participants[0].handle).toBe('alice');
       expect(res.body._meta).toEqual({
         ai_generated: true,
+        provider: 'anthropic',
+        generation_profile_id: 'anthropic-fast-v1',
         model: 'claude-haiku-4-5',
         prompt_version: 'v1.0',
         input_hash: forumSynthesisInputHash(RAW),

@@ -48,7 +48,7 @@ describe('defineTemplates + getTemplate', () => {
       { raw: fixtureV10, schema: FixtureSchema, schemaName: 'FixtureSchema' },
     ]);
     const r = render(getTemplate(reg, 'fixture_greeting'), { name: 'Ada', place: 'Kvorum' });
-    expect(r.messages[0]?.content).toBe('Hello Ada, welcome to Kvorum.');
+    expect(r.messages[0]?.content.trim()).toBe('Hello Ada, welcome to Kvorum.');
     expect(r.feature).toBe('fixture_greeting');
   });
 

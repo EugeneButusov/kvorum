@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FORUM_SYNTHESIZER_TEMPLATE } from './forum-synthesizer-template.js';
 import { render } from './renderer.js';
+import { ModelTier } from '../llm/ports.js';
 
 describe('FORUM_SYNTHESIZER_TEMPLATE', () => {
   it('loads under the forum_synthesizer feature with a priced default model', () => {
@@ -8,7 +9,7 @@ describe('FORUM_SYNTHESIZER_TEMPLATE', () => {
     expect(FORUM_SYNTHESIZER_TEMPLATE.feature ?? FORUM_SYNTHESIZER_TEMPLATE.name).toBe(
       'forum_synthesizer',
     );
-    expect(FORUM_SYNTHESIZER_TEMPLATE.model).toBe('claude-haiku-4-5');
+    expect(FORUM_SYNTHESIZER_TEMPLATE.modelTier).toBe(ModelTier.Fast);
   });
 
   it('renders the thread content, proposal title and DAO into the prompt', () => {

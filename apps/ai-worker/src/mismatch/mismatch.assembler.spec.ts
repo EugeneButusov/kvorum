@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ModelTier } from '@libs/ai';
 import type { Proposal, ProposalAction, ProposalReadRepository } from '@libs/db';
 import { MismatchAssembler } from './mismatch.assembler';
 
@@ -55,7 +56,7 @@ describe('MismatchAssembler', () => {
     const assembler = new MismatchAssembler(fakeReads([action(0)]));
     const { rendered, ctx } = await assembler.assemble(proposal());
     expect(rendered.feature).toBe('mismatch_detector');
-    expect(rendered.model).toBe('claude-sonnet-5');
+    expect(rendered.modelTier).toBe(ModelTier.Strong);
     expect(rendered.messages[0]?.content).toContain('Raise the USDC reserve factor to 5%.');
     expect(rendered.messages[0]?.content).toContain('setReserveFactor');
     expect(ctx).toEqual({ daoId: 'dao-1', entityReference: 'proposal:prop-1' });

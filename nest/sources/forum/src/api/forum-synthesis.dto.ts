@@ -61,8 +61,14 @@ export class ForumSynthesisMetaDto {
   })
   declare ai_generated: boolean;
 
-  @ApiPropertyOptional({ description: 'Model that produced the synthesis (Haiku or Sonnet).' })
+  @ApiPropertyOptional({ description: 'Exact model that produced the synthesis.' })
   declare model?: string;
+
+  @ApiPropertyOptional({ enum: ['anthropic', 'openai', 'internal'] })
+  declare provider?: string;
+
+  @ApiPropertyOptional({ description: 'Versioned provider/model profile used for cache identity.' })
+  declare generation_profile_id?: string;
 
   @ApiPropertyOptional()
   declare prompt_version?: string;

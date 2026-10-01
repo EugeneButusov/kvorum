@@ -19,7 +19,7 @@ export function defineTemplates(defs: TemplateDef[]): TemplateRegistry {
     registry.set(frontmatter.name, {
       name: frontmatter.name,
       version: frontmatter.version,
-      model: frontmatter.model,
+      modelTier: frontmatter.modelTier,
       schema: def.schema,
       description: frontmatter.description,
       body,

@@ -23,7 +23,9 @@ function costRow(overrides: Partial<NewAiCostLog> = {}): NewAiCostLog {
   return {
     timestamp: new Date('2026-07-09T12:00:00Z'),
     feature_name: 'test_mismatch',
+    provider: 'anthropic',
     model: 'claude-sonnet-5',
+    generation_profile_id: 'anthropic-strong-v1',
     input_tokens: 1000,
     output_tokens: 200,
     cost_usd: '0.010000',

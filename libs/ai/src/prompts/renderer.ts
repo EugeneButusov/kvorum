@@ -19,7 +19,7 @@ function interpolate(body: string, vars: Record<string, string>): string {
 }
 
 // `inputContent` becomes the LLMClient input_hash, one component of the #432 cache key
-// (feature, prompt_version, input_hash). `vars` MUST contain only the substantive content of
+// (feature, prompt_version, input_hash, generation_profile_id). `vars` MUST contain only the substantive content of
 // the request — never volatile fields (timestamps, request IDs, locale), or every call will
 // cache-miss despite identical content. See the design's cache-key contract.
 export function canonicalInputContent(vars: Record<string, string>): string {
@@ -43,7 +43,7 @@ export function render<T>(
     // summarizer) declare a shared `feature` while keeping distinct names. Absent → feature = name.
     feature: template.feature ?? template.name,
     promptVersion: template.version,
-    model: template.model,
+    modelTier: template.modelTier,
     schema: template.schema,
     messages: [{ role: 'user', content }],
     inputContent: canonicalInputContent(vars),

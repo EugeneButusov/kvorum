@@ -9,15 +9,19 @@ export class AiOutputRepository {
     featureName: string,
     promptVersion: string,
     inputHash: string,
+    generationProfileId?: string,
     executor: Kysely<PgDatabase> = this.db,
   ): Promise<AiOutput | undefined> {
-    return executor
+    let query = executor
       .selectFrom('ai_output')
       .selectAll()
       .where('feature_name', '=', featureName)
       .where('prompt_version', '=', promptVersion)
-      .where('input_hash', '=', inputHash)
-      .executeTakeFirst();
+      .where('input_hash', '=', inputHash);
+    if (generationProfileId !== undefined) {
+      query = query.where('generation_profile_id', '=', generationProfileId);
+    }
+    return query.orderBy('generated_at', 'desc').executeTakeFirst();
   }
 
   /**
@@ -29,7 +33,11 @@ export class AiOutputRepository {
     const inserted = await executor
       .insertInto('ai_output')
       .values(row)
-      .onConflict((oc) => oc.columns(['feature_name', 'prompt_version', 'input_hash']).doNothing())
+      .onConflict((oc) =>
+        oc
+          .columns(['feature_name', 'prompt_version', 'input_hash', 'generation_profile_id'])
+          .doNothing(),
+      )
       .returningAll()
       .executeTakeFirst();
     if (inserted !== undefined) {
@@ -39,6 +47,7 @@ export class AiOutputRepository {
       row.feature_name,
       row.prompt_version,
       row.input_hash,
+      row.generation_profile_id,
       executor,
     );
     if (existing === undefined) {
@@ -56,13 +65,17 @@ export class AiOutputRepository {
     featureName: string,
     promptVersion: string,
     inputHash: string,
+    generationProfileId?: string,
     executor: Kysely<PgDatabase> = this.db,
   ): Promise<void> {
-    await executor
+    let query = executor
       .deleteFrom('ai_output')
       .where('feature_name', '=', featureName)
       .where('prompt_version', '=', promptVersion)
-      .where('input_hash', '=', inputHash)
-      .execute();
+      .where('input_hash', '=', inputHash);
+    if (generationProfileId !== undefined) {
+      query = query.where('generation_profile_id', '=', generationProfileId);
+    }
+    await query.execute();
   }
 }

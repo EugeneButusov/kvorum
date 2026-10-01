@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
-  FORUM_MODEL_HAIKU,
-  FORUM_MODEL_SONNET,
   LlmSchemaViolationError,
+  ModelTier,
   type CompletionResult,
   type RenderedPrompt,
 } from '@libs/ai';
@@ -13,7 +12,7 @@ import { aiMetrics } from '../metrics/ai-metrics';
 
 const SCHEMA = z.object({ sentiment: z.string() });
 
-// A short, calm thread routes to Haiku; a polarized one routes to Sonnet (see forum-model-routing).
+// A short, calm thread routes to fast; a polarized one routes to strong (see forum-model-routing).
 const CALM = 'Everyone supports this. It is a clear benefit and we all agree.';
 const CONTENTIOUS =
   'I support this and agree it brings a clear benefit and advantage. However others oppose it, ' +
@@ -23,7 +22,7 @@ function rendered(): RenderedPrompt<{ sentiment: string }> {
   return {
     feature: 'forum_synthesizer',
     promptVersion: 'v1.0',
-    model: FORUM_MODEL_HAIKU,
+    modelTier: ModelTier.Fast,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'synthesize' }],
     inputContent: 'ignored — handler overrides with raw_content',
@@ -42,7 +41,9 @@ function completion(): CompletionResult<{ sentiment: string }> {
     },
     provenance: {
       feature: 'forum_synthesizer',
-      model: FORUM_MODEL_HAIKU,
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5',
+      generationProfileId: 'anthropic-fast-v1',
       promptVersion: 'v1.0',
       inputHash: 'sha256:x',
       generatedAt: '2026-06-01T12:00:00Z',
@@ -55,7 +56,16 @@ function violation(): LlmSchemaViolationError {
     feature: 'forum_synthesizer',
     promptVersion: 'v1.0',
     inputHash: 'sha256:x',
-    model: FORUM_MODEL_HAIKU,
+    provider: 'anthropic',
+    model: 'claude-haiku-4-5',
+    generationProfileId: 'anthropic-fast-v1',
+    cost: {
+      totalUsd: 0.01,
+      inputTokens: 30000,
+      outputTokens: 2000,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     rawOutput: { bad: 1 },
     zodError: SCHEMA.safeParse({}).error!,
     attempts: 2,
@@ -88,6 +98,7 @@ function deps(over: {
   const complete = vi.fn(over.complete ?? (async () => completion()));
   const persist = vi.fn(async () => {});
   const dlqInsert = vi.fn(async () => {});
+  const costsInsert = vi.fn(async () => {});
   const deleteByKey = vi.fn(async () => {});
   const register = vi.fn();
   const threadResult = 'thread' in over ? over.thread : thread();
@@ -107,11 +118,12 @@ function deps(over: {
     } as never,
     { persist } as never,
     { insert: dlqInsert } as never,
+    { insert: costsInsert } as never,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
     { register } as never,
   );
-  return { handler, complete, persist, dlqInsert, deleteByKey, register };
+  return { handler, complete, persist, dlqInsert, costsInsert, deleteByKey, register };
 }
 
 const JOB = { feature: 'forum_synthesizer', entityRef: 'forum_thread:thread-1' } as never;
@@ -169,14 +181,14 @@ describe('ForumSynthesisHandler', () => {
     expect(tokens).toHaveBeenCalledWith(1000, { feature: 'forum_synthesizer', kind: 'output' });
   });
 
-  it('routes a calm thread to Haiku and a contentious thread to Sonnet', async () => {
+  it('routes a calm thread to fast and a contentious thread to strong', async () => {
     const calm = deps({});
     await calm.handler.handle(JOB);
-    expect(calm.complete.mock.calls[0]![0]).toMatchObject({ model: FORUM_MODEL_HAIKU });
+    expect(calm.complete.mock.calls[0]![0]).toMatchObject({ model: 'claude-haiku-4-5' });
 
     const hot = deps({ thread: thread({ rawContent: CONTENTIOUS }) });
     await hot.handler.handle(JOB);
-    expect(hot.complete.mock.calls[0]![0]).toMatchObject({ model: FORUM_MODEL_SONNET });
+    expect(hot.complete.mock.calls[0]![0]).toMatchObject({ model: 'claude-sonnet-5' });
   });
 
   it('stamps the routing reason on the request so it lands in provenance (SPEC §5.7)', async () => {

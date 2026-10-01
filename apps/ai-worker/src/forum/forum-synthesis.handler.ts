@@ -1,9 +1,11 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   AiCompletionCache,
+  AiCostLogRepository,
   AiDlqRepository,
   AiOutputRepository,
   chooseForumModel,
+  completionRequestFromRendered,
   computeInputHash,
   forumSynthesisInputContent,
   isLikelyEnglish,
@@ -17,7 +19,11 @@ import {
 } from '@libs/ai';
 import { readPositiveInt } from '@libs/utils';
 import { ForumThreadReadRepository, type ForumThreadForSynthesis } from '@sources/forum';
-import { buildForumSkip, ForumSynthesisAssembler } from './forum-synthesis.assembler';
+import {
+  buildForumSkip,
+  FORUM_SKIP_PROFILE,
+  ForumSynthesisAssembler,
+} from './forum-synthesis.assembler';
 import { AiBudgetState } from '../budget/ai-budget-state';
 import type { AiFeatureHandler } from '../consumer/ai-feature-handler';
 import { AiFeatureHandlerRegistry } from '../consumer/ai-feature-handler.registry';
@@ -65,6 +71,7 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     private readonly outputs: AiOutputRepository,
     private readonly cache: AiCompletionCache,
     private readonly dlq: AiDlqRepository,
+    private readonly costs: AiCostLogRepository,
     private readonly config: AiTriggerConfig,
     private readonly budget: AiBudgetState,
     private readonly registry: AiFeatureHandlerRegistry,
@@ -93,12 +100,31 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     const { rendered, ctx, rawContent } = this.assembler.assemble(thread);
     const inputContent = forumSynthesisInputContent(rawContent);
     const inputHash = computeInputHash(inputContent);
+    const english = isLikelyEnglish(rawContent);
+    const route = chooseForumModel(rawContent);
+    const req: CompletionRequest<ForumSynthesis> = completionRequestFromRendered(rendered, {
+      mode: 'sync',
+      inputContent,
+      modelTier: route.modelTier,
+      routingReason: route.reason,
+    });
+    const cacheProfileId = english ? req.generationProfileId : FORUM_SKIP_PROFILE;
     if (force) {
       // Operator-forced refresh: clear the immutable-append cache (incl. any skip marker) so the
       // re-run overwrites it rather than no-opping on the unique-key conflict.
-      await this.outputs.deleteByKey(rendered.feature, rendered.promptVersion, inputHash);
+      await this.outputs.deleteByKey(
+        rendered.feature,
+        rendered.promptVersion,
+        inputHash,
+        cacheProfileId,
+      );
     } else {
-      const existing = await this.outputs.find(rendered.feature, rendered.promptVersion, inputHash);
+      const existing = await this.outputs.find(
+        rendered.feature,
+        rendered.promptVersion,
+        inputHash,
+        cacheProfileId,
+      );
       if (existing !== undefined) {
         aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
         return;
@@ -108,23 +134,10 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     // SPEC §5.7 / KNOWN-016: v1 synthesizes English threads only. A non-English thread is skipped —
     // persist a sentinel `ai_output` row (no LLM call, zero cost) keyed on the same
     // `sha256(raw_content)`, so the API surfaces the reason and the scan won't re-spend on it.
-    if (!isLikelyEnglish(rawContent)) {
+    if (!english) {
       await this.persistSkip(rendered, ctx, inputContent, inputHash);
       return;
     }
-
-    const route = chooseForumModel(rawContent);
-    const req: CompletionRequest<ForumSynthesis> = {
-      feature: rendered.feature,
-      promptVersion: rendered.promptVersion,
-      model: route.model,
-      schema: rendered.schema,
-      messages: rendered.messages,
-      mode: 'sync',
-      inputContent,
-      // SPEC §5.7: persist WHY Sonnet vs Haiku was chosen (long/contentious/short) into provenance.
-      routingReason: route.reason,
-    };
 
     const start = Date.now();
     let result: CompletionResult<ForumSynthesis>;
@@ -144,7 +157,7 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
     aiMetrics.tokensTotal.add(result.cost.outputTokens, { feature: FEATURE, kind: 'output' });
     this.logger.log('ai_forum_synthesis_completed', {
       entityRef: ctx.entityReference,
-      model: route.model,
+      model: req.model,
       routing: route.reason,
     });
   }
@@ -174,12 +187,28 @@ export class ForumSynthesisHandler implements AiFeatureHandler, OnModuleInit {
       feature_name: err.feature,
       prompt_version: err.promptVersion,
       input_hash: err.inputHash,
+      provider: err.provider,
       model: err.model,
+      generation_profile_id: err.generationProfileId,
       raw_output: err.rawOutput as never,
       zod_error: err.zodError as never,
       attempts: err.attempts,
       first_seen_at: now,
       last_seen_at: now,
+    });
+    await this.costs.insert({
+      timestamp: now,
+      feature_name: err.feature,
+      provider: err.provider,
+      model: err.model,
+      generation_profile_id: err.generationProfileId,
+      input_tokens: err.cost.inputTokens,
+      output_tokens: err.cost.outputTokens,
+      cache_creation_input_tokens: err.cost.cacheCreationInputTokens,
+      cache_read_input_tokens: err.cost.cacheReadInputTokens,
+      cost_usd: String(err.cost.totalUsd),
+      dao_id: ctx.daoId,
+      entity_reference: ctx.entityReference,
     });
     this.logger.warn('ai_forum_synthesis_schema_violation', { entityRef: ctx.entityReference });
   }

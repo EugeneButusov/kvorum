@@ -46,12 +46,16 @@ async function seedMismatchFor(
       feature_name: 'mismatch_detector',
       prompt_version: 'v1.0',
       input_hash: inputHash,
+      provider: 'anthropic',
+      generation_profile_id: 'anthropic-strong-v1',
       model: 'claude-sonnet-5',
       output,
       cost_usd: '0.010000',
       generated_at: new Date('2026-04-12T08:30:00.000Z'),
       source_provenance: {
         feature: 'mismatch_detector',
+        provider: 'anthropic',
+        generationProfileId: 'anthropic-strong-v1',
         model: 'claude-sonnet-5',
         promptVersion: 'v1.0',
         inputHash,
@@ -80,6 +84,8 @@ describeHttpIf('proposal ai_mismatch_flag e2e', () => {
         summary: 'Calldata sets the reserve factor to 25%, but the description says 15%.',
         _meta: {
           ai_generated: true,
+          provider: 'anthropic',
+          generation_profile_id: 'anthropic-strong-v1',
           model: 'claude-sonnet-5',
           prompt_version: 'v1.0',
           input_hash: inputHash,
@@ -156,6 +162,8 @@ describeHttpIf('proposal ai_mismatch_flag e2e', () => {
       expect(res.body.data.reasoning).toBe('The calldata value does not match the prose.');
       expect(res.body.data._meta).toEqual({
         ai_generated: true,
+        provider: 'anthropic',
+        generation_profile_id: 'anthropic-strong-v1',
         model: 'claude-sonnet-5',
         prompt_version: 'v1.0',
         input_hash: inputHash,

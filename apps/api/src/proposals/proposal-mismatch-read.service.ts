@@ -3,6 +3,7 @@ import {
   AiOutputRepository,
   MISMATCH_DETECTOR_TEMPLATE,
   mismatchInputHash,
+  resolveGenerationProfile,
   type AiOutput,
 } from '@libs/ai';
 import type { ProposalAction } from '@libs/db';
@@ -27,7 +28,8 @@ export class ProposalMismatchReadService {
 
   async findForProposal(description: string, actions: ProposalAction[]): Promise<AiOutput | null> {
     const inputHash = mismatchInputHash(description, actions);
-    const row = await this.outputs.find(FEATURE, VERSION, inputHash);
-    return row ?? null;
+    const profile = resolveGenerationProfile(MISMATCH_DETECTOR_TEMPLATE.modelTier);
+    const row = await this.outputs.find(FEATURE, VERSION, inputHash, profile.id);
+    return row ?? (await this.outputs.find(FEATURE, VERSION, inputHash)) ?? null;
   }
 }

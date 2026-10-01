@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { LlmSchemaViolationError, type CompletionResult, type RenderedPrompt } from '@libs/ai';
+import {
+  LlmSchemaViolationError,
+  ModelTier,
+  type CompletionResult,
+  type RenderedPrompt,
+} from '@libs/ai';
 import { MismatchHandler } from './mismatch.handler';
 import { aiMetrics } from '../metrics/ai-metrics';
 
@@ -10,7 +15,7 @@ function rendered(): RenderedPrompt<{ overall_assessment: string }> {
   return {
     feature: 'mismatch_detector',
     promptVersion: 'v1.0',
-    model: 'claude-sonnet-5',
+    modelTier: ModelTier.Strong,
     schema: SCHEMA,
     messages: [{ role: 'user', content: 'analyze' }],
     inputContent: JSON.stringify({ decoded_actions: '[]', description: 'body' }),
@@ -29,7 +34,9 @@ function completion(): CompletionResult<{ overall_assessment: string }> {
     },
     provenance: {
       feature: 'mismatch_detector',
+      provider: 'anthropic',
       model: 'claude-sonnet-5',
+      generationProfileId: 'anthropic-strong-v1',
       promptVersion: 'v1.0',
       inputHash: 'sha256:x',
       generatedAt: '2026-06-01T12:00:00Z',
@@ -42,7 +49,16 @@ function violation(): LlmSchemaViolationError {
     feature: 'mismatch_detector',
     promptVersion: 'v1.0',
     inputHash: 'sha256:x',
+    provider: 'anthropic',
     model: 'claude-sonnet-5',
+    generationProfileId: 'anthropic-strong-v1',
+    cost: {
+      totalUsd: 0.1,
+      inputTokens: 24000,
+      outputTokens: 3000,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+    },
     rawOutput: { bad: 1 },
     zodError: SCHEMA.safeParse({}).error!,
     attempts: 2,
@@ -59,6 +75,7 @@ function deps(over: {
   const complete = vi.fn(over.complete ?? (async () => completion()));
   const persist = vi.fn(async () => {});
   const dlqInsert = vi.fn(async () => {});
+  const costsInsert = vi.fn(async () => {});
   const register = vi.fn();
   const proposal =
     'proposal' in over ? over.proposal : { id: 'prop-1', dao_id: 'dao-1', binding: true };
@@ -74,11 +91,12 @@ function deps(over: {
     { find: async () => (over.existingOutput ? ({ id: 'o1' } as never) : undefined) } as never,
     { persist } as never,
     { insert: dlqInsert } as never,
+    { insert: costsInsert } as never,
     { isEnabled: () => over.enabled ?? true } as never,
     { isDisabled: () => over.disabled ?? false } as never,
     { register } as never,
   );
-  return { handler, complete, persist, dlqInsert, register };
+  return { handler, complete, persist, dlqInsert, costsInsert, register };
 }
 
 const JOB = { feature: 'mismatch_detector', entityRef: 'proposal:prop-1' } as never;

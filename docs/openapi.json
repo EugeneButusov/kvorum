@@ -3905,6 +3905,14 @@
           "model": {
             "type": "string"
           },
+          "provider": {
+            "type": "string",
+            "enum": ["anthropic", "openai", "internal"]
+          },
+          "generation_profile_id": {
+            "type": "string",
+            "description": "Versioned provider/model profile used for cache identity."
+          },
           "prompt_version": {
             "type": "string"
           },
@@ -3916,7 +3924,15 @@
             "type": "string"
           }
         },
-        "required": ["ai_generated", "model", "prompt_version", "input_hash", "generated_at"]
+        "required": [
+          "ai_generated",
+          "model",
+          "provider",
+          "generation_profile_id",
+          "prompt_version",
+          "input_hash",
+          "generated_at"
+        ]
       },
       "ProposalAiSummaryDto": {
         "type": "object",
@@ -3984,6 +4000,14 @@
           "model": {
             "type": "string"
           },
+          "provider": {
+            "type": "string",
+            "enum": ["anthropic", "openai", "internal"]
+          },
+          "generation_profile_id": {
+            "type": "string",
+            "description": "Versioned provider/model profile used for cache identity."
+          },
           "prompt_version": {
             "type": "string"
           },
@@ -3995,7 +4019,15 @@
             "type": "string"
           }
         },
-        "required": ["ai_generated", "model", "prompt_version", "input_hash", "generated_at"]
+        "required": [
+          "ai_generated",
+          "model",
+          "provider",
+          "generation_profile_id",
+          "prompt_version",
+          "input_hash",
+          "generated_at"
+        ]
       },
       "ProposalAiMismatchFlagDto": {
         "type": "object",
@@ -4475,7 +4507,15 @@
           },
           "model": {
             "type": "string",
-            "description": "Model that produced the synthesis (Haiku or Sonnet)."
+            "description": "Exact model that produced the synthesis."
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["anthropic", "openai", "internal"]
+          },
+          "generation_profile_id": {
+            "type": "string",
+            "description": "Versioned provider/model profile used for cache identity."
           },
           "prompt_version": {
             "type": "string"

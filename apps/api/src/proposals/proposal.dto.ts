@@ -133,6 +133,12 @@ export class ProposalAiSummaryMetaDto {
   @ApiProperty()
   declare model: string;
 
+  @ApiProperty({ enum: ['anthropic', 'openai', 'internal'] })
+  declare provider: string;
+
+  @ApiProperty({ description: 'Versioned provider/model profile used for cache identity.' })
+  declare generation_profile_id: string;
+
   @ApiProperty()
   declare prompt_version: string;
 
@@ -194,6 +200,12 @@ export class ProposalAiMismatchMetaDto {
 
   @ApiProperty()
   declare model: string;
+
+  @ApiProperty({ enum: ['anthropic', 'openai', 'internal'] })
+  declare provider: string;
+
+  @ApiProperty({ description: 'Versioned provider/model profile used for cache identity.' })
+  declare generation_profile_id: string;
 
   @ApiProperty()
   declare prompt_version: string;

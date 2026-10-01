@@ -6,6 +6,7 @@ import {
   AiDlqRepository,
   AiOutputRepository,
   buildProvenance,
+  completionRequestFromRendered,
   computeInputHash,
   ProposalSummaryScanRepository,
   SystemClock,
@@ -46,7 +47,7 @@ interface InFlightBatch {
 /**
  * Self-healing, in-process batch driver for proposal summaries (SPEC §5.5). On each tick: if idle,
  * scan summary-candidate proposals (binding + signaling) lacking a current summary, submit one
- * Anthropic batch; if a batch is in flight, poll it and, once ended, validate + persist each result
+ * provider batch; if a batch is in flight, poll it and, once ended, validate + persist each result
  * (or dead-letter it). Inert unless
  * the feature is enabled and its budget is not disabled. A restart drops in-flight state; the next
  * scan re-submits the un-summarized proposals (output is never wrong).
@@ -95,17 +96,16 @@ export class ProposalSummaryBatchService {
 
     for (const proposal of candidates) {
       const { rendered, ctx } = await this.assembler.assemble(proposal);
-      const req: CompletionRequest<ProposalSummary> = {
-        feature: rendered.feature,
-        promptVersion: rendered.promptVersion,
-        model: rendered.model,
-        schema: rendered.schema,
-        messages: rendered.messages,
+      const req: CompletionRequest<ProposalSummary> = completionRequestFromRendered(rendered, {
         mode: 'batch',
-        inputContent: rendered.inputContent,
-      };
+      });
       const inputHash = computeInputHash(req.inputContent);
-      const existing = await this.outputs.find(req.feature, req.promptVersion, inputHash);
+      const existing = await this.outputs.find(
+        req.feature,
+        req.promptVersion,
+        inputHash,
+        req.generationProfileId,
+      );
       if (existing !== undefined) {
         aiMetrics.cacheHitsTotal.add(1, { feature: FEATURE });
         continue;
@@ -159,7 +159,9 @@ export class ProposalSummaryBatchService {
         feature_name: req.feature,
         prompt_version: req.promptVersion,
         input_hash: inputHash,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         raw_output: parsed as never,
         zod_error: validated.error as never,
         attempts: 1,
@@ -169,7 +171,9 @@ export class ProposalSummaryBatchService {
       await this.costs.insert({
         timestamp: now,
         feature_name: req.feature,
+        provider: req.provider,
         model: req.model,
+        generation_profile_id: req.generationProfileId,
         input_tokens: cost.inputTokens,
         output_tokens: cost.outputTokens,
         cache_creation_input_tokens: cost.cacheCreationInputTokens,

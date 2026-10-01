@@ -1,7 +1,7 @@
 ---
 name: forum_synthesizer
 version: v1.0
-model: claude-haiku-4-5
+model_tier: fast
 schema: ForumSynthesisSchema
 description: Synthesize a Discourse thread linked to a governance proposal into structured arguments for/against, unresolved concerns, and notable participants.
 ---

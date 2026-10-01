@@ -1,7 +1,7 @@
 ---
 name: mismatch_detector
 version: v1.0
-model: claude-sonnet-5
+model_tier: strong
 schema: MismatchAnalysisSchema
 description: Detect where a binding proposal's prose description does not match its decoded on-chain actions.
 ---

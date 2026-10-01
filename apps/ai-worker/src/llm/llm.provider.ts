@@ -1,7 +1,9 @@
 import {
   createAnthropicProvider,
   createLlmClient,
+  createOpenAiProvider,
   createOpenAiEmbeddingProvider,
+  readActiveCompletionProvider,
   type LLMClient,
 } from '@libs/ai';
 
@@ -14,10 +16,16 @@ export const LLM_CLIENT = 'LLM_CLIENT';
  * loudly with an auth error rather than crashing boot.
  */
 export function createWorkerLlmClient(): LLMClient {
-  const anthropicKey = process.env['ANTHROPIC_API_KEY'] ?? 'unset-anthropic-key';
   const openaiKey = process.env['OPENAI_API_KEY'] ?? 'unset-openai-key';
+  const activeProvider = readActiveCompletionProvider();
+  const provider =
+    activeProvider === 'openai'
+      ? createOpenAiProvider({ apiKey: openaiKey })
+      : createAnthropicProvider({
+          apiKey: process.env['ANTHROPIC_API_KEY'] ?? 'unset-anthropic-key',
+        });
   return createLlmClient({
-    provider: createAnthropicProvider({ apiKey: anthropicKey }),
+    provider,
     embeddingProvider: createOpenAiEmbeddingProvider({ apiKey: openaiKey }),
   });
 }

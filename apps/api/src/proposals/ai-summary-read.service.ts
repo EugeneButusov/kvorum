@@ -3,6 +3,7 @@ import {
   AiOutputRepository,
   PROPOSAL_SUMMARY_TEMPLATE,
   proposalSummaryInputHash,
+  resolveGenerationProfile,
   type AiOutput,
 } from '@libs/ai';
 import type { ProposalAction } from '@libs/db';
@@ -24,7 +25,8 @@ export class AiSummaryReadService {
 
   async findForProposal(description: string, actions: ProposalAction[]): Promise<AiOutput | null> {
     const inputHash = proposalSummaryInputHash(description, actions);
-    const row = await this.outputs.find(FEATURE, VERSION, inputHash);
-    return row ?? null;
+    const profile = resolveGenerationProfile(PROPOSAL_SUMMARY_TEMPLATE.modelTier);
+    const row = await this.outputs.find(FEATURE, VERSION, inputHash, profile.id);
+    return row ?? (await this.outputs.find(FEATURE, VERSION, inputHash)) ?? null;
   }
 }

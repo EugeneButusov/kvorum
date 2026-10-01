@@ -4,13 +4,14 @@ import {
   PROPOSAL_SUMMARY_TEMPLATE,
 } from './proposal-summary-template.js';
 import { render } from './renderer.js';
+import { ModelTier } from '../llm/ports.js';
 import { ProposalSummarySchema } from '../schemas/proposal-summary.js';
 
 describe('PROPOSAL_SUMMARY_TEMPLATE', () => {
   it('has the pinned frontmatter and the summarizer schema', () => {
     expect(PROPOSAL_SUMMARY_TEMPLATE.name).toBe('proposal_summarizer');
     expect(PROPOSAL_SUMMARY_TEMPLATE.version).toBe('v1.0');
-    expect(PROPOSAL_SUMMARY_TEMPLATE.model).toBe('claude-haiku-4-5');
+    expect(PROPOSAL_SUMMARY_TEMPLATE.modelTier).toBe(ModelTier.Fast);
     expect(PROPOSAL_SUMMARY_TEMPLATE.schema).toBe(ProposalSummarySchema);
   });
 
@@ -35,7 +36,7 @@ describe('PROPOSAL_SUMMARY_SIGNALING_TEMPLATE', () => {
     expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.name).toBe('proposal_summarizer_signaling');
     expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.feature).toBe('proposal_summarizer');
     expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.version).toBe('v1.0');
-    expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.model).toBe('claude-haiku-4-5');
+    expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.modelTier).toBe(ModelTier.Fast);
     expect(PROPOSAL_SUMMARY_SIGNALING_TEMPLATE.schema).toBe(ProposalSummarySchema);
   });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { render } from './renderer.js';
 import { PromptRenderError, type PromptTemplate } from './types.js';
+import { ModelTier } from '../llm/ports.js';
 
 const schema = z.object({ answer: z.string() });
 
@@ -9,7 +10,7 @@ function template(overrides: Partial<PromptTemplate> = {}): PromptTemplate {
   return {
     name: 'fixture_greeting',
     version: 'v1.0',
-    model: 'claude-haiku-4-5',
+    modelTier: ModelTier.Fast,
     schema,
     description: 'fixture',
     body: 'Hello {{name}}, welcome to {{place}}.',
@@ -23,7 +24,7 @@ describe('render', () => {
     expect(r.messages).toEqual([{ role: 'user', content: 'Hello Ada, welcome to Kvorum.' }]);
     expect(r.feature).toBe('fixture_greeting');
     expect(r.promptVersion).toBe('v1.0');
-    expect(r.model).toBe('claude-haiku-4-5');
+    expect(r.modelTier).toBe(ModelTier.Fast);
     expect(r.schema).toBe(schema);
   });
 

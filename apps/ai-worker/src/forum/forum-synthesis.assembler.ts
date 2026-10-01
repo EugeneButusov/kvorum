@@ -19,6 +19,7 @@ export interface AssembledForumInput {
 
 // Recorded as the `model` on the sentinel skip row — no model actually ran (the column is NOT NULL).
 export const FORUM_SKIP_MODEL = 'none';
+export const FORUM_SKIP_PROFILE = 'internal-forum-skip-v1';
 
 /**
  * Builds the (request, result) pair persisted for a non-English thread (SPEC §5.7 / KNOWN-016): a
@@ -35,7 +36,9 @@ export function buildForumSkip(
   const req: CompletionRequest<ForumSynthesis> = {
     feature: rendered.feature,
     promptVersion: rendered.promptVersion,
+    provider: 'internal',
     model: FORUM_SKIP_MODEL,
+    generationProfileId: FORUM_SKIP_PROFILE,
     schema: rendered.schema,
     messages: rendered.messages,
     mode: 'sync',
@@ -53,7 +56,9 @@ export function buildForumSkip(
     },
     provenance: {
       feature: rendered.feature,
+      provider: 'internal',
       model: FORUM_SKIP_MODEL,
+      generationProfileId: FORUM_SKIP_PROFILE,
       promptVersion: rendered.promptVersion,
       inputHash,
       generatedAt,

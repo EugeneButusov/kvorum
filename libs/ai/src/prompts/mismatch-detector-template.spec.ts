@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { MISMATCH_DETECTOR_TEMPLATE } from './mismatch-detector-template.js';
 import { render } from './renderer.js';
+import { ModelTier } from '../llm/ports.js';
 import { MismatchAnalysisSchema } from '../schemas/mismatch-analysis.js';
 
 describe('MISMATCH_DETECTOR_TEMPLATE', () => {
   it('has the pinned frontmatter and the mismatch schema', () => {
     expect(MISMATCH_DETECTOR_TEMPLATE.name).toBe('mismatch_detector');
     expect(MISMATCH_DETECTOR_TEMPLATE.version).toBe('v1.0');
-    expect(MISMATCH_DETECTOR_TEMPLATE.model).toBe('claude-sonnet-5');
+    expect(MISMATCH_DETECTOR_TEMPLATE.modelTier).toBe(ModelTier.Strong);
     expect(MISMATCH_DETECTOR_TEMPLATE.schema).toBe(MismatchAnalysisSchema);
   });
 
