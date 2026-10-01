@@ -188,11 +188,10 @@ describe('DefaultLlmClient batches', () => {
 
     expect(submitBatch).toHaveBeenCalledTimes(2);
     expect(handle.children).toHaveLength(2);
-    const modelByCustomId = { fast: 'gpt-6-luna', strong: 'gpt-6.1-sol' };
-    const result = await client.fetchBatch(handle, modelByCustomId);
+    const result = await client.fetchBatch(handle);
     expect(result.status).toBe('ended');
     expect(result.results).toHaveLength(2);
     expect(fetchBatch).toHaveBeenCalledTimes(2);
-    expect(fetchBatch.mock.calls.every(([, models]) => models === modelByCustomId)).toBe(true);
+    expect(fetchBatch.mock.calls.every(([child]) => child.provider === 'openai')).toBe(true);
   });
 });

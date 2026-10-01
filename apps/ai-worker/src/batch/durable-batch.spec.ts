@@ -39,7 +39,11 @@ function openBatch(over: Partial<OpenBatch> = {}): OpenBatch {
     id: 'b1',
     provider: 'anthropic',
     providerBatchId: 'msgbatch_1',
-    handle: { id: 'msgbatch_1', provider: 'anthropic' },
+    handle: {
+      id: 'msgbatch_1',
+      provider: 'anthropic',
+      itemModels: { c1: 'claude-haiku-4-5' },
+    },
     feature: 'proposal_summarizer',
     pendingCursor: 'p1',
     items: [DESC],
@@ -105,7 +109,7 @@ describe('DurableBatch', () => {
     expect(persistDeps.outputs.insert).not.toHaveBeenCalled();
   });
 
-  it('prices from the durable per-item model map', async () => {
+  it('passes the durable handle to the provider for pricing metadata', async () => {
     const { durable, llm } = makeHarness({
       fetch: {
         status: 'ended',
@@ -113,10 +117,11 @@ describe('DurableBatch', () => {
       },
     });
     await durable.pollOpen('proposal_summarizer');
-    expect(llm.fetchBatch).toHaveBeenCalledWith(
-      { id: 'msgbatch_1', provider: 'anthropic' },
-      { c1: 'claude-haiku-4-5' },
-    );
+    expect(llm.fetchBatch).toHaveBeenCalledWith({
+      id: 'msgbatch_1',
+      provider: 'anthropic',
+      itemModels: { c1: 'claude-haiku-4-5' },
+    });
   });
 
   it('restores the full composite OpenAI handle after a restart', async () => {
@@ -144,7 +149,7 @@ describe('DurableBatch', () => {
       fetch: { status: 'in_progress', results: [] },
     });
     await durable.pollOpen('proposal_summarizer');
-    expect(llm.fetchBatch).toHaveBeenCalledWith(handle, { c1: 'gpt-6-luna' });
+    expect(llm.fetchBatch).toHaveBeenCalledWith(handle);
   });
 
   it('drains a finished batch: persists output + cost, commits the cursor, deletes the row', async () => {

@@ -58,9 +58,7 @@ export class DurableBatch {
     const open = await this.batches.findOpenByFeature(feature);
     if (open === undefined) return { state: 'idle' };
 
-    const modelByCustomId: Record<string, string> = {};
-    for (const item of open.items) modelByCustomId[item.customId] = item.model;
-    const res = await this.llm.fetchBatch(open.handle, modelByCustomId);
+    const res = await this.llm.fetchBatch(open.handle);
     if (res.status !== 'ended') return { state: 'waiting' };
 
     const byCustomId = new Map(open.items.map((item) => [item.customId, item]));
