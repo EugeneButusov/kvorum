@@ -56,6 +56,7 @@ jobs:
     name: Migrate & roll out
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     # Requires a protected Environment named `production` holding:
     #   secret DEPLOY_SSH_KEY      — private key for the deploy user on the droplet
     #   secret DEPLOY_KNOWN_HOSTS  — `ssh-keyscan <host>` output, so the host key is pinned
@@ -108,14 +109,17 @@ jobs:
         run: |
           set -euo pipefail
           tar czf deploy-bundle.tar.gz infra/k8s infra/scripts/deploy.sh
-          scp -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
+          scp -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
             deploy-bundle.tar.gz "${{ secrets.DEPLOY_HOST }}:/tmp/deploy-bundle.tar.gz"
 
       # Everything below happens on the droplet, via the same script a manual deploy runs.
       - name: Migrate and roll out
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes "${{ secrets.DEPLOY_HOST }}" \
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "${{ secrets.DEPLOY_HOST }}" \
             "set -euo pipefail
              rm -rf ~/kvorum-deploy && mkdir -p ~/kvorum-deploy
              tar xzf /tmp/deploy-bundle.tar.gz -C ~/kvorum-deploy

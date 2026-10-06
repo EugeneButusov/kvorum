@@ -83,8 +83,22 @@ kubectl -n "$NS" delete job kvorum-migrate --ignore-not-found
 sed "s#ghcr.io/kvorum/kvorum:latest#${IMAGE}#" "$K8S/base/migrate-job.yaml" \
   | kubectl -n "$NS" apply -f -
 
-if ! kubectl -n "$NS" wait --for=condition=complete "job/kvorum-migrate" --timeout="$MIGRATE_TIMEOUT"; then
-  echo "ERROR: migration job did not complete — aborting deploy" >&2
+# Wait for both terminal outcomes. Waiting only for Complete makes a Job that has
+# already reached Failed consume the entire timeout before CI reports the real error.
+kubectl -n "$NS" wait --for=condition=complete "job/kvorum-migrate" --timeout="$MIGRATE_TIMEOUT" &
+complete_wait_pid=$!
+kubectl -n "$NS" wait --for=condition=failed "job/kvorum-migrate" --timeout="$MIGRATE_TIMEOUT" &
+failed_wait_pid=$!
+
+set +e
+wait -n "$complete_wait_pid" "$failed_wait_pid"
+set -e
+kill "$complete_wait_pid" "$failed_wait_pid" 2>/dev/null || true
+wait "$complete_wait_pid" "$failed_wait_pid" 2>/dev/null || true
+
+if [[ "$(kubectl -n "$NS" get job kvorum-migrate \
+  -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')" != "True" ]]; then
+  echo "ERROR: migration job failed or timed out — aborting deploy" >&2
   kubectl -n "$NS" logs "job/kvorum-migrate" --tail=200 >&2 || true
   kubectl -n "$NS" describe "job/kvorum-migrate" >&2 || true
   exit 1

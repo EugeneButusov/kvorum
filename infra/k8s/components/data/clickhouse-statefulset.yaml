@@ -20,7 +20,9 @@ spec:
     spec:
       containers:
         - name: clickhouse
-          image: clickhouse/clickhouse-server:24
+          # Pin the version validated by kvorum-limits.xml. A floating major tag can
+          # silently change server settings when the pod lands on a fresh node.
+          image: clickhouse/clickhouse-server:24.10.2.80
           ports:
             - name: http
               containerPort: 8123
@@ -45,12 +47,16 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /ping
               port: http
             initialDelaySeconds: 45
             periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests:
               cpu: 150m
