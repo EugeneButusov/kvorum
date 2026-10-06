@@ -36,6 +36,12 @@ overrides:
   'express>qs': '6.15.2'
   'body-parser>qs': '6.15.2'
   'superagent>qs': '6.15.2'
+  # proxy-addr: express pulls 2.0.7 (vulnerable, GHSA-jqcg-44mw-7w3h — IPv4-mapped IPv6
+  # addresses can bypass trusted-subnet checks). Rewrite the vulnerable 2.x range to 2.0.8.
+  'proxy-addr@<2.0.8': '2.0.8'
+  # source-map-js: next>postcss pulls 1.2.1 (vulnerable, GHSA-68fv-2mgg-jv7q — crafted
+  # indexed source-map offsets can block the event loop). The patched release is a patch bump.
+  'source-map-js@<1.2.2': '1.2.2'
   # js-yaml: @nestjs/swagger + dev tooling pull the 4.x line (vulnerable). Three chained
   # advisories force quadratic CPU on adversarial YAML — GHSA-52cp-r559-cp3m (merge-key chains,
   # patched 4.3.0), GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (!!omap resolution, patched 4.3.1) and
@@ -43,11 +49,10 @@ overrides:
   # previous 4.3.1 pin. Rewrite the vulnerable range to the latest patched 4.x; a 3.x/5.x
   # consumer is untouched.
   'js-yaml@>=4.0.0 <4.3.2': '4.3.2'
-  # sharp: next pulls 0.34.5 (vulnerable via bundled libvips, GHSA-f88m-g3jw-g9cj —
-  # CVE-2026-33327/33328/35590/35591), and 0.35.3 is in turn covered by GHSA-g89c-p67h-r497
-  # (bundled libheif), which widened the vulnerable range to <0.35.4. Rewrite to the patched
-  # 0.35.x line (same major, next's image-optimization API is unaffected).
-  'sharp@<0.35.4': '0.35.4'
+  # sharp: next pulls a vulnerable line through its image optimizer. The earlier 0.35.4 pin is
+  # now covered by GHSA-wq5f-xc86-pv6w (bundled librsvg); rewrite the vulnerable range to the
+  # patched 0.35.x release. Next's image-optimization API is unaffected by the patch bump.
+  'sharp@<0.35.5': '0.35.5'
   # browserslist: next>styled-jsx>@babel/core pulls <=4.28.6 (two high advisories —
   # GHSA-c83g-rgw3-j3cx unbounded memory growth, GHSA-73wf-gq98-2v4g prototype write
   # via untrusted stats). Rewrite the vulnerable range to the patched 4.28.7.
