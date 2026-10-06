@@ -234,7 +234,7 @@ both of which leave **derivation running**:
 The `AI_TRIGGER_*_ENABLED` flags in `base/configmap.yaml` are committed as `'true'`, so the worker
 starts scanning and spending as soon as the pod is healthy — it does **not** deploy inert. For the
 never-spend-before-healthy ordering the steps below assume, set all four to `'false'` first, deploy,
-verify, then flip them back. This is the DOKS translation of
+verify, then flip them back. This is the production procedure corresponding to
 [`m5-ai-backfill.md`](m5-ai-backfill.md); pair it with [`m5-budget-cap-ops.md`](m5-budget-cap-ops.md)
 and [`m5-ai-dlq-triage.md`](m5-ai-dlq-triage.md).
 

@@ -1,5 +1,5 @@
-# Horizontal autoscaling for the API only. Requires metrics-server (present by
-# default on DOKS). The indexer is deliberately absent — it is a hard singleton.
+# Horizontal autoscaling for the API only. Requires metrics-server, which k3s
+# installs by default. The indexer is deliberately absent — it is a hard singleton.
 # Scale-up lever: raise maxReplicas in the overlay once the node pool has headroom. It is 1
 # on a single node, where a second replica competes for the same CPU rather than adding
 # capacity. The ~25-connection managed-PG ceiling that capped this at 2 no longer applies.
