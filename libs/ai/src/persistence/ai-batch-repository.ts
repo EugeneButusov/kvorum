@@ -41,7 +41,9 @@ export class AiBatchRepository {
         handle: batch.handle as never,
         feature: batch.feature,
         pending_cursor: batch.pendingCursor,
-        items: batch.items as never, // jsonb
+        // node-postgres encodes a JavaScript array as a PostgreSQL array literal. Serialize it
+        // explicitly so the jsonb column receives JSON instead.
+        items: JSON.stringify(batch.items) as never,
         submitted_at: batch.submittedAt,
       })
       .execute();
