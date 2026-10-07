@@ -96,7 +96,7 @@ export interface BatchHandle {
   provider: CompletionProviderId;
   /** Facade-created child handles when a provider requires one model per remote batch. */
   children?: BatchHandle[];
-  /** Pricing metadata needed to fetch a provider batch after serialization/restart. */
+  /** Provider-owned metadata needed to fetch/price a batch after serialization and restart. */
   itemModels?: Record<string, string>;
 }
 
@@ -126,6 +126,24 @@ export interface EmbeddingProvider {
 export interface FacadeBatchItem<T> {
   customId: string;
   request: CompletionRequest<T>;
+}
+
+/**
+ * The durable, serializable description of one submitted batch item — enough to re-price, re-validate
+ * and persist its result after a restart, without the non-serializable Zod `schema` or the large
+ * `inputContent` (only its already-computed `inputHash` is kept). Stored as the `ai_batch.items` jsonb.
+ */
+export interface BatchItemDescriptor {
+  customId: string;
+  feature: string;
+  provider: CompletionProviderId;
+  promptVersion: string;
+  model: string;
+  generationProfileId: string;
+  inputHash: string;
+  routingReason?: string;
+  daoId: string | null;
+  entityReference: string | null;
 }
 
 export interface LLMClient {
