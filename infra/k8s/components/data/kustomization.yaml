@@ -6,6 +6,16 @@ kind: Component
 resources:
   - postgres-statefulset.yaml
   - postgres-service.yaml
-  - clickhouse-config.yaml
   - clickhouse-statefulset.yaml
   - clickhouse-service.yaml
+
+# Hash the ClickHouse config into its ConfigMap name. The StatefulSet mounts the file
+# with subPath, so changing an unhashed ConfigMap would not update a running pod.
+configMapGenerator:
+  - name: kvorum-clickhouse-config
+    files:
+      - kvorum-limits.xml
+    options:
+      labels:
+        app.kubernetes.io/name: kvorum-clickhouse
+        app.kubernetes.io/part-of: kvorum
