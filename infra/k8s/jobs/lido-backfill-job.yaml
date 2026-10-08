@@ -1,0 +1,61 @@
+# Manually created production job for the one-time Lido historical backfill.
+#
+# This file is intentionally outside every kustomization: deploying the application must never
+# start a historical backfill. Follow docs/runbooks/lido-production-rollout.md, which replaces the
+# placeholder image with the exact image running in production before creating the Job.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: kvorum-lido-backfill-
+  labels:
+    app.kubernetes.io/name: kvorum-lido-backfill
+    app.kubernetes.io/part-of: kvorum
+spec:
+  # Backfill progress is durable. An operator should inspect a failure and create a new Job to
+  # resume instead of letting Kubernetes immediately retry during an RPC or database incident.
+  backoffLimit: 0
+  activeDeadlineSeconds: 86400
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvorum-lido-backfill
+        app.kubernetes.io/part-of: kvorum
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: backfill
+          image: ghcr.io/kvorum/kvorum:latest
+          command:
+            - node
+            - dist/apps/admin-cli/main.js
+            - backfill
+            - run
+            - lido
+            - --concurrency
+            - '1'
+            - --direct
+            - --quiescence-ticks
+            - '5'
+            - --inter-tick-delay
+            - '500'
+            - --format
+            - json
+          envFrom:
+            - configMapRef:
+                name: kvorum-config
+            - secretRef:
+                name: kvorum-secrets
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: lido-backfill
+            - name: PG_POOL_MAX
+              value: '2'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -9,6 +9,7 @@ Operational runbooks for Kvorum. Each runbook is self-contained and assumes a fr
 | [caddy-deployment.md](caddy-deployment.md)                 | First deploy, config reload, cert monitoring                      |
 | [gap-fill.md](gap-fill.md)                                 | Startup ingestion gap behavior and manual catch-up operation      |
 | [m3-chains.md](m3-chains.md)                               | Multi-chain `CHAIN_CONFIG` and per-chain `headLag` provisioning   |
+| [lido-production-rollout.md](lido-production-rollout.md)   | Backfill, validate, activate, and roll back Lido in production    |
 | [secrets-rotation.md](secrets-rotation.md)                 | Rotating any production credential                                |
 | [state-reconciliation.md](state-reconciliation.md)         | Operating proposal state reconciler and validating backlog drain  |
 | [m5-acceptance.md](m5-acceptance.md)                       | Validate the AI cost ceiling (AC #3) + budget-cap disable (AC #4) |
