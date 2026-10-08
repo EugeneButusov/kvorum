@@ -37,7 +37,8 @@ kubectl -n kvorum top pods --sort-by=cpu
 
 Do not start while node CPU is at or above 70%, node memory is at or above 80%, or ClickHouse is
 still sustaining a full CPU core. Wait for at least ten minutes of headroom; if the load does not
-fall, diagnose it before adding backfill traffic.
+fall, diagnose it before adding backfill traffic. If `system.merges` shows only ClickHouse
+diagnostic tables, follow [`clickhouse-system-log-cleanup.md`](clickhouse-system-log-cleanup.md).
 
 Confirm every Lido source is paused and has no unexpected partial state:
 
