@@ -61,7 +61,10 @@ kubectl -n "$NS" apply -f "$K8S/base/configmap.yaml"
 # reach both stores before application Deployments are applied. Bootstrap only
 # the datastore resources, then wait for them; existing clusters are unchanged.
 DATASTORE_SELECTOR='app.kubernetes.io/name in (kvorum-postgres,kvorum-clickhouse)'
-DATASTORE_TIMEOUT="${DATASTORE_TIMEOUT:-300s}"
+# A config change recreates the ClickHouse pod. On the shared production node it may
+# need several restart attempts to drain a pre-existing merge backlog, so keep this
+# gate longer than the probes' combined recovery window.
+DATASTORE_TIMEOUT="${DATASTORE_TIMEOUT:-600s}"
 
 if grep '^  name: kvorum-postgres$' "$RENDERED_OVERLAY" >/dev/null; then
   log "bringing up in-cluster datastores"
@@ -70,6 +73,10 @@ if grep '^  name: kvorum-postgres$' "$RENDERED_OVERLAY" >/dev/null; then
     kubectl -n "$NS" rollout status "statefulset/$sts" --timeout="$DATASTORE_TIMEOUT" \
       || { echo "ERROR: $sts did not become ready — aborting before the migration gate" >&2
            kubectl -n "$NS" describe "statefulset/$sts" >&2 || true
+           kubectl -n "$NS" get pods -l "app.kubernetes.io/name=$sts" -o wide >&2 || true
+           kubectl -n "$NS" describe pods -l "app.kubernetes.io/name=$sts" >&2 || true
+           kubectl -n "$NS" logs "statefulset/$sts" --all-containers --tail=200 >&2 || true
+           kubectl -n "$NS" logs "statefulset/$sts" --all-containers --previous --tail=200 >&2 || true
            exit 1; }
   done
 else

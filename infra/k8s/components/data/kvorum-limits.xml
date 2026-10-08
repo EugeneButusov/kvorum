@@ -6,7 +6,9 @@
          limit stops scheduling more merges once background work reaches 256 MiB;
          the smaller read block bounds the peak of each merge. -->
     <merges_mutations_memory_usage_soft_limit>268435456</merges_mutations_memory_usage_soft_limit>
-    <background_pool_size>4</background_pool_size>
+    <!-- Serialize merges. Four concurrent system-log merges were enough to drive the
+         pod over its 1280 MiB cgroup limit while the shared node was memory-bound. -->
+    <background_pool_size>1</background_pool_size>
     <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
     <mark_cache_size>134217728</mark_cache_size>
     <uncompressed_cache_size>0</uncompressed_cache_size>
@@ -16,13 +18,15 @@
          before the application migration gate gets a chance to connect. -->
     <metric_log remove="1" />
     <asynchronous_metric_log remove="1" />
+    <trace_log remove="1" />
+    <part_log remove="1" />
     <!-- These thresholds must not exceed background_pool_size multiplied by the
          concurrency ratio, or ClickHouse rejects the configuration at startup. -->
     <merge_tree>
         <merge_max_block_size_bytes>1048576</merge_max_block_size_bytes>
-        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>2</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
-        <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
-        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>0</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_execute_mutation>0</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>0</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
     </merge_tree>
     <!-- Console, not the image's default file logging, which hides startup errors. -->
     <logger>
