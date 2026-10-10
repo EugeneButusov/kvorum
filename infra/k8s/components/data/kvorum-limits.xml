@@ -13,13 +13,25 @@
     <mark_cache_size>134217728</mark_cache_size>
     <uncompressed_cache_size>0</uncompressed_cache_size>
     <max_concurrent_queries>8</max_concurrent_queries>
-    <!-- These high-frequency MergeTree logs are redundant with Prometheus on this
-         small node. Their background merges can exceed the container memory limit
-         before the application migration gate gets a chance to connect. -->
+    <!-- These high-frequency MergeTree logs are redundant with Prometheus and console
+         logging on this small node. Disabling only metric/trace/part logs left text_log
+         recording every failed merge and query/process logs continuing to create parts.
+         That feedback loop kept ClickHouse at one CPU and eventually reached the
+         too-many-parts ceiling. Keep low-volume crash_log, backup_log, blob_storage_log,
+         and s3queue_log available for exceptional operations. -->
     <metric_log remove="1" />
     <asynchronous_metric_log remove="1" />
     <trace_log remove="1" />
     <part_log remove="1" />
+    <text_log remove="1" />
+    <error_log remove="1" />
+    <query_log remove="1" />
+    <query_thread_log remove="1" />
+    <query_views_log remove="1" />
+    <query_metric_log remove="1" />
+    <processors_profile_log remove="1" />
+    <asynchronous_insert_log remove="1" />
+    <opentelemetry_span_log remove="1" />
     <!-- These thresholds must not exceed background_pool_size multiplied by the
          concurrency ratio, or ClickHouse rejects the configuration at startup. -->
     <merge_tree>
