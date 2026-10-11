@@ -11,8 +11,9 @@ metadata:
     app.kubernetes.io/name: kvorum-lido-backfill
     app.kubernetes.io/part-of: kvorum
 spec:
-  # Backfill progress is durable. An operator should inspect a failure and create a new Job to
-  # resume instead of letting Kubernetes immediately retry during an RPC or database incident.
+  # Backfill progress is durable. An operator should inspect a failure and create a source-scoped
+  # replacement Job per the runbook instead of immediately retrying the full DAO during an RPC or
+  # database incident.
   backoffLimit: 0
   activeDeadlineSeconds: 86400
   ttlSecondsAfterFinished: 604800
