@@ -14,7 +14,8 @@ sources stay paused until both stages have been validated.
   `kubectl exec` inside the API or indexer container.
 - The Job runs one source at a time and writes off-chain rows directly, avoiding an additional
   pg-boss backlog on the single-node cluster.
-- The Job never retries automatically. A replacement Job resumes from durable checkpoints.
+- The Job never retries automatically. A source-scoped replacement Job resumes an unfinished
+  source from its durable historical checkpoint.
 - Do not bypass the historical-log depth gate.
 
 ## 1. Preflight
@@ -137,19 +138,91 @@ kubectl -n kvorum logs "$JOB"
 ```
 
 The Job has `backoffLimit: 0`, so Kubernetes will not restart a cancelled or failed attempt. After
-fixing the cause, repeat sections 1 and 2; the next Job resumes the durable backfill state.
+fixing the cause, repeat the preflight, then resume only the unfinished source as described below.
+Do not create another full-DAO Job: the shared backfill lifecycle used by Aave and Compound clears a
+source's historical checkpoint after successful completion, so a full replacement can safely but
+expensively replay a completed sparse source from `active_from_block`.
+
+### Resume an interrupted attempt source by source
+
+Use the same single-source `backfill start` path documented for Aave and Compound. It selects
+`resume` when `backfill_started_at_block` is present and `fresh` for an untouched source. Lido's
+EVM source types resolve uniquely; `--dao lido` is needed only for the shared off-chain `snapshot`
+and `discourse_forum` source types.
+
+First correlate the saved Job summary with the checkpoint table. A source reported `completed` by
+the Job must not be scheduled again even if a later aborted replay left another checkpoint. A source
+reported `cancelled` or `error` with a non-null `backfill_started_at_block` is resumable. A source the
+Job never started has both backfill columns null and starts fresh.
+
+Run only one EVM source Job at a time. Set `SOURCE_TYPE` to one of `aragon_voting`,
+`dual_governance`, `easy_track`, `snapshot_delegate_registry`, or
+`snapshot_split_delegation`:
+
+```bash
+IMAGE=$(kubectl -n kvorum get deploy/kvorum-indexer \
+  -o jsonpath='{.spec.template.spec.containers[0].image}')
+SOURCE_TYPE=snapshot_delegate_registry
+
+case "$SOURCE_TYPE" in
+  aragon_voting|dual_governance|easy_track|snapshot_delegate_registry|snapshot_split_delegation) ;;
+  *) printf 'Unsupported Lido EVM source: %s\n' "$SOURCE_TYPE" >&2; exit 1 ;;
+esac
+
+PATCH=$(printf '[{"op":"replace","path":"/spec/template/spec/containers/0/command","value":["node","dist/apps/admin-cli/main.js","backfill","start","%s","--format","json"]}]' "$SOURCE_TYPE")
+
+JOB=$(
+  kubectl patch --local -f infra/k8s/jobs/lido-backfill-job.yaml \
+    --type=json -p "$PATCH" -o yaml \
+  | kubectl set image --local -f - backfill="$IMAGE" -o yaml \
+  | kubectl -n kvorum create -f - -o name
+)
+
+printf 'Created %s for %s\n' "$JOB" "$SOURCE_TYPE"
+kubectl -n kvorum logs -f "$JOB"
+```
+
+After all five EVM sources are complete, drain each off-chain source in its own Job. Set
+`SOURCE_TYPE` to `snapshot` and then `discourse_forum`:
+
+```bash
+IMAGE=$(kubectl -n kvorum get deploy/kvorum-indexer \
+  -o jsonpath='{.spec.template.spec.containers[0].image}')
+SOURCE_TYPE=snapshot
+
+case "$SOURCE_TYPE" in
+  snapshot|discourse_forum) ;;
+  *) printf 'Unsupported Lido off-chain source: %s\n' "$SOURCE_TYPE" >&2; exit 1 ;;
+esac
+
+PATCH=$(printf '[{"op":"replace","path":"/spec/template/spec/containers/0/command","value":["node","dist/apps/admin-cli/main.js","backfill","start","%s","--dao","lido","--direct","--quiescence-ticks","5","--inter-tick-delay","500","--format","json"]}]' "$SOURCE_TYPE")
+
+JOB=$(
+  kubectl patch --local -f infra/k8s/jobs/lido-backfill-job.yaml \
+    --type=json -p "$PATCH" -o yaml \
+  | kubectl set image --local -f - backfill="$IMAGE" -o yaml \
+  | kubectl -n kvorum create -f - -o name
+)
+
+printf 'Created %s for %s\n' "$JOB" "$SOURCE_TYPE"
+kubectl -n kvorum logs -f "$JOB"
+```
+
+Apply the same capacity and cancellation gates to every targeted Job. Keep each Job name and final
+summary in the operator record.
 
 ## 4. Validate the completed backfill
 
-Wait for the Job and then capture its final summary:
+Wait for the initial or final targeted Job and then capture its final summary:
 
 ```bash
 kubectl -n kvorum wait --for=condition=complete "$JOB" --timeout=24h
 kubectl -n kvorum logs "$JOB"
 ```
 
-The summary must report every planned source as completed or safely skipped, with no source error.
-Then wait until the indexer derives every Lido archive row:
+Across the saved initial and targeted Job summaries, every planned source must be completed or
+safely skipped, with no unresolved source error. Then wait until the indexer derives every Lido
+archive row:
 
 ```bash
 kubectl -n kvorum exec statefulset/kvorum-postgres -- \
