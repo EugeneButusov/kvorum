@@ -159,6 +159,50 @@ describe('DerivationWorkerService', () => {
     expect(archive.incrementAttemptCount).not.toHaveBeenCalled();
   });
 
+  it('continues with later EVM and off-chain dispatches when one applier throws', async () => {
+    const failedRow = { ...ROW, id: 'failed-row', source_type: 'failing_source' };
+    const healthyRow = {
+      ...ROW,
+      id: 'healthy-row',
+      source_type: 'healthy_source',
+      block_number: '101',
+    };
+    const failingApplier = {
+      kind: 'projection' as const,
+      sourceTypes: ['failing_source'],
+      eventTypes: ['test_event_created'],
+      applyBatch: vi.fn().mockRejectedValue(new Error('poison row')),
+    };
+    const healthyApplier = {
+      kind: 'projection' as const,
+      sourceTypes: ['healthy_source'],
+      eventTypes: ['test_event_created'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const offchainApplier = {
+      kind: 'offchain-projection' as const,
+      sourceTypes: ['snapshot'],
+      eventTypes: ['SnapshotProposalCreated'],
+      applyBatch: vi.fn().mockResolvedValue(undefined),
+    };
+    const actorResolution = {
+      findDerivableBy: vi.fn().mockResolvedValue([failedRow, healthyRow]),
+      findDerivableByOffchain: vi.fn().mockResolvedValue([OFFCHAIN_ROW]),
+    };
+    const worker = new DerivationWorkerService(
+      { incrementAttemptCount: vi.fn() } as never,
+      actorResolution as never,
+      makeRegistry() as never,
+      [bundleWith(failingApplier), bundleWith(healthyApplier), bundleOffchain(offchainApplier)],
+    );
+
+    await worker.tick();
+
+    expect(failingApplier.applyBatch).toHaveBeenCalledWith([failedRow]);
+    expect(healthyApplier.applyBatch).toHaveBeenCalledWith([healthyRow]);
+    expect(offchainApplier.applyBatch).toHaveBeenCalledWith([OFFCHAIN_ROW]);
+  });
+
   it('does not apply when event_type does not match applier', async () => {
     const archive = {
       incrementAttemptCount: vi.fn(),

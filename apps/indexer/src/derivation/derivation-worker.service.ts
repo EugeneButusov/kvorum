@@ -84,32 +84,42 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
         const first = rows.at(0);
         if (first === undefined) continue;
         const { source_type: sourceType, event_type: eventType } = first;
-        const applier = this.appliers.find(
-          (candidate) =>
-            candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
-        );
-        if (applier === undefined) {
-          await this.markUnsupportedDispatch(rows);
-          continue;
-        }
+        try {
+          const applier = this.appliers.find(
+            (candidate) =>
+              candidate.sourceTypes.includes(sourceType) &&
+              candidate.eventTypes.includes(eventType),
+          );
+          if (applier === undefined) {
+            await this.markUnsupportedDispatch(rows);
+            continue;
+          }
 
-        await applier.applyBatch(rows);
+          await applier.applyBatch(rows);
+        } catch (err) {
+          this.logDispatchFailure(first, rows.length, err);
+        }
       }
 
       for (const rows of splitIntoDispatchRuns(offchainWatermark)) {
         const first = rows.at(0);
         if (first === undefined) continue;
         const { source_type: sourceType, event_type: eventType } = first;
-        const applier = this.offchainAppliers.find(
-          (candidate) =>
-            candidate.sourceTypes.includes(sourceType) && candidate.eventTypes.includes(eventType),
-        );
-        if (applier === undefined) {
-          await this.markUnsupportedDispatchOffchain(rows);
-          continue;
-        }
+        try {
+          const applier = this.offchainAppliers.find(
+            (candidate) =>
+              candidate.sourceTypes.includes(sourceType) &&
+              candidate.eventTypes.includes(eventType),
+          );
+          if (applier === undefined) {
+            await this.markUnsupportedDispatchOffchain(rows);
+            continue;
+          }
 
-        await applier.applyBatch(rows);
+          await applier.applyBatch(rows);
+        } catch (err) {
+          this.logDispatchFailure(first, rows.length, err);
+        }
       }
 
       const now = Date.now();
@@ -134,6 +144,20 @@ export class DerivationWorkerService implements OnApplicationBootstrap {
       derivationMetrics.tickDurationSeconds.record((Date.now() - startedAt) / 1000);
       this.inFlight = false;
     }
+  }
+
+  private logDispatchFailure(
+    row: Pick<ArchiveDerivationRow | OffchainArchiveRow, 'source_type' | 'chain_id' | 'event_type'>,
+    batchSize: number,
+    error: unknown,
+  ): void {
+    this.logger.error('derivation_dispatch_failed', {
+      source_type: row.source_type,
+      chain_id: row.chain_id,
+      event_type: row.event_type,
+      batch: batchSize,
+      error: String(error),
+    });
   }
 
   private async markUnsupportedDispatch(rows: readonly ArchiveDerivationRow[]): Promise<void> {
