@@ -184,4 +184,72 @@ describe('ArchiveActorResolutionRepository', () => {
       expect(hasPredicate).toBe(false);
     });
   });
+
+  describe('projection DLQ quarantine', () => {
+    it('excludes EVM rows with a matching unresolved projection DLQ entry', async () => {
+      const select = makeSelectChain([ARCHIVE_ROW]);
+      const repo = new ArchiveActorResolutionRepository({ selectFrom: select.selectFrom } as never);
+
+      await repo.findDerivableBy(['VoteCast'], 50);
+
+      const predicates = select.where.mock.calls
+        .map((call) => call[0])
+        .filter((arg): arg is (eb: unknown) => unknown => typeof arg === 'function');
+      expect(predicates).toHaveLength(2);
+
+      const whereRef = vi.fn().mockReturnThis();
+      const where = vi.fn().mockReturnThis();
+      const selectFrom = vi.fn().mockImplementation(() => ({
+        select: vi.fn().mockReturnThis(),
+        whereRef,
+        where,
+      }));
+      const eb = {
+        selectFrom,
+        exists: vi.fn((query: unknown) => ({ exists: query })),
+        not: vi.fn((expression: unknown) => ({ not: expression })),
+        and: vi.fn((expressions: unknown[]) => ({ and: expressions })),
+      };
+
+      predicates[1]!(eb);
+
+      expect(selectFrom.mock.calls).toEqual([
+        ['ingestion_dlq as dlq'],
+        ['ingestion_dlq_resolved as resolved_dlq'],
+      ]);
+      expect(whereRef.mock.calls).toEqual([
+        ['dlq.archive_source_type', '=', 'archive_event.source_type'],
+        ['dlq.archive_chain_id', '=', 'archive_event.chain_id'],
+        ['dlq.archive_tx_hash', '=', 'archive_event.tx_hash'],
+        ['dlq.archive_log_index', '=', 'archive_event.log_index'],
+        ['dlq.archive_block_hash', '=', 'archive_event.block_hash'],
+        ['resolved_dlq.archive_source_type', '=', 'archive_event.source_type'],
+        ['resolved_dlq.archive_chain_id', '=', 'archive_event.chain_id'],
+        ['resolved_dlq.archive_tx_hash', '=', 'archive_event.tx_hash'],
+        ['resolved_dlq.archive_log_index', '=', 'archive_event.log_index'],
+        ['resolved_dlq.archive_block_hash', '=', 'archive_event.block_hash'],
+      ]);
+      expect(where.mock.calls).toEqual([
+        ['dlq.stage', 'like', '%projection_stage'],
+        ['resolved_dlq.stage', 'like', '%projection_stage'],
+        ['resolved_dlq.resolution_kind', '=', 'accepted'],
+      ]);
+      expect(eb.exists).toHaveBeenCalledTimes(2);
+      expect(eb.not).toHaveBeenCalledTimes(2);
+      expect(eb.and).toHaveBeenCalledWith([
+        expect.objectContaining({ not: expect.anything() }),
+        expect.objectContaining({ not: expect.anything() }),
+      ]);
+    });
+
+    it('does not apply the EVM tuple quarantine to off-chain rows', async () => {
+      const select = makeSelectChain([]);
+      const repo = new ArchiveActorResolutionRepository({ selectFrom: select.selectFrom } as never);
+
+      await repo.findDerivableByOffchain(['SnapshotProposalCreated'], 50);
+
+      const predicates = select.where.mock.calls.filter(([arg]) => typeof arg === 'function');
+      expect(predicates).toHaveLength(1);
+    });
+  });
 });
