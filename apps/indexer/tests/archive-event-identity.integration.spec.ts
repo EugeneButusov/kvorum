@@ -4,6 +4,7 @@ import {
   ArchiveActorResolutionRepository,
   ArchiveDerivationRepository,
   ArchiveEventRepository,
+  DlqRepository,
 } from '@libs/db';
 import {
   insertTestDao,
@@ -49,7 +50,9 @@ describeIf('archive_event off-chain identity', () => {
   });
 
   beforeEach(async () => {
-    await sql`TRUNCATE archive_event RESTART IDENTITY CASCADE`.execute(pgDb);
+    await sql`
+      TRUNCATE ingestion_dlq, ingestion_dlq_resolved, archive_event RESTART IDENTITY CASCADE
+    `.execute(pgDb);
   });
 
   afterAll(async () => {
@@ -218,4 +221,68 @@ describeIf('archive_event off-chain identity', () => {
     const unresolved = await actorResolution.findUnresolvedActors(['ProposalCreated'], 5, 50);
     expect(unresolved.every((r) => r.source_type === EVM_SOURCE_TYPE)).toBe(true);
   });
+
+  it('quarantines an EVM row while its projection DLQ entry is active or accepted', async () => {
+    const archived = await repo.insert(evmRow(7));
+    expect(archived?.id).toBeDefined();
+    await pgDb
+      .updateTable('archive_event')
+      .set({ derivation_actor_resolved_at: sql`now()` })
+      .where('id', '=', archived!.id)
+      .execute();
+
+    const dlq = new DlqRepository(pgDb);
+    await dlq.insert(projectionDlqRow(archived!.id, 7));
+    const active = await dlq.list({ limit: 10 });
+    expect(active).toHaveLength(1);
+
+    const actorResolution = new ArchiveActorResolutionRepository(pgDb);
+    await expect(actorResolution.findDerivableBy(['ProposalCreated'], 50)).resolves.toEqual([]);
+
+    await expect(
+      dlq.accept(active[0]!.id, 'permanent test acknowledgement', 'integration-test'),
+    ).resolves.toBe('accepted');
+    await expect(actorResolution.findDerivableBy(['ProposalCreated'], 50)).resolves.toEqual([]);
+  });
+
+  it('makes a projection row eligible again after its DLQ retry succeeds', async () => {
+    const archived = await repo.insert(evmRow(8));
+    expect(archived?.id).toBeDefined();
+    await pgDb
+      .updateTable('archive_event')
+      .set({ derivation_actor_resolved_at: sql`now()` })
+      .where('id', '=', archived!.id)
+      .execute();
+
+    const dlq = new DlqRepository(pgDb);
+    await dlq.insert(projectionDlqRow(archived!.id, 8));
+    const active = await dlq.list({ limit: 10 });
+    expect(active).toHaveLength(1);
+
+    await expect(
+      dlq.markRetrySucceeded(active[0]!.id, 'retry reset watermark', 'integration-test'),
+    ).resolves.toBe('resolved');
+
+    const actorResolution = new ArchiveActorResolutionRepository(pgDb);
+    const rows = await actorResolution.findDerivableBy(['ProposalCreated'], 50);
+    expect(rows.map((row) => row.id)).toEqual([archived!.id]);
+  });
+
+  function projectionDlqRow(archiveEventId: string, logIndex: number) {
+    const now = new Date();
+    return {
+      stage: 'proposal_projection_stage',
+      source: 'indexer.proposal_projection',
+      payload: { id: archiveEventId },
+      error: { message: 'test projection failure' },
+      retries: 5,
+      first_seen_at: now,
+      last_attempt_at: now,
+      archive_source_type: EVM_SOURCE_TYPE,
+      archive_chain_id: EVM_CHAIN_ID,
+      archive_tx_hash: '0xtx',
+      archive_log_index: logIndex,
+      archive_block_hash: '0xblock',
+    } as const;
+  }
 });

@@ -27,12 +27,16 @@ overrides:
   # API-compatible); a 4.x/5.x consumer is untouched.
   'nanoid@<3.3.18': '3.3.18'
   'ws': '8.21.0'
-  # multer: @nestjs/platform-express pulls 1.x (vulnerable, GHSA-72gw-mp4g-v24j). The earlier
-  # ^2.2.0 pin resolved to 2.2.0, which three later advisories cover — GHSA-wc9g-mqfw-jrwm
-  # (crafted upload DoS), GHSA-qfvm-cv95-jqjf (fd leak on aborted uploads, no patch for 2.2.0
-  # itself) and GHSA-535w-7cp7-47q4 (oversized array index in field names). All are patched in
-  # 2.3.0. API-compatible for our usage (the read API uses no file uploads).
-  'multer': '^2.3.0'
+  # multer: @nestjs/platform-express pulls a vulnerable line. In addition to the earlier upload
+  # advisories, <2.5.0 can leave an async fileFilter pending after request teardown
+  # (GHSA-q7qp-rjg7-q26m). API-compatible for our usage (the read API uses no file uploads).
+  'multer': '^2.5.0'
+  # body-parser 2.0.0-2.3.x can be forced to decompress unbounded trailing bytes after a valid
+  # compressed request body (GHSA-27r3-jxmh-p828). Keep the unaffected 1.x consumers unchanged.
+  'body-parser@>=2.0.0 <2.4.0': '2.4.0'
+  # Zod 4 before 4.6.6 can exhaust memory while validating oversized constrained collections
+  # (GHSA-mrhx-c7xc-m3w5). Preserve packages that intentionally depend on the Zod 3 API.
+  'zod@>=4.0.0 <4.6.6': '4.6.7'
   'express>qs': '6.15.2'
   'body-parser>qs': '6.15.2'
   'superagent>qs': '6.15.2'

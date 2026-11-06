@@ -13,6 +13,48 @@ function notHeld(now: Date) {
     eb.or([eb('derivation_hold_until', 'is', null), eb('derivation_hold_until', '<=', now)]);
 }
 
+/**
+ * Projection DLQ rows are quarantined until an operator retries them. The retry adapter removes the
+ * active DLQ row after resetting the archive watermark, which makes the event eligible again. An
+ * accepted DLQ row remains quarantined through ingestion_dlq_resolved, matching ADR-032's permanent
+ * acknowledgement semantics without modifying the archive event.
+ *
+ * Match on the indexed EVM archive tuple rather than payload JSON. The partial unique DLQ index
+ * starts with these five columns, so the correlated NOT EXISTS lookup is bounded to the event.
+ */
+function notInProjectionDlq() {
+  return (eb: ExpressionBuilder<PgDatabase, 'archive_event'>) =>
+    eb.and([
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom('ingestion_dlq as dlq')
+            .select('dlq.id')
+            .whereRef('dlq.archive_source_type', '=', 'archive_event.source_type')
+            .whereRef('dlq.archive_chain_id', '=', 'archive_event.chain_id')
+            .whereRef('dlq.archive_tx_hash', '=', 'archive_event.tx_hash')
+            .whereRef('dlq.archive_log_index', '=', 'archive_event.log_index')
+            .whereRef('dlq.archive_block_hash', '=', 'archive_event.block_hash')
+            .where('dlq.stage', 'like', '%projection_stage'),
+        ),
+      ),
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom('ingestion_dlq_resolved as resolved_dlq')
+            .select('resolved_dlq.id')
+            .whereRef('resolved_dlq.archive_source_type', '=', 'archive_event.source_type')
+            .whereRef('resolved_dlq.archive_chain_id', '=', 'archive_event.chain_id')
+            .whereRef('resolved_dlq.archive_tx_hash', '=', 'archive_event.tx_hash')
+            .whereRef('resolved_dlq.archive_log_index', '=', 'archive_event.log_index')
+            .whereRef('resolved_dlq.archive_block_hash', '=', 'archive_event.block_hash')
+            .where('resolved_dlq.stage', 'like', '%projection_stage')
+            .where('resolved_dlq.resolution_kind', '=', 'accepted'),
+        ),
+      ),
+    ]);
+}
+
 const OFFCHAIN_COLUMNS = [
   'id',
   'source_type',
@@ -58,6 +100,7 @@ export class ArchiveActorResolutionRepository {
       .where('derivation_actor_resolved_at', 'is not', null)
       .where('event_type', 'in', eventTypes)
       .where(notHeld(now))
+      .where(notInProjectionDlq())
       .orderBy('chain_id', 'asc')
       .orderBy('block_number', 'asc')
       .orderBy('log_index', 'asc')
