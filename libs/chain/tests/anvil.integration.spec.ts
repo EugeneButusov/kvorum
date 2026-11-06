@@ -259,7 +259,7 @@ describeIf('Anvil integration', () => {
     await tracker.stop();
 
     const text = await renderMetrics();
-    // Anvil timestamps may be in the past — just verify the metric was set with a numeric value
-    expect(text).toMatch(/test_ingestion_head_block_age_seconds\{.*chain="anvil".*\}\s+[\d.]+/);
+    // Anvil and runner clocks can differ slightly — just verify the metric has a numeric value.
+    expect(text).toMatch(/test_ingestion_head_block_age_seconds\{.*chain="anvil".*\}\s+-?[\d.]+/);
   }, 10_000);
 });
