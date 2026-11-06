@@ -12,7 +12,7 @@
     "ethers": "^6.0.0",
     "kysely": "^0.29.0",
     "tslib": "^2.3.0",
-    "zod": "^3.0.0"
+    "zod": "^4.6.6"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.lib.json",
