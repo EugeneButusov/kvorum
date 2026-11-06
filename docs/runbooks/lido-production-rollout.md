@@ -31,15 +31,28 @@ kubectl -n kvorum get pod -l app.kubernetes.io/name=kvorum-indexer \
 Check the single node and its largest workloads:
 
 ```bash
+DROPLET_IP=$(kubectl get node kvorum-prod-single \
+  -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}')
+
 kubectl top node
 kubectl -n kvorum top pods --sort-by=memory
 kubectl -n kvorum top pods --sort-by=cpu
+kubectl get node kvorum-prod-single \
+  -o jsonpath='{range .status.conditions[?(@.type=="MemoryPressure")]}MemoryPressure={.status}{" reason="}{.reason}{"\n"}{end}'
+
+# kubectl top reports memory against Kubernetes allocatable capacity, not physical RAM. Confirm the
+# host's reclaim-aware headroom before rejecting a run solely because that percentage is high.
+ssh root@"$DROPLET_IP" free -m
 ```
 
-Do not start while node CPU is at or above 70%, node memory is at or above 80%, or ClickHouse is
-still sustaining a full CPU core. Wait for at least ten minutes of headroom; if the load does not
-fall, diagnose it before adding backfill traffic. If `system.merges` shows only ClickHouse
-diagnostic tables, follow [`clickhouse-system-log-cleanup.md`](clickhouse-system-log-cleanup.md).
+Do not start while node CPU is at or above 70%, `MemoryPressure=True`, host `MemAvailable` is below
+768 MiB, or ClickHouse is still sustaining a full CPU core. Wait for at least ten minutes of
+headroom; if the load does not fall, diagnose it before adding backfill traffic. `kubectl top node`
+reports memory as a percentage of **allocatable** memory, which excludes the kube/system reserve. A
+high percentage alone is not a stop condition when the host still has at least 768 MiB available,
+`MemoryPressure=False`, workloads are below their limits, and restart counts are stable. If
+`system.merges` shows only ClickHouse diagnostic tables, follow
+[`clickhouse-system-log-cleanup.md`](clickhouse-system-log-cleanup.md).
 
 Confirm every Lido source is paused and has no unexpected partial state:
 
@@ -110,6 +123,9 @@ monitor the Job, node capacity, archive growth, and derivation backlog:
 kubectl -n kvorum get "$JOB" -w
 kubectl top node
 kubectl -n kvorum top pods --sort-by=memory
+kubectl get node kvorum-prod-single \
+  -o jsonpath='{range .status.conditions[?(@.type=="MemoryPressure")]}MemoryPressure={.status}{" reason="}{.reason}{"\n"}{end}'
+ssh root@"$DROPLET_IP" free -m
 
 kubectl -n kvorum exec statefulset/kvorum-postgres -- \
   psql -U kvorum -d kvorum -c "
@@ -125,9 +141,9 @@ kubectl -n kvorum exec statefulset/kvorum-postgres -- \
   "
 ```
 
-Stop and investigate if node memory reaches 90%, ClickHouse or Postgres is repeatedly restarting,
-the indexer becomes unready, or the Job stops making progress. To cancel cleanly, signal the CLI
-instead of deleting the Job:
+Stop and investigate if `MemoryPressure=True`, host `MemAvailable` falls below 512 MiB, ClickHouse or
+Postgres is repeatedly restarting, the indexer becomes unready, or the Job stops making progress.
+To cancel cleanly, signal the CLI instead of deleting the Job:
 
 ```bash
 JOB_NAME=${JOB#job.batch/}

@@ -13,6 +13,16 @@ import { createSnapshotPlugin, SnapshotClient } from '@sources/snapshot';
 /** UA sent on Discourse backfill requests (the anonymous API is User-Agent-sensitive; ADR-071). */
 const DEFAULT_BACKFILL_USER_AGENT = 'kvorum-backfill/1.0 (+https://kvorum.watch)';
 
+/** The direct backfill drains ticks every 250ms and can otherwise exhaust a forum's stricter
+ *  anonymous limit when full threads require several `/posts.json` requests. Live polling has a
+ *  15s interval; use a deliberately conservative per-host budget for the faster backfill path. */
+const DISCOURSE_BACKFILL_PACER = {
+  maxPerShortWindow: 10,
+  shortWindowMs: 10_000,
+  maxPerLongWindow: 50,
+  longWindowMs: 60_000,
+} as const;
+
 /** A very long reconcile interval keeps the Discourse crawl forward-only for the bounded backfill —
  *  a from-genesis sweep runs once; the periodic re-crawl belongs to live polling (ADR-052). */
 const RECONCILE_DISABLED_MS = Number.MAX_SAFE_INTEGER;
@@ -48,7 +58,10 @@ export function buildOffChainBackfillSource(input: {
   if (input.sourceType === 'discourse_forum') {
     const plugin = createForumPlugin({
       chDb,
-      clientOptions: { userAgent: DEFAULT_BACKFILL_USER_AGENT },
+      clientOptions: {
+        userAgent: DEFAULT_BACKFILL_USER_AGENT,
+        pacer: DISCOURSE_BACKFILL_PACER,
+      },
       reconcileIntervalMs: RECONCILE_DISABLED_MS,
     });
     return resolve(plugin, input.sourceConfig, input.ctx);

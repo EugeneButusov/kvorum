@@ -24,8 +24,11 @@ export interface DiscourseClientOptions {
   baseUrl: string;
   /** User-Agent header — Discourse is UA-sensitive. Defaults to DEFAULT_USER_AGENT. */
   userAgent?: string;
-  /** Retry attempts on 5xx / network / 429 before giving up. Default 4. */
+  /** Retry attempts on 5xx / network before giving up. Default 4. */
   maxRetries?: number;
+  /** Retry attempts on 429 before giving up. Kept separate from `maxRetries` because Discourse
+   *  rate limiting is flow control, not an upstream failure. Default 8. */
+  rateLimitMaxRetries?: number;
   /** Base backoff in ms; doubles per attempt. Default 500. */
   backoffBaseMs?: number;
   /** Post-ids chunk size for the thread walk. Default 20 (the Discourse cap). */
@@ -46,6 +49,10 @@ export class NonRetriableDiscourseError extends Error {
   }
 }
 
+/** The response was retryable, but its dedicated retry budget is exhausted. Keep this distinct
+ *  from a network exception so the outer catch does not spend the other path's retry budget. */
+class DiscourseRetryBudgetExhaustedError extends Error {}
+
 /** Discourse client for ONE forum host. All requests pass through a per-host rate pacer and a
  *  429/5xx/network retry loop; `ctx.signal` is threaded into every fetch and every wait so a
  *  per-tick deadline cancels cleanly (ADR-071). Structurally mirrors SnapshotClient. */
@@ -53,6 +60,7 @@ export class DiscourseClient {
   private readonly baseUrl: string;
   private readonly userAgent: string;
   private readonly maxRetries: number;
+  private readonly rateLimitMaxRetries: number;
   private readonly backoffBaseMs: number;
   private readonly chunkSize: number;
   private readonly pacer: RatePacer;
@@ -61,6 +69,7 @@ export class DiscourseClient {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
     this.userAgent = opts.userAgent ?? DEFAULT_USER_AGENT;
     this.maxRetries = opts.maxRetries ?? 4;
+    this.rateLimitMaxRetries = opts.rateLimitMaxRetries ?? 8;
     this.backoffBaseMs = opts.backoffBaseMs ?? 500;
     this.chunkSize = opts.chunkSize ?? POST_IDS_CHUNK_SIZE;
     this.pacer = new RatePacer(opts.pacer);
@@ -192,7 +201,8 @@ export class DiscourseClient {
       accept: 'application/json',
     };
 
-    let attempt = 0;
+    let attempt = 0; // 5xx / network retries
+    let rateLimitAttempt = 0; // 429 retries (separate, larger budget)
     for (;;) {
       await this.pacer.acquire(signal);
       const start = Date.now();
@@ -202,12 +212,18 @@ export class DiscourseClient {
 
         if (res.status === 429) {
           forumMetrics.rateLimited.add(1, { endpoint });
-          await this.backoff(attempt, res.headers.get('retry-after'), signal, endpoint);
-          attempt += 1;
+          await this.backoff(
+            rateLimitAttempt,
+            this.rateLimitMaxRetries,
+            res.headers.get('retry-after'),
+            signal,
+            endpoint,
+          );
+          rateLimitAttempt += 1;
           continue;
         }
         if (res.status >= 500) {
-          await this.backoff(attempt, null, signal, endpoint);
+          await this.backoff(attempt, this.maxRetries, null, signal, endpoint);
           attempt += 1;
           continue;
         }
@@ -222,7 +238,11 @@ export class DiscourseClient {
 
         return (await res.json()) as T;
       } catch (err) {
-        if (err instanceof NonRetriableDiscourseError) throw err;
+        if (
+          err instanceof NonRetriableDiscourseError ||
+          err instanceof DiscourseRetryBudgetExhaustedError
+        )
+          throw err;
         if (signal.aborted) throw err;
         if (attempt >= this.maxRetries) {
           forumMetrics.httpErrors.add(1, { endpoint });
@@ -238,13 +258,14 @@ export class DiscourseClient {
    *  attempt budget is exhausted so the caller fails the tick (cursor not advanced). */
   private async backoff(
     attempt: number,
+    maxRetries: number,
     retryAfter: string | null,
     signal: AbortSignal,
     endpoint: ForumEndpoint,
   ): Promise<void> {
-    if (attempt >= this.maxRetries) {
+    if (attempt >= maxRetries) {
       forumMetrics.httpErrors.add(1, { endpoint });
-      throw new Error(`Discourse ${endpoint} retry budget exhausted`);
+      throw new DiscourseRetryBudgetExhaustedError(`Discourse ${endpoint} retry budget exhausted`);
     }
     const retryAfterMs = retryAfter != null ? Number(retryAfter) * 1000 : NaN;
     const waitMs = Number.isFinite(retryAfterMs) ? retryAfterMs : this.backoffMs(attempt);
