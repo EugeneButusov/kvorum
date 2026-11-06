@@ -160,8 +160,32 @@ describe('DiscourseClient — retry / backoff', () => {
       .mockResolvedValue(new Response('', { status: 429, headers: { 'retry-after': '0' } }));
     vi.stubGlobal('fetch', fetchMock);
     await expect(
-      client({ maxRetries: 2 }).fetchCategoryPage('proposals', 9, 0, liveSignal()),
+      client({ rateLimitMaxRetries: 2 }).fetchCategoryPage('proposals', 9, 0, liveSignal()),
     ).rejects.toThrow(/retry budget exhausted/);
+    expect(fetchMock).toHaveBeenCalledTimes(3); // initial + 2 rate-limit retries
+  });
+
+  it('gives 429s a larger, separate retry budget than 5xx/network errors', async () => {
+    const fetchMock = vi.fn();
+    for (let i = 0; i < 6; i += 1) {
+      fetchMock.mockResolvedValueOnce(
+        new Response('', { status: 429, headers: { 'retry-after': '0' } }),
+      );
+    }
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(categoryPage({ topicIds: [3], moreTopicsUrl: null })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { topics } = await client({ maxRetries: 4, rateLimitMaxRetries: 8 }).fetchCategoryPage(
+      'proposals',
+      9,
+      0,
+      liveSignal(),
+    );
+
+    expect(topics[0]!.topicId).toBe(3);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
   });
 
   it('does not retry a non-429 4xx and surfaces the status', async () => {
